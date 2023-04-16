@@ -1,4 +1,4 @@
-package com.example.webspace_app
+package org.codeberg.theoden8.webspace;
 
 import io.flutter.embedding.android.FlutterActivity
 

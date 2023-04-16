@@ -22,8 +22,9 @@ class WebViewModel {
   WebViewController? controller;
   ProxySettings proxySettings;
   bool javascriptEnabled;
+  String? userAgent;
 
-  WebViewModel({required this.url, this.cookies, ProxySettings? proxySettings, this.javascriptEnabled=true,})
+  WebViewModel({required this.url, this.cookies, ProxySettings? proxySettings, this.javascriptEnabled=true, this.userAgent,})
       : proxySettings = proxySettings ?? ProxySettings(type: ProxyType.DEFAULT);
 
   Future<void> loadCookies(WebViewController controller) async {
@@ -43,6 +44,9 @@ class WebViewModel {
                ? JavaScriptMode.unrestricted
                : JavaScriptMode.disabled);
     controller!.loadRequest(Uri.parse(this.url));
+    if (userAgent != null) {
+      controller!.setUserAgent(userAgent!);
+    }
     return controller!;
   }
 
@@ -52,6 +56,7 @@ class WebViewModel {
     'cookies': cookies?.map((cookie) => webViewCookieToJson(cookie)).toList(),
     'proxySettings': proxySettings.toJson(),
     'javascriptEnabled': javascriptEnabled,
+    'userAgent': userAgent,
   };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json) {
@@ -62,6 +67,7 @@ class WebViewModel {
           .toList(),
       proxySettings: ProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
+      userAgent: json['userAgent'],
     );
   }
 }

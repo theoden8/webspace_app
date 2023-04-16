@@ -2610,3 +2610,417 @@ dart
 ```dart
 Widget _buildWebView(Web
 ```
+
+> 1 / 1
+> 
+> no, thanks, I will avoid using this code. I would like to be able to customize user-agent string in the settings for each web-view. How do I do that? Naturally, I'd want to start with the default value that's already set.
+
+1 / 1
+
+To customize the user-agent string in the settings for each web-view, you'll need to follow these steps:
+
+1.  Add a `userAgent` field to the `WebViewModel` class:
+
+dart
+
+```dart
+class WebViewModel {
+  // ...
+  String userAgent;
+
+  WebViewModel({
+    required this.url,
+    ProxySettings? proxySettings,
+    required this.controller,
+    this.javascriptEnabled = true,
+    required this.userAgent,
+  });
+
+  // Update toJson and fromJson methods accordingly
+}
+```
+
+2.  Set the default user-agent when adding a new site:
+
+dart
+
+```dart
+void _addSite() async {
+  final url = await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => AddSite()),
+  );
+  if (url != null) {
+    String defaultUserAgent = await WebViewController.getDefaultUserAgent();
+    setState(() {
+      _webViewModels.add(WebViewModel(
+        url: url,
+        controller: WebViewController(),
+        userAgent: defaultUserAgent,
+      ));
+      _currentIndex = _webViewModels.length - 1;
+    });
+    _saveWebViewModels();
+  }
+}
+```
+
+3.  Update the `_buildWebView` method to use the custom user-agent:
+
+dart
+
+```dart
+Widget _buildWebView(WebViewModel webViewModel) {
+  return WebViewWidget(
+    controller: webViewModel.controller
+      ..setJavaScriptMode(webViewModel.javascriptEnabled
+          ? JavaScriptMode.unrestricted
+          : JavaScriptMode.disabled)
+      ..setUserAgent(webViewModel.userAgent)
+      ..loadRequest(Uri.parse(webViewModel.url)),
+  );
+}
+```
+
+4.  Add an input field to the `SettingsPage` to modify the user-agent string:
+
+dart
+
+```dart
+// In settings_page.dart
+Column(
+  children: [
+    // ...
+    TextFormField(
+      decoration: InputDecoration(labelText: 'User-Agent'),
+      initialValue: widget.webViewModel.userAgent,
+      onChanged: (value) {
+        setState(() {
+          widget.webViewModel.userAgent = value;
+        });
+      },
+    ),
+    // ...
+  ],
+),
+```
+
+Now you can customize the user-agent string for each web-view through the settings page. The default user-agent is set when a new site is added, and the custom user-agent is used when loading the web content. Remember to update the `toJson` and `fromJson` methods to handle the new `userAgent` field.
+
+> 1 / 1
+> 
+> There is no getDefaultUserAgent method
+
+1 / 1
+
+Apologies for the confusion. It seems I made an error in my response. The `getDefaultUserAgent` method is not available in the `webview_flutter` package.
+
+To work around this limitation, you can set a default user-agent string manually when initializing the `WebViewModel`. You can find a list of commonly used user-agent strings for different platforms and browsers online. Here's an example of how to set a default user-agent string when adding a new site:
+
+dart
+
+```dart
+void _addSite() async {
+  final url = await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => AddSite()),
+  );
+  if (url != null) {
+    // Set a default user-agent string
+    String defaultUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36';
+
+    setState(() {
+      _webViewModels.add(WebViewModel(
+        url: url,
+        controller: WebViewController(),
+        userAgent: defaultUserAgent,
+      ));
+      _currentIndex = _webViewModels.length - 1;
+    });
+    _saveWebViewModels();
+  }
+}
+```
+
+This example sets a default user-agent string for the Chrome browser on Windows. You can replace it with any user-agent string of your choice.
+
+Please note that this method does not provide the actual default user-agent string that the WebView would use. However, it provides a way to set a default user-agent string manually when creating a new WebView. Users can still customize the user-agent string through the settings page as described in my previous response.
+
+> 1 / 1
+> 
+> I want a button to generate user-agent in the settings, which would generate a user-agent using the following scheme: \`\`\` Mozilla/5.0 (platform; rv:geckoversion) Gecko/geckotrail appname/appversion Mozilla/5.0 (platform; rv:geckoversion) Gecko/geckotrail Firefox/firefoxversion appname/appversion \`\`\` For example \`\`\` Mozilla/5.0 (X11; Linux x86\_64; rv:102.0) Gecko/20100101 Firefox/102.0 \`\`\`
+
+1 / 1
+
+To add a button to generate a user-agent string in the settings page, you can follow these steps:
+
+1.  Create a method to generate a random user-agent string following the provided scheme:
+
+dart
+
+```dart
+String generateRandomUserAgent() {
+  // You can modify these values to add more variety to the generated user-agent strings
+  List<String> platforms = [
+    'Windows NT 10.0; Win64; x64',
+    'Macintosh; Intel Mac OS X 10_15_7',
+    'X11; Linux x86_64',
+    'iPhone; CPU iPhone OS 14_4 like Mac OS X',
+  ];
+
+  int geckoVersion = 102;
+  String geckoTrail = '20100101';
+  String appName = 'Firefox';
+  int appVersion = 102;
+
+  String platform = platforms[Random().nextInt(platforms.length)];
+  return 'Mozilla/5.0 ($platform; rv:$geckoVersion) Gecko/$geckoTrail $appName/$appVersion';
+}
+```
+
+2.  Add a button to the `SettingsPage` that generates a new user-agent string and updates the `WebViewModel`:
+
+dart
+
+```dart
+// In settings_page.dart
+Column(
+  children: [
+    // ...
+    TextFormField(
+      decoration: InputDecoration(labelText: 'User-Agent'),
+      initialValue: widget.webViewModel.userAgent,
+      onChanged: (value) {
+        setState(() {
+          widget.webViewModel.userAgent = value;
+        });
+      },
+    ),
+    ElevatedButton(
+      onPressed: () {
+        String newUserAgent = generateRandomUserAgent();
+        setState(() {
+          widget.webViewModel.userAgent = newUserAgent;
+        });
+      },
+      child: Text('Generate User-Agent'),
+    ),
+    // ...
+  ],
+),
+```
+
+Now, when the user clicks the "Generate User-Agent" button, it will generate a new user-agent string following the specified scheme and update the `WebViewModel`. The updated user-agent string will be used when loading the web content in the WebView.
+
+> 1 / 1
+> 
+> Please, also include an android platform in your generating function, and also I want this button to generate user-agents to be to the right of the text field, and small.
+
+1 / 1
+
+To include an Android platform in the user-agent generating function and place the "Generate User-Agent" button to the right of the text field, you can make the following changes:
+
+1.  Update the `generateRandomUserAgent` function to include an Android platform:
+
+dart
+
+```dart
+String generateRandomUserAgent() {
+  // You can modify these values to add more variety to the generated user-agent strings
+  List<String> platforms = [
+    'Windows NT 10.0; Win64; x64',
+    'Macintosh; Intel Mac OS X 10_15_7',
+    'X11; Linux x86_64',
+    'iPhone; CPU iPhone OS 14_4 like Mac OS X',
+    'Android 11; Mobile; rv:94.0', // Add an Android platform
+  ];
+
+  int geckoVersion = 102;
+  String geckoTrail = '20100101';
+  String appName = 'Firefox';
+  int appVersion = 102;
+
+  String platform = platforms[Random().nextInt(platforms.length)];
+  return 'Mozilla/5.0 ($platform; rv:$geckoVersion) Gecko/$geckoTrail $appName/$appVersion';
+}
+```
+
+2.  In `settings_page.dart`, wrap the `TextFormField` and `ElevatedButton` in a `Row` widget, and apply the `crossAxisAlignment` property to align them vertically. You can also customize the button appearance using the `style` property:
+
+dart
+
+```dart
+// In settings_page.dart
+Column(
+  children: [
+    // ...
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: TextFormField(
+            decoration: InputDecoration(labelText: 'User-Agent'),
+            initialValue: widget.webViewModel.userAgent,
+            onChanged: (value) {
+              setState(() {
+                widget.webViewModel.userAgent = value;
+              });
+            },
+          ),
+        ),
+        SizedBox(width: 8), // Add some spacing between the text field and the button
+        ElevatedButton(
+          onPressed: () {
+            String newUserAgent = generateRandomUserAgent();
+            setState(() {
+              widget.webViewModel.userAgent = newUserAgent;
+            });
+          },
+          child: Text('Generate'),
+          style: ElevatedButton.styleFrom(
+            primary: Theme.of(context).primaryColor,
+            minimumSize: Size(80, 36), // Adjust the button size
+          ),
+        ),
+      ],
+    ),
+    // ...
+  ],
+),
+```
+
+With these changes, the "Generate User-Agent" button will be placed to the right of the text field and will be smaller. The function will also include Android user-agent strings in its generation.
+
+> 1 / 1
+> 
+> the generating button should be an icon button and small.
+
+1 / 1
+
+To make the generating button an IconButton and small, you can replace the `ElevatedButton` with an `IconButton`. Here's the updated `Row` in `settings_page.dart`:
+
+dart
+
+```dart
+// In settings_page.dart
+Column(
+  children: [
+    // ...
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: TextFormField(
+            decoration: InputDecoration(labelText: 'User-Agent'),
+            initialValue: widget.webViewModel.userAgent,
+            onChanged: (value) {
+              setState(() {
+                widget.webViewModel.userAgent = value;
+              });
+            },
+          ),
+        ),
+        SizedBox(width: 8), // Add some spacing between the text field and the button
+        IconButton(
+          onPressed: () {
+            String newUserAgent = generateRandomUserAgent();
+            setState(() {
+              widget.webViewModel.userAgent = newUserAgent;
+            });
+          },
+          icon: Icon(Icons.autorenew), // Use an appropriate icon for generating user-agent
+          color: Theme.of(context).primaryColor,
+          iconSize: 24, // Adjust the icon size as needed
+        ),
+      ],
+    ),
+    // ...
+  ],
+),
+```
+
+Now, the generate button will be an `IconButton` with a small size. You can adjust the `iconSize` property to further customize the button size as needed.
+
+> 1 / 1
+> 
+> lib/settings\_page.dart:22:31: Error: Method not found: 'Random'. String platform = platforms\[Random().nextInt(platforms.length)\]; ^^^^^^
+
+1 / 1
+
+Apologies for the oversight. You need to import the `dart:math` package to use the `Random` class. Add the following import at the beginning of your `settings_page.dart` file:
+
+dart
+
+```dart
+import 'dart:math';
+```
+
+This should resolve the error and allow you to use the `Random` class in the `generateRandomUserAgent` function.
+
+> 1 / 1
+> 
+> when I click generate, the user agent is indeed changing, but the text controller does not, for some reason
+
+1 / 1
+
+To update the text in the `TextFormField` when the user-agent changes, you can use a `TextEditingController`. Here's how to modify the code in `settings_page.dart`:
+
+1.  Create a `TextEditingController` and initialize it with the current user-agent:
+
+dart
+
+```dart
+class _SettingsPageState extends State<SettingsPage> {
+  late TextEditingController _userAgentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _userAgentController = TextEditingController(text: widget.webViewModel.userAgent);
+  }
+
+  @override
+  void dispose() {
+    _userAgentController.dispose();
+    super.dispose();
+  }
+  // ...
+}
+```
+
+2.  Set the `controller` property of the `TextFormField` to `_userAgentController`:
+
+dart
+
+```dart
+TextFormField(
+  decoration: InputDecoration(labelText: 'User-Agent'),
+  controller: _userAgentController, // Set the TextEditingController here
+  onChanged: (value) {
+    setState(() {
+      widget.webViewModel.userAgent = value;
+    });
+  },
+),
+```
+
+3.  Update the `_userAgentController` text when the user-agent changes:
+
+dart
+
+```dart
+IconButton(
+  onPressed: () {
+    String newUserAgent = generateRandomUserAgent();
+    setState(() {
+      widget.webViewModel.userAgent = newUserAgent;
+      _userAgentController.text = newUserAgent; // Update the TextEditingController text
+    });
+  },
+  icon: Icon(Icons.autorenew),
+  color: Theme.of(context).primaryColor,
+  iconSize: 24,
+),
+```
+
+Now, when you click the generate button, both the user-agent and the text in the `TextFormField` should update correctly.

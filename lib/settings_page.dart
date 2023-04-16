@@ -1,8 +1,28 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'main.dart';
 import 'web_view_model.dart';
 import 'settings/proxy.dart';
+
+String generateRandomUserAgent() {
+  // You can modify these values to add more variety to the generated user-agent strings
+  List<String> platforms = [
+    'Windows NT 10.0; Win64; x64',
+    'Macintosh; Intel Mac OS X 10_15_7',
+    'X11; Linux x86_64',
+    'iPhone; CPU iPhone OS 15_4 like Mac OS X',
+    'Android 13; Mobile', // Add an Android platform
+  ];
+
+  String geckoVersion = '112';
+  String geckoTrail = '20100101';
+  String appName = 'Firefox';
+  String appVersion = '102.0';
+
+  String platform = platforms[Random().nextInt(platforms.length)];
+  return 'Mozilla/5.0 ($platform; rv:$geckoVersion) Gecko/$geckoTrail $appName/$appVersion';
+}
 
 class SettingsPage extends StatefulWidget {
   final WebViewModel webViewModel;
@@ -15,11 +35,23 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   late ProxySettings _proxySettings;
+  late TextEditingController _userAgentController;
+  late bool _javascriptEnabled;
 
   @override
   void initState() {
     super.initState();
     _proxySettings = widget.webViewModel.proxySettings;
+    _userAgentController = TextEditingController(
+      text: widget.webViewModel.userAgent ?? '',
+    );
+    _javascriptEnabled = widget.webViewModel.javascriptEnabled;
+  }
+
+  @override
+  void dispose() {
+    _userAgentController.dispose();
+    super.dispose();
   }
 
   @override
@@ -62,16 +94,43 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           SwitchListTile(
             title: Text('JavaScript Enabled'),
-            value: widget.webViewModel.javascriptEnabled,
+            value: _javascriptEnabled,
             onChanged: (bool value) {
               setState(() {
-                widget.webViewModel.javascriptEnabled = value;
+                _javascriptEnabled = value;
               });
             },
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  decoration: InputDecoration(labelText: 'User-Agent'),
+                  controller: _userAgentController,
+                ),
+              ),
+              SizedBox(width: 8), // Add some spacing between the text field and the button
+              IconButton(
+                onPressed: () {
+                  String newUserAgent = generateRandomUserAgent();
+                  setState(() {
+                    _userAgentController.text = newUserAgent;
+                  });
+                },
+                icon: Icon(Icons.autorenew), // Use an appropriate icon for generating user-agent
+                color: Theme.of(context).primaryColor,
+                iconSize: 24, // Adjust the icon size as needed
+              ),
+            ],
           ),
           ElevatedButton(
             onPressed: () {
               widget.webViewModel.proxySettings = _proxySettings;
+              if (_userAgentController.text != '') {
+                widget.webViewModel.userAgent = _userAgentController.text;
+              }
+              widget.webViewModel.javascriptEnabled = _javascriptEnabled;
               Navigator.pop(context);
             },
             child: Text('Save Settings'),
