@@ -1,4 +1,4 @@
-# Webspace
+# Webspace App
 
 Webspace is a Flutter app that empowers users to carry AI-based tools right in their pockets. With the ability to run multiple webviews in a single app, it offers a convenient and efficient way to manage multiple web-based applications. Written almost entirely using GPT-4 ([transcript](./transcript/0-gpt4-coding.md)) in a span of a few hours, Webspace is a testament to the power of cutting-edge technology in delivering innovative solutions. This app offers users to rapidly adapt to a universe of new tools as soon as they are released, freeing them from the constraints of non-free or open-source apps' development schedules or using web-browsers for that purpose. It's like a spacecraft that can take users on a journey of discovery, enabling them to explore new horizons and get closer to cutting-edge AI technologies. Whether you're a student conducting research on-the-go, a developer testing web applications, or a curious individual expanding your horizons, Webspace is the perfect companion to keep in your pocket.
 
@@ -37,3 +37,4 @@ Webspace is released under the MIT License. See the `LICENSE` file for details.
 - OpenAI for developing GPT-4, which was used to write the majority of this app in just a few hours.
 - OpenAI for also developing GPT-3.5, which was used to write the README file in just a few minutes.
 - Tangram, Ferdi, Franz, and Rambox for inspiring this project.
+- [AutoPR](https://github.com/irgolic/AutoPR) project, which has provided us with a powerful tool that leverages the capabilities of GPT-4 to create pull requests based on issues
