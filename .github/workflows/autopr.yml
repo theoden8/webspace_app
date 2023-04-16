@@ -27,7 +27,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        ref: main
+        ref: master
         fetch-depth: 1
     - name: AutoPR
       uses: irgolic/AutoPR@main
@@ -37,3 +37,6 @@ jobs:
         event: ${{ toJson(github.event) }}
         event_name: ${{ github.event_name }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        base_branch: master
+        model: gpt-4
+        context_limit: 8192
