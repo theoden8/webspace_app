@@ -19,7 +19,7 @@ To use Webspace, follow these steps:
 
 ## Usage
 
-To add a new webview, click the "Add Site" or the big green button button in the app, then enter the URL for the webview. You can also customize the order of the webviews by dragging and dropping them in the desired order.
+To add a new webview, click the "Add Site" or the big green button in the app, then enter the URL for the webview. You can also customize the order of the webviews by dragging and dropping them in the desired order.
 
 To switch between webviews, simply tap on the webview you want to view, and it will be displayed in the main view. You can also close a webview by swiping it to the left or right.
 
@@ -35,6 +35,6 @@ Webspace is released under the MIT License. See the `LICENSE` file for details.
 
 - The Flutter team for creating an amazing framework that makes it easy to build cross-platform apps.
 - OpenAI for developing GPT-4, which was used to write the majority of this app in just a few hours.
-- OpenAI for also developing GPT-3.5, which was used to write the README file in just a few minutes.
+- OpenAI for also developing GPT-3.5, which was used to write the README file in just a few minutes (**without knowing anything about the project beside the tools it is built with**).
 - Tangram, Ferdi, Franz, and Rambox for inspiring this project.
 - [AutoPR](https://github.com/irgolic/AutoPR) project, which has provided us with a powerful tool that leverages the capabilities of GPT-4 to create pull requests based on issues
