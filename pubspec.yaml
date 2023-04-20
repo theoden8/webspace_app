@@ -40,6 +40,7 @@ dependencies:
   shared_preferences: ^2.1.0
   http: ^0.13.5
   cached_network_image: ^3.2.3
+  webview_cookie_manager: ^2.0.6
 
 dev_dependencies:
   flutter_test:

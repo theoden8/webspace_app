@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_cookie_manager/webview_cookie_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -70,24 +73,25 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
       themeMode: _themeMode,
-      home: MyHomePage(onThemeModeChanged: _setThemeMode),
+      home: WebSpacePage(onThemeModeChanged: _setThemeMode),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
+class WebSpacePage extends StatefulWidget {
   final Function(ThemeMode) onThemeModeChanged;
 
-  MyHomePage({required this.onThemeModeChanged});
+  WebSpacePage({required this.onThemeModeChanged});
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _WebSpacePageState createState() => _WebSpacePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _WebSpacePageState extends State<WebSpacePage> {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
   ThemeMode _themeMode = ThemeMode.system;
+  WebviewCookieManager _cookieManager = WebviewCookieManager();
 
   @override
   void initState() {
@@ -129,6 +133,9 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         _webViewModels.addAll(loadedWebViewModels);
       });
+      for (WebViewModel webViewModel in loadedWebViewModels) {
+        await _cookieManager.setCookies(webViewModel.cookies);
+      }
     }
   }
 
@@ -137,6 +144,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _currentIndex = prefs.getInt('currentIndex') ?? 0;
       _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 0];
+      widget.onThemeModeChanged(_themeMode);
     });
     await _loadWebViewModels();
   }
@@ -161,12 +169,12 @@ class _MyHomePageState extends State<MyHomePage> {
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () {
-              _webViewModels[_currentIndex!].getController().reload();
+              _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels).reload();
             },
           ),
         IconButton(
           icon: Icon(Theme.of(context).brightness == Brightness.light ? Icons.wb_sunny : Icons.nights_stay),
-          onPressed: () {
+          onPressed: () async {
             setState(() {
               if (Theme.of(context).brightness == Brightness.light) {
                 _themeMode = ThemeMode.dark;
@@ -175,7 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
               }
             });
             widget.onThemeModeChanged(_themeMode);
-            _saveThemeMode();
+            await _saveThemeMode();
           },
         ),
         if (_currentIndex != null && _currentIndex! < _webViewModels.length)
@@ -197,31 +205,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildWebView(WebViewModel webViewModel) {
     return WebViewWidget(
-      controller: webViewModel.getController()
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onNavigationRequest: (NavigationRequest request) async {
-              String requestDomain = extractDomain(request.url);
-              String initialDomain = extractDomain(webViewModel.url);
-
-              // Extract top-level and second-level domains
-              List<String> requestDomainParts = requestDomain.split('.');
-              List<String> initialDomainParts = initialDomain.split('.');
-
-              // Compare top-level and second-level domains
-              bool sameTopLevelDomain = requestDomainParts.last == initialDomainParts.last;
-              bool sameSecondLevelDomain = requestDomainParts[requestDomainParts.length - 2] ==
-                  initialDomainParts[initialDomainParts.length - 2];
-
-              if (sameTopLevelDomain && sameSecondLevelDomain) {
-                return NavigationDecision.navigate;
-              } else {
-                await launchUrl(request.url);
-                return NavigationDecision.prevent;
-              }
-            },
-          ),
-        ),
+      controller: webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels),
     );
   }
 

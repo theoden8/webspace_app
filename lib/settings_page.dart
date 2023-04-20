@@ -37,6 +37,7 @@ class _SettingsPageState extends State<SettingsPage> {
   late ProxySettings _proxySettings;
   late TextEditingController _userAgentController;
   late bool _javascriptEnabled;
+  late bool _thirdPartyCookiesEnabled;
 
   @override
   void initState() {
@@ -46,6 +47,7 @@ class _SettingsPageState extends State<SettingsPage> {
       text: widget.webViewModel.userAgent ?? '',
     );
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
+    _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
   }
 
   @override
@@ -124,6 +126,15 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
+          SwitchListTile(
+            title: const Text('Third-party cookies'),
+            value: _thirdPartyCookiesEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _thirdPartyCookiesEnabled = value;
+              });
+            },
+          ),
           ElevatedButton(
             onPressed: () {
               widget.webViewModel.proxySettings = _proxySettings;
@@ -131,6 +142,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 widget.webViewModel.userAgent = _userAgentController.text;
               }
               widget.webViewModel.javascriptEnabled = _javascriptEnabled;
+              widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
               Navigator.pop(context);
             },
             child: Text('Save Settings'),

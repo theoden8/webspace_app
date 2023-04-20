@@ -3024,3 +3024,698 @@ IconButton(
 ```
 
 Now, when you click the generate button, both the user-agent and the text in the `TextFormField` should update correctly.
+
+> 1 / 1
+> 
+> I have the following code for lib/web\_view\_data.dart: \`\`\`dart import 'package:webview\_flutter/webview\_flutter.dart'; import 'settings/proxy.dart'; Map<String, dynamic> webViewCookieToJson(WebViewCookie cookie) => { 'name': cookie.name, 'value': cookie.value, 'domain': cookie.domain, 'path': cookie.path, }; WebViewCookie webViewCookieFromJson(Map<String, dynamic> json) => WebViewCookie( name: json\['name'\], value: json\['value'\], domain: json\['domain'\], path: json\['path'\], ); class WebViewModel { final String url; final List<WebViewCookie>? cookies; WebViewController? controller; ProxySettings proxySettings; bool javascriptEnabled; String? userAgent; WebViewModel({required this.url, this.cookies, ProxySettings? proxySettings, this.javascriptEnabled=true, this.userAgent,}) : proxySettings = proxySettings ?? ProxySettings(type: ProxyType.DEFAULT); Future<void> loadCookies(WebViewController controller) async { if (cookies != null) { WebViewCookieManager cookieManager = WebViewCookieManager(); for (WebViewCookie cookie in cookies!) { await cookieManager.setCookie(cookie); } } } WebViewController getController() { if (controller == null) { controller = WebViewController(); } controller!.setJavaScriptMode(this.javascriptEnabled ? JavaScriptMode.unrestricted : JavaScriptMode.disabled); controller!.loadRequest(Uri.parse(this.url)); if (userAgent != null) { controller!.setUserAgent(userAgent!); } return controller!; } // Serialization methods Map<String, dynamic> toJson() => { 'url': url, 'cookies': cookies?.map((cookie) => webViewCookieToJson(cookie)).toList(), 'proxySettings': proxySettings.toJson(), 'javascriptEnabled': javascriptEnabled, 'userAgent': userAgent, }; factory WebViewModel.fromJson(Map<String, dynamic> json) { return WebViewModel( url: json\['url'\], cookies: (json\['cookies'\] as List<dynamic>?) ?.map((dynamic e) => webViewCookieFromJson(e as Map<String, dynamic>)) .toList(), proxySettings: ProxySettings.fromJson(json\['proxySettings'\]), javascriptEnabled: json\['javascriptEnabled'\], userAgent: json\['userAgent'\], ); } } \`\`\` How do I make it so that cookies are saved and restored properly? I don't think the webview sees cookies on start-up
+
+1 / 1
+
+To properly save and restore cookies, you can use the `WebViewCookieManager` to load and store cookies when necessary.
+
+1.  Update `loadCookies` method to receive the URL and initialize cookies if they are not already set.
+
+dart
+
+```dart
+Future<void> loadCookies(WebViewController controller) async {
+  WebViewCookieManager cookieManager = WebViewCookieManager();
+  if (cookies != null) {
+    for (WebViewCookie cookie in cookies!) {
+      await cookieManager.setCookie(cookie);
+    }
+  } else {
+    List<WebViewCookie> currentCookies = await cookieManager.getCookies(Uri.parse(url));
+    cookies = currentCookies;
+  }
+}
+```
+
+2.  Call the `loadCookies` method when creating a `WebViewController` in the `getController` method.
+
+dart
+
+```dart
+WebViewController getController() {
+  if (controller == null) {
+    controller = WebViewController();
+    loadCookies(controller!); // Call loadCookies here
+  }
+  // ...
+}
+```
+
+3.  Save cookies whenever the webview completes a page load. Modify the `_buildWebView` method in `lib/main.dart` to save cookies on `onPageFinished`.
+
+dart
+
+```dart
+WebViewWidget _buildWebView(WebViewModel webViewModel) {
+  return WebViewWidget(
+    controller: webViewModel.getController(),
+    onPageFinished: (_) async {
+      // Save cookies when the page finishes loading
+      WebViewCookieManager cookieManager = WebViewCookieManager();
+      List<WebViewCookie> currentCookies = await cookieManager.getCookies(Uri.parse(webViewModel.url));
+      setState(() {
+        webViewModel.cookies = currentCookies;
+      });
+      _saveWebViewModels();
+    },
+    // ...
+  );
+}
+```
+
+Now, the cookies should be saved and restored properly as you navigate through the webview and restart the app.
+
+> 1 / 1
+> 
+> You are not using the controller variable in loadCookies method
+
+1 / 1
+
+You're right, I made a mistake in the `loadCookies` method. Since we are passing the controller, we should set the cookies for the controller. Here's the updated method:
+
+dart
+
+```dart
+Future<void> loadCookies(WebViewController controller) async {
+  WebViewCookieManager cookieManager = WebViewCookieManager();
+  if (cookies != null) {
+    for (WebViewCookie cookie in cookies!) {
+      await controller.setCookie(cookie); // Use controller to set the cookie
+    }
+  } else {
+    List<WebViewCookie> currentCookies = await cookieManager.getCookies(Uri.parse(url));
+    cookies = currentCookies;
+  }
+}
+```
+
+Now, the `loadCookies` method should work correctly with the given controller.
+
+> 1 / 1
+> 
+> One way to enforce first-party isolation is to execute javascript code that removes third-party cookies on page load finish. Show me, how to do that
+
+1 / 1
+
+You can inject JavaScript code to remove third-party cookies when a page finishes loading. To do this, you can listen for the `onPageFinished` event on the `WebViewWidget` and execute the JavaScript code. Here's how you can modify your `WebViewModel` to achieve this:
+
+1.  Add a method to remove third-party cookies with JavaScript:
+
+dart
+
+```dart
+void _removeThirdPartyCookies(WebViewController controller) async {
+  String script = '''
+    (function() {
+      var cookies = document.cookie.split("; ");
+      for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i];
+        var domain = cookie.match(/domain=[^;]+/);
+        if (domain) {
+          var domainValue = domain[0].split("=")[1];
+          if (domainValue !== location.hostname) {
+            document.cookie = cookie + "; expires=Thu, 01 Jan 1970 00:00:00 UTC";
+          }
+        }
+      }
+    })();
+  ''';
+
+  await controller.evaluateJavascript(script);
+}
+```
+
+2.  Listen for the `onPageFinished` event in your `WebViewModel` and call the `_removeThirdPartyCookies` method:
+
+dart
+
+```dart
+WebViewController getController() {
+  if (controller == null) {
+    controller = WebViewController();
+  }
+
+  controller!
+    ..setJavaScriptMode(this.javascriptEnabled
+        ? JavaScriptMode.unrestricted
+        : JavaScriptMode.disabled)
+    ..loadRequest(Uri.parse(this.url))
+    ..addOnPageFinished(_removeThirdPartyCookies); // Add the onPageFinished listener
+
+  if (userAgent != null) {
+    controller!.setUserAgent(userAgent!);
+  }
+
+  return controller!;
+}
+```
+
+With this implementation, every time a page finishes loading, the `_removeThirdPartyCookies` method will be called and execute the JavaScript code to remove third-party cookies.
+
+> 1 / 1
+> 
+> I want to remove cookies, not just expire them.
+
+1 / 1
+
+If you want to remove third-party cookies rather than just expiring them, you can update the JavaScript code in the `_removeThirdPartyCookies` method. Since JavaScript doesn't provide a native method to delete cookies, the common approach is to expire the cookies. However, you can try to set the cookie value to an empty string and set the expires attribute to the past, which effectively removes the cookie. Here's the updated `_removeThirdPartyCookies` method:
+
+dart
+
+```dart
+void _removeThirdPartyCookies(WebViewController controller) async {
+  String script = '''
+    (function() {
+      var cookies = document.cookie.split("; ");
+      for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i];
+        var domain = cookie.match(/domain=[^;]+/);
+        if (domain) {
+          var domainValue = domain[0].split("=")[1];
+          if (domainValue !== location.hostname) {
+            var cookieName = cookie.split("=")[0];
+            document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + domainValue;
+          }
+        }
+      }
+    })();
+  ''';
+
+  await controller.evaluateJavascript(script);
+}
+```
+
+This script iterates through the cookies, extracts the domain, checks if the domain value doesn't match the current location hostname, and if it doesn't, sets the cookie value to an empty string and expires the cookie. This should effectively remove the third-party cookies from the WebView.
+
+> 1 / 1
+> 
+> I want to isolate cookies unless they match top-level and second-level domains
+
+1 / 1
+
+You can modify the `_removeThirdPartyCookies` method to only remove third-party cookies if they don't match the top-level and second-level domains. Here's an updated version of the method:
+
+dart
+
+```dart
+void _removeThirdPartyCookies(WebViewController controller) async {
+  String script = '''
+    (function() {
+      function getDomain(hostname) {
+        var parts = hostname.split('.');
+        if (parts.length <= 2) {
+          return hostname;
+        }
+        return parts.slice(parts.length - 2).join('.');
+      }
+
+      var currentDomain = getDomain(location.hostname);
+      
+      var cookies = document.cookie.split("; ");
+      for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i];
+        var domain = cookie.match(/domain=[^;]+/);
+        if (domain) {
+          var domainValue = domain[0].split("=")[1];
+          if (getDomain(domainValue) !== currentDomain) {
+            var cookieName = cookie.split("=")[0];
+            document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + domainValue;
+          }
+        }
+      }
+    })();
+  ''';
+
+  await controller.evaluateJavascript(script);
+}
+```
+
+In this version of the method, we added a `getDomain` function that extracts the top-level and second-level domains from a given hostname. The script compares the current location's domain with the cookie domain, and if they don't match, the cookie is removed. This should effectively isolate cookies based on the top-level and second-level domains.
+
+> 1 / 1
+> 
+> Amend my web\_view\_model.dart and any other files to make it possible to enable or disable third-party cookies
+
+1 / 1
+
+To make it possible to enable or disable third-party cookies, you'll need to add a new property to the `WebViewModel` class and update the settings page to include a switch for third-party cookies.
+
+First, add a new property `thirdPartyCookiesEnabled` to the `WebViewModel` class in `lib/web_view_data.dart`:
+
+dart
+
+```dart
+class WebViewModel {
+  // ... other properties ...
+
+  bool thirdPartyCookiesEnabled;
+
+  WebViewModel({
+    // ... other parameters ...
+    this.thirdPartyCookiesEnabled = true, // default value
+  });
+
+  // ... other methods ...
+
+  // Serialization methods
+  Map<String, dynamic> toJson() => {
+    // ... other properties ...
+    'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
+  };
+
+  factory WebViewModel.fromJson(Map<String, dynamic> json) {
+    return WebViewModel(
+      // ... other properties ...
+      thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
+    );
+  }
+}
+```
+
+Next, add a new method `_handleThirdPartyCookies` to your `lib/main.dart` file, which will call `_removeThirdPartyCookies` based on the `thirdPartyCookiesEnabled` property:
+
+dart
+
+```dart
+void _handleThirdPartyCookies(WebViewModel webViewModel, WebViewController controller) {
+  if (!webViewModel.thirdPartyCookiesEnabled) {
+    _removeThirdPartyCookies(controller);
+  }
+}
+```
+
+Update the `_buildWebView` method in `lib/main.dart` to call `_handleThirdPartyCookies` when the page finishes loading:
+
+dart
+
+```dart
+Widget _buildWebView(WebViewModel webViewModel) {
+  return WebViewWidget(
+    controller: webViewModel.getController()
+      ..addOnPageFinished((url) {
+        _handleThirdPartyCookies(webViewModel, webViewModel.controller!);
+      }),
+  );
+}
+```
+
+Finally, update the settings page (`lib/settings_page.dart`) to include a switch for enabling or disabling third-party cookies:
+
+dart
+
+```dart
+// Inside _SettingsPageState class
+
+List<Widget> _buildSettings(BuildContext context) {
+  return [
+    // ... other settings widgets ...
+    SwitchListTile(
+      title: const Text('Enable third-party cookies'),
+      value: widget.webViewModel.thirdPartyCookiesEnabled,
+      onChanged: (bool value) {
+        setState(() {
+          widget.webViewModel.thirdPartyCookiesEnabled = value;
+        });
+        widget.onSettingsChanged();
+      },
+    ),
+  ];
+}
+```
+
+Now, you can enable or disable third-party cookies for each web view in the settings page. Remember to save and restore the `thirdPartyCookiesEnabled` property when serializing the `WebViewModel` instances.
+
+> 1 / 1
+> 
+> Since cookies are managed globally, cookie manager should be in the main.dart and webcookies should be in web\_view\_model. Change the code accordingly
+
+1 / 1
+
+You are correct, the cookie manager should be in `main.dart` since cookies are managed globally. Here's how you can update the code accordingly:
+
+1.  Modify the `WebViewModel` class in `lib/web_view_data.dart` to remove the `loadCookies` method:
+
+dart
+
+```dart
+class WebViewModel {
+  // ... other properties ...
+
+  WebViewModel({
+    // ... other parameters ...
+  });
+
+  // ... other methods ...
+
+  // Serialization methods
+  // ... toJson and fromJson methods ...
+}
+```
+
+2.  Update the `_buildWebView` method in `lib/main.dart` to call a new method `_loadCookies`:
+
+dart
+
+```dart
+Widget _buildWebView(WebViewModel webViewModel) {
+  return WebViewWidget(
+    controller: webViewModel.getController()
+      ..addOnPageFinished((url) {
+        _handleThirdPartyCookies(webViewModel, webViewModel.controller!);
+      }),
+  );
+}
+```
+
+3.  Add the `_loadCookies` method to `lib/main.dart`:
+
+dart
+
+```dart
+Future<void> _loadCookies(WebViewModel webViewModel, WebViewController controller) async {
+  if (webViewModel.cookies != null) {
+    WebViewCookieManager cookieManager = WebViewCookieManager();
+    for (WebViewCookie cookie in webViewModel.cookies!) {
+      await cookieManager.setCookie(cookie);
+    }
+  }
+}
+```
+
+4.  Modify the `initState` method in `lib/main.dart` to call `_loadCookies` for each `WebViewModel`:
+
+dart
+
+```dart
+@override
+void initState() {
+  super.initState();
+  _loadWebViewModels().then((List<WebViewModel> webViewModels) {
+    setState(() {
+      _webViewModels = webViewModels;
+    });
+    for (WebViewModel webViewModel in _webViewModels) {
+      _loadCookies(webViewModel, webViewModel.getController());
+    }
+  });
+  _loadThemeMode();
+  _loadCurrentIndex();
+}
+```
+
+With these changes, the cookies are now managed in `main.dart`, and the `WebViewModel` class only contains information about the cookies.
+
+> 1 / 1
+> 
+> You are contradicting yourself. web\_view\_model's fromJson should load serialized cookies already. Make WebViewCookieManager a property instead of a local variable, this way its state can be tracked and modifier through the interface
+
+1 / 1
+
+I apologize for the confusion. You're right, the `fromJson` method already deserializes the cookies. To make the `WebViewCookieManager` a property, you can do the following:
+
+1.  Declare `WebViewCookieManager` as a property in `lib/main.dart`:
+
+dart
+
+```dart
+class _MyHomePageState extends State<MyHomePage> {
+  // ... other properties ...
+  WebViewCookieManager _cookieManager = WebViewCookieManager();
+}
+```
+
+2.  Update the `_loadCookies` method in `lib/main.dart` to use the `_cookieManager` property:
+
+dart
+
+```dart
+Future<void> _loadCookies(WebViewModel webViewModel, WebViewController controller) async {
+  if (webViewModel.cookies != null) {
+    for (WebViewCookie cookie in webViewModel.cookies!) {
+      await _cookieManager.setCookie(cookie);
+    }
+  }
+}
+```
+
+Now, the `WebViewCookieManager` is a property of `_MyHomePageState`, and its state can be tracked and modified through the interface.
+
+> 1 / 1
+> 
+> I want you to apply that method to each web view model. Also, you don't need a controller here.
+
+1 / 1
+
+To apply the `_loadCookies` method for each `WebViewModel` and remove the `controller` parameter, you can make the following changes:
+
+1.  Update the `_loadCookies` method in `lib/main.dart` to not require a `controller` parameter and use the `WebViewModel`'s `controller` property instead:
+
+dart
+
+```dart
+Future<void> _loadCookies(WebViewModel webViewModel) async {
+  if (webViewModel.cookies != null) {
+    for (WebViewCookie cookie in webViewModel.cookies!) {
+      await _cookieManager.setCookie(cookie);
+    }
+  }
+}
+```
+
+2.  Modify the `_buildWebView` method to call `_loadCookies`:
+
+dart
+
+```dart
+Widget _buildWebView(WebViewModel webViewModel) {
+  // ...
+  return WebViewWidget(
+    controller: webViewModel.getController(),
+    onWebViewCreated: (controller) {
+      _loadCookies(webViewModel);
+    },
+    // ...
+  );
+}
+```
+
+Now, the `_loadCookies` method will be applied to each `WebViewModel`, and you don't need a separate `controller` parameter.
+
+> 1 / 1
+> 
+> I want to be able to extract cookies from webviewcookiemanager and filter out those which have first- or second-level domain similar to the webviewmodel's, and subsequently update them in webviewmodel and persist them.
+
+1 / 1
+
+To achieve this, you can create a new method to extract cookies from `WebViewCookieManager`, filter them by domain, update the `WebViewModel` and persist the data. Follow these steps:
+
+1.  In the `lib/main.dart` file, add the following method to extract and filter cookies:
+
+dart
+
+```dart
+Future<void> _updateAndSaveCookies(WebViewModel webViewModel) async {
+  List<WebViewCookie> allCookies = await _cookieManager.getAllCookies();
+  String webViewModelDomain = extractDomain(webViewModel.url);
+  
+  List<WebViewCookie> filteredCookies = allCookies.where((cookie) {
+    String cookieDomain = cookie.domain;
+    return isFirstOrSecondLevelDomainMatch(webViewModelDomain, cookieDomain);
+  }).toList();
+  
+  webViewModel.cookies = filteredCookies;
+  _saveWebViewModels();
+}
+```
+
+This method retrieves all cookies from the `WebViewCookieManager`, filters them based on the domain matching criteria, updates the `WebViewModel` with the filtered cookies, and persists the data.
+
+2.  Modify the `isFirstOrSecondLevelDomainMatch` function to make it reusable:
+
+dart
+
+```dart
+bool isFirstOrSecondLevelDomainMatch(String domain1, String domain2) {
+  List<String> domain1Parts = domain1.split('.');
+  List<String> domain2Parts = domain2.split('.');
+  int minLength = min(domain1Parts.length, domain2Parts.length);
+  
+  for (int i = 0; i < minLength; i++) {
+    if (domain1Parts[domain1Parts.length - i - 1] !=
+        domain2Parts[domain2Parts.length - i - 1]) {
+      return false;
+    }
+  }
+  return true;
+}
+```
+
+3.  In the `_buildWebView` method, call the `_updateAndSaveCookies` method when the WebView navigation is completed:
+
+dart
+
+```dart
+Widget _buildWebView(WebViewModel webViewModel) {
+  // ...
+  return WebViewWidget(
+    controller: webViewModel.getController(),
+    onWebViewCreated: (controller) {
+      _loadCookies(webViewModel);
+    },
+    navigationDelegate: webViewModel.proxySettings.getNavigationDelegate(),
+    onPageFinished: (url) {
+      _updateAndSaveCookies(webViewModel);
+    },
+    // ...
+  );
+}
+```
+
+Now, the cookies from `WebViewCookieManager` will be filtered, updated in the `WebViewModel`, and persisted when the WebView navigation is completed.
+
+> 1 / 1
+> 
+> I want to use webview\_cookie\_manager package for cookies and cookie management
+
+1 / 1
+
+To use the `webview_cookie_manager` package, you'll need to add it to your `pubspec.yaml` file and replace the current cookie handling with the new package.
+
+First, add the `webview_cookie_manager` package to your `pubspec.yaml` file:
+
+yaml
+
+```yaml
+dependencies:
+  webview_cookie_manager: ^2.0.0
+```
+
+Then, update your code to use the new package for handling cookies.
+
+1.  Import the `webview_cookie_manager` package in your `lib/main.dart` file:
+
+dart
+
+```dart
+import 'package:webview_cookie_manager/webview_cookie_manager.dart';
+```
+
+2.  Replace the existing `_cookieManager` variable with an instance of the `CookieManager` class from the `webview_cookie_manager` package:
+
+dart
+
+```dart
+final CookieManager _cookieManager = CookieManager();
+```
+
+3.  Update the `_loadCookies` method to use the new `_cookieManager`:
+
+dart
+
+```dart
+Future<void> _loadCookies(WebViewModel webViewModel) async {
+  if (webViewModel.cookies != null) {
+    for (WebViewCookie cookie in webViewModel.cookies!) {
+      await _cookieManager.setCookie(cookie);
+    }
+  }
+}
+```
+
+4.  Update the `_updateAndSaveCookies` method:
+
+dart
+
+```dart
+Future<void> _updateAndSaveCookies(WebViewModel webViewModel) async {
+  List<WebViewCookie> allCookies = await _cookieManager.getCookies(webViewModel.url);
+  String webViewModelDomain = extractDomain(webViewModel.url);
+
+  List<WebViewCookie> filteredCookies = allCookies.where((cookie) {
+    String cookieDomain = cookie.domain;
+    return isFirstOrSecondLevelDomainMatch(webViewModelDomain, cookieDomain);
+  }).toList();
+
+  webViewModel.cookies = filteredCookies;
+  _saveWebViewModels();
+}
+```
+
+Now you've replaced the existing cookie handling with the `webview_cookie_manager` package. This will manage cookies and cookie-related operations using the new package.
+
+> 1 / 1
+> 
+> How do I serialize and deserialize Cookie from dart:io?
+
+1 / 1
+
+To serialize and deserialize `Cookie` from the `dart:io` library, you can create helper functions that convert a `Cookie` object to a JSON object and vice versa. Here's an example:
+
+1.  Import the `dart:convert` library to use `jsonEncode` and `jsonDecode`:
+
+dart
+
+```dart
+import 'dart:convert';
+```
+
+2.  Create a function to convert a `Cookie` object to a JSON object:
+
+dart
+
+```dart
+Map<String, dynamic> cookieToJson(Cookie cookie) {
+  return {
+    'name': cookie.name,
+    'value': cookie.value,
+    'expires': cookie.expires?.toIso8601String(),
+    'maxAge': cookie.maxAge,
+    'domain': cookie.domain,
+    'path': cookie.path,
+    'secure': cookie.secure,
+    'httpOnly': cookie.httpOnly,
+  };
+}
+```
+
+3.  Create a function to convert a JSON object to a `Cookie` object:
+
+dart
+
+```dart
+Cookie cookieFromJson(Map<String, dynamic> json) {
+  Cookie cookie = Cookie(json['name'], json['value']);
+  cookie.expires = json['expires'] != null ? DateTime.parse(json['expires']) : null;
+  cookie.maxAge = json['maxAge'];
+  cookie.domain = json['domain'];
+  cookie.path = json['path'];
+  cookie.secure = json['secure'];
+  cookie.httpOnly = json['httpOnly'];
+  return cookie;
+}
+```
+
+Now you can use these functions to serialize and deserialize `Cookie` objects:
+
+*   Serialize a `Cookie` object to a JSON string:
+
+dart
+
+```dart
+Cookie cookie = Cookie('name', 'value');
+String jsonString = jsonEncode(cookieToJson(cookie));
+```
+
+*   Deserialize a JSON string to a `Cookie` object:
+
+dart
+
+```dart
+String jsonString = '{"name": "name", "value": "value"}';
+Map<String, dynamic> jsonMap = jsonDecode(jsonString);
+Cookie cookie = cookieFromJson(jsonMap);
+```
