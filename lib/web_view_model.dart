@@ -36,7 +36,7 @@ Cookie cookieFromJson(Map<String, dynamic> json) {
 }
 
 class WebViewModel {
-  final String url;
+  String url;
   List<Cookie> cookies;
   WebViewController? controller;
   ProxySettings proxySettings;
@@ -123,6 +123,7 @@ class WebViewModel {
           if(!thirdPartyCookiesEnabled) {
             removeThirdPartyCookies(controller!);
           }
+          this.url = url;
           await savefunc();
         }
       ),

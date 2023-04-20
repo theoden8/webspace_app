@@ -36,11 +36,11 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   webview_flutter: ^4.0.7
-  url_launcher: ^6.1.10
   shared_preferences: ^2.1.0
   http: ^0.13.5
   cached_network_image: ^3.2.3
   webview_cookie_manager: ^2.0.6
+  flutter_inappwebview: ^5.7.2+3
 
 dev_dependencies:
   flutter_test:

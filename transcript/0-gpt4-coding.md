@@ -3719,3 +3719,178 @@ String jsonString = '{"name": "name", "value": "value"}';
 Map<String, dynamic> jsonMap = jsonDecode(jsonString);
 Cookie cookie = cookieFromJson(jsonMap);
 ```
+
+> 1 / 1
+> 
+> When I click a link that's not in the same second-level domain as the webview, I delegate it to external app using this code: Future<void> launchUrl(String url) async { if (await canLaunch(url)) { await launch(url); } else { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text('Could not launch $url')), ); } } I believe this uses url\_launcher package. However, I want to use flutter\_inappwebview instead to open in-app webview for the link.
+
+1 / 1
+
+To open a link in a new in-app WebView using the `flutter_inappwebview` package, you can follow these steps:
+
+1.  Add the `flutter_inappwebview` package to your `pubspec.yaml` file:
+
+yaml
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_inappwebview: ^5.3.2
+```
+
+2.  Import the `flutter_inappwebview` package in your file:
+
+dart
+
+```dart
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+```
+
+3.  Create a new `StatefulWidget` for the in-app WebView:
+
+dart
+
+```dart
+class InAppWebViewPage extends StatefulWidget {
+  final String url;
+
+  InAppWebViewPage({required this.url});
+
+  @override
+  _InAppWebViewPageState createState() => _InAppWebViewPageState();
+}
+
+class _InAppWebViewPageState extends State<InAppWebViewPage> {
+  late InAppWebViewController _controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('In-app WebView')),
+      body: InAppWebView(
+        initialUrlRequest: URLRequest(url: Uri.parse(widget.url)),
+        onWebViewCreated: (InAppWebViewController controller) {
+          _controller = controller;
+        },
+      ),
+    );
+  }
+}
+```
+
+4.  Modify the `launchUrl` function to navigate to the new `InAppWebViewPage` instead of launching an external app:
+
+dart
+
+```dart
+Future<void> launchUrl(BuildContext context, String url) async {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => InAppWebViewPage(url: url),
+    ),
+  );
+}
+```
+
+5.  Update the usage of `launchUrl` in your code to pass the `BuildContext`:
+
+dart
+
+```dart
+await launchUrl(context, request.url);
+```
+
+Now, when you click a link that's not in the same second-level domain as the WebView, it will open in a new in-app WebView using the `flutter_inappwebview` package.
+
+> 1 / 1
+> 
+> Great! I want the title to be whatever the title of the page is, though.
+
+1 / 1
+
+To set the title of the `AppBar` to the title of the page in the `InAppWebView`, you can use the `onTitleChanged` event provided by the `InAppWebView` widget.
+
+First, update the `_InAppWebViewPageState` class to include a `title` field, and create a method to update the title:
+
+dart
+
+```dart
+class _InAppWebViewPageState extends State<InAppWebViewPage> {
+  late InAppWebViewController _controller;
+  String? title;
+
+  void updateTitle(String newTitle) {
+    setState(() {
+      title = newTitle;
+    });
+  }
+
+  // ...
+}
+```
+
+Next, add the `onTitleChanged` event to the `InAppWebView` widget:
+
+dart
+
+```dart
+InAppWebView(
+  initialUrlRequest: URLRequest(url: Uri.parse(widget.url)),
+  onWebViewCreated: (InAppWebViewController controller) {
+    _controller = controller;
+  },
+  onTitleChanged: (InAppWebViewController controller, String? newTitle) {
+    if (newTitle != null) {
+      updateTitle(newTitle);
+    }
+  },
+)
+```
+
+Finally, update the `AppBar` title to use the `title` field:
+
+dart
+
+```dart
+appBar: AppBar(title: Text(title ?? 'In-app WebView')),
+```
+
+Now, the title of the `AppBar` will update to the title of the page when the `InAppWebView` loads a new page.
+
+> 1 / 1
+> 
+> I have the following code to fetch favicon Future<String?> getFaviconUrl(String url) async { Uri? uri = Uri.tryParse(url); if (uri == null) return null; try { final response = await http.get(Uri.parse('$uri/favicon.ico')); if (response.statusCode == 200) { return '$uri/favicon.ico'; } } catch (e) { print('Error fetching favicon: $e'); } return null; } How do I make it remove all the server paths and just extract the subdomains + /favicon.ico?
+
+1 / 1
+
+To extract the subdomains and append `/favicon.ico` to it, you can use the following approach:
+
+dart
+
+```dart
+Future<String?> getFaviconUrl(String url) async {
+  Uri? uri = Uri.tryParse(url);
+  if (uri == null) return null;
+
+  String? scheme = uri.scheme;
+  String? host = uri.host;
+
+  if (scheme == null || host == null) return null;
+
+  String faviconUrl = '$scheme://$host/favicon.ico';
+
+  try {
+    final response = await http.get(Uri.parse(faviconUrl));
+    if (response.statusCode == 200) {
+      return faviconUrl;
+    }
+  } catch (e) {
+    print('Error fetching favicon: $e');
+  }
+  return null;
+}
+```
+
+This code first constructs the favicon URL by extracting the scheme and host from the given URL, then appends `/favicon.ico` to it. It then tries to fetch the favicon from the generated URL. If the request is successful, it returns the favicon URL, otherwise, it returns `null`.

@@ -7,11 +7,11 @@ import 'package:webview_cookie_manager/webview_cookie_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'web_view_model.dart';
 import 'add_site.dart';
 import 'settings_page.dart';
+import 'inapp_webview.dart';
 
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
@@ -23,17 +23,23 @@ Future<String?> getFaviconUrl(String url) async {
   Uri? uri = Uri.tryParse(url);
   if (uri == null) return null;
 
+  String? scheme = uri.scheme;
+  String? host = uri.host;
+
+  if (scheme == null || host == null) return null;
+
+  String faviconUrl = '$scheme://$host/favicon.ico';
+
   try {
-    final response = await http.get(Uri.parse('$uri/favicon.ico'));
+    final response = await http.get(Uri.parse(faviconUrl));
     if (response.statusCode == 200) {
-      return '$uri/favicon.ico';
+      return faviconUrl;
     }
   } catch (e) {
     print('Error fetching favicon: $e');
   }
   return null;
 }
-
 
 void main() {
   runApp(WebSpaceApp());
@@ -150,13 +156,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   Future<void> launchUrl(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not launch $url')),
-      );
-    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => InAppWebViewPage(url: url),
+      ),
+    );
   }
 
   AppBar _buildAppBar() {
