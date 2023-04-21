@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-class AddSite extends StatefulWidget {
+class AddSiteScreen extends StatefulWidget {
   @override
-  _AddSiteState createState() => _AddSiteState();
+  _AddSiteScreenState createState() => _AddSiteScreenState();
 }
 
-class _AddSiteState extends State<AddSite> {
+class _AddSiteScreenState extends State<AddSiteScreen> {
   final TextEditingController _controller = TextEditingController();
 
   @override

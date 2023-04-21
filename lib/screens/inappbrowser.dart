@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import 'find_toolbar.dart';
+import 'package:webspace/widgets/find_toolbar.dart';
 
-class InAppWebViewPage extends StatefulWidget {
+class InAppWebViewScreen extends StatefulWidget {
   final String url;
 
-  InAppWebViewPage({required this.url});
+  InAppWebViewScreen({required this.url});
 
   @override
-  _InAppWebViewPageState createState() => _InAppWebViewPageState();
+  _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
 }
 
-class _InAppWebViewPageState extends State<InAppWebViewPage> {
+class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
   InAppWebViewController? _controller;
   String? title;
 
@@ -29,6 +30,16 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
     setState(() {
       _isFindVisible = !_isFindVisible;
     });
+  }
+
+  Future<void> launchUrl(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not launch $url')),
+      );
+    }
   }
 
   void removeAllCookies(InAppWebViewController controller) async {
@@ -61,6 +72,16 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
             itemBuilder: (BuildContext context) {
               return [
                 PopupMenuItem<String>(
+                  value: "openbrowser",
+                  child: Row(
+                    children: [
+                      Icon(Icons.link),
+                      SizedBox(width: 8),
+                      Text("Open in Browser"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
                   value: "refresh",
                   child: Row(
                     children: [
@@ -82,8 +103,15 @@ class _InAppWebViewPageState extends State<InAppWebViewPage> {
                 ),
               ];
             },
-            onSelected: (String value) {
+            onSelected: (String value) async {
               switch(value) {
+                case 'openbrowser':
+                  if(_controller != null) {
+                    String url = (await _controller!.getUrl()).toString();
+                    launchUrl(url);
+                    Navigator.pop(context);
+                  }
+                break;
                 case 'search':
                   _toggleFind();
                 break;

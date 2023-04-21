@@ -6,11 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'web_view_model.dart';
-import 'add_site.dart';
-import 'settings_page.dart';
-import 'inapp_webview.dart';
-import 'find_toolbar.dart';
+import 'package:webspace/web_view_model.dart';
+import 'package:webspace/screens/add_site.dart';
+import 'package:webspace/screens/settings.dart';
+import 'package:webspace/screens/inappbrowser.dart';
+import 'package:webspace/widgets/find_toolbar.dart';
 
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
@@ -172,7 +172,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => InAppWebViewPage(url: url),
+        builder: (context) => InAppWebViewScreen(url: url),
       ),
     );
   }
@@ -271,7 +271,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => SettingsPage(webViewModel: _webViewModels[_currentIndex!]),
+                    builder: (context) => SettingsScreen(webViewModel: _webViewModels[_currentIndex!]),
                   ),
                 );
                 _saveWebViewModels();
@@ -291,7 +291,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   void _addSite() async {
     final url = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => AddSite()),
+      MaterialPageRoute(builder: (context) => AddSiteScreen()),
     );
     if (url != null) {
       setState(() {

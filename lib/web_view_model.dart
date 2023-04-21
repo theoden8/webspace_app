@@ -1,7 +1,7 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-import 'settings/proxy.dart';
-import 'find_toolbar.dart';
+import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/widgets/find_toolbar.dart';
 
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();

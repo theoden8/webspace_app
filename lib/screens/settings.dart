@@ -2,9 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import 'main.dart';
-import 'web_view_model.dart';
-import 'settings/proxy.dart';
+import 'package:webspace/main.dart';
+import 'package:webspace/web_view_model.dart';
+import 'package:webspace/settings/proxy.dart';
 
 String generateRandomUserAgent() {
   // You can modify these values to add more variety to the generated user-agent strings
@@ -25,16 +25,16 @@ String generateRandomUserAgent() {
   return 'Mozilla/5.0 ($platform; rv:$geckoVersion) Gecko/$geckoTrail $appName/$appVersion';
 }
 
-class SettingsPage extends StatefulWidget {
+class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
 
-  SettingsPage({required this.webViewModel});
+  SettingsScreen({required this.webViewModel});
 
   @override
-  _SettingsPageState createState() => _SettingsPageState();
+  _SettingsScreenState createState() => _SettingsScreenState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsScreenState extends State<SettingsScreen> {
   late ProxySettings _proxySettings;
   late TextEditingController _userAgentController;
   late bool _javascriptEnabled;
@@ -117,7 +117,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     _userAgentController.text = widget.webViewModel.defaultUserAgent ?? widget.webViewModel.userAgent;
                   });
                 },
-                icon: Icon(Icons.refresh), // Use an appropriate icon for generating user-agent
+                icon: Icon(Icons.home), // Use an appropriate icon for generating user-agent
                 color: Theme.of(context).primaryColor,
                 iconSize: 24, // Adjust the icon size as needed
               ),

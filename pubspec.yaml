@@ -39,6 +39,7 @@ dependencies:
   http: ^0.13.5
   cached_network_image: ^3.2.3
   flutter_inappwebview: ^5.7.2+3
+  url_launcher: ^6.1.10
 
 dev_dependencies:
   flutter_test:
