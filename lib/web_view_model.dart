@@ -1,9 +1,7 @@
-import 'dart:io';
-
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_cookie_manager/webview_cookie_manager.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'settings/proxy.dart';
+import 'find_toolbar.dart';
 
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
@@ -11,50 +9,50 @@ String extractDomain(String url) {
   return domain.isEmpty ? url : domain;
 }
 
-Map<String, dynamic> cookieToJson(Cookie cookie) {
-  return {
-    'name': cookie.name,
-    'value': cookie.value,
-    'expires': cookie.expires?.toIso8601String(),
-    'maxAge': cookie.maxAge,
-    'domain': cookie.domain,
-    'path': cookie.path,
-    'secure': cookie.secure,
-    'httpOnly': cookie.httpOnly,
-  };
+Cookie cookieFromJson(Map<String, dynamic> json) {
+  return Cookie(
+    name: json["name"],
+    value: json["value"],
+    expiresDate: json["expiresDate"],
+    isSessionOnly: json["isSessionOnly"],
+    domain: json["domain"],
+    sameSite: json["sameSite?.toValue()"],
+    isSecure: json["isSecure"],
+    isHttpOnly: json["isHttpOnly"],
+    path: json["path"],
+  );
 }
 
-Cookie cookieFromJson(Map<String, dynamic> json) {
-  Cookie cookie = Cookie(json['name'], json['value']);
-  cookie.expires = json['expires'] != null ? DateTime.parse(json['expires']) : null;
-  cookie.maxAge = json['maxAge'];
-  cookie.domain = json['domain'];
-  cookie.path = json['path'];
-  cookie.secure = json['secure'];
-  cookie.httpOnly = json['httpOnly'];
-  return cookie;
-}
 
 class WebViewModel {
-  String url;
+  final String initUrl;
+  String currentUrl;
   List<Cookie> cookies;
-  WebViewController? controller;
+  InAppWebView? webview;
+  InAppWebViewController? controller;
   ProxySettings proxySettings;
   bool javascriptEnabled;
-  String? userAgent;
+  String userAgent;
   bool thirdPartyCookiesEnabled;
 
+  String? defaultUserAgent;
+  Function? stateSetterF;
+  FindMatchesResult findMatches = FindMatchesResult();
+
   WebViewModel({
-    required this.url,
+    required this.initUrl,
+    String? currentUrl,
     this.cookies=const [],
     ProxySettings? proxySettings,
     this.javascriptEnabled=true,
-    this.userAgent,
+    this.userAgent='',
     this.thirdPartyCookiesEnabled=false,
+    this.stateSetterF,
   }):
+    currentUrl = currentUrl ?? initUrl,
     proxySettings = proxySettings ?? ProxySettings(type: ProxyType.DEFAULT);
 
-  void removeThirdPartyCookies(WebViewController controller) async {
+  void removeThirdPartyCookies(InAppWebViewController controller) async {
     String script = '''
       (function() {
         function getDomain(hostname) {
@@ -82,25 +80,40 @@ class WebViewModel {
       })();
     ''';
 
-    await controller.runJavaScript(script);
+    await controller.evaluateJavascript(source: script);
   }
 
-  WebViewController getController(launchUrl, WebviewCookieManager cookieManager, savefunc) {
+  void setController() {
     if (controller == null) {
-      controller = WebViewController();
+      return;
     }
-    controller!.setJavaScriptMode(this.javascriptEnabled
-               ? JavaScriptMode.unrestricted
-               : JavaScriptMode.disabled);
-    controller!.loadRequest(Uri.parse(this.url));
-    if (userAgent != null) {
-      controller!.setUserAgent(userAgent!);
+    controller!.setOptions(options: InAppWebViewGroupOptions(
+      crossPlatform: InAppWebViewOptions(
+        javaScriptEnabled: javascriptEnabled,
+        userAgent: userAgent,
+        supportZoom: true,
+        useShouldOverrideUrlLoading: true,
+      ),
+    ));
+    controller!.loadUrl(urlRequest: URLRequest(url: Uri.parse(currentUrl)));
+    if(defaultUserAgent == null) {
+      InAppWebViewController.getDefaultUserAgent().then((String value) {
+        defaultUserAgent = value;
+      });
     }
-    controller!.setNavigationDelegate(
-      NavigationDelegate(
-        onNavigationRequest: (NavigationRequest request) async {
-          String requestDomain = extractDomain(request.url);
-          String initialDomain = extractDomain(this.url);
+  }
+
+  InAppWebView getWebView(launch_url_func, CookieManager cookieManager, save_func) {
+    if (webview == null) {
+      webview = InAppWebView(
+        initialUrlRequest: URLRequest(url: Uri.parse(currentUrl)),
+        onWebViewCreated: (controller) {
+          this.controller = controller;
+          setController();
+        },
+        shouldOverrideUrlLoading: (controller, navigationAction) async {
+          String requestDomain = extractDomain(navigationAction.request.url.toString());
+          String initialDomain = extractDomain(initUrl);
 
           // Extract top-level and second-level domains
           List<String> requestDomainParts = requestDomain.split('.');
@@ -112,45 +125,81 @@ class WebViewModel {
               initialDomainParts[initialDomainParts.length - 2];
 
           if (sameTopLevelDomain && sameSecondLevelDomain) {
-            return NavigationDecision.navigate;
+            return NavigationActionPolicy.ALLOW;
           } else {
-            await launchUrl(request.url);
-            return NavigationDecision.prevent;
+            await launch_url_func(navigationAction.request.url.toString());
+            return NavigationActionPolicy.CANCEL;
           }
         },
-        onPageFinished: (url) async {
-          cookies = await cookieManager.getCookies(this.url);
+        onLoadStop: (controller, Uri? url) async {
+          if(url == null) {
+            return;
+          }
+          cookies = await cookieManager.getCookies(url: Uri.parse(currentUrl));
           if(!thirdPartyCookiesEnabled) {
             removeThirdPartyCookies(controller!);
           }
-          this.url = url;
-          await savefunc();
-        }
-      ),
-    );
+          currentUrl = url!.toString();
+          await save_func();
+        },
+        onFindResultReceived: (controller, int activeMatchOrdinal, int numberOfMatches, bool isDoneCounting) {
+          findMatches.activeMatchOrdinal = activeMatchOrdinal;
+          findMatches.numberOfMatches = numberOfMatches;
+          if(stateSetterF != null) {
+            stateSetterF!();
+          }
+        },
+      );
+    }
+    return webview!;
+  }
+
+  InAppWebViewController? getController(launch_url_func, CookieManager cookieManager, savefunc) {
+    if (webview == null) {
+      webview = getWebView(launch_url_func, cookieManager, savefunc);
+    }
+    if (controller == null) {
+      return null;
+    }
+    setController();
     return controller!;
+  }
+
+  void deleteCookies(CookieManager cookieManager) async {
+    for(final Cookie cookie in cookies) {
+      await cookieManager.deleteCookie(
+        url: Uri.parse(initUrl),
+        name: cookie.name,
+        domain: cookie.domain,
+        path: cookie.path ?? "/",
+      );
+    }
+    cookies = [];
   }
 
   // Serialization methods
   Map<String, dynamic> toJson() => {
-    'url': url,
-    'cookies': cookies.map((cookie) => cookieToJson(cookie)).toList(),
+    'initUrl': initUrl,
+    'currentUrl': currentUrl,
+    'cookies': cookies.map((cookie) => cookie.toJson()).toList(),
     'proxySettings': proxySettings.toJson(),
     'javascriptEnabled': javascriptEnabled,
     'userAgent': userAgent,
     'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
   };
 
-  factory WebViewModel.fromJson(Map<String, dynamic> json) {
+  factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
     return WebViewModel(
-      url: json['url'],
+      initUrl: json['initUrl'],
+      currentUrl: json['currentUrl'],
       cookies: (json['cookies'] as List<dynamic>)
-          .map((dynamic e) => cookieFromJson(e as Map<String, dynamic>))
+          .map((dynamic e) => cookieFromJson(e))
           .toList(),
       proxySettings: ProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
       userAgent: json['userAgent'],
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
+      stateSetterF: stateSetterF,
     );
   }
 }

@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_cookie_manager/webview_cookie_manager.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -12,6 +10,7 @@ import 'web_view_model.dart';
 import 'add_site.dart';
 import 'settings_page.dart';
 import 'inapp_webview.dart';
+import 'find_toolbar.dart';
 
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
@@ -97,7 +96,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
   ThemeMode _themeMode = ThemeMode.system;
-  WebviewCookieManager _cookieManager = WebviewCookieManager();
+  CookieManager _cookieManager = CookieManager.instance();
+
+  bool _isFindVisible = false;
 
   @override
   void initState() {
@@ -133,14 +134,26 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
     if (webViewModelsJson != null) {
       List<WebViewModel> loadedWebViewModels = webViewModelsJson
-          .map((webViewModelJson) => WebViewModel.fromJson(jsonDecode(webViewModelJson)))
+          .map((webViewModelJson) => WebViewModel.fromJson(jsonDecode(webViewModelJson), (){setState((){});}))
           .toList();
 
       setState(() {
         _webViewModels.addAll(loadedWebViewModels);
       });
       for (WebViewModel webViewModel in loadedWebViewModels) {
-        await _cookieManager.setCookies(webViewModel.cookies);
+        for(final cookie in webViewModel.cookies) {
+          await _cookieManager.setCookie(
+            url: Uri.parse(webViewModel.initUrl),
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain,
+            path: cookie.path ?? "/",
+            expiresDate: cookie.expiresDate,
+            isSecure: cookie.isSecure,
+            isHttpOnly: cookie.isHttpOnly,
+            sameSite: cookie.sameSite,
+          );
+        }
       }
     }
   }
@@ -164,19 +177,25 @@ class _WebSpacePageState extends State<WebSpacePage> {
     );
   }
 
+  void _toggleFind() {
+    setState(() {
+      _isFindVisible = !_isFindVisible;
+    });
+  }
+
+  InAppWebViewController? getController() {
+    if(_currentIndex == null) {
+      return null;
+    }
+    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels);
+  }
+
   AppBar _buildAppBar() {
     return AppBar(
       title: _currentIndex != null && _currentIndex! < _webViewModels.length
-          ? Text(extractDomain(_webViewModels[_currentIndex!].url))
+          ? Text(extractDomain(_webViewModels[_currentIndex!].initUrl))
           : Text('No Site Selected'),
       actions: [
-        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () {
-              _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels).reload();
-            },
-          ),
         IconButton(
           icon: Icon(Theme.of(context).brightness == Brightness.light ? Icons.wb_sunny : Icons.nights_stay),
           onPressed: () async {
@@ -191,26 +210,81 @@ class _WebSpacePageState extends State<WebSpacePage> {
             await _saveThemeMode();
           },
         ),
-        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-          IconButton(
-            icon: Icon(Icons.settings),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SettingsPage(webViewModel: _webViewModels[_currentIndex!]),
+        PopupMenuButton<String>(
+          itemBuilder: (BuildContext context) {
+            return [
+              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+              PopupMenuItem<String>(
+                value: "refresh",
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh),
+                    SizedBox(width: 8),
+                    Text("Refresh"),
+                  ],
                 ),
-              );
-              _saveWebViewModels();
-            },
-          ),
+              ),
+              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+              PopupMenuItem<String>(
+                value: "search",
+                child: Row(
+                  children: [
+                    Icon(Icons.search),
+                    SizedBox(width: 8),
+                    Text("Find"),
+                  ],
+                ),
+              ),
+              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+              PopupMenuItem<String>(
+                value: "clear",
+                child: Row(
+                  children: [
+                    Icon(Icons.cookie),
+                    SizedBox(width: 8),
+                    Text("Clear Cookies"),
+                  ],
+                ),
+              ),
+              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+              PopupMenuItem<String>(
+                value: "settings",
+                child: Row(
+                  children: [
+                    Icon(Icons.settings),
+                    SizedBox(width: 8),
+                    Text("Settings"),
+                  ],
+                ),
+              ),
+            ];
+          },
+          onSelected: (String value) async {
+            switch(value) {
+              case 'search':
+                _toggleFind();
+              break;
+              case 'refresh':
+                getController()?.reload();
+              break;
+              case 'settings':
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SettingsPage(webViewModel: _webViewModels[_currentIndex!]),
+                  ),
+                );
+                _saveWebViewModels();
+              break;
+              case 'clear':
+                _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                _saveWebViewModels();
+                getController()?.reload();
+              break;
+            }
+          },
+        ),
       ],
-    );
-  }
-
-  Widget _buildWebView(WebViewModel webViewModel) {
-    return WebViewWidget(
-      controller: webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels),
     );
   }
 
@@ -221,7 +295,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     );
     if (url != null) {
       setState(() {
-        _webViewModels.add(WebViewModel(url: url));
+        _webViewModels.add(WebViewModel(initUrl: url, stateSetterF: () {setState((){});}));
         _currentIndex = _webViewModels.length - 1;
         _saveCurrentIndex();
       });
@@ -263,7 +337,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   return ListTile(
                     key: Key('site_$index'),
                     leading: FutureBuilder<String?>(
-                      future: getFaviconUrl(_webViewModels[index].url),
+                      future: getFaviconUrl(_webViewModels[index].initUrl),
                       builder: (context, snapshot) {
                         if (snapshot.hasData) {
                           return CachedNetworkImage(
@@ -282,7 +356,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         }
                       },
                     ),
-                    title: Text(extractDomain(_webViewModels[index].url)),
+                    title: Text(extractDomain(_webViewModels[index].initUrl)),
                     onTap: () {
                       setState(() {
                         _currentIndex = index;
@@ -334,14 +408,30 @@ class _WebSpacePageState extends State<WebSpacePage> {
           ? Center(child: Text('No WebView selected'))
           : IndexedStack(
               index: _currentIndex!,
-              children: _webViewModels.map<Widget>((webViewModel) => _buildWebView(webViewModel)).toList(),
+              children: _webViewModels.map<Widget>((webViewModel) => Column(
+                children: [
+                  if(_isFindVisible && getController() != null)
+                    FindToolbar(
+                      webViewController: getController(),
+                      matches: webViewModel.findMatches,
+                      onClose: () {
+                        _toggleFind();
+                      },
+                    ),
+                  Expanded(
+                    child: webViewModel.getWebView(launchUrl, _cookieManager, _saveWebViewModels)
+                  ),
+                ]
+              )).toList(),
             ),
-      floatingActionButton: !(_currentIndex == null || _currentIndex! >= _webViewModels.length) ? null : FloatingActionButton(
-        onPressed: () async {
-          _addSite();
-        },
-        child: Icon(Icons.add),
-      ),
+      floatingActionButton:
+          !(_currentIndex == null || _currentIndex! >= _webViewModels.length) ? null
+          : FloatingActionButton(
+              onPressed: () async {
+                _addSite();
+              },
+              child: Icon(Icons.add),
+            ),
     );
   }
 }

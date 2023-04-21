@@ -1,4 +1,5 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import 'main.dart';
@@ -39,12 +40,16 @@ class _SettingsPageState extends State<SettingsPage> {
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
 
+  String getResetUserAgent() {
+    return (widget.webViewModel.userAgent == '') ? (widget.webViewModel.defaultUserAgent ?? '') : widget.webViewModel.userAgent;
+  }
+
   @override
   void initState() {
     super.initState();
     _proxySettings = widget.webViewModel.proxySettings;
     _userAgentController = TextEditingController(
-      text: widget.webViewModel.userAgent ?? '',
+      text: getResetUserAgent(),
     );
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
@@ -106,6 +111,16 @@ class _SettingsPageState extends State<SettingsPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _userAgentController.text = widget.webViewModel.defaultUserAgent ?? widget.webViewModel.userAgent;
+                  });
+                },
+                icon: Icon(Icons.refresh), // Use an appropriate icon for generating user-agent
+                color: Theme.of(context).primaryColor,
+                iconSize: 24, // Adjust the icon size as needed
+              ),
               Expanded(
                 child: TextFormField(
                   decoration: InputDecoration(labelText: 'User-Agent'),

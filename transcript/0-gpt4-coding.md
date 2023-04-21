@@ -3894,3 +3894,1346 @@ Future<String?> getFaviconUrl(String url) async {
 ```
 
 This code first constructs the favicon URL by extracting the scheme and host from the given URL, then appends `/favicon.ico` to it. It then tries to fetch the favicon from the generated URL. If the request is successful, it returns the favicon URL, otherwise, it returns `null`.
+
+> 1 / 1
+> 
+> If I were to implement web\_view\_model with InAppWebViewController, what would I need to change? I think it's a more flexible framework which supports desktop
+
+1 / 1
+
+To use the `flutter_inappwebview` package and replace the `WebView` widget with the `InAppWebView` widget in your `web_view_model.dart`, you need to make the following changes:
+
+1.  Add the `flutter_inappwebview` dependency to your `pubspec.yaml` file:
+
+yaml
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_inappwebview: ^5.3.2
+```
+
+2.  Import the package in your `web_view_model.dart`:
+
+dart
+
+```dart
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+```
+
+3.  Replace the `WebViewController` with `InAppWebViewController` in your `WebViewModel` class:
+
+dart
+
+```dart
+class WebViewModel {
+  // ...
+  InAppWebViewController? controller;
+  // ...
+}
+```
+
+4.  Update the `getController()` method in the `WebViewModel` class to use `InAppWebView`:
+
+dart
+
+```dart
+InAppWebViewController getController() {
+  if (controller == null) {
+    controller = InAppWebViewController();
+  }
+  controller!.setJavaScriptEnabled(javascriptEnabled);
+  controller!.loadUrl(urlRequest: URLRequest(url: Uri.parse(url)));
+  if (userAgent != null) {
+    controller!.setUserAgent(userAgent!);
+  }
+  return controller!;
+}
+```
+
+5.  Update the `WebView` widget to `InAppWebView` in your `main.dart` or wherever you are using the `WebView` widget:
+
+dart
+
+```dart
+InAppWebView(
+  initialUrlRequest: URLRequest(url: Uri.parse(webViewModel.url)),
+  onWebViewCreated: (controller) {
+    webViewModel.controller = controller;
+    webViewModel.loadCookies(controller);
+  },
+  // Add other callbacks and settings as needed
+)
+```
+
+6.  Update any other methods or properties that rely on the `webview_flutter` package to use the `flutter_inappwebview` package.
+
+Please note that the `flutter_inappwebview` package has its own APIs for handling cookies, navigation, and other features, which may require changes in other parts of your code. You can refer to the package's documentation for more details: [https://pub.dev/packages/flutter\_inappwebview](https://pub.dev/packages/flutter_inappwebview)
+
+Make sure to thoroughly test your app after making these changes to ensure that everything works as expected.
+
+> 1 / 1
+> 
+> Help me to translate as much code from webview\_flutter to flutter\_inappbrowser in the following function: \`\`\`dart InAppWebViewController? getController(launchUrl, WebviewCookieManager cookieManager, savefunc) { if (webview == null) { webview = getWebView(); } if (controller == null) { return null; } controller!.setJavaScriptMode(this.javascriptEnabled ? JavaScriptMode.unrestricted : JavaScriptMode.disabled); controller!.loadRequest(Uri.parse(this.url)); if (userAgent != null) { controller!.setUserAgent(userAgent!); } controller!.setNavigationDelegate( NavigationDelegate( onNavigationRequest: (NavigationRequest request) async { String requestDomain = extractDomain(request.url); String initialDomain = extractDomain(this.url); // Extract top-level and second-level domains List<String> requestDomainParts = requestDomain.split('.'); List<String> initialDomainParts = initialDomain.split('.'); // Compare top-level and second-level domains bool sameTopLevelDomain = requestDomainParts.last == initialDomainParts.last; bool sameSecondLevelDomain = requestDomainParts\[requestDomainParts.length - 2\] == initialDomainParts\[initialDomainParts.length - 2\]; if (sameTopLevelDomain && sameSecondLevelDomain) { return NavigationDecision.navigate; } else { await launchUrl(request.url); return NavigationDecision.prevent; } }, onPageFinished: (url) async { cookies = await cookieManager.getCookies(this.url); if(!thirdPartyCookiesEnabled) { removeThirdPartyCookies(controller!); } this.url = url; await savefunc(); } ), ); return controller!; } \`\`\`
+
+1 / 1
+
+Here's the code translated from `webview_flutter` to `flutter_inappwebview`:
+
+dart
+
+  ```dart
+InAppWebViewController? getController(launchUrl, CookieManager cookieManager, savefunc) {
+    if (controller == null) {
+      return null;
+    }
+    controller!.setOptions(options: InAppWebViewGroupOptions(
+      crossPlatform: InAppWebViewOptions(
+        javaScriptEnabled: javascriptEnabled,
+        userAgent: userAgent,
+      ),
+    ));
+    controller!.loadUrl(urlRequest: URLRequest(url: Uri.parse(this.url)));
+    controller!.addJavaScriptHandler(handlerName: "onNavigationRequest", callback: (args) async {
+      String requestUrl = args[0];
+      String requestDomain = extractDomain(requestUrl);
+      String initialDomain = extractDomain(this.url);
+
+      // Extract top-level and second-level domains
+      List<String> requestDomainParts = requestDomain.split('.');
+      List<String> initialDomainParts = initialDomain.split('.');
+
+      // Compare top-level and second-level domains
+      bool sameTopLevelDomain = requestDomainParts.last == initialDomainParts.last;
+      bool sameSecondLevelDomain = requestDomainParts[requestDomainParts.length - 2] ==
+          initialDomainParts[initialDomainParts.length - 2];
+
+      if (sameTopLevelDomain && sameSecondLevelDomain) {
+        controller!.loadUrl(urlRequest: URLRequest(url: Uri.parse(requestUrl)));
+      } else {
+        await launchUrl(requestUrl);
+      }
+    });
+    controller!.addOnLoadStop((controller, url) async {
+      cookies = await cookieManager.getCookies(url!);
+      if (!thirdPartyCookiesEnabled) {
+        removeThirdPartyCookies(controller!);
+      }
+      this.url = url.toString();
+      await savefunc();
+    });
+    return controller!;
+  }
+```
+
+Please note the following changes:
+
+1.  Replaced `controller.setJavaScriptMode` with `controller.setOptions` to enable/disable JavaScript and set the user agent.
+2.  Replaced `controller.loadRequest` with `controller.loadUrl` to load the URL.
+3.  Removed the `NavigationDelegate` and replaced it with `controller.addJavaScriptHandler` and `controller.addOnLoadStop`. The JavaScript handler will handle navigation requests, and `addOnLoadStop` will be called when the page finishes loading.
+4.  Replaced the `CookieManager` import with `import 'package:flutter_inappwebview/flutter_inappwebview.dart';`.
+
+Make sure to thoroughly test your app after making these changes to ensure that everything works as expected.
+
+> 1 / 1
+> 
+> with flutter\_inappwebview, how do I delegate requests outside of current second-level domain to an external browser?
+
+1 / 1
+
+You can use the `shouldOverrideUrlLoading` event in `flutter_inappwebview` to intercept navigation requests and decide whether to open the request in an external browser. Here's how to do it:
+
+First, add the `shouldOverrideUrlLoading` event to your `InAppWebView` widget:
+
+dart
+
+```dart
+InAppWebView(
+  initialUrlRequest: URLRequest(url: Uri.parse(url)),
+  onWebViewCreated: (InAppWebViewController controller) {
+    // WebView creation logic
+  },
+  shouldOverrideUrlLoading: (controller, navigationAction) async {
+    String requestUrl = navigationAction.request.url.toString();
+    String requestDomain = extractDomain(requestUrl);
+    String initialDomain = extractDomain(this.url);
+
+    List<String> requestDomainParts = requestDomain.split('.');
+    List<String> initialDomainParts = initialDomain.split('.');
+
+    bool sameTopLevelDomain = requestDomainParts.last == initialDomainParts.last;
+    bool sameSecondLevelDomain = requestDomainParts[requestDomainParts.length - 2] ==
+        initialDomainParts[initialDomainParts.length - 2];
+
+    if (sameTopLevelDomain && sameSecondLevelDomain) {
+      return NavigationActionPolicy.ALLOW;
+    } else {
+      await launchUrl(requestUrl);
+      return NavigationActionPolicy.CANCEL;
+    }
+  },
+  // Other events and options
+)
+```
+
+In the above code, we added the `shouldOverrideUrlLoading` event, which is called when the WebView is about to navigate to a new URL. We then check if the new URL belongs to the same second-level domain as the current URL. If it does, we allow the navigation (`NavigationActionPolicy.ALLOW`). If not, we open the URL in an external browser using the `launchUrl` function and cancel the navigation in the WebView (`NavigationActionPolicy.CANCEL`).
+
+> 1 / 1
+> 
+> How do I make flutter\_inappwebview run javascript on page load?
+
+1 / 1
+
+To run JavaScript code on page load using `flutter_inappwebview`, you can use the `onLoadStop` event. This event is triggered when the WebView finishes loading a page.
+
+Here's an example of how to run a JavaScript code snippet when the page finishes loading:
+
+dart
+
+```dart
+InAppWebView(
+  initialUrlRequest: URLRequest(url: Uri.parse(url)),
+  onWebViewCreated: (InAppWebViewController controller) {
+    // WebView creation logic
+  },
+  onLoadStop: (InAppWebViewController controller, Uri? url) async {
+    // Run JavaScript code when the page finishes loading
+    await controller.evaluateJavascript(source: 'alert("Hello, World!");');
+  },
+  // Other events and options
+)
+```
+
+In the example above, we added the `onLoadStop` event, which is called when the WebView finishes loading a page. Inside the event callback, we use the `evaluateJavascript` method of the `InAppWebViewController` to run a JavaScript code snippet. In this example, we simply show an alert with the message "Hello, World!".
+
+You can replace the example code snippet with any JavaScript code you want to run on page load.
+
+> 1 / 1
+> 
+> Great. Now, I'm trying to substitute WebviewCookieManager for CookieManager in flutter\_inappwebview. How do I do that?
+
+1 / 1
+
+You can use the `CookieManager` class provided by the `flutter_inappwebview` package to manage cookies instead of using the `WebviewCookieManager`. Here's an example of how to use the `CookieManager` to get, set, and delete cookies:
+
+First, add the following import to your Dart file:
+
+dart
+
+```dart
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+```
+
+Then, you can create an instance of `CookieManager` like this:
+
+dart
+
+```dart
+final cookieManager = CookieManager.instance();
+```
+
+To get cookies for a specific URL, use the `getCookies` method:
+
+dart
+
+```dart
+List<Cookie> cookies = await cookieManager.getCookies(url: Uri.parse(url));
+```
+
+To set a cookie for a specific URL, use the `setCookie` method:
+
+dart
+
+```dart
+await cookieManager.setCookie(url: Uri.parse(url), name: 'cookieName', value: 'cookieValue');
+```
+
+To delete a cookie by name for a specific URL, use the `deleteCookie` method:
+
+dart
+
+```dart
+await cookieManager.deleteCookie(url: Uri.parse(url), name: 'cookieName');
+```
+
+To delete all cookies, use the `deleteAllCookies` method:
+
+dart
+
+```dart
+await cookieManager.deleteAllCookies();
+```
+
+You can replace the `WebviewCookieManager` with the `CookieManager` from `flutter_inappwebview` using the methods shown above to manage cookies in your application.
+
+> 1 / 1
+> 
+> How do I setCookies? I used to be able to persist cookies through app restart.
+
+1 / 1
+
+To persist cookies through app restarts using `flutter_inappwebview`, you'll need to save the cookies and then load them back when the app starts. You can use the `shared_preferences` package to store the cookies locally.
+
+First, add the `shared_preferences` package to your `pubspec.yaml`:
+
+yaml
+
+```yaml
+dependencies:
+  shared_preferences: ^2.0.13
+```
+
+Then, import it in your Dart file:
+
+dart
+
+```dart
+import 'package:shared_preferences/shared_preferences.dart';
+```
+
+Here's a simple example of how to save and load cookies using `shared_preferences` and `flutter_inappwebview`:
+
+1.  Save cookies to `shared_preferences`:
+
+dart
+
+```dart
+Future<void> saveCookies(List<Cookie> cookies) async {
+  final prefs = await SharedPreferences.getInstance();
+  final cookieList = cookies.map((cookie) => cookie.toString()).toList();
+  await prefs.setStringList('saved_cookies', cookieList);
+}
+```
+
+2.  Load cookies from `shared_preferences`:
+
+dart
+
+```dart
+Future<List<Cookie>> loadCookies() async {
+  final prefs = await SharedPreferences.getInstance();
+  final cookieList = prefs.getStringList('saved_cookies') ?? [];
+  return cookieList.map((cookieString) => Cookie.fromSetCookieValue(cookieString)).toList();
+}
+```
+
+3.  Set cookies to `CookieManager`:
+
+dart
+
+```dart
+Future<void> setCookies(List<Cookie> cookies, String url) async {
+  final cookieManager = CookieManager.instance();
+  for (final cookie in cookies) {
+    await cookieManager.setCookie(
+      url: Uri.parse(url),
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookie.domain,
+      path: cookie.path,
+      expiresDate: cookie.expires,
+      isSecure: cookie.secure,
+      isHttpOnly: cookie.httpOnly,
+    );
+  }
+}
+```
+
+After loading the cookies from `shared_preferences`, call `setCookies` to set the cookies to the `CookieManager`. Make sure you do this before loading any web pages in the `InAppWebView`.
+
+> 1 / 1
+> 
+> E/flutter (11299): \[ERROR:flutter/runtime/dart\_vm\_initializer.cc(41)\] Unhandled Exception: type 'List<dynamic>' is not a subtype of type 'List<Cookie>' E/flutter (11299): #0 new WebViewModel.fromJson (package:webspace/web\_view\_model.dart:158:12) My fromJson is: \`\`\`dart factory WebViewModel.fromJson(Map<String, dynamic> json) { return WebViewModel( url: json\['url'\], cookies: json\['cookies'\] .map((dynamic e) => cookieFromJson(e)) .toList(), proxySettings: ProxySettings.fromJson(json\['proxySettings'\]), javascriptEnabled: json\['javascriptEnabled'\], userAgent: json\['userAgent'\], thirdPartyCookiesEnabled: json\['thirdPartyCookiesEnabled'\], ); } \`\`\`
+
+1 / 1
+
+It seems the issue is caused by an incorrect type casting when deserializing cookies from JSON. To fix the issue, you can explicitly cast the `List<dynamic>` to `List<Map<String, dynamic>>` before mapping it to a list of `Cookie` objects.
+
+Update your `fromJson` method like this:
+
+dart
+
+```dart
+factory WebViewModel.fromJson(Map<String, dynamic> json) {
+  return WebViewModel(
+    url: json['url'],
+    cookies: (json['cookies'] as List<Map<String, dynamic>>)
+        .map((dynamic e) => cookieFromJson(e))
+        .toList(),
+    proxySettings: ProxySettings.fromJson(json['proxySettings']),
+    javascriptEnabled: json['javascriptEnabled'],
+    userAgent: json['userAgent'],
+    thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
+  );
+}
+```
+
+This should resolve the type mismatch error.
+
+> 1 / 1
+> 
+> shouldOverrideUrlLoading doesn't seem to be called at all.
+
+1 / 1
+
+If you are using `flutter_inappwebview`, you should use the `shouldOverrideUrlLoading` event inside the `InAppWebView` widget's `onLoadStart` event handler. Here's an example of how you can achieve this:
+
+1.  First, make sure you have added the `flutter_inappwebview` package to your `pubspec.yaml` file and have imported the necessary classes in your Dart file:
+
+dart
+
+```dart
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+```
+
+2.  Next, create an `InAppWebView` widget and set the `onLoadStart` event:
+
+dart
+
+```dart
+InAppWebView(
+  initialUrlRequest: URLRequest(url: Uri.parse('https://example.com')),
+  onLoadStart: (InAppWebViewController controller, Uri? url) async {
+    if (url != null) {
+      bool shouldOverride = await shouldOverrideUrlLoading(controller, url);
+      if (shouldOverride) {
+        // Do something, for example, launch external browser
+        if (await canLaunch(url.toString())) {
+          await launch(url.toString());
+        }
+      }
+    }
+  },
+),
+```
+
+3.  Implement your custom `shouldOverrideUrlLoading` function:
+
+dart
+
+```dart
+Future<bool> shouldOverrideUrlLoading(InAppWebViewController controller, Uri url) async {
+  // Your logic to determine if the URL should be overridden
+  // Return true if the URL should be overridden, false otherwise
+}
+```
+
+This should work, and `shouldOverrideUrlLoading` will be called whenever a new URL is loaded. If the function returns true, the URL will be overridden and you can perform a custom action such as opening the URL in an external browser.
+
+> 1 / 1
+> 
+> In the code you provided, it seems that the URI will be loaded in both, the in-app webview and the external browser. I want only one of those things to happen: if a URL is external, delegate it to external app.
+
+1 / 1
+
+You're right. In the example I provided, the URL will be loaded in both the in-app WebView and the external browser. To prevent this, you can use the `InAppBrowser` class to open the external URLs. Here's an updated example:
+
+1.  Create an instance of `InAppBrowser`:
+
+dart
+
+```dart
+InAppBrowser inAppBrowser = InAppBrowser();
+```
+
+2.  Update the `InAppWebView` widget's `onLoadStart` event:
+
+dart
+
+```dart
+InAppWebView(
+  initialUrlRequest: URLRequest(url: Uri.parse('https://example.com')),
+  onLoadStart: (InAppWebViewController controller, Uri? url) async {
+    if (url != null) {
+      bool shouldOverride = await shouldOverrideUrlLoading(controller, url);
+      if (shouldOverride) {
+        // Stop loading the URL in the WebView
+        controller.stopLoading();
+
+        // Open the URL in the external browser
+        if (await canLaunch(url.toString())) {
+          await launch(url.toString());
+        }
+      }
+    }
+  },
+),
+```
+
+This will ensure that the URL is only loaded in the external browser if `shouldOverrideUrlLoading` returns true. The `controller.stopLoading()` call will stop the WebView from loading the URL.
+
+> 1 / 1
+> 
+> At the top of inappwebview page (appbar), I want extra functions such as searching on page, clearing cookies and so on (per webview). how do I achieve that?
+
+1 / 1
+
+To add extra functions like searching on the page, clearing cookies, etc., in the AppBar, you can create a `PopupMenuButton` with custom menu items. Here's an example:
+
+1.  First, create an enum for the menu items:
+
+dart
+
+```dart
+enum AppBarMenuAction { search, clearCookies }
+```
+
+2.  Add the `PopupMenuButton` to the AppBar:
+
+dart
+
+```dart
+AppBar(
+  title: Text('InAppWebView Example'),
+  actions: [
+    PopupMenuButton<AppBarMenuAction>(
+      onSelected: (AppBarMenuAction result) async {
+        switch (result) {
+          case AppBarMenuAction.search:
+            // Implement search functionality here
+            break;
+          case AppBarMenuAction.clearCookies:
+            // Implement clear cookies functionality here
+            break;
+        }
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<AppBarMenuAction>>[
+        const PopupMenuItem<AppBarMenuAction>(
+          value: AppBarMenuAction.search,
+          child: Text('Search on page'),
+        ),
+        const PopupMenuItem<AppBarMenuAction>(
+          value: AppBarMenuAction.clearCookies,
+          child: Text('Clear cookies'),
+        ),
+      ],
+    ),
+  ],
+),
+```
+
+3.  Implement the search functionality:
+
+dart
+
+```dart
+Future<void> searchOnPage(InAppWebViewController controller, String searchText) async {
+  if (searchText.isNotEmpty) {
+    await controller.findAllAsync(find: searchText);
+  } else {
+    await controller.clearMatches();
+  }
+}
+```
+
+4.  Implement the clear cookies functionality:
+
+dart
+
+```dart
+Future<void> clearCookies() async {
+  CookieManager cookieManager = CookieManager.instance();
+  await cookieManager.deleteAllCookies();
+}
+```
+
+5.  Update the `onSelected` callback in the `PopupMenuButton`:
+
+dart
+
+```dart
+onSelected: (AppBarMenuAction result) async {
+  InAppWebViewController? controller = webViewModel.getController();
+  switch (result) {
+    case AppBarMenuAction.search:
+      // Show a dialog to get the search text
+      showDialog<String>(
+        context: context,
+        builder: (BuildContext context) {
+          String searchText = '';
+          return AlertDialog(
+            title: const Text('Search on page'),
+            content: TextField(
+              onChanged: (value) {
+                searchText = value;
+              },
+              decoration: InputDecoration(
+                hintText: 'Enter search text',
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  searchOnPage(controller!, searchText);
+                },
+                child: const Text('Search'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  searchOnPage(controller!, '');
+                },
+                child: const Text('Clear'),
+              ),
+            ],
+          );
+        },
+      );
+      break;
+    case AppBarMenuAction.clearCookies:
+      await clearCookies();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cookies cleared')),
+      );
+      break;
+  }
+},
+```
+
+This code will add a `PopupMenuButton` to the AppBar with "Search on page" and "Clear cookies" options. When a user selects one of the options, the corresponding function will be called.
+
+> 1 / 1
+> 
+> How would you implement searchOnPage?
+
+1 / 1
+
+To implement `searchOnPage`, you can utilize the `InAppWebViewController`'s `findAllAsync` and `findNext` methods. Here's an example of how you can implement the `searchOnPage` functionality:
+
+1.  First, create a `TextEditingController` for the search field:
+
+dart
+
+```dart
+TextEditingController _searchController = TextEditingController();
+```
+
+2.  Update the `searchOnPage` function:
+
+dart
+
+```dart
+Future<void> searchOnPage(InAppWebViewController controller, String searchText) async {
+  if (searchText.isNotEmpty) {
+    await controller.findAllAsync(find: searchText);
+  } else {
+    await controller.clearMatches();
+  }
+}
+```
+
+3.  Show a search bar at the top of the page:
+
+dart
+
+```dart
+bool _isSearchVisible = false; // Add this to your State class
+```
+
+4.  Update the AppBar title and actions based on the `_isSearchVisible` value:
+
+dart
+
+```dart
+AppBar(
+  title: _isSearchVisible
+      ? TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Search on page',
+          ),
+          onChanged: (value) async {
+            InAppWebViewController? controller = webViewModel.getController();
+            if (controller != null) {
+              await searchOnPage(controller, value);
+            }
+          },
+        )
+      : Text('InAppWebView Example'),
+  actions: _isSearchVisible
+      ? [
+          IconButton(
+            icon: Icon(Icons.clear),
+            onPressed: () {
+              _searchController.clear();
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.close),
+            onPressed: () {
+              setState(() {
+                _isSearchVisible = false;
+                _searchController.clear();
+              });
+            },
+          ),
+        ]
+      : [
+          IconButton(
+            icon: Icon(Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearchVisible = true;
+              });
+            },
+          ),
+          // ... other actions
+        ],
+),
+```
+
+This code will show a search bar at the top of the page when the search icon is clicked. The search bar will have a TextField where users can input their search query. As the user types, the `searchOnPage` function is called, which uses the `findAllAsync` method to search for the given text in the webview. When the user clicks the "Clear" button, the search field is cleared. To close the search bar, the user can click the "Close" button.
+
+Keep in mind that this is a basic implementation of the search functionality. You can customize it according to your needs.
+
+> 1 / 1
+> 
+> I want the Find button to give me a proper find toolbar: allowing me to type in text, highlight matches, and close it, thus clearing the matches. Give me the code to do that.
+
+1 / 1
+
+To create a proper find toolbar, you can follow these steps:
+
+1.  Create a custom StatefulWidget for the FindToolbar.
+
+dart
+
+```dart
+class FindToolbar extends StatefulWidget {
+  final InAppWebViewController? webViewController;
+
+  FindToolbar({required this.webViewController});
+
+  @override
+  _FindToolbarState createState() => _FindToolbarState();
+}
+
+class _FindToolbarState extends State<FindToolbar> {
+  TextEditingController _searchController = TextEditingController();
+  int _activeMatchOrdinal = 0;
+  int _numberOfMatches = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.grey[300],
+      padding: EdgeInsets.symmetric(horizontal: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search on page',
+              ),
+              onChanged: (value) async {
+                if (value.isNotEmpty) {
+                  int numberOfMatches = await widget.webViewController!.findAllAsync(find: value);
+                  setState(() {
+                    _numberOfMatches = numberOfMatches;
+                  });
+                } else {
+                  await widget.webViewController!.clearMatches();
+                  setState(() {
+                    _numberOfMatches = 0;
+                  });
+                }
+              },
+            ),
+          ),
+          Text('$_activeMatchOrdinal/$_numberOfMatches'),
+          IconButton(
+            icon: Icon(Icons.navigate_before),
+            onPressed: () async {
+              await widget.webViewController!.findNext(forward: false);
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.navigate_next),
+            onPressed: () async {
+              await widget.webViewController!.findNext(forward: true);
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.close),
+            onPressed: () {
+              _searchController.clear();
+              widget.webViewController!.clearMatches();
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+This custom widget will take the `InAppWebViewController` as a parameter and create a toolbar with a TextField for entering search text, a label displaying the current match and the total number of matches, two buttons for navigating between matches, and a close button for clearing the matches and closing the toolbar.
+
+2.  In your main widget, replace the `_isSearchVisible` with a function that shows a bottom sheet containing the FindToolbar:
+
+dart
+
+```dart
+void _showFindToolbar() {
+  showModalBottomSheet(
+    context: context,
+    builder: (BuildContext context) {
+      return FindToolbar(webViewController: webViewModel.getController());
+    },
+  );
+}
+```
+
+3.  Update the AppBar actions to call `_showFindToolbar()`:
+
+dart
+
+```dart
+AppBar(
+  title: Text('InAppWebView Example'),
+  actions: [
+    IconButton(
+      icon: Icon(Icons.search),
+      onPressed: _showFindToolbar,
+    ),
+    // ... other actions
+  ],
+),
+```
+
+Now, when you click the search icon in the AppBar, the FindToolbar will be displayed in a bottom sheet. Users can type in their search query, navigate between matches, and close the toolbar to clear the matches.
+
+> 1 / 1
+> 
+> findAllAsync({required String find}) → Future<void> Finds all instances of find on the page and highlights them. Notifies WebView.onFindResultReceived listener.
+
+1 / 1
+
+I apologize for the confusion in my previous response. The `findAllAsync` method indeed requires the `find` parameter. You can modify the `_FindToolbarState` class to use `findAllAsync` correctly.
+
+Update the `onChanged` callback in the `TextField` inside the `build` method:
+
+dart
+
+```dart
+onChanged: (value) async {
+  if (value.isNotEmpty) {
+    await widget.webViewController!.findAllAsync(find: value);
+    int numberOfMatches = await widget.webViewController!.countMatches(find: value);
+    setState(() {
+      _numberOfMatches = numberOfMatches;
+    });
+  } else {
+    await widget.webViewController!.clearMatches();
+    setState(() {
+      _numberOfMatches = 0;
+    });
+  }
+},
+```
+
+We call `findAllAsync` with the `find` parameter to find and highlight all instances of the searched text on the page. Then, we use `countMatches` to get the total number of matches and update the state accordingly.
+
+> 1 / 1
+> 
+> find parameter is not the issue. The issue is that it doesn't return anything. The number of matches is supplied through the callback findAllAsync({required String find}) → Future<void> Finds all instances of find on the page and highlights them. Notifies WebView.onFindResultReceived listener.
+
+1 / 1
+
+My apologies for misunderstanding the issue. In this case, you can set up a listener for `onFindResultReceived` to handle the search results. Here's how to modify the `_FindToolbarState` class to use a listener for search results:
+
+1.  Add a callback to handle the search result:
+
+dart
+
+```dart
+void _handleSearchResult(InAppWebViewController controller, int activeMatchOrdinal, int numberOfMatches, bool finalUpdate) {
+  if (finalUpdate) {
+    setState(() {
+      _numberOfMatches = numberOfMatches;
+    });
+  }
+}
+```
+
+2.  In the `build` method of `_FindToolbarState`, set up a listener for `onFindResultReceived`:
+
+dart
+
+```dart
+InAppWebView(
+  initialUrlRequest: URLRequest(url: Uri.parse("about:blank")),
+  onWebViewCreated: (controller) {
+    widget.webViewController = controller;
+  },
+  onFindResultReceived: _handleSearchResult,
+),
+```
+
+3.  Update the `onChanged` callback in the `TextField`:
+
+dart
+
+```dart
+onChanged: (value) async {
+  if (value.isNotEmpty) {
+    await widget.webViewController!.findAllAsync(find: value);
+  } else {
+    await widget.webViewController!.clearMatches();
+    setState(() {
+      _numberOfMatches = 0;
+    });
+  }
+},
+```
+
+Now, when you perform a search, the `_handleSearchResult` callback will be called, and you can update the state with the number of matches.
+
+> 1 / 1
+> 
+> Be more specific. The InAppWebview is present in the inapp\_webview.dart and in web\_view\_model.dart. How do I set the callback again?
+
+1 / 1
+
+I apologize for the confusion. In this case, you can add the callback directly to the `InAppWebView` widget in the `inapp_webview.dart` file. Here's how to modify the `InAppWebViewPage` class to use a listener for search results:
+
+1.  First, add a method to handle search results in your `InAppWebViewPageState` class:
+
+dart
+
+```dart
+void _handleSearchResult(InAppWebViewController controller, int activeMatchOrdinal, int numberOfMatches, bool finalUpdate) {
+  if (finalUpdate) {
+    // You can perform any action with the number of matches here
+    print('Number of matches: $numberOfMatches');
+  }
+}
+```
+
+2.  Next, set up a listener for `onFindResultReceived` in the `InAppWebView` widget inside the `build` method of the `InAppWebViewPageState`:
+
+dart
+
+```dart
+InAppWebView(
+  initialUrlRequest: URLRequest(url: Uri.parse(widget.webViewModel.url)),
+  onWebViewCreated: (InAppWebViewController controller) {
+    widget.webViewModel.controller = controller;
+  },
+  onLoadStart: (controller, url) {
+    setState(() {
+      _isLoading = true;
+    });
+  },
+  onLoadStop: (controller, url) {
+    setState(() {
+      _isLoading = false;
+    });
+  },
+  onFindResultReceived: _handleSearchResult, // Add this line
+),
+```
+
+Now, when you perform a search using the `findAllAsync` method, the `_handleSearchResult` callback will be called, and you can handle the search results as needed.
+
+> 1 / 1
+> 
+> How do I update the variables of find toolbar? Suppose it is in find\_toolbar.dart file. It is stored in the state, how do I access the state? I don't understand.
+
+1 / 1
+
+You can create a callback function that updates the state of the parent widget (`InAppWebViewPage` in this case) when a change occurs in the `FindToolbar` widget.
+
+First, let's define the callback type in your `find_toolbar.dart` file:
+
+dart
+
+```dart
+typedef OnFindToolbarUpdate = void Function(String searchText);
+```
+
+Next, modify the `FindToolbar` widget to take the callback as a parameter:
+
+dart
+
+```dart
+class FindToolbar extends StatefulWidget {
+  final OnFindToolbarUpdate onFindToolbarUpdate;
+
+  FindToolbar({required this.onFindToolbarUpdate});
+
+  @override
+  _FindToolbarState createState() => _FindToolbarState();
+}
+
+class _FindToolbarState extends State<FindToolbar> {
+  // ... Rest of the code ...
+}
+```
+
+Now, you can call the `widget.onFindToolbarUpdate` function whenever there is an update in the search text. For example, inside the `_FindToolbarState` class, you can add a `TextEditingController` for the search `TextField`, and add a listener to it:
+
+dart
+
+```dart
+class _FindToolbarState extends State<FindToolbar> {
+  TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchTextChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchTextChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchTextChanged() {
+    widget.onFindToolbarUpdate(_searchController.text);
+  }
+
+  // ... Rest of the code ...
+}
+```
+
+Finally, in your `inapp_webview.dart`, create a function to handle the find toolbar updates and pass it to the `FindToolbar` widget:
+
+dart
+
+```dart
+class _InAppWebViewPageState extends State<InAppWebViewPage> {
+  // ... Other variables and methods ...
+
+  void _onFindToolbarUpdate(String searchText) {
+    // Perform search and update UI as needed
+    print('Search text updated: $searchText');
+  }
+
+  // ... Rest of the code ...
+}
+```
+
+And when you create the `FindToolbar` instance, pass the `_onFindToolbarUpdate` function:
+
+dart
+
+```dart
+FindToolbar(
+  onFindToolbarUpdate: _onFindToolbarUpdate,
+),
+```
+
+Now, whenever the search text changes in the `FindToolbar`, the `_onFindToolbarUpdate` function in your `InAppWebViewPage` will be called, and you can perform the required actions.
+
+> 1 / 1
+> 
+> Well, but I need to use the callback in webview to update numberOfMatches and activeMatchOrdinal
+
+1 / 1
+
+To update `numberOfMatches` and `activeMatchOrdinal` in the `FindToolbar`, you can create another callback in `find_toolbar.dart`:
+
+dart
+
+```dart
+typedef OnFindResultUpdate = void Function(int numberOfMatches, int activeMatchOrdinal);
+
+class FindToolbar extends StatefulWidget {
+  final OnFindToolbarUpdate onFindToolbarUpdate;
+  final OnFindResultUpdate onFindResultUpdate;
+
+  FindToolbar({required this.onFindToolbarUpdate, required this.onFindResultUpdate});
+
+  @override
+  _FindToolbarState createState() => _FindToolbarState();
+}
+```
+
+Now, in your `inapp_webview.dart`, add a method to handle the find result updates:
+
+dart
+
+```dart
+class _InAppWebViewPageState extends State<InAppWebViewPage> {
+  // ... Other variables and methods ...
+
+  void _onFindToolbarUpdate(String searchText) {
+    // Perform search and update UI as needed
+    print('Search text updated: $searchText');
+  }
+
+  void _onFindResultUpdate(int numberOfMatches, int activeMatchOrdinal) {
+    print('Find result updated: $numberOfMatches matches, active match: $activeMatchOrdinal');
+    // You can update the FindToolbar state using the onFindResultUpdate callback
+  }
+
+  // ... Rest of the code ...
+}
+```
+
+And pass the `_onFindResultUpdate` function when creating the `FindToolbar`:
+
+dart
+
+```dart
+FindToolbar(
+  onFindToolbarUpdate: _onFindToolbarUpdate,
+  onFindResultUpdate: _onFindResultUpdate,
+),
+```
+
+Now, you can use the `onFindResultReceived` event from the `InAppWebViewController` to update the find results:
+
+dart
+
+```dart
+_inAppWebViewController!.addOnFindResultReceivedListener((InAppWebViewController controller, int activeMatchOrdinal, int numberOfMatches, bool isDoneCounting) {
+  widget.onFindResultUpdate(numberOfMatches, activeMatchOrdinal);
+});
+```
+
+Remember to remove the listener in the `dispose` method:
+
+dart
+
+```dart
+_inAppWebViewController!.removeOnFindResultReceivedListener((InAppWebViewController controller, int activeMatchOrdinal, int numberOfMatches, bool isDoneCounting) {
+  widget.onFindResultUpdate(numberOfMatches, activeMatchOrdinal);
+});
+```
+
+With this setup, you can now update `numberOfMatches` and `activeMatchOrdinal` in the `FindToolbar` using the `_onFindResultUpdate` method in the `InAppWebViewPage`.
+
+> 1 / 1
+> 
+> Let's say I have that FindToolbar widget. How do I use it in the following file: \`\`\`dart import 'package:flutter/material.dart'; import 'package:flutter\_inappwebview/flutter\_inappwebview.dart'; import 'find\_toolbar.dart'; class InAppWebViewPage extends StatefulWidget { final String url; InAppWebViewPage({required this.url}); @override \_InAppWebViewPageState createState() => \_InAppWebViewPageState(); } class \_InAppWebViewPageState extends State<InAppWebViewPage> { InAppWebViewController? \_controller; String? title; bool \_isSearchVisible = false; FindMatchesResult findMatches = FindMatchesResult(); void updateTitle(String newTitle) { setState(() { title = newTitle; }); } @override Widget build(BuildContext context) { return Scaffold( appBar: AppBar( title: Text(title ?? 'In-App WebView') ), body: InAppWebView( initialUrlRequest: URLRequest(url: Uri.parse(widget.url)), onWebViewCreated: (InAppWebViewController controller) { \_controller = controller; }, onTitleChanged: (InAppWebViewController controller, String? newTitle) { if (newTitle != null) { updateTitle(newTitle); } }, onFindResultReceived: (controller, int activeMatchOrdinal, int numberOfMatches, bool isDoneCounting) { findMatches.activeMatchOrdinal = activeMatchOrdinal; findMatches.numberOfMatches = numberOfMatches; }, ), ); } } \`\`\`
+
+1 / 1
+
+To use the `FindToolbar` widget in your `InAppWebViewPage`, you can do the following:
+
+1.  Add the `FindToolbar` to your Scaffold.
+2.  Create methods to show and hide the toolbar.
+3.  Add a search button to the AppBar to toggle the toolbar.
+
+Here's the updated code:
+
+dart
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+
+import 'find_toolbar.dart';
+
+class InAppWebViewPage extends StatefulWidget {
+  final String url;
+
+  InAppWebViewPage({required this.url});
+
+  @override
+  _InAppWebViewPageState createState() => _InAppWebViewPageState();
+}
+
+class _InAppWebViewPageState extends State<InAppWebViewPage> {
+  InAppWebViewController? _controller;
+  String? title;
+  bool _isSearchVisible = false;
+
+  FindMatchesResult findMatches = FindMatchesResult();
+
+  void updateTitle(String newTitle) {
+    setState(() {
+      title = newTitle;
+    });
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchVisible = !_isSearchVisible;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title ?? 'In-App WebView'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.search),
+            onPressed: _toggleSearch,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_isSearchVisible)
+            FindToolbar(
+              onFindToolbarUpdate: (searchText) {
+                // Perform search and update UI as needed
+                print('Search text updated: $searchText');
+                _controller?.findAllAsync(find: searchText);
+              },
+              onFindResultUpdate: (numberOfMatches, activeMatchOrdinal) {
+                // Update the FindToolbar state using the onFindResultUpdate callback
+                setState(() {
+                  findMatches.numberOfMatches = numberOfMatches;
+                  findMatches.activeMatchOrdinal = activeMatchOrdinal;
+                });
+              },
+            ),
+          Expanded(
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(url: Uri.parse(widget.url)),
+              onWebViewCreated: (InAppWebViewController controller) {
+                _controller = controller;
+              },
+              onTitleChanged: (InAppWebViewController controller, String? newTitle) {
+                if (newTitle != null) {
+                  updateTitle(newTitle);
+                }
+              },
+              onFindResultReceived: (controller, int activeMatchOrdinal, int numberOfMatches, bool isDoneCounting) {
+                findMatches.activeMatchOrdinal = activeMatchOrdinal;
+                findMatches.numberOfMatches = numberOfMatches;
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+Now, when you press the search button in the AppBar, the `FindToolbar` will appear, allowing you to perform a search and update the find result information.
+
+> 1 / 1
+> 
+> I want to hide appbar actions behind three dots. How do I do that?
+
+1 / 1
+
+To move the AppBar actions behind the three dots menu, you can use the `PopupMenuButton` widget. Here's how you can do it:
+
+1.  Replace the `IconButton` with `PopupMenuButton` in the AppBar.
+2.  Define the menu items in the `PopupMenuButton` using `PopupMenuItem` widget.
+
+Here's the updated code:
+
+dart
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+
+import 'find_toolbar.dart';
+
+class InAppWebViewPage extends StatefulWidget {
+  final String url;
+
+  InAppWebViewPage({required this.url});
+
+  @override
+  _InAppWebViewPageState createState() => _InAppWebViewPageState();
+}
+
+class _InAppWebViewPageState extends State<InAppWebViewPage> {
+  InAppWebViewController? _controller;
+  String? title;
+  bool _isSearchVisible = false;
+
+  FindMatchesResult findMatches = FindMatchesResult();
+
+  void updateTitle(String newTitle) {
+    setState(() {
+      title = newTitle;
+    });
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchVisible = !_isSearchVisible;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title ?? 'In-App WebView'),
+        actions: [
+          PopupMenuButton<String>(
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem<String>(
+                  value: "search",
+                  child: Row(
+                    children: [
+                      Icon(Icons.search, color: Colors.black87),
+                      SizedBox(width: 8),
+                      Text("Search"),
+                    ],
+                  ),
+                ),
+              ];
+            },
+            onSelected: (String value) {
+              if (value == 'search') {
+                _toggleSearch();
+              }
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (_isSearchVisible)
+            FindToolbar(
+              onFindToolbarUpdate: (searchText) {
+                // Perform search and update UI as needed
+                print('Search text updated: $searchText');
+                _controller?.findAllAsync(find: searchText);
+              },
+              onFindResultUpdate: (numberOfMatches, activeMatchOrdinal) {
+                // Update the FindToolbar state using the onFindResultUpdate callback
+                setState(() {
+                  findMatches.numberOfMatches = numberOfMatches;
+                  findMatches.activeMatchOrdinal = activeMatchOrdinal;
+                });
+              },
+            ),
+          Expanded(
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(url: Uri.parse(widget.url)),
+              onWebViewCreated: (InAppWebViewController controller) {
+                _controller = controller;
+              },
+              onTitleChanged: (InAppWebViewController controller, String? newTitle) {
+                if (newTitle != null) {
+                  updateTitle(newTitle);
+                }
+              },
+              onFindResultReceived: (controller, int activeMatchOrdinal, int numberOfMatches, bool isDoneCounting) {
+                findMatches.activeMatchOrdinal = activeMatchOrdinal;
+                findMatches.numberOfMatches = numberOfMatches;
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+Now, the search action will be hidden behind the three dots menu in the AppBar. You can add more actions to the menu by adding more `PopupMenuItem` widgets inside the `itemBuilder`.
