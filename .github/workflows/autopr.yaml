@@ -1,5 +1,12 @@
 on:
+  push:
+    branches:
+      - main
   issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+  pull_request_target:
     types: [labeled]
 
 permissions:
@@ -9,7 +16,6 @@ permissions:
 
 jobs:
   autopr:
-    if: ${{ contains( github.event.label.name, 'AutoPR') }}
     runs-on: ubuntu-latest
     steps:
     - name: Install jq
@@ -20,6 +26,7 @@ jobs:
       run: |
         is_collaborator=$(curl -s -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \
           "https://api.github.com/repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}" | jq -r '.message')
+
         if [ "$is_collaborator" == "Not Found" ]; then
           echo "Label not added by a collaborator. Skipping action."
           exit 78
@@ -27,16 +34,13 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
       with:
-        ref: master
+        ref: main
         fetch-depth: 1
     - name: AutoPR
       uses: irgolic/AutoPR@main
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       with:
-        event: ${{ toJson(github.event) }}
-        event_name: ${{ github.event_name }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        base_branch: master
-        model: gpt-4
-        context_limit: 8192
+        base_branch: main
+
