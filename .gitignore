@@ -1,5 +1,7 @@
 # User defined
 /pubspec.lock
+/.metadata
+/android/key.properties
 
 # Miscellaneous
 *.class
@@ -8,9 +10,11 @@
 *.swp
 .DS_Store
 .atom/
+.build/
 .buildlog/
 .history
 .svn/
+.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related

@@ -135,7 +135,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
             ),
           Expanded(
             child: InAppWebView(
-              initialUrlRequest: URLRequest(url: Uri.parse(widget.url)),
+              initialUrlRequest: URLRequest(url: WebUri(widget.url)),
               onWebViewCreated: (InAppWebViewController controller) {
                 _controller = controller;
               },

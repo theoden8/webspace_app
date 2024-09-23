@@ -143,7 +143,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       for (WebViewModel webViewModel in loadedWebViewModels) {
         for(final cookie in webViewModel.cookies) {
           await _cookieManager.setCookie(
-            url: Uri.parse(webViewModel.initUrl),
+            url: WebUri(webViewModel.initUrl),
             name: cookie.name,
             value: cookie.value,
             domain: cookie.domain,

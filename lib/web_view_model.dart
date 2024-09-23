@@ -30,7 +30,7 @@ class WebViewModel {
   List<Cookie> cookies;
   InAppWebView? webview;
   InAppWebViewController? controller;
-  ProxySettings proxySettings;
+  UserProxySettings proxySettings;
   bool javascriptEnabled;
   String userAgent;
   bool thirdPartyCookiesEnabled;
@@ -43,14 +43,14 @@ class WebViewModel {
     required this.initUrl,
     String? currentUrl,
     this.cookies=const [],
-    ProxySettings? proxySettings,
+    UserProxySettings? proxySettings,
     this.javascriptEnabled=true,
     this.userAgent='',
     this.thirdPartyCookiesEnabled=false,
     this.stateSetterF,
   }):
     currentUrl = currentUrl ?? initUrl,
-    proxySettings = proxySettings ?? ProxySettings(type: ProxyType.DEFAULT);
+    proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
 
   void removeThirdPartyCookies(InAppWebViewController controller) async {
     String script = '''
@@ -95,7 +95,7 @@ class WebViewModel {
         useShouldOverrideUrlLoading: true,
       ),
     ));
-    controller!.loadUrl(urlRequest: URLRequest(url: Uri.parse(currentUrl)));
+    controller!.loadUrl(urlRequest: URLRequest(url: WebUri(currentUrl)));
     if(defaultUserAgent == null) {
       InAppWebViewController.getDefaultUserAgent().then((String value) {
         defaultUserAgent = value;
@@ -106,7 +106,7 @@ class WebViewModel {
   InAppWebView getWebView(launch_url_func, CookieManager cookieManager, save_func) {
     if (webview == null) {
       webview = InAppWebView(
-        initialUrlRequest: URLRequest(url: Uri.parse(currentUrl)),
+        initialUrlRequest: URLRequest(url: WebUri(currentUrl)),
         onWebViewCreated: (controller) {
           this.controller = controller;
           setController();
@@ -135,7 +135,7 @@ class WebViewModel {
           if(url == null) {
             return;
           }
-          cookies = await cookieManager.getCookies(url: Uri.parse(currentUrl));
+          cookies = await cookieManager.getCookies(url: WebUri(currentUrl));
           if(!thirdPartyCookiesEnabled) {
             removeThirdPartyCookies(controller!);
           }
@@ -168,7 +168,7 @@ class WebViewModel {
   void deleteCookies(CookieManager cookieManager) async {
     for(final Cookie cookie in cookies) {
       await cookieManager.deleteCookie(
-        url: Uri.parse(initUrl),
+        url: WebUri(initUrl),
         name: cookie.name,
         domain: cookie.domain,
         path: cookie.path ?? "/",
@@ -195,7 +195,7 @@ class WebViewModel {
       cookies: (json['cookies'] as List<dynamic>)
           .map((dynamic e) => cookieFromJson(e))
           .toList(),
-      proxySettings: ProxySettings.fromJson(json['proxySettings']),
+      proxySettings: UserProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
       userAgent: json['userAgent'],
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],

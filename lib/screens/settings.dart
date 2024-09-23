@@ -35,7 +35,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late ProxySettings _proxySettings;
+  late UserProxySettings _proxySettings;
   late TextEditingController _userAgentController;
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
