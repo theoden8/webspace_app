@@ -1,7 +1,7 @@
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-
+import 'package:flutter/material.dart';
+import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/platform/webview_factory.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/widgets/find_toolbar.dart';
 
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
@@ -9,50 +9,39 @@ String extractDomain(String url) {
   return domain.isEmpty ? url : domain;
 }
 
-Cookie cookieFromJson(Map<String, dynamic> json) {
-  return Cookie(
-    name: json["name"],
-    value: json["value"],
-    expiresDate: json["expiresDate"],
-    isSessionOnly: json["isSessionOnly"],
-    domain: json["domain"],
-    sameSite: json["sameSite?.toValue()"],
-    isSecure: json["isSecure"],
-    isHttpOnly: json["isHttpOnly"],
-    path: json["path"],
-  );
-}
-
-
 class WebViewModel {
-  final String initUrl;
+  String initUrl; // Made non-final to allow URL editing
   String currentUrl;
-  List<Cookie> cookies;
-  InAppWebView? webview;
-  InAppWebViewController? controller;
-  UserProxySettings proxySettings;
+  String name; // Custom name for the site
+  String? pageTitle; // Current page title from webview
+  List<UnifiedCookie> cookies;
+  Widget? webview;
+  UnifiedWebViewController? controller;
+  ProxySettings proxySettings;
   bool javascriptEnabled;
   String userAgent;
   bool thirdPartyCookiesEnabled;
 
   String? defaultUserAgent;
   Function? stateSetterF;
-  FindMatchesResult findMatches = FindMatchesResult();
+  UnifiedFindMatchesResult findMatches = UnifiedFindMatchesResult();
+  WebViewTheme _currentTheme = WebViewTheme.light;
 
   WebViewModel({
     required this.initUrl,
     String? currentUrl,
-    this.cookies=const [],
-    UserProxySettings? proxySettings,
-    this.javascriptEnabled=true,
-    this.userAgent='',
-    this.thirdPartyCookiesEnabled=false,
+    String? name,
+    this.cookies = const [],
+    ProxySettings? proxySettings,
+    this.javascriptEnabled = true,
+    this.userAgent = '',
+    this.thirdPartyCookiesEnabled = false,
     this.stateSetterF,
-  }):
-    currentUrl = currentUrl ?? initUrl,
-    proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
+  })  : currentUrl = currentUrl ?? initUrl,
+        name = name ?? extractDomain(initUrl),
+        proxySettings = proxySettings ?? ProxySettings(type: ProxyType.DEFAULT);
 
-  void removeThirdPartyCookies(InAppWebViewController controller) async {
+  void removeThirdPartyCookies(UnifiedWebViewController controller) async {
     String script = '''
       (function() {
         function getDomain(hostname) {
@@ -80,93 +69,130 @@ class WebViewModel {
       })();
     ''';
 
-    await controller.evaluateJavascript(source: script);
+    await controller.evaluateJavascript(script);
   }
 
-  void setController() {
+  Future<void> setController() async {
     if (controller == null) {
       return;
     }
-    controller!.setOptions(options: InAppWebViewGroupOptions(
-      crossPlatform: InAppWebViewOptions(
-        javaScriptEnabled: javascriptEnabled,
-        userAgent: userAgent,
-        supportZoom: true,
-        useShouldOverrideUrlLoading: true,
-      ),
-    ));
-    controller!.loadUrl(urlRequest: URLRequest(url: WebUri(currentUrl)));
-    if(defaultUserAgent == null) {
-      InAppWebViewController.getDefaultUserAgent().then((String value) {
-        defaultUserAgent = value;
-      });
+    await controller!.setOptions(
+      javascriptEnabled: javascriptEnabled,
+      userAgent: userAgent.isNotEmpty ? userAgent : null,
+    );
+    // Apply current theme preference
+    await controller!.setThemePreference(_currentTheme);
+    // Don't call loadUrl here - it's already initialized with the URL
+    if (defaultUserAgent == null) {
+      defaultUserAgent = await controller!.getDefaultUserAgent();
     }
   }
 
-  InAppWebView getWebView(launch_url_func, CookieManager cookieManager, save_func) {
+  /// Apply theme preference to the webview
+  Future<void> setTheme(WebViewTheme theme) async {
+    _currentTheme = theme;
+    if (controller != null) {
+      await controller!.setThemePreference(theme);
+    }
+  }
+
+  Widget getWebView(
+    Function(String) launchUrlFunc,
+    UnifiedCookieManager cookieManager,
+    Function saveFunc,
+  ) {
     if (webview == null) {
-      webview = InAppWebView(
-        initialUrlRequest: URLRequest(url: WebUri(currentUrl)),
-        onWebViewCreated: (controller) {
-          this.controller = controller;
+      webview = WebViewFactory.createWebView(
+        config: WebViewConfig(
+          initialUrl: currentUrl,
+          javascriptEnabled: javascriptEnabled,
+          userAgent: userAgent.isNotEmpty ? userAgent : null,
+          shouldOverrideUrlLoading: (url, shouldAllow) {
+            String requestDomain = extractDomain(url);
+            String initialDomain = extractDomain(initUrl);
+
+            // Extract top-level and second-level domains
+            List<String> requestDomainParts = requestDomain.split('.');
+            List<String> initialDomainParts = initialDomain.split('.');
+
+            // Compare top-level and second-level domains
+            if (requestDomainParts.length >= 2 && initialDomainParts.length >= 2) {
+              bool sameTopLevelDomain = requestDomainParts.last == initialDomainParts.last;
+              bool sameSecondLevelDomain = requestDomainParts[requestDomainParts.length - 2] ==
+                  initialDomainParts[initialDomainParts.length - 2];
+
+              if (sameTopLevelDomain && sameSecondLevelDomain) {
+                return true; // Allow
+              }
+            }
+
+            // Open in external browser
+            launchUrlFunc(url);
+            return false; // Cancel
+          },
+          onUrlChanged: (url) async {
+            currentUrl = url;
+            // Get page title and update name if we have a title
+            if (controller != null) {
+              var title = await controller!.getTitle();
+
+              // Fallback: If controller doesn't provide title (webview_cef on Linux),
+              // parse HTML to extract it
+              if (title == null || title.isEmpty) {
+                // Import getPageTitle from main.dart would cause circular dependency
+                // So we'll handle this in the UI layer instead
+              } else {
+                pageTitle = title;
+                // Auto-update name from page title if name is still the default domain
+                if (name == extractDomain(initUrl)) {
+                  name = title;
+                }
+              }
+
+              // Reapply theme after page load (some sites might override it)
+              await controller!.setThemePreference(_currentTheme);
+            }
+            await saveFunc();
+          },
+          onCookiesChanged: (newCookies) async {
+            cookies = newCookies;
+            if (!thirdPartyCookiesEnabled && controller != null) {
+              removeThirdPartyCookies(controller!);
+            }
+          },
+          onFindResult: (activeMatch, totalMatches) {
+            findMatches.activeMatchOrdinal = activeMatch;
+            findMatches.numberOfMatches = totalMatches;
+            if (stateSetterF != null) {
+              stateSetterF!();
+            }
+          },
+        ),
+        onControllerCreated: (ctrl) {
+          controller = ctrl;
           setController();
-        },
-        shouldOverrideUrlLoading: (controller, navigationAction) async {
-          String requestDomain = extractDomain(navigationAction.request.url.toString());
-          String initialDomain = extractDomain(initUrl);
-
-          // Extract top-level and second-level domains
-          List<String> requestDomainParts = requestDomain.split('.');
-          List<String> initialDomainParts = initialDomain.split('.');
-
-          // Compare top-level and second-level domains
-          bool sameTopLevelDomain = requestDomainParts.last == initialDomainParts.last;
-          bool sameSecondLevelDomain = requestDomainParts[requestDomainParts.length - 2] ==
-              initialDomainParts[initialDomainParts.length - 2];
-
-          if (sameTopLevelDomain && sameSecondLevelDomain) {
-            return NavigationActionPolicy.ALLOW;
-          } else {
-            await launch_url_func(navigationAction.request.url.toString());
-            return NavigationActionPolicy.CANCEL;
-          }
-        },
-        onLoadStop: (controller, Uri? url) async {
-          if(url == null) {
-            return;
-          }
-          cookies = await cookieManager.getCookies(url: WebUri(currentUrl));
-          if(!thirdPartyCookiesEnabled) {
-            removeThirdPartyCookies(controller!);
-          }
-          currentUrl = url!.toString();
-          await save_func();
-        },
-        onFindResultReceived: (controller, int activeMatchOrdinal, int numberOfMatches, bool isDoneCounting) {
-          findMatches.activeMatchOrdinal = activeMatchOrdinal;
-          findMatches.numberOfMatches = numberOfMatches;
-          if(stateSetterF != null) {
-            stateSetterF!();
-          }
         },
       );
     }
     return webview!;
   }
 
-  InAppWebViewController? getController(launch_url_func, CookieManager cookieManager, savefunc) {
+  UnifiedWebViewController? getController(
+    Function(String) launchUrlFunc,
+    UnifiedCookieManager cookieManager,
+    Function saveFunc,
+  ) {
     if (webview == null) {
-      webview = getWebView(launch_url_func, cookieManager, savefunc);
+      webview = getWebView(launchUrlFunc, cookieManager, saveFunc);
     }
-    if (controller == null) {
-      return null;
+    if (controller != null) {
+      setController();
     }
-    setController();
-    return controller!;
+    return controller;
   }
 
-  void deleteCookies(CookieManager cookieManager) async {
-    for(final Cookie cookie in cookies) {
+  Future<void> deleteCookies(UnifiedCookieManager cookieManager) async {
+    for (final UnifiedCookie cookie in cookies) {
       await cookieManager.deleteCookie(
         url: WebUri(initUrl),
         name: cookie.name,
@@ -177,29 +203,37 @@ class WebViewModel {
     cookies = [];
   }
 
+  /// Get display name - uses the name field (which auto-updates from page title)
+  String getDisplayName() {
+    return name;
+  }
+
   // Serialization methods
   Map<String, dynamic> toJson() => {
-    'initUrl': initUrl,
-    'currentUrl': currentUrl,
-    'cookies': cookies.map((cookie) => cookie.toJson()).toList(),
-    'proxySettings': proxySettings.toJson(),
-    'javascriptEnabled': javascriptEnabled,
-    'userAgent': userAgent,
-    'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
-  };
+        'initUrl': initUrl,
+        'currentUrl': currentUrl,
+        'name': name,
+        'pageTitle': pageTitle,
+        'cookies': cookies.map((cookie) => cookie.toJson()).toList(),
+        'proxySettings': proxySettings.toJson(),
+        'javascriptEnabled': javascriptEnabled,
+        'userAgent': userAgent,
+        'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
+      };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
     return WebViewModel(
       initUrl: json['initUrl'],
       currentUrl: json['currentUrl'],
+      name: json['name'],
       cookies: (json['cookies'] as List<dynamic>)
-          .map((dynamic e) => cookieFromJson(e))
+          .map((dynamic e) => UnifiedCookie.fromJson(e))
           .toList(),
       proxySettings: UserProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
       userAgent: json['userAgent'],
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
       stateSetterF: stateSetterF,
-    );
+    )..pageTitle = json['pageTitle'];
   }
 }

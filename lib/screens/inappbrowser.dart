@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:webspace/platform/webview_factory.dart';
+import 'package:webspace/platform/unified_webview.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {
@@ -14,11 +15,11 @@ class InAppWebViewScreen extends StatefulWidget {
 }
 
 class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
-  InAppWebViewController? _controller;
+  UnifiedWebViewController? _controller;
   String? title;
 
   bool _isFindVisible = false;
-  FindMatchesResult findMatches = FindMatchesResult();
+  UnifiedFindMatchesResult findMatches = UnifiedFindMatchesResult();
 
   void updateTitle(String newTitle) {
     setState(() {
@@ -32,17 +33,20 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
     });
   }
 
-  Future<void> launchUrl(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
+  Future<void> launchExternalUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not launch $url')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch $url')),
+        );
+      }
     }
   }
 
-  void removeAllCookies(InAppWebViewController controller) async {
+  void removeAllCookies(UnifiedWebViewController controller) async {
     String script = '''
       (function() {
         var cookies = document.cookie.split("; ");
@@ -58,9 +62,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
       })();
     ''';
 
-    await controller.evaluateJavascript(source: script);
+    await controller.evaluateJavascript(script);
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -104,20 +107,24 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
               ];
             },
             onSelected: (String value) async {
-              switch(value) {
+              switch (value) {
                 case 'openbrowser':
-                  if(_controller != null) {
-                    String url = (await _controller!.getUrl()).toString();
-                    launchUrl(url);
-                    Navigator.pop(context);
+                  if (_controller != null) {
+                    final url = await _controller!.getUrl();
+                    if (url != null) {
+                      launchExternalUrl(url.toString());
+                      if (mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
                   }
-                break;
+                  break;
                 case 'search':
                   _toggleFind();
-                break;
+                  break;
                 case 'refresh':
                   _controller?.reload();
-                break;
+                  break;
               }
             },
           ),
@@ -125,7 +132,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
       ),
       body: Column(
         children: [
-          if(_isFindVisible && _controller != null)
+          if (_isFindVisible && _controller != null)
             FindToolbar(
               webViewController: _controller,
               matches: findMatches,
@@ -134,27 +141,32 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
               },
             ),
           Expanded(
-            child: InAppWebView(
-              initialUrlRequest: URLRequest(url: WebUri(widget.url)),
-              onWebViewCreated: (InAppWebViewController controller) {
+            child: WebViewFactory.createWebView(
+              config: WebViewConfig(
+                initialUrl: widget.url,
+                onUrlChanged: (url) {
+                  // URL changed
+                },
+                onFindResult: (activeMatch, totalMatches) {
+                  setState(() {
+                    findMatches.activeMatchOrdinal = activeMatch;
+                    findMatches.numberOfMatches = totalMatches;
+                  });
+                },
+              ),
+              onControllerCreated: (controller) {
                 _controller = controller;
-              },
-              onTitleChanged: (InAppWebViewController controller, String? newTitle) {
-                if (newTitle != null) {
-                  updateTitle(newTitle);
-                }
-              },
-              onLoadStop: (controller, Uri? url) async {
-                if(url == null) {
-                  return;
-                }
-                if(_controller != null) {
-                  removeAllCookies(_controller!);
-                }
-              },
-              onFindResultReceived: (controller, int activeMatchOrdinal, int numberOfMatches, bool isDoneCounting) {
-                findMatches.activeMatchOrdinal = activeMatchOrdinal;
-                findMatches.numberOfMatches = numberOfMatches;
+                // Remove all cookies on load
+                controller.evaluateJavascript('''
+                  (function() {
+                    var cookies = document.cookie.split("; ");
+                    for (var i = 0; i < cookies.length; i++) {
+                      var cookie = cookies[i];
+                      var cookieName = cookie.split("=")[0];
+                      document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                    }
+                  })();
+                ''');
               },
             ),
           ),

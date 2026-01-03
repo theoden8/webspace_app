@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import 'package:webspace/main.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
 

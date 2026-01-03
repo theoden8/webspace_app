@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>Theme Support Test</title>
+    <style>
+        body {
+            transition: background 0.3s, color 0.3s;
+        }
+        body {
+            background: white;
+            color: black;
+        }
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #1a1a1a;
+                color: #e0e0e0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Theme Support Test</h1>
+    <p>This page supports light/dark theme switching.</p>
+    <p>Current theme: <span id="theme"></span></p>
+    <script>
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.getElementById('theme').textContent = isDark ? 'dark' : 'light';
+    </script>
+</body>
+</html>
