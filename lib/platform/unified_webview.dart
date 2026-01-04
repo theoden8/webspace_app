@@ -1,5 +1,6 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'platform_info.dart';
+import 'package:webspace/settings/proxy.dart';
 
 // Helper to convert Uri to WebUri
 inapp.WebUri _toWebUri(Uri uri) => inapp.WebUri(uri.toString());
@@ -179,4 +180,90 @@ enum WebViewTheme {
   light,
   dark,
   system,
+}
+
+/// Unified proxy manager that works across platforms
+class UnifiedProxyManager {
+  static final UnifiedProxyManager _instance = UnifiedProxyManager._internal();
+  factory UnifiedProxyManager() => _instance;
+  UnifiedProxyManager._internal();
+
+  /// Set proxy settings for InAppWebView (Android/iOS)
+  Future<void> setProxySettings(UserProxySettings proxySettings) async {
+    if (!PlatformInfo.useInAppWebView) {
+      // Proxy only supported on InAppWebView (Android/iOS)
+      return;
+    }
+
+    try {
+      final proxyController = inapp.ProxyController.instance();
+      
+      if (proxySettings.type == ProxyType.DEFAULT) {
+        // Clear proxy settings - use system default
+        await proxyController.clearProxyOverride();
+      } else {
+        // Set proxy override
+        if (proxySettings.address == null || proxySettings.address!.isEmpty) {
+          throw Exception('Proxy address is required for non-default proxy type');
+        }
+
+        // Parse address and port
+        final addressParts = proxySettings.address!.split(':');
+        if (addressParts.length != 2) {
+          throw Exception('Proxy address must be in format host:port');
+        }
+
+        final host = addressParts[0];
+        final port = int.tryParse(addressParts[1]);
+        if (port == null) {
+          throw Exception('Invalid port number in proxy address');
+        }
+
+        // Convert ProxyType to ProxyScheme
+        String scheme;
+        switch (proxySettings.type) {
+          case ProxyType.HTTP:
+            scheme = 'http';
+            break;
+          case ProxyType.HTTPS:
+            scheme = 'https';
+            break;
+          case ProxyType.SOCKS5:
+            scheme = 'socks5';
+            break;
+          default:
+            scheme = 'http';
+        }
+
+        // Set proxy override
+        await proxyController.setProxyOverride(
+          settings: inapp.ProxySettings(
+            proxyRules: [
+              inapp.ProxyRule(
+                url: '$scheme://$host:$port',
+              ),
+            ],
+            bypassRules: ['<local>'], // Bypass localhost
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error setting proxy: $e');
+      rethrow;
+    }
+  }
+
+  /// Clear proxy settings
+  Future<void> clearProxy() async {
+    if (!PlatformInfo.useInAppWebView) {
+      return;
+    }
+
+    try {
+      final proxyController = inapp.ProxyController.instance();
+      await proxyController.clearProxyOverride();
+    } catch (e) {
+      print('Error clearing proxy: $e');
+    }
+  }
 }

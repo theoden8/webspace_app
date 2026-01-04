@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' show WebUri;
 import 'package:webspace/platform/unified_webview.dart';
 import 'package:webspace/platform/webview_factory.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -17,7 +18,7 @@ class WebViewModel {
   List<UnifiedCookie> cookies;
   Widget? webview;
   UnifiedWebViewController? controller;
-  ProxySettings proxySettings;
+  UserProxySettings proxySettings;
   bool javascriptEnabled;
   String userAgent;
   bool thirdPartyCookiesEnabled;
@@ -32,14 +33,14 @@ class WebViewModel {
     String? currentUrl,
     String? name,
     this.cookies = const [],
-    ProxySettings? proxySettings,
+    UserProxySettings? proxySettings,
     this.javascriptEnabled = true,
     this.userAgent = '',
     this.thirdPartyCookiesEnabled = false,
     this.stateSetterF,
   })  : currentUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
-        proxySettings = proxySettings ?? ProxySettings(type: ProxyType.DEFAULT);
+        proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
 
   void removeThirdPartyCookies(UnifiedWebViewController controller) async {
     String script = '''
@@ -76,6 +77,9 @@ class WebViewModel {
     if (controller == null) {
       return;
     }
+    // Apply proxy settings first (before loading any URLs)
+    await _applyProxySettings();
+    
     await controller!.setOptions(
       javascriptEnabled: javascriptEnabled,
       userAgent: userAgent.isNotEmpty ? userAgent : null,
@@ -88,12 +92,28 @@ class WebViewModel {
     }
   }
 
+  /// Apply proxy settings to the webview
+  Future<void> _applyProxySettings() async {
+    final proxyManager = UnifiedProxyManager();
+    try {
+      await proxyManager.setProxySettings(proxySettings);
+    } catch (e) {
+      print('Failed to apply proxy settings: $e');
+    }
+  }
+
   /// Apply theme preference to the webview
   Future<void> setTheme(WebViewTheme theme) async {
     _currentTheme = theme;
     if (controller != null) {
       await controller!.setThemePreference(theme);
     }
+  }
+
+  /// Update proxy settings and apply them
+  Future<void> updateProxySettings(UserProxySettings newSettings) async {
+    proxySettings = newSettings;
+    await _applyProxySettings();
   }
 
   Widget getWebView(
@@ -194,7 +214,7 @@ class WebViewModel {
   Future<void> deleteCookies(UnifiedCookieManager cookieManager) async {
     for (final UnifiedCookie cookie in cookies) {
       await cookieManager.deleteCookie(
-        url: WebUri(initUrl),
+        url: Uri.parse(initUrl),
         name: cookie.name,
         domain: cookie.domain,
         path: cookie.path ?? "/",

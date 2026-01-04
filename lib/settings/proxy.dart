@@ -1,4 +1,4 @@
-enum ProxyType { DEFAULT }//, HTTP, HTTPS, SOCKS4, SOCKS5 }
+enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5 }
 
 class UserProxySettings {
   ProxyType type;

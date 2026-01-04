@@ -36,6 +36,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late UserProxySettings _proxySettings;
   late TextEditingController _userAgentController;
+  late TextEditingController _proxyAddressController;
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
 
@@ -46,9 +47,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _proxySettings = widget.webViewModel.proxySettings;
+    _proxySettings = UserProxySettings(
+      type: widget.webViewModel.proxySettings.type,
+      address: widget.webViewModel.proxySettings.address,
+    );
     _userAgentController = TextEditingController(
       text: getResetUserAgent(),
+    );
+    _proxyAddressController = TextEditingController(
+      text: _proxySettings.address ?? '',
     );
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
@@ -57,7 +64,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _userAgentController.dispose();
+    _proxyAddressController.dispose();
     super.dispose();
+  }
+
+  String? _validateProxyAddress(String? value) {
+    if (_proxySettings.type == ProxyType.DEFAULT) {
+      return null;
+    }
+    
+    if (value == null || value.isEmpty) {
+      return 'Proxy address is required';
+    }
+    
+    final parts = value.split(':');
+    if (parts.length != 2) {
+      return 'Format: host:port (e.g., proxy.example.com:1080)';
+    }
+    
+    final port = int.tryParse(parts[1]);
+    if (port == null || port < 1 || port > 65535) {
+      return 'Invalid port number (1-65535)';
+    }
+    
+    return null;
+  }
+
+  Future<void> _saveSettings() async {
+    // Validate proxy address if needed
+    final proxyError = _validateProxyAddress(_proxyAddressController.text);
+    if (proxyError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Proxy Error: $proxyError')),
+      );
+      return;
+    }
+
+    try {
+      // Update proxy settings
+      _proxySettings.address = _proxyAddressController.text.isEmpty 
+          ? null 
+          : _proxyAddressController.text;
+      
+      widget.webViewModel.proxySettings = _proxySettings;
+      
+      // Apply proxy settings immediately
+      await widget.webViewModel.updateProxySettings(_proxySettings);
+      
+      // Update other settings
+      if (_userAgentController.text != '') {
+        widget.webViewModel.userAgent = _userAgentController.text;
+      }
+      widget.webViewModel.javascriptEnabled = _javascriptEnabled;
+      widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Settings saved successfully')),
+      );
+      
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving settings: $e')),
+      );
+    }
   }
 
   @override
@@ -88,14 +162,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           if (_proxySettings.type != ProxyType.DEFAULT)
-            ListTile(
-              title: TextField(
-                onChanged: (value) {
-                  _proxySettings.address = value;
-                },
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: TextFormField(
+                controller: _proxyAddressController,
                 decoration: InputDecoration(
                   labelText: 'Proxy Address',
+                  hintText: 'host:port (e.g., proxy.example.com:1080)',
+                  helperText: 'Format: host:port',
+                  border: OutlineInputBorder(),
                 ),
+                validator: _validateProxyAddress,
               ),
             ),
           SwitchListTile(
@@ -149,17 +226,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
-          ElevatedButton(
-            onPressed: () {
-              widget.webViewModel.proxySettings = _proxySettings;
-              if (_userAgentController.text != '') {
-                widget.webViewModel.userAgent = _userAgentController.text;
-              }
-              widget.webViewModel.javascriptEnabled = _javascriptEnabled;
-              widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
-              Navigator.pop(context);
-            },
-            child: Text('Save Settings'),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              onPressed: _saveSettings,
+              child: Text('Save Settings'),
+            ),
           ),
         ],
       ),

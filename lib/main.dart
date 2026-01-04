@@ -144,39 +144,28 @@ Future<String?> getFaviconUrl(String url) async {
 Future<String?> getPageTitle(String url) async {
   // Check cache first
   if (_pageTitleCache.containsKey(url)) {
-    print('Title cache hit for $url: ${_pageTitleCache[url]}');
     return _pageTitleCache[url];
   }
 
   try {
-    print('Fetching HTML from: $url');
     final response = await http.get(Uri.parse(url)).timeout(
       Duration(seconds: 5),
       onTimeout: () => throw TimeoutException('Page fetch timeout'),
     );
     
-    print('HTTP response status: ${response.statusCode}');
     if (response.statusCode == 200) {
-      print('Parsing HTML (${response.body.length} bytes)');
       html_dom.Document document = html_parser.parse(response.body);
       final titleElement = document.querySelector('title');
       if (titleElement != null) {
         final title = titleElement.text.trim();
-        print('Found title: "$title"');
         if (title.isNotEmpty) {
           _pageTitleCache[url] = title;
           return title;
-        } else {
-          print('Title is empty');
         }
-      } else {
-        print('No <title> element found in HTML');
       }
-    } else {
-      print('HTTP error: ${response.statusCode}');
     }
   } catch (e) {
-    print('Error fetching page title: $e');
+    // Silently handle errors
   }
   
   _pageTitleCache[url] = null;
@@ -286,7 +275,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       for (WebViewModel webViewModel in loadedWebViewModels) {
         for(final cookie in webViewModel.cookies) {
           await _cookieManager.setCookie(
-            url: WebUri(webViewModel.initUrl),
+            url: Uri.parse(webViewModel.initUrl),
             name: cookie.name,
             value: cookie.value,
             domain: cookie.domain,
@@ -345,7 +334,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   Flexible(
                     child: Text(
                       _webViewModels[_currentIndex!].getDisplayName(),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      softWrap: false,
                     ),
                   ),
                   SizedBox(width: 8),
@@ -454,23 +445,15 @@ class _WebSpacePageState extends State<WebSpacePage> {
     );
     if (url != null) {
       // Try to fetch page title for Linux (webview_cef doesn't expose getTitle)
-      print('Fetching page title for: $url');
       final pageTitle = await getPageTitle(url);
-      print('Got page title: $pageTitle');
       
       setState(() {
         final model = WebViewModel(initUrl: url, stateSetterF: () {setState((){});});
         if (pageTitle != null && pageTitle.isNotEmpty) {
-          print('Setting name to: $pageTitle');
           model.name = pageTitle;
           model.pageTitle = pageTitle;
-          print('After setting - model.name: ${model.name}, model.getDisplayName(): ${model.getDisplayName()}');
-        } else {
-          print('No title found, using default: ${model.name}');
         }
         _webViewModels.add(model);
-        print('Added to list, total models: ${_webViewModels.length}');
-        print('Last model name: ${_webViewModels.last.name}, displayName: ${_webViewModels.last.getDisplayName()}');
         _currentIndex = _webViewModels.length - 1;
         _saveCurrentIndex();
       });
@@ -611,7 +594,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         }
                       },
                     ),
-                    title: Text(_webViewModels[index].getDisplayName()),
+                    title: Text(
+                      _webViewModels[index].getDisplayName(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                    ),
                     subtitle: Text(extractDomain(_webViewModels[index].initUrl), 
                       style: TextStyle(fontSize: 12, color: Colors.grey)),
                     onTap: () {
