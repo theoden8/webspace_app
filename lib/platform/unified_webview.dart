@@ -190,8 +190,8 @@ class UnifiedProxyManager {
 
   /// Set proxy settings for InAppWebView (Android/iOS)
   Future<void> setProxySettings(UserProxySettings proxySettings) async {
-    if (!PlatformInfo.useInAppWebView) {
-      // Proxy only supported on InAppWebView (Android/iOS)
+    if (!PlatformInfo.isProxySupported) {
+      // Proxy only supported on InAppWebView
       return;
     }
 
@@ -255,7 +255,7 @@ class UnifiedProxyManager {
 
   /// Clear proxy settings
   Future<void> clearProxy() async {
-    if (!PlatformInfo.useInAppWebView) {
+    if (!PlatformInfo.isProxySupported) {
       return;
     }
 
