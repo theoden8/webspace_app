@@ -40,7 +40,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Build APK
         run: flutter build apk --release
@@ -84,7 +84,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Create iOS platform if not exists
         run: |
@@ -137,7 +137,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Run tests
         run: flutter test
@@ -180,7 +180,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: flutter pub get
 
       - name: Run tests
         run: flutter test
