@@ -46,7 +46,7 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release --flavor fmain --split-per-abi
+        run: flutter build apk --release --flavor fdroid --split-per-abi
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
@@ -141,17 +141,6 @@ jobs:
       - name: Build Linux
         run: flutter build linux --release
 
-      - name: Package Linux app
-        run: |
-          cd build/linux/x64/release/bundle
-          tar -czf ../../../../../webspace-linux-x64.tar.gz .
-
-      - name: Upload Linux build
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-x64
-          path: webspace-linux-x64.tar.gz
-
   build-macos:
     name: Build macOS
     runs-on: macos-latest
@@ -213,9 +202,9 @@ jobs:
         run: |
           echo "## Build Artifacts Generated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Android APKs (split by ABI)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Android APKs (fdroid flavor, split by ABI)" >> $GITHUB_STEP_SUMMARY
           echo "✅ iOS IPA (unsigned)" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Linux x64 package" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Linux x64 build" >> $GITHUB_STEP_SUMMARY
           echo "✅ macOS app bundle" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "All platform builds completed successfully!" >> $GITHUB_STEP_SUMMARY
