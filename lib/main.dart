@@ -16,6 +16,18 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 
+// Helper to convert ThemeMode to WebViewTheme
+WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
+  switch (mode) {
+    case ThemeMode.dark:
+      return WebViewTheme.dark;
+    case ThemeMode.light:
+      return WebViewTheme.light;
+    case ThemeMode.system:
+      return WebViewTheme.system;
+  }
+}
+
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
   String? domain = uri.host;
@@ -279,6 +291,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
       widget.onThemeModeChanged(_themeMode);
     });
     await _loadWebViewModels();
+
+    // Apply saved theme to all restored webviews
+    final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+    for (var webViewModel in _webViewModels) {
+      await webViewModel.setTheme(webViewTheme);
+    }
   }
 
   Future<void> launchUrl(String url) async {
@@ -340,6 +358,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
             });
             widget.onThemeModeChanged(_themeMode);
             await _saveThemeMode();
+
+            // Apply theme to all webviews
+            final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+            for (var webViewModel in _webViewModels) {
+              await webViewModel.setTheme(webViewTheme);
+            }
           },
         ),
         PopupMenuButton<String>(
@@ -440,6 +464,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
         _saveCurrentIndex();
       });
       _saveWebViewModels();
+
+      // Apply current theme to new webview
+      final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+      await _webViewModels[_webViewModels.length - 1].setTheme(webViewTheme);
     }
   }
 
