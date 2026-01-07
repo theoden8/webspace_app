@@ -45,22 +45,13 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release
-
-      - name: Build App Bundle
-        run: flutter build appbundle --release
+        run: flutter build apk --release --flavor fmain
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-
-      - name: Upload App Bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-appbundle
-          path: build/app/outputs/bundle/release/app-release.aab
+          path: build/app/outputs/flutter-apk/app-fmain-release.apk
 
   build-ios:
     name: Build iOS
@@ -218,7 +209,7 @@ jobs:
         run: |
           echo "## Build Artifacts Generated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Android APK and App Bundle" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Android APK" >> $GITHUB_STEP_SUMMARY
           echo "✅ iOS IPA (unsigned)" >> $GITHUB_STEP_SUMMARY
           echo "✅ Linux x64 package" >> $GITHUB_STEP_SUMMARY
           echo "✅ macOS app bundle" >> $GITHUB_STEP_SUMMARY
