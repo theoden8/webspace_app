@@ -12,6 +12,8 @@ jobs:
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
