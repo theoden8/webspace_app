@@ -46,13 +46,13 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release --flavor fmain
+        run: flutter build apk --release --flavor fmain --split-per-abi
 
-      - name: Upload APK
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: build/app/outputs/flutter-apk/app-fmain-release.apk
+          name: android-apks
+          path: build/app/outputs/flutter-apk/*.apk
 
   build-ios:
     name: Build iOS
@@ -213,7 +213,7 @@ jobs:
         run: |
           echo "## Build Artifacts Generated" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Android APK" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Android APKs (split by ABI)" >> $GITHUB_STEP_SUMMARY
           echo "✅ iOS IPA (unsigned)" >> $GITHUB_STEP_SUMMARY
           echo "✅ Linux x64 package" >> $GITHUB_STEP_SUMMARY
           echo "✅ macOS app bundle" >> $GITHUB_STEP_SUMMARY
