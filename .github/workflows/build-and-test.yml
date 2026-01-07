@@ -9,31 +9,8 @@ on:
       - '**'
 
 jobs:
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Analyze code
-        run: flutter analyze --no-fatal-warnings
-
-      - name: Run tests
-        run: flutter test
-
   build-android:
     name: Build Android
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -75,7 +52,6 @@ jobs:
 
   build-ios:
     name: Build iOS
-    needs: test
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -114,7 +90,6 @@ jobs:
 
   build-linux:
     name: Build Linux
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -133,6 +108,12 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze --no-fatal-warnings
+
+      - name: Run tests
+        run: flutter test
 
       - name: Enable Linux desktop
         run: flutter config --enable-linux-desktop
@@ -153,7 +134,6 @@ jobs:
 
   build-macos:
     name: Build macOS
-    needs: test
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -167,6 +147,9 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
 
       - name: Enable macOS desktop
         run: flutter config --enable-macos-desktop
