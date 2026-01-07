@@ -16,18 +16,6 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 
-// Helper to convert ThemeMode to WebViewTheme
-WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
-  switch (mode) {
-    case ThemeMode.dark:
-      return WebViewTheme.dark;
-    case ThemeMode.light:
-      return WebViewTheme.light;
-    case ThemeMode.system:
-      return WebViewTheme.system;
-  }
-}
-
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
   String? domain = uri.host;
@@ -50,11 +38,11 @@ Future<String?> getFaviconUrl(String url) async {
     return null;
   }
 
-  String? scheme = uri.scheme;
-  String? host = uri.host;
+  String scheme = uri.scheme;
+  String host = uri.host;
   int? port = uri.hasPort ? uri.port : null;
 
-  if (scheme == null || host == null) {
+  if (scheme.isEmpty || host.isEmpty) {
     _faviconCache[url] = null;
     return null;
   }
@@ -242,12 +230,6 @@ class _WebSpacePageState extends State<WebSpacePage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> webViewModelsJson = _webViewModels.map((webViewModel) => jsonEncode(webViewModel.toJson())).toList();
     prefs.setStringList('webViewModels', webViewModelsJson);
-  }
-
-  Future<void> _saveAppState() async {
-    await _saveCurrentIndex();
-    await _saveThemeMode();
-    await _saveWebViewModels();
   }
 
   Future<void> _saveCurrentIndex() async {
