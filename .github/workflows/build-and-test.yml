@@ -112,9 +112,6 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Enable Linux desktop
-        run: flutter config --enable-linux-desktop
-
       - name: Build Linux
         run: flutter build linux --release
 
@@ -147,9 +144,6 @@ jobs:
 
       - name: Run tests
         run: flutter test
-
-      - name: Enable macOS desktop
-        run: flutter config --enable-macos-desktop
 
       - name: Build macOS
         run: flutter build macos --release
