@@ -7,8 +7,9 @@ import 'package:webspace/widgets/find_toolbar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
+  final String? homeTitle;
 
-  InAppWebViewScreen({required this.url});
+  InAppWebViewScreen({required this.url, this.homeTitle});
 
   @override
   _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
@@ -20,6 +21,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
 
   bool _isFindVisible = false;
   UnifiedFindMatchesResult findMatches = UnifiedFindMatchesResult();
+
+  @override
+  void initState() {
+    super.initState();
+    // Use home site title if provided
+    title = widget.homeTitle;
+  }
 
   void updateTitle(String newTitle) {
     setState(() {
@@ -145,7 +153,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
               config: WebViewConfig(
                 initialUrl: widget.url,
                 onUrlChanged: (url) {
-                  // URL changed
+                  // Keep home site title even when navigating within nested webview
                 },
                 onFindResult: (activeMatch, totalMatches) {
                   setState(() {
