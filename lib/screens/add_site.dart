@@ -112,8 +112,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   }
 
   String _getFaviconUrl(String domain) {
-    // Use Google's favicon service with high resolution (128px)
-    return 'https://www.google.com/s2/favicons?domain=$domain&sz=128';
+    // Use Google's favicon service with high resolution (256px)
+    return 'https://www.google.com/s2/favicons?domain=$domain&sz=256';
   }
 
   IconData _getThemeIcon() {
