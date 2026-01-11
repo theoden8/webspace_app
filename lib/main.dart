@@ -15,6 +15,7 @@ import 'package:webspace/screens/add_site.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/url_bar.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -761,6 +762,19 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         _toggleFind();
                       },
                     ),
+                  UrlBar(
+                    currentUrl: webViewModel.currentUrl,
+                    onUrlSubmitted: (url) async {
+                      final controller = webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels);
+                      if (controller != null) {
+                        await controller.loadUrl(url);
+                        setState(() {
+                          webViewModel.currentUrl = url;
+                        });
+                        await _saveWebViewModels();
+                      }
+                    },
+                  ),
                   Expanded(
                     child: webViewModel.getWebView(launchUrl, _cookieManager, _saveWebViewModels)
                   ),
