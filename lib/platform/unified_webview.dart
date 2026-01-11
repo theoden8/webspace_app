@@ -110,7 +110,6 @@ class UnifiedCookieManager {
       final cookies = await _inApp.getCookies(url: _toWebUri(url));
       return cookies.map((c) => UnifiedCookie.fromInAppCookie(c)).toList();
     }
-    // webview_cef doesn't provide cookie reading API
     return [];
   }
 
@@ -137,7 +136,6 @@ class UnifiedCookieManager {
         isHttpOnly: isHttpOnly,
       );
     }
-    // webview_cef doesn't have cookie API
   }
 
   /// Delete a cookie
@@ -155,7 +153,6 @@ class UnifiedCookieManager {
         path: path ?? '/',
       );
     }
-    // webview_cef doesn't have cookie API
   }
 
   /// Delete all cookies for a URL
@@ -163,7 +160,6 @@ class UnifiedCookieManager {
     if (PlatformInfo.useInAppWebView) {
       await _inApp.deleteCookies(url: _toWebUri(url));
     }
-    // webview_cef doesn't have cookie API
   }
 }
 

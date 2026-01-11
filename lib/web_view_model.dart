@@ -156,7 +156,7 @@ class WebViewModel {
             if (controller != null) {
               var title = await controller!.getTitle();
 
-              // Fallback: If controller doesn't provide title (webview_cef on Linux),
+              // Fallback: If controller doesn't provide title,
               // parse HTML to extract it
               if (title == null || title.isEmpty) {
                 // Import getPageTitle from main.dart would cause circular dependency
