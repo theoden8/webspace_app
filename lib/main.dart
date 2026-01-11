@@ -15,6 +15,7 @@ import 'package:webspace/screens/add_site.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/url_bar.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -231,6 +232,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   final UnifiedCookieManager _cookieManager = UnifiedCookieManager();
 
   bool _isFindVisible = false;
+  bool _showUrlBar = true;
 
   @override
   void initState() {
@@ -252,6 +254,11 @@ class _WebSpacePageState extends State<WebSpacePage> {
   Future<void> _saveThemeMode() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setInt('themeMode', _themeMode.index);
+  }
+
+  Future<void> _saveShowUrlBar() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('showUrlBar', _showUrlBar);
   }
 
   Future<void> _loadWebViewModels() async {
@@ -288,6 +295,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     setState(() {
       _currentIndex = prefs.getInt('currentIndex') ?? 0;
       _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 0];
+      _showUrlBar = prefs.getBool('showUrlBar') ?? true;
       widget.onThemeModeChanged(_themeMode);
     });
     await _loadWebViewModels();
@@ -459,6 +467,17 @@ class _WebSpacePageState extends State<WebSpacePage> {
               ),
               if (_currentIndex != null && _currentIndex! < _webViewModels.length)
               PopupMenuItem<String>(
+                value: "toggleUrlBar",
+                child: Row(
+                  children: [
+                    Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
+                    SizedBox(width: 8),
+                    Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                  ],
+                ),
+              ),
+              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+              PopupMenuItem<String>(
                 value: "settings",
                 child: Row(
                   children: [
@@ -491,6 +510,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
                 _saveWebViewModels();
                 getController()?.reload();
+              break;
+              case 'toggleUrlBar':
+                setState(() {
+                  _showUrlBar = !_showUrlBar;
+                });
+                _saveShowUrlBar();
               break;
             }
           },
@@ -764,6 +789,20 @@ class _WebSpacePageState extends State<WebSpacePage> {
                       matches: webViewModel.findMatches,
                       onClose: () {
                         _toggleFind();
+                      },
+                    ),
+                  if(_showUrlBar)
+                    UrlBar(
+                      currentUrl: webViewModel.currentUrl,
+                      onUrlSubmitted: (url) async {
+                        final controller = webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels);
+                        if (controller != null) {
+                          await controller.loadUrl(url);
+                          setState(() {
+                            webViewModel.currentUrl = url;
+                          });
+                          await _saveWebViewModels();
+                        }
                       },
                     ),
                   Expanded(
