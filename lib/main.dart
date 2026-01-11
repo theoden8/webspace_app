@@ -635,8 +635,13 @@ class _WebSpacePageState extends State<WebSpacePage> {
                       overflow: TextOverflow.ellipsis,
                       softWrap: false,
                     ),
-                    subtitle: Text(extractDomain(_webViewModels[index].initUrl), 
-                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    subtitle: Text(
+                      extractDomain(_webViewModels[index].initUrl),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     onTap: () {
                       setState(() {
                         _currentIndex = index;
