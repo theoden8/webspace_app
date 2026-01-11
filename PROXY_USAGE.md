@@ -2,9 +2,15 @@
 
 ## Quick Start
 
-The webspace app now supports HTTP, HTTPS, and SOCKS5 proxy configurations for Android devices. Each website can have its own independent proxy settings.
+The webspace app supports HTTP, HTTPS, and SOCKS5 proxy configurations for **Android and iOS devices**. Each website can have its own independent proxy settings.
+
+**Note:** Proxy configuration is only available on platforms that support it. On other platforms (like Linux), the app automatically uses your system's default proxy settings.
 
 ## How to Configure a Proxy
+
+**Note:** Proxy settings are only visible on supported platforms (Android/iOS). If you don't see proxy options in Settings, your platform uses the system default proxy automatically.
+
+### On Supported Platforms (Android/iOS):
 
 1. Open a website in the app
 2. Tap the **Settings** icon (⚙️) for that site
@@ -17,6 +23,12 @@ The webspace app now supports HTTP, HTTPS, and SOCKS5 proxy configurations for A
    - Example: `proxy.example.com:8080`
    - Example: `localhost:9050` (for Tor)
 5. Tap **Save Settings**
+
+### On Unsupported Platforms (Linux, etc.):
+
+- Proxy settings are automatically hidden
+- The app uses your system's default proxy settings
+- No configuration needed or possible
 
 ## Common Use Cases
 
@@ -117,17 +129,40 @@ Where:
 
 ## Platform Support
 
-- ✅ **Android**: Full proxy support via ProxyController
-- ✅ **iOS**: Full proxy support via ProxyController  
-- ❌ **Linux**: Limited support (webview_cef doesn't support proxies)
-- ❌ **Desktop**: Platform-dependent support
+| Platform | Proxy UI | Behavior |
+|----------|----------|----------|
+| ✅ **Android** | Shown | Full proxy configuration available |
+| ✅ **iOS** | Shown | Full proxy configuration available |
+| ❌ **Linux** | Hidden | Uses system default proxy automatically |
+| ⚠️ **macOS** | Conditional | Shown only if supported by WebView |
+| ⚠️ **Windows** | Conditional | Shown only if supported by WebView |
+
+**What this means:**
+- On **Android/iOS**: You'll see proxy settings in the Settings screen and can configure HTTP, HTTPS, and SOCKS5 proxies
+- On **Linux**: The Settings screen won't show proxy options. The app automatically uses your system's proxy configuration
+- On **macOS/Windows**: Proxy options appear only if your system's WebView supports them
+
+## FAQ
+
+### Q: I don't see proxy settings in the Settings screen. Why?
+
+**A:** Your platform doesn't support custom proxy configuration. The app automatically uses your system's default proxy settings. This is normal behavior on Linux and some other platforms.
+
+### Q: Can I use proxies on Linux?
+
+**A:** Linux uses the system's proxy configuration automatically. You can configure your system proxy through your Linux system settings or environment variables (`http_proxy`, `https_proxy`, etc.), and the app will respect those settings.
+
+### Q: Will my proxy settings work across platforms?
+
+**A:** Proxy settings are per-device. If you configure a proxy on Android, those settings won't transfer to other platforms. On unsupported platforms, the app ignores saved proxy settings and uses system defaults instead.
 
 ## Need Help?
 
 If you encounter issues:
 
-1. Check the error message in the snackbar notification
-2. Verify your proxy server is running and accessible
-3. Test the proxy with another application first
-4. Try switching to DEFAULT temporarily to isolate the issue
-5. Check the app logs for detailed error messages
+1. **If you don't see proxy settings**: This is normal on some platforms - the app uses system proxy settings automatically
+2. Check the error message in the snackbar notification
+3. Verify your proxy server is running and accessible
+4. Test the proxy with another application first
+5. Try switching to DEFAULT temporarily to isolate the issue
+6. Check the app logs for detailed error messages
