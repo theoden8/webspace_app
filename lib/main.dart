@@ -50,11 +50,11 @@ Future<String?> getFaviconUrl(String url) async {
     return null;
   }
 
-  String? scheme = uri.scheme;
-  String? host = uri.host;
+  String scheme = uri.scheme;
+  String host = uri.host;
   int? port = uri.hasPort ? uri.port : null;
 
-  if (scheme == null || host == null) {
+  if (scheme.isEmpty || host.isEmpty) {
     _faviconCache[url] = null;
     return null;
   }
@@ -244,12 +244,6 @@ class _WebSpacePageState extends State<WebSpacePage> {
     prefs.setStringList('webViewModels', webViewModelsJson);
   }
 
-  Future<void> _saveAppState() async {
-    await _saveCurrentIndex();
-    await _saveThemeMode();
-    await _saveWebViewModels();
-  }
-
   Future<void> _saveCurrentIndex() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setInt('currentIndex', _currentIndex == null ? 10000 : _currentIndex!);
@@ -297,6 +291,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
       widget.onThemeModeChanged(_themeMode);
     });
     await _loadWebViewModels();
+
+    // Apply saved theme to all restored webviews
+    final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+    for (var webViewModel in _webViewModels) {
+      await webViewModel.setTheme(webViewTheme);
+    }
   }
 
   Future<void> launchUrl(String url) async {
@@ -358,6 +358,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
             });
             widget.onThemeModeChanged(_themeMode);
             await _saveThemeMode();
+
+            // Apply theme to all webviews
+            final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+            for (var webViewModel in _webViewModels) {
+              await webViewModel.setTheme(webViewTheme);
+            }
           },
         ),
         PopupMenuButton<String>(
@@ -458,6 +464,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
         _saveCurrentIndex();
       });
       _saveWebViewModels();
+
+      // Apply current theme to new webview
+      final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+      await _webViewModels[_webViewModels.length - 1].setTheme(webViewTheme);
     }
   }
 
