@@ -216,7 +216,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final tileSize = (constraints.maxWidth - 36) / 4; // 4 columns with 12px spacing
-                  final iconSize = tileSize * 0.5; // Icon takes 50% of tile size
+                  final iconSize = tileSize * 0.7; // Icon takes 70% of tile size
 
                   return GridView.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -240,38 +240,36 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                             ),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: const EdgeInsets.all(4.0),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Flexible(
-                                  flex: 3,
-                                  child: CachedNetworkImage(
-                                    imageUrl: _getFaviconUrl(suggestion.domain),
-                                    width: iconSize,
-                                    height: iconSize,
-                                    placeholder: (context, url) => SizedBox(
+                                Expanded(
+                                  child: Center(
+                                    child: CachedNetworkImage(
+                                      imageUrl: _getFaviconUrl(suggestion.domain),
                                       width: iconSize,
                                       height: iconSize,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    ),
-                                    errorWidget: (context, url, error) => Icon(
-                                      Icons.language,
-                                      size: iconSize,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      placeholder: (context, url) => SizedBox(
+                                        width: iconSize,
+                                        height: iconSize,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                      errorWidget: (context, url, error) => Icon(
+                                        Icons.language,
+                                        size: iconSize,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: 4),
-                                Flexible(
-                                  flex: 2,
-                                  child: Text(
-                                    suggestion.name,
-                                    style: TextStyle(fontSize: 11),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                SizedBox(height: 2),
+                                Text(
+                                  suggestion.name,
+                                  style: TextStyle(fontSize: 10),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
