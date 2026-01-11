@@ -232,7 +232,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   final UnifiedCookieManager _cookieManager = UnifiedCookieManager();
 
   bool _isFindVisible = false;
-  bool _showUrlBar = true;
+  bool _showUrlBar = false;
 
   @override
   void initState() {
@@ -295,7 +295,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     setState(() {
       _currentIndex = prefs.getInt('currentIndex') ?? 0;
       _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 0];
-      _showUrlBar = prefs.getBool('showUrlBar') ?? true;
+      _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       widget.onThemeModeChanged(_themeMode);
     });
     await _loadWebViewModels();
