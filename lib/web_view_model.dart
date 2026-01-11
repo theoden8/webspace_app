@@ -147,7 +147,7 @@ class WebViewModel {
             }
 
             // Open in nested webview with home site title
-            launchUrlFunc(url, homeTitle: pageTitle);
+            launchUrlFunc(url, homeTitle: name);
             return false; // Cancel
           },
           onUrlChanged: (url) async {
