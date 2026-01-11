@@ -41,8 +41,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     SiteSuggestion(name: 'X (Twitter)', url: 'https://x.com', domain: 'x.com'),
     SiteSuggestion(name: 'Google Chat', url: 'https://chat.google.com', domain: 'chat.google.com'),
     SiteSuggestion(name: 'GitLab', url: 'https://gitlab.com', domain: 'gitlab.com'),
-    SiteSuggestion(name: 'Gitea', url: 'https://gitea.io', domain: 'gitea.io'),
+    SiteSuggestion(name: 'Gitea', url: 'https://gitea.com', domain: 'gitea.com'),
+    SiteSuggestion(name: 'Codeberg', url: 'https://codeberg.org', domain: 'codeberg.org'),
     SiteSuggestion(name: 'Slack', url: 'https://slack.com', domain: 'slack.com'),
+    SiteSuggestion(name: 'Mattermost', url: 'https://mattermost.com', domain: 'mattermost.com'),
     SiteSuggestion(name: 'Gmail', url: 'https://gmail.com', domain: 'gmail.com'),
     SiteSuggestion(name: 'Reddit', url: 'https://reddit.com', domain: 'reddit.com'),
     SiteSuggestion(name: 'Mastodon', url: 'https://mastodon.social', domain: 'mastodon.social'),
@@ -110,7 +112,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   }
 
   String _getFaviconUrl(String domain) {
-    return 'https://icons.duckduckgo.com/ip3/$domain.ico';
+    // Use Google's favicon service with high resolution (128px)
+    return 'https://www.google.com/s2/favicons?domain=$domain&sz=128';
   }
 
   IconData _getThemeIcon() {
