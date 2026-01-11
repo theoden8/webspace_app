@@ -269,6 +269,47 @@ class WebViewFactory {
     }
   }
 
+  /// Check if a URL should be blocked (tracking, analytics, service workers, etc.)
+  static bool _shouldBlockUrl(String url) {
+    // Block about: URLs (about:blank, about:srcdoc, etc.)
+    if (url.startsWith('about:')) {
+      return true;
+    }
+
+    // Block service worker iframes and tracking iframes
+    if (url.contains('/sw_iframe.html') ||
+        url.contains('/blank.html') ||
+        url.contains('/service_worker/')) {
+      return true;
+    }
+
+    // Block common tracking and analytics domains
+    final trackingDomains = [
+      'googletagmanager.com',
+      'google-analytics.com',
+      'googleadservices.com',
+      'doubleclick.net',
+      'facebook.com/tr',
+      'connect.facebook.net',
+      'analytics.twitter.com',
+      'static.ads-twitter.com',
+    ];
+
+    for (final domain in trackingDomains) {
+      if (url.contains(domain)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Check if a URL is a Cloudflare challenge that needs user interaction
+  static bool _isCloudflareChallenge(String url) {
+    return url.contains('challenges.cloudflare.com') ||
+           url.contains('cloudflare.com/cdn-cgi/challenge');
+  }
+
   static Widget _createInAppWebView(
     WebViewConfig config,
     Function(UnifiedWebViewController) onControllerCreated,
@@ -290,19 +331,14 @@ class WebViewFactory {
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         final url = navigationAction.request.url.toString();
 
-        // Block special URLs that are commonly used for nested content
-        // These should not navigate the main webview
-        if (url.startsWith('about:blank') ||
-            url.startsWith('about:srcdoc') ||
-            url == 'about:blank' ||
-            url == 'about:srcdoc') {
+        // Block tracking, analytics, and service worker URLs
+        if (_shouldBlockUrl(url)) {
           return inapp.NavigationActionPolicy.CANCEL;
         }
 
         // Always allow Cloudflare challenge URLs to navigate in the main webview
         // They will redirect back after completion
-        if (url.contains('challenges.cloudflare.com') ||
-            url.contains('cloudflare.com/cdn-cgi/challenge')) {
+        if (_isCloudflareChallenge(url)) {
           return inapp.NavigationActionPolicy.ALLOW;
         }
 
@@ -319,16 +355,16 @@ class WebViewFactory {
         final url = createWindowAction.request.url?.toString() ?? '';
 
         // Allow Cloudflare challenges to load in the main webview instead of nested
-        if (url.contains('challenges.cloudflare.com') ||
-            url.contains('cloudflare.com/cdn-cgi/challenge')) {
-          // Load in the main webview instead of creating a nested window
+        // These need user interaction, so we redirect to the main webview
+        if (_isCloudflareChallenge(url)) {
           await controller.loadUrl(
             urlRequest: inapp.URLRequest(url: createWindowAction.request.url),
           );
           return null; // Don't create nested window
         }
 
-        // Block all other nested window creation attempts (popups, about:blank, etc.)
+        // Block all other nested window creation attempts
+        // This includes tracking URLs, popups, about:blank, service workers, etc.
         return null;
       },
       onLoadStop: (controller, url) async {
