@@ -96,14 +96,12 @@ class _InAppWebViewController implements UnifiedWebViewController {
 
   @override
   Future<void> setOptions({required bool javascriptEnabled, String? userAgent}) async {
-    await controller.setOptions(
-      options: inapp.InAppWebViewGroupOptions(
-        crossPlatform: inapp.InAppWebViewOptions(
-          javaScriptEnabled: javascriptEnabled,
-          userAgent: userAgent ?? '',
-          supportZoom: true,
-          useShouldOverrideUrlLoading: true,
-        ),
+    await controller.setSettings(
+      settings: inapp.InAppWebViewSettings(
+        javaScriptEnabled: javascriptEnabled,
+        userAgent: userAgent ?? '',
+        supportZoom: true,
+        useShouldOverrideUrlLoading: true,
       ),
     );
   }
@@ -278,13 +276,11 @@ class WebViewFactory {
 
     return inapp.InAppWebView(
       initialUrlRequest: inapp.URLRequest(url: inapp.WebUri(config.initialUrl)),
-      initialOptions: inapp.InAppWebViewGroupOptions(
-        crossPlatform: inapp.InAppWebViewOptions(
-          javaScriptEnabled: config.javascriptEnabled,
-          userAgent: config.userAgent ?? '',
-          supportZoom: true,
-          useShouldOverrideUrlLoading: true,
-        ),
+      initialSettings: inapp.InAppWebViewSettings(
+        javaScriptEnabled: config.javascriptEnabled,
+        userAgent: config.userAgent ?? '',
+        supportZoom: true,
+        useShouldOverrideUrlLoading: true,
       ),
       onWebViewCreated: (controller) {
         onControllerCreated(_InAppWebViewController(controller));
