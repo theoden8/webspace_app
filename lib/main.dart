@@ -525,17 +525,43 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   void _addSite() async {
-    final url = await Navigator.push(
+    final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => AddSiteScreen()),
+      MaterialPageRoute(
+        builder: (context) => AddSiteScreen(
+          themeMode: _themeMode,
+          onThemeModeChanged: (ThemeMode mode) async {
+            setState(() {
+              _themeMode = mode;
+            });
+            widget.onThemeModeChanged(_themeMode);
+            await _saveThemeMode();
+
+            // Apply theme to all webviews
+            final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+            for (var webViewModel in _webViewModels) {
+              await webViewModel.setTheme(webViewTheme);
+            }
+          },
+        ),
+      ),
     );
-    if (url != null) {
-      // Try to fetch page title for platforms without native title support
-      final pageTitle = await getPageTitle(url);
-      
+    if (result != null && result is Map<String, dynamic>) {
+      final url = result['url'] as String;
+      final customName = result['name'] as String;
+
+      // Try to fetch page title if custom name not provided
+      String? pageTitle;
+      if (customName.isEmpty) {
+        pageTitle = await getPageTitle(url);
+      }
+
       setState(() {
         final model = WebViewModel(initUrl: url, stateSetterF: () {setState((){});});
-        if (pageTitle != null && pageTitle.isNotEmpty) {
+        if (customName.isNotEmpty) {
+          model.name = customName;
+          model.pageTitle = customName;
+        } else if (pageTitle != null && pageTitle.isNotEmpty) {
           model.name = pageTitle;
           model.pageTitle = pageTitle;
         }
