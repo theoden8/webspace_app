@@ -321,6 +321,28 @@ class _WebSpacePageState extends State<WebSpacePage> {
     return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels);
   }
 
+  IconData _getThemeIcon() {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return Icons.wb_sunny;
+      case ThemeMode.dark:
+        return Icons.nights_stay;
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+    }
+  }
+
+  String _getThemeTooltip() {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return 'Light theme';
+      case ThemeMode.dark:
+        return 'Dark theme';
+      case ThemeMode.system:
+        return 'System theme';
+    }
+  }
+
   AppBar _buildAppBar() {
     return AppBar(
       title: _currentIndex != null && _currentIndex! < _webViewModels.length
@@ -372,13 +394,21 @@ class _WebSpacePageState extends State<WebSpacePage> {
             },
           ),
         IconButton(
-          icon: Icon(Theme.of(context).brightness == Brightness.light ? Icons.wb_sunny : Icons.nights_stay),
+          icon: Icon(_getThemeIcon()),
+          tooltip: _getThemeTooltip(),
           onPressed: () async {
             setState(() {
-              if (Theme.of(context).brightness == Brightness.light) {
-                _themeMode = ThemeMode.dark;
-              } else {
-                _themeMode = ThemeMode.light;
+              // Cycle through light → dark → system
+              switch (_themeMode) {
+                case ThemeMode.light:
+                  _themeMode = ThemeMode.dark;
+                  break;
+                case ThemeMode.dark:
+                  _themeMode = ThemeMode.system;
+                  break;
+                case ThemeMode.system:
+                  _themeMode = ThemeMode.light;
+                  break;
               }
             });
             widget.onThemeModeChanged(_themeMode);
