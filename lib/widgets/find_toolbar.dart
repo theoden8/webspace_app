@@ -40,6 +40,8 @@ class _FindToolbarState extends State<FindToolbar> {
           Expanded(
             child: TextField(
               controller: _searchController,
+              autocorrect: false,
+              enableSuggestions: false,
               decoration: InputDecoration(
                 hintText: 'Search on page',
               ),
