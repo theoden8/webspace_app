@@ -44,7 +44,8 @@ dependencies:
   flutter_inappwebview: ^6.1.0+1
 
   # Desktop (Linux/Windows/macOS): webview_cef (CEF-based, actively developed)
-  webview_cef: ^0.2.0
+  # DISABLED: webview_cef support has been removed
+  # webview_cef: ^0.2.0
 
   url_launcher: ^6.1.10
 

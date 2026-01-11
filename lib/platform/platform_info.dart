@@ -16,9 +16,10 @@ class PlatformInfo {
   
   /// Returns true if flutter_inappwebview should be used
   static bool get useInAppWebView => !isLinux;
-  
-  /// Returns true if webview_cef should be used (Linux/Windows/macOS desktop)
-  static bool get useWebViewCef => isLinux;
+
+  /// Returns true if webview_cef should be used (DISABLED)
+  /// webview_cef support has been removed from the application
+  static bool get useWebViewCef => false;
 
   static bool get isProxySupported {
     if (!useInAppWebView) {
