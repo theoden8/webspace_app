@@ -467,23 +467,23 @@ class _WebSpacePageState extends State<WebSpacePage> {
               ),
               if (_currentIndex != null && _currentIndex! < _webViewModels.length)
               PopupMenuItem<String>(
-                value: "settings",
-                child: Row(
-                  children: [
-                    Icon(Icons.settings),
-                    SizedBox(width: 8),
-                    Text("Settings"),
-                  ],
-                ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
                 value: "toggleUrlBar",
                 child: Row(
                   children: [
                     Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
                     SizedBox(width: 8),
                     Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                  ],
+                ),
+              ),
+              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+              PopupMenuItem<String>(
+                value: "settings",
+                child: Row(
+                  children: [
+                    Icon(Icons.settings),
+                    SizedBox(width: 8),
+                    Text("Settings"),
                   ],
                 ),
               ),
