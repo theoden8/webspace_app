@@ -112,8 +112,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   }
 
   String _getFaviconUrl(String domain) {
-    // Use Google's favicon service with high resolution (256px)
-    return 'https://www.google.com/s2/favicons?domain=$domain&sz=256';
+    // Use Google's favicon service - sz=128 is more widely available than 256
+    // Falls back to smaller sizes automatically if not available
+    return 'https://www.google.com/s2/favicons?domain=$domain&sz=128';
   }
 
   IconData _getThemeIcon() {
@@ -254,6 +255,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                       width: iconSize,
                                       height: iconSize,
                                       fit: BoxFit.contain,
+                                      filterQuality: FilterQuality.high,
                                       placeholder: (context, url) => SizedBox(
                                         width: iconSize,
                                         height: iconSize,
