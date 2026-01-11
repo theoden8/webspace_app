@@ -117,7 +117,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? parentTitle}) launchUrlFunc,
+    Function(String url, {String? homeTitle}) launchUrlFunc,
     UnifiedCookieManager cookieManager,
     Function saveFunc,
   ) {
@@ -146,8 +146,8 @@ class WebViewModel {
               }
             }
 
-            // Open in nested webview with parent title
-            launchUrlFunc(url, parentTitle: pageTitle);
+            // Open in nested webview with home site title
+            launchUrlFunc(url, homeTitle: pageTitle);
             return false; // Cancel
           },
           onUrlChanged: (url) async {
@@ -198,7 +198,7 @@ class WebViewModel {
   }
 
   UnifiedWebViewController? getController(
-    Function(String url, {String? parentTitle}) launchUrlFunc,
+    Function(String url, {String? homeTitle}) launchUrlFunc,
     UnifiedCookieManager cookieManager,
     Function saveFunc,
   ) {

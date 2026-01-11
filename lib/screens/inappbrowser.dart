@@ -7,9 +7,9 @@ import 'package:webspace/widgets/find_toolbar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
-  final String? parentTitle;
+  final String? homeTitle;
 
-  InAppWebViewScreen({required this.url, this.parentTitle});
+  InAppWebViewScreen({required this.url, this.homeTitle});
 
   @override
   _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
@@ -25,8 +25,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
   @override
   void initState() {
     super.initState();
-    // Use parent title if provided
-    title = widget.parentTitle;
+    // Use home site title if provided
+    title = widget.homeTitle;
   }
 
   void updateTitle(String newTitle) {
@@ -153,7 +153,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
               config: WebViewConfig(
                 initialUrl: widget.url,
                 onUrlChanged: (url) {
-                  // Keep parent title even when navigating within nested webview
+                  // Keep home site title even when navigating within nested webview
                 },
                 onFindResult: (activeMatch, totalMatches) {
                   setState(() {
