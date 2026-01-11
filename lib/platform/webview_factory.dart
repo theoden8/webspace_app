@@ -37,6 +37,8 @@ abstract class UnifiedWebViewController {
   Future<String?> getDefaultUserAgent();
   Future<void> setOptions({required bool javascriptEnabled, String? userAgent});
   Future<void> setThemePreference(WebViewTheme theme);
+  Future<void> goBack();
+  Future<bool> canGoBack();
 }
 
 /// InAppWebView controller wrapper
@@ -112,7 +114,7 @@ class _InAppWebViewController implements UnifiedWebViewController {
     // However, this requires Android settings which are platform-specific
     // Instead, we'll inject JavaScript to set the theme via CSS
     String themeValue = theme == WebViewTheme.dark ? 'dark' : 'light';
-    
+
     await evaluateJavascript('''
       (function() {
         // Set color-scheme meta tag if it doesn't exist
@@ -123,11 +125,21 @@ class _InAppWebViewController implements UnifiedWebViewController {
           document.head.appendChild(metaTag);
         }
         metaTag.content = '$themeValue';
-        
+
         // Also set it on the root element for maximum compatibility
         document.documentElement.style.colorScheme = '$themeValue';
       })();
     ''');
+  }
+
+  @override
+  Future<void> goBack() async {
+    await controller.goBack();
+  }
+
+  @override
+  Future<bool> canGoBack() async {
+    return await controller.canGoBack();
   }
 }
 
