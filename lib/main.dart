@@ -140,7 +140,7 @@ Future<String?> getFaviconUrl(String url) async {
   return null;
 }
 
-// Get page title by parsing HTML (fallback for webview_cef on Linux)
+// Get page title by parsing HTML (fallback for platforms without native title support)
 Future<String?> getPageTitle(String url) async {
   // Check cache first
   if (_pageTitleCache.containsKey(url)) {
@@ -450,7 +450,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       MaterialPageRoute(builder: (context) => AddSiteScreen()),
     );
     if (url != null) {
-      // Try to fetch page title for Linux (webview_cef doesn't expose getTitle)
+      // Try to fetch page title for platforms without native title support
       final pageTitle = await getPageTitle(url);
       
       setState(() {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
-import 'package:webview_cef/webview_cef.dart' as cef;
 import 'platform_info.dart';
 import 'unified_webview.dart';
 
@@ -132,114 +131,8 @@ class _InAppWebViewController implements UnifiedWebViewController {
   }
 }
 
-/// WebviewCef controller wrapper
-class _WebViewCefController implements UnifiedWebViewController {
-  final cef.WebViewController controller;
-  String _currentUrl = '';
-
-  _WebViewCefController(this.controller);
-
-  @override
-  Future<void> loadUrl(String url) async {
-    _currentUrl = url;
-    await controller.loadUrl(url); // loadUrl for subsequent loads
-  }
-
-  @override
-  Future<void> reload() async {
-    await controller.reload();
-  }
-
-  @override
-  Future<Uri?> getUrl() async {
-    return _currentUrl.isNotEmpty ? Uri.tryParse(_currentUrl) : null;
-  }
-
-  @override
-  Future<String?> getTitle() async {
-    // webview_cef doesn't expose getTitle API, but we can inject a callback
-    // Use a workaround: inject JavaScript that sets the title in the URL hash temporarily
-    try {
-      // Create a unique callback ID
-      final callbackId = 'getTitleCallback_${DateTime.now().millisecondsSinceEpoch}';
-      
-      // Inject JavaScript to get the title
-      // We'll store it in a global variable that can be accessed
-      await controller.executeJavaScript('''
-        (function() {
-          window._webspace_page_title = document.title;
-        })();
-      ''');
-      
-      // Wait a bit for JS to execute
-      await Future.delayed(Duration(milliseconds: 50));
-      
-      // Unfortunately, webview_cef's executeJavaScript doesn't return values
-      // So we can't retrieve the title this way
-      // Return null and let the name default to domain
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  @override
-  Future<void> evaluateJavascript(String source) async {
-    await controller.executeJavaScript(source);
-  }
-
-  @override
-  Future<void> findAllAsync({required String find}) async {
-    // webview_cef doesn't support find in page yet
-  }
-
-  @override
-  Future<void> findNext({required bool forward}) async {
-    // webview_cef doesn't support find in page yet
-  }
-
-  @override
-  Future<void> clearMatches() async {
-    // webview_cef doesn't support find in page yet
-  }
-
-  @override
-  Future<String?> getDefaultUserAgent() async {
-    return 'Mozilla/5.0'; // webview_cef doesn't expose default UA
-  }
-
-  @override
-  Future<void> setOptions({required bool javascriptEnabled, String? userAgent}) async {
-    // webview_cef doesn't have runtime options API
-    // Settings are applied during initialization
-  }
-
-  @override
-  Future<void> setThemePreference(WebViewTheme theme) async {
-    String themeValue = theme == WebViewTheme.dark ? 'dark' : 'light';
-    
-    await evaluateJavascript('''
-      (function() {
-        // Set color-scheme meta tag if it doesn't exist
-        let metaTag = document.querySelector('meta[name="color-scheme"]');
-        if (!metaTag) {
-          metaTag = document.createElement('meta');
-          metaTag.name = 'color-scheme';
-          document.head.appendChild(metaTag);
-        }
-        metaTag.content = '$themeValue';
-        
-        // Also set it on the root element for maximum compatibility
-        document.documentElement.style.colorScheme = '$themeValue';
-      })();
-    ''');
-  }
-}
-
 /// Factory for creating platform-specific webviews
 class WebViewFactory {
-  static bool _cefInitialized = false;
-
   /// Create a webview widget based on the current platform
   static Widget createWebView({
     required WebViewConfig config,
@@ -247,11 +140,9 @@ class WebViewFactory {
   }) {
     if (PlatformInfo.useInAppWebView) {
       return _createInAppWebView(config, onControllerCreated);
-    } else if (PlatformInfo.useWebViewCef) {
-      return _createWebViewCef(config, onControllerCreated);
     } else {
       return Center(
-        child: Text('WebView not supported on this platform'),
+        child: Text('WebView not supported on this platform.\nLinux builds are currently disabled.'),
       );
     }
   }
@@ -300,69 +191,6 @@ class WebViewFactory {
         if (config.onFindResult != null) {
           config.onFindResult!(activeMatchOrdinal, numberOfMatches);
         }
-      },
-    );
-  }
-
-  static Widget _createWebViewCef(
-    WebViewConfig config,
-    Function(UnifiedWebViewController) onControllerCreated,
-  ) {
-    // Initialize webview_cef manager once
-    if (!_cefInitialized) {
-      // Note: The threading warning is a known issue in webview_cef plugin
-      // It doesn't affect functionality but should be fixed upstream
-      cef.WebviewManager().initialize(
-        userAgent: config.userAgent ?? 'Mozilla/5.0',
-      );
-      _cefInitialized = true;
-    }
-
-    final controller = cef.WebviewManager().createWebView(
-      loading: const Center(child: CircularProgressIndicator()),
-    );
-
-    controller.setWebviewListener(cef.WebviewEventsListener(
-      onUrlChanged: (url) {
-        if (config.onUrlChanged != null) {
-          config.onUrlChanged!(url);
-        }
-      },
-      onLoadStart: (ctrl, url) {
-        // Load started
-      },
-      onLoadEnd: (ctrl, url) {
-        // Load finished - trigger URL change callback to fetch title
-        if (url != null && config.onUrlChanged != null) {
-          config.onUrlChanged!(url);
-        }
-      },
-    ));
-
-    // Initialize the webview with the URL
-    Future.microtask(() async {
-      await controller.initialize(config.initialUrl);
-      final unifiedController = _WebViewCefController(controller);
-      onControllerCreated(unifiedController);
-    });
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return ValueListenableBuilder(
-          valueListenable: controller,
-          builder: (context, value, child) {
-            final widget = controller.value
-                ? controller.webviewWidget
-                : controller.loadingWidget;
-            
-            // Force the webview to fill available space and respond to resizes
-            return SizedBox(
-              width: constraints.maxWidth,
-              height: constraints.maxHeight,
-              child: widget,
-            );
-          },
-        );
       },
     );
   }
