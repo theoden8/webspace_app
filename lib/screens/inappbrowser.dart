@@ -7,8 +7,9 @@ import 'package:webspace/widgets/find_toolbar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
+  final String? parentTitle;
 
-  InAppWebViewScreen({required this.url});
+  InAppWebViewScreen({required this.url, this.parentTitle});
 
   @override
   _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
@@ -20,6 +21,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
 
   bool _isFindVisible = false;
   UnifiedFindMatchesResult findMatches = UnifiedFindMatchesResult();
+
+  @override
+  void initState() {
+    super.initState();
+    // Use parent title if provided
+    title = widget.parentTitle;
+  }
 
   void updateTitle(String newTitle) {
     setState(() {
@@ -144,14 +152,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
                 initialUrl: widget.url,
-                onUrlChanged: (url) async {
-                  // Update title when URL changes
-                  if (_controller != null) {
-                    var newTitle = await _controller!.getTitle();
-                    if (newTitle != null && newTitle.isNotEmpty) {
-                      updateTitle(newTitle);
-                    }
-                  }
+                onUrlChanged: (url) {
+                  // Keep parent title even when navigating within nested webview
                 },
                 onFindResult: (activeMatch, totalMatches) {
                   setState(() {

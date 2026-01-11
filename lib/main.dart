@@ -307,11 +307,11 @@ class _WebSpacePageState extends State<WebSpacePage> {
     }
   }
 
-  Future<void> launchUrl(String url) async {
+  Future<void> launchUrl(String url, {String? parentTitle}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => InAppWebViewScreen(url: url),
+        builder: (context) => InAppWebViewScreen(url: url, parentTitle: parentTitle),
       ),
     );
   }

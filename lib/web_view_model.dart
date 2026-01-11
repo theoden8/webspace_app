@@ -117,7 +117,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String) launchUrlFunc,
+    Function(String url, {String? parentTitle}) launchUrlFunc,
     UnifiedCookieManager cookieManager,
     Function saveFunc,
   ) {
@@ -146,8 +146,8 @@ class WebViewModel {
               }
             }
 
-            // Open in external browser
-            launchUrlFunc(url);
+            // Open in nested webview with parent title
+            launchUrlFunc(url, parentTitle: pageTitle);
             return false; // Cancel
           },
           onUrlChanged: (url) async {
@@ -198,7 +198,7 @@ class WebViewModel {
   }
 
   UnifiedWebViewController? getController(
-    Function(String) launchUrlFunc,
+    Function(String url, {String? parentTitle}) launchUrlFunc,
     UnifiedCookieManager cookieManager,
     Function saveFunc,
   ) {
