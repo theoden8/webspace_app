@@ -299,6 +299,13 @@ class WebViewFactory {
           return inapp.NavigationActionPolicy.CANCEL;
         }
 
+        // Always allow Cloudflare challenge URLs to navigate in the main webview
+        // They will redirect back after completion
+        if (url.contains('challenges.cloudflare.com') ||
+            url.contains('cloudflare.com/cdn-cgi/challenge')) {
+          return inapp.NavigationActionPolicy.ALLOW;
+        }
+
         if (config.shouldOverrideUrlLoading != null) {
           final shouldAllow = config.shouldOverrideUrlLoading!(url, true);
           return shouldAllow
@@ -308,7 +315,20 @@ class WebViewFactory {
         return inapp.NavigationActionPolicy.ALLOW;
       },
       onCreateWindow: (controller, createWindowAction) async {
-        // Block all nested window creation attempts (popups, about:blank, etc.)
+        // Check the URL being opened in a new window
+        final url = createWindowAction.request.url?.toString() ?? '';
+
+        // Allow Cloudflare challenges to load in the main webview instead of nested
+        if (url.contains('challenges.cloudflare.com') ||
+            url.contains('cloudflare.com/cdn-cgi/challenge')) {
+          // Load in the main webview instead of creating a nested window
+          await controller.loadUrl(
+            urlRequest: inapp.URLRequest(url: createWindowAction.request.url),
+          );
+          return null; // Don't create nested window
+        }
+
+        // Block all other nested window creation attempts (popups, about:blank, etc.)
         return null;
       },
       onLoadStop: (controller, url) async {
