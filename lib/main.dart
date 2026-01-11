@@ -540,6 +540,8 @@ class _WebSpacePageState extends State<WebSpacePage> {
             TextField(
               controller: nameController,
               autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
               decoration: InputDecoration(
                 labelText: 'Site Name',
                 hintText: 'Enter a custom name',
@@ -548,6 +550,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
             SizedBox(height: 16),
             TextField(
               controller: urlController,
+              autocorrect: false,
+              enableSuggestions: false,
+              keyboardType: TextInputType.url,
               decoration: InputDecoration(
                 labelText: 'URL',
                 hintText: 'http://example.com:8080',

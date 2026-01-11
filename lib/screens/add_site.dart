@@ -21,6 +21,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
             TextField(
               controller: _controller,
               autofocus: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              keyboardType: TextInputType.url,
               decoration: InputDecoration(labelText: 'Enter website URL'),
             ),
             SizedBox(height: 16),
