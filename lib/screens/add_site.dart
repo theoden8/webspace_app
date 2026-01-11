@@ -250,6 +250,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                       imageUrl: _getFaviconUrl(suggestion.domain),
                                       width: iconSize,
                                       height: iconSize,
+                                      fit: BoxFit.contain,
                                       placeholder: (context, url) => SizedBox(
                                         width: iconSize,
                                         height: iconSize,
