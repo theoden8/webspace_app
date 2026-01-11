@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/platform/platform_info.dart';
 
 String generateRandomUserAgent() {
   // You can modify these values to add more variety to the generated user-agent strings
@@ -47,9 +48,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    // Force DEFAULT proxy on unsupported platforms
     _proxySettings = UserProxySettings(
-      type: widget.webViewModel.proxySettings.type,
-      address: widget.webViewModel.proxySettings.address,
+      type: PlatformInfo.isProxySupported
+          ? widget.webViewModel.proxySettings.type
+          : ProxyType.DEFAULT,
+      address: PlatformInfo.isProxySupported
+          ? widget.webViewModel.proxySettings.address
+          : null,
     );
     _userAgentController = TextEditingController(
       text: getResetUserAgent(),
@@ -91,43 +97,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _saveSettings() async {
-    // Validate proxy address if needed
-    final proxyError = _validateProxyAddress(_proxyAddressController.text);
-    if (proxyError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Proxy Error: $proxyError')),
-      );
-      return;
+    // Only validate and update proxy settings on supported platforms
+    if (PlatformInfo.isProxySupported) {
+      // Validate proxy address if needed
+      final proxyError = _validateProxyAddress(_proxyAddressController.text);
+      if (proxyError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Proxy Error: $proxyError')),
+        );
+        return;
+      }
     }
 
     try {
-      // Update proxy settings
-      _proxySettings.address = _proxyAddressController.text.isEmpty 
-          ? null 
-          : _proxyAddressController.text;
-      
-      widget.webViewModel.proxySettings = _proxySettings;
-      
-      // Apply proxy settings immediately
-      await widget.webViewModel.updateProxySettings(_proxySettings);
-      
+      // Update proxy settings only on supported platforms
+      if (PlatformInfo.isProxySupported) {
+        _proxySettings.address = _proxyAddressController.text.isEmpty
+            ? null
+            : _proxyAddressController.text;
+
+        widget.webViewModel.proxySettings = _proxySettings;
+
+        // Apply proxy settings immediately
+        await widget.webViewModel.updateProxySettings(_proxySettings);
+      } else {
+        // Force DEFAULT proxy on unsupported platforms
+        final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
+        widget.webViewModel.proxySettings = defaultProxy;
+        await widget.webViewModel.updateProxySettings(defaultProxy);
+      }
+
       // Update other settings
       if (_userAgentController.text != '') {
         widget.webViewModel.userAgent = _userAgentController.text;
       }
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
-      
+
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Settings saved successfully')),
       );
-      
+
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving settings: $e')),
       );
@@ -140,41 +156,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: Text('Settings')),
       body: ListView(
         children: [
-          ListTile(
-            title: Text('Proxy Type'),
-            trailing: DropdownButton<ProxyType>(
-              value: _proxySettings.type,
-              onChanged: (ProxyType? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _proxySettings.type = newValue;
-                  });
-                }
-              },
-              items: ProxyType.values.map<DropdownMenuItem<ProxyType>>(
-                (ProxyType value) {
-                  return DropdownMenuItem<ProxyType>(
-                    value: value,
-                    child: Text(value.toString().split('.').last),
-                  );
+          // Only show proxy settings on supported platforms
+          if (PlatformInfo.isProxySupported) ...[
+            ListTile(
+              title: Text('Proxy Type'),
+              trailing: DropdownButton<ProxyType>(
+                value: _proxySettings.type,
+                onChanged: (ProxyType? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _proxySettings.type = newValue;
+                    });
+                  }
                 },
-              ).toList(),
-            ),
-          ),
-          if (_proxySettings.type != ProxyType.DEFAULT)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: TextFormField(
-                controller: _proxyAddressController,
-                decoration: InputDecoration(
-                  labelText: 'Proxy Address',
-                  hintText: 'host:port (e.g., proxy.example.com:1080)',
-                  helperText: 'Format: host:port',
-                  border: OutlineInputBorder(),
-                ),
-                validator: _validateProxyAddress,
+                items: ProxyType.values.map<DropdownMenuItem<ProxyType>>(
+                  (ProxyType value) {
+                    return DropdownMenuItem<ProxyType>(
+                      value: value,
+                      child: Text(value.toString().split('.').last),
+                    );
+                  },
+                ).toList(),
               ),
             ),
+            if (_proxySettings.type != ProxyType.DEFAULT)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: TextFormField(
+                  controller: _proxyAddressController,
+                  decoration: InputDecoration(
+                    labelText: 'Proxy Address',
+                    hintText: 'host:port (e.g., proxy.example.com:1080)',
+                    helperText: 'Format: host:port',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: _validateProxyAddress,
+                ),
+              ),
+          ],
           SwitchListTile(
             title: Text('JavaScript Enabled'),
             value: _javascriptEnabled,
