@@ -13,6 +13,76 @@ class SiteSuggestion {
   });
 }
 
+class FaviconImage extends StatefulWidget {
+  final String domain;
+  final double size;
+
+  const FaviconImage({
+    required this.domain,
+    required this.size,
+  });
+
+  @override
+  _FaviconImageState createState() => _FaviconImageState();
+}
+
+class _FaviconImageState extends State<FaviconImage> {
+  int _urlIndex = 0;
+
+  List<String> _getFaviconUrls() {
+    return [
+      'https://www.google.com/s2/favicons?domain=${widget.domain}&sz=256',
+      'https://www.google.com/s2/favicons?domain=${widget.domain}&sz=128',
+      'https://icons.duckduckgo.com/ip3/${widget.domain}.ico',
+    ];
+  }
+
+  void _tryNextUrl() {
+    if (_urlIndex < _getFaviconUrls().length - 1) {
+      setState(() {
+        _urlIndex++;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final urls = _getFaviconUrls();
+
+    return CachedNetworkImage(
+      imageUrl: urls[_urlIndex],
+      width: widget.size,
+      height: widget.size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      placeholder: (context, url) => SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      errorWidget: (context, url, error) {
+        // Try next URL on error
+        if (_urlIndex < urls.length - 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _tryNextUrl();
+          });
+          return SizedBox(
+            width: widget.size,
+            height: widget.size,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        }
+        // Final fallback: show icon
+        return Icon(
+          Icons.language,
+          size: widget.size,
+          color: Theme.of(context).colorScheme.primary,
+        );
+      },
+    );
+  }
+}
+
 class AddSiteScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final Function(ThemeMode) onThemeModeChanged;
@@ -109,12 +179,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
         );
       },
     );
-  }
-
-  String _getFaviconUrl(String domain) {
-    // Use Google's favicon service - sz=128 is more widely available than 256
-    // Falls back to smaller sizes automatically if not available
-    return 'https://www.google.com/s2/favicons?domain=$domain&sz=128';
   }
 
   IconData _getThemeIcon() {
@@ -250,22 +314,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                               children: [
                                 Expanded(
                                   child: Center(
-                                    child: CachedNetworkImage(
-                                      imageUrl: _getFaviconUrl(suggestion.domain),
-                                      width: iconSize,
-                                      height: iconSize,
-                                      fit: BoxFit.contain,
-                                      filterQuality: FilterQuality.high,
-                                      placeholder: (context, url) => SizedBox(
-                                        width: iconSize,
-                                        height: iconSize,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      ),
-                                      errorWidget: (context, url, error) => Icon(
-                                        Icons.language,
-                                        size: iconSize,
-                                        color: Theme.of(context).colorScheme.primary,
-                                      ),
+                                    child: FaviconImage(
+                                      domain: suggestion.domain,
+                                      size: iconSize,
                                     ),
                                   ),
                                 ),
