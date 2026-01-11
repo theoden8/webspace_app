@@ -346,6 +346,31 @@ class _WebSpacePageState extends State<WebSpacePage> {
             )
           : Text('No Site Selected'),
       actions: [
+        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+          IconButton(
+            icon: Icon(Icons.arrow_back),
+            tooltip: 'Go Back',
+            onPressed: () async {
+              final controller = getController();
+              if (controller != null) {
+                final canGoBack = await controller.canGoBack();
+                if (canGoBack) {
+                  await controller.goBack();
+                }
+              }
+            },
+          ),
+        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+          IconButton(
+            icon: Icon(Icons.home),
+            tooltip: 'Go to Home',
+            onPressed: () async {
+              final controller = getController();
+              if (controller != null) {
+                await controller.loadUrl(_webViewModels[_currentIndex!].initUrl);
+              }
+            },
+          ),
         IconButton(
           icon: Icon(Theme.of(context).brightness == Brightness.light ? Icons.wb_sunny : Icons.nights_stay),
           onPressed: () async {
