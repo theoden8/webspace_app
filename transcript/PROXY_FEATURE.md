@@ -130,15 +130,22 @@ class WebViewModel {
 Enhanced settings screen with proxy configuration:
 
 **Components:**
-- Dropdown for proxy type selection
+- Platform detection via `PlatformInfo.isProxySupported`
+- Dropdown for proxy type selection (only shown on supported platforms)
 - Text field for proxy address (shown when type ≠ DEFAULT)
 - Real-time validation
 - User feedback via SnackBar
+
+**Platform-Aware Behavior:**
+- On **supported platforms** (Android, iOS): Full proxy UI is displayed
+- On **unsupported platforms** (Linux, etc.): Proxy UI is completely hidden, DEFAULT proxy is forced
+- Prevents user confusion by hiding non-functional options
 
 **Validation Rules:**
 - Format: `host:port` (e.g., `proxy.example.com:8080`)
 - Port range: 1-65535
 - Required when proxy type is not DEFAULT
+- Validation skipped entirely on unsupported platforms
 
 ## Usage Examples
 
@@ -192,15 +199,24 @@ await webViewModel.updateProxySettings(noProxy);
 
 ## Platform Support
 
-| Platform | Proxy Support | Implementation |
-|----------|--------------|----------------|
-| Android  | ✅ Full      | ProxyController |
-| iOS      | ✅ Full      | ProxyController |
-| Linux    | ❌ Limited   | webview_cef doesn't support |
-| macOS    | ❌ Limited   | Native WebKit limitations |
-| Windows  | ❌ Limited   | Platform-dependent |
+| Platform | Proxy Support | UI Visibility | Behavior |
+|----------|--------------|---------------|----------|
+| Android  | ✅ Full      | Shown         | ProxyController with all options |
+| iOS      | ✅ Full      | Shown         | ProxyController with all options |
+| Linux    | ❌ None      | Hidden        | DEFAULT proxy forced, UI hidden |
+| macOS    | ⚠️ Limited   | Conditional   | Shown only if PROXY_OVERRIDE supported |
+| Windows  | ⚠️ Limited   | Conditional   | Shown only if PROXY_OVERRIDE supported |
 
-**Note:** The implementation gracefully handles unsupported platforms by checking `PlatformInfo.useInAppWebView` before applying proxy settings.
+**Platform Detection:**
+- The app checks `PlatformInfo.isProxySupported` at runtime
+- On unsupported platforms:
+  - Proxy UI is completely hidden from Settings screen
+  - DEFAULT proxy is automatically enforced
+  - Users cannot configure proxy settings
+  - Prevents confusion from non-functional options
+- On supported platforms:
+  - Full proxy configuration UI is displayed
+  - All proxy types (DEFAULT, HTTP, HTTPS, SOCKS5) are available
 
 ## Testing
 
@@ -309,7 +325,11 @@ Potential improvements for future versions:
 1. `lib/settings/proxy.dart` - Proxy types and settings model
 2. `lib/platform/unified_webview.dart` - ProxyController integration
 3. `lib/web_view_model.dart` - Proxy application in WebViewModel
-4. `lib/screens/settings.dart` - Settings UI with validation
+4. `lib/screens/settings.dart` - Settings UI with validation and platform detection
+   - Added `PlatformInfo` import for platform detection
+   - Conditional UI rendering based on `isProxySupported`
+   - Force DEFAULT proxy on unsupported platforms in `initState()`
+   - Skip proxy validation/updates on unsupported platforms in `_saveSettings()`
 
 ### New Files
 
@@ -333,11 +353,23 @@ Potential improvements for future versions:
 
 ## Summary
 
-The proxy feature is fully implemented and tested, providing users with flexible proxy configuration options for their webviews. The implementation is robust, well-tested, and follows Flutter best practices. It's particularly useful for:
+The proxy feature is fully implemented and tested, providing users with flexible proxy configuration options for their webviews. The implementation is robust, well-tested, and follows Flutter best practices.
 
-- Privacy-conscious users (Tor integration)
-- Corporate environments (HTTP/HTTPS proxies)
-- Developers (SSH tunnels, local proxies)
+**Key Features:**
+- **Platform-Aware UI**: Automatically hides proxy settings on unsupported platforms
+- **Graceful Degradation**: Forces DEFAULT proxy where proxy override isn't available
+- **User-Friendly**: Prevents confusion by only showing functional options
+- **Flexible Configuration**: Full control on Android/iOS devices
+
+**Ideal For:**
+- Privacy-conscious users (Tor integration) - Android/iOS only
+- Corporate environments (HTTP/HTTPS proxies) - Android/iOS only
+- Developers (SSH tunnels, local proxies) - Android/iOS only
 - Testing and debugging scenarios
+
+**Platform Notes:**
+- Linux and other unsupported platforms automatically use system proxy settings
+- No user intervention needed on unsupported platforms
+- Seamless experience across all platforms
 
 All 69 tests pass, including 35 proxy-specific tests covering unit, integration, and real-world usage scenarios.
