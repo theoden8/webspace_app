@@ -102,6 +102,7 @@ class _InAppWebViewController implements UnifiedWebViewController {
         userAgent: userAgent ?? '',
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
+        supportMultipleWindows: false,
       ),
     );
   }
@@ -281,12 +282,23 @@ class WebViewFactory {
         userAgent: config.userAgent ?? '',
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
+        supportMultipleWindows: false,
       ),
       onWebViewCreated: (controller) {
         onControllerCreated(_InAppWebViewController(controller));
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         final url = navigationAction.request.url.toString();
+
+        // Block special URLs that are commonly used for nested content
+        // These should not navigate the main webview
+        if (url.startsWith('about:blank') ||
+            url.startsWith('about:srcdoc') ||
+            url == 'about:blank' ||
+            url == 'about:srcdoc') {
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
+
         if (config.shouldOverrideUrlLoading != null) {
           final shouldAllow = config.shouldOverrideUrlLoading!(url, true);
           return shouldAllow
@@ -294,6 +306,10 @@ class WebViewFactory {
               : inapp.NavigationActionPolicy.CANCEL;
         }
         return inapp.NavigationActionPolicy.ALLOW;
+      },
+      onCreateWindow: (controller, createWindowAction) async {
+        // Block all nested window creation attempts (popups, about:blank, etc.)
+        return null;
       },
       onLoadStop: (controller, url) async {
         if (url != null) {
