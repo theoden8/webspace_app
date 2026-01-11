@@ -110,24 +110,135 @@ class _InAppWebViewController implements UnifiedWebViewController {
 
   @override
   Future<void> setThemePreference(WebViewTheme theme) async {
-    // For Android, we can use the forceDark setting (API 29+)
-    // However, this requires Android settings which are platform-specific
-    // Instead, we'll inject JavaScript to set the theme via CSS
-    String themeValue = theme == WebViewTheme.dark ? 'dark' : 'light';
+    // Determine the actual theme value to apply
+    String themeValue;
+    if (theme == WebViewTheme.system) {
+      // For system theme, detect the OS preference via matchMedia
+      // This will be evaluated in the webview's JavaScript context
+      themeValue = 'system';
+    } else {
+      themeValue = theme == WebViewTheme.dark ? 'dark' : 'light';
+    }
 
     await evaluateJavascript('''
       (function() {
-        // Set color-scheme meta tag if it doesn't exist
+        // Determine the actual theme to apply
+        let actualTheme = '$themeValue';
+        if (actualTheme === 'system') {
+          // Detect system preference using the browser's native matchMedia
+          // This must be done before we override matchMedia
+          actualTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        // Store the app's theme preference globally
+        window.__appThemePreference = actualTheme;
+
+        // Store the original matchMedia function if not already stored
+        if (!window.__originalMatchMedia) {
+          window.__originalMatchMedia = window.matchMedia.bind(window);
+        }
+
+        // Override window.matchMedia to expose app theme to websites
+        window.matchMedia = function(query) {
+          // Call original matchMedia first
+          const originalResult = window.__originalMatchMedia(query);
+
+          // Check if this is a prefers-color-scheme query
+          if (query.includes('prefers-color-scheme')) {
+            const isDarkQuery = query.includes('dark');
+            const isLightQuery = query.includes('light');
+            const appIsDark = window.__appThemePreference === 'dark';
+
+            // Determine if this query matches based on app theme
+            let matches = false;
+            if (isDarkQuery) {
+              matches = appIsDark;
+            } else if (isLightQuery) {
+              matches = !appIsDark;
+            }
+
+            // Create a fake MediaQueryList object
+            const fakeResult = {
+              matches: matches,
+              media: query,
+              onchange: null,
+
+              // Support addEventListener for 'change' events
+              addEventListener: function(type, listener, options) {
+                if (type === 'change') {
+                  if (!window.__themeChangeListeners) {
+                    window.__themeChangeListeners = [];
+                  }
+                  window.__themeChangeListeners.push({ query: query, listener: listener });
+                }
+              },
+
+              // Support removeEventListener
+              removeEventListener: function(type, listener, options) {
+                if (type === 'change' && window.__themeChangeListeners) {
+                  window.__themeChangeListeners = window.__themeChangeListeners.filter(
+                    item => item.listener !== listener
+                  );
+                }
+              },
+
+              // Support deprecated addListener method
+              addListener: function(listener) {
+                this.addEventListener('change', listener);
+              },
+
+              // Support deprecated removeListener method
+              removeListener: function(listener) {
+                this.removeEventListener('change', listener);
+              }
+            };
+
+            return fakeResult;
+          }
+
+          // For non-theme queries, return the original result
+          return originalResult;
+        };
+
+        // Set color-scheme meta tag
         let metaTag = document.querySelector('meta[name="color-scheme"]');
         if (!metaTag) {
           metaTag = document.createElement('meta');
           metaTag.name = 'color-scheme';
           document.head.appendChild(metaTag);
         }
-        metaTag.content = '$themeValue';
+        metaTag.content = actualTheme;
 
-        // Also set it on the root element for maximum compatibility
-        document.documentElement.style.colorScheme = '$themeValue';
+        // Set color-scheme CSS property on root element
+        document.documentElement.style.colorScheme = actualTheme;
+
+        // Notify any registered listeners about the theme change
+        if (window.__themeChangeListeners) {
+          window.__themeChangeListeners.forEach(item => {
+            const isDarkQuery = item.query.includes('dark');
+            const isLightQuery = item.query.includes('light');
+            const appIsDark = window.__appThemePreference === 'dark';
+
+            let matches = false;
+            if (isDarkQuery) {
+              matches = appIsDark;
+            } else if (isLightQuery) {
+              matches = !appIsDark;
+            }
+
+            // Create event object
+            const event = {
+              matches: matches,
+              media: item.query
+            };
+
+            try {
+              item.listener(event);
+            } catch (e) {
+              console.error('Error in theme change listener:', e);
+            }
+          });
+        }
       })();
     ''');
   }

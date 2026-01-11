@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Detection Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            margin: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Default light theme styles */
+        body {
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        /* Dark theme styles via CSS media query */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1a1a1a;
+                color: #ffffff;
+            }
+            .card {
+                background-color: #2a2a2a;
+                border-color: #444;
+            }
+            .status-indicator {
+                border-color: #444;
+            }
+        }
+
+        .card {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 2px solid #ccc;
+        }
+
+        .status-indicator.light {
+            background-color: #ffd700;
+        }
+
+        .status-indicator.dark {
+            background-color: #4169e1;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .info-row {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .info-row {
+                background: rgba(255, 255, 255, 0.05);
+            }
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            code {
+                background: rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        .change-log {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .change-log {
+                background: rgba(255, 255, 255, 0.05);
+            }
+        }
+
+        .change-entry {
+            font-family: monospace;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Theme Detection Test</h1>
+
+    <div class="card">
+        <h2>Current Theme Status</h2>
+        <div class="info-row">
+            <strong>CSS Media Query Detection:</strong><br>
+            <span id="css-detection">
+                <span class="status-indicator light"></span>Light Theme (CSS default)
+            </span>
+        </div>
+        <div class="info-row">
+            <strong>JavaScript Detection:</strong><br>
+            <code>window.matchMedia('(prefers-color-scheme: dark)').matches</code><br>
+            Result: <strong id="js-detection">checking...</strong>
+        </div>
+        <div class="info-row">
+            <strong>Color Scheme Property:</strong><br>
+            <code>document.documentElement.style.colorScheme</code><br>
+            Result: <strong id="color-scheme-detection">checking...</strong>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Theme Change Listener</h2>
+        <p>This tests if the app properly triggers change events when you toggle the theme.</p>
+        <div class="info-row">
+            <strong>Listener Status:</strong> <span id="listener-status">Registered ✓</span>
+        </div>
+        <div class="info-row">
+            <strong>Change Events Received:</strong> <span id="change-count">0</span>
+        </div>
+        <div class="change-log" id="change-log">
+            <div class="change-entry">Waiting for theme changes...</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>How to Test</h2>
+        <ol>
+            <li>Toggle the theme using the app's theme button (sun/moon/auto icon)</li>
+            <li>Observe the background color change (CSS media query working)</li>
+            <li>Check that "JavaScript Detection" shows the correct theme</li>
+            <li>Verify that theme change events are logged below</li>
+            <li>Test all three modes: Light → Dark → System</li>
+        </ol>
+    </div>
+
+    <script>
+        let changeCount = 0;
+
+        function updateDetection() {
+            // JavaScript detection
+            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const jsDetection = document.getElementById('js-detection');
+            jsDetection.textContent = isDark ? '✓ Dark theme detected' : '✓ Light theme detected';
+            jsDetection.style.color = isDark ? '#4169e1' : '#ffd700';
+
+            // CSS detection (update the visual indicator)
+            const cssDetection = document.getElementById('css-detection');
+            if (isDark) {
+                cssDetection.innerHTML = '<span class="status-indicator dark"></span>Dark Theme (CSS media query active)';
+            } else {
+                cssDetection.innerHTML = '<span class="status-indicator light"></span>Light Theme (CSS media query active)';
+            }
+
+            // Color scheme property
+            const colorScheme = document.documentElement.style.colorScheme || 'not set';
+            document.getElementById('color-scheme-detection').textContent = colorScheme;
+        }
+
+        function addChangeLogEntry(matches) {
+            changeCount++;
+            document.getElementById('change-count').textContent = changeCount;
+
+            const log = document.getElementById('change-log');
+            const entry = document.createElement('div');
+            entry.className = 'change-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] Theme changed to: ${matches ? 'DARK' : 'LIGHT'}`;
+            log.insertBefore(entry, log.firstChild);
+        }
+
+        // Initial detection
+        updateDetection();
+
+        // Register change listener
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+        // Modern approach
+        mediaQuery.addEventListener('change', (e) => {
+            console.log('Theme change event received:', e.matches ? 'dark' : 'light');
+            addChangeLogEntry(e.matches);
+            updateDetection();
+        });
+
+        // Also register with deprecated method for compatibility testing
+        mediaQuery.addListener((e) => {
+            console.log('Theme change (deprecated addListener):', e.matches ? 'dark' : 'light');
+        });
+
+        console.log('Theme detection test loaded');
+        console.log('Initial theme:', mediaQuery.matches ? 'dark' : 'light');
+        console.log('MediaQueryList object:', mediaQuery);
+    </script>
+</body>
+</html>
