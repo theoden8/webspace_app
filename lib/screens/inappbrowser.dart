@@ -144,8 +144,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
                 initialUrl: widget.url,
-                onUrlChanged: (url) {
-                  // URL changed
+                onUrlChanged: (url) async {
+                  // Update title when URL changes
+                  if (_controller != null) {
+                    var newTitle = await _controller!.getTitle();
+                    if (newTitle != null && newTitle.isNotEmpty) {
+                      updateTitle(newTitle);
+                    }
+                  }
                 },
                 onFindResult: (activeMatch, totalMatches) {
                   setState(() {
