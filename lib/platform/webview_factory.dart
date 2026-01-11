@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
-// webview_cef support has been removed
-// import 'package:webview_cef/webview_cef.dart' as cef;
 import 'platform_info.dart';
 import 'unified_webview.dart';
 
@@ -133,9 +131,6 @@ class _InAppWebViewController implements UnifiedWebViewController {
   }
 }
 
-// WebviewCef controller has been removed
-// webview_cef support is no longer included in this application
-
 /// Factory for creating platform-specific webviews
 class WebViewFactory {
   /// Create a webview widget based on the current platform
@@ -146,7 +141,6 @@ class WebViewFactory {
     if (PlatformInfo.useInAppWebView) {
       return _createInAppWebView(config, onControllerCreated);
     } else {
-      // webview_cef has been disabled
       return Center(
         child: Text('WebView not supported on this platform.\nLinux builds are currently disabled.'),
       );

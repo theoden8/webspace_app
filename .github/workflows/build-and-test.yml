@@ -103,44 +103,44 @@ jobs:
           name: ios-ipa
           path: webspace.ipa
 
-  # DISABLED: Linux builds are currently disabled due to webview_cef removal
-  # build-linux:
-  #   name: Build Linux
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Install Linux dependencies
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-  #
-  #     - name: Setup Flutter
-  #       uses: subosito/flutter-action@v2
-  #       with:
-  #         channel: 'stable'
-  #         cache: true
-  #         cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
-  #
-  #     - name: Cache pub dependencies
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ~/.pub-cache
-  #           .dart_tool
-  #         key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-  #         restore-keys: |
-  #           pub-${{ runner.os }}-
-  #
-  #     - name: Get dependencies
-  #       run: flutter pub get
-  #
-  #     - name: Run tests
-  #       run: flutter test
-  #
-  #     - name: Build Linux
-  #       run: flutter build linux --release
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      # DISABLED: Linux builds are currently disabled due to webview_cef removal
+      # - name: Build Linux
+      #   run: flutter build linux --release
 
   build-macos:
     name: Build macOS
@@ -189,7 +189,7 @@ jobs:
 
   release-summary:
     name: Release Summary
-    needs: [build-android, build-ios, build-macos]
+    needs: [build-android, build-ios, build-linux, build-macos]
     runs-on: ubuntu-latest
     if: success()
     steps:
@@ -208,6 +208,6 @@ jobs:
           echo "❌ Linux x64 build (disabled)" >> $GITHUB_STEP_SUMMARY
           echo "✅ macOS app bundle" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Note: Linux builds are currently disabled due to webview_cef removal" >> $GITHUB_STEP_SUMMARY
+          echo "Note: Linux tests run but builds are disabled due to webview_cef removal" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All enabled platform builds completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "All platform tests and enabled builds completed successfully!" >> $GITHUB_STEP_SUMMARY
