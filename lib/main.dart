@@ -275,6 +275,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
       });
       for (WebViewModel webViewModel in loadedWebViewModels) {
         for(final cookie in webViewModel.cookies) {
+          // Skip cookies with empty values to prevent assertion failures
+          if (cookie.value.isEmpty) {
+            continue;
+          }
           await _cookieManager.setCookie(
             url: Uri.parse(webViewModel.initUrl),
             name: cookie.name,
