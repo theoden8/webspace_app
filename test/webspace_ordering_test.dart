@@ -123,9 +123,9 @@ void main() {
       }
       expect(webspaces.map((ws) => ws.name).toList(), ['All', 'D', 'A', 'B', 'C']);
 
-      // Operation 2: Move A (now at index 2) to position 4
+      // Operation 2: Move A (now at index 2) to the end (position after last item)
       oldIndex = 2;
-      newIndex = 4;
+      newIndex = 5; // Position after C (Flutter's ReorderableListView convention)
       if (oldIndex != 0 && newIndex != 0) {
         if (newIndex > oldIndex) newIndex -= 1;
         final webspace = webspaces.removeAt(oldIndex);
