@@ -6,7 +6,7 @@
 
 [![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
 
-**All your web apps, organized in one place.**
+**Your favorite web apps, now on your phone.**
 
 </div>
 
