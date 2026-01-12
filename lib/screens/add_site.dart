@@ -38,7 +38,7 @@ class _FaviconImageState extends State<FaviconImage> {
   }
 
   void _tryNextUrl() {
-    if (_urlIndex < _getFaviconUrls().length - 1) {
+    if (_urlIndex < _getFaviconUrls().length - 1 && mounted) {
       setState(() {
         _urlIndex++;
       });
