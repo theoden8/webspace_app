@@ -1,0 +1,21 @@
+🎉 Major Features:
+• Webspaces: Organize your sites into custom workspaces
+• Site suggestions: Quick-add popular sites with beautiful favicon tiles
+• URL bar: View and edit the current page URL
+• Theme injection: Websites now respect your app theme preference
+
+✨ Improvements:
+• Improved drawer interactions and navigation
+• Added back and home navigation buttons
+• System theme option (auto-detect light/dark)
+• Better nested webview handling for popups
+• Delete confirmation for sites
+
+🐛 Bug Fixes:
+• Fixed iOS webview assertion errors
+• Fixed site link wrapping in drawer
+• Disabled proxy menu on unsupported platforms
+• Better autocorrect handling for input fields
+
+📱 Platform Support:
+• iOS and Android fully supported

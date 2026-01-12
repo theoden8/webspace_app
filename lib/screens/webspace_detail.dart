@@ -48,10 +48,21 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
   }
 
   void _save() {
+    final trimmedName = _nameController.text.trim();
+
+    // Validate that name is not empty
+    if (trimmedName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Webspace name cannot be empty'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final updatedWebspace = widget.webspace.copyWith(
-      name: _nameController.text.trim().isEmpty
-          ? 'Unnamed Webspace'
-          : _nameController.text.trim(),
+      name: trimmedName,
       siteIndices: _selectedIndices.toList()..sort(),
     );
     widget.onSave(updatedWebspace);
@@ -80,6 +91,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
               enabled: !widget.isReadOnly,
               decoration: InputDecoration(
                 labelText: 'Webspace Name',
+                hintText: 'New webspace',
                 border: OutlineInputBorder(),
               ),
             ),

@@ -416,7 +416,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
   // Webspace management methods
   void _addWebspace() async {
-    final webspace = Webspace(name: 'New Webspace');
+    final webspace = Webspace(name: '');
     await Navigator.push(
       context,
       MaterialPageRoute(
