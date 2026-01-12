@@ -844,7 +844,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   Icon(
                     Icons.workspaces,
                     size: 48,
-                    color: Theme.of(context).primaryColor,
+                    color: Theme.of(context).colorScheme.secondary,
                   ),
                   if (_selectedWebspaceId != null) ...[
                     SizedBox(height: 8),
@@ -882,8 +882,26 @@ class _WebSpacePageState extends State<WebSpacePage> {
                           child: Text('No sites in this webspace'),
                         );
                       }
-                      return ListView.builder(
+                      return ReorderableListView.builder(
                         itemCount: filteredIndices.length,
+                        onReorder: (int oldListIndex, int newListIndex) {
+                          setState(() {
+                            // Adjust newListIndex if moving down
+                            if (newListIndex > oldListIndex) {
+                              newListIndex -= 1;
+                            }
+
+                            // Get the webspace and reorder its siteIndices
+                            final webspace = _webspaces.firstWhere(
+                              (ws) => ws.id == _selectedWebspaceId,
+                            );
+
+                            // Remove from old position and insert at new position
+                            final movedIndex = webspace.siteIndices.removeAt(oldListIndex);
+                            webspace.siteIndices.insert(newListIndex, movedIndex);
+                          });
+                          _saveWebspaces();
+                        },
                         itemBuilder: (BuildContext context, int listIndex) {
                           final index = filteredIndices[listIndex];
                           return ListTile(
@@ -961,24 +979,48 @@ class _WebSpacePageState extends State<WebSpacePage> {
                           icon: Icon(Icons.delete),
                           tooltip: 'Delete',
                           iconSize: 20,
-                          onPressed: () {
-                            setState(() {
-                              _webViewModels.removeAt(index);
-                              if (_currentIndex == index) {
-                                _currentIndex = null;
-                                _saveCurrentIndex();
-                              }
-                              // Update webspace indices after deletion
-                              for (var webspace in _webspaces) {
-                                webspace.siteIndices = webspace.siteIndices
-                                    .where((i) => i != index)
-                                    .map((i) => i > index ? i - 1 : i)
-                                    .toList();
-                              }
-                            });
-                            _saveWebViewModels();
-                            _saveWebspaces();
-                            Navigator.pop(context);
+                          onPressed: () async {
+                            final siteName = _webViewModels[index].getDisplayName();
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text('Delete Site'),
+                                content: Text('Are you sure you want to delete "$siteName"?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: Text('Delete'),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirmed == true) {
+                              setState(() {
+                                _webViewModels.removeAt(index);
+                                if (_currentIndex == index) {
+                                  _currentIndex = null;
+                                  _saveCurrentIndex();
+                                }
+                                // Update webspace indices after deletion
+                                for (var webspace in _webspaces) {
+                                  webspace.siteIndices = webspace.siteIndices
+                                      .where((i) => i != index)
+                                      .map((i) => i > index ? i - 1 : i)
+                                      .toList();
+                                }
+                              });
+                              _saveWebViewModels();
+                              _saveWebspaces();
+                              Navigator.pop(context);
+                            }
                           },
                         ),
                       ],
