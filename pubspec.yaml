@@ -44,6 +44,7 @@ dependencies:
   flutter_inappwebview: ^6.1.0+1
 
   url_launcher: ^6.1.10
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:

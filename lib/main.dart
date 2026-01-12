@@ -9,11 +9,14 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as html_dom;
 
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 import 'package:webspace/platform/unified_webview.dart';
 import 'package:webspace/platform/webview_factory.dart';
 import 'package:webspace/screens/add_site.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/inappbrowser.dart';
+import 'package:webspace/screens/webspaces_list.dart';
+import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -234,6 +237,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
   bool _isFindVisible = false;
   bool _showUrlBar = false;
 
+  // Webspace-related state
+  final List<Webspace> _webspaces = [];
+  String? _selectedWebspaceId;
+
   @override
   void initState() {
     super.initState();
@@ -259,6 +266,66 @@ class _WebSpacePageState extends State<WebSpacePage> {
   Future<void> _saveShowUrlBar() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showUrlBar', _showUrlBar);
+  }
+
+  Future<void> _saveWebspaces() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> webspacesJson = _webspaces.map((webspace) => jsonEncode(webspace.toJson())).toList();
+    prefs.setStringList('webspaces', webspacesJson);
+  }
+
+  Future<void> _saveSelectedWebspaceId() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (_selectedWebspaceId != null) {
+      await prefs.setString('selectedWebspaceId', _selectedWebspaceId!);
+    } else {
+      await prefs.remove('selectedWebspaceId');
+    }
+  }
+
+  Future<void> _loadWebspaces() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? webspacesJson = prefs.getStringList('webspaces');
+
+    if (webspacesJson != null) {
+      List<Webspace> loadedWebspaces = webspacesJson
+          .map((webspaceJson) => Webspace.fromJson(jsonDecode(webspaceJson)))
+          .toList();
+
+      setState(() {
+        _webspaces.addAll(loadedWebspaces);
+      });
+    }
+
+    // Ensure "All" webspace always exists
+    _ensureAllWebspaceExists();
+
+    _selectedWebspaceId = prefs.getString('selectedWebspaceId');
+
+    // If no webspace is selected, select "All" by default
+    if (_selectedWebspaceId == null) {
+      _selectedWebspaceId = kAllWebspaceId;
+    }
+  }
+
+  void _ensureAllWebspaceExists() {
+    // Check if "All" webspace already exists
+    final hasAll = _webspaces.any((ws) => ws.id == kAllWebspaceId);
+
+    if (!hasAll) {
+      setState(() {
+        _webspaces.insert(0, Webspace.all());
+      });
+    } else {
+      // Ensure "All" is at the beginning
+      final allIndex = _webspaces.indexWhere((ws) => ws.id == kAllWebspaceId);
+      if (allIndex > 0) {
+        setState(() {
+          final allWebspace = _webspaces.removeAt(allIndex);
+          _webspaces.insert(0, allWebspace);
+        });
+      }
+    }
   }
 
   Future<void> _loadWebViewModels() async {
@@ -297,12 +364,32 @@ class _WebSpacePageState extends State<WebSpacePage> {
   Future<void> _restoreAppState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentIndex = prefs.getInt('currentIndex') ?? 0;
       _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 0];
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       widget.onThemeModeChanged(_themeMode);
     });
+    await _loadWebspaces();
     await _loadWebViewModels();
+
+    // Validate and set current index
+    setState(() {
+      int? savedIndex = prefs.getInt('currentIndex');
+      if (savedIndex != null && savedIndex < _webViewModels.length && savedIndex != 10000) {
+        // Check if the index is valid for the selected webspace
+        if (_selectedWebspaceId != null) {
+          final filteredIndices = _getFilteredSiteIndices();
+          if (filteredIndices.contains(savedIndex)) {
+            _currentIndex = savedIndex;
+          } else {
+            _currentIndex = null;
+          }
+        } else {
+          _currentIndex = null;
+        }
+      } else {
+        _currentIndex = null;
+      }
+    });
 
     // Apply saved theme to all restored webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeMode);
@@ -324,6 +411,157 @@ class _WebSpacePageState extends State<WebSpacePage> {
     setState(() {
       _isFindVisible = !_isFindVisible;
     });
+  }
+
+  // Webspace management methods
+  void _addWebspace() async {
+    final webspace = Webspace(name: 'New Webspace');
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WebspaceDetailScreen(
+          webspace: webspace,
+          allSites: _webViewModels,
+          onSave: (updatedWebspace) {
+            setState(() {
+              _webspaces.add(updatedWebspace);
+            });
+            _saveWebspaces();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _editWebspace(Webspace webspace) async {
+    // For "All" webspace, show all sites as selected but read-only
+    final webspaceToEdit = webspace.id == kAllWebspaceId
+        ? Webspace(
+            id: kAllWebspaceId,
+            name: 'All',
+            siteIndices: List<int>.generate(_webViewModels.length, (index) => index),
+          )
+        : webspace;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WebspaceDetailScreen(
+          webspace: webspaceToEdit,
+          allSites: _webViewModels,
+          isReadOnly: webspace.id == kAllWebspaceId,
+          onSave: (updatedWebspace) {
+            // Don't save changes for "All" webspace
+            if (updatedWebspace.id == kAllWebspaceId) return;
+
+            setState(() {
+              final index = _webspaces.indexWhere((ws) => ws.id == updatedWebspace.id);
+              if (index != -1) {
+                _webspaces[index] = updatedWebspace;
+              }
+            });
+            _saveWebspaces();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _deleteWebspace(Webspace webspace) async {
+    // Prevent deletion of "All" webspace
+    if (webspace.id == kAllWebspaceId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot delete the "All" webspace')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Webspace'),
+        content: Text('Are you sure you want to delete "${webspace.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Delete'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        _webspaces.removeWhere((ws) => ws.id == webspace.id);
+        if (_selectedWebspaceId == webspace.id) {
+          _selectedWebspaceId = kAllWebspaceId; // Select "All" instead of null
+          _currentIndex = null;
+        }
+      });
+      await _saveWebspaces();
+      await _saveSelectedWebspaceId();
+      await _saveCurrentIndex();
+    }
+  }
+
+  void _selectWebspace(Webspace webspace) {
+    setState(() {
+      _selectedWebspaceId = webspace.id;
+      _currentIndex = null;
+    });
+    _saveSelectedWebspaceId();
+    _saveCurrentIndex();
+  }
+
+  void _reorderWebspaces(int oldIndex, int newIndex) {
+    // Don't allow reordering if "All" is involved (it stays at index 0)
+    if (oldIndex == 0 || newIndex == 0) return;
+
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final webspace = _webspaces.removeAt(oldIndex);
+      _webspaces.insert(newIndex, webspace);
+    });
+    _saveWebspaces();
+  }
+
+  List<int> _getFilteredSiteIndices() {
+    if (_selectedWebspaceId == null) {
+      return [];
+    }
+
+    // If "All" webspace is selected, return all site indices
+    if (_selectedWebspaceId == kAllWebspaceId) {
+      return List<int>.generate(_webViewModels.length, (index) => index);
+    }
+
+    final webspace = _webspaces.firstWhere(
+      (ws) => ws.id == _selectedWebspaceId,
+      orElse: () => Webspace(name: '', siteIndices: []),
+    );
+    // Filter out indices that are out of bounds
+    return webspace.siteIndices
+        .where((index) => index >= 0 && index < _webViewModels.length)
+        .toList();
+  }
+
+  void _cleanupWebspaceIndices() {
+    // Clean up invalid indices in all webspaces after site deletion/reordering
+    for (var webspace in _webspaces) {
+      webspace.siteIndices = webspace.siteIndices
+          .where((index) => index >= 0 && index < _webViewModels.length)
+          .toList();
+    }
+    _saveWebspaces();
   }
 
   UnifiedWebViewController? getController() {
@@ -378,7 +616,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 ],
               ),
             )
-          : Text('No Site Selected'),
+          : Text(_selectedWebspaceId != null
+              ? _webspaces.firstWhere(
+                  (ws) => ws.id == _selectedWebspaceId,
+                  orElse: () => Webspace(name: 'Unknown'),
+                ).name
+              : 'No Webspace Selected'),
       actions: [
         if (_currentIndex != null && _currentIndex! < _webViewModels.length)
           IconButton(
@@ -666,6 +909,131 @@ class _WebSpacePageState extends State<WebSpacePage> {
     }
   }
 
+  Widget _buildSiteListTile(BuildContext context, int index) {
+    return ListTile(
+      key: Key('site_$index'),
+      leading: FutureBuilder<String?>(
+        future: getFaviconUrl(_webViewModels[index].initUrl),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return CachedNetworkImage(
+              imageUrl: snapshot.data!,
+              errorWidget: (context, url, error) => Icon(Icons.link),
+              width: 20,
+              height: 20,
+              fit: BoxFit.cover,
+            );
+          } else {
+            return SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(),
+            );
+          }
+        },
+      ),
+      title: Text(
+        _webViewModels[index].getDisplayName(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+      ),
+      subtitle: Text(
+        extractDomain(_webViewModels[index].initUrl),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+        style: TextStyle(fontSize: 12, color: Colors.grey),
+      ),
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+          _saveCurrentIndex();
+        });
+        Navigator.pop(context);
+      },
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            tooltip: 'Refresh title',
+            iconSize: 20,
+            onPressed: () async {
+              final title = await getPageTitle(_webViewModels[index].initUrl);
+              if (title != null && title.isNotEmpty) {
+                setState(() {
+                  _webViewModels[index].name = title;
+                  _webViewModels[index].pageTitle = title;
+                });
+                _saveWebViewModels();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Title updated to: $title')),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.edit),
+            tooltip: 'Edit',
+            iconSize: 20,
+            onPressed: () {
+              _editSite(index);
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.delete),
+            tooltip: 'Delete',
+            iconSize: 20,
+            onPressed: () async {
+              final siteName = _webViewModels[index].getDisplayName();
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Delete Site'),
+                  content: Text('Are you sure you want to delete "$siteName"?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text('Delete'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+              if (confirmed == true) {
+                setState(() {
+                  _webViewModels.removeAt(index);
+                  if (_currentIndex == index) {
+                    _currentIndex = null;
+                    _saveCurrentIndex();
+                  }
+                  // Update webspace indices after deletion
+                  for (var webspace in _webspaces) {
+                    webspace.siteIndices = webspace.siteIndices
+                        .where((i) => i != index)
+                        .map((i) => i > index ? i - 1 : i)
+                        .toList();
+                  }
+                });
+                _saveWebViewModels();
+                _saveWebspaces();
+                Navigator.pop(context);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -674,121 +1042,93 @@ class _WebSpacePageState extends State<WebSpacePage> {
         child: Column(
           children: [
             Container(
-              height: 100,
+              height: 140,
               width: double.infinity,
-              child: Icon(
-                Icons.menu_book,
-                size: 72,
-                color: Theme.of(context).primaryColor,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.workspaces,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    _selectedWebspaceId != null
+                        ? _webspaces.firstWhere((ws) => ws.id == _selectedWebspaceId, orElse: () => Webspace(name: 'Unknown')).name
+                        : 'No webspace',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedWebspaceId = kAllWebspaceId;
+                        _currentIndex = null;
+                      });
+                      _saveSelectedWebspaceId();
+                      _saveCurrentIndex();
+                      Navigator.pop(context);
+                    },
+                    icon: Icon(Icons.arrow_back, size: 16),
+                    label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
               ),
               alignment: Alignment.center,
             ),
             Expanded(
-              child: ReorderableListView.builder(
-                itemCount: _webViewModels.length,
-                onReorder: (int oldIndex, int newIndex) {
-                  setState(() {
-                    if (newIndex > oldIndex) {
-                      newIndex -= 1;
-                    }
-                    final WebViewModel item = _webViewModels.removeAt(oldIndex);
-                    _webViewModels.insert(newIndex, item);
-                  });
-                  _saveWebViewModels();
-                },
-                itemBuilder: (BuildContext context, int index) {
-                  return ListTile(
-                    key: Key('site_$index'),
-                    leading: FutureBuilder<String?>(
-                      future: getFaviconUrl(_webViewModels[index].initUrl),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData) {
-                          return CachedNetworkImage(
-                            imageUrl: snapshot.data!,
-                            errorWidget: (context, url, error) => Icon(Icons.link),
-                            width: 20,
-                            height: 20,
-                            fit: BoxFit.cover,
-                          );
-                        } else {
-                          return SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                      },
-                    ),
-                    title: Text(
-                      _webViewModels[index].getDisplayName(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: false,
-                    ),
-                    subtitle: Text(
-                      extractDomain(_webViewModels[index].initUrl),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: false,
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    onTap: () {
-                      setState(() {
-                        _currentIndex = index;
-                        _saveCurrentIndex();
-                      });
-                      Navigator.pop(context);
-                    },
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.refresh),
-                          tooltip: 'Refresh title',
-                          iconSize: 20,
-                          onPressed: () async {
-                            final title = await getPageTitle(_webViewModels[index].initUrl);
-                            if (title != null && title.isNotEmpty) {
-                              setState(() {
-                                _webViewModels[index].name = title;
-                                _webViewModels[index].pageTitle = title;
-                              });
-                              _saveWebViewModels();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Title updated to: $title')),
-                              );
+              child: _selectedWebspaceId == null
+                  ? Center(
+                      child: Text('Select a webspace to view sites'),
+                    )
+                  : () {
+                      final filteredIndices = _getFilteredSiteIndices();
+                      if (filteredIndices.isEmpty) {
+                        return Center(
+                          child: Text('No sites in this webspace'),
+                        );
+                      }
+
+                      // Use ListView for "All" webspace (no reordering)
+                      // Use ReorderableListView for custom webspaces
+                      final isAllWebspace = _selectedWebspaceId == kAllWebspaceId;
+
+                      if (isAllWebspace) {
+                        return ListView.builder(
+                          itemCount: filteredIndices.length,
+                          itemBuilder: (BuildContext context, int listIndex) {
+                            final index = filteredIndices[listIndex];
+                            return _buildSiteListTile(context, index);
+                          },
+                        );
+                      }
+
+                      return ReorderableListView.builder(
+                        itemCount: filteredIndices.length,
+                        onReorder: (int oldListIndex, int newListIndex) {
+                          setState(() {
+                            // Adjust newListIndex if moving down
+                            if (newListIndex > oldListIndex) {
+                              newListIndex -= 1;
                             }
-                          },
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.edit),
-                          tooltip: 'Edit',
-                          iconSize: 20,
-                          onPressed: () {
-                            _editSite(index);
-                          },
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete),
-                          tooltip: 'Delete',
-                          iconSize: 20,
-                          onPressed: () {
-                            setState(() {
-                              _webViewModels.removeAt(index);
-                              if (_currentIndex == index) {
-                                _currentIndex = null;
-                                _saveCurrentIndex();
-                              }
-                            });
-                            _saveWebViewModels();
-                            Navigator.pop(context);
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+
+                            // Get the webspace and reorder its siteIndices
+                            final webspace = _webspaces.firstWhere(
+                              (ws) => ws.id == _selectedWebspaceId,
+                            );
+
+                            // Remove from old position and insert at new position
+                            final movedIndex = webspace.siteIndices.removeAt(oldListIndex);
+                            webspace.siteIndices.insert(newListIndex, movedIndex);
+                          });
+                          _saveWebspaces();
+                        },
+                        itemBuilder: (BuildContext context, int listIndex) {
+                          final index = filteredIndices[listIndex];
+                          return _buildSiteListTile(context, index);
+                        },
+                      );
+                    }(),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -808,7 +1148,16 @@ class _WebSpacePageState extends State<WebSpacePage> {
         ),
       ),
       body: _currentIndex == null || _currentIndex! >= _webViewModels.length
-          ? Center(child: Text('No WebView selected'))
+          ? WebspacesListScreen(
+              webspaces: _webspaces,
+              selectedWebspaceId: _selectedWebspaceId,
+              totalSitesCount: _webViewModels.length,
+              onSelectWebspace: _selectWebspace,
+              onAddWebspace: _addWebspace,
+              onEditWebspace: _editWebspace,
+              onDeleteWebspace: _deleteWebspace,
+              onReorder: _reorderWebspaces,
+            )
           : IndexedStack(
               index: _currentIndex!,
               children: _webViewModels.map<Widget>((webViewModel) => Column(
