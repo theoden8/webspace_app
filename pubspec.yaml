@@ -50,6 +50,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  macos:
+    generate: true
+    image_path: "assets/webspace_icon.png"  # 1024x1024 PNG recommended
+  remove_alpha_ios: true
+  image_path: "assets/webspace_icon.png"  # Path to your icon.png
+  adaptive_icon_background: "#FFFFFF"  # Optional Android background
+  adaptive_icon_foreground: "assets/webspace_icon.png"
