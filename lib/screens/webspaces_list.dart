@@ -117,46 +117,48 @@ class WebspacesListScreen extends StatelessWidget {
                         ),
                         subtitle: Text('$siteCount sites'),
                         onTap: () => onSelectWebspace(webspace),
-                        trailing: Container(
-                          color: Theme.of(context).cardTheme.color ??
-                                 Theme.of(context).cardColor,
-                          padding: EdgeInsets.only(left: 8),
-                          child: SizedBox(
-                            width: isAll ? 40 : 120,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.edit, size: 20),
-                                  padding: EdgeInsets.zero,
-                                  constraints: BoxConstraints(
-                                    minWidth: 40,
-                                    minHeight: 40,
-                                  ),
-                                  onPressed: () => onEditWebspace(webspace),
-                                ),
-                                if (!isAll)
-                                  IconButton(
-                                    icon: Icon(Icons.delete, size: 20),
-                                    padding: EdgeInsets.zero,
-                                    constraints: BoxConstraints(
-                                      minWidth: 40,
-                                      minHeight: 40,
-                                    ),
-                                    onPressed: () => onDeleteWebspace(webspace),
-                                  ),
-                                if (!isAll)
-                                  ReorderableDragStartListener(
-                                    index: index,
-                                    child: Icon(
-                                      Icons.drag_handle,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                              ],
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.edit, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: 40,
+                                minHeight: 40,
+                              ),
+                              onPressed: () => onEditWebspace(webspace),
                             ),
-                          ),
+                            if (!isAll)
+                              Container(
+                                color: Theme.of(context).cardTheme.color ??
+                                       Theme.of(context).cardColor,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.delete, size: 20),
+                                      padding: EdgeInsets.zero,
+                                      constraints: BoxConstraints(
+                                        minWidth: 40,
+                                        minHeight: 40,
+                                      ),
+                                      onPressed: () => onDeleteWebspace(webspace),
+                                    ),
+                                    ReorderableDragStartListener(
+                                      index: index,
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 12),
+                                        child: Icon(
+                                          Icons.drag_handle,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     );
