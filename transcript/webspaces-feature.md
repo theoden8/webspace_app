@@ -539,6 +539,53 @@ Testing:
 - Verify all edge cases are properly handled in implementation
 ```
 
+### Commit 3: "All" Webspace and Advanced Features
+```
+[commit hash] - Add "All" webspace and webspace reordering
+
+"All" Webspace:
+- Create special "All" webspace that contains all sites
+- Always positioned at index 0, cannot be deleted or moved
+- Shows actual site count instead of 0
+- Edit button opens read-only view with all sites frozen
+- Default selection on app start
+
+Webspace Reordering:
+- Made webspaces list reorderable with drag-and-drop
+- "All" webspace locked at top (cannot be moved)
+- Reorder state persists via SharedPreferences
+- Added safety checks to prevent invalid reordering
+
+UI/UX Fixes:
+- Fixed card width issue with reorder handle (compact buttons)
+- AppBar title now shows webspace name when no site selected
+- Drawer header always shows current webspace name
+- "Back to Webspaces" selects "All" instead of null
+- Hidden delete button for "All" webspace
+
+Testing:
+- Added webspace_ordering_test.dart with 6 test cases
+- Tests for order preservation during serialization
+- Tests for reordering logic and "All" webspace protection
+- Tests for multiple reorder operations
+- Tests for round-trip serialization after reordering
+```
+
+## Files Modified/Created (Final)
+
+### New Files (Total: 6)
+1. `lib/webspace_model.dart` - Webspace data model with "All" support
+2. `lib/screens/webspaces_list.dart` - Main webspaces screen with reordering
+3. `lib/screens/webspace_detail.dart` - Edit webspace screen with read-only mode
+4. `test/webspace_model_test.dart` - Unit tests (17 test cases)
+5. `test/webspace_ordering_test.dart` - Reordering tests (6 test cases)
+6. `test/EDGE_CASES_TESTED.md` - Edge cases documentation
+7. `transcript/webspaces-feature.md` - Complete feature documentation (this file)
+
+### Modified Files (Total: 2)
+1. `lib/main.dart` - Complete webspace state management integration
+2. `pubspec.yaml` - Added `uuid: ^4.5.1` dependency
+
 ## Summary
 
 The Webspaces feature successfully provides:

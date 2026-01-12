@@ -612,7 +612,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 ],
               ),
             )
-          : Text('No Site Selected'),
+          : Text(_selectedWebspaceId != null
+              ? _webspaces.firstWhere(
+                  (ws) => ws.id == _selectedWebspaceId,
+                  orElse: () => Webspace(name: 'Unknown'),
+                ).name
+              : 'No Webspace Selected'),
       actions: [
         if (_currentIndex != null && _currentIndex! < _webViewModels.length)
           IconButton(

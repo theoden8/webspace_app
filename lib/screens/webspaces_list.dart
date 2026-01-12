@@ -116,19 +116,32 @@ class WebspacesListScreen extends StatelessWidget {
                         ),
                         subtitle: Text('$siteCount sites'),
                         onTap: () => onSelectWebspace(webspace),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit),
-                              onPressed: () => onEditWebspace(webspace),
-                            ),
-                            if (!isAll)
+                        trailing: SizedBox(
+                          width: isAll ? 40 : 80,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                               IconButton(
-                                icon: Icon(Icons.delete),
-                                onPressed: () => onDeleteWebspace(webspace),
+                                icon: Icon(Icons.edit, size: 20),
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                ),
+                                onPressed: () => onEditWebspace(webspace),
                               ),
-                          ],
+                              if (!isAll)
+                                IconButton(
+                                  icon: Icon(Icons.delete, size: 20),
+                                  padding: EdgeInsets.zero,
+                                  constraints: BoxConstraints(
+                                    minWidth: 40,
+                                    minHeight: 40,
+                                  ),
+                                  onPressed: () => onDeleteWebspace(webspace),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     );

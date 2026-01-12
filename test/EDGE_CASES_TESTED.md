@@ -206,4 +206,60 @@ The implementation properly handles:
 - UI consistency
 - Data integrity
 
+## 11. Webspace Reordering Tests (webspace_ordering_test.dart)
+
+### Order Preservation
+- [x] Webspace order preserved after JSON serialization
+  - Serialize webspaces in specific order
+  - Deserialize and verify order matches
+  - Simulates SharedPreferences save/load cycle
+
+### Reordering Logic
+- [x] Reordering correctly applies Flutter's ReorderableList logic
+  - Move webspace from one position to another
+  - Handle newIndex adjustment when moving down
+  - Verify all webspaces end up in correct positions
+
+### "All" Webspace Protection
+- [x] Cannot reorder "All" webspace from position 0
+  - Guard condition blocks oldIndex == 0
+  - "All" always stays at top
+
+- [x] Cannot reorder other webspaces to position 0
+  - Guard condition blocks newIndex == 0
+  - Prevents any webspace from taking "All"'s position
+
+### Multiple Operations
+- [x] Multiple reorder operations maintain consistency
+  - Perform several reorder operations in sequence
+  - Verify final order is correct
+  - Verify "All" never moves
+
+### Round-Trip Testing
+- [x] Reordering + serialization preserves new order
+  - Reorder webspaces
+  - Serialize to JSON
+  - Deserialize from JSON
+  - Verify order persists through full cycle
+
+## 12. UI/UX Edge Cases (Recent Fixes)
+
+### AppBar Title Display
+- [x] Shows webspace name when no site selected
+  - AppBar title displays selected webspace name
+  - Falls back to "No Webspace Selected" if null
+  - Previously showed "No Site Selected" incorrectly
+
+### Card Width with Reordering
+- [x] Cards properly sized with reorder handle
+  - Compact icon buttons (40x40 with zero padding)
+  - Fixed width: 40px for "All", 80px for others
+  - ReorderableListView drag handle doesn't overlap content
+
+### Drawer Header Consistency
+- [x] Always shows current webspace name
+  - No longer conditionally hidden
+  - Shows "No webspace" if null (shouldn't happen)
+  - "Back to Webspaces" selects "All" instead of clearing
+
 No known edge cases remain unhandled.
