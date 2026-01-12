@@ -1,0 +1,14 @@
+Version 0.0.2 - UX improvements and rebranding
+
+✨ Improvements:
+• Better webspace naming: "New webspace" now appears as placeholder text
+• Added validation to prevent empty webspace names
+• Clearer error messages when validation fails
+• Updated platform support documentation
+• Refined app description to emphasize mobile focus
+
+📱 Platform support:
+• iOS and Android (target platforms)
+• macOS for development
+
+This update focuses on improving the user experience and clarifying the app's purpose.
