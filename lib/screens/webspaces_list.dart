@@ -67,6 +67,7 @@ class WebspacesListScreen extends StatelessWidget {
               child: Container(
                 constraints: BoxConstraints(maxWidth: 600),
                 child: ReorderableListView.builder(
+                  buildDefaultDragHandles: false,
                   shrinkWrap: true,
                   itemCount: webspaces.length,
                   onReorder: (oldIndex, newIndex) {
@@ -117,9 +118,10 @@ class WebspacesListScreen extends StatelessWidget {
                         subtitle: Text('$siteCount sites'),
                         onTap: () => onSelectWebspace(webspace),
                         trailing: SizedBox(
-                          width: isAll ? 40 : 80,
+                          width: isAll ? 40 : 120,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               IconButton(
                                 icon: Icon(Icons.edit, size: 20),
@@ -139,6 +141,14 @@ class WebspacesListScreen extends StatelessWidget {
                                     minHeight: 40,
                                   ),
                                   onPressed: () => onDeleteWebspace(webspace),
+                                ),
+                              if (!isAll)
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: Icon(
+                                    Icons.drag_handle,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                             ],
                           ),
