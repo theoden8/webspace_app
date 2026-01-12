@@ -52,6 +52,21 @@ This directory contains HTML test files for automated testing of WebSpace featur
 - **Feature**: Sites without theme support
 - **Expected**: JavaScript injection should add `color-scheme` meta tag
 
+### `test_theme.html`
+- **Feature**: Interactive manual theme testing page
+- **Purpose**: Manual verification of theme switching behavior in WebViews
+- **Tests**:
+  - CSS media query detection (`prefers-color-scheme`)
+  - JavaScript theme detection via `window.matchMedia()`
+  - Theme change event listeners
+  - Real-time theme change logging
+- **Usage**: Load this page in a WebView and use the app's theme toggle button (sun/moon/auto icon) to verify that:
+  1. Background and text colors change appropriately
+  2. JavaScript detection reports the correct theme
+  3. Change events are logged with timestamps
+  4. All three modes work: Light → Dark → System
+- **Note**: This is for manual testing. For automated tests, see `test/theme_test.dart`
+
 ## General Test Page
 
 ### `test_page.html`
