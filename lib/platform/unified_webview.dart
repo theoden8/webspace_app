@@ -124,6 +124,11 @@ class UnifiedCookieManager {
     bool? isSecure,
     bool? isHttpOnly,
   }) async {
+    // Skip cookies with empty values to prevent assertion failures on macOS
+    if (value.isEmpty) {
+      return;
+    }
+
     if (PlatformInfo.useInAppWebView) {
       await _inApp.setCookie(
         url: _toWebUri(url),
