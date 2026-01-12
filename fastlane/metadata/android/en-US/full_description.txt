@@ -1,0 +1,42 @@
+WebSpace is a powerful multi-site webview manager that lets you organize and access all your favorite web applications in a single, streamlined app.
+
+<b>Key Features:</b>
+
+🌐 <b>Multiple Web Apps in Tabs</b>
+Access all your web-based services through organized tabs, eliminating the need to juggle between browser tabs or multiple apps.
+
+🎨 <b>Smart Branding</b>
+Automatically detects page titles and favicons from websites, giving each tab a personalized look that matches the site's branding.
+
+🌙 <b>Theme Preferences</b>
+Set your preferred theme (light, dark, or auto) and WebSpace will inject your preference into websites for a consistent viewing experience.
+
+🔒 <b>Cookie Isolation</b>
+Each site maintains its own isolated cookies and session data, keeping your accounts separate and secure.
+
+🔍 <b>Find in Page</b>
+Quickly search for text within any page using the built-in find-in-page functionality.
+
+✏️ <b>Easy Management</b>
+Edit site names and URLs anytime. Add custom labels to help you identify your web apps at a glance.
+
+📁 <b>Workspace Organization</b>
+Group your sites into custom webspaces for better organization. Create separate workspaces for work, personal, social media, or any category you need.
+
+🚀 <b>Quick Access</b>
+Choose from curated site suggestions or add any website URL. WebSpace automatically handles HTTPS and protocol inference.
+
+<b>Perfect For:</b>
+• Managing multiple social media accounts
+• Organizing work-related web applications
+• Keeping personal and professional sites separate
+• Accessing web-based productivity tools
+• Using multiple instances of the same service
+
+<b>Privacy & Security:</b>
+WebSpace isolates cookies per site, ensuring your accounts remain separate and secure. External links open in isolated views to maintain domain separation.
+
+<b>Open Source:</b>
+WebSpace is open source and built with Flutter. Contributions and feedback are welcome on GitHub.
+
+Start organizing your digital life with WebSpace today!

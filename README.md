@@ -6,13 +6,13 @@
 
 [![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
 
-Multi-site webview manager for Flutter.
+**All your web apps, organized in one place.**
 
 </div>
 
 ## Overview
 
-WebSpace allows you to run multiple webviews in a single app, making it convenient to manage multiple web-based applications.
+WebSpace is a mobile app that brings all your favorite websites and web apps together in one organized, streamlined interface.
 
 **Features:**
 - 🌐 Multiple webviews in tabs
