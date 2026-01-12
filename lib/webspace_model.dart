@@ -2,6 +2,9 @@ import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
 
+// Special ID for the "All" webspace that contains all sites
+const String kAllWebspaceId = '__all_webspace__';
+
 class Webspace {
   String id; // Unique identifier for the webspace
   String name; // Display name for the webspace
@@ -39,6 +42,18 @@ class Webspace {
       id: id ?? this.id,
       name: name ?? this.name,
       siteIndices: siteIndices ?? this.siteIndices,
+    );
+  }
+
+  // Check if this is the special "All" webspace
+  bool get isAll => id == kAllWebspaceId;
+
+  // Factory method to create the "All" webspace
+  factory Webspace.all() {
+    return Webspace(
+      id: kAllWebspaceId,
+      name: 'All',
+      siteIndices: [], // Will be populated dynamically
     );
   }
 }

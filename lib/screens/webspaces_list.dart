@@ -37,7 +37,12 @@ class WebspacesListScreen extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'No webspace selected',
+            selectedWebspaceId != null
+                ? webspaces.firstWhere(
+                    (ws) => ws.id == selectedWebspaceId,
+                    orElse: () => Webspace(name: 'Unknown'),
+                  ).name
+                : 'No webspace selected',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Colors.grey,
             ),
