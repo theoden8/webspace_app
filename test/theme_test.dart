@@ -72,14 +72,15 @@ void main() {
 
     test('ThemeMode serialization for SharedPreferences', () {
       // Test that we can save/restore theme modes using their index
-      expect(ThemeMode.light.index, 0);
-      expect(ThemeMode.dark.index, 1);
-      expect(ThemeMode.system.index, 2);
+      // Flutter's ThemeMode enum order: system, light, dark
+      expect(ThemeMode.system.index, 0);
+      expect(ThemeMode.light.index, 1);
+      expect(ThemeMode.dark.index, 2);
 
       // Test restoration
-      expect(ThemeMode.values[0], ThemeMode.light);
-      expect(ThemeMode.values[1], ThemeMode.dark);
-      expect(ThemeMode.values[2], ThemeMode.system);
+      expect(ThemeMode.values[0], ThemeMode.system);
+      expect(ThemeMode.values[1], ThemeMode.light);
+      expect(ThemeMode.values[2], ThemeMode.dark);
     });
 
     test('Theme icon mapping', () {
