@@ -6,12 +6,14 @@ class WebspaceDetailScreen extends StatefulWidget {
   final Webspace webspace;
   final List<WebViewModel> allSites;
   final Function(Webspace) onSave;
+  final bool isReadOnly;
 
   const WebspaceDetailScreen({
     Key? key,
     required this.webspace,
     required this.allSites,
     required this.onSave,
+    this.isReadOnly = false,
   }) : super(key: key);
 
   @override
@@ -60,12 +62,13 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit Webspace'),
+        title: Text(widget.isReadOnly ? 'View Webspace' : 'Edit Webspace'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.check),
-            onPressed: _save,
-          ),
+          if (!widget.isReadOnly)
+            IconButton(
+              icon: Icon(Icons.check),
+              onPressed: _save,
+            ),
         ],
       ),
       body: Column(
@@ -74,6 +77,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _nameController,
+              enabled: !widget.isReadOnly,
               decoration: InputDecoration(
                 labelText: 'Webspace Name',
                 border: OutlineInputBorder(),
@@ -111,9 +115,11 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
                         title: Text(site.getDisplayName()),
                         subtitle: Text(extractDomain(site.initUrl)),
                         value: isSelected,
-                        onChanged: (bool? value) {
-                          _toggleSite(index);
-                        },
+                        onChanged: widget.isReadOnly
+                            ? null
+                            : (bool? value) {
+                                _toggleSite(index);
+                              },
                       );
                     },
                   ),

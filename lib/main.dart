@@ -430,21 +430,26 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   void _editWebspace(Webspace webspace) async {
-    // Prevent editing of "All" webspace
-    if (webspace.id == kAllWebspaceId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('The "All" webspace cannot be edited')),
-      );
-      return;
-    }
+    // For "All" webspace, show all sites as selected but read-only
+    final webspaceToEdit = webspace.id == kAllWebspaceId
+        ? Webspace(
+            id: kAllWebspaceId,
+            name: 'All',
+            siteIndices: List<int>.generate(_webViewModels.length, (index) => index),
+          )
+        : webspace;
 
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => WebspaceDetailScreen(
-          webspace: webspace,
+          webspace: webspaceToEdit,
           allSites: _webViewModels,
+          isReadOnly: webspace.id == kAllWebspaceId,
           onSave: (updatedWebspace) {
+            // Don't save changes for "All" webspace
+            if (updatedWebspace.id == kAllWebspaceId) return;
+
             setState(() {
               final index = _webspaces.indexWhere((ws) => ws.id == updatedWebspace.id);
               if (index != -1) {
@@ -509,6 +514,20 @@ class _WebSpacePageState extends State<WebSpacePage> {
     });
     _saveSelectedWebspaceId();
     _saveCurrentIndex();
+  }
+
+  void _reorderWebspaces(int oldIndex, int newIndex) {
+    // Don't allow reordering if "All" is involved (it stays at index 0)
+    if (oldIndex == 0 || newIndex == 0) return;
+
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final webspace = _webspaces.removeAt(oldIndex);
+      _webspaces.insert(newIndex, webspace);
+    });
+    _saveWebspaces();
   }
 
   List<int> _getFilteredSiteIndices() {
@@ -1014,7 +1033,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
         child: Column(
           children: [
             Container(
-              height: _selectedWebspaceId != null ? 140 : 100,
+              height: 140,
               width: double.infinity,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1024,26 +1043,26 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     size: 48,
                     color: Theme.of(context).colorScheme.secondary,
                   ),
-                  if (_selectedWebspaceId != null) ...[
-                    SizedBox(height: 8),
-                    Text(
-                      _webspaces.firstWhere((ws) => ws.id == _selectedWebspaceId, orElse: () => Webspace(name: '')).name,
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _selectedWebspaceId = null;
-                          _currentIndex = null;
-                        });
-                        _saveSelectedWebspaceId();
-                        _saveCurrentIndex();
-                        Navigator.pop(context);
-                      },
-                      icon: Icon(Icons.arrow_back, size: 16),
-                      label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
+                  SizedBox(height: 8),
+                  Text(
+                    _selectedWebspaceId != null
+                        ? _webspaces.firstWhere((ws) => ws.id == _selectedWebspaceId, orElse: () => Webspace(name: 'Unknown')).name
+                        : 'No webspace',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedWebspaceId = kAllWebspaceId;
+                        _currentIndex = null;
+                      });
+                      _saveSelectedWebspaceId();
+                      _saveCurrentIndex();
+                      Navigator.pop(context);
+                    },
+                    icon: Icon(Icons.arrow_back, size: 16),
+                    label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                  ),
                 ],
               ),
               alignment: Alignment.center,
@@ -1123,10 +1142,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
           ? WebspacesListScreen(
               webspaces: _webspaces,
               selectedWebspaceId: _selectedWebspaceId,
+              totalSitesCount: _webViewModels.length,
               onSelectWebspace: _selectWebspace,
               onAddWebspace: _addWebspace,
               onEditWebspace: _editWebspace,
               onDeleteWebspace: _deleteWebspace,
+              onReorder: _reorderWebspaces,
             )
           : IndexedStack(
               index: _currentIndex!,

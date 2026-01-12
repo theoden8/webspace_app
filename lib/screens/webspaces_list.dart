@@ -4,19 +4,23 @@ import 'package:webspace/webspace_model.dart';
 class WebspacesListScreen extends StatelessWidget {
   final List<Webspace> webspaces;
   final String? selectedWebspaceId;
+  final int totalSitesCount;
   final Function(Webspace) onSelectWebspace;
   final Function() onAddWebspace;
   final Function(Webspace) onEditWebspace;
   final Function(Webspace) onDeleteWebspace;
+  final Function(int, int)? onReorder;
 
   const WebspacesListScreen({
     Key? key,
     required this.webspaces,
     this.selectedWebspaceId,
+    required this.totalSitesCount,
     required this.onSelectWebspace,
     required this.onAddWebspace,
     required this.onEditWebspace,
     required this.onDeleteWebspace,
+    this.onReorder,
   }) : super(key: key);
 
   @override
@@ -62,13 +66,24 @@ class WebspacesListScreen extends StatelessWidget {
             Expanded(
               child: Container(
                 constraints: BoxConstraints(maxWidth: 600),
-                child: ListView.builder(
+                child: ReorderableListView.builder(
                   shrinkWrap: true,
                   itemCount: webspaces.length,
+                  onReorder: (oldIndex, newIndex) {
+                    // Don't allow moving "All" webspace (always at index 0)
+                    if (oldIndex == 0 || newIndex == 0) return;
+                    if (onReorder != null) {
+                      onReorder!(oldIndex, newIndex);
+                    }
+                  },
                   itemBuilder: (context, index) {
                     final webspace = webspaces[index];
                     final isSelected = selectedWebspaceId == webspace.id;
+                    final isAll = webspace.id == kAllWebspaceId;
+                    final siteCount = isAll ? totalSitesCount : webspace.siteIndices.length;
+
                     return Card(
+                      key: Key(webspace.id),
                       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       color: isSelected
                           ? Theme.of(context).colorScheme.secondary.withOpacity(0.15)
@@ -99,7 +114,7 @@ class WebspacesListScreen extends StatelessWidget {
                               ),
                           ],
                         ),
-                        subtitle: Text('${webspace.siteIndices.length} sites'),
+                        subtitle: Text('$siteCount sites'),
                         onTap: () => onSelectWebspace(webspace),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -108,10 +123,11 @@ class WebspacesListScreen extends StatelessWidget {
                               icon: Icon(Icons.edit),
                               onPressed: () => onEditWebspace(webspace),
                             ),
-                            IconButton(
-                              icon: Icon(Icons.delete),
-                              onPressed: () => onDeleteWebspace(webspace),
-                            ),
+                            if (!isAll)
+                              IconButton(
+                                icon: Icon(Icons.delete),
+                                onPressed: () => onDeleteWebspace(webspace),
+                              ),
                           ],
                         ),
                       ),
