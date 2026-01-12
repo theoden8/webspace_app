@@ -107,7 +107,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     SiteSuggestion(name: 'Perplexity', url: 'https://perplexity.ai', domain: 'perplexity.ai'),
     SiteSuggestion(name: 'Instagram', url: 'https://instagram.com', domain: 'instagram.com'),
     SiteSuggestion(name: 'Facebook', url: 'https://facebook.com', domain: 'facebook.com'),
-    SiteSuggestion(name: 'Piped', url: 'https://piped.video', domain: 'piped.video'),
     SiteSuggestion(name: 'X (Twitter)', url: 'https://x.com', domain: 'x.com'),
     SiteSuggestion(name: 'Google Chat', url: 'https://chat.google.com', domain: 'chat.google.com'),
     SiteSuggestion(name: 'GitLab', url: 'https://gitlab.com', domain: 'gitlab.com'),

@@ -1,6 +1,14 @@
+<div align="center">
+
+<img src="assets/webspace_icon.png" alt="WebSpace Icon" width="120"/>
+
 # WebSpace
 
+[![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
+
 Multi-site webview manager for Flutter.
+
+</div>
 
 ## Overview
 
@@ -13,7 +21,6 @@ WebSpace allows you to run multiple webviews in a single app, making it convenie
 - 🔒 Cookie isolation per site
 - 🔍 Find-in-page functionality
 - ✏️ Edit site names and URLs
-- 🖥️ Linux desktop support
 
 ## Quick Start
 
@@ -31,11 +38,14 @@ flutter pub get
 
 ### Run
 ```bash
-# Linux
-flutter run -d linux
+# iOS
+flutter run -d ios
 
 # Android
 flutter run -d android
+
+# macOS
+flutter run -d macos
 ```
 
 ## Usage
@@ -55,20 +65,18 @@ Detailed documentation is in [`transcript/`](transcript/README.md):
 
 ## Platform Support
 
-| Platform | Status | WebView Engine |
-|----------|--------|----------------|
-| Android | ✅ Stable | flutter_inappwebview |
-| Linux | ✅ Working | webview_cef (CEF) |
-| Windows | ⏳ Planned | webview_cef |
-| macOS | ⏳ Planned | webview_cef |
-| iOS | ❌ Not planned | - |
+| Platform | Status | WebView Engine | Purpose |
+|----------|--------|----------------|---------|
+| iOS | ✅ Supported | WKWebView | Development |
+| Android | ✅ Supported | flutter_inappwebview | Development |
+| macOS | ✅ Supported | WKWebView | Development |
+| Linux | 🚧 Planned | webview_cef (CEF) | Development |
 
 ## Tech Stack
 
 - **Framework**: Flutter
 - **State Management**: setState + SharedPreferences
-- **Android Webview**: flutter_inappwebview ^5.7.2+3
-- **Linux Webview**: webview_cef ^0.2.0
+- **Webview**: flutter_inappwebview ^5.7.2+3
 - **HTTP**: http ^1.2.0
 - **HTML Parsing**: html ^0.15.4
 - **Image Caching**: cached_network_image ^3.2.3
@@ -83,8 +91,9 @@ flutter test
 ### Build
 ```bash
 # Release build
-flutter build linux --release
+flutter build ios --release
 flutter build apk --release
+flutter build macos --release
 ```
 
 ### Code Analysis
@@ -95,3 +104,5 @@ flutter analyze
 ## License
 
 Created with GPT-4 assistance. See [`transcript/0-gpt4-coding.md`](transcript/0-gpt4-coding.md).
+
+**Note**: Assets (including icons and images) are distributed under a separate license.

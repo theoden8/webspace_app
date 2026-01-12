@@ -31,9 +31,10 @@ WebSpace is a Flutter app for managing multiple webviews in a single application
 ## Quick Reference
 
 ### Platform Support
-- ✅ **Android**: flutter_inappwebview
-- ✅ **Linux Desktop**: webview_cef (CEF-based)
-- ⏳ **Windows/macOS**: Planned (via webview_cef)
+- ✅ **iOS**: WKWebView (Development)
+- ✅ **Android**: flutter_inappwebview (Development)
+- ✅ **macOS**: WKWebView (Development)
+- 🚧 **Linux**: Planned (Development)
 
 ### Key Features
 - Multi-site webview management
@@ -48,7 +49,7 @@ WebSpace is a Flutter app for managing multiple webviews in a single application
 ### Tech Stack
 ```
 Flutter SDK: >=3.0.0-417.1.beta <4.0.0
-Platform: Android, Linux
+Platform: iOS, Android, macOS (Linux planned)
 Architecture: Platform abstraction layer
 State: setState + SharedPreferences
 ```
@@ -88,14 +89,15 @@ test/
 
 ### Building
 ```bash
-# Debug build (Linux)
-flutter run -d linux
+# Debug build
+flutter run -d ios
+flutter run -d android
+flutter run -d macos
 
-# Release build (Linux)
-flutter build linux --release
-
-# Android
+# Release build
+flutter build ios --release
 flutter build apk --release
+flutter build macos --release
 ```
 
 ### Testing
