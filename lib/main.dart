@@ -233,6 +233,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   final List<WebViewModel> _webViewModels = [];
   ThemeMode _themeMode = ThemeMode.system;
   final UnifiedCookieManager _cookieManager = UnifiedCookieManager();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isFindVisible = false;
   bool _showUrlBar = false;
@@ -518,6 +519,8 @@ class _WebSpacePageState extends State<WebSpacePage> {
     });
     _saveSelectedWebspaceId();
     _saveCurrentIndex();
+    // Open drawer after selecting workspace
+    _scaffoldKey.currentState?.openDrawer();
   }
 
   void _reorderWebspaces(int oldIndex, int newIndex) {
@@ -1037,6 +1040,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       appBar: _buildAppBar(),
       drawer: Drawer(
         child: Column(
@@ -1047,17 +1051,35 @@ class _WebSpacePageState extends State<WebSpacePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.workspaces,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    _selectedWebspaceId != null
-                        ? _webspaces.firstWhere((ws) => ws.id == _selectedWebspaceId, orElse: () => Webspace(name: 'Unknown')).name
-                        : 'No webspace',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedWebspaceId = kAllWebspaceId;
+                        _currentIndex = null;
+                      });
+                      _saveSelectedWebspaceId();
+                      _saveCurrentIndex();
+                      Navigator.pop(context);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.workspaces,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            _selectedWebspaceId != null
+                                ? _webspaces.firstWhere((ws) => ws.id == _selectedWebspaceId, orElse: () => Webspace(name: 'Unknown')).name
+                                : 'No webspace',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: () {
