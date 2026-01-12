@@ -842,7 +842,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.menu_book,
+                    Icons.workspaces,
                     size: 48,
                     color: Theme.of(context).primaryColor,
                   ),
@@ -1008,6 +1008,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       body: _currentIndex == null || _currentIndex! >= _webViewModels.length
           ? WebspacesListScreen(
               webspaces: _webspaces,
+              selectedWebspaceId: _selectedWebspaceId,
               onSelectWebspace: _selectWebspace,
               onAddWebspace: _addWebspace,
               onEditWebspace: _editWebspace,

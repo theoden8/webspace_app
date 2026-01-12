@@ -3,6 +3,7 @@ import 'package:webspace/webspace_model.dart';
 
 class WebspacesListScreen extends StatelessWidget {
   final List<Webspace> webspaces;
+  final String? selectedWebspaceId;
   final Function(Webspace) onSelectWebspace;
   final Function() onAddWebspace;
   final Function(Webspace) onEditWebspace;
@@ -11,6 +12,7 @@ class WebspacesListScreen extends StatelessWidget {
   const WebspacesListScreen({
     Key? key,
     required this.webspaces,
+    this.selectedWebspaceId,
     required this.onSelectWebspace,
     required this.onAddWebspace,
     required this.onEditWebspace,
@@ -30,8 +32,15 @@ class WebspacesListScreen extends StatelessWidget {
           ),
           SizedBox(height: 24),
           Text(
-            'Webspaces',
+            'Select Webspace',
             style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'No webspace selected',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.grey,
+            ),
           ),
           SizedBox(height: 16),
           if (webspaces.isEmpty)
@@ -53,11 +62,38 @@ class WebspacesListScreen extends StatelessWidget {
                   itemCount: webspaces.length,
                   itemBuilder: (context, index) {
                     final webspace = webspaces[index];
+                    final isSelected = selectedWebspaceId == webspace.id;
                     return Card(
                       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.secondary.withOpacity(0.15)
+                          : null,
+                      elevation: isSelected ? 4 : 1,
                       child: ListTile(
-                        leading: Icon(Icons.workspaces),
-                        title: Text(webspace.name),
+                        leading: Icon(
+                          Icons.workspaces,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.secondary
+                              : null,
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                webspace.name,
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              Icon(
+                                Icons.check_circle,
+                                color: Theme.of(context).colorScheme.secondary,
+                                size: 20,
+                              ),
+                          ],
+                        ),
                         subtitle: Text('${webspace.siteIndices.length} sites'),
                         onTap: () => onSelectWebspace(webspace),
                         trailing: Row(
