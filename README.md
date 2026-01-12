@@ -65,12 +65,12 @@ Detailed documentation is in [`transcript/`](transcript/README.md):
 
 ## Platform Support
 
-| Platform | Status | WebView Engine | Purpose |
-|----------|--------|----------------|---------|
-| iOS | ✅ Supported | WKWebView | Development |
-| Android | ✅ Supported | flutter_inappwebview | Development |
-| macOS | ✅ Supported | WKWebView | Development |
-| Linux | 🚧 Planned | webview_cef (CEF) | Development |
+| Platform | Status | Purpose |
+|----------|--------|---------|
+| iOS | ✅ Supported | Target |
+| Android | ✅ Supported | Target |
+| macOS | ✅ Supported | Development |
+| Linux | 🚧 Planned | Development |
 
 ## Tech Stack
 

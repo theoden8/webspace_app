@@ -31,10 +31,10 @@ WebSpace is a Flutter app for managing multiple webviews in a single application
 ## Quick Reference
 
 ### Platform Support
-- ✅ **iOS**: WKWebView (Development)
-- ✅ **Android**: flutter_inappwebview (Development)
-- ✅ **macOS**: WKWebView (Development)
-- 🚧 **Linux**: Planned (Development)
+- ✅ **iOS**: Target platform
+- ✅ **Android**: Target platform
+- ✅ **macOS**: Development platform
+- 🚧 **Linux**: Development platform (planned)
 
 ### Key Features
 - Multi-site webview management
