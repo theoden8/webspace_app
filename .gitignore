@@ -53,3 +53,12 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+
+# Fastlane auto-generated files
+fastlane/README.md
+android/fastlane/README.md
+ios/fastlane/README.md
+**/fastlane/report.xml
+**/fastlane/test_output/
+**/fastlane/screenshots/
+**/fastlane/Preview.html
