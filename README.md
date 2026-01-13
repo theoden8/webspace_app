@@ -15,12 +15,9 @@
 WebSpace is a mobile app that brings all your favorite websites and web apps together in one organized, streamlined interface.
 
 **Features:**
-- 🌐 Multiple webviews in tabs
-- 🎨 Auto-detect page titles and favicons
-- 🌙 Theme preference for webviews
+
 - 🔒 Cookie isolation per site
 - 🔍 Find-in-page functionality
-- ✏️ Edit site names and URLs
 
 ## Quick Start
 
