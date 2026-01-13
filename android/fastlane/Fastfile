@@ -1,0 +1,106 @@
+# Android Fastfile
+# This file contains the fastlane.tools configuration for Android
+
+default_platform(:android)
+
+platform :android do
+  desc "Runs all the tests"
+  lane :test do
+    gradle(task: "test")
+  end
+
+  desc "Build debug APK"
+  lane :build_debug do
+    gradle(
+      task: "assemble",
+      flavor: "fdebug",
+      build_type: "Debug"
+    )
+  end
+
+  desc "Build F-Droid flavor APK"
+  lane :build_fdroid do
+    gradle(
+      task: "assemble",
+      flavor: "fdroid",
+      build_type: "Release"
+    )
+  end
+
+  desc "Build release APK (fmain flavor)"
+  lane :build_release do
+    gradle(
+      task: "assemble",
+      flavor: "fmain",
+      build_type: "Release"
+    )
+  end
+
+  desc "Build release AAB (Android App Bundle) for Play Store"
+  lane :build_bundle do
+    gradle(
+      task: "bundle",
+      flavor: "fmain",
+      build_type: "Release"
+    )
+  end
+
+  desc "Build Android app (alias for build_release)"
+  lane :build_android do
+    build_release
+  end
+
+  desc "Build and upload to internal track on Play Store"
+  lane :deploy_internal do
+    build_bundle
+    upload_to_play_store(
+      track: "internal",
+      aab: "app/build/outputs/bundle/fmainRelease/app-fmain-release.aab"
+    )
+  end
+
+  desc "Deploy to beta track on Play Store"
+  lane :deploy_beta do
+    build_bundle
+    upload_to_play_store(
+      track: "beta",
+      aab: "app/build/outputs/bundle/fmainRelease/app-fmain-release.aab"
+    )
+  end
+
+  desc "Deploy to production on Play Store"
+  lane :deploy_production do
+    build_bundle
+    upload_to_play_store(
+      track: "production",
+      aab: "app/build/outputs/bundle/fmainRelease/app-fmain-release.aab"
+    )
+  end
+
+  desc "Deploy Android app (alias for deploy_internal)"
+  lane :deploy_android do
+    deploy_internal
+  end
+
+  desc "Update metadata only on Play Store"
+  lane :update_metadata do
+    upload_to_play_store(
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    )
+  end
+
+  desc "Increment version code"
+  lane :bump_version do
+    increment_version_code(
+      gradle_file_path: "app/build.gradle"
+    )
+  end
+
+  desc "Clean build artifacts"
+  lane :clean do
+    gradle(task: "clean")
+  end
+end

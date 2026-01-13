@@ -1,0 +1,43 @@
+# This is the main Fastfile that routes to platform-specific lanes
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:android)
+
+# Import platform-specific Fastfiles
+import "../android/fastlane/Fastfile" if File.exist?("../android/fastlane/Fastfile")
+import "../ios/fastlane/Fastfile" if File.exist?("../ios/fastlane/Fastfile")
+
+# Root-level lanes that can target both platforms
+lane :build_all do
+  desc "Build both Android and iOS apps"
+  android do
+    build_android
+  end
+
+  ios do
+    build_ios
+  end
+end
+
+lane :test_all do
+  desc "Run tests for both platforms"
+  sh("cd .. && flutter test")
+end
+
+lane :deploy_all do
+  desc "Deploy both Android and iOS apps"
+  android do
+    deploy_android
+  end
+
+  ios do
+    deploy_ios
+  end
+end
+
+# Helper function to check Flutter version
+def check_flutter
+  UI.message("Checking Flutter installation...")
+  sh("flutter --version")
+end

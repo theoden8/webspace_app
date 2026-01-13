@@ -1,0 +1,13 @@
+# Fastlane specific
+*.cer
+*.p12
+*.mobileprovision
+*.orig.*
+
+# Fastlane reports
+report.xml
+test_output/
+
+# Google Play credentials
+*.json
+!metadata/**/*.json

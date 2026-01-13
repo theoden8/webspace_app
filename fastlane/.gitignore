@@ -1,0 +1,29 @@
+# Fastlane specific
+*.cer
+*.p12
+*.mobileprovision
+*.orig.*
+Appfile.local
+Deliverfile.local
+Matchfile.local
+
+# Fastlane reports
+report.xml
+test_output/
+
+# Deliver temporary files
+Preview.html
+
+# Snapshot generated screenshots
+screenshots/
+
+# Scan temporary files
+fastlane/test_output
+
+# Mac App Store credentials
+*.p8
+AuthKey_*.p8
+
+# Google Play credentials
+*.json
+!metadata/**/*.json
