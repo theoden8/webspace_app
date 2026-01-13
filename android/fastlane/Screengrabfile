@@ -1,0 +1,47 @@
+# Screengrabfile for Android screenshot generation
+# For more information about the Screengrabfile, see:
+# https://docs.fastlane.tools/actions/screengrab/
+
+# Remove the '#' to clear all previously generated screenshots before creating new ones
+clear_previous_screenshots(true)
+
+# A list of locales which should be used
+locales(['en-US'])
+
+# Add more locales as needed:
+# locales(['en-US', 'de-DE', 'es-ES', 'fr-FR', 'it-IT', 'ja-JP', 'ko-KR', 'pt-BR', 'zh-CN'])
+
+# A list of device types which should be used
+# Valid types: phone, sevenInch, tenInch, tv, wear
+# Default: phone, sevenInch, tenInch
+device_type('phone')
+
+# The name of the application package
+app_package_name('org.codeberg.theoden8.webspace')
+
+# Use this instead if you want to test a specific flavor
+# app_package_name('org.codeberg.theoden8.webspace.fdroid')
+
+# The name of the tests package
+tests_package_name('org.codeberg.theoden8.webspace.test')
+
+# Use the fdroid flavor for F-Droid screenshots
+# app_apk_path('app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk')
+# tests_apk_path('app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk')
+
+# Use the fdebug flavor for testing
+app_apk_path('app/build/outputs/apk/fdebug/debug/app-fdebug-debug.apk')
+tests_apk_path('app/build/outputs/apk/androidTest/fdebug/debug/app-fdebug-debug-androidTest.apk')
+
+# The path to the output directory where the screenshots will be stored
+output_directory('./fastlane/metadata/android/en-US/images/phoneScreenshots')
+
+# The path to the AndroidManifest.xml file
+# android_home('path/to/android/sdk')
+
+# Specify the Android SDK path
+# android_home('/path/to/android-sdk')
+
+# Specify which build types to use
+# use_tests_in_classes(['com.example.ScreenshotTest'])
+# use_tests_in_packages(['com.example.screenshot'])

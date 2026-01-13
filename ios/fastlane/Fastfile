@@ -110,9 +110,14 @@ platform :ios do
 
   desc "Take screenshots for App Store"
   lane :screenshots do
-    capture_screenshots(
-      workspace: "Runner.xcworkspace",
-      scheme: "Runner"
+    snapshot
+  end
+
+  desc "Frame screenshots with device frames"
+  lane :frame_screenshots do
+    frameit(
+      path: "./fastlane/screenshots",
+      white: true
     )
   end
 
