@@ -26,11 +26,11 @@ app_package_name('org.codeberg.theoden8.webspace')
 tests_package_name('org.codeberg.theoden8.webspace.test')
 
 # Use the fdroid flavor for F-Droid screenshots
-# app_apk_path('android/app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk')
+# app_apk_path('build/app/outputs/flutter-apk/app-fdroid-debug.apk')
 # tests_apk_path('android/app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk')
 
 # Use the fdebug flavor for testing
-app_apk_path('android/app/build/outputs/apk/fdebug/debug/app-fdebug-debug.apk')
+app_apk_path('build/app/outputs/flutter-apk/app-fdebug-debug.apk')
 tests_apk_path('android/app/build/outputs/apk/androidTest/fdebug/debug/app-fdebug-debug-androidTest.apk')
 
 # The path to the output directory where the screenshots will be stored

@@ -101,7 +101,7 @@ platform :android do
 
     # Update Screengrabfile to use fdroid flavor and capture
     screengrab(
-      app_apk_path: "android/app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk",
+      app_apk_path: "build/app/outputs/flutter-apk/app-fdroid-debug.apk",
       tests_apk_path: "android/app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk"
     )
   end
