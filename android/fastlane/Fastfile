@@ -6,7 +6,10 @@ default_platform(:android)
 platform :android do
   desc "Runs all the tests"
   lane :test do
-    gradle(task: "test")
+    gradle(
+      task: "test",
+      project_dir: "android"
+    )
   end
 
   desc "Build debug APK"
@@ -14,7 +17,8 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fdebug",
-      build_type: "Debug"
+      build_type: "Debug",
+      project_dir: "android"
     )
   end
 
@@ -23,7 +27,8 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fdroid",
-      build_type: "Release"
+      build_type: "Release",
+      project_dir: "android"
     )
   end
 
@@ -32,7 +37,8 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fmain",
-      build_type: "Release"
+      build_type: "Release",
+      project_dir: "android"
     )
   end
 
@@ -41,7 +47,8 @@ platform :android do
     gradle(
       task: "bundle",
       flavor: "Fmain",
-      build_type: "Release"
+      build_type: "Release",
+      project_dir: "android"
     )
   end
 
@@ -62,13 +69,15 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fdebug",
-      build_type: "Debug"
+      build_type: "Debug",
+      project_dir: "android"
     )
 
     gradle(
       task: "assembleAndroidTest",
       flavor: "Fdebug",
-      build_type: "Debug"
+      build_type: "Debug",
+      project_dir: "android"
     )
 
     # Capture screenshots using Screengrab
@@ -81,24 +90,29 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fdroid",
-      build_type: "Debug"
+      build_type: "Debug",
+      project_dir: "android"
     )
 
     gradle(
       task: "assembleAndroidTest",
       flavor: "Fdroid",
-      build_type: "Debug"
+      build_type: "Debug",
+      project_dir: "android"
     )
 
     # Update Screengrabfile to use fdroid flavor and capture
     screengrab(
-      app_apk_path: "app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk",
-      tests_apk_path: "app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk"
+      app_apk_path: "android/app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk",
+      tests_apk_path: "android/app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk"
     )
   end
 
   desc "Clean build artifacts"
   lane :clean do
-    gradle(task: "clean")
+    gradle(
+      task: "clean",
+      project_dir: "android"
+    )
   end
 end
