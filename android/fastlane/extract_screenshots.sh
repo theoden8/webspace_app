@@ -4,9 +4,14 @@
 
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Project root is two directories up from the script location
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 PACKAGE="org.codeberg.theoden8.webspace"
 TEMP_FILE="/data/local/tmp/screenshots.tar.gz"
-OUTPUT_DIR="./fastlane/metadata/android/en-US/images/phoneScreenshots"
+OUTPUT_DIR="$PROJECT_ROOT/fastlane/metadata/android/en-US/images/phoneScreenshots"
 
 echo "Extracting screenshots from internal storage..."
 
