@@ -28,8 +28,8 @@ public class ScreenshotTest {
     public static final LocaleTestRule localeTestRule = new LocaleTestRule();
 
     @Rule
-    public ActivityScenarioRule<io.flutter.embedding.android.FlutterActivity> activityRule =
-            new ActivityScenarioRule<>(io.flutter.embedding.android.FlutterActivity.class);
+    public ActivityScenarioRule<MainActivity> activityRule =
+            new ActivityScenarioRule<>(MainActivity.class);
 
     @Test
     public void takeScreenshots() throws InterruptedException {
