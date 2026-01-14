@@ -16,8 +16,10 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 
 **Features:**
 
+- 🌐 Create multiple webspaces for your favorite sites
 - 🔒 Cookie isolation per site
 - 🔍 Find-in-page functionality
+- 🔄 Proxy support
 
 ## Quick Start
 
@@ -73,10 +75,8 @@ Detailed documentation is in [`transcript/`](transcript/README.md):
 
 - **Framework**: Flutter
 - **State Management**: setState + SharedPreferences
-- **Webview**: flutter_inappwebview ^5.7.2+3
-- **HTTP**: http ^1.2.0
-- **HTML Parsing**: html ^0.15.4
-- **Image Caching**: cached_network_image ^3.2.3
+
+This project is made possible by [flutter_inappwebview](https://github.com/pichillilorenzo/flutter_inappwebview), which provides the advanced webview functionality at the core of WebSpace.
 
 ## Development
 
@@ -98,8 +98,8 @@ flutter build macos --release
 flutter analyze
 ```
 
-## License
+This project was initially created with GPT-4 assistance. See [`transcript/0-gpt4-coding.md`](transcript/0-gpt4-coding.md) for the initial development process.
 
-Created with GPT-4 assistance. See [`transcript/0-gpt4-coding.md`](transcript/0-gpt4-coding.md).
+## License
 
 **Note**: Assets (including icons and images) are distributed under a separate license.
