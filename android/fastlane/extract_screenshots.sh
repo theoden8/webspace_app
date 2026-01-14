@@ -17,7 +17,7 @@ echo "Extracting screenshots from internal storage..."
 
 # Create tar archive in app's private storage (where run-as has permission)
 echo "Creating archive in app storage..."
-adb shell "run-as $PACKAGE tar -czf /data/data/$PACKAGE/screenshots.tar.gz -C app_screengrab ." || {
+adb shell "run-as $PACKAGE tar -czf /data/data/$PACKAGE/screenshots.tar.gz -C app_screengrab/en_US/images/screenshots ." || {
     echo "Error: Failed to create archive. Make sure screenshots were captured."
     exit 1
 }
@@ -29,8 +29,8 @@ adb shell "run-as $PACKAGE cat /data/data/$PACKAGE/screenshots.tar.gz" > /tmp/sc
 # Extract to output directory
 echo "Extracting to $OUTPUT_DIR..."
 mkdir -p "$OUTPUT_DIR"
-# Strip the en_US/images/screenshots directory structure from the archive
-tar -xzf /tmp/screenshots.tar.gz --strip-components=3 -C "$OUTPUT_DIR"
+# Archive already contains just the screenshot files without directory structure
+tar -xzf /tmp/screenshots.tar.gz -C "$OUTPUT_DIR"
 
 # Clean up
 echo "Cleaning up..."
