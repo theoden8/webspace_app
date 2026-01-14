@@ -1,0 +1,119 @@
+# Android Fastfile
+# This file contains the fastlane.tools configuration for Android
+
+default_platform(:android)
+
+platform :android do
+  desc "Runs all the tests"
+  lane :test do
+    gradle(
+      task: "test",
+      project_dir: "android"
+    )
+  end
+
+  desc "Build debug APK"
+  lane :build_debug do
+    gradle(
+      task: "assemble",
+      flavor: "Fdebug",
+      build_type: "Debug",
+      project_dir: "android"
+    )
+  end
+
+  desc "Build F-Droid flavor APK"
+  lane :build_fdroid do
+    gradle(
+      task: "assemble",
+      flavor: "Fdroid",
+      build_type: "Release",
+      project_dir: "android"
+    )
+  end
+
+  desc "Build release APK (Fmain flavor)"
+  lane :build_release do
+    gradle(
+      task: "assemble",
+      flavor: "Fmain",
+      build_type: "Release",
+      project_dir: "android"
+    )
+  end
+
+
+  desc "Build release AAB (Android App Bundle)"
+  lane :build_bundle do
+    gradle(
+      task: "bundle",
+      flavor: "Fmain",
+      build_type: "Release",
+      project_dir: "android"
+    )
+  end
+
+  desc "Build Android app (alias for build_release)"
+  lane :build_android do
+    build_release
+  end
+
+  desc "Increment version in pubspec.yaml"
+  lane :bump_version do
+    # Version is managed in pubspec.yaml for Flutter projects
+    sh("cd ../.. && flutter pub version")
+  end
+
+  desc "Build test APKs and generate screenshots"
+  lane :screenshots do
+    # Build the Fmain flavor APKs for screenshots
+    gradle(
+      task: "assemble",
+      flavor: "Fmain",
+      build_type: "Debug",
+      project_dir: "android"
+    )
+
+    # Build the androidTest APK (task format: assemble<Flavor><BuildType>AndroidTest)
+    gradle(
+      task: "assembleFmainDebugAndroidTest",
+      project_dir: "android"
+    )
+
+    # Capture screenshots using Screengrab
+    # Note: On Android 13+, Screengrab may fail to pull screenshots from internal storage
+    # but the test will still run and capture them
+    begin
+      screengrab(
+        app_package_name: "org.codeberg.theoden8.webspace",
+        tests_package_name: "org.codeberg.theoden8.webspace.test",
+        use_tests_in_packages: ["org.codeberg.theoden8.webspace"],
+        test_instrumentation_runner: "androidx.test.runner.AndroidJUnitRunner",
+        locales: ["en-US"],
+        clear_previous_screenshots: true,
+        output_directory: "fastlane/metadata/android/en-US/images/phoneScreenshots",
+        device_type: "phone",
+        app_apk_path: "build/app/outputs/flutter-apk/app-fmain-debug.apk",
+        tests_apk_path: "build/app/outputs/apk/androidTest/fmain/debug/app-fmain-debug-androidTest.apk"
+      )
+    rescue => ex
+      # If screengrab fails to pull screenshots (Android 13+ issue), extract them manually
+      if ex.message.include?("No screenshots were detected")
+        UI.important("Screengrab couldn't pull screenshots automatically (Android 13+ limitation)")
+        UI.message("Attempting manual extraction from internal storage...")
+        script_path = File.expand_path("../extract_screenshots.sh", __FILE__)
+        sh("bash '#{script_path}'")
+      else
+        raise ex
+      end
+    end
+  end
+
+  desc "Clean build artifacts"
+  lane :clean do
+    gradle(
+      task: "clean",
+      project_dir: "android"
+    )
+  end
+end

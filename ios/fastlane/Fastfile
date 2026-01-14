@@ -1,0 +1,129 @@
+# iOS Fastfile
+# This file contains the fastlane.tools configuration for iOS
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Run tests"
+  lane :test do
+    run_tests(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner"
+    )
+  end
+
+  desc "Build debug version"
+  lane :build_debug do
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      configuration: "Debug",
+      export_method: "development",
+      output_directory: "./build",
+      output_name: "webspace-debug.ipa"
+    )
+  end
+
+  desc "Build release version"
+  lane :build_release do
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "webspace-release.ipa"
+    )
+  end
+
+  desc "Build iOS app (alias for build_release)"
+  lane :build_ios do
+    build_release
+  end
+
+  desc "Build for Ad Hoc distribution"
+  lane :build_adhoc do
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      configuration: "Release",
+      export_method: "ad-hoc",
+      output_directory: "./build",
+      output_name: "webspace-adhoc.ipa"
+    )
+  end
+
+  desc "Update code signing and provisioning profiles"
+  lane :sync_certificates do
+    match(
+      type: "appstore",
+      readonly: true
+    )
+  end
+
+  desc "Deploy to TestFlight"
+  lane :deploy_beta do
+    build_release
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Deploy to App Store"
+  lane :deploy_production do
+    build_release
+    upload_to_app_store(
+      submit_for_review: false,
+      automatic_release: false,
+      skip_screenshots: true,
+      skip_metadata: false
+    )
+  end
+
+  desc "Deploy iOS app (alias for deploy_beta)"
+  lane :deploy_ios do
+    deploy_beta
+  end
+
+  desc "Update metadata only on App Store"
+  lane :update_metadata do
+    upload_to_app_store(
+      skip_binary_upload: true,
+      skip_screenshots: true
+    )
+  end
+
+  desc "Increment build number"
+  lane :bump_build do
+    increment_build_number(
+      xcodeproj: "Runner.xcodeproj"
+    )
+  end
+
+  desc "Increment version number"
+  lane :bump_version do |options|
+    increment_version_number(
+      xcodeproj: "Runner.xcodeproj",
+      bump_type: options[:type] || "patch" # major, minor, or patch
+    )
+  end
+
+  desc "Take screenshots for App Store"
+  lane :screenshots do
+    # Configuration is in Snapfile
+    snapshot
+  end
+
+  desc "Frame screenshots with device frames"
+  lane :frame_screenshots do
+    frameit(
+      path: "../fastlane/screenshots",
+      white: true
+    )
+  end
+
+  desc "Clean build artifacts"
+  lane :clean do
+    clear_derived_data
+  end
+end

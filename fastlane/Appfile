@@ -1,0 +1,7 @@
+# Root Appfile
+# Platform-specific app identifiers are defined in their respective directories
+
+app_identifier("org.codeberg.theoden8.webspace") # The bundle identifier of your app
+
+# For more information about the Appfile, see:
+#     https://docs.fastlane.tools/advanced/#appfile
