@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.codeberg.theoden8.webspace.test">
+
     <!-- Permissions required for Screengrab to capture screenshots -->
     <!-- These are only used during testing and not included in production builds -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.CHANGE_CONFIGURATION" />
+
+    <!-- Instrumentation for running tests with AndroidX test runner -->
+    <instrumentation
+        android:name="androidx.test.runner.AndroidJUnitRunner"
+        android:targetPackage="org.codeberg.theoden8.webspace" />
 </manifest>
