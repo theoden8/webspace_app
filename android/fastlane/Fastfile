@@ -80,8 +80,15 @@ platform :android do
       project_dir: "android"
     )
 
-    # Capture screenshots using Screengrab (it will auto-detect APK paths from gradle output)
-    screengrab
+    # Capture screenshots using Screengrab
+    screengrab(
+      app_package_name: "org.codeberg.theoden8.webspace",
+      tests_package_name: "org.codeberg.theoden8.webspace.test",
+      locales: ["en-US"],
+      clear_previous_screenshots: true,
+      output_directory: "android/fastlane/metadata/android/en-US/images/phoneScreenshots",
+      device_type: "phone"
+    )
   end
 
   desc "Clean build artifacts"
