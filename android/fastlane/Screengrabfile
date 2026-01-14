@@ -25,13 +25,11 @@ app_package_name('org.codeberg.theoden8.webspace')
 # The name of the tests package
 tests_package_name('org.codeberg.theoden8.webspace.test')
 
-# Use the fdroid flavor for F-Droid screenshots
+# APK paths for F-Droid flavor
+# Screengrab can auto-detect these from the gradle build output
+# If auto-detection fails, uncomment and adjust these paths:
 # app_apk_path('build/app/outputs/flutter-apk/app-fdroid-debug.apk')
 # tests_apk_path('android/app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk')
-
-# Use the fdebug flavor for testing
-app_apk_path('build/app/outputs/flutter-apk/app-fdebug-debug.apk')
-tests_apk_path('android/app/build/outputs/apk/androidTest/fdebug/debug/app-fdebug-debug-androidTest.apk')
 
 # The path to the output directory where the screenshots will be stored
 output_directory('./android/fastlane/metadata/android/en-US/images/phoneScreenshots')
