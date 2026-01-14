@@ -69,7 +69,7 @@ Detailed documentation is in [`transcript/`](transcript/README.md):
 | iOS | ✅ Supported | Target |
 | Android | ✅ Supported | Target |
 | macOS | ✅ Supported | Development |
-| Linux | 🚧 Planned | Development |
+| Linux | ⏳ Pending flutter_inappwebview support | Development |
 
 ## Tech Stack
 
