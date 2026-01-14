@@ -32,7 +32,7 @@ tests_package_name('org.codeberg.theoden8.webspace.test')
 # tests_apk_path('android/app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk')
 
 # The path to the output directory where the screenshots will be stored
-output_directory('./android/fastlane/metadata/android/en-US/images/phoneScreenshots')
+output_directory('./fastlane/metadata/android/en-US/images/phoneScreenshots')
 
 # The path to the AndroidManifest.xml file
 # android_home('path/to/android/sdk')
