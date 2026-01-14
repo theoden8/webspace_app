@@ -102,4 +102,6 @@ This project was initially created with GPT-4 assistance. See [`transcript/0-gpt
 
 ## License
 
-**Note**: Assets (including icons and images) are distributed under a separate license.
+This project is licensed under the [MIT License](LICENSE) - Copyright (c) 2023 Kirill Rodriguez.
+
+**Assets**: Icons and images in the `assets/` directory are licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) - Copyright (c) Polina Levchenko. See [assets/LICENSE](assets/LICENSE) for details.
