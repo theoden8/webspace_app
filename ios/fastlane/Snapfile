@@ -42,7 +42,8 @@ clear_previous_screenshots(true)
 # launch_arguments(["-favColor red"])
 
 # Choose which project/workspace to use
-workspace("./Runner.xcworkspace")
+# Path relative to this file (ios/fastlane/Snapfile)
+workspace("../Runner.xcworkspace")
 
 # For more information about all available options run
 # fastlane action snapshot

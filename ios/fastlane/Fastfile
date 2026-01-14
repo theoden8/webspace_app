@@ -110,11 +110,8 @@ platform :ios do
 
   desc "Take screenshots for App Store"
   lane :screenshots do
-    snapshot(
-      workspace: "Runner.xcworkspace",
-      scheme: "Runner",
-      output_directory: "../fastlane/screenshots"
-    )
+    # Configuration is in Snapfile
+    snapshot
   end
 
   desc "Frame screenshots with device frames"
