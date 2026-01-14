@@ -24,7 +24,8 @@ adb shell "run-as $PACKAGE cat /data/data/$PACKAGE/screenshots.tar.gz" > /tmp/sc
 # Extract to output directory
 echo "Extracting to $OUTPUT_DIR..."
 mkdir -p "$OUTPUT_DIR"
-tar -xzf /tmp/screenshots.tar.gz -C "$OUTPUT_DIR"
+# Strip the en_US/images/screenshots directory structure from the archive
+tar -xzf /tmp/screenshots.tar.gz --strip-components=3 -C "$OUTPUT_DIR"
 
 # Clean up
 echo "Cleaning up..."
