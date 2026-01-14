@@ -13,7 +13,7 @@ platform :android do
   lane :build_debug do
     gradle(
       task: "assemble",
-      flavor: "fdebug",
+      flavor: "Fdebug",
       build_type: "Debug"
     )
   end
@@ -22,25 +22,25 @@ platform :android do
   lane :build_fdroid do
     gradle(
       task: "assemble",
-      flavor: "fdroid",
+      flavor: "Fdroid",
       build_type: "Release"
     )
   end
 
-  desc "Build release APK (fmain flavor)"
+  desc "Build release APK (Fmain flavor)"
   lane :build_release do
     gradle(
       task: "assemble",
-      flavor: "fmain",
+      flavor: "Fmain",
       build_type: "Release"
     )
   end
 
-  desc "Build release AAB (Android App Bundle) for Play Store"
+  desc "Build release AAB (Android App Bundle)"
   lane :build_bundle do
     gradle(
       task: "bundle",
-      flavor: "fmain",
+      flavor: "Fmain",
       build_type: "Release"
     )
   end
@@ -50,67 +50,24 @@ platform :android do
     build_release
   end
 
-  desc "Build and upload to internal track on Play Store"
-  lane :deploy_internal do
-    build_bundle
-    upload_to_play_store(
-      track: "internal",
-      aab: "app/build/outputs/bundle/fmainRelease/app-fmain-release.aab"
-    )
-  end
-
-  desc "Deploy to beta track on Play Store"
-  lane :deploy_beta do
-    build_bundle
-    upload_to_play_store(
-      track: "beta",
-      aab: "app/build/outputs/bundle/fmainRelease/app-fmain-release.aab"
-    )
-  end
-
-  desc "Deploy to production on Play Store"
-  lane :deploy_production do
-    build_bundle
-    upload_to_play_store(
-      track: "production",
-      aab: "app/build/outputs/bundle/fmainRelease/app-fmain-release.aab"
-    )
-  end
-
-  desc "Deploy Android app (alias for deploy_internal)"
-  lane :deploy_android do
-    deploy_internal
-  end
-
-  desc "Update metadata only on Play Store"
-  lane :update_metadata do
-    upload_to_play_store(
-      skip_upload_apk: true,
-      skip_upload_aab: true,
-      skip_upload_images: false,
-      skip_upload_screenshots: false
-    )
-  end
-
-  desc "Increment version code"
+  desc "Increment version in pubspec.yaml"
   lane :bump_version do
-    increment_version_code(
-      gradle_file_path: "app/build.gradle"
-    )
+    # Version is managed in pubspec.yaml for Flutter projects
+    sh("cd ../.. && flutter pub version")
   end
 
-  desc "Build test APKs and generate screenshots for F-Droid/Play Store"
+  desc "Build test APKs and generate screenshots for F-Droid"
   lane :screenshots do
     # Build the debug APKs for testing
     gradle(
       task: "assemble",
-      flavor: "fdebug",
+      flavor: "Fdebug",
       build_type: "Debug"
     )
 
     gradle(
       task: "assembleAndroidTest",
-      flavor: "fdebug",
+      flavor: "Fdebug",
       build_type: "Debug"
     )
 
@@ -123,13 +80,13 @@ platform :android do
     # Build the fdroid flavor APKs
     gradle(
       task: "assemble",
-      flavor: "fdroid",
+      flavor: "Fdroid",
       build_type: "Debug"
     )
 
     gradle(
       task: "assembleAndroidTest",
-      flavor: "fdroid",
+      flavor: "Fdroid",
       build_type: "Debug"
     )
 
