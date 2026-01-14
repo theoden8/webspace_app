@@ -64,19 +64,19 @@ platform :android do
     sh("cd ../.. && flutter pub version")
   end
 
-  desc "Build test APKs and generate screenshots for F-Droid"
+  desc "Build test APKs and generate screenshots"
   lane :screenshots do
-    # Build the fdroid flavor APKs for screenshots
+    # Build the Fmain flavor APKs for screenshots
     gradle(
       task: "assemble",
-      flavor: "Fdroid",
+      flavor: "Fmain",
       build_type: "Debug",
       project_dir: "android"
     )
 
     # Build the androidTest APK (task format: assemble<Flavor><BuildType>AndroidTest)
     gradle(
-      task: "assembleFdroidDebugAndroidTest",
+      task: "assembleFmainDebugAndroidTest",
       project_dir: "android"
     )
 
