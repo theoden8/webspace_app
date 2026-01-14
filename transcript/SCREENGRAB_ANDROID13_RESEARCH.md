@@ -3,8 +3,8 @@
 ## Question
 Can Fastlane's Screengrab automatically pull screenshots on Android 13+, or is the manual extraction workaround necessary?
 
-## TL;DR
-**The manual extraction script is a valid and sometimes necessary workaround.** While Fastlane theoretically supports Android 13+ through its built-in `run-as` logic, there are documented issues where it fails, making manual extraction the most reliable solution.
+## TL;DR (UPDATED)
+**The project was using ancient Screengrab version 2.1.1 - updated to 2.230.0.** The manual extraction script may no longer be necessary with the modern version. The issues documented were likely due to using a Screengrab library version from ~2018, not inherent Android 13+ limitations.
 
 ## Research Findings
 
@@ -89,6 +89,22 @@ The FASTLANE_SETUP.md should be updated to:
 2. Explain that it's a Screengrab tooling issue with known workarounds
 3. Note that Fastlane theoretically supports it but has documented reliability issues
 4. Clarify that manual extraction is a valid solution, not a temporary hack
+
+## UPDATE: Ancient Screengrab Version Discovery
+
+After all this research, the user discovered that the project was using `tools.fastlane:screengrab:2.1.1` - an ancient version from around 2018. The current version is 2.230.0 (as of 2025).
+
+**This changes everything:**
+- The manual extraction script may have been needed due to bugs in the ancient 2.1.1 version
+- Modern Screengrab (2.230.0) likely has proper Android 13+ support built-in
+- The GitHub issues researched may not apply to newer versions
+- The project should test screenshot capture with 2.230.0 before assuming manual extraction is needed
+
+**Action Taken:**
+Updated `android/app/build.gradle` to use `tools.fastlane:screengrab:2.230.0`
+
+**Recommendation:**
+Test screenshot capture with the updated version. The manual extraction script should remain as a fallback, but may no longer be necessary with modern Screengrab.
 
 ## Sources
 
