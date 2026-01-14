@@ -87,7 +87,9 @@ platform :android do
       locales: ["en-US"],
       clear_previous_screenshots: true,
       output_directory: "android/fastlane/metadata/android/en-US/images/phoneScreenshots",
-      device_type: "phone"
+      device_type: "phone",
+      app_apk_path: "build/app/outputs/flutter-apk/app-fmain-debug.apk",
+      tests_apk_path: "build/app/outputs/apk/androidTest/fmain/debug/app-fmain-debug-androidTest.apk"
     )
   end
 
