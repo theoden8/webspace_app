@@ -73,10 +73,9 @@ platform :android do
       project_dir: "android"
     )
 
+    # Build the androidTest APK (task format: assemble<Flavor><BuildType>AndroidTest)
     gradle(
-      task: "assembleAndroidTest",
-      flavor: "Fdebug",
-      build_type: "Debug",
+      task: "assembleFdebugDebugAndroidTest",
       project_dir: "android"
     )
 
@@ -94,10 +93,9 @@ platform :android do
       project_dir: "android"
     )
 
+    # Build the androidTest APK (task format: assemble<Flavor><BuildType>AndroidTest)
     gradle(
-      task: "assembleAndroidTest",
-      flavor: "Fdroid",
-      build_type: "Debug",
+      task: "assembleFdroidDebugAndroidTest",
       project_dir: "android"
     )
 
