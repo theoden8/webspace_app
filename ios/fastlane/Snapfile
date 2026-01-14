@@ -29,7 +29,8 @@ languages([
 scheme("Runner")
 
 # Where should the resulting screenshots be stored?
-output_directory("./fastlane/screenshots")
+# Store in root fastlane directory to match Android setup
+output_directory("../../fastlane/screenshots")
 
 # Clear all previously generated screenshots before creating new ones
 clear_previous_screenshots(true)
