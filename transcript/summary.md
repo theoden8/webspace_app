@@ -1,50 +1,64 @@
 # Webspace App — Project Exploration Notes
 
 ## What this repo is
-- **Type**: Flutter app (mobile + desktop targets present).
-- **Core purpose**: Run and manage **multiple persistent webviews** ("sites") inside one app, navigated via a drawer.
-- **Primary code location**: `lib/` (only ~7 Dart files; behavior is easy to fully reason about).
-- **Version**: 0.0.1+1 (very early stage; first version)
+- **Type**: Flutter app (mobile + desktop targets).
+- **Core purpose**: Run and manage **multiple persistent webviews** ("sites") organized into **webspaces**, accessible via a drawer.
+- **Primary code location**: `lib/` (~15+ Dart files with webspaces, proxy, and platform abstraction).
+- **Version**: 0.0.1+1
 - **License**: MIT (Copyright 2023 Kirill Rodriguez)
-- **Origin**: Built almost entirely using GPT-4 in a few hours (see `transcript/0-gpt4-coding.md`)
+- **Assets License**: CC BY-NC-SA 4.0 (Copyright Polina Levchenko)
+- **Origin**: Initially created using GPT-4 (see `transcript/0-gpt4-coding.md`)
 
 ## Tech stack / dependencies (high-signal)
 - **Flutter SDK** (Dart SDK constraint in `pubspec.yaml`: `>=3.0.0-417.1.beta <4.0.0`)
-- **Webview**: `flutter_inappwebview: ^5.7.2+3` (embedded webviews + cookie manager + find-in-page APIs)
-- **Persistence**: `shared_preferences: ^2.1.0` (stores current tab index, theme, and serialized site models)
-- **Networking**: `http: ^0.13.5` (used for favicon probing)
-- **Images**: `cached_network_image: ^3.2.3` (favicon display caching)
-- **External browser launching**: `url_launcher: ^6.1.10` (used by the "external link" webview screen)
+- **Webview**: `flutter_inappwebview` (embedded webviews + cookie manager + proxy + find-in-page APIs)
+- **Persistence**: `shared_preferences` (stores webspaces, site models, current index, theme)
+- **UUID**: `uuid` (unique identifiers for webspaces)
+- **Networking**: `http` (used for favicon and title extraction)
+- **Images**: `cached_network_image` (favicon display caching)
+- **HTML Parsing**: `html` (page title extraction)
 
 ## Platform targets / build config
-- **Android**:
+- **iOS**: Supported (flutter_inappwebview)
+- **Android**: Supported (flutter_inappwebview)
   - Gradle config in `android/app/build.gradle`
-  - `minSdkVersion 23`, `compileSdkVersion 33`, **`targetSdkVersion 28` (notably old)**
-  - **Product flavors**: `fdroid`, `fdebug`, `fmain` (README suggests: `flutter run --flavor fmain`)
   - `INTERNET` permission enabled in `android/app/src/main/AndroidManifest.xml`
-- **Linux desktop**: present (`linux/`), appears largely Flutter template + generated registrants.
+- **macOS**: Supported (flutter_inappwebview)
+- **Linux desktop**: Pending flutter_inappwebview Linux support
 
-## App architecture (how it’s built)
+## App architecture (how it's built)
 ### Top-level flow
 - `main()` runs `WebSpaceApp` (`lib/main.dart`).
 - `WebSpaceApp` owns the **app-wide theme mode** and renders `MaterialApp(home: WebSpacePage(...))`.
 - `WebSpacePage` is the primary UI:
-  - **Drawer** contains a reorderable list of sites + “Add Site” button.
-  - **Body** shows the currently selected site via an `IndexedStack` of webviews (persistent widgets).
+  - **Webspaces Screen**: Shows list of webspaces when no site/webspace selected
+  - **Drawer**: Shows sites filtered by selected webspace + "Add Site" button
+  - **Body**: Shows the currently selected site via an `IndexedStack` of webviews (persistent widgets)
   - **AppBar** offers:
     - theme toggle (light/dark)
     - menu actions: Refresh, Find, Clear Cookies, Settings (per-site)
 
-### Core data model: `WebViewModel` (`lib/web_view_model.dart`)
+### Core data models
+
+#### `Webspace` (`lib/webspace_model.dart`)
+Organizes sites into logical groups:
+- **Fields**:
+  - `id` (UUID - unique identifier)
+  - `name` (display name)
+  - `siteIndices` (list of indices of WebViewModels in this webspace)
+- JSON serialization for persistence
+- Automatic index management when sites are deleted
+
+#### `WebViewModel` (`lib/web_view_model.dart`)
 Each "site" is represented by a `WebViewModel`:
 - **Fields**:
   - `initUrl` (original URL)
   - `currentUrl` (last navigated URL)
   - `cookies` (list of `Cookie` from `flutter_inappwebview`)
   - `javascriptEnabled` (bool)
-  - `userAgent` (string; empty means "use default" conceptually)
-  - `thirdPartyCookiesEnabled` (bool; enforced via JS deletion attempt)
-  - `proxySettings` (currently stored but **not actually applied** anywhere)
+  - `userAgent` (string; empty means "use default")
+  - `thirdPartyCookiesEnabled` (bool)
+  - `proxySettings` (UserProxySettings - HTTP/HTTPS/SOCKS5 proxy configuration)
   - references to `InAppWebView` and controller
 - **Key behavior**:
   - `getWebView(...)` constructs an `InAppWebView` once and keeps it for reuse.
@@ -60,24 +74,26 @@ Each "site" is represented by a `WebViewModel`:
 
 ### Persistence model (SharedPreferences)
 Stored keys in `lib/main.dart`:
-- `webViewModels`: `List<String>` of JSON strings (`WebViewModel.toJson()`)
-- `currentIndex`: int (when `_currentIndex == null`, code stores sentinel value **10000**)
-- `themeMode`: int (`ThemeMode.index`)
+- `webspaces`: `List<String>` of JSON strings (Webspace.toJson())
+- `selectedWebspaceId`: String? (ID of currently selected webspace)
+- `webViewModels`: `List<String>` of JSON strings (WebViewModel.toJson())
+- `currentIndex`: int? (currently selected site index)
+- `themeMode`: int (ThemeMode.index)
 
-On startup (`_restoreAppState`), theme + index + models are loaded and cookies are re-set into the `CookieManager`.
+On startup (`_restoreAppState`), webspaces + theme + index + models are loaded and cookies/proxy settings are restored.
 
 ## Screens / UI components
-- `lib/screens/add_site.dart`: simple URL entry (auto-prefixes `https://` when missing).
-- `lib/screens/settings.dart`: per-site settings UI:
-  - proxy type + address (but proxy is currently a stub)
+- `lib/screens/webspaces_list.dart`: Main screen showing all webspaces with selection state
+- `lib/screens/webspace_detail.dart`: Edit webspace (name + site assignments)
+- `lib/screens/add_site.dart`: Simple URL entry (auto-prefixes `https://` when missing)
+- `lib/screens/settings.dart`: Per-site settings UI:
+  - Proxy type + address (HTTP/HTTPS/SOCKS5, platform-aware)
   - JavaScript enabled toggle
   - User-Agent text field + random UA generator
-  - third-party cookies toggle
-- `lib/screens/inappbrowser.dart`: “external link” screen:
-  - separate `InAppWebView`
-  - offers “Open in Browser”, Refresh, Find
-  - runs a “remove all cookies” JS snippet on every `onLoadStop`
-- `lib/widgets/find_toolbar.dart`: in-page search UI using InAppWebView “find” APIs
+  - Third-party cookies toggle
+- `lib/screens/inappbrowser.dart`: "External link" screen for domain-isolated navigation
+- `lib/widgets/find_toolbar.dart`: In-page search UI using InAppWebView "find" APIs
+- `lib/settings/proxy.dart`: Proxy settings data model
 
 ## Transcript
 - `transcript/0-gpt4-coding.md` contains the GPT-4 session used to build the app quickly.
@@ -120,13 +136,12 @@ On startup (`_restoreAppState`), theme + index + models are loaded and cookies a
 - You can’t “clear” a custom user-agent back to default by saving an empty string (save only writes UA if the field is non-empty).
 - Proxy settings exist in UI and model, but proxy is currently effectively **non-functional** (`ProxyType` only has `DEFAULT` and isn’t applied to the webview/network stack).
 
-## What's missing (current gaps)
-- **No tests** (`test/` directory is absent).
-- **No CI** config found in repo root.
-- No app-level state management beyond `setState` + `SharedPreferences`.
-- No centralized logging/telemetry or error reporting.
-- **No webview back-button handling**: pressing Android back always exits the app; doesn't navigate backward within a webview.
-- No iOS target (only Android + Linux present).
+## Recent additions
+- **Webspaces feature**: Organize sites into logical workspaces (see `transcript/webspaces-feature.md`)
+- **Proxy support**: HTTP/HTTPS/SOCKS5 proxy configuration with platform awareness (see `transcript/PROXY_FEATURE.md`)
+- **Comprehensive tests**: Unit tests for models, platform abstraction, proxy, and webspaces
+- **Platform abstraction layer**: `lib/platform/` for cross-platform webview management
+- **GitHub Actions CI**: Build and test workflow with lockfile enforcement
 
 ## High-leverage improvement areas (so we can act quickly later)
 ### Correctness / reliability
@@ -341,11 +356,31 @@ sudo apt-get install libgtk-3-dev libnss3 libnspr4 libatk1.0-0 \
 ```
 
 ## Quick mental map of files
-- `lib/main.dart`: app shell, drawer UI, persistence, theming, favicon fetching
-- `lib/web_view_model.dart`: per-site model, webview creation, navigation policy, cookie handling
-- `lib/screens/add_site.dart`: add URL screen
-- `lib/screens/settings.dart`: per-site settings screen
-- `lib/screens/inappbrowser.dart`: external link webview screen
-- `lib/widgets/find_toolbar.dart`: in-page search UI
-- `lib/settings/proxy.dart`: proxy settings data model (currently stubbed)
+
+### Core
+- `lib/main.dart`: App shell, webspaces management, drawer UI, persistence, theming
+- `lib/webspace_model.dart`: Webspace data model with UUID-based identification
+- `lib/web_view_model.dart`: Per-site model, webview creation, navigation policy, cookie/proxy handling
+
+### Screens
+- `lib/screens/webspaces_list.dart`: Main webspaces screen with selection
+- `lib/screens/webspace_detail.dart`: Edit webspace details and site assignments
+- `lib/screens/add_site.dart`: Add URL screen
+- `lib/screens/settings.dart`: Per-site settings screen (proxy, UA, cookies)
+- `lib/screens/inappbrowser.dart`: External link webview screen
+
+### Platform Abstraction
+- `lib/platform/platform_info.dart`: Platform detection and capability checks
+- `lib/platform/unified_webview.dart`: Unified cookie and proxy management
+- `lib/platform/webview_factory.dart`: Platform-specific webview creation
+
+### Widgets & Settings
+- `lib/widgets/find_toolbar.dart`: In-page search UI
+- `lib/settings/proxy.dart`: Proxy settings data model (ProxyType, UserProxySettings)
+
+### Tests
+- `test/webspace_model_test.dart`: Webspace model tests
+- `test/proxy_test.dart`: Proxy unit tests
+- `test/platform_test.dart`: Platform abstraction tests
+- `test/web_view_model_test.dart`: WebViewModel tests (currently stubbed)
 

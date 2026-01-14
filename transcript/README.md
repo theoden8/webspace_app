@@ -18,12 +18,13 @@ WebSpace is a Flutter app for managing multiple webviews in a single application
 - **[LINUX_STATUS.md](LINUX_STATUS.md)** - Linux support roadmap
 
 ### ✨ Features Documentation
+- **[webspaces-feature.md](webspaces-feature.md)** - Organize sites into workspaces
+- **[PROXY_FEATURE.md](PROXY_FEATURE.md)** - Proxy configuration (HTTP/HTTPS/SOCKS5)
 - **[EDIT_FEATURE.md](EDIT_FEATURE.md)** - Site editing and page title display
 - **[THEME_FEATURE.md](THEME_FEATURE.md)** - Dark/light mode for webviews
 - **[RESIZE_FIX.md](RESIZE_FIX.md)** - Desktop window resizing
 
 ### 🐛 Maintenance
-- **[CLEANUP_SUMMARY.md](CLEANUP_SUMMARY.md)** - Codebase cleanup status
 - **[KNOWN_ISSUES.md](KNOWN_ISSUES.md)** - Known bugs and workarounds
 
 ---
@@ -34,15 +35,17 @@ WebSpace is a Flutter app for managing multiple webviews in a single application
 - ✅ **iOS**: Target platform
 - ✅ **Android**: Target platform
 - ✅ **macOS**: Development platform
-- 🚧 **Linux**: Development platform (planned)
+- ⏳ **Linux**: Pending flutter_inappwebview support
 
 ### Key Features
+- Multiple webspaces for organizing sites
 - Multi-site webview management
+- Cookie isolation per site
+- Proxy support (HTTP/HTTPS/SOCKS5)
 - Automatic page title extraction
 - Smart favicon detection (HTML parsing)
 - Theme preference injection
 - URL editing with protocol inference
-- Cookie management per site
 - Find-in-page functionality
 - Domain isolation (external links)
 
