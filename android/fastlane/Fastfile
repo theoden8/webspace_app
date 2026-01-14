@@ -101,7 +101,7 @@ platform :android do
       if ex.message.include?("No screenshots were detected")
         UI.important("Screengrab couldn't pull screenshots automatically (Android 13+ limitation)")
         UI.message("Attempting manual extraction from internal storage...")
-        sh("cd ../.. && ./android/fastlane/extract_screenshots.sh")
+        sh("cd ../.. && bash android/fastlane/extract_screenshots.sh")
       else
         raise ex
       end
