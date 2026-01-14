@@ -84,6 +84,8 @@ platform :android do
     screengrab(
       app_package_name: "org.codeberg.theoden8.webspace",
       tests_package_name: "org.codeberg.theoden8.webspace.test",
+      use_tests_in_packages: ["org.codeberg.theoden8.webspace"],
+      test_instrumentation_runner: "androidx.test.runner.AndroidJUnitRunner",
       locales: ["en-US"],
       clear_previous_screenshots: true,
       output_directory: "android/fastlane/metadata/android/en-US/images/phoneScreenshots",
