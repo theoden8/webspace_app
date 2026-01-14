@@ -12,7 +12,7 @@ All work was completed on branch: `claude/setup-fastlane-structure-CQmnG`
 
 ### Summary
 
-Successfully implemented automated screenshot generation for Android with workarounds for Android 13+ scoped storage restrictions.
+Successfully implemented automated screenshot generation for Android with workarounds for Screengrab's path detection and permission issues on modern Android versions.
 
 ### Key Components
 
@@ -26,13 +26,14 @@ Successfully implemented automated screenshot generation for Android with workar
 
 #### 2. Screenshot Extraction Script
 - **File**: `android/fastlane/extract_screenshots.sh`
-- **Purpose**: Manual extraction of screenshots from Android 13+ internal storage
-- **Why Needed**: Android 13+ scoped storage prevents Screengrab from accessing `/data/user/0/` directories
+- **Purpose**: Manual extraction of screenshots from internal storage when Screengrab's built-in pulling fails
+- **Why Needed**: Fastlane's Screengrab has known path detection and permission handling issues on modern Android (API 24+). While Screengrab has built-in `run-as` support (since Fastlane 2.156.0), it doesn't work reliably for all device/emulator configurations, as documented in multiple unresolved GitHub issues through 2024.
 - **Approach**:
   1. Creates tar archive in app's private storage using `run-as`
   2. Streams archive via `adb shell "run-as $PACKAGE cat ..."` to avoid permission issues
   3. Extracts directly to `fastlane/metadata/android/en-US/images/phoneScreenshots/`
   4. Archives from `app_screengrab/en_US/images/screenshots/` to avoid nested directory structure
+- **Note**: This is a valid workaround for documented Screengrab tooling limitations, not a temporary hack
 
 #### 3. Fastlane Configuration
 - **File**: `android/fastlane/Fastfile`
@@ -40,7 +41,7 @@ Successfully implemented automated screenshot generation for Android with workar
   - Builds Fmain flavor debug APKs
   - Builds androidTest APK
   - Runs Screengrab
-  - Automatically falls back to manual extraction script when Screengrab fails (Android 13+)
+  - Automatically falls back to manual extraction script when Screengrab fails to pull screenshots
 - **Output**: `fastlane/metadata/android/en-US/images/phoneScreenshots/` (root fastlane directory)
 
 #### 4. Screengrab Configuration
@@ -281,8 +282,9 @@ All commits from this work (chronological order):
 ## Known Limitations
 
 ### Android
-1. **Android 13+ Limitation**: Screengrab cannot directly access internal storage on Android 13+. Workaround implemented using manual extraction script.
-2. **Permission Grants**: WRITE_EXTERNAL_STORAGE permission must be declared on all API levels for Fastlane's permission granting logic to work, even though it's not used on Android 13+.
+1. **Screengrab Tooling Issues**: Fastlane's Screengrab has documented path detection and permission handling issues on modern Android (API 24+). While `run-as` support was added in Fastlane 2.156.0 (2019), multiple unresolved issues through 2024 show it doesn't work reliably. Manual extraction script implemented as a proven workaround.
+2. **Permission Grants**: WRITE_EXTERNAL_STORAGE permission must be declared on all API levels for Fastlane's permission granting logic to work, even though it's not actively used on modern Android.
+3. **Not a Platform Limitation**: Android 13+ scoped storage does not prevent automated screenshot pulling when done correctly - this is a Screengrab implementation issue, not an OS restriction.
 
 ### iOS
 1. **macOS Only**: iOS screenshot generation cannot be performed on Linux
@@ -318,4 +320,8 @@ Optional improvements:
 
 ## Summary
 
-The Fastlane setup successfully implemented automated screenshot generation for Android with robust workarounds for Android 13+ restrictions. The iOS configuration is complete but requires macOS with Xcode to finish the UI test target setup. All configuration files use a common root `fastlane/` directory for cross-platform consistency.
+The Fastlane setup successfully implemented automated screenshot generation for Android with robust workarounds for Screengrab's documented tooling issues on modern Android versions. The manual extraction script addresses Screengrab's unreliable path detection and permission handling, providing consistent screenshot capture regardless of device/emulator configuration. The iOS configuration is complete but requires macOS with Xcode to finish the UI test target setup. All configuration files use a common root `fastlane/` directory for cross-platform consistency.
+
+## Technical Note: Why Manual Extraction is Necessary
+
+While it's true that Android 13+ scoped storage is not a hard platform restriction preventing screenshot automation, Fastlane's Screengrab tool has proven unreliable at pulling screenshots from internal storage despite having built-in `run-as` support. The manual extraction approach is a valid engineering solution to a documented tooling limitation, not a workaround for an Android platform issue. See `transcript/SCREENGRAB_ANDROID13_RESEARCH.md` for detailed research findings.
