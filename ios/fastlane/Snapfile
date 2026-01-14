@@ -42,8 +42,11 @@ clear_previous_screenshots(true)
 # launch_arguments(["-favColor red"])
 
 # Choose which project/workspace to use
-# Path relative to this file (ios/fastlane/Snapfile)
-workspace("../Runner.xcworkspace")
+# Path relative to ios/ directory (where fastlane runs from)
+workspace("Runner.xcworkspace")
+
+# Specify project as fallback
+project("Runner.xcodeproj")
 
 # For more information about all available options run
 # fastlane action snapshot
