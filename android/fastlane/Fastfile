@@ -81,18 +81,31 @@ platform :android do
     )
 
     # Capture screenshots using Screengrab
-    screengrab(
-      app_package_name: "org.codeberg.theoden8.webspace",
-      tests_package_name: "org.codeberg.theoden8.webspace.test",
-      use_tests_in_packages: ["org.codeberg.theoden8.webspace"],
-      test_instrumentation_runner: "androidx.test.runner.AndroidJUnitRunner",
-      locales: ["en-US"],
-      clear_previous_screenshots: true,
-      output_directory: "android/fastlane/metadata/android/en-US/images/phoneScreenshots",
-      device_type: "phone",
-      app_apk_path: "build/app/outputs/flutter-apk/app-fmain-debug.apk",
-      tests_apk_path: "build/app/outputs/apk/androidTest/fmain/debug/app-fmain-debug-androidTest.apk"
-    )
+    # Note: On Android 13+, Screengrab may fail to pull screenshots from internal storage
+    # but the test will still run and capture them
+    begin
+      screengrab(
+        app_package_name: "org.codeberg.theoden8.webspace",
+        tests_package_name: "org.codeberg.theoden8.webspace.test",
+        use_tests_in_packages: ["org.codeberg.theoden8.webspace"],
+        test_instrumentation_runner: "androidx.test.runner.AndroidJUnitRunner",
+        locales: ["en-US"],
+        clear_previous_screenshots: true,
+        output_directory: "android/fastlane/metadata/android/en-US/images/phoneScreenshots",
+        device_type: "phone",
+        app_apk_path: "build/app/outputs/flutter-apk/app-fmain-debug.apk",
+        tests_apk_path: "build/app/outputs/apk/androidTest/fmain/debug/app-fmain-debug-androidTest.apk"
+      )
+    rescue => ex
+      # If screengrab fails to pull screenshots (Android 13+ issue), extract them manually
+      if ex.message.include?("No screenshots were detected")
+        UI.important("Screengrab couldn't pull screenshots automatically (Android 13+ limitation)")
+        UI.message("Attempting manual extraction from internal storage...")
+        sh("cd ../.. && android/fastlane/extract_screenshots.sh")
+      else
+        raise ex
+      end
+    end
   end
 
   desc "Clean build artifacts"
