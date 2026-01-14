@@ -1,8 +1,12 @@
 package org.codeberg.theoden8.webspace;
 
+import android.util.Log;
+
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
+import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.uiautomator.UiDevice;
 
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -32,15 +36,27 @@ public class ScreenshotTest {
             new ActivityScenarioRule<>(MainActivity.class);
 
     @Test
-    public void takeScreenshots() throws InterruptedException {
+    public void takeScreenshots() throws Exception {
+        Log.d("ScreenshotTest", "Starting screenshot test");
+
+        // Get the device instance
+        UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
+
+        // Wake up the device
+        device.wakeUp();
+
         // Configure screenshot strategy
         Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
+        Log.d("ScreenshotTest", "Screenshot strategy configured");
 
         // Wait for app to fully load
-        Thread.sleep(3000);
+        Thread.sleep(5000);
+        Log.d("ScreenshotTest", "App should be loaded");
 
         // Screenshot 1: Main screen
+        Log.d("ScreenshotTest", "Taking screenshot 01-main-screen");
         Screengrab.screenshot("01-main-screen");
+        Log.d("ScreenshotTest", "Screenshot 01-main-screen captured");
 
         // Wait for any animations
         Thread.sleep(1000);
@@ -48,7 +64,6 @@ public class ScreenshotTest {
         // Screenshot 2: Additional screens as needed
         // Add more screenshots based on your app's features
         // Example:
-        // UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
         // UiObject button = device.findObject(new UiSelector().text("Button Text"));
         // if (button.exists()) {
         //     button.click();
@@ -58,5 +73,7 @@ public class ScreenshotTest {
 
         // Screenshot 3: Add more as needed
         // Screengrab.screenshot("03-third-screen");
+
+        Log.d("ScreenshotTest", "Screenshot test completed");
     }
 }
