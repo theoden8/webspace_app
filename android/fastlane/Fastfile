@@ -13,7 +13,7 @@ platform :android do
   lane :build_debug do
     gradle(
       task: "assemble",
-      flavor: "Fdebug",
+      flavor: "fdebug",
       build_type: "Debug"
     )
   end
@@ -22,16 +22,16 @@ platform :android do
   lane :build_fdroid do
     gradle(
       task: "assemble",
-      flavor: "Fdroid",
+      flavor: "fdroid",
       build_type: "Release"
     )
   end
 
-  desc "Build release APK (Fmain flavor)"
+  desc "Build release APK (fmain flavor)"
   lane :build_release do
     gradle(
       task: "assemble",
-      flavor: "Fmain",
+      flavor: "fmain",
       build_type: "Release"
     )
   end
@@ -40,7 +40,7 @@ platform :android do
   lane :build_bundle do
     gradle(
       task: "bundle",
-      flavor: "Fmain",
+      flavor: "fmain",
       build_type: "Release"
     )
   end
@@ -61,13 +61,13 @@ platform :android do
     # Build the debug APKs for testing
     gradle(
       task: "assemble",
-      flavor: "Fdebug",
+      flavor: "fdebug",
       build_type: "Debug"
     )
 
     gradle(
       task: "assembleAndroidTest",
-      flavor: "Fdebug",
+      flavor: "fdebug",
       build_type: "Debug"
     )
 
@@ -80,13 +80,13 @@ platform :android do
     # Build the fdroid flavor APKs
     gradle(
       task: "assemble",
-      flavor: "Fdroid",
+      flavor: "fdroid",
       build_type: "Debug"
     )
 
     gradle(
       task: "assembleAndroidTest",
-      flavor: "Fdroid",
+      flavor: "fdroid",
       build_type: "Debug"
     )
 
