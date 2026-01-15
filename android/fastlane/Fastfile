@@ -8,9 +8,19 @@ platform :android do
   def android_project_dir
     # Check if we're already in the android project directory
     # by looking for Android-specific files
-    if File.exist?("app/build.gradle") || File.exist?("settings.gradle")
+    has_app_gradle = File.exist?("app/build.gradle")
+    has_settings = File.exist?("settings.gradle")
+
+    UI.message("Debug: Checking android project dir")
+    UI.message("  Current dir: #{Dir.pwd}")
+    UI.message("  app/build.gradle exists: #{has_app_gradle}")
+    UI.message("  settings.gradle exists: #{has_settings}")
+
+    if has_app_gradle || has_settings
+      UI.message("  -> Using current directory (.)")
       "."
     else
+      UI.message("  -> Using android subdirectory")
       "android"
     end
   end
