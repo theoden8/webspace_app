@@ -12,7 +12,7 @@ All work was completed on branch: `claude/setup-fastlane-structure-CQmnG`
 
 ### Summary
 
-Successfully implemented automated screenshot generation for Android with workarounds for Android 13+ scoped storage restrictions.
+Successfully implemented automated screenshot generation for Android. Initial issues with screenshot pulling were due to Ruby version incompatibility (Ruby 4 vs Fastlane requirement of Ruby <3), not Android 13+ limitations. With correct Ruby version, Screengrab works perfectly without manual extraction needed.
 
 ### Key Components
 
@@ -24,26 +24,15 @@ Successfully implemented automated screenshot generation for Android with workar
   - Captures screenshots with `Screengrab.screenshot("01-main-screen")`
   - Uses AndroidX test runner: `androidx.test.runner.AndroidJUnitRunner`
 
-#### 2. Screenshot Extraction Script
-- **File**: `android/fastlane/extract_screenshots.sh`
-- **Purpose**: Manual extraction of screenshots from Android 13+ internal storage
-- **Why Needed**: Android 13+ scoped storage prevents Screengrab from accessing `/data/user/0/` directories
-- **Approach**:
-  1. Creates tar archive in app's private storage using `run-as`
-  2. Streams archive via `adb shell "run-as $PACKAGE cat ..."` to avoid permission issues
-  3. Extracts directly to `fastlane/metadata/android/en-US/images/phoneScreenshots/`
-  4. Archives from `app_screengrab/en_US/images/screenshots/` to avoid nested directory structure
-
-#### 3. Fastlane Configuration
+#### 2. Fastlane Configuration
 - **File**: `android/fastlane/Fastfile`
 - **Screenshots Lane**:
   - Builds Fmain flavor debug APKs
   - Builds androidTest APK
-  - Runs Screengrab
-  - Automatically falls back to manual extraction script when Screengrab fails (Android 13+)
+  - Runs Screengrab to capture and pull screenshots
 - **Output**: `fastlane/metadata/android/en-US/images/phoneScreenshots/` (root fastlane directory)
 
-#### 4. Screengrab Configuration
+#### 3. Screengrab Configuration
 - **File**: `android/fastlane/Screengrabfile`
 - **Configuration**:
   - App package: `org.codeberg.theoden8.webspace`
@@ -52,7 +41,7 @@ Successfully implemented automated screenshot generation for Android with workar
   - Locales: `en-US`
   - Output: `./fastlane/metadata/android/en-US/images/phoneScreenshots`
 
-#### 5. Permissions Configuration
+#### 4. Permissions Configuration
 
 **Debug Manifest** (`android/app/src/debug/AndroidManifest.xml`):
 ```xml
@@ -215,8 +204,7 @@ fastlane/                                    # Root fastlane directory (shared)
 android/
 ├── fastlane/
 │   ├── Fastfile                            # Android lanes
-│   ├── Screengrabfile                      # Screengrab configuration
-│   └── extract_screenshots.sh              # Android 13+ extraction script
+│   └── Screengrabfile                      # Screengrab configuration
 └── app/
     └── src/
         ├── androidTest/
@@ -247,28 +235,24 @@ All commits from this work (chronological order):
 5. Add storage permissions for screenshot capture
 6. Remove maxSdkVersion from storage permissions
 7. Add requestLegacyExternalStorage to main manifest
-8. Create extract_screenshots.sh for Android 13+ manual extraction
-9. Update Fastfile to automatically run extraction script on Screengrab failure
-10. Fix screenshot extraction and move output to root fastlane directory
-11. Fix extract_screenshots.sh path in Fastfile
-12. Strip directory structure when extracting screenshots
-13. Fix script path resolution for extract_screenshots.sh
-14. Fix tar archive to extract screenshots without extra directory (FINAL ANDROID FIX)
+8-14. ~~Extraction script workarounds~~ (obsolete - issue was Ruby version incompatibility)
 15. Configure iOS screenshot paths to use root fastlane directory
 16. Fix iOS snapshot workspace path configuration
 17. Add project fallback to iOS Snapfile configuration
 
 **Final commit**: `51b6373` - "Add project fallback to iOS Snapfile configuration"
 
+**Note**: Commits 8-14 created a manual extraction script to work around what appeared to be Android 13+ limitations. These were later determined to be unnecessary - the root cause was Ruby version incompatibility (Ruby 4 vs requirement of Ruby <3). With correct Ruby version, Fastlane's Screengrab works without manual extraction.
+
 ## Testing Status
 
 ### Android
-✅ **Working on Linux**
+✅ **Working on Linux** (with Ruby <3)
 - Test execution: Working
 - Screenshot capture: Working
-- Screenshot extraction: Working (with manual script)
+- Screenshot extraction: Working (automatic via Fastlane)
 - Output location: Correct (`fastlane/metadata/android/en-US/images/phoneScreenshots/`)
-- Directory structure: Correct (no extra nested directories)
+- Ruby version: Must use Ruby <3 for Fastlane compatibility
 
 ### iOS
 ❌ **Incomplete - Requires macOS**
@@ -281,8 +265,9 @@ All commits from this work (chronological order):
 ## Known Limitations
 
 ### Android
-1. **Android 13+ Limitation**: Screengrab cannot directly access internal storage on Android 13+. Workaround implemented using manual extraction script.
-2. **Permission Grants**: WRITE_EXTERNAL_STORAGE permission must be declared on all API levels for Fastlane's permission granting logic to work, even though it's not used on Android 13+.
+1. **Ruby Version Requirement**: Fastlane >2.211 requires Ruby <3 (version 2.x). Using Ruby 4 causes Fastlane to malfunction, resulting in screenshot pulling failures that appear as Android permission issues.
+2. **Permission Grants**: WRITE_EXTERNAL_STORAGE permission must be declared on all API levels for Fastlane's permission granting logic to work, even though it's not actively used on modern Android.
+3. **Not an Android Limitation**: There are no inherent Android 13+ scoped storage limitations preventing automated screenshot capture when using Fastlane with the correct Ruby version.
 
 ### iOS
 1. **macOS Only**: iOS screenshot generation cannot be performed on Linux
@@ -318,4 +303,20 @@ Optional improvements:
 
 ## Summary
 
-The Fastlane setup successfully implemented automated screenshot generation for Android with robust workarounds for Android 13+ restrictions. The iOS configuration is complete but requires macOS with Xcode to finish the UI test target setup. All configuration files use a common root `fastlane/` directory for cross-platform consistency.
+The Fastlane setup successfully implemented automated screenshot generation for Android. The iOS configuration is complete but requires macOS with Xcode to finish the UI test target setup. All configuration files use a common root `fastlane/` directory for cross-platform consistency.
+
+## Critical Finding: Ruby Version Incompatibility
+
+The initial screenshot pulling failures were caused by **Ruby version incompatibility**, not Android 13+ limitations or Screengrab tooling issues.
+
+**Root Cause**: Using Ruby 4 with Fastlane >2.211, which requires Ruby <3 (version 2.x)
+
+**Symptoms**:
+- Tests executed successfully
+- Screenshots were captured correctly
+- Fastlane failed to pull screenshots with permission errors
+- Errors appeared to be Android 13+ scoped storage issues
+
+**Resolution**: Use Ruby <3 (version 2.x) with Fastlane. With correct Ruby version, Screengrab works perfectly and automatically pulls screenshots without any manual extraction workarounds needed.
+
+**Lesson**: Always verify environment/dependency compatibility before investigating complex platform-specific issues. See `transcript/SCREENGRAB_ANDROID13_RESEARCH.md` for detailed investigation that led to this discovery.

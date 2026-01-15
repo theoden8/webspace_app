@@ -46,6 +46,7 @@ public class ScreenshotTest {
         device.wakeUp();
 
         // Configure screenshot strategy
+        // With correct Ruby version (<3), Fastlane can pull screenshots automatically
         Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
         Log.d("ScreenshotTest", "Screenshot strategy configured");
 

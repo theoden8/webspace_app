@@ -34,11 +34,18 @@ tests_package_name('org.codeberg.theoden8.webspace.test')
 # The path to the output directory where the screenshots will be stored
 output_directory('./fastlane/metadata/android/en-US/images/phoneScreenshots')
 
-# The path to the AndroidManifest.xml file
-# android_home('path/to/android/sdk')
-
-# Specify the Android SDK path
-# android_home('/path/to/android-sdk')
+# Specify the Android SDK path so screengrab can find adb
+# Try to detect from environment variables
+if ENV['ANDROID_HOME']
+  android_home(ENV['ANDROID_HOME'])
+elsif ENV['ANDROID_SDK_ROOT']
+  android_home(ENV['ANDROID_SDK_ROOT'])
+else
+  # If no environment variable is set, you may need to set it explicitly:
+  # android_home('/path/to/android-sdk')
+  UI.important("Warning: ANDROID_HOME and ANDROID_SDK_ROOT are not set.")
+  UI.important("If screengrab fails to find adb, set one of these environment variables.")
+end
 
 # Specify which build types to use
 # use_tests_in_classes(['com.example.ScreenshotTest'])
