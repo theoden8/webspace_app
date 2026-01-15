@@ -99,7 +99,6 @@ platform :android do
     UI.message("Demo data will be seeded by Flutter when test launches app with DEMO_MODE flag")
 
     # Capture screenshots using Screengrab
-    # Trying to use screengrab directly without manual extraction fallback
     screengrab(
       app_package_name: "org.codeberg.theoden8.webspace",
       tests_package_name: "org.codeberg.theoden8.webspace.test",
@@ -107,6 +106,7 @@ platform :android do
       test_instrumentation_runner: "androidx.test.runner.AndroidJUnitRunner",
       locales: ["en-US"],
       clear_previous_screenshots: true,
+      reinstall_app: true,  # Uninstall and reinstall app for clean state
       output_directory: "fastlane/metadata/android/en-US/images/phoneScreenshots",
       device_type: "phone",
       app_apk_path: "build/app/outputs/flutter-apk/app-fmain-debug.apk",
