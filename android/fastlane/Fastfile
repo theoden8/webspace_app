@@ -87,18 +87,26 @@ platform :android do
 
   desc "Build test APKs and generate screenshots"
   lane :screenshots do
+    # Determine the gradle project directory
+    # When running from android/ directory, use "."
+    # When running from project root, use "android"
+    gradle_dir = Dir.pwd.end_with?("/android") ? "." : "android"
+
+    UI.message("Working directory: #{Dir.pwd}")
+    UI.message("Gradle project directory: #{gradle_dir}")
+
     # Build the Fmain flavor APKs for screenshots
     gradle(
       task: "assemble",
       flavor: "Fmain",
       build_type: "Debug",
-      project_dir: android_project_dir
+      project_dir: gradle_dir
     )
 
     # Build the androidTest APK (task format: assemble<Flavor><BuildType>AndroidTest)
     gradle(
       task: "assembleFmainDebugAndroidTest",
-      project_dir: android_project_dir
+      project_dir: gradle_dir
     )
 
     # Get connected device ID
