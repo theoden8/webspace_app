@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -19,6 +20,7 @@ import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
+import 'package:webspace/demo_data.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -177,6 +179,21 @@ Future<String?> getPageTitle(String url) async {
 }
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Set up method channel for demo data seeding (used by screenshot tests)
+  const channel = MethodChannel('com.example.webspace_app/demo_data');
+  channel.setMethodCallHandler((call) async {
+    if (call.method == 'seedDemoData') {
+      await seedDemoData();
+      return 'Demo data seeded successfully';
+    }
+    throw PlatformException(
+      code: 'UNAVAILABLE',
+      message: 'Method ${call.method} not available',
+    );
+  });
+
   runApp(WebSpaceApp());
 }
 

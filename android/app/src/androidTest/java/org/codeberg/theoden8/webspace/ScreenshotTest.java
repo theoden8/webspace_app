@@ -1,5 +1,6 @@
 package org.codeberg.theoden8.webspace;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -8,17 +9,26 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
+import androidx.test.runner.lifecycle.Stage;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.plugin.common.MethodChannel;
 
 import tools.fastlane.screengrab.Screengrab;
 import tools.fastlane.screengrab.UiAutomatorScreenshotStrategy;
@@ -27,10 +37,8 @@ import tools.fastlane.screengrab.locale.LocaleTestRule;
 /**
  * Screenshot test for generating F-Droid and Play Store screenshots.
  *
- * PREREQUISITE: Run the test data seeder first to populate SharedPreferences:
- *   flutter run -d <device-id> test_data_seeder.dart
- *
- * This ensures the app has realistic test data to showcase.
+ * This test automatically seeds demo data by calling the seedDemoData method channel
+ * before taking screenshots, so no manual data seeding is required.
  *
  * To run this test and generate screenshots:
  * 1. From project root: fastlane android screenshots
@@ -56,9 +64,6 @@ public class ScreenshotTest {
         Log.d(TAG, "========================================");
         Log.d(TAG, "Setting up screenshot test");
         Log.d(TAG, "========================================");
-        Log.d(TAG, "NOTE: Test data should be seeded by running:");
-        Log.d(TAG, "  flutter run -d <device> test_data_seeder.dart");
-        Log.d(TAG, "========================================");
 
         // Get the device instance
         device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
@@ -71,7 +76,7 @@ public class ScreenshotTest {
 
         Log.d(TAG, "Launching app...");
 
-        // Launch the app (data should already be seeded)
+        // Launch the app
         Context context = ApplicationProvider.getApplicationContext();
         Intent intent = context.getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
         if (intent != null) {
@@ -83,7 +88,97 @@ public class ScreenshotTest {
         device.wait(Until.hasObject(By.pkg(PACKAGE_NAME).depth(0)), 10000);
         Thread.sleep(LONG_DELAY);
 
+        Log.d(TAG, "App launched, seeding demo data...");
+
+        // Seed demo data via method channel
+        seedDemoData();
+
+        Log.d(TAG, "Demo data seeded, waiting for data to load...");
+        Thread.sleep(MEDIUM_DELAY);
+
         Log.d(TAG, "Setup complete");
+    }
+
+    /**
+     * Seeds demo data by invoking the Flutter method channel
+     */
+    private void seedDemoData() throws Exception {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final Exception[] error = {null};
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            try {
+                // Get the current activity
+                Collection<Activity> activities = ActivityLifecycleMonitorRegistry.getInstance()
+                        .getActivitiesInStage(Stage.RESUMED);
+
+                if (activities.isEmpty()) {
+                    error[0] = new Exception("No resumed activity found");
+                    latch.countDown();
+                    return;
+                }
+
+                Activity activity = activities.iterator().next();
+
+                if (!(activity instanceof FlutterActivity)) {
+                    error[0] = new Exception("Activity is not a FlutterActivity");
+                    latch.countDown();
+                    return;
+                }
+
+                FlutterActivity flutterActivity = (FlutterActivity) activity;
+                FlutterEngine flutterEngine = flutterActivity.getFlutterEngine();
+
+                if (flutterEngine == null) {
+                    error[0] = new Exception("FlutterEngine is null");
+                    latch.countDown();
+                    return;
+                }
+
+                // Invoke the method channel
+                MethodChannel channel = new MethodChannel(
+                        flutterEngine.getDartExecutor().getBinaryMessenger(),
+                        "com.example.webspace_app/demo_data"
+                );
+
+                channel.invokeMethod("seedDemoData", null, new MethodChannel.Result() {
+                    @Override
+                    public void success(Object result) {
+                        Log.d(TAG, "Demo data seeded successfully: " + result);
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void error(String errorCode, String errorMessage, Object errorDetails) {
+                        Log.e(TAG, "Failed to seed demo data: " + errorCode + " - " + errorMessage);
+                        error[0] = new Exception("Method channel error: " + errorCode + " - " + errorMessage);
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void notImplemented() {
+                        Log.e(TAG, "seedDemoData method not implemented");
+                        error[0] = new Exception("Method not implemented");
+                        latch.countDown();
+                    }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Exception while invoking method channel", e);
+                error[0] = e;
+                latch.countDown();
+            }
+        });
+
+        // Wait for the method call to complete (with timeout)
+        boolean completed = latch.await(10, TimeUnit.SECONDS);
+
+        if (!completed) {
+            throw new Exception("Timeout waiting for demo data seeding");
+        }
+
+        if (error[0] != null) {
+            throw error[0];
+        }
     }
 
     @Test

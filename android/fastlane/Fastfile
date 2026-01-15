@@ -94,32 +94,8 @@ platform :android do
 
     UI.success("Found device: #{device_id}")
 
-    # Seed test data using Flutter
-    UI.important("Seeding test data on device #{device_id}...")
-
-    # Get project root based on Fastfile location (always android/fastlane/Fastfile)
-    # __dir__ gives us the directory containing this Fastfile
-    fastfile_dir = File.expand_path(__dir__)
-    project_root = File.expand_path("../..", fastfile_dir)
-    seeder_path = File.expand_path("test_data_seeder.dart", fastfile_dir)
-
-    UI.message("Fastfile dir: #{fastfile_dir}")
-    UI.message("Project root: #{project_root}")
-    UI.message("Seeder path: #{seeder_path}")
-
-    # Verify seeder file exists
-    unless File.exist?(seeder_path)
-      UI.user_error!("Seeder file not found at: #{seeder_path}")
-    end
-
-    Dir.chdir(project_root) do
-      sh("flutter run -d #{device_id} #{seeder_path}")
-    end
-
-    UI.success("Test data seeded successfully")
-
-    # Give the app a moment to save data
-    sleep(2)
+    # Note: Demo data is automatically seeded by the test via method channel
+    UI.message("Demo data will be seeded automatically by the test")
 
     # Capture screenshots using Screengrab
     # Trying to use screengrab directly without manual extraction fallback
