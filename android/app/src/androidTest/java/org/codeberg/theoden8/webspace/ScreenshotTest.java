@@ -21,7 +21,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import tools.fastlane.screengrab.Screengrab;
 import tools.fastlane.screengrab.UiAutomatorScreenshotStrategy;
@@ -133,11 +135,13 @@ public class ScreenshotTest {
         webspaces.add(createWebspaceJson("webspace_work", "Work", new int[]{0, 1, 2}));
         webspaces.add(createWebspaceJson("webspace_homeserver", "Home Server", new int[]{3, 4, 5}));
 
-        // Write sites list (Flutter uses a special encoding for lists)
-        editor.putString("flutter.webViewModels", encodeStringList(sites));
+        // Write sites list (Flutter uses StringSet on Android)
+        Set<String> sitesSet = new HashSet<>(sites);
+        editor.putStringSet("flutter.webViewModels", sitesSet);
 
         // Write webspaces list
-        editor.putString("flutter.webspaces", encodeStringList(webspaces));
+        Set<String> webspacesSet = new HashSet<>(webspaces);
+        editor.putStringSet("flutter.webspaces", webspacesSet);
 
         // Write selected webspace (use "all")
         editor.putString("flutter.selectedWebspaceId", "all");
@@ -158,17 +162,18 @@ public class ScreenshotTest {
         Log.d(TAG, "Wrote " + sites.size() + " sites, " + webspaces.size() + " webspaces");
 
         // Verify data was written
-        String savedSites = prefs.getString("flutter.webViewModels", null);
-        String savedWebspaces = prefs.getString("flutter.webspaces", null);
+        Set<String> savedSites = prefs.getStringSet("flutter.webViewModels", null);
+        Set<String> savedWebspaces = prefs.getStringSet("flutter.webspaces", null);
         String savedWebspaceId = prefs.getString("flutter.selectedWebspaceId", null);
 
         Log.d(TAG, "Verification:");
-        Log.d(TAG, "  Sites: " + (savedSites != null ? "SET (" + savedSites.length() + " chars)" : "NULL"));
-        Log.d(TAG, "  Webspaces: " + (savedWebspaces != null ? "SET (" + savedWebspaces.length() + " chars)" : "NULL"));
+        Log.d(TAG, "  Sites: " + (savedSites != null ? "SET (" + savedSites.size() + " items)" : "NULL"));
+        Log.d(TAG, "  Webspaces: " + (savedWebspaces != null ? "SET (" + savedWebspaces.size() + " items)" : "NULL"));
         Log.d(TAG, "  Selected: " + savedWebspaceId);
 
-        if (savedSites != null) {
-            Log.d(TAG, "  Sites preview: " + savedSites.substring(0, Math.min(100, savedSites.length())));
+        if (savedSites != null && !savedSites.isEmpty()) {
+            String firstSite = savedSites.iterator().next();
+            Log.d(TAG, "  First site preview: " + firstSite.substring(0, Math.min(100, firstSite.length())));
         }
     }
 
@@ -192,21 +197,6 @@ public class ScreenshotTest {
         }
         webspace.put("siteIndices", indices);
         return webspace.toString();
-    }
-
-    /**
-     * Encode a list of strings in Flutter's SharedPreferences format
-     * Flutter stores lists as a single string with special delimiters
-     */
-    private String encodeStringList(List<String> list) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < list.size(); i++) {
-            if (i > 0) {
-                sb.append("\u001e"); // Record separator
-            }
-            sb.append(list.get(i));
-        }
-        return sb.toString();
     }
 
     @Test
