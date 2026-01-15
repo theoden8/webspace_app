@@ -26,7 +26,11 @@ import tools.fastlane.screengrab.locale.LocaleTestRule;
 
 /**
  * Screenshot test for generating F-Droid and Play Store screenshots.
- * This test creates a comprehensive tour of the app's features by adding sites via UI.
+ *
+ * PREREQUISITE: Run the test data seeder first to populate SharedPreferences:
+ *   flutter run -d <device-id> test_data_seeder.dart
+ *
+ * This ensures the app has realistic test data to showcase.
  *
  * To run this test and generate screenshots:
  * 1. From project root: fastlane android screenshots
@@ -47,20 +51,13 @@ public class ScreenshotTest {
 
     private UiDevice device;
 
-    // Test data: sites to add
-    private static final String[][] SITES = {
-        {"My Blog", "https://example.com/blog"},
-        {"Tasks", "https://tasks.example.com"},
-        {"Notes", "https://notes.example.com"},
-        {"Home Dashboard", "http://homeserver.local:8080"},
-        {"Personal Wiki", "http://192.168.1.100:3000"},
-        {"Media Server", "http://192.168.1.101:8096"},
-    };
-
     @Before
     public void setUp() throws Exception {
         Log.d(TAG, "========================================");
         Log.d(TAG, "Setting up screenshot test");
+        Log.d(TAG, "========================================");
+        Log.d(TAG, "NOTE: Test data should be seeded by running:");
+        Log.d(TAG, "  flutter run -d <device> test_data_seeder.dart");
         Log.d(TAG, "========================================");
 
         // Get the device instance
@@ -72,14 +69,10 @@ public class ScreenshotTest {
         // Configure screenshot strategy
         Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
 
-        // Clear existing data
-        Context context = ApplicationProvider.getApplicationContext();
-        TestDataHelper.clearTestData(context);
-        Thread.sleep(500);
-
         Log.d(TAG, "Launching app...");
 
-        // Launch the app
+        // Launch the app (data should already be seeded)
+        Context context = ApplicationProvider.getApplicationContext();
         Intent intent = context.getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
         if (intent != null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -90,68 +83,7 @@ public class ScreenshotTest {
         device.wait(Until.hasObject(By.pkg(PACKAGE_NAME).depth(0)), 10000);
         Thread.sleep(LONG_DELAY);
 
-        Log.d(TAG, "App launched, adding test sites...");
-
-        // Add sites through UI
-        addSitesViaUI();
-
-        Log.d(TAG, "Setup complete - test sites added");
-    }
-
-    /**
-     * Add sites by interacting with the UI
-     */
-    private void addSitesViaUI() throws InterruptedException {
-        for (int i = 0; i < SITES.length; i++) {
-            String name = SITES[i][0];
-            String url = SITES[i][1];
-
-            Log.d(TAG, "Adding site " + (i + 1) + "/" + SITES.length + ": " + name);
-
-            // Find and click FAB
-            UiObject2 fab = findFab();
-            if (fab == null) {
-                Log.e(TAG, "FAB not found, cannot add site: " + name);
-                continue;
-            }
-
-            fab.click();
-            Thread.sleep(MEDIUM_DELAY);
-
-            // Find URL input field
-            UiObject2 urlField = device.findObject(By.clazz("android.widget.EditText"));
-            if (urlField == null) {
-                Log.e(TAG, "URL field not found, cannot add site: " + name);
-                device.pressBack();
-                Thread.sleep(SHORT_DELAY);
-                continue;
-            }
-
-            // Enter URL
-            urlField.setText(url);
-            Thread.sleep(SHORT_DELAY);
-
-            // Find and click Add/Save button
-            UiObject2 addButton = device.findObject(By.text("Add"));
-            if (addButton == null) {
-                addButton = device.findObject(By.text("Save"));
-            }
-            if (addButton == null) {
-                addButton = device.findObject(By.desc("Add"));
-            }
-
-            if (addButton != null) {
-                addButton.click();
-                Thread.sleep(MEDIUM_DELAY);
-                Log.d(TAG, "Successfully added: " + name);
-            } else {
-                Log.e(TAG, "Add button not found, canceling");
-                device.pressBack();
-                Thread.sleep(SHORT_DELAY);
-            }
-        }
-
-        Log.d(TAG, "Finished adding " + SITES.length + " sites");
+        Log.d(TAG, "Setup complete");
     }
 
     @Test
@@ -160,16 +92,33 @@ public class ScreenshotTest {
         Log.d(TAG, "STARTING SCREENSHOT TOUR");
         Log.d(TAG, "========================================");
 
-        // Wait a bit to ensure all sites are loaded
+        // Wait for data to load
         Thread.sleep(MEDIUM_DELAY);
 
         // Log visible text on screen
         Log.d(TAG, "Visible elements:");
         logVisibleText();
 
-        // Screenshot 1: Main screen showing "All" webspace with sites
-        Log.d(TAG, "Capturing main screen with All webspace");
-        Screengrab.screenshot("01-all-sites");
+        // Check if we're on webspaces list or sites view
+        UiObject2 allWebspace = device.findObject(By.text("All"));
+        boolean onWebspacesList = allWebspace != null;
+
+        if (onWebspacesList) {
+            Log.d(TAG, "On webspaces list screen");
+
+            // Screenshot 1: Webspaces list
+            Log.d(TAG, "Capturing webspaces list");
+            Screengrab.screenshot("01-webspaces-list");
+            Thread.sleep(SHORT_DELAY);
+
+            // Select "All" webspace
+            allWebspace.click();
+            Thread.sleep(LONG_DELAY);
+        }
+
+        // Screenshot 2: All sites view (main screen)
+        Log.d(TAG, "Capturing all sites view");
+        Screengrab.screenshot("02-all-sites");
         Thread.sleep(MEDIUM_DELAY);
 
         // Open drawer to see site list
@@ -177,41 +126,57 @@ public class ScreenshotTest {
         swipeFromLeftEdge();
         Thread.sleep(MEDIUM_DELAY);
 
-        // Screenshot 2: Drawer with sites list
+        // Screenshot 3: Drawer with sites list
         Log.d(TAG, "Capturing sites drawer");
-        Screengrab.screenshot("02-sites-drawer");
+        Screengrab.screenshot("03-sites-drawer");
         Thread.sleep(SHORT_DELAY);
 
-        // Select first site
-        UiObject2 firstSite = device.findObject(By.text(SITES[0][0]));
+        // Look for a site to select
+        List<UiObject2> textViews = device.findObjects(By.clazz("android.widget.TextView"));
+        UiObject2 firstSite = null;
+        String[] siteNames = {"My Blog", "Tasks", "Notes", "Home Dashboard"};
+
+        for (String siteName : siteNames) {
+            firstSite = device.findObject(By.text(siteName));
+            if (firstSite != null) {
+                Log.d(TAG, "Found site: " + siteName);
+                break;
+            }
+        }
+
         if (firstSite != null) {
-            Log.d(TAG, "Selecting first site: " + SITES[0][0]);
+            String siteName = firstSite.getText();
+            Log.d(TAG, "Selecting site: " + siteName);
             firstSite.click();
             Thread.sleep(LONG_DELAY);
 
-            // Screenshot 3: Site webview
+            // Screenshot 4: Site webview
             Log.d(TAG, "Capturing site webview");
-            Screengrab.screenshot("03-site-webview");
+            Screengrab.screenshot("04-site-webview");
             Thread.sleep(MEDIUM_DELAY);
 
             // Open drawer again
             swipeFromLeftEdge();
             Thread.sleep(MEDIUM_DELAY);
 
-            // Screenshot 4: Drawer showing current site
-            Screengrab.screenshot("04-drawer-with-site");
+            // Screenshot 5: Drawer showing current site
+            Screengrab.screenshot("05-drawer-with-site");
             Thread.sleep(SHORT_DELAY);
 
-            // Click "Back to Webspaces" or just close drawer
+            // Close drawer
+            device.pressBack();
+            Thread.sleep(SHORT_DELAY);
+        } else {
+            Log.w(TAG, "No sites found in drawer");
+            // Close drawer
             device.pressBack();
             Thread.sleep(SHORT_DELAY);
         }
 
-        // Try to show webspaces list by opening drawer
+        // Try to navigate to webspaces list
         swipeFromLeftEdge();
         Thread.sleep(MEDIUM_DELAY);
 
-        // Look for "Webspaces" button or similar
         UiObject2 webspacesButton = device.findObject(By.text("Back to Webspaces"));
         if (webspacesButton == null) {
             webspacesButton = device.findObject(By.text("Webspaces"));
@@ -222,36 +187,34 @@ public class ScreenshotTest {
             webspacesButton.click();
             Thread.sleep(MEDIUM_DELAY);
 
-            // Screenshot 5: Webspaces list (shows "All" and any others)
-            Screengrab.screenshot("05-webspaces-list");
+            // Screenshot 6: Webspaces list view
+            Screengrab.screenshot("06-webspaces-overview");
             Thread.sleep(SHORT_DELAY);
 
-            // Try to create a webspace
-            UiObject2 createWebspaceFab = findFab();
-            if (createWebspaceFab != null) {
-                Log.d(TAG, "Opening create webspace dialog");
-                createWebspaceFab.click();
+            // Look for "Work" webspace
+            UiObject2 workWebspace = device.findObject(By.text("Work"));
+            if (workWebspace != null) {
+                Log.d(TAG, "Selecting Work webspace");
+                workWebspace.click();
+                Thread.sleep(LONG_DELAY);
+
+                // Screenshot 7: Work webspace sites
+                Screengrab.screenshot("07-work-webspace");
                 Thread.sleep(MEDIUM_DELAY);
 
-                // Screenshot 6: Create webspace dialog
-                Screengrab.screenshot("06-create-webspace");
-                Thread.sleep(SHORT_DELAY);
-
-                device.pressBack();
-                Thread.sleep(SHORT_DELAY);
-            }
-
-            // Go back to "All" webspace
-            UiObject2 allWebspace = device.findObject(By.text("All"));
-            if (allWebspace != null) {
-                allWebspace.click();
+                // Open drawer
+                swipeFromLeftEdge();
                 Thread.sleep(MEDIUM_DELAY);
+
+                // Screenshot 8: Work webspace drawer
+                Screengrab.screenshot("08-work-sites-drawer");
+                Thread.sleep(SHORT_DELAY);
             }
+        } else {
+            Log.w(TAG, "Could not find webspaces button");
+            device.pressBack();
+            Thread.sleep(SHORT_DELAY);
         }
-
-        // Final screenshot: Back to main view
-        Thread.sleep(SHORT_DELAY);
-        Screengrab.screenshot("07-main-view");
 
         Log.d(TAG, "========================================");
         Log.d(TAG, "Screenshot tour completed");
@@ -268,34 +231,9 @@ public class ScreenshotTest {
     }
 
     /**
-     * Try multiple ways to find the FAB button
-     */
-    private UiObject2 findFab() {
-        // Try by content description
-        UiObject2 fab = device.findObject(By.desc("Add"));
-        if (fab != null) return fab;
-
-        // Try by text
-        fab = device.findObject(By.text("+"));
-        if (fab != null) return fab;
-
-        // Try finding floating action button by class and clickable
-        fab = device.findObject(By.clazz("android.widget.Button").clickable(true));
-        if (fab != null) return fab;
-
-        // Try any clickable view with "add" description
-        fab = device.findObject(By.descContains("add"));
-        if (fab != null) return fab;
-
-        return null;
-    }
-
-    /**
      * Log visible text elements on screen for debugging
      */
     private void logVisibleText() {
-        Log.d(TAG, "Visible text elements:");
-
         // Find all TextViews
         List<UiObject2> textViews = device.findObjects(By.clazz("android.widget.TextView"));
         Log.d(TAG, "Found " + textViews.size() + " TextViews");
@@ -307,20 +245,11 @@ public class ScreenshotTest {
             }
         }
 
-        // Find all Buttons
-        List<UiObject2> buttons = device.findObjects(By.clazz("android.widget.Button"));
-        Log.d(TAG, "Found " + buttons.size() + " Buttons");
-        for (int i = 0; i < Math.min(buttons.size(), 10); i++) {
-            UiObject2 btn = buttons.get(i);
-            String text = btn.getText();
-            String desc = btn.getContentDescription();
-            if ((text != null && !text.isEmpty()) || (desc != null && !desc.isEmpty())) {
-                Log.d(TAG, "  Button " + i + ": text='" + text + "', desc='" + desc + "'");
-            }
+        // Check for expected elements
+        String[] expectedTexts = {"All", "Work", "Home Server", "My Blog", "Tasks", "Notes"};
+        for (String expectedText : expectedTexts) {
+            UiObject2 obj = device.findObject(By.text(expectedText));
+            Log.d(TAG, "  Looking for '" + expectedText + "': " + (obj != null ? "FOUND" : "NOT FOUND"));
         }
-
-        // Check for FAB
-        UiObject2 fab = findFab();
-        Log.d(TAG, "FAB found: " + (fab != null));
     }
 }
