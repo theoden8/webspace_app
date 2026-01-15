@@ -7,8 +7,7 @@ platform :android do
   desc "Runs all the tests"
   lane :test do
     gradle(
-      task: "test",
-      project_dir: "android"
+      task: "test"
     )
   end
 
@@ -17,8 +16,7 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fdebug",
-      build_type: "Debug",
-      project_dir: "android"
+      build_type: "Debug"
     )
   end
 
@@ -27,8 +25,7 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fdroid",
-      build_type: "Release",
-      project_dir: "android"
+      build_type: "Release"
     )
   end
 
@@ -37,8 +34,7 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fmain",
-      build_type: "Release",
-      project_dir: "android"
+      build_type: "Release"
     )
   end
 
@@ -48,8 +44,7 @@ platform :android do
     gradle(
       task: "bundle",
       flavor: "Fmain",
-      build_type: "Release",
-      project_dir: "android"
+      build_type: "Release"
     )
   end
 
@@ -70,14 +65,12 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fmain",
-      build_type: "Debug",
-      project_dir: "android"
+      build_type: "Debug"
     )
 
     # Build the androidTest APK (task format: assemble<Flavor><BuildType>AndroidTest)
     gradle(
-      task: "assembleFmainDebugAndroidTest",
-      project_dir: "android"
+      task: "assembleFmainDebugAndroidTest"
     )
 
     # Get connected device ID
@@ -135,8 +128,7 @@ platform :android do
   desc "Clean build artifacts"
   lane :clean do
     gradle(
-      task: "clean",
-      project_dir: "android"
+      task: "clean"
     )
   end
 end
