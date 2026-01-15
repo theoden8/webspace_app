@@ -91,18 +91,27 @@ platform :android do
     # This avoids all the path detection issues
     UI.message("Building APKs with flutter build...")
 
-    # Get project root relative to Fastfile location (android/fastlane/Fastfile)
-    # __dir__ gives us the directory containing this Fastfile
+    # Get project root - this Fastfile is always at android/fastlane/Fastfile
+    # regardless of whether it's run directly or imported from root Fastfile
+    # __dir__ gives the directory containing this file (android/fastlane/)
     fastfile_dir = __dir__
-    project_root = File.expand_path("../..", fastfile_dir)
+
+    # Verify we're in the right place
+    unless File.exist?(File.join(fastfile_dir, "..", "gradlew"))
+      UI.user_error!("Expected to find gradlew in android/ directory. Fastfile location: #{fastfile_dir}")
+    end
+
     android_dir = File.expand_path("..", fastfile_dir)
+    project_root = File.expand_path("../..", fastfile_dir)
 
-    UI.message("Fastfile dir: #{fastfile_dir}")
-    UI.message("Project root: #{project_root}")
+    UI.message("Current working directory: #{Dir.pwd}")
+    UI.message("Fastfile location: #{fastfile_dir}")
     UI.message("Android dir: #{android_dir}")
+    UI.message("Project root: #{project_root}")
+    UI.message("gradlew exists: #{File.exist?(File.join(android_dir, "gradlew"))}")
 
-    sh("cd #{project_root} && flutter build apk --debug --flavor fmain")
-    sh("cd #{android_dir} && ./gradlew assembleFmainDebugAndroidTest")
+    sh("cd '#{project_root}' && flutter build apk --debug --flavor fmain")
+    sh("cd '#{android_dir}' && ./gradlew assembleFmainDebugAndroidTest")
 
     # Get connected device ID
     device_id = sh("adb devices | grep -w 'device' | head -1 | awk '{print $1}'", log: false).strip
