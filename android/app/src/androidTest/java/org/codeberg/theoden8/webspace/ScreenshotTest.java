@@ -67,18 +67,31 @@ public class ScreenshotTest {
         // Configure screenshot strategy
         Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
 
+        Log.d(TAG, "Force stopping app to ensure clean state...");
+
+        // Force stop the app to ensure clean state
+        try {
+            device.executeShellCommand("am force-stop " + PACKAGE_NAME);
+            Thread.sleep(1000);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to force-stop app: " + e.getMessage());
+        }
+
         Log.d(TAG, "Seeding demo data...");
 
         // Seed demo data by writing directly to SharedPreferences
         seedDemoData();
 
-        Log.d(TAG, "Demo data seeded, launching app...");
+        Log.d(TAG, "Demo data seeded, waiting for persistence...");
+        Thread.sleep(1000); // Give time for data to be written to disk
+
+        Log.d(TAG, "Launching app...");
 
         // Launch the app (after data is seeded)
         Context context = ApplicationProvider.getApplicationContext();
         Intent intent = context.getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
         if (intent != null) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(intent);
         }
 
@@ -138,10 +151,25 @@ public class ScreenshotTest {
         // Write URL bar visibility (false)
         editor.putBoolean("flutter.showUrlBar", false);
 
-        // Commit changes
-        editor.apply();
+        // Commit changes synchronously
+        boolean success = editor.commit();
 
-        Log.d(TAG, "Demo data written: " + sites.size() + " sites, " + webspaces.size() + " webspaces");
+        Log.d(TAG, "Demo data write " + (success ? "SUCCEEDED" : "FAILED"));
+        Log.d(TAG, "Wrote " + sites.size() + " sites, " + webspaces.size() + " webspaces");
+
+        // Verify data was written
+        String savedSites = prefs.getString("flutter.webViewModels", null);
+        String savedWebspaces = prefs.getString("flutter.webspaces", null);
+        String savedWebspaceId = prefs.getString("flutter.selectedWebspaceId", null);
+
+        Log.d(TAG, "Verification:");
+        Log.d(TAG, "  Sites: " + (savedSites != null ? "SET (" + savedSites.length() + " chars)" : "NULL"));
+        Log.d(TAG, "  Webspaces: " + (savedWebspaces != null ? "SET (" + savedWebspaces.length() + " chars)" : "NULL"));
+        Log.d(TAG, "  Selected: " + savedWebspaceId);
+
+        if (savedSites != null) {
+            Log.d(TAG, "  Sites preview: " + savedSites.substring(0, Math.min(100, savedSites.length())));
+        }
     }
 
     private String createSiteJson(String url, String name) throws Exception {
