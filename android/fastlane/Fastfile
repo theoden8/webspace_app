@@ -6,7 +6,13 @@ default_platform(:android)
 platform :android do
   # Helper to determine android directory
   def android_project_dir
-    File.exist?("gradlew") ? "." : "android"
+    # Check if we're already in the android project directory
+    # by looking for Android-specific files
+    if File.exist?("app/build.gradle") || File.exist?("settings.gradle")
+      "."
+    else
+      "android"
+    end
   end
 
   desc "Runs all the tests"
