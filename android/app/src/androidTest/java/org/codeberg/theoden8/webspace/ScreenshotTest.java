@@ -39,10 +39,10 @@ import tools.fastlane.screengrab.locale.LocaleTestRule;
 public class ScreenshotTest {
 
     private static final String TAG = "ScreenshotTest";
-    private static final int SHORT_DELAY = 1000;
-    private static final int MEDIUM_DELAY = 2000;
-    private static final int LONG_DELAY = 4000;
-    private static final int APP_LOAD_DELAY = 5000;  // Extra time for Flutter to load and seed data
+    private static final int SHORT_DELAY = 2000;
+    private static final int MEDIUM_DELAY = 3000;
+    private static final int LONG_DELAY = 5000;
+    private static final int APP_LOAD_DELAY = 8000;  // Extra time for Flutter to fully render
     private static final String PACKAGE_NAME = "org.codeberg.theoden8.webspace";
 
     @ClassRule
@@ -102,8 +102,16 @@ public class ScreenshotTest {
         logVisibleText();
 
         // Check if we're on webspaces list or sites view
+        // Try multiple ways to find the "All" webspace (Flutter uses different accessibility systems)
         UiObject2 allWebspace = device.findObject(By.text("All"));
+        if (allWebspace == null) {
+            allWebspace = device.findObject(By.textContains("All"));
+        }
+        if (allWebspace == null) {
+            allWebspace = device.findObject(By.desc("All"));
+        }
         boolean onWebspacesList = allWebspace != null;
+        Log.d(TAG, "On webspaces list: " + onWebspacesList);
 
         if (onWebspacesList) {
             Log.d(TAG, "On webspaces list screen");
@@ -129,13 +137,16 @@ public class ScreenshotTest {
         if (!drawerOpened) {
             Log.w(TAG, "Failed to open drawer, trying alternative method...");
             // Try pressing menu/hamburger button if swipe didn't work
-            UiObject2 menuButton = device.findObject(By.desc("Open navigation drawer"));
+            UiObject2 menuButton = findElement("Open navigation drawer");
             if (menuButton == null) {
-                menuButton = device.findObject(By.desc("Open drawer"));
+                menuButton = findElement("Open drawer");
             }
             if (menuButton != null) {
+                Log.d(TAG, "Found menu button, clicking...");
                 menuButton.click();
                 Thread.sleep(MEDIUM_DELAY);
+            } else {
+                Log.w(TAG, "No menu button found either");
             }
         }
 
@@ -145,12 +156,11 @@ public class ScreenshotTest {
         Thread.sleep(SHORT_DELAY);
 
         // Look for a site to select
-        List<UiObject2> textViews = device.findObjects(By.clazz("android.widget.TextView"));
         UiObject2 firstSite = null;
         String[] siteNames = {"My Blog", "Tasks", "Notes", "Home Dashboard"};
 
         for (String siteName : siteNames) {
-            firstSite = device.findObject(By.text(siteName));
+            firstSite = findElement(siteName);
             if (firstSite != null) {
                 Log.d(TAG, "Found site: " + siteName);
                 break;
@@ -190,9 +200,9 @@ public class ScreenshotTest {
         Log.d(TAG, "Opening drawer to navigate to webspaces");
         openDrawer();
 
-        UiObject2 webspacesButton = device.findObject(By.text("Back to Webspaces"));
+        UiObject2 webspacesButton = findElement("Back to Webspaces");
         if (webspacesButton == null) {
-            webspacesButton = device.findObject(By.text("Webspaces"));
+            webspacesButton = findElement("Webspaces");
         }
 
         if (webspacesButton != null) {
@@ -205,7 +215,7 @@ public class ScreenshotTest {
             Thread.sleep(SHORT_DELAY);
 
             // Look for "Work" webspace
-            UiObject2 workWebspace = device.findObject(By.text("Work"));
+            UiObject2 workWebspace = findElement("Work");
             if (workWebspace != null) {
                 Log.d(TAG, "Selecting Work webspace");
                 workWebspace.click();
@@ -253,25 +263,42 @@ public class ScreenshotTest {
 
         // Check if drawer is open by looking for drawer-specific elements
         // The drawer should show site names or navigation items
-        UiObject2 drawerIndicator = device.findObject(By.text("My Blog"));
+        UiObject2 drawerIndicator = findElement("My Blog");
         if (drawerIndicator == null) {
-            drawerIndicator = device.findObject(By.text("Tasks"));
+            drawerIndicator = findElement("Tasks");
         }
         if (drawerIndicator == null) {
-            drawerIndicator = device.findObject(By.text("Notes"));
+            drawerIndicator = findElement("Notes");
         }
 
         return drawerIndicator != null;
     }
 
     /**
+     * Find a UI element by text using multiple search strategies for Flutter compatibility
+     */
+    private UiObject2 findElement(String text) {
+        UiObject2 obj = device.findObject(By.text(text));
+        if (obj == null) {
+            obj = device.findObject(By.textContains(text));
+        }
+        if (obj == null) {
+            obj = device.findObject(By.desc(text));
+        }
+        if (obj == null) {
+            obj = device.findObject(By.descContains(text));
+        }
+        return obj;
+    }
+
+    /**
      * Log visible text elements on screen for debugging
      */
     private void logVisibleText() {
-        // Find all TextViews
+        // Find all TextViews (native Android)
         List<UiObject2> textViews = device.findObjects(By.clazz("android.widget.TextView"));
-        Log.d(TAG, "Found " + textViews.size() + " TextViews");
-        for (int i = 0; i < Math.min(textViews.size(), 15); i++) {
+        Log.d(TAG, "Found " + textViews.size() + " native TextViews");
+        for (int i = 0; i < Math.min(textViews.size(), 10); i++) {
             UiObject2 tv = textViews.get(i);
             String text = tv.getText();
             if (text != null && !text.trim().isEmpty()) {
@@ -279,10 +306,28 @@ public class ScreenshotTest {
             }
         }
 
-        // Check for expected elements
+        // Try to find Flutter view
+        UiObject2 flutterView = device.findObject(By.clazz("io.flutter.embedding.android.FlutterView"));
+        if (flutterView != null) {
+            Log.d(TAG, "Found FlutterView - Flutter is rendering");
+            Log.d(TAG, "  ContentDescription: " + flutterView.getContentDescription());
+        } else {
+            Log.w(TAG, "FlutterView not found - Flutter may not be rendered yet");
+        }
+
+        // Check for expected elements using multiple search methods
         String[] expectedTexts = {"All", "Work", "Home Server", "My Blog", "Tasks", "Notes"};
         for (String expectedText : expectedTexts) {
             UiObject2 obj = device.findObject(By.text(expectedText));
+            if (obj == null) {
+                obj = device.findObject(By.textContains(expectedText));
+            }
+            if (obj == null) {
+                obj = device.findObject(By.desc(expectedText));
+            }
+            if (obj == null) {
+                obj = device.findObject(By.descContains(expectedText));
+            }
             Log.d(TAG, "  Looking for '" + expectedText + "': " + (obj != null ? "FOUND" : "NOT FOUND"));
         }
     }
