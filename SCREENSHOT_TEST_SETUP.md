@@ -2,37 +2,9 @@
 
 This document explains how to generate screenshots for the Android app.
 
-## Two-Step Process
+## Automated Process
 
-### Step 1: Seed Test Data with Flutter
-
-First, use Flutter to create and persist the test data:
-
-```bash
-# Get your device ID
-flutter devices
-
-# Run the seeder script on your device
-flutter run -d <device-id> test_data_seeder.dart
-```
-
-For example:
-```bash
-flutter run -d R58T11JQ0SX test_data_seeder.dart
-```
-
-This script will:
-- Clear existing app data
-- Create 6 sample sites (My Blog, Tasks, Notes, Home Dashboard, Personal Wiki, Media Server)
-- Create 3 webspaces (All, Work, Home Server)
-- Save everything to SharedPreferences using Flutter's native format
-- Verify the data was saved correctly
-
-The app will briefly run and you'll see logs confirming the data was saved.
-
-### Step 2: Run Screenshot Tests
-
-Once the data is seeded, run the Fastlane screenshot tests:
+The screenshot generation is fully automated via Fastlane. Just run one command:
 
 ```bash
 cd android
@@ -44,49 +16,92 @@ Or from project root:
 bundle exec fastlane android screenshots
 ```
 
-The test will:
-- Launch the app (which loads the seeded data)
-- Navigate through different screens
-- Capture 8 screenshots showing:
-  1. Webspaces list
-  2. All sites view
-  3. Sites drawer
-  4. Site webview
-  5. Drawer with current site
-  6. Webspaces overview
-  7. Work webspace
-  8. Work webspace drawer
+## What Happens Automatically
 
-## Why This Approach?
+Fastlane will:
 
-Flutter's `shared_preferences` plugin uses a specific encoding format on Android that's difficult to replicate from Java. By using Flutter itself to create the data, we ensure:
+1. **Build APKs** - Build debug APK and androidTest APK
+2. **Detect device** - Find connected Android device or emulator
+3. **Seed test data** - Run `test_data_seeder.dart` on the device to create:
+   - 6 sample sites (My Blog, Tasks, Notes, Home Dashboard, Personal Wiki, Media Server)
+   - 3 webspaces (All, Work, Home Server)
+4. **Run tests** - Execute screenshot tests which navigate and capture images
+5. **Save screenshots** - Store images in `android/fastlane/metadata/android/en-US/images/phoneScreenshots/`
 
-- ✅ Correct encoding format
-- ✅ All fields properly populated
-- ✅ Data persists correctly
-- ✅ No encoding bugs
+## Prerequisites
+
+- Android device connected or emulator running
+- Device unlocked and visible via `adb devices`
+- Flutter SDK in PATH
+
+## Screenshots Captured
+
+The automated tour captures 8 screenshots:
+
+1. Webspaces list
+2. All sites view (main screen)
+3. Sites drawer
+4. Site webview
+5. Drawer with current site
+6. Webspaces overview
+7. Work webspace
+8. Work webspace drawer
 
 ## Troubleshooting
 
-### Data not loading?
+### No device found
 
-Re-run the seeder:
+Error: "No Android device connected"
+
+Solution:
 ```bash
-flutter run -d <device-id> test_data_seeder.dart
+# Check devices
+adb devices
+
+# Start an emulator if needed
+emulator -avd <your_avd_name> &
 ```
 
-Check the logs to confirm data was saved.
+### Test data not loading
 
-### Screenshots show empty app?
+The seeder runs automatically, but if you want to run it manually:
+```bash
+flutter run -d <device-id> android/fastlane/test_data_seeder.dart
+```
 
-Make sure you ran Step 1 (seeder) before Step 2 (screenshot test).
+### Customize test data
 
-### Need to change test data?
-
-Edit `test_data_seeder.dart` and re-run Step 1.
+Edit `android/fastlane/test_data_seeder.dart` to change:
+- Site names and URLs
+- Webspace organization
+- Number of sites/webspaces
 
 ## Files
 
-- `test_data_seeder.dart` - Flutter script that seeds test data
-- `android/app/src/androidTest/java/.../ScreenshotTest.java` - Screenshot test that uses the seeded data
-- `android/app/src/androidTest/java/.../TestDataHelper.java` - Helper for clearing data (legacy, kept for reference)
+- `android/fastlane/Fastfile` - Automation script (screenshots lane)
+- `android/fastlane/test_data_seeder.dart` - Flutter script that seeds test data
+- `android/app/src/androidTest/java/.../ScreenshotTest.java` - Screenshot test that navigates and captures
+- `android/fastlane/metadata/android/en-US/images/phoneScreenshots/` - Output directory
+
+## Manual Process (Advanced)
+
+If you need to run steps separately:
+
+```bash
+# 1. Build APKs
+cd android
+./gradlew assembleFmainDebug assembleFmainDebugAndroidTest
+
+# 2. Get device ID
+adb devices
+
+# 3. Seed data
+cd ..
+flutter run -d <device-id> android/fastlane/test_data_seeder.dart
+
+# 4. Run screenshot tests
+cd android
+bundle exec fastlane screengrab
+```
+
+But normally, just use `bundle exec fastlane screenshots` and let it handle everything!

@@ -80,6 +80,24 @@ platform :android do
       project_dir: "android"
     )
 
+    # Get connected device ID
+    device_id = sh("adb devices | grep -w 'device' | head -1 | awk '{print $1}'", log: false).strip
+
+    if device_id.empty?
+      UI.user_error!("No Android device connected. Please connect a device or start an emulator.")
+    end
+
+    UI.success("Found device: #{device_id}")
+
+    # Seed test data using Flutter
+    UI.important("Seeding test data on device #{device_id}...")
+    sh("cd ../.. && flutter run -d #{device_id} android/fastlane/test_data_seeder.dart")
+
+    UI.success("Test data seeded successfully")
+
+    # Give the app a moment to save data
+    sleep(2)
+
     # Capture screenshots using Screengrab
     # Trying to use screengrab directly without manual extraction fallback
     screengrab(
