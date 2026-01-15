@@ -9,7 +9,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -37,15 +39,14 @@ public class TestDataHelper {
         // Create sample webspaces
         List<String> webspaces = createSampleWebspaces();
 
-        // Convert lists to JSON arrays as strings
-        JSONArray sitesArray = new JSONArray(sites);
-        JSONArray webspacesArray = new JSONArray(webspaces);
+        // Convert lists to Sets (Flutter's shared_preferences uses StringSet on Android)
+        Set<String> sitesSet = new HashSet<>(sites);
+        Set<String> webspacesSet = new HashSet<>(webspaces);
 
         // Save to SharedPreferences
-        // Flutter's shared_preferences plugin stores StringLists as VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu style
-        // We need to save them as individual strings with the VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu prefix
-        editor.putString(KEY_PREFIX + "webViewModels", "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu" + sitesArray.toString());
-        editor.putString(KEY_PREFIX + "webspaces", "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu" + webspacesArray.toString());
+        // Flutter's shared_preferences plugin stores List<String> as StringSet on Android
+        editor.putStringSet(KEY_PREFIX + "webViewModels", sitesSet);
+        editor.putStringSet(KEY_PREFIX + "webspaces", webspacesSet);
         editor.putString(KEY_PREFIX + "selectedWebspaceId", "__all_webspace__");
         editor.putInt(KEY_PREFIX + "currentIndex", 10000); // No site selected initially
         editor.putInt(KEY_PREFIX + "themeMode", 0); // Light theme
@@ -53,8 +54,16 @@ public class TestDataHelper {
 
         editor.commit(); // Use commit() for synchronous write to ensure data is persisted before test runs
         Log.d(TAG, "Test data seeded successfully");
-        Log.d(TAG, "Sites: " + sitesArray.toString());
-        Log.d(TAG, "Webspaces: " + webspacesArray.toString());
+        Log.d(TAG, "Sites count: " + sitesSet.size());
+        Log.d(TAG, "Webspaces count: " + webspacesSet.size());
+
+        // Log first site as example
+        if (!sites.isEmpty()) {
+            Log.d(TAG, "Example site: " + sites.get(0));
+        }
+        if (!webspaces.isEmpty()) {
+            Log.d(TAG, "Example webspace: " + webspaces.get(0));
+        }
     }
 
     /**
