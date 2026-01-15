@@ -24,23 +24,15 @@ Successfully implemented automated screenshot generation for Android. Initial is
   - Captures screenshots with `Screengrab.screenshot("01-main-screen")`
   - Uses AndroidX test runner: `androidx.test.runner.AndroidJUnitRunner`
 
-#### 2. Screenshot Extraction Script (NO LONGER NEEDED)
-- **File**: `android/fastlane/extract_screenshots.sh`
-- **Status**: **NOT REQUIRED** with correct Ruby version (<3)
-- **Historical Context**: This script was created to work around what appeared to be Screengrab path detection and permission issues on Android 13+. However, the real issue was **Ruby version incompatibility** (Ruby 4 vs Fastlane's requirement of Ruby <3). With correct Ruby version, Fastlane's built-in screenshot pulling works perfectly.
-- **Kept for**: Reference only, in case users encounter similar issues
-- **Note**: If screenshot pulling fails, first check Ruby version before using manual extraction
-
-#### 3. Fastlane Configuration
+#### 2. Fastlane Configuration
 - **File**: `android/fastlane/Fastfile`
 - **Screenshots Lane**:
   - Builds Fmain flavor debug APKs
   - Builds androidTest APK
-  - Runs Screengrab
-  - Automatically falls back to manual extraction script when Screengrab fails to pull screenshots
+  - Runs Screengrab to capture and pull screenshots
 - **Output**: `fastlane/metadata/android/en-US/images/phoneScreenshots/` (root fastlane directory)
 
-#### 4. Screengrab Configuration
+#### 3. Screengrab Configuration
 - **File**: `android/fastlane/Screengrabfile`
 - **Configuration**:
   - App package: `org.codeberg.theoden8.webspace`
@@ -49,7 +41,7 @@ Successfully implemented automated screenshot generation for Android. Initial is
   - Locales: `en-US`
   - Output: `./fastlane/metadata/android/en-US/images/phoneScreenshots`
 
-#### 5. Permissions Configuration
+#### 4. Permissions Configuration
 
 **Debug Manifest** (`android/app/src/debug/AndroidManifest.xml`):
 ```xml
@@ -212,8 +204,7 @@ fastlane/                                    # Root fastlane directory (shared)
 android/
 ├── fastlane/
 │   ├── Fastfile                            # Android lanes
-│   ├── Screengrabfile                      # Screengrab configuration
-│   └── extract_screenshots.sh              # Android 13+ extraction script
+│   └── Screengrabfile                      # Screengrab configuration
 └── app/
     └── src/
         ├── androidTest/
@@ -244,28 +235,24 @@ All commits from this work (chronological order):
 5. Add storage permissions for screenshot capture
 6. Remove maxSdkVersion from storage permissions
 7. Add requestLegacyExternalStorage to main manifest
-8. Create extract_screenshots.sh for Android 13+ manual extraction
-9. Update Fastfile to automatically run extraction script on Screengrab failure
-10. Fix screenshot extraction and move output to root fastlane directory
-11. Fix extract_screenshots.sh path in Fastfile
-12. Strip directory structure when extracting screenshots
-13. Fix script path resolution for extract_screenshots.sh
-14. Fix tar archive to extract screenshots without extra directory (FINAL ANDROID FIX)
+8-14. ~~Extraction script workarounds~~ (obsolete - issue was Ruby version incompatibility)
 15. Configure iOS screenshot paths to use root fastlane directory
 16. Fix iOS snapshot workspace path configuration
 17. Add project fallback to iOS Snapfile configuration
 
 **Final commit**: `51b6373` - "Add project fallback to iOS Snapfile configuration"
 
+**Note**: Commits 8-14 created a manual extraction script to work around what appeared to be Android 13+ limitations. These were later determined to be unnecessary - the root cause was Ruby version incompatibility (Ruby 4 vs requirement of Ruby <3). With correct Ruby version, Fastlane's Screengrab works without manual extraction.
+
 ## Testing Status
 
 ### Android
-✅ **Working on Linux**
+✅ **Working on Linux** (with Ruby <3)
 - Test execution: Working
 - Screenshot capture: Working
-- Screenshot extraction: Working (with manual script)
+- Screenshot extraction: Working (automatic via Fastlane)
 - Output location: Correct (`fastlane/metadata/android/en-US/images/phoneScreenshots/`)
-- Directory structure: Correct (no extra nested directories)
+- Ruby version: Must use Ruby <3 for Fastlane compatibility
 
 ### iOS
 ❌ **Incomplete - Requires macOS**
