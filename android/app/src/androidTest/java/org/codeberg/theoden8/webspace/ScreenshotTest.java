@@ -39,9 +39,10 @@ import tools.fastlane.screengrab.locale.LocaleTestRule;
 public class ScreenshotTest {
 
     private static final String TAG = "ScreenshotTest";
-    private static final int SHORT_DELAY = 800;
-    private static final int MEDIUM_DELAY = 1500;
-    private static final int LONG_DELAY = 2500;
+    private static final int SHORT_DELAY = 1000;
+    private static final int MEDIUM_DELAY = 2000;
+    private static final int LONG_DELAY = 4000;
+    private static final int APP_LOAD_DELAY = 5000;  // Extra time for Flutter to load and seed data
     private static final String PACKAGE_NAME = "org.codeberg.theoden8.webspace";
 
     @ClassRule
@@ -79,9 +80,10 @@ public class ScreenshotTest {
             context.startActivity(intent);
         }
 
-        // Wait for app to fully load
+        // Wait for app to fully load and seed demo data
         device.wait(Until.hasObject(By.pkg(PACKAGE_NAME).depth(0)), 10000);
-        Thread.sleep(LONG_DELAY);
+        Log.d(TAG, "App launched, waiting for Flutter to initialize and seed data...");
+        Thread.sleep(APP_LOAD_DELAY);
 
         Log.d(TAG, "Setup complete - Flutter should have seeded demo data on startup");
     }
@@ -123,8 +125,19 @@ public class ScreenshotTest {
 
         // Open drawer to see site list
         Log.d(TAG, "Opening drawer");
-        swipeFromLeftEdge();
-        Thread.sleep(MEDIUM_DELAY);
+        boolean drawerOpened = openDrawer();
+        if (!drawerOpened) {
+            Log.w(TAG, "Failed to open drawer, trying alternative method...");
+            // Try pressing menu/hamburger button if swipe didn't work
+            UiObject2 menuButton = device.findObject(By.desc("Open navigation drawer"));
+            if (menuButton == null) {
+                menuButton = device.findObject(By.desc("Open drawer"));
+            }
+            if (menuButton != null) {
+                menuButton.click();
+                Thread.sleep(MEDIUM_DELAY);
+            }
+        }
 
         // Screenshot 3: Drawer with sites list
         Log.d(TAG, "Capturing sites drawer");
@@ -156,8 +169,8 @@ public class ScreenshotTest {
             Thread.sleep(MEDIUM_DELAY);
 
             // Open drawer again
-            swipeFromLeftEdge();
-            Thread.sleep(MEDIUM_DELAY);
+            Log.d(TAG, "Opening drawer to show current site");
+            openDrawer();
 
             // Screenshot 5: Drawer showing current site
             Screengrab.screenshot("05-drawer-with-site");
@@ -174,8 +187,8 @@ public class ScreenshotTest {
         }
 
         // Try to navigate to webspaces list
-        swipeFromLeftEdge();
-        Thread.sleep(MEDIUM_DELAY);
+        Log.d(TAG, "Opening drawer to navigate to webspaces");
+        openDrawer();
 
         UiObject2 webspacesButton = device.findObject(By.text("Back to Webspaces"));
         if (webspacesButton == null) {
@@ -203,8 +216,8 @@ public class ScreenshotTest {
                 Thread.sleep(MEDIUM_DELAY);
 
                 // Open drawer
-                swipeFromLeftEdge();
-                Thread.sleep(MEDIUM_DELAY);
+                Log.d(TAG, "Opening drawer for Work webspace");
+                openDrawer();
 
                 // Screenshot 8: Work webspace drawer
                 Screengrab.screenshot("08-work-sites-drawer");
@@ -228,6 +241,27 @@ public class ScreenshotTest {
         int width = device.getDisplayWidth();
         int height = device.getDisplayHeight();
         device.swipe(0, height / 2, width / 3, height / 2, 20);
+    }
+
+    /**
+     * Open the navigation drawer, returning true if successful
+     */
+    private boolean openDrawer() throws Exception {
+        // Try swipe gesture
+        swipeFromLeftEdge();
+        Thread.sleep(MEDIUM_DELAY);
+
+        // Check if drawer is open by looking for drawer-specific elements
+        // The drawer should show site names or navigation items
+        UiObject2 drawerIndicator = device.findObject(By.text("My Blog"));
+        if (drawerIndicator == null) {
+            drawerIndicator = device.findObject(By.text("Tasks"));
+        }
+        if (drawerIndicator == null) {
+            drawerIndicator = device.findObject(By.text("Notes"));
+        }
+
+        return drawerIndicator != null;
     }
 
     /**
