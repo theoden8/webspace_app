@@ -3,8 +3,10 @@
 ## Question
 Can Fastlane's Screengrab automatically pull screenshots on Android 13+, or is the manual extraction workaround necessary?
 
-## TL;DR
-**The manual extraction script is a valid and necessary workaround.** The project was already using the latest `tools.fastlane:screengrab` library version (2.1.1, released Oct 2021). The issues are real Screengrab tooling limitations, not configuration problems or outdated dependencies.
+## TL;DR - ROOT CAUSE FOUND
+**The issue was Ruby version incompatibility, not Android 13+ limitations.** The user was using Ruby 4, but Fastlane >2.211 only supports Ruby <3. With the correct Ruby version, Fastlane's Screengrab works perfectly and pulls screenshots automatically without any manual extraction needed.
+
+All the "Android 13+ limitations" and Screengrab tooling issues documented below were actually symptoms of Fastlane malfunctioning due to Ruby version incompatibility.
 
 ## Research Findings
 
@@ -100,6 +102,27 @@ The project was already using `tools.fastlane:screengrab:2.1.1`, which is the **
 
 **Conclusion:**
 The manual extraction script addresses real limitations in the screengrab library, not outdated code. Version 2.1.1 is the current and only actively maintained version available on Maven Central.
+
+## RESOLUTION: Ruby Version Incompatibility
+
+After extensive investigation into Android 13+ limitations, Screengrab tooling issues, and path mismatches, the **actual root cause** was discovered:
+
+**Problem**: Using Ruby 4 with Fastlane >2.211
+**Fastlane Requirement**: Ruby <3 (version 2.x)
+**Symptom**: Fastlane malfunctioned, causing it to fail to pull screenshots despite tests succeeding
+
+### What Actually Happened
+
+1. Tests ran successfully and screenshots were captured correctly
+2. Fastlane attempted to pull screenshots but failed due to Ruby incompatibility causing internal errors
+3. Error messages suggested Android permission issues, but these were red herrings
+4. With correct Ruby version (<3), Fastlane's built-in run-as logic works perfectly
+
+### Conclusion
+
+**No manual extraction script is needed.** The extract_screenshots.sh workaround was solving a symptom of Ruby version incompatibility, not a real Android or Screengrab limitation.
+
+**Lesson Learned**: Always check environment/dependency compatibility before investigating complex platform-specific issues.
 
 ## Sources
 
