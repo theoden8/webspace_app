@@ -135,19 +135,7 @@ public class ScreenshotTest {
         Log.d(TAG, "Opening drawer");
         boolean drawerOpened = openDrawer();
         if (!drawerOpened) {
-            Log.w(TAG, "Failed to open drawer, trying alternative method...");
-            // Try pressing menu/hamburger button if swipe didn't work
-            UiObject2 menuButton = findElement("Open navigation drawer");
-            if (menuButton == null) {
-                menuButton = findElement("Open drawer");
-            }
-            if (menuButton != null) {
-                Log.d(TAG, "Found menu button, clicking...");
-                menuButton.click();
-                Thread.sleep(MEDIUM_DELAY);
-            } else {
-                Log.w(TAG, "No menu button found either");
-            }
+            Log.w(TAG, "Drawer failed to open - skipping drawer screenshots");
         }
 
         // Screenshot 3: Drawer with sites list
@@ -257,9 +245,38 @@ public class ScreenshotTest {
      * Open the navigation drawer, returning true if successful
      */
     private boolean openDrawer() throws Exception {
-        // Try swipe gesture
-        swipeFromLeftEdge();
-        Thread.sleep(MEDIUM_DELAY);
+        // First try to find and click the hamburger menu button
+        // Flutter apps typically have this as a clickable element
+        Log.d(TAG, "Looking for hamburger menu button...");
+
+        // Try various descriptions Flutter might use
+        String[] menuDescriptions = {
+            "Open navigation menu",
+            "Open drawer",
+            "Navigation menu",
+            "Menu",
+            "Open navigation drawer"
+        };
+
+        UiObject2 menuButton = null;
+        for (String desc : menuDescriptions) {
+            menuButton = device.findObject(By.desc(desc));
+            if (menuButton != null) {
+                Log.d(TAG, "Found menu button with description: " + desc);
+                break;
+            }
+        }
+
+        if (menuButton != null) {
+            Log.d(TAG, "Clicking menu button...");
+            menuButton.click();
+            Thread.sleep(MEDIUM_DELAY);
+        } else {
+            // Fallback to swipe gesture
+            Log.d(TAG, "Menu button not found, trying swipe gesture...");
+            swipeFromLeftEdge();
+            Thread.sleep(MEDIUM_DELAY);
+        }
 
         // Check if drawer is open by looking for drawer-specific elements
         // The drawer should show site names or navigation items
@@ -271,7 +288,9 @@ public class ScreenshotTest {
             drawerIndicator = findElement("Notes");
         }
 
-        return drawerIndicator != null;
+        boolean isOpen = drawerIndicator != null;
+        Log.d(TAG, "Drawer open: " + isOpen);
+        return isOpen;
     }
 
     /**
