@@ -183,19 +183,26 @@ void main() async {
 
   // Check if we should seed demo data (for screenshot tests)
   // The Android test sets this via Intent extras: --ez DEMO_MODE true
+  print('Checking for DEMO_MODE flag...');
   final binding = WidgetsBinding.instance;
   if (binding is WidgetsFlutterBinding) {
     try {
+      print('Calling getDemoMode method channel...');
       final demoMode = await const MethodChannel('app.channel').invokeMethod<bool>('getDemoMode') ?? false;
+      print('getDemoMode returned: $demoMode');
       if (demoMode) {
         print('DEMO_MODE enabled - seeding demo data');
         await seedDemoData();
+      } else {
+        print('DEMO_MODE is false, not seeding data');
       }
-    } catch (e) {
-      // Not in demo mode or method not implemented
+    } catch (e, stackTrace) {
+      print('ERROR checking DEMO_MODE: $e');
+      print('Stack trace: $stackTrace');
     }
   }
 
+  print('Starting app...');
   runApp(WebSpaceApp());
 }
 
