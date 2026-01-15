@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -7,6 +9,7 @@ import 'package:webspace/webspace_model.dart';
 /// Run this with: flutter run -d <device> test_data_seeder.dart
 /// Then the data will be persisted for the screenshot test to use.
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   print('========================================');
   print('SEEDING TEST DATA FOR SCREENSHOTS');
   print('========================================');
@@ -109,4 +112,35 @@ void main() async {
   print('');
   print('Now you can run the screenshot tests and the data will be available.');
   print('The app will load with ${sites.length} sites in ${webspaces.length} webspaces.');
+
+  // Run a minimal app that exits after seeding
+  runApp(
+    MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) {
+            // Exit after a short delay to ensure SharedPreferences is flushed
+            Future.delayed(Duration(seconds: 1), () {
+              exit(0);
+            });
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 64),
+                  SizedBox(height: 16),
+                  Text(
+                    'Test Data Seeded Successfully',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Text('${sites.length} sites in ${webspaces.length} webspaces'),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    ),
+  );
 }
