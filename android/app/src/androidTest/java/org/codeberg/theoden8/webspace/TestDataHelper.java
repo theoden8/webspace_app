@@ -11,6 +11,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -28,42 +29,58 @@ public class TestDataHelper {
      * Creates multiple sites organized into webspaces.
      */
     public static void seedTestData(Context context) throws JSONException {
-        Log.d(TAG, "Seeding test data");
+        Log.d(TAG, "========================================");
+        Log.d(TAG, "STARTING DATA SEEDING");
+        Log.d(TAG, "========================================");
 
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        Log.d(TAG, "SharedPreferences name: " + PREFS_NAME);
+        Log.d(TAG, "Key prefix: " + KEY_PREFIX);
+
         SharedPreferences.Editor editor = prefs.edit();
 
         // Create sample sites
+        Log.d(TAG, "Creating sample sites...");
         List<String> sites = createSampleSites();
+        Log.d(TAG, "Created " + sites.size() + " sites");
+        for (int i = 0; i < sites.size(); i++) {
+            Log.d(TAG, "Site " + i + ": " + sites.get(i));
+        }
 
         // Create sample webspaces
+        Log.d(TAG, "Creating sample webspaces...");
         List<String> webspaces = createSampleWebspaces();
+        Log.d(TAG, "Created " + webspaces.size() + " webspaces");
+        for (int i = 0; i < webspaces.size(); i++) {
+            Log.d(TAG, "Webspace " + i + ": " + webspaces.get(i));
+        }
 
         // Convert lists to Sets (Flutter's shared_preferences uses StringSet on Android)
         Set<String> sitesSet = new HashSet<>(sites);
         Set<String> webspacesSet = new HashSet<>(webspaces);
 
+        Log.d(TAG, "Converting to Sets - sites: " + sitesSet.size() + ", webspaces: " + webspacesSet.size());
+
         // Save to SharedPreferences
-        // Flutter's shared_preferences plugin stores List<String> as StringSet on Android
+        Log.d(TAG, "Writing to SharedPreferences...");
+        Log.d(TAG, "Key for sites: " + KEY_PREFIX + "webViewModels");
+        Log.d(TAG, "Key for webspaces: " + KEY_PREFIX + "webspaces");
+
         editor.putStringSet(KEY_PREFIX + "webViewModels", sitesSet);
         editor.putStringSet(KEY_PREFIX + "webspaces", webspacesSet);
         editor.putString(KEY_PREFIX + "selectedWebspaceId", "__all_webspace__");
-        editor.putInt(KEY_PREFIX + "currentIndex", 10000); // No site selected initially
-        editor.putInt(KEY_PREFIX + "themeMode", 0); // Light theme
+        editor.putInt(KEY_PREFIX + "currentIndex", 10000);
+        editor.putInt(KEY_PREFIX + "themeMode", 0);
         editor.putBoolean(KEY_PREFIX + "showUrlBar", false);
 
-        editor.commit(); // Use commit() for synchronous write to ensure data is persisted before test runs
-        Log.d(TAG, "Test data seeded successfully");
-        Log.d(TAG, "Sites count: " + sitesSet.size());
-        Log.d(TAG, "Webspaces count: " + webspacesSet.size());
+        boolean commitResult = editor.commit();
+        Log.d(TAG, "Commit result: " + commitResult);
 
-        // Log first site as example
-        if (!sites.isEmpty()) {
-            Log.d(TAG, "Example site: " + sites.get(0));
-        }
-        if (!webspaces.isEmpty()) {
-            Log.d(TAG, "Example webspace: " + webspaces.get(0));
-        }
+        // Verify the data was written
+        Log.d(TAG, "========================================");
+        Log.d(TAG, "VERIFYING DATA PERSISTENCE");
+        Log.d(TAG, "========================================");
+        verifyData(context);
     }
 
     /**
@@ -218,13 +235,82 @@ public class TestDataHelper {
     }
 
     /**
+     * Verifies that data was written correctly to SharedPreferences.
+     */
+    public static void verifyData(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+
+        // List all keys in SharedPreferences
+        Log.d(TAG, "All keys in SharedPreferences:");
+        for (String key : prefs.getAll().keySet()) {
+            Object value = prefs.getAll().get(key);
+            String valueType = value != null ? value.getClass().getSimpleName() : "null";
+            Log.d(TAG, "  Key: " + key + " (type: " + valueType + ")");
+
+            if (value instanceof Set) {
+                Set<?> set = (Set<?>) value;
+                Log.d(TAG, "    Set size: " + set.size());
+                int i = 0;
+                for (Object item : set) {
+                    if (i < 3) { // Log first 3 items
+                        Log.d(TAG, "    Item " + i + ": " + item);
+                    }
+                    i++;
+                }
+                if (set.size() > 3) {
+                    Log.d(TAG, "    ... and " + (set.size() - 3) + " more items");
+                }
+            } else {
+                Log.d(TAG, "    Value: " + value);
+            }
+        }
+
+        // Check specific keys
+        Log.d(TAG, "Checking specific keys:");
+        Set<String> sites = prefs.getStringSet(KEY_PREFIX + "webViewModels", null);
+        Set<String> webspaces = prefs.getStringSet(KEY_PREFIX + "webspaces", null);
+        String selectedId = prefs.getString(KEY_PREFIX + "selectedWebspaceId", null);
+        int currentIndex = prefs.getInt(KEY_PREFIX + "currentIndex", -1);
+        int themeMode = prefs.getInt(KEY_PREFIX + "themeMode", -1);
+        boolean showUrlBar = prefs.getBoolean(KEY_PREFIX + "showUrlBar", false);
+
+        Log.d(TAG, "webViewModels: " + (sites != null ? sites.size() + " items" : "NULL"));
+        Log.d(TAG, "webspaces: " + (webspaces != null ? webspaces.size() + " items" : "NULL"));
+        Log.d(TAG, "selectedWebspaceId: " + selectedId);
+        Log.d(TAG, "currentIndex: " + currentIndex);
+        Log.d(TAG, "themeMode: " + themeMode);
+        Log.d(TAG, "showUrlBar: " + showUrlBar);
+
+        if (sites == null || sites.isEmpty()) {
+            Log.e(TAG, "ERROR: No sites found in SharedPreferences!");
+        }
+        if (webspaces == null || webspaces.isEmpty()) {
+            Log.e(TAG, "ERROR: No webspaces found in SharedPreferences!");
+        }
+
+        Log.d(TAG, "========================================");
+    }
+
+    /**
      * Clears all test data from SharedPreferences.
      */
     public static void clearTestData(Context context) {
-        Log.d(TAG, "Clearing test data");
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
+        Log.d(TAG, "========================================");
+        Log.d(TAG, "CLEARING TEST DATA");
+        Log.d(TAG, "========================================");
 
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+
+        // Log what we're about to clear
+        Log.d(TAG, "Keys to remove:");
+        Log.d(TAG, "  - " + KEY_PREFIX + "webViewModels");
+        Log.d(TAG, "  - " + KEY_PREFIX + "webspaces");
+        Log.d(TAG, "  - " + KEY_PREFIX + "selectedWebspaceId");
+        Log.d(TAG, "  - " + KEY_PREFIX + "currentIndex");
+        Log.d(TAG, "  - " + KEY_PREFIX + "themeMode");
+        Log.d(TAG, "  - " + KEY_PREFIX + "showUrlBar");
+
+        SharedPreferences.Editor editor = prefs.edit();
         editor.remove(KEY_PREFIX + "webViewModels");
         editor.remove(KEY_PREFIX + "webspaces");
         editor.remove(KEY_PREFIX + "selectedWebspaceId");
@@ -232,7 +318,9 @@ public class TestDataHelper {
         editor.remove(KEY_PREFIX + "themeMode");
         editor.remove(KEY_PREFIX + "showUrlBar");
 
-        editor.apply();
+        boolean commitResult = editor.commit();
+        Log.d(TAG, "Clear commit result: " + commitResult);
         Log.d(TAG, "Test data cleared");
+        Log.d(TAG, "========================================");
     }
 }

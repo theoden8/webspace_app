@@ -13,6 +13,8 @@ import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -78,12 +80,23 @@ public class ScreenshotTest {
         device.wait(Until.hasObject(By.pkg(PACKAGE_NAME).depth(0)), 10000);
         Thread.sleep(LONG_DELAY);
 
+        Log.d(TAG, "========================================");
+        Log.d(TAG, "APP LAUNCHED - VERIFYING DATA AGAIN");
+        Log.d(TAG, "========================================");
+        TestDataHelper.verifyData(context);
+
         Log.d(TAG, "Setup complete");
     }
 
     @Test
     public void takeScreenshots() throws Exception {
-        Log.d(TAG, "Starting screenshot tour");
+        Log.d(TAG, "========================================");
+        Log.d(TAG, "STARTING SCREENSHOT TOUR");
+        Log.d(TAG, "========================================");
+
+        // Log visible text on screen
+        Log.d(TAG, "Searching for text elements on screen...");
+        logVisibleText();
 
         // Screenshot 1: Main screen with webspaces or sites
         Log.d(TAG, "Capturing main screen");
@@ -91,6 +104,7 @@ public class ScreenshotTest {
         Thread.sleep(MEDIUM_DELAY);
 
         // Look for webspace items (Work, Home Server, Personal)
+        Log.d(TAG, "Looking for 'Work' webspace...");
         UiObject2 workWebspace = device.wait(Until.findObject(By.text("Work")), 5000);
 
         if (workWebspace != null) {
@@ -219,5 +233,40 @@ public class ScreenshotTest {
         if (fab != null) return fab;
 
         return null;
+    }
+
+    /**
+     * Log visible text elements on screen for debugging
+     */
+    private void logVisibleText() {
+        Log.d(TAG, "Visible text elements:");
+
+        // Find all TextViews
+        List<UiObject2> textViews = device.findObjects(By.clazz("android.widget.TextView"));
+        Log.d(TAG, "Found " + textViews.size() + " TextViews");
+        for (int i = 0; i < Math.min(textViews.size(), 20); i++) {
+            UiObject2 tv = textViews.get(i);
+            String text = tv.getText();
+            if (text != null && !text.trim().isEmpty()) {
+                Log.d(TAG, "  TextView " + i + ": '" + text + "'");
+            }
+        }
+
+        // Find all Buttons
+        List<UiObject2> buttons = device.findObjects(By.clazz("android.widget.Button"));
+        Log.d(TAG, "Found " + buttons.size() + " Buttons");
+        for (int i = 0; i < Math.min(buttons.size(), 10); i++) {
+            UiObject2 btn = buttons.get(i);
+            String text = btn.getText();
+            String desc = btn.getContentDescription();
+            Log.d(TAG, "  Button " + i + ": text='" + text + "', desc='" + desc + "'");
+        }
+
+        // Check for specific expected text
+        String[] expectedTexts = {"Work", "Home Server", "Personal", "All", "My Blog", "Tasks", "Notes"};
+        for (String expectedText : expectedTexts) {
+            UiObject2 obj = device.findObject(By.text(expectedText));
+            Log.d(TAG, "  Looking for '" + expectedText + "': " + (obj != null ? "FOUND" : "NOT FOUND"));
+        }
     }
 }
