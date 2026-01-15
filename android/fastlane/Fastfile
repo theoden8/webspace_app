@@ -89,10 +89,10 @@ platform :android do
       locales: ["en-US"],
       clear_previous_screenshots: true,
       reinstall_app: true,  # Uninstall and reinstall app for clean state
-      output_directory: "fastlane/metadata/android/en-US/images/phoneScreenshots",
+      output_directory: File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots"),
       device_type: "phone",
-      app_apk_path: "build/app/outputs/flutter-apk/app-fmain-debug.apk",
-      tests_apk_path: "build/app/outputs/apk/androidTest/fmain/debug/app-fmain-debug-androidTest.apk"
+      app_apk_path: File.join(project_root, "build", "app", "outputs", "flutter-apk", "app-fmain-debug.apk"),
+      tests_apk_path: File.join(android_dir, "app", "build", "outputs", "apk", "androidTest", "fmain", "debug", "app-fmain-debug-androidTest.apk")
     )
   end
 
