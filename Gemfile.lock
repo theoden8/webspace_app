@@ -230,8 +230,11 @@ PLATFORMS
 
 DEPENDENCIES
   abbrev
-  fastlane (= 2.230.0)
+  fastlane
   ostruct
+
+RUBY VERSION
+   ruby 2.7.8p225
 
 BUNDLED WITH
    2.4.10
