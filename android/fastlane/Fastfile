@@ -4,74 +4,40 @@
 default_platform(:android)
 
 platform :android do
-  # Helper to determine android directory
-  def android_project_dir
-    # Check if we're already in the android project directory
-    # by looking for Android-specific files
-    has_app_gradle = File.exist?("app/build.gradle")
-    has_settings = File.exist?("settings.gradle")
+  # Helper to get consistent paths regardless of where fastlane is run from
+  # This Fastfile is always at android/fastlane/Fastfile
+  def android_dir
+    File.expand_path("..", __dir__)
+  end
 
-    UI.message("Debug: Checking android project dir")
-    UI.message("  Current dir: #{Dir.pwd}")
-    UI.message("  app/build.gradle exists: #{has_app_gradle}")
-    UI.message("  settings.gradle exists: #{has_settings}")
-
-    if has_app_gradle || has_settings
-      UI.message("  -> Using current directory (.)")
-      "."
-    else
-      UI.message("  -> Using android subdirectory")
-      "android"
-    end
+  def project_root
+    File.expand_path("../..", __dir__)
   end
 
   desc "Runs all the tests"
   lane :test do
-    gradle(
-      task: "test",
-      project_dir: android_project_dir
-    )
+    sh("cd '#{android_dir}' && ./gradlew test")
   end
 
   desc "Build debug APK"
   lane :build_debug do
-    gradle(
-      task: "assemble",
-      flavor: "Fdebug",
-      build_type: "Debug",
-      project_dir: android_project_dir
-    )
+    sh("cd '#{project_root}' && flutter build apk --debug --flavor fdebug")
   end
 
   desc "Build F-Droid flavor APK"
   lane :build_fdroid do
-    gradle(
-      task: "assemble",
-      flavor: "Fdroid",
-      build_type: "Release",
-      project_dir: android_project_dir
-    )
+    sh("cd '#{project_root}' && flutter build apk --release --flavor fdroid")
   end
 
   desc "Build release APK (Fmain flavor)"
   lane :build_release do
-    gradle(
-      task: "assemble",
-      flavor: "Fmain",
-      build_type: "Release",
-      project_dir: android_project_dir
-    )
+    sh("cd '#{project_root}' && flutter build apk --release --flavor fmain")
   end
 
 
   desc "Build release AAB (Android App Bundle)"
   lane :build_bundle do
-    gradle(
-      task: "bundle",
-      flavor: "Fmain",
-      build_type: "Release",
-      project_dir: android_project_dir
-    )
+    sh("cd '#{project_root}' && flutter build appbundle --release --flavor fmain")
   end
 
   desc "Build Android app (alias for build_release)"
@@ -82,33 +48,21 @@ platform :android do
   desc "Increment version in pubspec.yaml"
   lane :bump_version do
     # Version is managed in pubspec.yaml for Flutter projects
-    sh("cd ../.. && flutter pub version")
+    sh("cd '#{project_root}' && flutter pub version")
   end
 
   desc "Build test APKs and generate screenshots"
   lane :screenshots do
-    # Build APKs using flutter build instead of gradle directly
-    # This avoids all the path detection issues
     UI.message("Building APKs with flutter build...")
-
-    # Get project root - this Fastfile is always at android/fastlane/Fastfile
-    # regardless of whether it's run directly or imported from root Fastfile
-    # __dir__ gives the directory containing this file (android/fastlane/)
-    fastfile_dir = __dir__
-
-    # Verify we're in the right place
-    unless File.exist?(File.join(fastfile_dir, "..", "gradlew"))
-      UI.user_error!("Expected to find gradlew in android/ directory. Fastfile location: #{fastfile_dir}")
-    end
-
-    android_dir = File.expand_path("..", fastfile_dir)
-    project_root = File.expand_path("../..", fastfile_dir)
-
     UI.message("Current working directory: #{Dir.pwd}")
-    UI.message("Fastfile location: #{fastfile_dir}")
+    UI.message("Fastfile location: #{__dir__}")
     UI.message("Android dir: #{android_dir}")
     UI.message("Project root: #{project_root}")
-    UI.message("gradlew exists: #{File.exist?(File.join(android_dir, "gradlew"))}")
+
+    # Verify we're in the right place
+    unless File.exist?(File.join(android_dir, "gradlew"))
+      UI.user_error!("Expected to find gradlew in android/ directory: #{android_dir}")
+    end
 
     sh("cd '#{project_root}' && flutter build apk --debug --flavor fmain")
     sh("cd '#{android_dir}' && ./gradlew assembleFmainDebugAndroidTest")
@@ -144,9 +98,7 @@ platform :android do
 
   desc "Clean build artifacts"
   lane :clean do
-    gradle(
-      task: "clean",
-      project_dir: android_project_dir
-    )
+    sh("cd '#{android_dir}' && ./gradlew clean")
+    sh("cd '#{project_root}' && flutter clean")
   end
 end
