@@ -19,6 +19,7 @@ import java.util.UUID;
 public class TestDataHelper {
     private static final String TAG = "TestDataHelper";
     private static final String PREFS_NAME = "FlutterSharedPreferences";
+    private static final String KEY_PREFIX = "flutter.";
 
     /**
      * Seeds the app with realistic test data for screenshots.
@@ -36,16 +37,24 @@ public class TestDataHelper {
         // Create sample webspaces
         List<String> webspaces = createSampleWebspaces();
 
-        // Save to SharedPreferences with Flutter's key prefix
-        editor.putString("flutter.webViewModels", new JSONArray(sites).toString());
-        editor.putString("flutter.webspaces", new JSONArray(webspaces).toString());
-        editor.putString("flutter.selectedWebspaceId", "webspace_all");
-        editor.putInt("flutter.currentIndex", 10000); // No site selected initially
-        editor.putInt("flutter.themeMode", 0); // Light theme
-        editor.putBoolean("flutter.showUrlBar", false);
+        // Convert lists to JSON arrays as strings
+        JSONArray sitesArray = new JSONArray(sites);
+        JSONArray webspacesArray = new JSONArray(webspaces);
 
-        editor.apply();
+        // Save to SharedPreferences
+        // Flutter's shared_preferences plugin stores StringLists as VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu style
+        // We need to save them as individual strings with the VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu prefix
+        editor.putString(KEY_PREFIX + "webViewModels", "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu" + sitesArray.toString());
+        editor.putString(KEY_PREFIX + "webspaces", "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu" + webspacesArray.toString());
+        editor.putString(KEY_PREFIX + "selectedWebspaceId", "__all_webspace__");
+        editor.putInt(KEY_PREFIX + "currentIndex", 10000); // No site selected initially
+        editor.putInt(KEY_PREFIX + "themeMode", 0); // Light theme
+        editor.putBoolean(KEY_PREFIX + "showUrlBar", false);
+
+        editor.commit(); // Use commit() for synchronous write to ensure data is persisted before test runs
         Log.d(TAG, "Test data seeded successfully");
+        Log.d(TAG, "Sites: " + sitesArray.toString());
+        Log.d(TAG, "Webspaces: " + webspacesArray.toString());
     }
 
     /**
@@ -120,9 +129,9 @@ public class TestDataHelper {
     private static List<String> createSampleWebspaces() throws JSONException {
         List<String> webspaces = new ArrayList<>();
 
-        // "All" webspace (special)
+        // "All" webspace (special) - note the app uses __all_webspace__ as the ID
         webspaces.add(createWebspace(
-            "webspace_all",
+            "__all_webspace__",
             "All",
             new int[]{} // Empty - "All" doesn't store indices
         ));
@@ -161,6 +170,17 @@ public class TestDataHelper {
         site.put("name", name);
         site.put("pageTitle", pageTitle);
         site.put("cookies", new JSONArray());
+
+        // Add proxy settings (DEFAULT type)
+        JSONObject proxySettings = new JSONObject();
+        proxySettings.put("type", "DEFAULT");
+        site.put("proxySettings", proxySettings);
+
+        // Add other WebViewModel fields
+        site.put("javascriptEnabled", true);
+        site.put("userAgent", "");
+        site.put("thirdPartyCookiesEnabled", false);
+
         return site.toString();
     }
 
@@ -196,12 +216,12 @@ public class TestDataHelper {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
 
-        editor.remove("flutter.webViewModels");
-        editor.remove("flutter.webspaces");
-        editor.remove("flutter.selectedWebspaceId");
-        editor.remove("flutter.currentIndex");
-        editor.remove("flutter.themeMode");
-        editor.remove("flutter.showUrlBar");
+        editor.remove(KEY_PREFIX + "webViewModels");
+        editor.remove(KEY_PREFIX + "webspaces");
+        editor.remove(KEY_PREFIX + "selectedWebspaceId");
+        editor.remove(KEY_PREFIX + "currentIndex");
+        editor.remove(KEY_PREFIX + "themeMode");
+        editor.remove(KEY_PREFIX + "showUrlBar");
 
         editor.apply();
         Log.d(TAG, "Test data cleared");
