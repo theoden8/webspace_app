@@ -9,10 +9,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -23,6 +20,9 @@ public class TestDataHelper {
     private static final String TAG = "TestDataHelper";
     private static final String PREFS_NAME = "FlutterSharedPreferences";
     private static final String KEY_PREFIX = "flutter.";
+
+    // Flutter's shared_preferences plugin uses this prefix for List<String> values
+    private static final String LIST_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu";
 
     /**
      * Seeds the app with realistic test data for screenshots.
@@ -55,19 +55,28 @@ public class TestDataHelper {
             Log.d(TAG, "Webspace " + i + ": " + webspaces.get(i));
         }
 
-        // Convert lists to Sets (Flutter's shared_preferences uses StringSet on Android)
-        Set<String> sitesSet = new HashSet<>(sites);
-        Set<String> webspacesSet = new HashSet<>(webspaces);
+        // Encode lists for Flutter's shared_preferences format
+        // Flutter stores List<String> as: prefix + JSON array string
+        Log.d(TAG, "Encoding lists for Flutter shared_preferences format...");
 
-        Log.d(TAG, "Converting to Sets - sites: " + sitesSet.size() + ", webspaces: " + webspacesSet.size());
+        JSONArray sitesArray = new JSONArray(sites);
+        JSONArray webspacesArray = new JSONArray(webspaces);
+
+        String sitesEncoded = LIST_PREFIX + sitesArray.toString();
+        String webspacesEncoded = LIST_PREFIX + webspacesArray.toString();
+
+        Log.d(TAG, "Encoded sites length: " + sitesEncoded.length());
+        Log.d(TAG, "Encoded webspaces length: " + webspacesEncoded.length());
+        Log.d(TAG, "Sites preview: " + sitesEncoded.substring(0, Math.min(100, sitesEncoded.length())) + "...");
+        Log.d(TAG, "Webspaces preview: " + webspacesEncoded.substring(0, Math.min(100, webspacesEncoded.length())) + "...");
 
         // Save to SharedPreferences
         Log.d(TAG, "Writing to SharedPreferences...");
         Log.d(TAG, "Key for sites: " + KEY_PREFIX + "webViewModels");
         Log.d(TAG, "Key for webspaces: " + KEY_PREFIX + "webspaces");
 
-        editor.putStringSet(KEY_PREFIX + "webViewModels", sitesSet);
-        editor.putStringSet(KEY_PREFIX + "webspaces", webspacesSet);
+        editor.putString(KEY_PREFIX + "webViewModels", sitesEncoded);
+        editor.putString(KEY_PREFIX + "webspaces", webspacesEncoded);
         editor.putString(KEY_PREFIX + "selectedWebspaceId", "__all_webspace__");
         editor.putInt(KEY_PREFIX + "currentIndex", 10000);
         editor.putInt(KEY_PREFIX + "themeMode", 0);
@@ -267,24 +276,68 @@ public class TestDataHelper {
 
         // Check specific keys
         Log.d(TAG, "Checking specific keys:");
-        Set<String> sites = prefs.getStringSet(KEY_PREFIX + "webViewModels", null);
-        Set<String> webspaces = prefs.getStringSet(KEY_PREFIX + "webspaces", null);
+
+        // Flutter stores List<String> as encoded strings with prefix
+        String sitesEncoded = prefs.getString(KEY_PREFIX + "webViewModels", null);
+        String webspacesEncoded = prefs.getString(KEY_PREFIX + "webspaces", null);
         String selectedId = prefs.getString(KEY_PREFIX + "selectedWebspaceId", null);
         int currentIndex = prefs.getInt(KEY_PREFIX + "currentIndex", -1);
         int themeMode = prefs.getInt(KEY_PREFIX + "themeMode", -1);
         boolean showUrlBar = prefs.getBoolean(KEY_PREFIX + "showUrlBar", false);
 
-        Log.d(TAG, "webViewModels: " + (sites != null ? sites.size() + " items" : "NULL"));
-        Log.d(TAG, "webspaces: " + (webspaces != null ? webspaces.size() + " items" : "NULL"));
         Log.d(TAG, "selectedWebspaceId: " + selectedId);
         Log.d(TAG, "currentIndex: " + currentIndex);
         Log.d(TAG, "themeMode: " + themeMode);
         Log.d(TAG, "showUrlBar: " + showUrlBar);
 
-        if (sites == null || sites.isEmpty()) {
+        // Decode the encoded lists
+        int sitesCount = 0;
+        int webspacesCount = 0;
+
+        if (sitesEncoded != null && sitesEncoded.startsWith(LIST_PREFIX)) {
+            try {
+                String sitesJson = sitesEncoded.substring(LIST_PREFIX.length());
+                JSONArray sitesArray = new JSONArray(sitesJson);
+                sitesCount = sitesArray.length();
+                Log.d(TAG, "webViewModels: " + sitesCount + " items (decoded from encoded string)");
+                // Log first item as example
+                if (sitesCount > 0) {
+                    Log.d(TAG, "  First site: " + sitesArray.getString(0).substring(0, Math.min(100, sitesArray.getString(0).length())));
+                }
+            } catch (JSONException e) {
+                Log.e(TAG, "ERROR: Failed to decode sites: " + e.getMessage());
+            }
+        } else {
+            Log.e(TAG, "ERROR: webViewModels is " + (sitesEncoded == null ? "NULL" : "not in expected format"));
+            if (sitesEncoded != null) {
+                Log.e(TAG, "  Value: " + sitesEncoded.substring(0, Math.min(100, sitesEncoded.length())));
+            }
+        }
+
+        if (webspacesEncoded != null && webspacesEncoded.startsWith(LIST_PREFIX)) {
+            try {
+                String webspacesJson = webspacesEncoded.substring(LIST_PREFIX.length());
+                JSONArray webspacesArray = new JSONArray(webspacesJson);
+                webspacesCount = webspacesArray.length();
+                Log.d(TAG, "webspaces: " + webspacesCount + " items (decoded from encoded string)");
+                // Log first item as example
+                if (webspacesCount > 0) {
+                    Log.d(TAG, "  First webspace: " + webspacesArray.getString(0));
+                }
+            } catch (JSONException e) {
+                Log.e(TAG, "ERROR: Failed to decode webspaces: " + e.getMessage());
+            }
+        } else {
+            Log.e(TAG, "ERROR: webspaces is " + (webspacesEncoded == null ? "NULL" : "not in expected format"));
+            if (webspacesEncoded != null) {
+                Log.e(TAG, "  Value: " + webspacesEncoded.substring(0, Math.min(100, webspacesEncoded.length())));
+            }
+        }
+
+        if (sitesCount == 0) {
             Log.e(TAG, "ERROR: No sites found in SharedPreferences!");
         }
-        if (webspaces == null || webspaces.isEmpty()) {
+        if (webspacesCount == 0) {
             Log.e(TAG, "ERROR: No webspaces found in SharedPreferences!");
         }
 
