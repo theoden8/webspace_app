@@ -178,21 +178,23 @@ Future<String?> getPageTitle(String url) async {
   return null;
 }
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set up method channel for demo data seeding (used by screenshot tests)
-  const channel = MethodChannel('com.example.webspace_app/demo_data');
-  channel.setMethodCallHandler((call) async {
-    if (call.method == 'seedDemoData') {
-      await seedDemoData();
-      return 'Demo data seeded successfully';
+  // Check if we should seed demo data (for screenshot tests)
+  // The Android test sets this via Intent extras: --ez DEMO_MODE true
+  final binding = WidgetsBinding.instance;
+  if (binding is WidgetsFlutterBinding) {
+    try {
+      final demoMode = await const MethodChannel('app.channel').invokeMethod<bool>('getDemoMode') ?? false;
+      if (demoMode) {
+        print('DEMO_MODE enabled - seeding demo data');
+        await seedDemoData();
+      }
+    } catch (e) {
+      // Not in demo mode or method not implemented
     }
-    throw PlatformException(
-      code: 'UNAVAILABLE',
-      message: 'Method ${call.method} not available',
-    );
-  });
+  }
 
   runApp(WebSpaceApp());
 }

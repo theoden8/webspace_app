@@ -94,8 +94,9 @@ platform :android do
 
     UI.success("Found device: #{device_id}")
 
-    # Note: Demo data is automatically seeded by the test via method channel
-    UI.message("Demo data will be seeded automatically by the test")
+    # Note: Demo data is automatically seeded by Flutter on app startup
+    # The test passes DEMO_MODE=true intent extra which triggers seeding
+    UI.message("Demo data will be seeded by Flutter when test launches app with DEMO_MODE flag")
 
     # Capture screenshots using Screengrab
     # Trying to use screengrab directly without manual extraction fallback

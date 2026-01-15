@@ -2,7 +2,6 @@ package org.codeberg.theoden8.webspace;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -14,16 +13,12 @@ import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
-import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import tools.fastlane.screengrab.Screengrab;
 import tools.fastlane.screengrab.UiAutomatorScreenshotStrategy;
@@ -32,8 +27,8 @@ import tools.fastlane.screengrab.locale.LocaleTestRule;
 /**
  * Screenshot test for generating F-Droid and Play Store screenshots.
  *
- * This test automatically seeds demo data by directly writing to SharedPreferences
- * before taking screenshots, so no manual data seeding is required.
+ * This test launches the app with DEMO_MODE=true intent extra, which triggers
+ * Flutter to seed demo data automatically on startup using lib/demo_data.dart.
  *
  * To run this test and generate screenshots:
  * 1. From project root: fastlane android screenshots
@@ -79,21 +74,15 @@ public class ScreenshotTest {
             Log.w(TAG, "Failed to force-stop app: " + e.getMessage());
         }
 
-        Log.d(TAG, "Seeding demo data...");
+        Log.d(TAG, "Launching app with DEMO_MODE flag...");
 
-        // Seed demo data by writing directly to SharedPreferences
-        seedDemoData();
-
-        Log.d(TAG, "Demo data seeded, waiting for persistence...");
-        Thread.sleep(1000); // Give time for data to be written to disk
-
-        Log.d(TAG, "Launching app...");
-
-        // Launch the app (after data is seeded)
+        // Launch the app with DEMO_MODE=true flag
+        // Flutter will seed the demo data on startup when it detects this flag
         Context context = ApplicationProvider.getApplicationContext();
         Intent intent = context.getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
         if (intent != null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.putExtra("DEMO_MODE", true);
             context.startActivity(intent);
         }
 
@@ -101,102 +90,7 @@ public class ScreenshotTest {
         device.wait(Until.hasObject(By.pkg(PACKAGE_NAME).depth(0)), 10000);
         Thread.sleep(LONG_DELAY);
 
-        Log.d(TAG, "Setup complete");
-    }
-
-    /**
-     * Seeds demo data by directly writing to SharedPreferences
-     */
-    private void seedDemoData() throws Exception {
-        Log.d(TAG, "Writing demo data to SharedPreferences...");
-
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        SharedPreferences prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-
-        // Clear existing data
-        editor.remove("flutter.webViewModels");
-        editor.remove("flutter.webspaces");
-        editor.remove("flutter.selectedWebspaceId");
-        editor.remove("flutter.currentIndex");
-
-        // Create demo sites as JSON strings
-        List<String> sites = new ArrayList<>();
-        sites.add(createSiteJson("https://example.com/blog", "My Blog"));
-        sites.add(createSiteJson("https://tasks.example.com", "Tasks"));
-        sites.add(createSiteJson("https://notes.example.com", "Notes"));
-        sites.add(createSiteJson("http://homeserver.local:8080", "Home Dashboard"));
-        sites.add(createSiteJson("http://192.168.1.100:3000", "Personal Wiki"));
-        sites.add(createSiteJson("http://192.168.1.101:8096", "Media Server"));
-
-        // Create demo webspaces as JSON strings
-        List<String> webspaces = new ArrayList<>();
-        webspaces.add(createWebspaceJson("all", "All", new int[]{})); // "All" shows all sites
-        webspaces.add(createWebspaceJson("webspace_work", "Work", new int[]{0, 1, 2}));
-        webspaces.add(createWebspaceJson("webspace_homeserver", "Home Server", new int[]{3, 4, 5}));
-
-        // Write sites list (Flutter uses StringSet on Android)
-        Set<String> sitesSet = new HashSet<>(sites);
-        editor.putStringSet("flutter.webViewModels", sitesSet);
-
-        // Write webspaces list
-        Set<String> webspacesSet = new HashSet<>(webspaces);
-        editor.putStringSet("flutter.webspaces", webspacesSet);
-
-        // Write selected webspace (use "all")
-        editor.putString("flutter.selectedWebspaceId", "all");
-
-        // Write current index (10000 means no site selected)
-        editor.putLong("flutter.currentIndex", 10000);
-
-        // Write theme mode (0 = light)
-        editor.putLong("flutter.themeMode", 0);
-
-        // Write URL bar visibility (false)
-        editor.putBoolean("flutter.showUrlBar", false);
-
-        // Commit changes synchronously
-        boolean success = editor.commit();
-
-        Log.d(TAG, "Demo data write " + (success ? "SUCCEEDED" : "FAILED"));
-        Log.d(TAG, "Wrote " + sites.size() + " sites, " + webspaces.size() + " webspaces");
-
-        // Verify data was written
-        Set<String> savedSites = prefs.getStringSet("flutter.webViewModels", null);
-        Set<String> savedWebspaces = prefs.getStringSet("flutter.webspaces", null);
-        String savedWebspaceId = prefs.getString("flutter.selectedWebspaceId", null);
-
-        Log.d(TAG, "Verification:");
-        Log.d(TAG, "  Sites: " + (savedSites != null ? "SET (" + savedSites.size() + " items)" : "NULL"));
-        Log.d(TAG, "  Webspaces: " + (savedWebspaces != null ? "SET (" + savedWebspaces.size() + " items)" : "NULL"));
-        Log.d(TAG, "  Selected: " + savedWebspaceId);
-
-        if (savedSites != null && !savedSites.isEmpty()) {
-            String firstSite = savedSites.iterator().next();
-            Log.d(TAG, "  First site preview: " + firstSite.substring(0, Math.min(100, firstSite.length())));
-        }
-    }
-
-    private String createSiteJson(String url, String name) throws Exception {
-        JSONObject site = new JSONObject();
-        site.put("initUrl", url);
-        site.put("name", name);
-        site.put("currentUrl", url);
-        site.put("pageTitle", name);
-        site.put("cookies", new org.json.JSONArray());
-        return site.toString();
-    }
-
-    private String createWebspaceJson(String id, String name, int[] siteIndices) throws Exception {
-        JSONObject webspace = new JSONObject();
-        webspace.put("id", id);
-        webspace.put("name", name);
-        org.json.JSONArray indices = new org.json.JSONArray();
-        for (int index : siteIndices) {
-            indices.put(index);
-        }
-        webspace.put("siteIndices", indices);
-        return webspace.toString();
+        Log.d(TAG, "Setup complete - Flutter should have seeded demo data on startup");
     }
 
     @Test
