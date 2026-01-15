@@ -1,6 +1,5 @@
 package org.codeberg.theoden8.webspace;
 
-import android.os.Build;
 import android.util.Log;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
@@ -14,12 +13,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.io.File;
-
 import tools.fastlane.screengrab.Screengrab;
 import tools.fastlane.screengrab.UiAutomatorScreenshotStrategy;
 import tools.fastlane.screengrab.locale.LocaleTestRule;
-import tools.fastlane.screengrab.file.FileWritingScreenshotCallback;
 
 /**
  * Screenshot test for generating F-Droid and Play Store screenshots.
@@ -49,35 +45,9 @@ public class ScreenshotTest {
         // Wake up the device
         device.wakeUp();
 
-        // Configure screenshot strategy with custom storage location
-        // Try to use /sdcard path which Fastlane can access more easily
-        try {
-            File screenshotDir;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Android 10+ - use app-specific external storage
-                File externalFilesDir = InstrumentationRegistry.getInstrumentation()
-                        .getTargetContext().getExternalFilesDir(null);
-                screenshotDir = new File(externalFilesDir, "screengrab");
-            } else {
-                // Pre-Android 10 - use legacy external storage
-                screenshotDir = new File("/sdcard/" + InstrumentationRegistry.getInstrumentation()
-                        .getTargetContext().getPackageName() + "/screengrab");
-            }
-
-            screenshotDir.mkdirs();
-            Log.d("ScreenshotTest", "Screenshot directory: " + screenshotDir.getAbsolutePath());
-
-            Screengrab.setDefaultScreenshotStrategy(
-                new UiAutomatorScreenshotStrategy(
-                    screenshotDir,
-                    new FileWritingScreenshotCallback(screenshotDir)
-                )
-            );
-        } catch (Exception e) {
-            Log.e("ScreenshotTest", "Failed to set custom directory, using default", e);
-            Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
-        }
-
+        // Configure screenshot strategy
+        // With correct Ruby version (<3), Fastlane can pull screenshots automatically
+        Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
         Log.d("ScreenshotTest", "Screenshot strategy configured");
 
         // Wait for app to fully load
