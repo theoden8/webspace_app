@@ -21,28 +21,36 @@ Future<void> seedDemoData() async {
   // Create sample sites
   final sites = <WebViewModel>[
     WebViewModel(
-      initUrl: 'https://example.com/blog',
-      name: 'My Blog',
+      initUrl: 'https://duckduckgo.com',
+      name: 'DuckDuckGo',
     ),
     WebViewModel(
-      initUrl: 'https://tasks.example.com',
-      name: 'Tasks',
+      initUrl: 'https://piped.video',
+      name: 'Piped',
     ),
     WebViewModel(
-      initUrl: 'https://notes.example.com',
-      name: 'Notes',
+      initUrl: 'https://nitter.net',
+      name: 'Nitter',
     ),
     WebViewModel(
-      initUrl: 'http://homeserver.local:8080',
-      name: 'Home Dashboard',
+      initUrl: 'https://www.reddit.com',
+      name: 'Reddit',
     ),
     WebViewModel(
-      initUrl: 'http://192.168.1.100:3000',
-      name: 'Personal Wiki',
+      initUrl: 'https://github.com',
+      name: 'GitHub',
     ),
     WebViewModel(
-      initUrl: 'http://192.168.1.101:8096',
-      name: 'Media Server',
+      initUrl: 'https://news.ycombinator.com',
+      name: 'Hacker News',
+    ),
+    WebViewModel(
+      initUrl: 'https://wandb.ai',
+      name: 'Weights & Biases',
+    ),
+    WebViewModel(
+      initUrl: 'https://www.wikipedia.org',
+      name: 'Wikipedia',
     ),
   ];
 
@@ -57,12 +65,17 @@ Future<void> seedDemoData() async {
     Webspace(
       id: 'webspace_work',
       name: 'Work',
-      siteIndices: [0, 1, 2], // Blog, Tasks, Notes
+      siteIndices: [4, 5, 6], // GitHub, Hacker News, W&B
     ),
     Webspace(
-      id: 'webspace_homeserver',
-      name: 'Home Server',
-      siteIndices: [3, 4, 5], // Dashboard, Wiki, Media
+      id: 'webspace_privacy',
+      name: 'Privacy',
+      siteIndices: [0, 1, 2], // DuckDuckGo, Piped, Nitter
+    ),
+    Webspace(
+      id: 'webspace_social',
+      name: 'Social',
+      siteIndices: [2, 3, 7], // Nitter, Reddit, Wikipedia
     ),
   ];
 

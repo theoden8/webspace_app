@@ -145,7 +145,7 @@ public class ScreenshotTest {
 
         // Look for a site to select
         UiObject2 firstSite = null;
-        String[] siteNames = {"My Blog", "Tasks", "Notes", "Home Dashboard"};
+        String[] siteNames = {"DuckDuckGo", "Piped", "GitHub", "Reddit"};
 
         for (String siteName : siteNames) {
             firstSite = findElement(siteName);
@@ -280,12 +280,15 @@ public class ScreenshotTest {
 
         // Check if drawer is open by looking for drawer-specific elements
         // The drawer should show site names or navigation items
-        UiObject2 drawerIndicator = findElement("My Blog");
+        UiObject2 drawerIndicator = findElement("DuckDuckGo");
         if (drawerIndicator == null) {
-            drawerIndicator = findElement("Tasks");
+            drawerIndicator = findElement("Piped");
         }
         if (drawerIndicator == null) {
-            drawerIndicator = findElement("Notes");
+            drawerIndicator = findElement("GitHub");
+        }
+        if (drawerIndicator == null) {
+            drawerIndicator = findElement("Reddit");
         }
 
         boolean isOpen = drawerIndicator != null;
@@ -335,7 +338,7 @@ public class ScreenshotTest {
         }
 
         // Check for expected elements using multiple search methods
-        String[] expectedTexts = {"All", "Work", "Home Server", "My Blog", "Tasks", "Notes"};
+        String[] expectedTexts = {"All", "Work", "Privacy", "Social", "DuckDuckGo", "GitHub", "Reddit"};
         for (String expectedText : expectedTexts) {
             UiObject2 obj = device.findObject(By.text(expectedText));
             if (obj == null) {
