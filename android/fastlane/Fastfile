@@ -4,10 +4,16 @@
 default_platform(:android)
 
 platform :android do
+  # Helper to determine android directory
+  def android_project_dir
+    File.exist?("gradlew") ? "." : "android"
+  end
+
   desc "Runs all the tests"
   lane :test do
     gradle(
-      task: "test"
+      task: "test",
+      project_dir: android_project_dir
     )
   end
 
@@ -16,7 +22,8 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fdebug",
-      build_type: "Debug"
+      build_type: "Debug",
+      project_dir: android_project_dir
     )
   end
 
@@ -25,7 +32,8 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fdroid",
-      build_type: "Release"
+      build_type: "Release",
+      project_dir: android_project_dir
     )
   end
 
@@ -34,7 +42,8 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fmain",
-      build_type: "Release"
+      build_type: "Release",
+      project_dir: android_project_dir
     )
   end
 
@@ -44,7 +53,8 @@ platform :android do
     gradle(
       task: "bundle",
       flavor: "Fmain",
-      build_type: "Release"
+      build_type: "Release",
+      project_dir: android_project_dir
     )
   end
 
@@ -65,12 +75,14 @@ platform :android do
     gradle(
       task: "assemble",
       flavor: "Fmain",
-      build_type: "Debug"
+      build_type: "Debug",
+      project_dir: android_project_dir
     )
 
     # Build the androidTest APK (task format: assemble<Flavor><BuildType>AndroidTest)
     gradle(
-      task: "assembleFmainDebugAndroidTest"
+      task: "assembleFmainDebugAndroidTest",
+      project_dir: android_project_dir
     )
 
     # Get connected device ID
@@ -128,7 +140,8 @@ platform :android do
   desc "Clean build artifacts"
   lane :clean do
     gradle(
-      task: "clean"
+      task: "clean",
+      project_dir: android_project_dir
     )
   end
 end
