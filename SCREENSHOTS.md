@@ -114,6 +114,30 @@ app_apk_path('app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk')
 tests_apk_path('app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk')
 ```
 
+## Screenshot Test Data
+
+The Android screenshot test automatically seeds the app with realistic test data to showcase the app's features. The test data includes:
+
+### Sample Sites
+- **My Blog** - Personal blog at example.com
+- **Home Dashboard** - Home server dashboard (local network)
+- **Photo Gallery** - Photo management system
+- **Tasks** - Task management app
+- **Personal Wiki** - Local wiki server
+- **Media Server** - Media streaming server
+- **News Feed** - RSS reader
+- **Notes** - Notes application
+
+### Sample Webspaces
+- **All** - Shows all sites (default view)
+- **Work** - Organized workspace with Blog, Tasks, and Notes
+- **Home Server** - Contains Dashboard, Wiki, and Media Server
+- **Personal** - Includes Photos, News, and Notes
+
+This realistic test data helps potential users understand how the app organizes and manages multiple web applications.
+
+To customize the test data, edit `android/app/src/androidTest/java/org/codeberg/theoden8/webspace/TestDataHelper.java`.
+
 ## Customizing Screenshot Content
 
 ### iOS: Edit Screenshot Test
@@ -181,6 +205,11 @@ public void takeScreenshots() throws InterruptedException {
     // Add more interactions as needed
 }
 ```
+
+**Note**: The current implementation includes a comprehensive screenshot tour with:
+- `TestDataHelper.java`: Seeds the app with realistic test data (multiple sites organized into webspaces)
+- Automated navigation through multiple screens including webspaces list, sites drawer, webview, menu, and add site screen
+- 8 screenshots covering the main app features for store listings
 
 **Tips:**
 - Use `Screengrab.screenshot("name")` to capture a screenshot
