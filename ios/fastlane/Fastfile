@@ -115,8 +115,8 @@ platform :ios do
   end
 
   desc "Frame screenshots with device frames"
-  lane :frame_screenshots do
-    frameit(
+  lane :add_device_frames do
+    frame_screenshots(
       path: "../fastlane/screenshots",
       white: true
     )
