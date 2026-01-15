@@ -1,34 +1,23 @@
 package org.codeberg.theoden8.webspace;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
-import androidx.test.runner.lifecycle.Stage;
 import androidx.test.uiautomator.By;
 import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
-import java.util.Collection;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-
-import io.flutter.embedding.android.FlutterActivity;
-import io.flutter.embedding.engine.FlutterEngine;
-import io.flutter.plugin.common.MethodChannel;
 
 import tools.fastlane.screengrab.Screengrab;
 import tools.fastlane.screengrab.UiAutomatorScreenshotStrategy;
@@ -37,7 +26,7 @@ import tools.fastlane.screengrab.locale.LocaleTestRule;
 /**
  * Screenshot test for generating F-Droid and Play Store screenshots.
  *
- * This test automatically seeds demo data by calling the seedDemoData method channel
+ * This test automatically seeds demo data by directly writing to SharedPreferences
  * before taking screenshots, so no manual data seeding is required.
  *
  * To run this test and generate screenshots:
@@ -74,9 +63,14 @@ public class ScreenshotTest {
         // Configure screenshot strategy
         Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
 
-        Log.d(TAG, "Launching app...");
+        Log.d(TAG, "Seeding demo data...");
 
-        // Launch the app
+        // Seed demo data by writing directly to SharedPreferences
+        seedDemoData();
+
+        Log.d(TAG, "Demo data seeded, launching app...");
+
+        // Launch the app (after data is seeded)
         Context context = ApplicationProvider.getApplicationContext();
         Intent intent = context.getPackageManager().getLaunchIntentForPackage(PACKAGE_NAME);
         if (intent != null) {
@@ -88,97 +82,99 @@ public class ScreenshotTest {
         device.wait(Until.hasObject(By.pkg(PACKAGE_NAME).depth(0)), 10000);
         Thread.sleep(LONG_DELAY);
 
-        Log.d(TAG, "App launched, seeding demo data...");
-
-        // Seed demo data via method channel
-        seedDemoData();
-
-        Log.d(TAG, "Demo data seeded, waiting for data to load...");
-        Thread.sleep(MEDIUM_DELAY);
-
         Log.d(TAG, "Setup complete");
     }
 
     /**
-     * Seeds demo data by invoking the Flutter method channel
+     * Seeds demo data by directly writing to SharedPreferences
      */
     private void seedDemoData() throws Exception {
-        final CountDownLatch latch = new CountDownLatch(1);
-        final Exception[] error = {null};
+        Log.d(TAG, "Writing demo data to SharedPreferences...");
 
-        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-            try {
-                // Get the current activity
-                Collection<Activity> activities = ActivityLifecycleMonitorRegistry.getInstance()
-                        .getActivitiesInStage(Stage.RESUMED);
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        SharedPreferences prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
 
-                if (activities.isEmpty()) {
-                    error[0] = new Exception("No resumed activity found");
-                    latch.countDown();
-                    return;
-                }
+        // Clear existing data
+        editor.remove("flutter.webViewModels");
+        editor.remove("flutter.webspaces");
+        editor.remove("flutter.selectedWebspaceId");
+        editor.remove("flutter.currentIndex");
 
-                Activity activity = activities.iterator().next();
+        // Create demo sites as JSON strings
+        List<String> sites = new ArrayList<>();
+        sites.add(createSiteJson("https://example.com/blog", "My Blog"));
+        sites.add(createSiteJson("https://tasks.example.com", "Tasks"));
+        sites.add(createSiteJson("https://notes.example.com", "Notes"));
+        sites.add(createSiteJson("http://homeserver.local:8080", "Home Dashboard"));
+        sites.add(createSiteJson("http://192.168.1.100:3000", "Personal Wiki"));
+        sites.add(createSiteJson("http://192.168.1.101:8096", "Media Server"));
 
-                if (!(activity instanceof FlutterActivity)) {
-                    error[0] = new Exception("Activity is not a FlutterActivity");
-                    latch.countDown();
-                    return;
-                }
+        // Create demo webspaces as JSON strings
+        List<String> webspaces = new ArrayList<>();
+        webspaces.add(createWebspaceJson("all", "All", new int[]{})); // "All" shows all sites
+        webspaces.add(createWebspaceJson("webspace_work", "Work", new int[]{0, 1, 2}));
+        webspaces.add(createWebspaceJson("webspace_homeserver", "Home Server", new int[]{3, 4, 5}));
 
-                FlutterActivity flutterActivity = (FlutterActivity) activity;
-                FlutterEngine flutterEngine = flutterActivity.getFlutterEngine();
+        // Write sites list (Flutter uses a special encoding for lists)
+        editor.putString("flutter.webViewModels", encodeStringList(sites));
 
-                if (flutterEngine == null) {
-                    error[0] = new Exception("FlutterEngine is null");
-                    latch.countDown();
-                    return;
-                }
+        // Write webspaces list
+        editor.putString("flutter.webspaces", encodeStringList(webspaces));
 
-                // Invoke the method channel
-                MethodChannel channel = new MethodChannel(
-                        flutterEngine.getDartExecutor().getBinaryMessenger(),
-                        "com.example.webspace_app/demo_data"
-                );
+        // Write selected webspace (use "all")
+        editor.putString("flutter.selectedWebspaceId", "all");
 
-                channel.invokeMethod("seedDemoData", null, new MethodChannel.Result() {
-                    @Override
-                    public void success(Object result) {
-                        Log.d(TAG, "Demo data seeded successfully: " + result);
-                        latch.countDown();
-                    }
+        // Write current index (10000 means no site selected)
+        editor.putLong("flutter.currentIndex", 10000);
 
-                    @Override
-                    public void error(String errorCode, String errorMessage, Object errorDetails) {
-                        Log.e(TAG, "Failed to seed demo data: " + errorCode + " - " + errorMessage);
-                        error[0] = new Exception("Method channel error: " + errorCode + " - " + errorMessage);
-                        latch.countDown();
-                    }
+        // Write theme mode (0 = light)
+        editor.putLong("flutter.themeMode", 0);
 
-                    @Override
-                    public void notImplemented() {
-                        Log.e(TAG, "seedDemoData method not implemented");
-                        error[0] = new Exception("Method not implemented");
-                        latch.countDown();
-                    }
-                });
-            } catch (Exception e) {
-                Log.e(TAG, "Exception while invoking method channel", e);
-                error[0] = e;
-                latch.countDown();
+        // Write URL bar visibility (false)
+        editor.putBoolean("flutter.showUrlBar", false);
+
+        // Commit changes
+        editor.apply();
+
+        Log.d(TAG, "Demo data written: " + sites.size() + " sites, " + webspaces.size() + " webspaces");
+    }
+
+    private String createSiteJson(String url, String name) throws Exception {
+        JSONObject site = new JSONObject();
+        site.put("initUrl", url);
+        site.put("name", name);
+        site.put("currentUrl", url);
+        site.put("pageTitle", name);
+        site.put("cookies", new org.json.JSONArray());
+        return site.toString();
+    }
+
+    private String createWebspaceJson(String id, String name, int[] siteIndices) throws Exception {
+        JSONObject webspace = new JSONObject();
+        webspace.put("id", id);
+        webspace.put("name", name);
+        org.json.JSONArray indices = new org.json.JSONArray();
+        for (int index : siteIndices) {
+            indices.put(index);
+        }
+        webspace.put("siteIndices", indices);
+        return webspace.toString();
+    }
+
+    /**
+     * Encode a list of strings in Flutter's SharedPreferences format
+     * Flutter stores lists as a single string with special delimiters
+     */
+    private String encodeStringList(List<String> list) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) {
+                sb.append("\u001e"); // Record separator
             }
-        });
-
-        // Wait for the method call to complete (with timeout)
-        boolean completed = latch.await(10, TimeUnit.SECONDS);
-
-        if (!completed) {
-            throw new Exception("Timeout waiting for demo data seeding");
+            sb.append(list.get(i));
         }
-
-        if (error[0] != null) {
-            throw error[0];
-        }
+        return sb.toString();
     }
 
     @Test
