@@ -64,15 +64,8 @@ public class ScreenshotTest {
         // Configure screenshot strategy
         Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
 
-        Log.d(TAG, "Force stopping app to ensure clean state...");
-
-        // Force stop the app to ensure clean state
-        try {
-            device.executeShellCommand("am force-stop " + PACKAGE_NAME);
-            Thread.sleep(1000);
-        } catch (Exception e) {
-            Log.w(TAG, "Failed to force-stop app: " + e.getMessage());
-        }
+        // Note: We don't need to force-stop because screengrab with reinstall_app:true
+        // already uninstalls and reinstalls the app for a clean state
 
         Log.d(TAG, "Launching app with DEMO_MODE flag...");
 
