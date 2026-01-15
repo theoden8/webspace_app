@@ -92,7 +92,7 @@ platform :android do
       output_directory: File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots"),
       device_type: "phone",
       app_apk_path: File.join(project_root, "build", "app", "outputs", "flutter-apk", "app-fmain-debug.apk"),
-      tests_apk_path: File.join(android_dir, "app", "build", "outputs", "apk", "androidTest", "fmain", "debug", "app-fmain-debug-androidTest.apk")
+      tests_apk_path: File.join(project_root, "build", "app", "outputs", "apk", "androidTest", "fmain", "debug", "app-fmain-debug-androidTest.apk")
     )
   end
 
