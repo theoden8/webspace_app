@@ -90,8 +90,16 @@ platform :android do
     UI.success("Found device: #{device_id}")
 
     # Seed test data using Flutter
+    # We're in android/fastlane/, project root is ../../ from here
     UI.important("Seeding test data on device #{device_id}...")
-    sh("cd ../.. && flutter run -d #{device_id} android/fastlane/test_data_seeder.dart")
+
+    # Get the absolute path to the project root
+    project_root = File.expand_path("../..", Dir.pwd)
+    seeder_path = File.join(project_root, "android/fastlane/test_data_seeder.dart")
+
+    Dir.chdir(project_root) do
+      sh("flutter run -d #{device_id} #{seeder_path}")
+    end
 
     UI.success("Test data seeded successfully")
 
