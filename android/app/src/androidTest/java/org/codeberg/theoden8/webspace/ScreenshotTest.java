@@ -132,7 +132,7 @@ public class ScreenshotTest {
 
             if (isDrawerOpen()) {
                 Log.d(TAG, "Closing drawer to capture all sites view");
-                device.pressBack();
+                closeDrawer();
                 Thread.sleep(SHORT_DELAY);
             }
         }
@@ -190,12 +190,12 @@ public class ScreenshotTest {
             Thread.sleep(SHORT_DELAY);
 
             // Close drawer
-            device.pressBack();
+            closeDrawer();
             Thread.sleep(SHORT_DELAY);
         } else {
             Log.w(TAG, "No sites found in drawer");
             // Close drawer
-            device.pressBack();
+            closeDrawer();
             Thread.sleep(SHORT_DELAY);
         }
 
@@ -243,7 +243,7 @@ public class ScreenshotTest {
                 Thread.sleep(SHORT_DELAY);
 
                 // Close drawer
-                device.pressBack();
+                closeDrawer();
                 Thread.sleep(SHORT_DELAY);
 
                 // Navigate back to webspaces list (drawer already open on selection)
@@ -405,14 +405,26 @@ public class ScreenshotTest {
      * Open the navigation drawer, returning true if successful
      */
     private boolean openDrawer() throws Exception {
-        Log.d(TAG, "Opening drawer via swipe gesture...");
-        swipeFromLeftEdge();
+        Log.d(TAG, "Opening drawer via menu button...");
+        UiObject2 menuButton = device.findObject(By.desc("Open navigation menu"));
+        if (menuButton != null) {
+            menuButton.click();
+        } else {
+            Log.w(TAG, "Menu button not found, falling back to swipe");
+            swipeFromLeftEdge();
+        }
         Thread.sleep(DRAWER_OPEN_DELAY);
 
         // Check if drawer is open by looking for drawer-specific elements
         // The drawer should show site names or navigation items
         Log.d(TAG, "Checking if drawer opened...");
         return isDrawerOpen();
+    }
+
+    private void closeDrawer() throws Exception {
+        Log.d(TAG, "Closing drawer via back button...");
+        device.pressBack();
+        Thread.sleep(DRAWER_OPEN_DELAY);
     }
 
     private boolean isDrawerOpen() {
