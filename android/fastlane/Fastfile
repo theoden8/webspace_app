@@ -4,53 +4,40 @@
 default_platform(:android)
 
 platform :android do
+  # Helper to get consistent paths regardless of where fastlane is run from
+  # This Fastfile is always at android/fastlane/Fastfile
+  def android_dir
+    File.expand_path("..", __dir__)
+  end
+
+  def project_root
+    File.expand_path("../..", __dir__)
+  end
+
   desc "Runs all the tests"
   lane :test do
-    gradle(
-      task: "test",
-      project_dir: "android"
-    )
+    sh("cd '#{android_dir}' && ./gradlew test")
   end
 
   desc "Build debug APK"
   lane :build_debug do
-    gradle(
-      task: "assemble",
-      flavor: "Fdebug",
-      build_type: "Debug",
-      project_dir: "android"
-    )
+    sh("cd '#{project_root}' && flutter build apk --debug --flavor fdebug")
   end
 
   desc "Build F-Droid flavor APK"
   lane :build_fdroid do
-    gradle(
-      task: "assemble",
-      flavor: "Fdroid",
-      build_type: "Release",
-      project_dir: "android"
-    )
+    sh("cd '#{project_root}' && flutter build apk --release --flavor fdroid")
   end
 
   desc "Build release APK (Fmain flavor)"
   lane :build_release do
-    gradle(
-      task: "assemble",
-      flavor: "Fmain",
-      build_type: "Release",
-      project_dir: "android"
-    )
+    sh("cd '#{project_root}' && flutter build apk --release --flavor fmain")
   end
 
 
   desc "Build release AAB (Android App Bundle)"
   lane :build_bundle do
-    gradle(
-      task: "bundle",
-      flavor: "Fmain",
-      build_type: "Release",
-      project_dir: "android"
-    )
+    sh("cd '#{project_root}' && flutter build appbundle --release --flavor fmain")
   end
 
   desc "Build Android app (alias for build_release)"
@@ -61,27 +48,39 @@ platform :android do
   desc "Increment version in pubspec.yaml"
   lane :bump_version do
     # Version is managed in pubspec.yaml for Flutter projects
-    sh("cd ../.. && flutter pub version")
+    sh("cd '#{project_root}' && flutter pub version")
   end
 
   desc "Build test APKs and generate screenshots"
   lane :screenshots do
-    # Build the Fmain flavor APKs for screenshots
-    gradle(
-      task: "assemble",
-      flavor: "Fmain",
-      build_type: "Debug",
-      project_dir: "android"
-    )
+    UI.message("Building APKs with flutter build...")
+    UI.message("Current working directory: #{Dir.pwd}")
+    UI.message("Fastfile location: #{__dir__}")
+    UI.message("Android dir: #{android_dir}")
+    UI.message("Project root: #{project_root}")
 
-    # Build the androidTest APK (task format: assemble<Flavor><BuildType>AndroidTest)
-    gradle(
-      task: "assembleFmainDebugAndroidTest",
-      project_dir: "android"
-    )
+    # Verify we're in the right place
+    unless File.exist?(File.join(android_dir, "gradlew"))
+      UI.user_error!("Expected to find gradlew in android/ directory: #{android_dir}")
+    end
+
+    sh("cd '#{project_root}' && flutter build apk --debug --flavor fmain")
+    sh("cd '#{android_dir}' && ./gradlew assembleFmainDebugAndroidTest")
+
+    # Get connected device ID
+    device_id = sh("adb devices | grep -w 'device' | head -1 | awk '{print $1}'", log: false).strip
+
+    if device_id.empty?
+      UI.user_error!("No Android device connected. Please connect a device or start an emulator.")
+    end
+
+    UI.success("Found device: #{device_id}")
+
+    # Note: Demo data is automatically seeded by Flutter on app startup
+    # The test passes DEMO_MODE=true intent extra which triggers seeding
+    UI.message("Demo data will be seeded by Flutter when test launches app with DEMO_MODE flag")
 
     # Capture screenshots using Screengrab
-    # Trying to use screengrab directly without manual extraction fallback
     screengrab(
       app_package_name: "org.codeberg.theoden8.webspace",
       tests_package_name: "org.codeberg.theoden8.webspace.test",
@@ -89,18 +88,17 @@ platform :android do
       test_instrumentation_runner: "androidx.test.runner.AndroidJUnitRunner",
       locales: ["en-US"],
       clear_previous_screenshots: true,
-      output_directory: "fastlane/metadata/android/en-US/images/phoneScreenshots",
+      reinstall_app: true,  # Uninstall and reinstall app for clean state
+      output_directory: File.join(project_root, "fastlane", "metadata", "android"),
       device_type: "phone",
-      app_apk_path: "build/app/outputs/flutter-apk/app-fmain-debug.apk",
-      tests_apk_path: "build/app/outputs/apk/androidTest/fmain/debug/app-fmain-debug-androidTest.apk"
+      app_apk_path: File.join(project_root, "build", "app", "outputs", "flutter-apk", "app-fmain-debug.apk"),
+      tests_apk_path: File.join(project_root, "build", "app", "outputs", "apk", "androidTest", "fmain", "debug", "app-fmain-debug-androidTest.apk")
     )
   end
 
   desc "Clean build artifacts"
   lane :clean do
-    gradle(
-      task: "clean",
-      project_dir: "android"
-    )
+    sh("cd '#{android_dir}' && ./gradlew clean")
+    sh("cd '#{project_root}' && flutter clean")
   end
 end

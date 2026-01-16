@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -19,6 +20,7 @@ import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
+import 'package:webspace/demo_data.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -63,7 +65,7 @@ Future<String?> getFaviconUrl(String url) async {
     return null;
   }
 
-  String baseUrl = port != null 
+  String baseUrl = port != null
       ? '$scheme://$host:$port'
       : '$scheme://$host';
 
@@ -73,20 +75,20 @@ Future<String?> getFaviconUrl(String url) async {
       Duration(seconds: 3),
       onTimeout: () => throw TimeoutException('Page fetch timeout'),
     );
-    
+
     if (pageResponse.statusCode == 200) {
       html_dom.Document document = html_parser.parse(pageResponse.body);
-      
+
       // Extract and cache page title while we're at it
       final titleElement = document.querySelector('title');
       if (titleElement != null && titleElement.text.isNotEmpty) {
         _pageTitleCache[url] = titleElement.text;
       }
-      
+
       // Look for favicon in <link> tags
       // Priority order: icon, shortcut icon, apple-touch-icon
       List<String> iconRels = ['icon', 'shortcut icon', 'apple-touch-icon'];
-      
+
       for (String rel in iconRels) {
         var linkElements = document.querySelectorAll('link[rel*="$rel"]');
         for (var link in linkElements) {
@@ -103,7 +105,7 @@ Future<String?> getFaviconUrl(String url) async {
             } else {
               faviconUrl = '$baseUrl/$href';
             }
-            
+
             // Verify the favicon URL is accessible
             try {
               final iconResponse = await http.head(Uri.parse(faviconUrl)).timeout(
@@ -139,7 +141,7 @@ Future<String?> getFaviconUrl(String url) async {
   } catch (e) {
     // Silently cache the failure
   }
-  
+
   _faviconCache[url] = null;
   return null;
 }
@@ -156,7 +158,7 @@ Future<String?> getPageTitle(String url) async {
       Duration(seconds: 5),
       onTimeout: () => throw TimeoutException('Page fetch timeout'),
     );
-    
+
     if (response.statusCode == 200) {
       html_dom.Document document = html_parser.parse(response.body);
       final titleElement = document.querySelector('title');
@@ -171,12 +173,36 @@ Future<String?> getPageTitle(String url) async {
   } catch (e) {
     // Silently handle errors
   }
-  
+
   _pageTitleCache[url] = null;
   return null;
 }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Check if we should seed demo data (for screenshot tests)
+  // The Android test sets this via Intent extras: --ez DEMO_MODE true
+  print('Checking for DEMO_MODE flag...');
+  final binding = WidgetsBinding.instance;
+  if (binding is WidgetsFlutterBinding) {
+    try {
+      print('Calling getDemoMode method channel...');
+      final demoMode = await const MethodChannel('app.channel').invokeMethod<bool>('getDemoMode') ?? false;
+      print('getDemoMode returned: $demoMode');
+      if (demoMode) {
+        print('DEMO_MODE enabled - seeding demo data');
+        await seedDemoData();
+      } else {
+        print('DEMO_MODE is false, not seeding data');
+      }
+    } catch (e, stackTrace) {
+      print('ERROR checking DEMO_MODE: $e');
+      print('Stack trace: $stackTrace');
+    }
+  }
+
+  print('Starting app...');
   runApp(WebSpaceApp());
 }
 
@@ -215,6 +241,7 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       ),
       themeMode: _themeMode,
       home: WebSpacePage(onThemeModeChanged: _setThemeMode),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -830,7 +857,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   void _editSite(int index) async {
     final nameController = TextEditingController(text: _webViewModels[index].name);
     final urlController = TextEditingController(text: _webViewModels[index].initUrl);
-    
+
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) => AlertDialog(
@@ -875,12 +902,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
             onPressed: () {
               final name = nameController.text.trim();
               var url = urlController.text.trim();
-              
+
               // Infer protocol if not specified
               if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 url = 'https://$url';
               }
-              
+
               Navigator.pop(context, {'name': name, 'url': url});
             },
             child: Text('Save'),
@@ -888,17 +915,17 @@ class _WebSpacePageState extends State<WebSpacePage> {
         ],
       ),
     );
-    
+
     if (result != null) {
       final newName = result['name'];
       final newUrl = result['url'];
-      
+
       if (newName != null && newName.isNotEmpty) {
         setState(() {
           _webViewModels[index].name = newName;
         });
       }
-      
+
       if (newUrl != null && newUrl != _webViewModels[index].initUrl) {
         setState(() {
           _webViewModels[index].initUrl = newUrl;
@@ -907,14 +934,18 @@ class _WebSpacePageState extends State<WebSpacePage> {
           _webViewModels[index].controller = null;
         });
       }
-      
+
       _saveWebViewModels();
     }
   }
 
   Widget _buildSiteListTile(BuildContext context, int index) {
-    return ListTile(
+    return Semantics(
       key: Key('site_$index'),
+      label: _webViewModels[index].getDisplayName(),
+      button: true,
+      enabled: true,
+      child: ListTile(
       leading: FutureBuilder<String?>(
         future: getFaviconUrl(_webViewModels[index].initUrl),
         builder: (context, snapshot) {
@@ -1034,6 +1065,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -1081,18 +1113,19 @@ class _WebSpacePageState extends State<WebSpacePage> {
                       ),
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _selectedWebspaceId = kAllWebspaceId;
-                        _currentIndex = null;
-                      });
-                      _saveSelectedWebspaceId();
-                      _saveCurrentIndex();
-                      Navigator.pop(context);
-                    },
-                    icon: Icon(Icons.arrow_back, size: 16),
-                    label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                  Semantics(
+                    label: 'Back to Webspaces',
+                    button: true,
+                    enabled: true,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        _saveSelectedWebspaceId();
+                        _saveCurrentIndex();
+                        Navigator.pop(context);
+                      },
+                      icon: Icon(Icons.arrow_back, size: 16),
+                      label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                    ),
                   ),
                 ],
               ),

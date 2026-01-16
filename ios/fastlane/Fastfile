@@ -4,10 +4,20 @@
 default_platform(:ios)
 
 platform :ios do
+  # Helper to get consistent paths regardless of where fastlane is run from
+  # This Fastfile is always at ios/fastlane/Fastfile
+  def ios_dir
+    File.expand_path("..", __dir__)
+  end
+
+  def project_root
+    File.expand_path("../..", __dir__)
+  end
+
   desc "Run tests"
   lane :test do
     run_tests(
-      workspace: "Runner.xcworkspace",
+      workspace: File.join(ios_dir, "Runner.xcworkspace"),
       scheme: "Runner"
     )
   end
@@ -15,11 +25,11 @@ platform :ios do
   desc "Build debug version"
   lane :build_debug do
     build_app(
-      workspace: "Runner.xcworkspace",
+      workspace: File.join(ios_dir, "Runner.xcworkspace"),
       scheme: "Runner",
       configuration: "Debug",
       export_method: "development",
-      output_directory: "./build",
+      output_directory: File.join(ios_dir, "build"),
       output_name: "webspace-debug.ipa"
     )
   end
@@ -27,11 +37,11 @@ platform :ios do
   desc "Build release version"
   lane :build_release do
     build_app(
-      workspace: "Runner.xcworkspace",
+      workspace: File.join(ios_dir, "Runner.xcworkspace"),
       scheme: "Runner",
       configuration: "Release",
       export_method: "app-store",
-      output_directory: "./build",
+      output_directory: File.join(ios_dir, "build"),
       output_name: "webspace-release.ipa"
     )
   end
@@ -44,11 +54,11 @@ platform :ios do
   desc "Build for Ad Hoc distribution"
   lane :build_adhoc do
     build_app(
-      workspace: "Runner.xcworkspace",
+      workspace: File.join(ios_dir, "Runner.xcworkspace"),
       scheme: "Runner",
       configuration: "Release",
       export_method: "ad-hoc",
-      output_directory: "./build",
+      output_directory: File.join(ios_dir, "build"),
       output_name: "webspace-adhoc.ipa"
     )
   end
@@ -96,28 +106,32 @@ platform :ios do
   desc "Increment build number"
   lane :bump_build do
     increment_build_number(
-      xcodeproj: "Runner.xcodeproj"
+      xcodeproj: File.join(ios_dir, "Runner.xcodeproj")
     )
   end
 
   desc "Increment version number"
   lane :bump_version do |options|
     increment_version_number(
-      xcodeproj: "Runner.xcodeproj",
+      xcodeproj: File.join(ios_dir, "Runner.xcodeproj"),
       bump_type: options[:type] || "patch" # major, minor, or patch
     )
   end
 
   desc "Take screenshots for App Store"
   lane :screenshots do
-    # Configuration is in Snapfile
-    snapshot
+    snapshot(
+      workspace: File.join(ios_dir, "Runner.xcworkspace"),
+      project: File.join(ios_dir, "Runner.xcodeproj"),
+      scheme: "Runner",
+      output_directory: File.join(project_root, "fastlane", "screenshots")
+    )
   end
 
   desc "Frame screenshots with device frames"
   lane :add_device_frames do
     frame_screenshots(
-      path: "../fastlane/screenshots",
+      path: File.join(project_root, "fastlane", "screenshots"),
       white: true
     )
   end

@@ -83,41 +83,45 @@ class WebspacesListScreen extends StatelessWidget {
                     final isAll = webspace.id == kAllWebspaceId;
                     final siteCount = isAll ? totalSitesCount : webspace.siteIndices.length;
 
-                    return Card(
+                    return Semantics(
                       key: Key(webspace.id),
-                      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.secondary.withOpacity(0.15)
-                          : null,
-                      elevation: isSelected ? 4 : 1,
-                      child: ListTile(
-                        leading: Icon(
-                          Icons.workspaces,
-                          color: isSelected
-                              ? Theme.of(context).colorScheme.secondary
-                              : null,
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                webspace.name,
-                                style: TextStyle(
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      label: webspace.name,
+                      button: true,
+                      enabled: true,
+                      child: Card(
+                        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.secondary.withOpacity(0.15)
+                            : null,
+                        elevation: isSelected ? 4 : 1,
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.workspaces,
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.secondary
+                                : null,
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  webspace.name,
+                                  style: TextStyle(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  ),
                                 ),
                               ),
-                            ),
-                            if (isSelected)
-                              Icon(
-                                Icons.check_circle,
-                                color: Theme.of(context).colorScheme.secondary,
-                                size: 20,
-                              ),
-                          ],
-                        ),
-                        subtitle: Text('$siteCount sites'),
-                        onTap: () => onSelectWebspace(webspace),
-                        trailing: Row(
+                              if (isSelected)
+                                Icon(
+                                  Icons.check_circle,
+                                  color: Theme.of(context).colorScheme.secondary,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                          subtitle: Text('$siteCount sites'),
+                          onTap: () => onSelectWebspace(webspace),
+                          trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
@@ -161,18 +165,24 @@ class WebspacesListScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                    ),
                     );
                   },
                 ),
               ),
             ),
           SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: onAddWebspace,
-            icon: Icon(Icons.add),
-            label: Text('Create Webspace'),
-            style: ElevatedButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          Semantics(
+            label: 'Create Webspace',
+            button: true,
+            enabled: true,
+            child: ElevatedButton.icon(
+              onPressed: onAddWebspace,
+              icon: Icon(Icons.add),
+              label: Text('Create Webspace'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
             ),
           ),
           SizedBox(height: 32),

@@ -22,7 +22,9 @@ end
 
 lane :test_all do
   desc "Run tests for both platforms"
-  sh("cd .. && flutter test")
+  # This Fastfile is at fastlane/Fastfile, so project root is one level up
+  project_root = File.expand_path("..", __dir__)
+  sh("cd '#{project_root}' && flutter test")
 end
 
 lane :deploy_all do

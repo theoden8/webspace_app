@@ -114,6 +114,34 @@ app_apk_path('app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk')
 tests_apk_path('app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk')
 ```
 
+## Screenshot Test Data
+
+The Android screenshot test automatically seeds the app with realistic test data using the **DEMO_MODE flag approach**. When the test launches the app with `DEMO_MODE=true`, Flutter automatically seeds demo data on startup.
+
+### How It Works
+
+1. **ScreenshotTest.java** launches the app with `intent.putExtra("DEMO_MODE", true)`
+2. **MainActivity.kt** exposes this flag via method channel to Flutter
+3. **main.dart** detects the flag on startup and calls `seedDemoData()`
+4. **demo_data.dart** creates realistic test data using Flutter's native data models
+
+### Sample Sites
+- **My Blog** - Personal blog (https://example.com/blog)
+- **Tasks** - Task management app (https://tasks.example.com)
+- **Notes** - Notes application (https://notes.example.com)
+- **Home Dashboard** - Home server dashboard (http://homeserver.local:8080)
+- **Personal Wiki** - Local wiki server (http://192.168.1.100:3000)
+- **Media Server** - Media streaming server (http://192.168.1.101:8096)
+
+### Sample Webspaces
+- **All** - Shows all sites (default view)
+- **Work** - Organized workspace with Blog, Tasks, and Notes
+- **Home Server** - Contains Dashboard, Wiki, and Media Server
+
+This realistic test data helps potential users understand how the app organizes and manages multiple web applications.
+
+To customize the test data, edit `lib/demo_data.dart`.
+
 ## Customizing Screenshot Content
 
 ### iOS: Edit Screenshot Test
@@ -181,6 +209,11 @@ public void takeScreenshots() throws InterruptedException {
     // Add more interactions as needed
 }
 ```
+
+**Note**: The current implementation includes a comprehensive screenshot tour with:
+- Automatic demo data seeding via DEMO_MODE flag (see `lib/demo_data.dart`)
+- Automated navigation through multiple screens including webspaces list, sites drawer, webview, and menu
+- 8 screenshots covering the main app features for store listings
 
 **Tips:**
 - Use `Screengrab.screenshot("name")` to capture a screenshot
