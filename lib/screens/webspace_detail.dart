@@ -76,9 +76,14 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
         title: Text(widget.isReadOnly ? 'View Webspace' : 'Edit Webspace'),
         actions: [
           if (!widget.isReadOnly)
-            IconButton(
-              icon: Icon(Icons.check),
-              onPressed: _save,
+            Semantics(
+              label: 'Save',
+              button: true,
+              enabled: true,
+              child: IconButton(
+                icon: Icon(Icons.check),
+                onPressed: _save,
+              ),
             ),
         ],
       ),
@@ -123,15 +128,20 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
                     itemBuilder: (context, index) {
                       final site = widget.allSites[index];
                       final isSelected = _selectedIndices.contains(index);
-                      return CheckboxListTile(
-                        title: Text(site.getDisplayName()),
-                        subtitle: Text(extractDomain(site.initUrl)),
-                        value: isSelected,
-                        onChanged: widget.isReadOnly
-                            ? null
-                            : (bool? value) {
-                                _toggleSite(index);
-                              },
+                      return Semantics(
+                        label: site.getDisplayName(),
+                        checked: isSelected,
+                        enabled: !widget.isReadOnly,
+                        child: CheckboxListTile(
+                          title: Text(site.getDisplayName()),
+                          subtitle: Text(extractDomain(site.initUrl)),
+                          value: isSelected,
+                          onChanged: widget.isReadOnly
+                              ? null
+                              : (bool? value) {
+                                  _toggleSite(index);
+                                },
+                        ),
                       );
                     },
                   ),

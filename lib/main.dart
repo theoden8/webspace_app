@@ -939,8 +939,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   Widget _buildSiteListTile(BuildContext context, int index) {
-    return ListTile(
-      key: Key('site_$index'),
+    return Semantics(
+      label: _webViewModels[index].getDisplayName(),
+      button: true,
+      enabled: true,
+      child: ListTile(
+        key: Key('site_$index'),
       leading: FutureBuilder<String?>(
         future: getFaviconUrl(_webViewModels[index].initUrl),
         builder: (context, snapshot) {
@@ -1060,6 +1064,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -1107,18 +1112,23 @@ class _WebSpacePageState extends State<WebSpacePage> {
                       ),
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _selectedWebspaceId = kAllWebspaceId;
-                        _currentIndex = null;
-                      });
-                      _saveSelectedWebspaceId();
-                      _saveCurrentIndex();
-                      Navigator.pop(context);
-                    },
-                    icon: Icon(Icons.arrow_back, size: 16),
-                    label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                  Semantics(
+                    label: 'Back to Webspaces',
+                    button: true,
+                    enabled: true,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _selectedWebspaceId = kAllWebspaceId;
+                          _currentIndex = null;
+                        });
+                        _saveSelectedWebspaceId();
+                        _saveCurrentIndex();
+                        Navigator.pop(context);
+                      },
+                      icon: Icon(Icons.arrow_back, size: 16),
+                      label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                    ),
                   ),
                 ],
               ),
