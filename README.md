@@ -1,5 +1,11 @@
 <div align="center">
 
+[![Release](https://img.shields.io/github/v/release/theoden8/webspace_app)](https://github.com/theoden8/webspace_app/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/theoden8/webspace_app/total)](https://github.com/theoden8/webspace_app/releases)
+<a href="https://github.com/sponsors/theoden8">
+  <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
+</a>
+
 <img src="assets/webspace_icon.png" alt="WebSpace Icon" width="120"/>
 
 # WebSpace
