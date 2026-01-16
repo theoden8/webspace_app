@@ -84,11 +84,11 @@ class WebspacesListScreen extends StatelessWidget {
                     final siteCount = isAll ? totalSitesCount : webspace.siteIndices.length;
 
                     return Semantics(
+                      key: Key(webspace.id),
                       label: webspace.name,
                       button: true,
                       enabled: true,
                       child: Card(
-                        key: Key(webspace.id),
                         margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         color: isSelected
                             ? Theme.of(context).colorScheme.secondary.withOpacity(0.15)
