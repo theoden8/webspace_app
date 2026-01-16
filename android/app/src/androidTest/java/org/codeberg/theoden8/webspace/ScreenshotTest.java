@@ -97,9 +97,9 @@ public class ScreenshotTest {
         Log.d(TAG, "STARTING SCREENSHOT TOUR");
         Log.d(TAG, "========================================");
 
-        // Wait for data to load and webspaces list to render
-        Log.d(TAG, "Waiting for webspaces list to fully render...");
-        Thread.sleep(LONG_DELAY);  // Increased from MEDIUM_DELAY to LONG_DELAY
+        // Wait briefly for webspaces list to render
+        Log.d(TAG, "Waiting briefly for webspaces list...");
+        Thread.sleep(SHORT_DELAY);
 
         // Log visible text on screen
         Log.d(TAG, "Visible elements:");
@@ -198,7 +198,7 @@ public class ScreenshotTest {
             Thread.sleep(SHORT_DELAY);
         }
 
-        // Try to navigate to webspaces list
+        // Try to navigate to webspaces list via drawer buttons (no hamburger when drawer is open)
         Log.d(TAG, "Opening drawer to navigate to webspaces");
         openDrawer();
         Thread.sleep(QUICK_DELAY);
@@ -207,13 +207,15 @@ public class ScreenshotTest {
         if (webspacesButton == null) {
             webspacesButton = findElement("Webspaces");
         }
+        if (webspacesButton == null) {
+            webspacesButton = findElement("All");
+        }
 
         if (webspacesButton != null) {
             Log.d(TAG, "Navigating to webspaces list");
             webspacesButton.click();
-            Log.d(TAG, "Waiting for webspaces list to refresh...");
-            Thread.sleep(MEDIUM_DELAY);
-            Thread.sleep(SHORT_DELAY);  // Extra time for UI to refresh when re-entering workspace screen
+            Log.d(TAG, "Waiting briefly for webspaces list to refresh...");
+            Thread.sleep(SHORT_DELAY);
 
             // Look for "Work" webspace - if found, capture it for screenshots 06-07
             UiObject2 workWebspace = findElement("Work");
@@ -245,14 +247,17 @@ public class ScreenshotTest {
                 // Navigate back to webspaces list
                 Log.d(TAG, "Navigating back to webspaces list");
                 openDrawer();
+                Thread.sleep(QUICK_DELAY);
                 UiObject2 backToWebspaces = findElement("Back to Webspaces");
                 if (backToWebspaces == null) {
                     backToWebspaces = findElement("Webspaces");
                 }
+                if (backToWebspaces == null) {
+                    backToWebspaces = findElement("All");
+                }
                 if (backToWebspaces != null) {
                     backToWebspaces.click();
-                    Log.d(TAG, "Waiting for webspaces list to refresh...");
-                    Thread.sleep(MEDIUM_DELAY);
+                    Log.d(TAG, "Waiting briefly for webspaces list to refresh...");
                     Thread.sleep(SHORT_DELAY);
                 } else {
                     Log.w(TAG, "Could not find webspaces button, pressing back");
