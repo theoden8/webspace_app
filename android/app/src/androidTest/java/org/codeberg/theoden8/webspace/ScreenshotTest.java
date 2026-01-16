@@ -42,6 +42,7 @@ public class ScreenshotTest {
     private static final int SHORT_DELAY = 3000;
     private static final int MEDIUM_DELAY = 5000;
     private static final int LONG_DELAY = 8000;
+    private static final int QUICK_DELAY = 100;
     private static final int APP_LOAD_DELAY = 10000;  // Extra time for Flutter to fully render
     private static final int DRAWER_OPEN_DELAY = 5000;  // Time for drawer animation and site icons to load
     private static final int ICON_LOAD_DELAY = 6000;  // Time for site icons to load after navigation
@@ -143,6 +144,7 @@ public class ScreenshotTest {
         // Open drawer to see site list
         Log.d(TAG, "Opening drawer");
         boolean drawerOpened = openDrawer();
+        Thread.sleep(QUICK_DELAY);
         if (!drawerOpened) {
             Log.w(TAG, "Drawer failed to open - skipping drawer screenshots");
         }
@@ -180,6 +182,7 @@ public class ScreenshotTest {
             // Open drawer again
             Log.d(TAG, "Opening drawer to show current site");
             openDrawer();
+            Thread.sleep(QUICK_DELAY);
 
             // Screenshot 5: Drawer showing current site
             Screengrab.screenshot("05-drawer-with-site");
@@ -198,6 +201,7 @@ public class ScreenshotTest {
         // Try to navigate to webspaces list
         Log.d(TAG, "Opening drawer to navigate to webspaces");
         openDrawer();
+        Thread.sleep(QUICK_DELAY);
 
         UiObject2 webspacesButton = findElement("Back to Webspaces");
         if (webspacesButton == null) {
@@ -211,11 +215,7 @@ public class ScreenshotTest {
             Thread.sleep(MEDIUM_DELAY);
             Thread.sleep(SHORT_DELAY);  // Extra time for UI to refresh when re-entering workspace screen
 
-            // Screenshot 6: Webspaces list view
-            Screengrab.screenshot("06-webspaces-overview");
-            Thread.sleep(SHORT_DELAY);
-
-            // Look for "Work" webspace - if found, capture it for screenshots 07-08
+            // Look for "Work" webspace - if found, capture it for screenshots 06-07
             UiObject2 workWebspace = findElement("Work");
             if (workWebspace != null) {
                 Log.d(TAG, "Work webspace found - capturing screenshots");
@@ -225,16 +225,17 @@ public class ScreenshotTest {
                 Thread.sleep(LONG_DELAY);
                 Thread.sleep(ICON_LOAD_DELAY);  // Extra time for site icons to load
 
-                // Screenshot 7: Work webspace sites
-                Screengrab.screenshot("07-work-webspace");
+                // Screenshot 6: Work webspace sites
+                Screengrab.screenshot("06-work-webspace");
                 Thread.sleep(MEDIUM_DELAY);
 
                 // Open drawer
                 Log.d(TAG, "Opening drawer for Work webspace");
                 openDrawer();
+                Thread.sleep(QUICK_DELAY);
 
-                // Screenshot 8: Work webspace drawer
-                Screengrab.screenshot("08-work-sites-drawer");
+                // Screenshot 7: Work webspace drawer
+                Screengrab.screenshot("07-work-sites-drawer");
                 Thread.sleep(SHORT_DELAY);
 
                 // Close drawer
@@ -284,9 +285,9 @@ public class ScreenshotTest {
                 addButton.click();
                 Thread.sleep(LONG_DELAY);
 
-                // Screenshot 9: Add workspace dialog
+                // Screenshot 8: Add workspace dialog
                 Log.d(TAG, "Capturing add workspace dialog");
-                Screengrab.screenshot("09-add-workspace-dialog");
+                Screengrab.screenshot("08-add-workspace-dialog");
                 Thread.sleep(SHORT_DELAY);
 
                 // Try to find and fill name field
@@ -311,9 +312,9 @@ public class ScreenshotTest {
                     device.pressBack();
                     Thread.sleep(SHORT_DELAY);
 
-                    // Screenshot 10: Workspace with name entered
+                    // Screenshot 9: Workspace with name entered
                     Log.d(TAG, "Capturing workspace name entered");
-                    Screengrab.screenshot("10-workspace-name-entered");
+                    Screengrab.screenshot("09-workspace-name-entered");
                     Thread.sleep(SHORT_DELAY);
 
                     // Try to find site selection area (might be checkboxes or list)
@@ -333,9 +334,9 @@ public class ScreenshotTest {
                         Thread.sleep(SHORT_DELAY);
                     }
 
-                    // Screenshot 11: Sites selected
+                    // Screenshot 10: Sites selected
                     Log.d(TAG, "Capturing sites selected");
-                    Screengrab.screenshot("11-workspace-sites-selected");
+                    Screengrab.screenshot("10-workspace-sites-selected");
                     Thread.sleep(SHORT_DELAY);
 
                     // Try to find and click save/create button
@@ -358,9 +359,9 @@ public class ScreenshotTest {
                         Thread.sleep(LONG_DELAY);
                         Thread.sleep(SHORT_DELAY);
 
-                        // Screenshot 12: New workspace in list
+                        // Screenshot 11: New workspace in list
                         Log.d(TAG, "Capturing webspaces list with new workspace");
-                        Screengrab.screenshot("12-new-workspace-created");
+                        Screengrab.screenshot("11-new-workspace-created");
                         Thread.sleep(SHORT_DELAY);
                     } else {
                         Log.w(TAG, "Could not find save button");
