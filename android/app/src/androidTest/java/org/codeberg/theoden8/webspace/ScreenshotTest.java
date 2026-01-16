@@ -105,11 +105,6 @@ public class ScreenshotTest {
         Log.d(TAG, "Visible elements:");
         logVisibleText();
 
-        // Also dump ALL text-like elements
-        Log.d(TAG, "Dumping all UI elements...");
-        dumpAllElements();
-
-        // Check if we're on webspaces list or sites view
         // Try multiple ways to find the "All" webspace (Flutter uses different accessibility systems)
         UiObject2 allWebspace = device.findObject(By.text("All"));
         if (allWebspace == null) {
@@ -118,13 +113,8 @@ public class ScreenshotTest {
         if (allWebspace == null) {
             allWebspace = device.findObject(By.desc("All"));
         }
-        boolean onWebspacesList = allWebspace != null;
-        Log.d(TAG, "On webspaces list: " + onWebspacesList);
-
-        if (onWebspacesList) {
-            Log.d(TAG, "On webspaces list screen");
-
-            // Select "All" webspace (already selected by default, so no separate screenshot)
+        if (allWebspace != null) {
+            Log.d(TAG, "Selecting All webspace");
             allWebspace.click();
             Log.d(TAG, "Waiting for All webspace to load and site icons to render...");
             Thread.sleep(LONG_DELAY);
@@ -135,6 +125,8 @@ public class ScreenshotTest {
                 closeDrawer();
                 Thread.sleep(SHORT_DELAY);
             }
+        } else {
+            Log.w(TAG, "All webspace not found");
         }
 
         // Screenshot 1: All sites view (main screen)
@@ -199,11 +191,6 @@ public class ScreenshotTest {
             Thread.sleep(SHORT_DELAY);
         }
 
-        // Try to navigate to webspaces list via drawer buttons (no hamburger when drawer is open)
-        Log.d(TAG, "Opening drawer to navigate to webspaces");
-        openDrawer();
-        Thread.sleep(QUICK_DELAY);
-
         UiObject2 webspacesButton = findElement("Back to Webspaces");
         if (webspacesButton == null) {
             webspacesButton = findElement("Webspaces");
@@ -224,14 +211,6 @@ public class ScreenshotTest {
                 Log.d(TAG, "Work webspace found - capturing screenshots");
                 Log.d(TAG, "Selecting Work webspace");
                 workWebspace.click();
-                Log.d(TAG, "Waiting for Work webspace to load and site icons to render...");
-                Thread.sleep(QUICK_DELAY);
-
-                // Screenshot 5: Work webspace sites
-                Screengrab.screenshot("05-work-webspace");
-                Thread.sleep(MEDIUM_DELAY);
-                Thread.sleep(LONG_DELAY);
-                Thread.sleep(ICON_LOAD_DELAY);  // Extra time for site icons to load
 
                 // Open drawer
                 Log.d(TAG, "Opening drawer for Work webspace");
@@ -242,31 +221,39 @@ public class ScreenshotTest {
                 Screengrab.screenshot("06-work-sites-drawer");
                 Thread.sleep(SHORT_DELAY);
 
-                // Close drawer
+                // Close drawer before capturing the Work webspace sites
                 closeDrawer();
                 Thread.sleep(SHORT_DELAY);
 
-                // Navigate back to webspaces list (drawer already open on selection)
+                Log.d(TAG, "Waiting for Work webspace to load and site icons to render...");
+                Thread.sleep(LONG_DELAY);
+                Thread.sleep(ICON_LOAD_DELAY);  // Extra time for site icons to load
+
+                // Screenshot 5: Work webspace sites
+                Screengrab.screenshot("05-work-webspace");
+                Thread.sleep(MEDIUM_DELAY);
+
+                // Navigate back to webspaces list
                 Log.d(TAG, "Navigating back to webspaces list");
-                if (!isDrawerOpen()) {
-                    openDrawer();
-                    Thread.sleep(QUICK_DELAY);
-                }
-                UiObject2 backToWebspaces = findElement("Back to Webspaces");
-                if (backToWebspaces == null) {
-                    backToWebspaces = findElement("Webspaces");
-                }
-                if (backToWebspaces == null) {
-                    backToWebspaces = findElement("All");
-                }
-                if (backToWebspaces != null) {
-                    backToWebspaces.click();
-                    Log.d(TAG, "Waiting briefly for webspaces list to refresh...");
-                    Thread.sleep(SHORT_DELAY);
+                if (isDrawerOpen()) {
+                    UiObject2 backToWebspaces = findElement("Back to Webspaces");
+                    if (backToWebspaces == null) {
+                        backToWebspaces = findElement("Webspaces");
+                    }
+                    if (backToWebspaces == null) {
+                        backToWebspaces = findElement("All");
+                    }
+                    if (backToWebspaces != null) {
+                        backToWebspaces.click();
+                        Log.d(TAG, "Waiting briefly for webspaces list to refresh...");
+                        Thread.sleep(SHORT_DELAY);
+                    } else {
+                        Log.w(TAG, "Could not find webspaces button, pressing back");
+                        device.pressBack();
+                        Thread.sleep(MEDIUM_DELAY);
+                    }
                 } else {
-                    Log.w(TAG, "Could not find webspaces button, pressing back");
-                    device.pressBack();
-                    Thread.sleep(MEDIUM_DELAY);
+                    Log.w(TAG, "Drawer not open when navigating back to webspaces");
                 }
             } else {
                 Log.w(TAG, "Work webspace not found - skipping Work screenshots");
@@ -509,51 +496,4 @@ public class ScreenshotTest {
         }
     }
 
-    /**
-     * Dump all UI elements with text or content descriptions for debugging
-     */
-    private void dumpAllElements() {
-        try {
-            Log.d(TAG, "=== FULL UI DUMP ===");
-
-            // Find all TextViews
-            List<UiObject2> textViews = device.findObjects(By.clazz("android.widget.TextView"));
-            Log.d(TAG, "TextViews found: " + textViews.size());
-            for (int i = 0; i < Math.min(textViews.size(), 50); i++) {
-                UiObject2 element = textViews.get(i);
-                String text = element.getText();
-                if (text != null && !text.trim().isEmpty()) {
-                    Log.d(TAG, "  TextView[" + i + "]: \"" + text + "\"");
-                }
-            }
-
-            // Find all Buttons
-            List<UiObject2> buttons = device.findObjects(By.clazz("android.widget.Button"));
-            Log.d(TAG, "Buttons found: " + buttons.size());
-            for (int i = 0; i < Math.min(buttons.size(), 20); i++) {
-                UiObject2 element = buttons.get(i);
-                String text = element.getText();
-                if (text != null) {
-                    Log.d(TAG, "  Button[" + i + "]: \"" + text + "\"");
-                }
-            }
-
-            // Find all elements with content descriptions (Flutter often uses these)
-            List<UiObject2> allElements = device.findObjects(By.clazz("android.view.View"));
-            int descCount = 0;
-            for (UiObject2 element : allElements) {
-                String desc = element.getContentDescription();
-                if (desc != null && !desc.trim().isEmpty()) {
-                    Log.d(TAG, "  View[" + descCount + "] desc=\"" + desc + "\"");
-                    descCount++;
-                    if (descCount >= 50) break;
-                }
-            }
-            Log.d(TAG, "Views with content descriptions: " + descCount);
-
-            Log.d(TAG, "=== END UI DUMP ===");
-        } catch (Exception e) {
-            Log.e(TAG, "Error dumping UI elements: " + e.getMessage());
-        }
-    }
 }
