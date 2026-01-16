@@ -516,36 +516,43 @@ public class ScreenshotTest {
      * Dump all UI elements with text or content descriptions for debugging
      */
     private void dumpAllElements() {
-        // Get root node and traverse
         try {
             Log.d(TAG, "=== FULL UI DUMP ===");
 
-            // Find all elements with text
-            List<UiObject2> allElements = device.findObjects(By.hasChild(By.clazz("android.view.View")));
-            if (allElements.isEmpty()) {
-                allElements = device.findObjects(By.clazz("android.view.View"));
-            }
-
-            // Try to find all elements with text or content description
-            List<UiObject2> elementsWithText = device.findObjects(By.textMatches(".*"));
-            Log.d(TAG, "Elements with text: " + elementsWithText.size());
-            for (int i = 0; i < Math.min(elementsWithText.size(), 50); i++) {
-                UiObject2 element = elementsWithText.get(i);
+            // Find all TextViews
+            List<UiObject2> textViews = device.findObjects(By.clazz("android.widget.TextView"));
+            Log.d(TAG, "TextViews found: " + textViews.size());
+            for (int i = 0; i < Math.min(textViews.size(), 50); i++) {
+                UiObject2 element = textViews.get(i);
                 String text = element.getText();
-                String className = element.getClassName();
-                Log.d(TAG, "  [" + i + "] " + className + ": \"" + text + "\"");
-            }
-
-            List<UiObject2> elementsWithDesc = device.findObjects(By.descMatches(".*"));
-            Log.d(TAG, "Elements with content description: " + elementsWithDesc.size());
-            for (int i = 0; i < Math.min(elementsWithDesc.size(), 50); i++) {
-                UiObject2 element = elementsWithDesc.get(i);
-                String desc = element.getContentDescription();
-                String className = element.getClassName();
-                if (desc != null && !desc.trim().isEmpty()) {
-                    Log.d(TAG, "  [" + i + "] " + className + " desc=\"" + desc + "\"");
+                if (text != null && !text.trim().isEmpty()) {
+                    Log.d(TAG, "  TextView[" + i + "]: \"" + text + "\"");
                 }
             }
+
+            // Find all Buttons
+            List<UiObject2> buttons = device.findObjects(By.clazz("android.widget.Button"));
+            Log.d(TAG, "Buttons found: " + buttons.size());
+            for (int i = 0; i < Math.min(buttons.size(), 20); i++) {
+                UiObject2 element = buttons.get(i);
+                String text = element.getText();
+                if (text != null) {
+                    Log.d(TAG, "  Button[" + i + "]: \"" + text + "\"");
+                }
+            }
+
+            // Find all elements with content descriptions (Flutter often uses these)
+            List<UiObject2> allElements = device.findObjects(By.clazz("android.view.View"));
+            int descCount = 0;
+            for (UiObject2 element : allElements) {
+                String desc = element.getContentDescription();
+                if (desc != null && !desc.trim().isEmpty()) {
+                    Log.d(TAG, "  View[" + descCount + "] desc=\"" + desc + "\"");
+                    descCount++;
+                    if (descCount >= 50) break;
+                }
+            }
+            Log.d(TAG, "Views with content descriptions: " + descCount);
 
             Log.d(TAG, "=== END UI DUMP ===");
         } catch (Exception e) {
