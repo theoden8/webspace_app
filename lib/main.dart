@@ -940,11 +940,11 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
   Widget _buildSiteListTile(BuildContext context, int index) {
     return Semantics(
+      key: Key('site_$index'),
       label: _webViewModels[index].getDisplayName(),
       button: true,
       enabled: true,
       child: ListTile(
-        key: Key('site_$index'),
       leading: FutureBuilder<String?>(
         future: getFaviconUrl(_webViewModels[index].initUrl),
         builder: (context, snapshot) {
