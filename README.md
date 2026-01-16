@@ -1,10 +1,5 @@
 <div align="center">
 
-[![Release](https://img.shields.io/github/v/release/theoden8/webspace_app)](https://github.com/theoden8/webspace_app/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/theoden8/webspace_app/total)](https://github.com/theoden8/webspace_app/releases)
-<!-- NOTE: GitHub strips iframes from README rendering. The iframe below will not render on github.com, but is included as requested. Recommended alternative badge (renders on GitHub) provided below. -->
-<iframe src="https://github.com/sponsors/theoden8/button" title="Sponsor theoden8" height="32" width="114" style="border: 0; border-radius: 6px;"></iframe>
-
 <img src="assets/webspace_icon.png" alt="WebSpace Icon" width="120"/>
 
 # WebSpace
@@ -109,4 +104,4 @@ This project was initially created with GPT-4 assistance. See [`transcript/0-gpt
 
 This project is licensed under the [MIT License](LICENSE) - Copyright (c) 2023 Kirill Rodriguez.
 
-**Assets**: Icons and images in the `assets/` directory are licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) - Copyright (c) Polina Levchenko. See [assets/LICENSE](...)
+**Assets**: Icons and images in the `assets/` directory are licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) - Copyright (c) Polina Levchenko. See [assets/LICENSE](assets/LICENSE) for details.
