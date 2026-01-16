@@ -124,21 +124,22 @@ public class ScreenshotTest {
         if (onWebspacesList) {
             Log.d(TAG, "On webspaces list screen");
 
-            // Screenshot 1: Webspaces list
-            Log.d(TAG, "Capturing webspaces list");
-            Screengrab.screenshot("01-webspaces-list");
-            Thread.sleep(SHORT_DELAY);
-
-            // Select "All" webspace
+            // Select "All" webspace (already selected by default, so no separate screenshot)
             allWebspace.click();
             Log.d(TAG, "Waiting for All webspace to load and site icons to render...");
             Thread.sleep(LONG_DELAY);
             Thread.sleep(ICON_LOAD_DELAY);  // Extra time for site icons to load
+
+            if (isDrawerOpen()) {
+                Log.d(TAG, "Closing drawer to capture all sites view");
+                device.pressBack();
+                Thread.sleep(SHORT_DELAY);
+            }
         }
 
-        // Screenshot 2: All sites view (main screen)
+        // Screenshot 1: All sites view (main screen)
         Log.d(TAG, "Capturing all sites view");
-        Screengrab.screenshot("02-all-sites");
+        Screengrab.screenshot("01-all-sites");
         Thread.sleep(MEDIUM_DELAY);
 
         // Open drawer to see site list
@@ -149,9 +150,9 @@ public class ScreenshotTest {
             Log.w(TAG, "Drawer failed to open - skipping drawer screenshots");
         }
 
-        // Screenshot 3: Drawer with sites list
+        // Screenshot 2: Drawer with sites list
         Log.d(TAG, "Capturing sites drawer");
-        Screengrab.screenshot("03-sites-drawer");
+        Screengrab.screenshot("02-sites-drawer");
         Thread.sleep(SHORT_DELAY);
 
         // Look for a site to select
@@ -174,9 +175,9 @@ public class ScreenshotTest {
             Thread.sleep(LONG_DELAY);
             Thread.sleep(ICON_LOAD_DELAY);  // Extra time for webview and icons to load
 
-            // Screenshot 4: Site webview
+            // Screenshot 3: Site webview
             Log.d(TAG, "Capturing site webview");
-            Screengrab.screenshot("04-site-webview");
+            Screengrab.screenshot("03-site-webview");
             Thread.sleep(MEDIUM_DELAY);
 
             // Open drawer again
@@ -184,8 +185,8 @@ public class ScreenshotTest {
             openDrawer();
             Thread.sleep(QUICK_DELAY);
 
-            // Screenshot 5: Drawer showing current site
-            Screengrab.screenshot("05-drawer-with-site");
+            // Screenshot 4: Drawer showing current site
+            Screengrab.screenshot("04-drawer-with-site");
             Thread.sleep(SHORT_DELAY);
 
             // Close drawer
@@ -217,37 +218,40 @@ public class ScreenshotTest {
             Log.d(TAG, "Waiting briefly for webspaces list to refresh...");
             Thread.sleep(SHORT_DELAY);
 
-            // Look for "Work" webspace - if found, capture it for screenshots 06-07
+            // Look for "Work" webspace - if found, capture it for screenshots 05-06
             UiObject2 workWebspace = findElement("Work");
             if (workWebspace != null) {
                 Log.d(TAG, "Work webspace found - capturing screenshots");
                 Log.d(TAG, "Selecting Work webspace");
                 workWebspace.click();
                 Log.d(TAG, "Waiting for Work webspace to load and site icons to render...");
+                Thread.sleep(QUICK_DELAY);
+
+                // Screenshot 5: Work webspace sites
+                Screengrab.screenshot("05-work-webspace");
+                Thread.sleep(MEDIUM_DELAY);
                 Thread.sleep(LONG_DELAY);
                 Thread.sleep(ICON_LOAD_DELAY);  // Extra time for site icons to load
-
-                // Screenshot 6: Work webspace sites
-                Screengrab.screenshot("06-work-webspace");
-                Thread.sleep(MEDIUM_DELAY);
 
                 // Open drawer
                 Log.d(TAG, "Opening drawer for Work webspace");
                 openDrawer();
                 Thread.sleep(QUICK_DELAY);
 
-                // Screenshot 7: Work webspace drawer
-                Screengrab.screenshot("07-work-sites-drawer");
+                // Screenshot 6: Work webspace drawer
+                Screengrab.screenshot("06-work-sites-drawer");
                 Thread.sleep(SHORT_DELAY);
 
                 // Close drawer
                 device.pressBack();
                 Thread.sleep(SHORT_DELAY);
 
-                // Navigate back to webspaces list
+                // Navigate back to webspaces list (drawer already open on selection)
                 Log.d(TAG, "Navigating back to webspaces list");
-                openDrawer();
-                Thread.sleep(QUICK_DELAY);
+                if (!isDrawerOpen()) {
+                    openDrawer();
+                    Thread.sleep(QUICK_DELAY);
+                }
                 UiObject2 backToWebspaces = findElement("Back to Webspaces");
                 if (backToWebspaces == null) {
                     backToWebspaces = findElement("Webspaces");
@@ -290,9 +294,9 @@ public class ScreenshotTest {
                 addButton.click();
                 Thread.sleep(LONG_DELAY);
 
-                // Screenshot 8: Add workspace dialog
+                // Screenshot 7: Add workspace dialog
                 Log.d(TAG, "Capturing add workspace dialog");
-                Screengrab.screenshot("08-add-workspace-dialog");
+                Screengrab.screenshot("07-add-workspace-dialog");
                 Thread.sleep(SHORT_DELAY);
 
                 // Try to find and fill name field
@@ -317,9 +321,9 @@ public class ScreenshotTest {
                     device.pressBack();
                     Thread.sleep(SHORT_DELAY);
 
-                    // Screenshot 9: Workspace with name entered
+                    // Screenshot 8: Workspace with name entered
                     Log.d(TAG, "Capturing workspace name entered");
-                    Screengrab.screenshot("09-workspace-name-entered");
+                    Screengrab.screenshot("08-workspace-name-entered");
                     Thread.sleep(SHORT_DELAY);
 
                     // Try to find site selection area (might be checkboxes or list)
@@ -339,9 +343,9 @@ public class ScreenshotTest {
                         Thread.sleep(SHORT_DELAY);
                     }
 
-                    // Screenshot 10: Sites selected
+                    // Screenshot 9: Sites selected
                     Log.d(TAG, "Capturing sites selected");
-                    Screengrab.screenshot("10-workspace-sites-selected");
+                    Screengrab.screenshot("09-workspace-sites-selected");
                     Thread.sleep(SHORT_DELAY);
 
                     // Try to find and click save/create button
@@ -364,9 +368,9 @@ public class ScreenshotTest {
                         Thread.sleep(LONG_DELAY);
                         Thread.sleep(SHORT_DELAY);
 
-                        // Screenshot 11: New workspace in list
+                        // Screenshot 10: New workspace in list
                         Log.d(TAG, "Capturing webspaces list with new workspace");
-                        Screengrab.screenshot("11-new-workspace-created");
+                        Screengrab.screenshot("10-new-workspace-created");
                         Thread.sleep(SHORT_DELAY);
                     } else {
                         Log.w(TAG, "Could not find save button");
@@ -401,42 +405,17 @@ public class ScreenshotTest {
      * Open the navigation drawer, returning true if successful
      */
     private boolean openDrawer() throws Exception {
-        // First try to find and click the hamburger menu button
-        // Flutter apps typically have this as a clickable element
-        Log.d(TAG, "Looking for hamburger menu button...");
-
-        // Try various descriptions Flutter might use
-        String[] menuDescriptions = {
-            "Open navigation menu",
-            "Open drawer",
-            "Navigation menu",
-            "Menu",
-            "Open navigation drawer"
-        };
-
-        UiObject2 menuButton = null;
-        for (String desc : menuDescriptions) {
-            menuButton = device.findObject(By.desc(desc));
-            if (menuButton != null) {
-                Log.d(TAG, "Found menu button with description: " + desc);
-                break;
-            }
-        }
-
-        if (menuButton != null) {
-            Log.d(TAG, "Clicking menu button...");
-            menuButton.click();
-            Thread.sleep(DRAWER_OPEN_DELAY);
-        } else {
-            // Fallback to swipe gesture
-            Log.d(TAG, "Menu button not found, trying swipe gesture...");
-            swipeFromLeftEdge();
-            Thread.sleep(DRAWER_OPEN_DELAY);
-        }
+        Log.d(TAG, "Opening drawer via swipe gesture...");
+        swipeFromLeftEdge();
+        Thread.sleep(DRAWER_OPEN_DELAY);
 
         // Check if drawer is open by looking for drawer-specific elements
         // The drawer should show site names or navigation items
         Log.d(TAG, "Checking if drawer opened...");
+        return isDrawerOpen();
+    }
+
+    private boolean isDrawerOpen() {
         UiObject2 drawerIndicator = findElement("DuckDuckGo");
         if (drawerIndicator == null) {
             drawerIndicator = findElement("Piped");
