@@ -80,7 +80,6 @@ Detailed documentation is in [`transcript/`](transcript/README.md):
 ## Tech Stack
 
 - **Framework**: Flutter
-- **State Management**: setState + SharedPreferences
 
 This project is made possible by [flutter_inappwebview](https://github.com/pichillilorenzo/flutter_inappwebview), which provides the advanced webview functionality at the core of WebSpace.
 
