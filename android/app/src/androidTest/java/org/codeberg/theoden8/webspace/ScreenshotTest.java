@@ -42,6 +42,7 @@ public class ScreenshotTest {
     private static final int SHORT_DELAY = 3000;
     private static final int MEDIUM_DELAY = 5000;
     private static final int LONG_DELAY = 8000;
+    private static final int SCREENSHOT_DELAY = 15000;
     private static final int QUICK_DELAY = 100;
     private static final int APP_LOAD_DELAY = 10000;  // Extra time for Flutter to fully render
     private static final int DRAWER_OPEN_DELAY = 5000;  // Time for drawer animation and site icons to load
@@ -113,20 +114,10 @@ public class ScreenshotTest {
         if (allWebspace == null) {
             allWebspace = device.findObject(By.desc("All"));
         }
-        if (allWebspace != null) {
-            Log.d(TAG, "Selecting All webspace");
-            allWebspace.click();
-            Log.d(TAG, "Waiting for All webspace to load and site icons to render...");
-            Thread.sleep(LONG_DELAY);
-            Thread.sleep(ICON_LOAD_DELAY);  // Extra time for site icons to load
-
-            if (isDrawerOpen()) {
-                Log.d(TAG, "Closing drawer to capture all sites view");
-                closeDrawer();
-                Thread.sleep(SHORT_DELAY);
-            }
-        } else {
-            Log.w(TAG, "All webspace not found");
+        if (isDrawerOpen()) {
+            Log.d(TAG, "Closing drawer to capture all sites view");
+            closeDrawer();
+            Thread.sleep(SHORT_DELAY);
         }
 
         // Screenshot 1: All sites view (main screen)
@@ -141,6 +132,9 @@ public class ScreenshotTest {
         if (!drawerOpened) {
             Log.w(TAG, "Drawer failed to open - skipping drawer screenshots");
         }
+
+        Log.d(TAG, "Waiting before capturing sites drawer");
+        Thread.sleep(SCREENSHOT_DELAY);
 
         // Screenshot 2: Drawer with sites list
         Log.d(TAG, "Capturing sites drawer");
@@ -417,6 +411,9 @@ public class ScreenshotTest {
     private boolean isDrawerOpen() {
         UiObject2 drawerIndicator = findElement("DuckDuckGo");
         if (drawerIndicator == null) {
+            drawerIndicator = findElementStartsWith("DuckDuckGo");
+        }
+        if (drawerIndicator == null) {
             drawerIndicator = findElement("Piped");
         }
         if (drawerIndicator == null) {
@@ -453,6 +450,10 @@ public class ScreenshotTest {
             obj = device.findObject(By.descContains(text));
         }
         return obj;
+    }
+
+    private UiObject2 findElementStartsWith(String text) {
+        return device.findObject(By.textStartsWith(text));
     }
 
     /**
