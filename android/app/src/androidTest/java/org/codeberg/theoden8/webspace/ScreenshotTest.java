@@ -96,12 +96,17 @@ public class ScreenshotTest {
         Log.d(TAG, "STARTING SCREENSHOT TOUR");
         Log.d(TAG, "========================================");
 
-        // Wait for data to load
-        Thread.sleep(MEDIUM_DELAY);
+        // Wait for data to load and webspaces list to render
+        Log.d(TAG, "Waiting for webspaces list to fully render...");
+        Thread.sleep(LONG_DELAY);  // Increased from MEDIUM_DELAY to LONG_DELAY
 
         // Log visible text on screen
         Log.d(TAG, "Visible elements:");
         logVisibleText();
+
+        // Also dump ALL text-like elements
+        Log.d(TAG, "Dumping all UI elements...");
+        dumpAllElements();
 
         // Check if we're on webspaces list or sites view
         // Try multiple ways to find the "All" webspace (Flutter uses different accessibility systems)
@@ -210,9 +215,10 @@ public class ScreenshotTest {
             Screengrab.screenshot("06-webspaces-overview");
             Thread.sleep(SHORT_DELAY);
 
-            // Look for "Work" webspace
+            // Look for "Work" webspace - if found, capture it for screenshots 07-08
             UiObject2 workWebspace = findElement("Work");
             if (workWebspace != null) {
+                Log.d(TAG, "Work webspace found - capturing screenshots");
                 Log.d(TAG, "Selecting Work webspace");
                 workWebspace.click();
                 Log.d(TAG, "Waiting for Work webspace to load and site icons to render...");
@@ -231,12 +237,12 @@ public class ScreenshotTest {
                 Screengrab.screenshot("08-work-sites-drawer");
                 Thread.sleep(SHORT_DELAY);
 
-                // Close drawer and navigate back to webspaces list to demo creating workspace
-                Log.d(TAG, "Closing drawer and navigating to webspaces list for creation demo");
+                // Close drawer
                 device.pressBack();
                 Thread.sleep(SHORT_DELAY);
 
-                // Try to navigate back to webspaces list
+                // Navigate back to webspaces list
+                Log.d(TAG, "Navigating back to webspaces list");
                 openDrawer();
                 UiObject2 backToWebspaces = findElement("Back to Webspaces");
                 if (backToWebspaces == null) {
@@ -247,118 +253,123 @@ public class ScreenshotTest {
                     Log.d(TAG, "Waiting for webspaces list to refresh...");
                     Thread.sleep(MEDIUM_DELAY);
                     Thread.sleep(SHORT_DELAY);
+                } else {
+                    Log.w(TAG, "Could not find webspaces button, pressing back");
+                    device.pressBack();
+                    Thread.sleep(MEDIUM_DELAY);
+                }
+            } else {
+                Log.w(TAG, "Work webspace not found - skipping Work screenshots");
+            }
 
-                    // Look for add workspace button
-                    Log.d(TAG, "Looking for add workspace button...");
-                    UiObject2 addButton = findElement("Add Webspace");
-                    if (addButton == null) {
-                        addButton = findElement("Add");
-                    }
-                    if (addButton == null) {
-                        addButton = findElement("+");
-                    }
-                    if (addButton == null) {
-                        addButton = findElement("Create Webspace");
-                    }
-                    if (addButton == null) {
-                        addButton = findElement("New Webspace");
+            // ALWAYS demonstrate workspace creation (regardless of whether Work was found)
+            Log.d(TAG, "Starting workspace creation demonstration...");
+            Log.d(TAG, "Looking for add workspace button...");
+            UiObject2 addButton = findElement("Add Webspace");
+            if (addButton == null) {
+                addButton = findElement("Add");
+            }
+            if (addButton == null) {
+                addButton = findElement("+");
+            }
+            if (addButton == null) {
+                addButton = findElement("Create Webspace");
+            }
+            if (addButton == null) {
+                addButton = findElement("New Webspace");
+            }
+
+            if (addButton != null) {
+                Log.d(TAG, "Found add button, clicking...");
+                addButton.click();
+                Thread.sleep(LONG_DELAY);
+
+                // Screenshot 9: Add workspace dialog
+                Log.d(TAG, "Capturing add workspace dialog");
+                Screengrab.screenshot("09-add-workspace-dialog");
+                Thread.sleep(SHORT_DELAY);
+
+                // Try to find and fill name field
+                Log.d(TAG, "Looking for workspace name field...");
+                UiObject2 nameField = findElement("Workspace name");
+                if (nameField == null) {
+                    nameField = findElement("Name");
+                }
+                if (nameField == null) {
+                    // Try to find EditText
+                    nameField = device.findObject(By.clazz("android.widget.EditText"));
+                }
+
+                if (nameField != null) {
+                    Log.d(TAG, "Found name field, entering text...");
+                    nameField.click();
+                    Thread.sleep(SHORT_DELAY);
+                    nameField.setText("Entertainment");
+                    Thread.sleep(SHORT_DELAY);
+
+                    // Hide keyboard
+                    device.pressBack();
+                    Thread.sleep(SHORT_DELAY);
+
+                    // Screenshot 10: Workspace with name entered
+                    Log.d(TAG, "Capturing workspace name entered");
+                    Screengrab.screenshot("10-workspace-name-entered");
+                    Thread.sleep(SHORT_DELAY);
+
+                    // Try to find site selection area (might be checkboxes or list)
+                    Log.d(TAG, "Looking for site selection elements...");
+                    // Look for a few sites to select
+                    UiObject2 redditCheck = findElement("Reddit");
+                    if (redditCheck != null) {
+                        Log.d(TAG, "Selecting Reddit...");
+                        redditCheck.click();
+                        Thread.sleep(SHORT_DELAY);
                     }
 
-                    if (addButton != null) {
-                        Log.d(TAG, "Found add button, clicking...");
-                        addButton.click();
+                    UiObject2 wikipediaCheck = findElement("Wikipedia");
+                    if (wikipediaCheck != null) {
+                        Log.d(TAG, "Selecting Wikipedia...");
+                        wikipediaCheck.click();
+                        Thread.sleep(SHORT_DELAY);
+                    }
+
+                    // Screenshot 11: Sites selected
+                    Log.d(TAG, "Capturing sites selected");
+                    Screengrab.screenshot("11-workspace-sites-selected");
+                    Thread.sleep(SHORT_DELAY);
+
+                    // Try to find and click save/create button
+                    Log.d(TAG, "Looking for save button...");
+                    UiObject2 saveButton = findElement("Save");
+                    if (saveButton == null) {
+                        saveButton = findElement("Create");
+                    }
+                    if (saveButton == null) {
+                        saveButton = findElement("Done");
+                    }
+                    if (saveButton == null) {
+                        saveButton = findElement("OK");
+                    }
+
+                    if (saveButton != null) {
+                        Log.d(TAG, "Found save button, clicking...");
+                        saveButton.click();
+                        Log.d(TAG, "Waiting for new workspace to be created...");
                         Thread.sleep(LONG_DELAY);
-
-                        // Screenshot 9: Add workspace dialog
-                        Log.d(TAG, "Capturing add workspace dialog");
-                        Screengrab.screenshot("09-add-workspace-dialog");
                         Thread.sleep(SHORT_DELAY);
 
-                        // Try to find and fill name field
-                        Log.d(TAG, "Looking for workspace name field...");
-                        UiObject2 nameField = findElement("Workspace name");
-                        if (nameField == null) {
-                            nameField = findElement("Name");
-                        }
-                        if (nameField == null) {
-                            // Try to find EditText
-                            nameField = device.findObject(By.clazz("android.widget.EditText"));
-                        }
-
-                        if (nameField != null) {
-                            Log.d(TAG, "Found name field, entering text...");
-                            nameField.click();
-                            Thread.sleep(SHORT_DELAY);
-                            nameField.setText("Entertainment");
-                            Thread.sleep(SHORT_DELAY);
-
-                            // Hide keyboard
-                            device.pressBack();
-                            Thread.sleep(SHORT_DELAY);
-
-                            // Screenshot 10: Workspace with name entered
-                            Log.d(TAG, "Capturing workspace name entered");
-                            Screengrab.screenshot("10-workspace-name-entered");
-                            Thread.sleep(SHORT_DELAY);
-
-                            // Try to find site selection area (might be checkboxes or list)
-                            Log.d(TAG, "Looking for site selection elements...");
-                            // Look for a few sites to select
-                            UiObject2 redditCheck = findElement("Reddit");
-                            if (redditCheck != null) {
-                                Log.d(TAG, "Selecting Reddit...");
-                                redditCheck.click();
-                                Thread.sleep(SHORT_DELAY);
-                            }
-
-                            UiObject2 wikipediaCheck = findElement("Wikipedia");
-                            if (wikipediaCheck != null) {
-                                Log.d(TAG, "Selecting Wikipedia...");
-                                wikipediaCheck.click();
-                                Thread.sleep(SHORT_DELAY);
-                            }
-
-                            // Screenshot 11: Sites selected
-                            Log.d(TAG, "Capturing sites selected");
-                            Screengrab.screenshot("11-workspace-sites-selected");
-                            Thread.sleep(SHORT_DELAY);
-
-                            // Try to find and click save/create button
-                            Log.d(TAG, "Looking for save button...");
-                            UiObject2 saveButton = findElement("Save");
-                            if (saveButton == null) {
-                                saveButton = findElement("Create");
-                            }
-                            if (saveButton == null) {
-                                saveButton = findElement("Done");
-                            }
-                            if (saveButton == null) {
-                                saveButton = findElement("OK");
-                            }
-
-                            if (saveButton != null) {
-                                Log.d(TAG, "Found save button, clicking...");
-                                saveButton.click();
-                                Log.d(TAG, "Waiting for new workspace to be created...");
-                                Thread.sleep(LONG_DELAY);
-                                Thread.sleep(SHORT_DELAY);
-
-                                // Screenshot 12: New workspace in list
-                                Log.d(TAG, "Capturing webspaces list with new workspace");
-                                Screengrab.screenshot("12-new-workspace-created");
-                                Thread.sleep(SHORT_DELAY);
-                            } else {
-                                Log.w(TAG, "Could not find save button");
-                            }
-                        } else {
-                            Log.w(TAG, "Could not find name field");
-                        }
+                        // Screenshot 12: New workspace in list
+                        Log.d(TAG, "Capturing webspaces list with new workspace");
+                        Screengrab.screenshot("12-new-workspace-created");
+                        Thread.sleep(SHORT_DELAY);
                     } else {
-                        Log.w(TAG, "Could not find add workspace button");
+                        Log.w(TAG, "Could not find save button");
                     }
                 } else {
-                    Log.w(TAG, "Could not navigate back to webspaces list");
+                    Log.w(TAG, "Could not find name field");
                 }
+            } else {
+                Log.w(TAG, "Could not find add workspace button");
             }
         } else {
             Log.w(TAG, "Could not find webspaces button");
@@ -498,6 +509,47 @@ public class ScreenshotTest {
                 obj = device.findObject(By.descContains(expectedText));
             }
             Log.d(TAG, "  Looking for '" + expectedText + "': " + (obj != null ? "FOUND" : "NOT FOUND"));
+        }
+    }
+
+    /**
+     * Dump all UI elements with text or content descriptions for debugging
+     */
+    private void dumpAllElements() {
+        // Get root node and traverse
+        try {
+            Log.d(TAG, "=== FULL UI DUMP ===");
+
+            // Find all elements with text
+            List<UiObject2> allElements = device.findObjects(By.hasChild(By.clazz("android.view.View")));
+            if (allElements.isEmpty()) {
+                allElements = device.findObjects(By.clazz("android.view.View"));
+            }
+
+            // Try to find all elements with text or content description
+            List<UiObject2> elementsWithText = device.findObjects(By.textMatches(".*"));
+            Log.d(TAG, "Elements with text: " + elementsWithText.size());
+            for (int i = 0; i < Math.min(elementsWithText.size(), 50); i++) {
+                UiObject2 element = elementsWithText.get(i);
+                String text = element.getText();
+                String className = element.getClassName();
+                Log.d(TAG, "  [" + i + "] " + className + ": \"" + text + "\"");
+            }
+
+            List<UiObject2> elementsWithDesc = device.findObjects(By.descMatches(".*"));
+            Log.d(TAG, "Elements with content description: " + elementsWithDesc.size());
+            for (int i = 0; i < Math.min(elementsWithDesc.size(), 50); i++) {
+                UiObject2 element = elementsWithDesc.get(i);
+                String desc = element.getContentDescription();
+                String className = element.getClassName();
+                if (desc != null && !desc.trim().isEmpty()) {
+                    Log.d(TAG, "  [" + i + "] " + className + " desc=\"" + desc + "\"");
+                }
+            }
+
+            Log.d(TAG, "=== END UI DUMP ===");
+        } catch (Exception e) {
+            Log.e(TAG, "Error dumping UI elements: " + e.getMessage());
         }
     }
 }
