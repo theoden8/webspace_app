@@ -60,7 +60,7 @@ void main() {
       // Convert Flutter surface to image for screenshot capture
       await binding.convertFlutterSurfaceToImage();
       await tester.pumpAndSettle();
-      
+
       // Wait for initial site icons to load (with timeout)
       print('Waiting for site icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
       await Future.delayed(_ICON_LOAD_TIMEOUT);
@@ -83,7 +83,7 @@ void main() {
       print('Looking for drawer elements...');
       _debugPrintWidgets(tester);
       await _openDrawer(tester);
-      
+
       print('Drawer opened, waiting for icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
       await Future.delayed(_ICON_LOAD_TIMEOUT);
       await tester.pump();
@@ -103,12 +103,12 @@ void main() {
       // Look for a site to select (DuckDuckGo)
       print('Looking for DuckDuckGo site...');
       final duckDuckGoFinder = find.text('DuckDuckGo');
-      
+
       if (duckDuckGoFinder.evaluate().isNotEmpty) {
         print('Selecting DuckDuckGo site');
         await tester.tap(duckDuckGoFinder);
         await tester.pump();
-        
+
         print('Waiting for webview to load (timeout: ${_WEBVIEW_LOAD_TIMEOUT.inSeconds}s)...');
         await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
         await tester.pump();
@@ -123,7 +123,7 @@ void main() {
           },
         );
         print('Screenshot 3 captured successfully');
-        
+
         // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
         await tester.pump(const Duration(seconds: 2));
         await Future.delayed(const Duration(seconds: 2));
@@ -145,7 +145,7 @@ void main() {
         print('Screenshot 4 captured successfully');
         await tester.pump();
         await Future.delayed(const Duration(seconds: 2));
-        
+
         // Navigate back to webspaces using "Back to Webspaces" button
         print('Navigating back to webspaces list...');
         final backButtonFinder = find.text('Back to Webspaces');
@@ -164,7 +164,7 @@ void main() {
       // Look for "Work" webspace
       print('Looking for Work webspace...');
       final workWebspaceFinder = find.text('Work');
-      
+
       if (workWebspaceFinder.evaluate().isNotEmpty) {
         print('Work webspace found - capturing screenshots');
         print('Selecting Work webspace');
@@ -189,11 +189,6 @@ void main() {
         await _closeDrawer(tester);
         await tester.pump();
         await Future.delayed(const Duration(seconds: 2));
-        
-        // Wait for webviews/site icons to load
-        print('Waiting for work webspace sites to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
-        await Future.delayed(_ICON_LOAD_TIMEOUT);
-        await tester.pump();
 
         // Screenshot 5: Work webspace sites
         print('Capturing work webspace');
@@ -210,7 +205,7 @@ void main() {
       // Demonstrate workspace creation
       print('Starting workspace creation demonstration...');
       print('Looking for add workspace button...');
-      
+
       // Try different possible button labels
       Finder? addButton = find.text('Add Webspace');
       if (addButton.evaluate().isEmpty) {
@@ -251,7 +246,7 @@ void main() {
         // Look for workspace name field
         print('Looking for workspace name field...');
         final nameFieldFinder = find.byType(TextField).first;
-        
+
         if (nameFieldFinder.evaluate().isNotEmpty) {
           print('Found name field, entering text...');
           await tester.tap(nameFieldFinder);
@@ -360,21 +355,21 @@ void main() {
 /// Open the navigation drawer
 Future<void> _openDrawer(WidgetTester tester) async {
   print('Opening drawer programmatically...');
-  
+
   try {
     // Find the ScaffoldState and open drawer programmatically
     final ScaffoldState scaffoldState = tester.state(find.byType(Scaffold).first);
     scaffoldState.openDrawer();
-    
+
     // Use pump() with timeout instead of pumpAndSettle to avoid webview issues
     await tester.pump();
     await Future.delayed(const Duration(seconds: 2));
     await tester.pump();
-    
+
     // Verify drawer opened
     final drawerVisible = find.byType(Drawer).evaluate().isNotEmpty;
     print('Drawer opened: $drawerVisible');
-    
+
     await Future.delayed(const Duration(seconds: 2));
   } catch (e) {
     print('Error opening drawer: $e');
@@ -384,11 +379,11 @@ Future<void> _openDrawer(WidgetTester tester) async {
 /// Close the navigation drawer
 Future<void> _closeDrawer(WidgetTester tester) async {
   print('Closing drawer...');
-  
+
   try {
     // Look for "Back to Webspaces" button
     final backButtonFinder = find.text('Back to Webspaces');
-    
+
     if (backButtonFinder.evaluate().isNotEmpty) {
       await tester.tap(backButtonFinder);
     } else {
@@ -399,12 +394,12 @@ Future<void> _closeDrawer(WidgetTester tester) async {
         Navigator.of(scaffoldState.context).pop();
       }
     }
-    
+
     // Use pump() instead of pumpAndSettle to avoid webview timeout
     await tester.pump();
     await Future.delayed(const Duration(seconds: 2));
     await tester.pump();
-    
+
     print('Drawer closed');
   } catch (e) {
     print('Error closing drawer: $e');
@@ -421,7 +416,7 @@ void _debugPrintWidgets(WidgetTester tester) {
     print('Drawer found: ${find.byType(Drawer).evaluate().isNotEmpty}');
     print('IconButton count: ${find.byType(IconButton).evaluate().length}');
     print('Menu icon found: ${find.byIcon(Icons.menu).evaluate().isNotEmpty}');
-    
+
     // Try to find any text widgets
     final textWidgets = find.byType(Text);
     print('Text widgets found: ${textWidgets.evaluate().length}');
