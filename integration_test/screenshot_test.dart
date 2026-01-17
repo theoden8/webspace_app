@@ -60,8 +60,10 @@ void main() {
 
       // Open drawer to see site list
       print('Opening drawer via menu button...');
+      print('Looking for drawer elements...');
+      _debugPrintWidgets(tester);
       await _openDrawer(tester);
-      print('Waiting for drawer to open and icons to load...');
+      print('Drawer opened, waiting for icons to load...');
       await tester.pumpAndSettle(const Duration(seconds: 15));
 
       // Screenshot 2: Drawer with sites list
@@ -240,28 +242,44 @@ void main() {
 
 /// Open the navigation drawer
 Future<void> _openDrawer(WidgetTester tester) async {
-  // Try to find the menu button by tooltip/semantics
-  final menuButtonFinder = find.byTooltip('Open navigation menu');
+  // Try multiple strategies to open the drawer
   
-  if (menuButtonFinder.evaluate().isNotEmpty) {
-    await tester.tap(menuButtonFinder);
-  } else {
-    // Fallback: try to find drawer button by icon
-    final drawerIconFinder = find.byIcon(Icons.menu);
-    if (drawerIconFinder.evaluate().isNotEmpty) {
-      await tester.tap(drawerIconFinder);
-    } else {
-      // Last resort: swipe from left edge to open drawer
-      print('Menu button not found, using swipe gesture');
-      await tester.fling(
-        find.byType(MaterialApp),
-        const Offset(300, 0),
-        1000,
+  // Strategy 1: Find menu button by tooltip
+  var menuButtonFinder = find.byTooltip('Open navigation menu');
+  
+  if (menuButtonFinder.evaluate().isEmpty) {
+    // Strategy 2: Find by icon
+    menuButtonFinder = find.byIcon(Icons.menu);
+  }
+  
+  if (menuButtonFinder.evaluate().isEmpty) {
+    // Strategy 3: Find any IconButton in AppBar
+    final appBarFinder = find.byType(AppBar);
+    if (appBarFinder.evaluate().isNotEmpty) {
+      final iconButtons = find.descendant(
+        of: appBarFinder,
+        matching: find.byType(IconButton),
       );
+      if (iconButtons.evaluate().isNotEmpty) {
+        menuButtonFinder = iconButtons.first;
+      }
     }
   }
   
-  await tester.pumpAndSettle(const Duration(seconds: 5));
+  if (menuButtonFinder.evaluate().isNotEmpty) {
+    print('Found menu button, tapping...');
+    await tester.tap(menuButtonFinder);
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  } else {
+    // Last resort: swipe from left edge to open drawer
+    print('Menu button not found, using swipe gesture from left edge');
+    final scaffold = find.byType(Scaffold).first;
+    await tester.dragFrom(
+      tester.getTopLeft(scaffold),
+      const Offset(300, 0),
+    );
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+  }
 }
 
 /// Close the navigation drawer
@@ -283,4 +301,32 @@ Future<void> _closeDrawer(WidgetTester tester) async {
   }
   
   await tester.pumpAndSettle(const Duration(seconds: 5));
+}
+
+/// Debug helper to print visible widgets
+void _debugPrintWidgets(WidgetTester tester) {
+  try {
+    // Check for common widgets
+    print('--- Widget Debug Info ---');
+    print('AppBar found: ${find.byType(AppBar).evaluate().isNotEmpty}');
+    print('Scaffold found: ${find.byType(Scaffold).evaluate().isNotEmpty}');
+    print('Drawer found: ${find.byType(Drawer).evaluate().isNotEmpty}');
+    print('IconButton count: ${find.byType(IconButton).evaluate().length}');
+    print('Menu icon found: ${find.byIcon(Icons.menu).evaluate().isNotEmpty}');
+    
+    // Try to find any text widgets
+    final textWidgets = find.byType(Text);
+    print('Text widgets found: ${textWidgets.evaluate().length}');
+    if (textWidgets.evaluate().length <= 10) {
+      for (final element in textWidgets.evaluate()) {
+        final widget = element.widget as Text;
+        if (widget.data != null) {
+          print('  Text: "${widget.data}"');
+        }
+      }
+    }
+    print('--- End Debug Info ---');
+  } catch (e) {
+    print('Debug info error: $e');
+  }
 }
