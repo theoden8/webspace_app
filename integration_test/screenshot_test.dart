@@ -308,21 +308,23 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 1));
 
-          // Look for save/create button
+          // Look for save button (check icon in AppBar)
           print('Looking for save button...');
-          Finder? saveButton = find.text('Save');
+          Finder? saveButton = find.byIcon(Icons.check);
+          
+          // Fallback to text-based save buttons
+          if (saveButton.evaluate().isEmpty) {
+            saveButton = find.text('Save');
+          }
           if (saveButton.evaluate().isEmpty) {
             saveButton = find.text('Create');
           }
           if (saveButton.evaluate().isEmpty) {
             saveButton = find.text('Done');
           }
-          if (saveButton.evaluate().isEmpty) {
-            saveButton = find.text('OK');
-          }
 
           if (saveButton.evaluate().isNotEmpty) {
-            print('Found save button, tapping...');
+            print('Found save button (check icon), tapping...');
             await tester.tap(saveButton);
             await tester.pump();
             await Future.delayed(const Duration(seconds: 2));
