@@ -2,10 +2,14 @@
 
 ## What Was Done
 
-✅ Translated `ScreenshotTest.java` to Flutter integration test  
+✅ Replaced `ScreenshotTest.java` with Flutter integration test  
 ✅ Added `integration_test` dependency to `pubspec.yaml`  
 ✅ Created `integration_test/screenshot_test.dart`  
-✅ Created `test_driver/integration_test.dart`  
+✅ Created `test_driver/integration_test.dart` with screenshot saving  
+✅ Updated Android fastlane to use `flutter drive`  
+✅ Updated iOS fastlane to use `flutter drive`  
+✅ Fixed screenshot 3 to capture drawer closing animation  
+✅ Removed old Java androidTest files  
 ✅ Added comprehensive documentation
 
 ## Quick Start
@@ -24,35 +28,48 @@ flutter devices
 flutter emulators --launch <emulator_id>
 ```
 
-### 3. Run the Test
+### 3. Run via Fastlane (RECOMMENDED)
 
-**Option A: Simple test run (no screenshot files saved)**
+**Android:**
 ```bash
-flutter test integration_test/screenshot_test.dart
+cd android
+fastlane screenshots
 ```
 
-**Option B: With screenshot capture (RECOMMENDED)**
+**iOS:**
 ```bash
-flutter drive \
-  --driver=test_driver/integration_test.dart \
-  --target=integration_test/screenshot_test.dart
-
-# Screenshots will be saved to: screenshots/*.png
+cd ios
+fastlane screenshots
 ```
 
-**Option C: Specific device**
+**Both platforms:**
+```bash
+fastlane screenshots_all
+```
+
+### 4. Or Run Flutter Driver Directly
+
+**With screenshot capture:**
 ```bash
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart \
+  --flavor fmain
+```
+
+**Specific device:**
+```bash
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain \
   -d <device_id>
 ```
 
 **Where are screenshots saved?**
-- When using `flutter drive` on **Android**: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
-- When using `flutter drive` on **iOS/Desktop**: `screenshots/`
-- When using `flutter test`: Memory only (no files saved)
-- Custom directory: `SCREENSHOT_DIR=path/to/dir flutter drive ...`
+- **Android**: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
+- **iOS**: `fastlane/screenshots/en-US/`
+- **Override**: `SCREENSHOT_DIR=path/to/dir flutter drive ...`
 
 ## What Gets Captured
 
@@ -75,15 +92,20 @@ The test captures 10 screenshots:
 3. **Navigates & captures** - Walks through UI taking screenshots
 4. **Saves screenshots** - Stores in platform-specific location
 
-## Differences from Java Version
+## What Changed from Java Version
 
-| Java/UiAutomator | Flutter Integration |
-|------------------|---------------------|
+The old Java/UiAutomator test has been **completely replaced** with Flutter:
+
+| Old (Java) | New (Flutter) |
+|------------|---------------|
 | External automation | Internal testing |
 | Android only | Cross-platform |
 | Slower | Faster |
 | Uses Intent flags | Direct function call |
 | UiDevice API | WidgetTester API |
+| Separate test codebase | Unified with Flutter tests |
+
+**Migration Complete:** The Java androidTest directory has been removed.
 
 ## File Locations
 
@@ -109,19 +131,21 @@ The test captures 10 screenshots:
 - Adjust timing constants if needed
 - Timing is more predictable than Java version
 
-## Next Steps
+## Migration Complete! 🎉
 
-### To replace Java tests completely:
-1. Test on multiple devices/emulators
-2. Verify screenshot quality
-3. Update fastlane configuration
-4. Add locale support if needed
-5. Set up CI/CD integration
+The Java screenshot test has been fully replaced:
 
-### To keep both approaches:
-- Use Flutter for development/debugging
-- Use Java for production release screenshots
-- Or vice versa - your choice!
+✅ Old Java test removed  
+✅ Fastlane updated to use Flutter driver  
+✅ Screenshots save to correct directories automatically  
+✅ Works on both Android and iOS  
+
+## Optional Next Steps
+
+1. Test on multiple devices/form factors
+2. Add locale support for internationalization
+3. Set up CI/CD integration
+4. Verify screenshot quality on real devices
 
 ## Advantages
 
@@ -140,22 +164,23 @@ flutter pub get
 # List devices
 flutter devices
 
-# Run test (basic)
-flutter test integration_test/screenshot_test.dart
+# Via Fastlane (RECOMMENDED)
+cd android && fastlane screenshots  # Android
+cd ios && fastlane screenshots      # iOS
+fastlane screenshots_all            # Both platforms
 
-# Run with screenshots
+# Via Flutter Driver directly
 flutter drive \
   --driver=test_driver/integration_test.dart \
-  --target=integration_test/screenshot_test.dart
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain
 
 # Run on specific device
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart \
+  --flavor fmain \
   -d emulator-5554
-
-# Debug mode (slower but easier to debug)
-flutter run integration_test/screenshot_test.dart
 ```
 
 ## Help
@@ -166,8 +191,17 @@ flutter run integration_test/screenshot_test.dart
 
 ---
 
-**Ready to try it!** Just run:
+**Ready to generate screenshots!** Just run:
 ```bash
 flutter pub get
-flutter drive --driver=test_driver/integration_test.dart --target=integration_test/screenshot_test.dart
+cd android && fastlane screenshots  # For Android
+cd ios && fastlane screenshots      # For iOS
+```
+
+Or use Flutter driver directly:
+```bash
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain
 ```
