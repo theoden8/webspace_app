@@ -49,6 +49,10 @@ void main() {
       print('STARTING SCREENSHOT TOUR');
       print('========================================');
 
+      // Convert Flutter surface to image for screenshot capture
+      await binding.convertFlutterSurfaceToImage();
+      await tester.pumpAndSettle();
+
       // Screenshot 1: All sites view (main screen)
       print('Capturing all sites view');
       await binding.takeScreenshot('01-all-sites');
