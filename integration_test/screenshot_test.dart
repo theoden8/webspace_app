@@ -72,6 +72,7 @@ void main() {
         _SCREENSHOT_TIMEOUT,
         onTimeout: () {
           print('Warning: Screenshot 1 timed out');
+          return <int>[];
         },
       );
       await tester.pump();
@@ -93,6 +94,7 @@ void main() {
         _SCREENSHOT_TIMEOUT,
         onTimeout: () {
           print('Warning: Screenshot 2 timed out');
+          return <int>[];
         },
       );
       await tester.pump();
@@ -117,6 +119,7 @@ void main() {
           _SCREENSHOT_TIMEOUT,
           onTimeout: () {
             print('Warning: Screenshot 3 timed out');
+            return <int>[];
           },
         );
         print('Screenshot 3 captured successfully');
@@ -136,6 +139,7 @@ void main() {
           _SCREENSHOT_TIMEOUT,
           onTimeout: () {
             print('Warning: Screenshot 4 timed out');
+            return <int>[];
           },
         );
         print('Screenshot 4 captured successfully');
@@ -166,6 +170,7 @@ void main() {
           _SCREENSHOT_TIMEOUT,
           onTimeout: () {
             print('Warning: Screenshot 6 timed out');
+            return <int>[];
           },
         );
         print('Screenshot 6 captured successfully');
@@ -188,6 +193,7 @@ void main() {
           _SCREENSHOT_TIMEOUT,
           onTimeout: () {
             print('Warning: Screenshot 5 timed out');
+            return <int>[];
           },
         );
         await tester.pumpAndSettle(const Duration(seconds: 3));
@@ -228,6 +234,7 @@ void main() {
           _SCREENSHOT_TIMEOUT,
           onTimeout: () {
             print('Warning: Screenshot 7 timed out');
+            return <int>[];
           },
         );
         await tester.pump();
@@ -257,6 +264,7 @@ void main() {
             _SCREENSHOT_TIMEOUT,
             onTimeout: () {
               print('Warning: Screenshot 8 timed out');
+              return <int>[];
             },
           );
           await tester.pump();
@@ -286,6 +294,7 @@ void main() {
             _SCREENSHOT_TIMEOUT,
             onTimeout: () {
               print('Warning: Screenshot 9 timed out');
+              return <int>[];
             },
           );
           await tester.pump();
@@ -316,6 +325,7 @@ void main() {
               _SCREENSHOT_TIMEOUT,
               onTimeout: () {
                 print('Warning: Screenshot 10 timed out');
+                return <int>[];
               },
             );
             await tester.pump();
