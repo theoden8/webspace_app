@@ -261,7 +261,7 @@ Future<void> _openDrawer(WidgetTester tester) async {
   
   if (!drawerVisible) {
     print('First swipe failed, trying again with different parameters...');
-    await tester.dragFrom(const Offset(1, scaffoldSize.height / 2), const Offset(300, 0));
+    await tester.dragFrom(Offset(1, scaffoldSize.height / 2), const Offset(300, 0));
     await tester.pumpAndSettle(const Duration(seconds: 3));
   }
   
