@@ -180,29 +180,6 @@ Future<String?> getPageTitle(String url) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Check if we should seed demo data (for screenshot tests)
-  // The Android test sets this via Intent extras: --ez DEMO_MODE true
-  print('Checking for DEMO_MODE flag...');
-  final binding = WidgetsBinding.instance;
-  if (binding is WidgetsFlutterBinding) {
-    try {
-      print('Calling getDemoMode method channel...');
-      final demoMode = await const MethodChannel('app.channel').invokeMethod<bool>('getDemoMode') ?? false;
-      print('getDemoMode returned: $demoMode');
-      if (demoMode) {
-        print('DEMO_MODE enabled - seeding demo data');
-        await seedDemoData();
-      } else {
-        print('DEMO_MODE is false, not seeding data');
-      }
-    } catch (e, stackTrace) {
-      print('ERROR checking DEMO_MODE: $e');
-      print('Stack trace: $stackTrace');
-    }
-  }
-
-  print('Starting app...');
   runApp(WebSpaceApp());
 }
 
@@ -1086,7 +1063,6 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   InkWell(
                     onTap: () {
                       setState(() {
-                        _selectedWebspaceId = kAllWebspaceId;
                         _currentIndex = null;
                       });
                       _saveSelectedWebspaceId();
@@ -1119,6 +1095,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     enabled: true,
                     child: TextButton.icon(
                       onPressed: () {
+                        setState(() {
+                          _currentIndex = null;
+                        });
                         _saveSelectedWebspaceId();
                         _saveCurrentIndex();
                         Navigator.pop(context);
