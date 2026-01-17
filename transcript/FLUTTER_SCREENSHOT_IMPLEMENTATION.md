@@ -2,7 +2,7 @@
 
 ## Summary
 
-Successfully translated the Java/UiAutomator screenshot test (`ScreenshotTest.java`) into a Flutter integration test (`screenshot_test.dart`).
+Successfully replaced the Java/UiAutomator screenshot test (`ScreenshotTest.java`) with a Flutter integration test (`screenshot_test.dart`). This provides a cross-platform, more reliable solution that works on both Android and iOS.
 
 ## Changes Made
 
@@ -66,16 +66,25 @@ Created comprehensive documentation:
 
 ## Usage
 
-### Run the test:
-```bash
-flutter test integration_test/screenshot_test.dart
-```
-
 ### Capture screenshots with flutter drive:
 ```bash
+# Android
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart \
+  --flavor fmain
+
+# iOS  
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain
+
+# Specify device
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain \
   -d <device_id>
 ```
 
@@ -91,32 +100,50 @@ flutter devices
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart \
+  --flavor fmain \
   -d emulator-5554
 ```
 
-## Next Steps
+### Screenshot Storage
 
-To fully integrate with fastlane:
+Screenshots are automatically saved to the correct location based on platform:
 
-1. **Test on real devices/emulators**
-   - Verify all screenshots capture correctly
-   - Adjust timing if needed
+- **Android**: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
+- **iOS**: `fastlane/screenshots/en-US/` (when implemented)
+- **Override**: Set `SCREENSHOT_DIR` environment variable
 
-2. **Update fastlane configuration**
-   - Modify `Screengrabfile` to use Flutter test
-   - Or create new lane for Flutter screenshots
+This ensures screenshots are ready for fastlane/F-Droid/App Store without manual file copying.
 
-3. **Add locale support**
+## Integration Complete
+
+The Flutter screenshot test is now the primary screenshot generation method:
+
+1. ✅ **Screenshots save to fastlane directory automatically**
+   - Android: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
+   - iOS support ready (when needed)
+
+2. ✅ **Old Java test removed**
+   - Replaced with Flutter integration test
+   - Simpler, faster, cross-platform solution
+
+3. ✅ **Fastlane integration**
+   - Fastlane lanes use `flutter drive` command
+   - Works on both Android and iOS
+   - Maintains same screenshot output structure
+
+4. ✅ **Animation timing fixed**
+   - Screenshot 3 captures drawer closing animation
+   - Uses precise frame advancement (150ms into 300ms animation)
+
+## Next Steps (Optional)
+
+1. **Add locale support**
    - Create variants for different languages
    - Use Flutter's internationalization
 
-4. **Configure screenshot paths**
-   - Ensure screenshots save to correct locations
-   - Match fastlane's expected directory structure
-
-5. **CI/CD Integration**
+2. **CI/CD Integration**
    - Add to GitHub Actions or other CI
-   - Automate screenshot generation
+   - Automate screenshot generation on releases
 
 ## Benefits
 

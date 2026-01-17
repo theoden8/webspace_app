@@ -38,6 +38,17 @@ lane :deploy_all do
   end
 end
 
+lane :screenshots_all do
+  desc "Generate screenshots for both Android and iOS"
+  android do
+    screenshots
+  end
+
+  ios do
+    screenshots
+  end
+end
+
 # Helper function to check Flutter version
 def check_flutter
   UI.message("Checking Flutter installation...")

@@ -118,14 +118,45 @@ platform :ios do
     )
   end
 
-  desc "Take screenshots for App Store"
+  desc "Generate screenshots using Flutter integration test"
   lane :screenshots do
-    snapshot(
-      workspace: File.join(ios_dir, "Runner.xcworkspace"),
-      project: File.join(ios_dir, "Runner.xcodeproj"),
-      scheme: "Runner",
-      output_directory: File.join(project_root, "fastlane", "screenshots")
-    )
+    UI.message("Generating screenshots with Flutter integration test...")
+    UI.message("Project root: #{project_root}")
+
+    # Get connected iOS simulator or device
+    device_list = sh("flutter devices | grep -E '(ios|iPhone|iPad)' | head -1", log: false).strip rescue ""
+
+    if device_list.empty?
+      UI.user_error!("No iOS simulator or device found. Please start a simulator or connect a device.")
+    end
+
+    # Extract device ID from flutter devices output
+    device_id = device_list.match(/• ([\w-]+) •/)[1] rescue ""
+    
+    if device_id.empty?
+      UI.user_error!("Could not parse device ID. Please ensure an iOS simulator or device is available.")
+    end
+
+    UI.success("Found iOS device: #{device_id}")
+    UI.message("Demo data will be seeded by Flutter integration test")
+
+    # Clear previous screenshots
+    screenshots_dir = File.join(project_root, "fastlane", "screenshots", "en-US")
+    if Dir.exist?(screenshots_dir)
+      UI.message("Clearing previous screenshots from #{screenshots_dir}")
+      FileUtils.rm_rf(Dir.glob(File.join(screenshots_dir, "*.png")))
+    else
+      FileUtils.mkdir_p(screenshots_dir)
+    end
+
+    # Run Flutter integration test with screenshot capture
+    sh("cd '#{project_root}' && flutter drive \
+      --driver=test_driver/integration_test.dart \
+      --target=integration_test/screenshot_test.dart \
+      --flavor fmain \
+      -d #{device_id}")
+
+    UI.success("Screenshots saved to: #{screenshots_dir}")
   end
 
   desc "Frame screenshots with device frames"

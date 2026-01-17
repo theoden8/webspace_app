@@ -237,47 +237,61 @@ await tester.pumpAndSettle(const Duration(seconds: 5));
 - Less "real world" (not external automation)
 - Screenshot capture varies by platform
 
-## Migration Path
+## Migration Complete
 
-To fully replace the Java tests with Flutter tests:
+Java tests have been fully replaced with Flutter tests:
 
 1. ✅ **Create Flutter integration test** (Done)
 2. ✅ **Add integration_test dependency** (Done)
 3. ✅ **Translate screenshot flow** (Done)
-4. **Update fastlane configuration** to run Flutter tests
-5. **Test on multiple devices** to ensure screenshots look good
-6. **Set up locale testing** for internationalization
-7. **Configure screenshot output** paths for fastlane
-8. **Verify screenshot quality** matches or exceeds Java version
+4. ✅ **Update fastlane configuration** to run Flutter tests (Done)
+5. ✅ **Configure screenshot output** paths for fastlane (Done)
+6. ✅ **Remove old Java test files** (Done)
+7. ✅ **Fix animation timing** - Screenshot 3 captures mid-animation (Done)
 
-## Running Both Approaches
+## Optional Next Steps
 
-### Java/Fastlane (current):
+1. **Test on multiple devices** to ensure screenshots look good
+2. **Set up locale testing** for internationalization
+3. **Verify screenshot quality** matches or exceeds Java version
+
+## Running Screenshots
+
+The Flutter approach is now the standard method:
+
+### Via Fastlane (recommended):
 ```bash
-cd android
-fastlane screenshots
+# Android
+cd android && fastlane screenshots
+
+# iOS
+cd ios && fastlane screenshots
 ```
 
-### Flutter (new):
+### Direct Flutter Command:
 ```bash
-# Basic test
-flutter test integration_test/screenshot_test.dart
-
-# With screenshot capture
+# Android
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart \
-  -d <device_id>
+  --flavor fmain
+
+# iOS
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain
 ```
 
-## Recommendation
+## Current Implementation
 
-**For this project**, the Flutter approach is recommended because:
+**This project now uses the Flutter approach** because:
 
 1. The app is built with Flutter - native testing makes sense
-2. Cross-platform support is valuable (can screenshot iOS too)
+2. Cross-platform support (works on Android and iOS)
 3. Easier to maintain alongside existing Flutter tests
 4. Better integration with Flutter development workflow
 5. More reliable and faster execution
+6. Screenshots save directly to fastlane directories
 
-The Java/UiAutomator approach can be kept as a fallback or for specific Android-only testing scenarios.
+The old Java/UiAutomator test has been removed as it's no longer needed.

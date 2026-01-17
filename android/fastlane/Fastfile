@@ -51,21 +51,10 @@ platform :android do
     sh("cd '#{project_root}' && flutter pub version")
   end
 
-  desc "Build test APKs and generate screenshots"
+  desc "Generate screenshots using Flutter integration test"
   lane :screenshots do
-    UI.message("Building APKs with flutter build...")
-    UI.message("Current working directory: #{Dir.pwd}")
-    UI.message("Fastfile location: #{__dir__}")
-    UI.message("Android dir: #{android_dir}")
+    UI.message("Generating screenshots with Flutter integration test...")
     UI.message("Project root: #{project_root}")
-
-    # Verify we're in the right place
-    unless File.exist?(File.join(android_dir, "gradlew"))
-      UI.user_error!("Expected to find gradlew in android/ directory: #{android_dir}")
-    end
-
-    sh("cd '#{project_root}' && flutter build apk --debug --flavor fmain")
-    sh("cd '#{android_dir}' && ./gradlew assembleFmainDebugAndroidTest")
 
     # Get connected device ID
     device_id = sh("adb devices | grep -w 'device' | head -1 | awk '{print $1}'", log: false).strip
@@ -75,25 +64,23 @@ platform :android do
     end
 
     UI.success("Found device: #{device_id}")
+    UI.message("Demo data will be seeded by Flutter integration test")
 
-    # Note: Demo data is automatically seeded by Flutter on app startup
-    # The test passes DEMO_MODE=true intent extra which triggers seeding
-    UI.message("Demo data will be seeded by Flutter when test launches app with DEMO_MODE flag")
+    # Clear previous screenshots
+    screenshots_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
+    if Dir.exist?(screenshots_dir)
+      UI.message("Clearing previous screenshots from #{screenshots_dir}")
+      FileUtils.rm_rf(Dir.glob(File.join(screenshots_dir, "*.png")))
+    end
 
-    # Capture screenshots using Screengrab
-    screengrab(
-      app_package_name: "org.codeberg.theoden8.webspace",
-      tests_package_name: "org.codeberg.theoden8.webspace.test",
-      use_tests_in_packages: ["org.codeberg.theoden8.webspace"],
-      test_instrumentation_runner: "androidx.test.runner.AndroidJUnitRunner",
-      locales: ["en-US"],
-      clear_previous_screenshots: true,
-      reinstall_app: true,  # Uninstall and reinstall app for clean state
-      output_directory: File.join(project_root, "fastlane", "metadata", "android"),
-      device_type: "phone",
-      app_apk_path: File.join(project_root, "build", "app", "outputs", "flutter-apk", "app-fmain-debug.apk"),
-      tests_apk_path: File.join(project_root, "build", "app", "outputs", "apk", "androidTest", "fmain", "debug", "app-fmain-debug-androidTest.apk")
-    )
+    # Run Flutter integration test with screenshot capture
+    sh("cd '#{project_root}' && flutter drive \
+      --driver=test_driver/integration_test.dart \
+      --target=integration_test/screenshot_test.dart \
+      --flavor fmain \
+      -d #{device_id}")
+
+    UI.success("Screenshots saved to: #{screenshots_dir}")
   end
 
   desc "Clean build artifacts"

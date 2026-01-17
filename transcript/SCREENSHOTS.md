@@ -22,41 +22,38 @@ This guide explains how to generate screenshots for both iOS App Store and Andro
 
 ## Quick Start
 
-### Generate iOS Screenshots
+### Generate Screenshots Using Flutter Driver
+
+The recommended approach uses Flutter's integration test system:
 
 ```bash
-# From project root
-cd ios
-fastlane screenshots
+# Android
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain
 
-# Or from project root
-fastlane ios screenshots
+# iOS
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain
 ```
 
-Screenshots will be saved to: `ios/fastlane/screenshots/`
+Screenshots are automatically saved to:
+- **Android**: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
+- **iOS**: `fastlane/screenshots/en-US/` (when implemented)
 
-### Generate Android Screenshots
+### Generate via Fastlane (Alternative)
 
-```bash
-# From project root
-cd android
-fastlane screenshots
-
-# Or from project root
-fastlane android screenshots
-```
-
-Screenshots will be saved to: `android/fastlane/metadata/android/en-US/images/phoneScreenshots/`
-
-### Generate F-Droid Specific Screenshots
+Fastlane lanes now wrap the Flutter driver command:
 
 ```bash
-# From android directory
-cd android
-fastlane screenshots_fdroid
+# Android
+cd android && fastlane screenshots
 
-# Or from project root
-fastlane android screenshots_fdroid
+# iOS
+cd ios && fastlane screenshots
 ```
 
 ## Configuration
@@ -116,14 +113,13 @@ tests_apk_path('app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-
 
 ## Screenshot Test Data
 
-The Android screenshot test automatically seeds the app with realistic test data using the **DEMO_MODE flag approach**. When the test launches the app with `DEMO_MODE=true`, Flutter automatically seeds demo data on startup.
+The screenshot test automatically seeds the app with realistic test data. The Flutter integration test calls `seedDemoData()` directly before launching the app.
 
 ### How It Works
 
-1. **ScreenshotTest.java** launches the app with `intent.putExtra("DEMO_MODE", true)`
-2. **MainActivity.kt** exposes this flag via method channel to Flutter
-3. **main.dart** detects the flag on startup and calls `seedDemoData()`
-4. **demo_data.dart** creates realistic test data using Flutter's native data models
+1. **screenshot_test.dart** calls `await seedDemoData()` before launching app
+2. **demo_data.dart** creates realistic test data using Flutter's native data models
+3. App launches with demo data already populated
 
 ### Sample Sites
 - **My Blog** - Personal blog (https://example.com/blog)
@@ -182,43 +178,45 @@ func testTakeScreenshots() throws {
 - Add `sleep()` calls to wait for animations
 - Each screenshot should have a unique descriptive name
 
-### Android: Edit Screenshot Test
+### Flutter Integration Test (Current Implementation)
 
-Edit `android/app/src/androidTest/java/org/codeberg/theoden8/webspace/ScreenshotTest.java`:
+Edit `integration_test/screenshot_test.dart`:
 
-```java
-@Test
-public void takeScreenshots() throws InterruptedException {
-    Screengrab.setDefaultScreenshotStrategy(new UiAutomatorScreenshotStrategy());
+```dart
+testWidgets('Take screenshots of app flow', (WidgetTester tester) async {
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  
+  // Seed demo data
+  await seedDemoData();
+  
+  // Launch app
+  app.main();
+  await tester.pumpAndSettle(const Duration(seconds: 10));
 
-    // Wait for app to load
-    Thread.sleep(3000);
+  // Convert surface for platform views
+  await binding.convertFlutterSurfaceToImage();
+  await tester.pumpAndSettle();
 
-    // Capture main screen
-    Screengrab.screenshot("01-main-screen");
+  // Capture screenshot
+  await binding.takeScreenshot('01-all-sites');
+  await tester.pump();
+  await Future.delayed(const Duration(seconds: 2));
 
-    // Interact with UI using UiAutomator
-    UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
-    UiObject button = device.findObject(new UiSelector().text("Add"));
-    if (button.exists()) {
-        button.click();
-        Thread.sleep(1000);
-        Screengrab.screenshot("02-add-webview");
-    }
-
-    // Add more interactions as needed
+  // Add more interactions as needed
 }
 ```
 
 **Note**: The current implementation includes a comprehensive screenshot tour with:
-- Automatic demo data seeding via DEMO_MODE flag (see `lib/demo_data.dart`)
-- Automated navigation through multiple screens including webspaces list, sites drawer, webview, and menu
-- 8 screenshots covering the main app features for store listings
+- Automatic demo data seeding via direct `seedDemoData()` call
+- Automated navigation through multiple screens including webspaces list, sites drawer, webview, and workspace creation
+- 10 screenshots covering the main app features for store listings
+- Mid-animation capture for screenshot 3 (drawer closing animation)
 
 **Tips:**
-- Use `Screengrab.screenshot("name")` to capture a screenshot
-- Use UiAutomator's `UiDevice` and `UiSelector` to interact with UI
-- Add `Thread.sleep()` to wait for animations and transitions
+- Use `binding.takeScreenshot("name")` to capture a screenshot
+- Use Flutter's widget finders to locate UI elements
+- Use `tester.pump()` with durations to advance animations
+- Add `Future.delayed()` to wait for content loading
 - Name screenshots with numbers to control ordering (01-, 02-, etc.)
 
 ## Adding More Devices/Simulators
