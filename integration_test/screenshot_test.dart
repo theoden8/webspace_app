@@ -242,28 +242,17 @@ void main() {
 
 /// Open the navigation drawer
 Future<void> _openDrawer(WidgetTester tester) async {
-  print('Opening drawer with swipe gesture...');
+  print('Opening drawer programmatically...');
   
-  // Use swipe gesture as primary method (most reliable for drawers)
-  final scaffold = find.byType(Scaffold).first;
+  // Find the ScaffoldState and open drawer programmatically
+  final ScaffoldState scaffoldState = tester.state(find.byType(Scaffold).first);
+  scaffoldState.openDrawer();
   
-  // Get the center-left point of the scaffold to start swipe
-  final scaffoldSize = tester.getSize(scaffold);
-  final startPoint = Offset(0, scaffoldSize.height / 2);
-  
-  // Swipe from left edge to the right
-  await tester.dragFrom(startPoint, const Offset(250, 0));
   await tester.pumpAndSettle(const Duration(seconds: 3));
   
   // Verify drawer opened
   final drawerVisible = find.byType(Drawer).evaluate().isNotEmpty;
   print('Drawer opened: $drawerVisible');
-  
-  if (!drawerVisible) {
-    print('First swipe failed, trying again with different parameters...');
-    await tester.dragFrom(Offset(1, scaffoldSize.height / 2), const Offset(300, 0));
-    await tester.pumpAndSettle(const Duration(seconds: 3));
-  }
   
   await tester.pumpAndSettle(const Duration(seconds: 2));
 }
