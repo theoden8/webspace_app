@@ -107,14 +107,16 @@ void main() {
       if (duckDuckGoFinder.evaluate().isNotEmpty) {
         print('Selecting DuckDuckGo site');
         await tester.tap(duckDuckGoFinder);
-        await tester.pump();
-
-        print('Waiting for webview to load (timeout: ${_WEBVIEW_LOAD_TIMEOUT.inSeconds}s)...');
-        await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
-        await tester.pump();
-
-        // Screenshot 3: Site webview
-        print('Capturing site webview');
+        
+        // Pump multiple frames to advance the drawer closing animation
+        // Standard Material drawer animation is typically 300ms
+        // We want to capture mid-animation, so let's advance ~150ms (halfway through)
+        print('Advancing animation frames to capture mid-transition...');
+        await tester.pump(); // Start animation
+        await tester.pump(const Duration(milliseconds: 150)); // Advance to mid-animation
+        
+        // Screenshot 3: Site transitioning (drawer closing animation)
+        print('Capturing site transition with drawer closing');
         await binding.takeScreenshot('03-site-webview').timeout(
           _SCREENSHOT_TIMEOUT,
           onTimeout: () {
@@ -122,7 +124,13 @@ void main() {
             return <int>[];
           },
         );
-        print('Screenshot 3 captured successfully');
+        print('Screenshot 3 captured successfully (mid-animation)');
+        
+        // Now let the animation complete and wait for webview to load
+        print('Completing animation and waiting for webview to load...');
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
+        await tester.pump();
 
         // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
         await tester.pump(const Duration(seconds: 2));
