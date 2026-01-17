@@ -31,11 +31,13 @@ flutter emulators --launch <emulator_id>
 flutter test integration_test/screenshot_test.dart
 ```
 
-**Option B: With screenshot capture**
+**Option B: With screenshot capture (RECOMMENDED)**
 ```bash
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart
+
+# Screenshots will be saved to: screenshots/*.png
 ```
 
 **Option C: Specific device**
@@ -45,6 +47,10 @@ flutter drive \
   --target=integration_test/screenshot_test.dart \
   -d <device_id>
 ```
+
+**Where are screenshots saved?**
+- When using `flutter drive`: `screenshots/` directory (created automatically)
+- When using `flutter test`: Memory only (no files saved)
 
 ## What Gets Captured
 

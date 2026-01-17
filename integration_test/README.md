@@ -72,22 +72,37 @@ flutter drive \
 
 ## Screenshot Locations
 
-When using `flutter test`:
+### When using `flutter test`:
 - Screenshots are saved in memory only (not written to files)
 - Useful for quick test validation
 
-When using `flutter drive`:
-- **Android**: `/sdcard/` on device (accessible via `adb pull /sdcard/*.png .`)
-- **iOS**: Test results bundle (check Xcode test logs for path)
-- **Desktop**: Current directory or test output directory
+### When using `flutter drive` (recommended):
+Screenshots are automatically saved to the `screenshots/` directory:
+```
+screenshots/01-all-sites.png
+screenshots/02-sites-drawer.png
+screenshots/03-site-webview.png
+screenshots/04-drawer-with-site.png
+screenshots/05-work-webspace.png
+screenshots/06-work-sites-drawer.png
+screenshots/07-add-workspace-dialog.png
+screenshots/08-workspace-name-entered.png
+screenshots/09-workspace-sites-selected.png
+screenshots/10-new-workspace-created.png
+```
 
-To retrieve screenshots from Android device:
+The `test_driver/integration_test.dart` file uses the `onScreenshot` callback 
+to save screenshots locally.
+
+### View screenshots:
 ```bash
-# Pull all screenshots
-adb pull /sdcard/ ./screenshots/
+# After running flutter drive
+ls -la screenshots/
 
-# Or pull specific screenshots
-adb pull /sdcard/01-all-sites.png .
+# View with image viewer
+open screenshots/01-all-sites.png  # macOS
+xdg-open screenshots/01-all-sites.png  # Linux
+start screenshots/01-all-sites.png  # Windows
 ```
 
 **Note**: The old fastlane screenshots in `fastlane/metadata/android/en-US/images/phoneScreenshots/` 
