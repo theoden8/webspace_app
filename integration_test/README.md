@@ -77,32 +77,43 @@ flutter drive \
 - Useful for quick test validation
 
 ### When using `flutter drive` (recommended):
-Screenshots are automatically saved to the `screenshots/` directory:
+Screenshots are automatically saved to platform-specific directories:
+
+**Android:**
+```
+fastlane/metadata/android/en-US/images/phoneScreenshots/01-all-sites.png
+fastlane/metadata/android/en-US/images/phoneScreenshots/02-sites-drawer.png
+fastlane/metadata/android/en-US/images/phoneScreenshots/03-site-webview.png
+... (all 10 screenshots)
+```
+
+**iOS/Desktop:**
 ```
 screenshots/01-all-sites.png
 screenshots/02-sites-drawer.png
-screenshots/03-site-webview.png
-screenshots/04-drawer-with-site.png
-screenshots/05-work-webspace.png
-screenshots/06-work-sites-drawer.png
-screenshots/07-add-workspace-dialog.png
-screenshots/08-workspace-name-entered.png
-screenshots/09-workspace-sites-selected.png
-screenshots/10-new-workspace-created.png
+... (all 10 screenshots)
 ```
 
-The `test_driver/integration_test.dart` file uses the `onScreenshot` callback 
-to save screenshots locally.
+The `test_driver/integration_test.dart` file detects the platform and saves 
+screenshots to the appropriate directory for fastlane integration.
+
+### Custom directory:
+```bash
+# Override screenshot directory
+SCREENSHOT_DIR=my/custom/path flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart
+```
 
 ### View screenshots:
 ```bash
-# After running flutter drive
-ls -la screenshots/
+# Android
+ls -la fastlane/metadata/android/en-US/images/phoneScreenshots/
+open fastlane/metadata/android/en-US/images/phoneScreenshots/01-all-sites.png
 
-# View with image viewer
-open screenshots/01-all-sites.png  # macOS
-xdg-open screenshots/01-all-sites.png  # Linux
-start screenshots/01-all-sites.png  # Windows
+# iOS/Desktop
+ls -la screenshots/
+open screenshots/01-all-sites.png
 ```
 
 **Note**: The old fastlane screenshots in `fastlane/metadata/android/en-US/images/phoneScreenshots/` 

@@ -49,8 +49,10 @@ flutter drive \
 ```
 
 **Where are screenshots saved?**
-- When using `flutter drive`: `screenshots/` directory (created automatically)
+- When using `flutter drive` on **Android**: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
+- When using `flutter drive` on **iOS/Desktop**: `screenshots/`
 - When using `flutter test`: Memory only (no files saved)
+- Custom directory: `SCREENSHOT_DIR=path/to/dir flutter drive ...`
 
 ## What Gets Captured
 
