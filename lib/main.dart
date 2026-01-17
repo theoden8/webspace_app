@@ -1115,6 +1115,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     enabled: true,
                     child: TextButton.icon(
                       onPressed: () {
+                        setState(() {
+                          _selectedWebspaceId = kAllWebspaceId;
+                          _currentIndex = null;
+                        });
                         _saveSelectedWebspaceId();
                         _saveCurrentIndex();
                         Navigator.pop(context);
