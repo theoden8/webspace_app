@@ -242,44 +242,30 @@ void main() {
 
 /// Open the navigation drawer
 Future<void> _openDrawer(WidgetTester tester) async {
-  // Try multiple strategies to open the drawer
+  print('Opening drawer with swipe gesture...');
   
-  // Strategy 1: Find menu button by tooltip
-  var menuButtonFinder = find.byTooltip('Open navigation menu');
+  // Use swipe gesture as primary method (most reliable for drawers)
+  final scaffold = find.byType(Scaffold).first;
   
-  if (menuButtonFinder.evaluate().isEmpty) {
-    // Strategy 2: Find by icon
-    menuButtonFinder = find.byIcon(Icons.menu);
+  // Get the center-left point of the scaffold to start swipe
+  final scaffoldSize = tester.getSize(scaffold);
+  final startPoint = Offset(0, scaffoldSize.height / 2);
+  
+  // Swipe from left edge to the right
+  await tester.dragFrom(startPoint, const Offset(250, 0));
+  await tester.pumpAndSettle(const Duration(seconds: 3));
+  
+  // Verify drawer opened
+  final drawerVisible = find.byType(Drawer).evaluate().isNotEmpty;
+  print('Drawer opened: $drawerVisible');
+  
+  if (!drawerVisible) {
+    print('First swipe failed, trying again with different parameters...');
+    await tester.dragFrom(const Offset(1, scaffoldSize.height / 2), const Offset(300, 0));
+    await tester.pumpAndSettle(const Duration(seconds: 3));
   }
   
-  if (menuButtonFinder.evaluate().isEmpty) {
-    // Strategy 3: Find any IconButton in AppBar
-    final appBarFinder = find.byType(AppBar);
-    if (appBarFinder.evaluate().isNotEmpty) {
-      final iconButtons = find.descendant(
-        of: appBarFinder,
-        matching: find.byType(IconButton),
-      );
-      if (iconButtons.evaluate().isNotEmpty) {
-        menuButtonFinder = iconButtons.first;
-      }
-    }
-  }
-  
-  if (menuButtonFinder.evaluate().isNotEmpty) {
-    print('Found menu button, tapping...');
-    await tester.tap(menuButtonFinder);
-    await tester.pumpAndSettle(const Duration(seconds: 5));
-  } else {
-    // Last resort: swipe from left edge to open drawer
-    print('Menu button not found, using swipe gesture from left edge');
-    final scaffold = find.byType(Scaffold).first;
-    await tester.dragFrom(
-      tester.getTopLeft(scaffold),
-      const Offset(300, 0),
-    );
-    await tester.pumpAndSettle(const Duration(seconds: 5));
-  }
+  await tester.pumpAndSettle(const Duration(seconds: 2));
 }
 
 /// Close the navigation drawer
