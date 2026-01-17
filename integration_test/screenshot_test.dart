@@ -52,6 +52,11 @@ void main() {
       // Convert Flutter surface to image for screenshot capture
       await binding.convertFlutterSurfaceToImage();
       await tester.pumpAndSettle();
+      
+      // Wait for initial site icons to load
+      print('Waiting for site icons to load...');
+      await Future.delayed(const Duration(seconds: 5));
+      await tester.pump();
 
       // Screenshot 1: All sites view (main screen)
       print('Capturing all sites view');
@@ -78,7 +83,12 @@ void main() {
       if (duckDuckGoFinder.evaluate().isNotEmpty) {
         print('Selecting DuckDuckGo site');
         await tester.tap(duckDuckGoFinder);
-        await tester.pumpAndSettle(const Duration(seconds: 6));
+        print('Waiting for webview to load...');
+        await tester.pumpAndSettle(const Duration(seconds: 3));
+        
+        // Extra wait for webview content to fully render
+        await Future.delayed(const Duration(seconds: 8));
+        await tester.pump();
 
         // Screenshot 3: Site webview
         print('Capturing site webview');
@@ -120,6 +130,11 @@ void main() {
         // Close drawer before capturing the Work webspace sites
         await _closeDrawer(tester);
         await tester.pumpAndSettle(const Duration(seconds: 3));
+        
+        // Wait for webviews/site icons to load
+        print('Waiting for work webspace sites to load...');
+        await Future.delayed(const Duration(seconds: 5));
+        await tester.pump();
 
         // Screenshot 5: Work webspace sites
         print('Capturing work webspace');
