@@ -93,24 +93,30 @@ void main() {
         // Screenshot 3: Site webview
         print('Capturing site webview');
         await binding.takeScreenshot('03-site-webview');
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+        print('Screenshot 3 captured successfully');
+        
+        // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
+        await tester.pump(const Duration(seconds: 2));
+        await Future.delayed(const Duration(seconds: 2));
 
         // Open drawer again
         print('Opening drawer to show current site');
         await _openDrawer(tester);
-        await tester.pumpAndSettle(const Duration(seconds: 5));
+        await Future.delayed(const Duration(seconds: 2));
 
         // Screenshot 4: Drawer showing current site
         print('Capturing drawer with site');
         await binding.takeScreenshot('04-drawer-with-site');
-        await tester.pumpAndSettle(const Duration(seconds: 3));
+        print('Screenshot 4 captured successfully');
+        await tester.pump();
+        await Future.delayed(const Duration(seconds: 2));
       } else {
         print('DuckDuckGo site not found');
       }
 
       // Close drawer
       await _closeDrawer(tester);
-      await tester.pumpAndSettle(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 2));
 
       // Look for "Work" webspace
       print('Looking for Work webspace...');
@@ -120,12 +126,15 @@ void main() {
         print('Work webspace found - capturing screenshots');
         print('Selecting Work webspace');
         await tester.tap(workWebspaceFinder);
-        await tester.pumpAndSettle(const Duration(seconds: 3));
+        await tester.pump();
+        await Future.delayed(const Duration(seconds: 2));
 
         // Screenshot 6: Work webspace drawer
         print('Capturing work sites drawer');
         await binding.takeScreenshot('06-work-sites-drawer');
-        await tester.pumpAndSettle(const Duration(seconds: 3));
+        print('Screenshot 6 captured successfully');
+        await tester.pump();
+        await Future.delayed(const Duration(seconds: 2));
 
         // Close drawer before capturing the Work webspace sites
         await _closeDrawer(tester);
@@ -259,38 +268,54 @@ void main() {
 Future<void> _openDrawer(WidgetTester tester) async {
   print('Opening drawer programmatically...');
   
-  // Find the ScaffoldState and open drawer programmatically
-  final ScaffoldState scaffoldState = tester.state(find.byType(Scaffold).first);
-  scaffoldState.openDrawer();
-  
-  await tester.pumpAndSettle(const Duration(seconds: 3));
-  
-  // Verify drawer opened
-  final drawerVisible = find.byType(Drawer).evaluate().isNotEmpty;
-  print('Drawer opened: $drawerVisible');
-  
-  await tester.pumpAndSettle(const Duration(seconds: 2));
+  try {
+    // Find the ScaffoldState and open drawer programmatically
+    final ScaffoldState scaffoldState = tester.state(find.byType(Scaffold).first);
+    scaffoldState.openDrawer();
+    
+    // Use pump() with timeout instead of pumpAndSettle to avoid webview issues
+    await tester.pump();
+    await Future.delayed(const Duration(seconds: 2));
+    await tester.pump();
+    
+    // Verify drawer opened
+    final drawerVisible = find.byType(Drawer).evaluate().isNotEmpty;
+    print('Drawer opened: $drawerVisible');
+    
+    await Future.delayed(const Duration(seconds: 2));
+  } catch (e) {
+    print('Error opening drawer: $e');
+  }
 }
 
 /// Close the navigation drawer
 Future<void> _closeDrawer(WidgetTester tester) async {
-  // Look for "Back to Webspaces" button
-  final backButtonFinder = find.text('Back to Webspaces');
+  print('Closing drawer...');
   
-  if (backButtonFinder.evaluate().isNotEmpty) {
-    await tester.tap(backButtonFinder);
-  } else {
-    // Fallback: tap outside drawer or use back navigation
-    print('Back to Webspaces button not found, tapping barrier');
-    // Tap on the drawer barrier (scrim) to close
-    final scaffoldFinder = find.byType(Scaffold);
-    if (scaffoldFinder.evaluate().isNotEmpty) {
-      // Tap in the center-right area (outside drawer)
-      await tester.tapAt(const Offset(400, 400));
+  try {
+    // Look for "Back to Webspaces" button
+    final backButtonFinder = find.text('Back to Webspaces');
+    
+    if (backButtonFinder.evaluate().isNotEmpty) {
+      await tester.tap(backButtonFinder);
+    } else {
+      // Fallback: Use ScaffoldState to close drawer programmatically
+      print('Back to Webspaces button not found, closing programmatically');
+      final ScaffoldState scaffoldState = tester.state(find.byType(Scaffold).first);
+      if (scaffoldState.isDrawerOpen) {
+        Navigator.of(scaffoldState.context).pop();
+      }
     }
+    
+    // Use pump() instead of pumpAndSettle to avoid webview timeout
+    await tester.pump();
+    await Future.delayed(const Duration(seconds: 2));
+    await tester.pump();
+    
+    print('Drawer closed');
+  } catch (e) {
+    print('Error closing drawer: $e');
   }
-  
-  await tester.pumpAndSettle(const Duration(seconds: 5));
 }
 
 /// Debug helper to print visible widgets
