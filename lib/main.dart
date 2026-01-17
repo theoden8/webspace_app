@@ -1085,10 +1085,6 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 children: [
                   InkWell(
                     onTap: () {
-                      setState(() {
-                        _selectedWebspaceId = kAllWebspaceId;
-                        _currentIndex = null;
-                      });
                       _saveSelectedWebspaceId();
                       _saveCurrentIndex();
                       Navigator.pop(context);
