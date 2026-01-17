@@ -145,13 +145,23 @@ void main() {
         print('Screenshot 4 captured successfully');
         await tester.pump();
         await Future.delayed(const Duration(seconds: 2));
+        
+        // Navigate back to webspaces by tapping the workspaces icon in drawer
+        print('Navigating back to webspaces list...');
+        final workspacesIconFinder = find.byIcon(Icons.workspaces);
+        if (workspacesIconFinder.evaluate().isNotEmpty) {
+          await tester.tap(workspacesIconFinder);
+          await tester.pump();
+          await Future.delayed(const Duration(seconds: 2));
+          print('Back to webspaces list');
+        } else {
+          print('Workspaces icon not found, closing drawer instead');
+          await _closeDrawer(tester);
+          await Future.delayed(const Duration(seconds: 2));
+        }
       } else {
         print('DuckDuckGo site not found');
       }
-
-      // Close drawer
-      await _closeDrawer(tester);
-      await Future.delayed(const Duration(seconds: 2));
 
       // Look for "Work" webspace
       print('Looking for Work webspace...');
