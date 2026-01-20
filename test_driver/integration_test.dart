@@ -26,14 +26,11 @@ Future<void> main() async {
       
       // If not set, use platform-specific defaults
       if (screenshotDir == null) {
-        // Check if android directory exists (indicates Android build)
-        final androidDir = Directory('android');
-        final iosDir = Directory('ios');
-        
-        if (androidDir.existsSync()) {
+        // Detect the actual runtime platform
+        if (Platform.isAndroid) {
           // Save to fastlane directory for Android
           screenshotDir = 'fastlane/metadata/android/en-US/images/phoneScreenshots';
-        } else if (iosDir.existsSync()) {
+        } else if (Platform.isIOS) {
           // For iOS, you can use fastlane directory too
           // screenshotDir = 'fastlane/metadata/ios/en-US/images/phoneScreenshots';
           screenshotDir = 'screenshots';
