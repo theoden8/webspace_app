@@ -24,26 +24,12 @@ platform :ios do
 
   desc "Build debug version"
   lane :build_debug do
-    build_app(
-      workspace: File.join(ios_dir, "Runner.xcworkspace"),
-      scheme: "Runner",
-      configuration: "Debug",
-      export_method: "development",
-      output_directory: File.join(ios_dir, "build"),
-      output_name: "webspace-debug.ipa"
-    )
+    sh("cd '#{project_root}' && flutter build ios --debug --flavor fmain")
   end
 
   desc "Build release version"
   lane :build_release do
-    build_app(
-      workspace: File.join(ios_dir, "Runner.xcworkspace"),
-      scheme: "Runner",
-      configuration: "Release",
-      export_method: "app-store",
-      output_directory: File.join(ios_dir, "build"),
-      output_name: "webspace-release.ipa"
-    )
+    sh("cd '#{project_root}' && flutter build ipa --release --flavor fmain")
   end
 
   desc "Build iOS app (alias for build_release)"
@@ -53,14 +39,7 @@ platform :ios do
 
   desc "Build for Ad Hoc distribution"
   lane :build_adhoc do
-    build_app(
-      workspace: File.join(ios_dir, "Runner.xcworkspace"),
-      scheme: "Runner",
-      configuration: "Release",
-      export_method: "ad-hoc",
-      output_directory: File.join(ios_dir, "build"),
-      output_name: "webspace-adhoc.ipa"
-    )
+    sh("cd '#{project_root}' && flutter build ipa --release --flavor fmain --export-method ad-hoc")
   end
 
   desc "Update code signing and provisioning profiles"
