@@ -24,12 +24,12 @@ platform :ios do
 
   desc "Build debug version"
   lane :build_debug do
-    sh("cd '#{project_root}' && flutter build ios --debug --flavor fmain")
+    sh("cd '#{project_root}' && flutter build ios --debug")
   end
 
   desc "Build release version"
   lane :build_release do
-    sh("cd '#{project_root}' && flutter build ipa --release --flavor fmain")
+    sh("cd '#{project_root}' && flutter build ipa --release")
   end
 
   desc "Build iOS app (alias for build_release)"
@@ -39,7 +39,7 @@ platform :ios do
 
   desc "Build for Ad Hoc distribution"
   lane :build_adhoc do
-    sh("cd '#{project_root}' && flutter build ipa --release --flavor fmain --export-method ad-hoc")
+    sh("cd '#{project_root}' && flutter build ipa --release --export-method ad-hoc")
   end
 
   desc "Update code signing and provisioning profiles"
@@ -132,7 +132,6 @@ platform :ios do
     sh("cd '#{project_root}' && flutter drive \
       --driver=test_driver/integration_test.dart \
       --target=integration_test/screenshot_test.dart \
-      --flavor fmain \
       -d #{device_id}")
 
     UI.success("Screenshots saved to: #{screenshots_dir}")
