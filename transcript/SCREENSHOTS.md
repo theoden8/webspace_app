@@ -1,69 +1,250 @@
 # Screenshot Generation Guide
 
-This guide explains how to generate screenshots for both iOS App Store and Android F-Droid/Play Store using Fastlane.
+Complete guide for generating app store screenshots for WebSpace using Flutter integration tests.
 
-## Prerequisites
+## Table of Contents
 
-### General
-- **Fastlane installed**: `gem install fastlane` or `brew install fastlane`
-- **Flutter SDK** installed and in PATH
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [How It Works](#how-it-works)
+- [What Gets Captured](#what-gets-captured)
+- [Running Screenshots](#running-screenshots)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Migration from Java](#migration-from-java)
+- [File Structure](#file-structure)
+- [Best Practices](#best-practices)
 
-### iOS Screenshots
-- **macOS** required
-- **Xcode** installed
-- **iOS Simulators** installed (they're included with Xcode)
-- Simulators must be booted or will be automatically booted by Fastlane
+## Overview
 
-### Android Screenshots
-- **Android SDK** installed
-- **Android Emulator** or physical device connected
-- **ADB** in PATH
-- Device/emulator must be running and unlocked before generating screenshots
+WebSpace uses **Flutter integration tests** for automated screenshot generation. This approach:
+
+- ✅ Works on both Android and iOS (cross-platform)
+- ✅ Faster and more reliable than external automation
+- ✅ Automatically saves to correct directories for Fastlane/F-Droid/App Store
+- ✅ Captures 10 screenshots covering all major app features
+- ✅ Seeds realistic demo data automatically
+
+### What Changed
+
+The old Java/UiAutomator test has been **completely replaced** with Flutter integration tests:
+
+| Old (Java) | New (Flutter) |
+|------------|---------------|
+| External automation | Internal testing |
+| Android only | Cross-platform |
+| Slower | Faster |
+| Uses Intent flags | Direct function call |
+| UiDevice API | WidgetTester API |
+| ~428 lines | ~280 lines |
 
 ## Quick Start
 
-### Generate Screenshots Using Flutter Driver
+### Prerequisites
 
-The recommended approach uses Flutter's integration test system:
+**General:**
+- Flutter SDK installed and in PATH
+- Fastlane installed: `gem install fastlane` or `brew install fastlane`
+
+**Android:**
+- Android SDK installed
+- Android Emulator or physical device connected
+- Device unlocked and visible via `adb devices`
+
+**iOS:**
+- macOS required
+- Xcode installed
+- iOS Simulators installed (included with Xcode)
+
+### Generate Screenshots
+
+**Method 1: Via Fastlane (RECOMMENDED)**
 
 ```bash
 # Android
+cd android
+fastlane screenshots
+
+# iOS
+cd ios
+fastlane screenshots
+
+# Both platforms
+fastlane screenshots_all
+```
+
+**Method 2: Flutter Driver Directly**
+
+```bash
+# With screenshot capture
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart \
   --flavor fmain
 
-# iOS
+# Specific device
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart \
-  --flavor fmain
+  --flavor fmain \
+  -d <device_id>
 ```
+
+### Check Available Devices
+
+```bash
+# Flutter devices
+flutter devices
+
+# Android only
+adb devices
+
+# iOS only
+xcrun simctl list devices
+```
+
+### Screenshot Output Locations
 
 Screenshots are automatically saved to:
 - **Android**: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
-- **iOS**: `fastlane/screenshots/en-US/` (when implemented)
+- **iOS**: `fastlane/screenshots/en-US/`
+- **Override**: Set `SCREENSHOT_DIR` environment variable
 
-### Generate via Fastlane (Alternative)
+## How It Works
 
-Fastlane lanes now wrap the Flutter driver command:
+The screenshot generation process:
+
+1. **Initialize test binding** - Sets up Flutter integration test environment
+2. **Seed demo data** - Calls `seedDemoData()` directly to populate realistic test data
+3. **Launch app** - Starts the app via `main()`
+4. **Navigate & capture** - Walks through UI flow taking 10 screenshots
+5. **Save screenshots** - Stores in platform-specific fastlane directories
+
+### Architecture
+
+```
+┌─────────────────────────────────────────┐
+│      Flutter Integration Test           │
+│  - screenshot_test.dart                 │
+│  - Seeds demo data directly             │
+│  - Uses Widget testing API              │
+│  - Runs in same process as app          │
+└──────────────┬──────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────┐
+│         WebSpace App                    │
+│  - Launched via main()                  │
+│  - Data already seeded                  │
+│  - Full access to widget tree           │
+└─────────────────────────────────────────┘
+```
+
+### Demo Data
+
+The test automatically creates realistic data:
+
+**Sample Sites:**
+- My Blog (https://example.com/blog)
+- Tasks (https://tasks.example.com)
+- Notes (https://notes.example.com)
+- Home Dashboard (http://homeserver.local:8080)
+- Personal Wiki (http://192.168.1.100:3000)
+- Media Server (http://192.168.1.101:8096)
+
+**Sample Webspaces:**
+- **All** - Shows all sites (default view)
+- **Work** - Blog, Tasks, and Notes
+- **Home Server** - Dashboard, Wiki, and Media Server
+
+To customize test data, edit `lib/demo_data.dart`.
+
+## What Gets Captured
+
+The test captures **10 screenshots** covering the complete app flow:
+
+1. **01-all-sites** - Main screen with all sites
+2. **02-sites-drawer** - Navigation drawer with site list
+3. **03-site-webview** - DuckDuckGo site loaded
+4. **04-drawer-with-site** - Drawer showing selected site
+5. **05-work-webspace** - Work webspace view
+6. **06-work-sites-drawer** - Work webspace drawer
+7. **07-add-workspace-dialog** - New workspace dialog
+8. **08-workspace-name-entered** - Dialog with name filled
+9. **09-workspace-sites-selected** - Dialog with sites selected
+10. **10-new-workspace-created** - Main screen with new workspace
+
+## Running Screenshots
+
+### Commands Cheat Sheet
 
 ```bash
-# Android
-cd android && fastlane screenshots
+# Install dependencies
+flutter pub get
 
-# iOS
-cd ios && fastlane screenshots
+# List devices
+flutter devices
+
+# Via Fastlane (RECOMMENDED)
+cd android && fastlane screenshots  # Android
+cd ios && fastlane screenshots      # iOS
+fastlane screenshots_all            # Both platforms
+
+# Via Flutter Driver directly
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain
+
+# Run on specific device
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain \
+  -d emulator-5554
+```
+
+### Adding More Devices
+
+**iOS Simulators:**
+
+```bash
+# See available simulators
+xcrun simctl list devices
+
+# Create new simulator
+xcrun simctl create "iPhone 14 Pro" "iPhone 14 Pro" "iOS 17.0"
+
+# Add to ios/fastlane/Snapfile
+devices([
+  "iPhone 14 Pro",
+  "iPhone 15 Pro Max",
+  "iPad Pro (12.9-inch) (6th generation)"
+])
+```
+
+**Android Emulators:**
+
+```bash
+# See available emulators
+emulator -list-avds
+
+# Create new emulator
+avdmanager create avd -n Pixel_6_API_33 \
+  -k "system-images;android-33;google_apis;x86_64" -d pixel_6
+
+# Start emulator
+emulator -avd Pixel_6_API_33 &
 ```
 
 ## Configuration
 
 ### iOS Configuration
 
-Edit `ios/fastlane/Snapfile` to customize:
+Edit `ios/fastlane/Snapfile`:
 
-**Devices**: Choose which iPhone/iPad models to generate screenshots for
 ```ruby
+# Devices
 devices([
   "iPhone 15 Pro Max",      # 6.7-inch display
   "iPhone 15 Pro",          # 6.1-inch display
@@ -71,124 +252,46 @@ devices([
   "iPad Pro (12.9-inch) (6th generation)",
   "iPad Pro (11-inch) (4th generation)"
 ])
-```
 
-**Languages**: Add more locales for internationalization
-```ruby
+# Languages
 languages([
   "en-US",
   "de-DE",
   "es-ES",
-  "fr-FR",
-  "ja-JP"
+  "fr-FR"
 ])
-```
 
-**Dark Mode**: Enable dark mode screenshots
-```ruby
+# Dark mode
 dark_mode(true)
 ```
 
 ### Android Configuration
 
-Edit `android/fastlane/Screengrabfile` to customize:
+Edit `android/fastlane/Screengrabfile`:
 
-**Locales**: Add multiple languages
 ```ruby
-locales(['en-US', 'de-DE', 'es-ES', 'fr-FR', 'it-IT'])
-```
+# Locales
+locales(['en-US', 'de-DE', 'es-ES', 'fr-FR'])
 
-**Device Types**: Choose device form factors
-```ruby
-# Valid types: phone, sevenInch, tenInch, tv, wear
+# Device types: phone, sevenInch, tenInch, tv, wear
 device_type('phone')
+
+# Flavor
+app_apk_path('app/build/outputs/apk/fmain/debug/app-fmain-debug.apk')
+tests_apk_path('app/build/outputs/apk/androidTest/fmain/debug/app-fmain-debug-androidTest.apk')
 ```
 
-**Flavor**: Switch between fdroid and fdebug flavors
-```ruby
-# For F-Droid
-app_apk_path('app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk')
-tests_apk_path('app/build/outputs/apk/androidTest/fdroid/debug/app-fdroid-debug-androidTest.apk')
-```
-
-## Screenshot Test Data
-
-The screenshot test automatically seeds the app with realistic test data. The Flutter integration test calls `seedDemoData()` directly before launching the app.
-
-### How It Works
-
-1. **screenshot_test.dart** calls `await seedDemoData()` before launching app
-2. **demo_data.dart** creates realistic test data using Flutter's native data models
-3. App launches with demo data already populated
-
-### Sample Sites
-- **My Blog** - Personal blog (https://example.com/blog)
-- **Tasks** - Task management app (https://tasks.example.com)
-- **Notes** - Notes application (https://notes.example.com)
-- **Home Dashboard** - Home server dashboard (http://homeserver.local:8080)
-- **Personal Wiki** - Local wiki server (http://192.168.1.100:3000)
-- **Media Server** - Media streaming server (http://192.168.1.101:8096)
-
-### Sample Webspaces
-- **All** - Shows all sites (default view)
-- **Work** - Organized workspace with Blog, Tasks, and Notes
-- **Home Server** - Contains Dashboard, Wiki, and Media Server
-
-This realistic test data helps potential users understand how the app organizes and manages multiple web applications.
-
-To customize the test data, edit `lib/demo_data.dart`.
-
-## Customizing Screenshot Content
-
-### iOS: Edit Screenshot Test
-
-Edit `ios/RunnerTests/SnapshotTests.swift`:
-
-```swift
-func testTakeScreenshots() throws {
-    let app = XCUIApplication()
-
-    // Wait for app to load
-    sleep(2)
-
-    // Capture main screen
-    snapshot("01-main-screen")
-
-    // Interact with UI elements
-    let addButton = app.buttons["Add"]
-    if addButton.exists {
-        addButton.tap()
-        sleep(1)
-        snapshot("02-add-webview")
-    }
-
-    // Capture settings
-    let settingsButton = app.buttons["Settings"]
-    if settingsButton.exists {
-        settingsButton.tap()
-        sleep(1)
-        snapshot("03-settings")
-    }
-}
-```
-
-**Tips:**
-- Use `snapshot("name")` to capture a screenshot
-- Use accessibility identifiers to find UI elements
-- Add `sleep()` calls to wait for animations
-- Each screenshot should have a unique descriptive name
-
-### Flutter Integration Test (Current Implementation)
+### Customizing Screenshot Test
 
 Edit `integration_test/screenshot_test.dart`:
 
 ```dart
 testWidgets('Take screenshots of app flow', (WidgetTester tester) async {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  
+
   // Seed demo data
   await seedDemoData();
-  
+
   // Launch app
   app.main();
   await tester.pumpAndSettle(const Duration(seconds: 10));
@@ -202,188 +305,279 @@ testWidgets('Take screenshots of app flow', (WidgetTester tester) async {
   await tester.pump();
   await Future.delayed(const Duration(seconds: 2));
 
-  // Add more interactions as needed
+  // Add more interactions...
 }
 ```
 
-**Note**: The current implementation includes a comprehensive screenshot tour with:
-- Automatic demo data seeding via direct `seedDemoData()` call
-- Automated navigation through multiple screens including webspaces list, sites drawer, webview, and workspace creation
-- 10 screenshots covering the main app features for store listings
-- Mid-animation capture for screenshot 3 (drawer closing animation)
-
 **Tips:**
-- Use `binding.takeScreenshot("name")` to capture a screenshot
-- Use Flutter's widget finders to locate UI elements
-- Use `tester.pump()` with durations to advance animations
-- Add `Future.delayed()` to wait for content loading
-- Name screenshots with numbers to control ordering (01-, 02-, etc.)
-
-## Adding More Devices/Simulators
-
-### iOS Simulators
-
-To see available simulators:
-```bash
-xcrun simctl list devices
-```
-
-To add a new simulator:
-```bash
-# iOS 17.0 iPhone 14 Pro
-xcrun simctl create "iPhone 14 Pro" "iPhone 14 Pro" "iOS 17.0"
-```
-
-Then add it to `ios/fastlane/Snapfile`:
-```ruby
-devices([
-  "iPhone 14 Pro",
-  # ... other devices
-])
-```
-
-### Android Emulators
-
-To see available emulators:
-```bash
-emulator -list-avds
-```
-
-To create a new emulator:
-```bash
-# Create a Pixel 6 emulator
-avdmanager create avd -n Pixel_6_API_33 -k "system-images;android-33;google_apis;x86_64" -d pixel_6
-```
-
-Start the emulator before running screenshots:
-```bash
-emulator -avd Pixel_6_API_33 &
-```
+- Use `binding.takeScreenshot("name")` to capture screenshots
+- Use Flutter's widget finders: `find.text()`, `find.byType()`, `find.byIcon()`
+- Use `tester.pumpAndSettle()` to wait for animations
+- Add `Future.delayed()` for content loading
+- Number screenshots (01-, 02-, etc.) to control ordering
 
 ## Troubleshooting
 
-### iOS Issues
+### General Issues
 
-**"Unable to find simulator"**
-- Run `xcrun simctl list devices` to see available simulators
-- Make sure the simulator names in Snapfile match exactly
-- Simulators are automatically booted by Fastlane
+**Test fails with "element not found"**
+- Increase wait times in `pumpAndSettle` calls
+- Check widget tree with Flutter DevTools
+- Verify demo data is seeding correctly
 
-**"UI Tests failed to build"**
-- Open Xcode and build the project manually
-- Ensure RunnerTests target is enabled
-- Check that `ios/RunnerTests/SnapshotTests.swift` exists
+**Screenshots not saving**
+- Use `flutter drive` instead of `flutter test`
+- Check device storage permissions
+- Look for screenshots in test output directory
+- Verify `IntegrationTestWidgetsFlutterBinding` is initialized
 
-**"Snapshot helper not found"**
-- First time setup: Run `fastlane snapshot init` from ios/ directory
-- Then manually add `setupSnapshot(app)` to your test (already done)
+**Slow execution**
+- This is normal - webviews need time to load
+- Adjust timing constants if needed
+- Timing is more predictable than Java version
 
 **Screenshots are blank**
-- Increase sleep times in the test
-- Check that your app actually launches in the simulator
-- Verify accessibility identifiers for UI elements
+- Increase sleep/wait times in the test
+- Check that app actually launches
+- Verify device is unlocked
 
 ### Android Issues
 
 **"No connected devices"**
-- Start an Android emulator or connect a physical device
-- Verify with `adb devices`
-- Ensure device is unlocked
+```bash
+# Check devices
+adb devices
+
+# Start emulator
+emulator -avd Pixel_6_API_33 &
+```
 
 **"Tests APK not found"**
-- The APKs are built automatically by the screenshots lane
-- If issues persist, manually build: `./gradlew assembleFdebugAndroidTest`
-
-**"ScreenshotTest not found"**
-- Verify `android/app/src/androidTest/java/org/codeberg/theoden8/webspace/ScreenshotTest.java` exists
-- Run `./gradlew clean` and try again
+- APKs are built automatically by fastlane
+- Manual build: `./gradlew assembleFmainDebugAndroidTest`
 
 **Build errors with dependencies**
-- Run `./gradlew --refresh-dependencies` from android/
-- Check that `android/app/build.gradle` includes all required dependencies
+```bash
+cd android
+./gradlew --refresh-dependencies
+./gradlew clean
+```
 
-**"Permission denied" errors**
-- Grant all permissions to the app before running tests
-- Consider adding permission grants in the test setup
+**Test data not loading**
+```bash
+# Check logcat for demo seeding messages
+adb logcat | grep -E "(DEMO_MODE|SEEDING DEMO DATA)"
+```
 
-### General Issues
+### iOS Issues
 
-**Screenshots show status bar/system UI**
-- iOS: Set `override_status_bar(true)` in Snapfile (already enabled)
-- Android: Status bar is captured by default; use image editing if needed
+**"Unable to find simulator"**
+```bash
+# See available simulators
+xcrun simctl list devices
 
-**Wrong language/locale**
-- Check the `languages`/`locales` setting in Snapfile/Screengrabfile
-- Device/simulator system language might override settings
+# Ensure names in Snapfile match exactly
+```
+
+**"UI Tests failed to build"**
+- Open Xcode and build project manually
+- Ensure RunnerTests target is enabled
+- Verify `ios/RunnerTests/SnapshotTests.swift` exists
+
+**"Snapshot helper not found"**
+```bash
+cd ios
+fastlane snapshot init
+```
+
+**Screenshots show wrong language**
+- Check `languages` setting in Snapfile
+- Device system language might override settings
+
+### Performance Tips
 
 **Tests time out**
 - Increase sleep times between interactions
-- Check that your app isn't stuck on a loading screen
-- Verify network connectivity if app requires it
+- Check app isn't stuck on loading screen
+- Verify network connectivity
 
-## Output Locations
+**Want faster execution**
+- Run on fewer devices initially
+- Test locally on single device first
+- Reduce wait times once flow is stable
 
-### iOS Screenshots
-```
-ios/fastlane/screenshots/
-├── en-US/
-│   ├── iPhone 15 Pro Max-01-main-screen.png
-│   ├── iPhone 15 Pro-01-main-screen.png
-│   ├── iPad Pro (12.9-inch)-01-main-screen.png
-│   └── ...
-└── screenshots.html (preview file)
-```
+## Migration from Java
 
-### Android Screenshots
-```
-android/fastlane/metadata/android/
-└── en-US/
-    └── images/
-        └── phoneScreenshots/
-            ├── 01-main-screen.png
-            ├── 02-add-webview.png
-            └── ...
-```
+### What Was Done
 
-## Frame Screenshots (Optional)
+The Java/UiAutomator screenshot test has been fully replaced:
 
-### iOS Device Frames
+✅ Replaced `ScreenshotTest.java` with Flutter integration test
+✅ Added `integration_test` dependency to `pubspec.yaml`
+✅ Created `integration_test/screenshot_test.dart`
+✅ Created `test_driver/integration_test.dart` with screenshot saving
+✅ Updated Android fastlane to use `flutter drive`
+✅ Updated iOS fastlane to use `flutter drive`
+✅ Fixed screenshot 3 to capture drawer closing animation
+✅ Removed old Java androidTest files
+✅ Added comprehensive documentation
 
-Add device frames around screenshots:
+### Comparison
 
-```bash
-cd ios
-fastlane frame_screenshots
-```
+**Code Comparison - Finding Elements:**
 
-This uses the `frameit` tool to add iPhone/iPad bezels. Configure in Fastfile:
-```ruby
-frameit(
-  path: "./fastlane/screenshots",
-  white: true  # or false for black bezels
-)
+```java
+// Java/UiAutomator
+private UiObject2 findElement(String text) {
+    UiObject2 obj = device.findObject(By.text(text));
+    if (obj == null) {
+        obj = device.findObject(By.textContains(text));
+    }
+    if (obj == null) {
+        obj = device.findObject(By.desc(text));
+    }
+    return obj;
+}
 ```
 
-Note: Device frame images must be downloaded separately.
+```dart
+// Flutter
+final workWebspaceFinder = find.text('Work');
+final nameFieldFinder = find.byType(TextField).first;
+final addButton = find.byIcon(Icons.add);
+```
 
-### Android Device Frames
+**Code Comparison - Interactions:**
 
-Android screenshot framing typically uses third-party tools or manual editing.
+```java
+// Java/UiAutomator
+UiObject2 button = findElement("Add Webspace");
+button.click();
+Thread.sleep(SHORT_DELAY);
+
+UiObject2 nameField = findElement("Workspace name");
+nameField.click();
+nameField.setText("Entertainment");
+device.pressBack();  // Hide keyboard
+```
+
+```dart
+// Flutter
+final addButton = find.text('Add Webspace');
+await tester.tap(addButton);
+await tester.pumpAndSettle(const Duration(seconds: 3));
+
+final nameField = find.byType(TextField).first;
+await tester.tap(nameField);
+await tester.enterText(nameField, 'Entertainment');
+await tester.testTextInput.receiveAction(TextInputAction.done);
+```
+
+**Code Comparison - Screenshots:**
+
+```java
+// Java/UiAutomator
+Screengrab.screenshot("01-all-sites");
+Thread.sleep(MEDIUM_DELAY);
+```
+
+```dart
+// Flutter
+await binding.takeScreenshot('01-all-sites');
+await tester.pumpAndSettle(const Duration(seconds: 5));
+```
+
+### Advantages of Flutter Approach
+
+**Java/UiAutomator:**
+- ✅ Well-established for Android
+- ✅ Can test system-level dialogs
+- ❌ Android-only (iOS needs separate tests)
+- ❌ Slower (external process)
+- ❌ More flaky (timing-sensitive)
+- ❌ Harder to debug
+
+**Flutter Integration:**
+- ✅ Cross-platform (same test for Android/iOS)
+- ✅ Faster execution (same process)
+- ✅ More reliable (direct widget access)
+- ✅ Easier to debug (standard Flutter tools)
+- ✅ Better IDE support
+- ✅ Can access app state directly
+- ✅ Simpler setup
+- ❌ Can't test system dialogs easily
+
+### Migration Complete! 🎉
+
+The Flutter screenshot test is now the standard:
+
+✅ Old Java test removed
+✅ Fastlane updated to use Flutter driver
+✅ Screenshots save to correct directories automatically
+✅ Works on both Android and iOS
+
+## File Structure
+
+```
+webspace_app/
+├── integration_test/
+│   ├── screenshot_test.dart     # Main screenshot test
+│   └── README.md                # Integration test documentation
+├── test_driver/
+│   └── integration_test.dart    # Test driver for flutter drive
+├── lib/
+│   └── demo_data.dart           # Demo data seeding logic
+├── android/
+│   └── fastlane/
+│       ├── Fastfile             # Fastlane automation
+│       ├── Screengrabfile       # Android screenshot config
+│       └── metadata/android/en-US/images/phoneScreenshots/  # Output
+├── ios/
+│   └── fastlane/
+│       ├── Fastfile             # Fastlane automation
+│       ├── Snapfile             # iOS screenshot config
+│       └── screenshots/en-US/   # Output
+└── transcript/
+    └── SCREENSHOTS.md           # This file
+```
 
 ## Best Practices
 
-1. **Keep tests simple**: Focus on capturing key screens, not comprehensive testing
-2. **Use consistent naming**: Number screenshots to control display order (01-, 02-, etc.)
-3. **Wait for animations**: Always add sleep/wait after navigation or button taps
-4. **Test locally first**: Run on a single device before generating all screenshots
-5. **Version control**: Don't commit large screenshot files; add to .gitignore if needed
-6. **Optimize images**: Consider compressing screenshots before uploading to stores
-7. **Update regularly**: Regenerate screenshots when UI changes significantly
+1. **Keep tests simple** - Focus on capturing key screens, not comprehensive testing
+2. **Use consistent naming** - Number screenshots (01-, 02-, etc.) to control display order
+3. **Wait for animations** - Always add delays after navigation or button taps
+4. **Test locally first** - Run on single device before generating all screenshots
+5. **Don't commit screenshots** - Add large screenshot files to `.gitignore`
+6. **Optimize images** - Consider compressing before uploading to stores
+7. **Update regularly** - Regenerate when UI changes significantly
+8. **Use realistic data** - Demo data should showcase real-world usage
+9. **Test on multiple devices** - Verify screenshots look good across form factors
+10. **Verify output** - Always check generated screenshots before publishing
 
 ## Additional Resources
 
+- **Integration test docs**: See `integration_test/README.md`
 - [Fastlane Snapshot (iOS)](https://docs.fastlane.tools/actions/snapshot/)
 - [Fastlane Screengrab (Android)](https://docs.fastlane.tools/actions/screengrab/)
 - [App Store Screenshot Specifications](https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications)
 - [Google Play Screenshot Guidelines](https://support.google.com/googleplay/android-developer/answer/9866151)
 - [F-Droid Metadata](https://f-droid.org/docs/All_About_Descriptions_Graphics_and_Screenshots/)
+
+---
+
+**Ready to generate screenshots!**
+
+```bash
+flutter pub get
+cd android && fastlane screenshots  # For Android
+cd ios && fastlane screenshots      # For iOS
+```
+
+Or use Flutter driver directly:
+
+```bash
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain
+```
