@@ -233,67 +233,72 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _nameController,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: InputDecoration(
-                labelText: 'Site Name (optional)',
-                helperText: 'Leave empty to fetch from website',
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: _urlController,
-              autofocus: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              keyboardType: TextInputType.url,
-              decoration: InputDecoration(labelText: 'Enter website URL'),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                String url = _urlController.text.trim();
-                String name = _nameController.text.trim();
-                // If no protocol specified, default to https
-                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                  url = 'https://$url';
-                }
-                Navigator.pop(context, {'url': url, 'name': name});
-              },
-              child: Text('Add Site'),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Tip: Type http:// for HTTP sites, or just the domain for HTTPS',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 24),
-            Text(
-              'Suggested Sites',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 12),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final tileSize = (constraints.maxWidth - 36) / 4; // 4 columns with 12px spacing
-                  final iconSize = tileSize * 0.7; // Icon takes 70% of tile size
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final tileSize = (constraints.maxWidth - 36) / 4; // 4 columns with 12px spacing
+            final iconSize = tileSize * 0.7; // Icon takes 70% of tile size
 
-                  return GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 1,
-                    ),
-                    itemCount: _suggestions.length,
-                    itemBuilder: (context, index) {
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _nameController,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: InputDecoration(
+                          labelText: 'Site Name (optional)',
+                          helperText: 'Leave empty to fetch from website',
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      TextField(
+                        controller: _urlController,
+                        autofocus: true,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        keyboardType: TextInputType.url,
+                        decoration: InputDecoration(labelText: 'Enter website URL'),
+                      ),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          String url = _urlController.text.trim();
+                          String name = _nameController.text.trim();
+                          // If no protocol specified, default to https
+                          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            url = 'https://$url';
+                          }
+                          Navigator.pop(context, {'url': url, 'name': name});
+                        },
+                        child: Text('Add Site'),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Tip: Type http:// for HTTP sites, or just the domain for HTTPS',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 24),
+                      Text(
+                        'Suggested Sites',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+                SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
                       final suggestion = _suggestions[index];
                       return InkWell(
                         onTap: () => _showSuggestionDialog(suggestion),
@@ -333,11 +338,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         ),
                       );
                     },
-                  );
-                },
-              ),
-            ),
-          ],
+                    childCount: _suggestions.length,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
