@@ -1054,30 +1054,31 @@ class _WebSpacePageState extends State<WebSpacePage> {
       drawer: Drawer(
         child: Column(
           children: [
-            Container(
-              height: 140,
-              width: double.infinity,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _currentIndex = null;
-                      });
-                      _saveSelectedWebspaceId();
-                      _saveCurrentIndex();
-                      Navigator.pop(context);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.workspaces,
-                            size: 48,
-                            color: Theme.of(context).colorScheme.secondary,
-                          ),
+            SafeArea(
+              child: Container(
+                height: 160,
+                width: double.infinity,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _currentIndex = null;
+                        });
+                        _saveSelectedWebspaceId();
+                        _saveCurrentIndex();
+                        Navigator.pop(context);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.workspaces,
+                              size: 72,
+                              color: Theme.of(context).colorScheme.secondary,
+                            ),
                           SizedBox(height: 8),
                           Text(
                             _selectedWebspaceId != null
@@ -1109,6 +1110,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 ],
               ),
               alignment: Alignment.center,
+            ),
             ),
             Expanded(
               child: _selectedWebspaceId == null
