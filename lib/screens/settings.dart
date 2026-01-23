@@ -11,15 +11,15 @@ String generateRandomUserAgent() {
   List<String> platforms = [
     'Windows NT 10.0; Win64; x64',
     'Macintosh; Intel Mac OS X 10_15_7',
-    'X11; Linux x86_64',
-    'iPhone; CPU iPhone OS 15_4 like Mac OS X',
-    'Android 13; Mobile', // Add an Android platform
+    'Linux x86_64',
+    'iPhone; CPU iPhone OS 15_7_3 like Mac OS X',
+    'Android 16; Mobile', // Add an Android platform
   ];
 
-  String geckoVersion = '112';
+  String geckoVersion = '147.0';
   String geckoTrail = '20100101';
   String appName = 'Firefox';
-  String appVersion = '102.0';
+  String appVersion = '147.0';
 
   String platform = platforms[Random().nextInt(platforms.length)];
   return 'Mozilla/5.0 ($platform; rv:$geckoVersion) Gecko/$geckoTrail $appName/$appVersion';

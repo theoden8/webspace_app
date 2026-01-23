@@ -1,5 +1,5 @@
 # User defined
-/pubspec.lock
+.env
 /.metadata
 /android/key.properties
 
@@ -8,6 +8,7 @@
 *.log
 *.pyc
 *.swp
+*.swo
 .DS_Store
 .atom/
 .build/
