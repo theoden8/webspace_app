@@ -1056,10 +1056,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
           children: [
             SafeArea(
               child: Container(
-                height: 180,
                 width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     InkWell(
                       onTap: () {
@@ -1109,7 +1109,6 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   ),
                 ],
               ),
-              alignment: Alignment.center,
             ),
             ),
             Expanded(
