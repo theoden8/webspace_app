@@ -1056,7 +1056,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
           children: [
             SafeArea(
               child: Container(
-                height: 160,
+                height: 180,
                 width: double.infinity,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
