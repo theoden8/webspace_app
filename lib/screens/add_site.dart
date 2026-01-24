@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../main.dart' show getFaviconUrl, extractDomain;
+import '../main.dart' show extractDomain;
+import '../services/icon_service.dart' show getFaviconUrl;
 
 class SiteSuggestion {
   final String name;
