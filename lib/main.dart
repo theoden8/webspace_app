@@ -44,6 +44,14 @@ String extractDomain(String url) {
 final Map<String, String?> _faviconCache = {};
 final Map<String, String?> _pageTitleCache = {};
 
+// Icon candidate with quality scoring
+class _IconCandidate {
+  final String url;
+  final int quality;
+
+  _IconCandidate(this.url, this.quality);
+}
+
 Future<String?> getFaviconUrl(String url) async {
   // Check cache first
   if (_faviconCache.containsKey(url)) {
@@ -59,6 +67,7 @@ Future<String?> getFaviconUrl(String url) async {
   String scheme = uri.scheme;
   String host = uri.host;
   int? port = uri.hasPort ? uri.port : null;
+  String domain = host;
 
   if (scheme.isEmpty || host.isEmpty) {
     _faviconCache[url] = null;
@@ -69,8 +78,62 @@ Future<String?> getFaviconUrl(String url) async {
       ? '$scheme://$host:$port'
       : '$scheme://$host';
 
+  // Helper function to verify icon URL is accessible
+  Future<bool> verifyIconUrl(String iconUrl) async {
+    try {
+      final iconResponse = await http.head(Uri.parse(iconUrl)).timeout(
+        Duration(seconds: 2),
+      );
+      return iconResponse.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Helper function to resolve relative URLs
+  String resolveIconUrl(String href) {
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      return href;
+    } else if (href.startsWith('//')) {
+      return '$scheme:$href';
+    } else if (href.startsWith('/')) {
+      return '$baseUrl$href';
+    } else {
+      return '$baseUrl/$href';
+    }
+  }
+
+  List<_IconCandidate> candidates = [];
+
+  // Quality scoring:
+  // 1000: SVG (scale-invariant, best quality)
+  // 256: Google 256px
+  // 128: Google 128px, HTML high-res icons
+  // 64: DuckDuckGo
+  // 32: /favicon.ico fallback
+  // 16: HTML unknown size icons
+
+  // Strategy 1: Try Google Favicons (fast, usually high-quality)
   try {
-    // Strategy 1: Try to parse the HTML page and find <link rel="icon"> tags
+    final google256 = 'https://www.google.com/s2/favicons?domain=$domain&sz=256';
+    if (await verifyIconUrl(google256)) {
+      candidates.add(_IconCandidate(google256, 256));
+    }
+  } catch (e) {
+    // Try next source
+  }
+
+  try {
+    final google128 = 'https://www.google.com/s2/favicons?domain=$domain&sz=128';
+    if (await verifyIconUrl(google128)) {
+      candidates.add(_IconCandidate(google128, 128));
+    }
+  } catch (e) {
+    // Try next source
+  }
+
+  // Strategy 2: Try HTML parsing for native icons (might have SVG!)
+  try {
     final pageResponse = await http.get(Uri.parse(url)).timeout(
       Duration(seconds: 3),
       onTimeout: () => throw TimeoutException('Page fetch timeout'),
@@ -86,89 +149,78 @@ Future<String?> getFaviconUrl(String url) async {
       }
 
       // Look for favicon in <link> tags
-      // Priority order: SVG icons first (scale-invariant), then regular icons
       List<String> iconRels = ['icon', 'shortcut icon', 'apple-touch-icon'];
 
-      // Helper function to resolve relative URLs
-      String resolveIconUrl(String href) {
-        if (href.startsWith('http://') || href.startsWith('https://')) {
-          return href;
-        } else if (href.startsWith('//')) {
-          return '$scheme:$href';
-        } else if (href.startsWith('/')) {
-          return '$baseUrl$href';
-        } else {
-          return '$baseUrl/$href';
-        }
-      }
-
-      // Helper function to verify icon URL is accessible
-      Future<bool> verifyIconUrl(String faviconUrl) async {
-        try {
-          final iconResponse = await http.head(Uri.parse(faviconUrl)).timeout(
-            Duration(seconds: 2),
-          );
-          return iconResponse.statusCode == 200;
-        } catch (e) {
-          return false;
-        }
-      }
-
-      // First pass: Look for SVG icons (scale-invariant, highest quality)
       for (String rel in iconRels) {
         var linkElements = document.querySelectorAll('link[rel*="$rel"]');
         for (var link in linkElements) {
           String? href = link.attributes['href'];
           String? type = link.attributes['type'];
+          String? sizes = link.attributes['sizes'];
 
           if (href != null && href.isNotEmpty) {
-            // Check if it's an SVG icon
-            bool isSvg = type == 'image/svg+xml' ||
-                        href.toLowerCase().endsWith('.svg');
+            String iconUrl = resolveIconUrl(href);
 
+            // Don't verify here - we'll verify the best candidate later
+            int quality = 16; // default for unknown size
+
+            // Check if it's an SVG icon (best quality!)
+            bool isSvg = type == 'image/svg+xml' || href.toLowerCase().endsWith('.svg');
             if (isSvg) {
-              String faviconUrl = resolveIconUrl(href);
-              if (await verifyIconUrl(faviconUrl)) {
-                _faviconCache[url] = faviconUrl;
-                return faviconUrl;
+              quality = 1000;
+            } else if (sizes != null) {
+              // Parse sizes attribute (e.g., "128x128", "any")
+              if (sizes.contains('256')) {
+                quality = 256;
+              } else if (sizes.contains('128') || sizes.contains('any')) {
+                quality = 128;
               }
             }
-          }
-        }
-      }
 
-      // Second pass: Look for high-resolution icons (128x128+) or any icon
-      for (String rel in iconRels) {
-        var linkElements = document.querySelectorAll('link[rel*="$rel"]');
-        for (var link in linkElements) {
-          String? href = link.attributes['href'];
-          if (href != null && href.isNotEmpty) {
-            String faviconUrl = resolveIconUrl(href);
-            if (await verifyIconUrl(faviconUrl)) {
-              _faviconCache[url] = faviconUrl;
-              return faviconUrl;
-            }
+            candidates.add(_IconCandidate(iconUrl, quality));
           }
         }
       }
     }
   } catch (e) {
-    // HTML parsing failed, try fallback
+    // HTML parsing failed, continue with other sources
   }
 
-  // Strategy 2: Fallback to /favicon.ico at root
-  String faviconUrl = '$baseUrl/favicon.ico';
+  // Strategy 3: Try DuckDuckGo
   try {
-    final response = await http.get(Uri.parse(faviconUrl)).timeout(
-      Duration(seconds: 2),
-      onTimeout: () => throw TimeoutException('Favicon fetch timeout'),
-    );
-    if (response.statusCode == 200) {
-      _faviconCache[url] = faviconUrl;
-      return faviconUrl;
+    final ddg = 'https://icons.duckduckgo.com/ip3/$domain.ico';
+    if (await verifyIconUrl(ddg)) {
+      candidates.add(_IconCandidate(ddg, 64));
     }
   } catch (e) {
-    // Silently cache the failure
+    // Try next source
+  }
+
+  // Strategy 4: Try /favicon.ico at root
+  try {
+    final faviconIco = '$baseUrl/favicon.ico';
+    if (await verifyIconUrl(faviconIco)) {
+      candidates.add(_IconCandidate(faviconIco, 32));
+    }
+  } catch (e) {
+    // No favicon.ico
+  }
+
+  // Pick the best quality icon
+  if (candidates.isEmpty) {
+    _faviconCache[url] = null;
+    return null;
+  }
+
+  // Sort by quality (highest first) and pick the best
+  candidates.sort((a, b) => b.quality.compareTo(a.quality));
+
+  // Verify the best candidate is actually accessible
+  for (var candidate in candidates) {
+    if (await verifyIconUrl(candidate.url)) {
+      _faviconCache[url] = candidate.url;
+      return candidate.url;
+    }
   }
 
   _faviconCache[url] = null;

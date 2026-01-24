@@ -14,10 +14,13 @@ class SiteSuggestion {
   });
 }
 
-// Unified favicon widget that tries multiple strategies:
-// 1. Try getFaviconUrl (HTML parsing) for high quality icons
-// 2. Fall back to external services if HTML parsing fails
-class UnifiedFaviconImage extends StatefulWidget {
+// Unified favicon widget that uses getFaviconUrl which tries all sources:
+// 1. Google Favicons at 256px and 128px
+// 2. HTML parsing for native icons (prioritizing SVG)
+// 3. DuckDuckGo favicon service
+// 4. /favicon.ico fallback
+// Then picks the best quality icon found
+class UnifiedFaviconImage extends StatelessWidget {
   final String url;
   final double size;
   final String? domain;
@@ -29,112 +32,42 @@ class UnifiedFaviconImage extends StatefulWidget {
   });
 
   @override
-  _UnifiedFaviconImageState createState() => _UnifiedFaviconImageState();
-}
-
-class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
-  String? _faviconUrl;
-  bool _isLoading = true;
-  int _fallbackIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFavicon();
-  }
-
-  Future<void> _loadFavicon() async {
-    // Try HTML parsing first
-    final htmlFavicon = await getFaviconUrl(widget.url);
-    if (mounted) {
-      setState(() {
-        _faviconUrl = htmlFavicon;
-        _isLoading = false;
-      });
-    }
-  }
-
-  List<String> _getFallbackUrls() {
-    final domain = widget.domain ?? extractDomain(widget.url);
-    return [
-      'https://www.google.com/s2/favicons?domain=$domain&sz=256',
-      'https://www.google.com/s2/favicons?domain=$domain&sz=128',
-      'https://icons.duckduckgo.com/ip3/$domain.ico',
-    ];
-  }
-
-  void _tryNextFallback() {
-    if (_fallbackIndex < _getFallbackUrls().length - 1 && mounted) {
-      setState(() {
-        _fallbackIndex++;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
-    }
-
-    // If we have a favicon from HTML parsing, use it
-    if (_faviconUrl != null) {
-      return CachedNetworkImage(
-        imageUrl: _faviconUrl!,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        placeholder: (context, url) => SizedBox(
-          width: widget.size,
-          height: widget.size,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        errorWidget: (context, url, error) {
-          // If HTML favicon fails, try fallback services
-          return _buildFallbackImage();
-        },
-      );
-    }
-
-    // If HTML parsing returned null, use fallback services
-    return _buildFallbackImage();
-  }
-
-  Widget _buildFallbackImage() {
-    final urls = _getFallbackUrls();
-
-    return CachedNetworkImage(
-      imageUrl: urls[_fallbackIndex],
-      width: widget.size,
-      height: widget.size,
-      fit: BoxFit.contain,
-      filterQuality: FilterQuality.high,
-      placeholder: (context, url) => SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-      errorWidget: (context, url, error) {
-        // Try next URL on error
-        if (_fallbackIndex < urls.length - 1) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _tryNextFallback();
-          });
+    return FutureBuilder<String?>(
+      future: getFaviconUrl(url),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return SizedBox(
-            width: widget.size,
-            height: widget.size,
+            width: size,
+            height: size,
             child: CircularProgressIndicator(strokeWidth: 2),
           );
         }
-        // Final fallback: show icon
+
+        if (snapshot.hasData && snapshot.data != null) {
+          return CachedNetworkImage(
+            imageUrl: snapshot.data!,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+            placeholder: (context, url) => SizedBox(
+              width: size,
+              height: size,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            errorWidget: (context, url, error) => Icon(
+              Icons.language,
+              size: size,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          );
+        }
+
+        // No favicon found
         return Icon(
           Icons.language,
-          size: widget.size,
+          size: size,
           color: Theme.of(context).colorScheme.primary,
         );
       },
