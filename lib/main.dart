@@ -86,38 +86,67 @@ Future<String?> getFaviconUrl(String url) async {
       }
 
       // Look for favicon in <link> tags
-      // Priority order: icon, shortcut icon, apple-touch-icon
+      // Priority order: SVG icons first (scale-invariant), then regular icons
       List<String> iconRels = ['icon', 'shortcut icon', 'apple-touch-icon'];
 
+      // Helper function to resolve relative URLs
+      String resolveIconUrl(String href) {
+        if (href.startsWith('http://') || href.startsWith('https://')) {
+          return href;
+        } else if (href.startsWith('//')) {
+          return '$scheme:$href';
+        } else if (href.startsWith('/')) {
+          return '$baseUrl$href';
+        } else {
+          return '$baseUrl/$href';
+        }
+      }
+
+      // Helper function to verify icon URL is accessible
+      Future<bool> verifyIconUrl(String faviconUrl) async {
+        try {
+          final iconResponse = await http.head(Uri.parse(faviconUrl)).timeout(
+            Duration(seconds: 2),
+          );
+          return iconResponse.statusCode == 200;
+        } catch (e) {
+          return false;
+        }
+      }
+
+      // First pass: Look for SVG icons (scale-invariant, highest quality)
+      for (String rel in iconRels) {
+        var linkElements = document.querySelectorAll('link[rel*="$rel"]');
+        for (var link in linkElements) {
+          String? href = link.attributes['href'];
+          String? type = link.attributes['type'];
+
+          if (href != null && href.isNotEmpty) {
+            // Check if it's an SVG icon
+            bool isSvg = type == 'image/svg+xml' ||
+                        href.toLowerCase().endsWith('.svg');
+
+            if (isSvg) {
+              String faviconUrl = resolveIconUrl(href);
+              if (await verifyIconUrl(faviconUrl)) {
+                _faviconCache[url] = faviconUrl;
+                return faviconUrl;
+              }
+            }
+          }
+        }
+      }
+
+      // Second pass: Look for high-resolution icons (128x128+) or any icon
       for (String rel in iconRels) {
         var linkElements = document.querySelectorAll('link[rel*="$rel"]');
         for (var link in linkElements) {
           String? href = link.attributes['href'];
           if (href != null && href.isNotEmpty) {
-            // Resolve relative URLs
-            String faviconUrl;
-            if (href.startsWith('http://') || href.startsWith('https://')) {
-              faviconUrl = href;
-            } else if (href.startsWith('//')) {
-              faviconUrl = '$scheme:$href';
-            } else if (href.startsWith('/')) {
-              faviconUrl = '$baseUrl$href';
-            } else {
-              faviconUrl = '$baseUrl/$href';
-            }
-
-            // Verify the favicon URL is accessible
-            try {
-              final iconResponse = await http.head(Uri.parse(faviconUrl)).timeout(
-                Duration(seconds: 2),
-              );
-              if (iconResponse.statusCode == 200) {
-                _faviconCache[url] = faviconUrl;
-                return faviconUrl;
-              }
-            } catch (e) {
-              // Try next icon
-              continue;
+            String faviconUrl = resolveIconUrl(href);
+            if (await verifyIconUrl(faviconUrl)) {
+              _faviconCache[url] = faviconUrl;
+              return faviconUrl;
             }
           }
         }
