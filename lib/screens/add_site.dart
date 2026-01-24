@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../main.dart' show getFaviconUrl, extractDomain;
 
 class SiteSuggestion {
@@ -31,6 +32,10 @@ class UnifiedFaviconImage extends StatelessWidget {
     this.domain,
   });
 
+  bool _isSvgUrl(String url) {
+    return url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String?>(
@@ -45,23 +50,40 @@ class UnifiedFaviconImage extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          return CachedNetworkImage(
-            imageUrl: snapshot.data!,
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.high,
-            placeholder: (context, url) => SizedBox(
+          final iconUrl = snapshot.data!;
+
+          // Use SvgPicture for SVG files, CachedNetworkImage for others
+          if (_isSvgUrl(iconUrl)) {
+            return SvgPicture.network(
+              iconUrl,
               width: size,
               height: size,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            errorWidget: (context, url, error) => Icon(
-              Icons.language,
-              size: size,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          );
+              fit: BoxFit.contain,
+              placeholderBuilder: (context) => SizedBox(
+                width: size,
+                height: size,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          } else {
+            return CachedNetworkImage(
+              imageUrl: iconUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              placeholder: (context, url) => SizedBox(
+                width: size,
+                height: size,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              errorWidget: (context, url, error) => Icon(
+                Icons.language,
+                size: size,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            );
+          }
         }
 
         // No favicon found

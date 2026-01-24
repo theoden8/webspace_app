@@ -45,6 +45,19 @@ String extractDomain(String url) {
 final Map<String, String?> _faviconCache = {};
 final Map<String, String?> _pageTitleCache = {};
 
+// Domain substitution rules for better icon results
+// Some services have different domains for their main site vs their icon-rich pages
+const Map<String, String> _domainSubstitutions = {
+  'gmail.com': 'mail.google.com',
+  // Add more substitutions here as needed
+  // 'example.com': 'icons.example.com',
+};
+
+// Apply domain substitution rules
+String _applyDomainSubstitution(String domain) {
+  return _domainSubstitutions[domain] ?? domain;
+};
+
 // Icon candidate with quality scoring
 class _IconCandidate {
   final String url;
@@ -185,7 +198,7 @@ Future<String?> getFaviconUrl(String url) async {
   String scheme = uri.scheme;
   String host = uri.host;
   int? port = uri.hasPort ? uri.port : null;
-  String domain = host;
+  String domain = _applyDomainSubstitution(host);
 
   if (scheme.isEmpty || host.isEmpty) {
     _faviconCache[url] = null;
@@ -193,6 +206,10 @@ Future<String?> getFaviconUrl(String url) async {
   }
 
   String baseUrl = port != null ? '$scheme://$host:$port' : '$scheme://$host';
+
+  if (kDebugMode) {
+    print('[Icon] Fetching icon for $url (domain: $domain)');
+  }
 
   // Quality scoring:
   // 1000: SVG (scale-invariant, best quality)
@@ -202,27 +219,24 @@ Future<String?> getFaviconUrl(String url) async {
   // 32: /favicon.ico fallback
   // 16: HTML unknown size icons
 
-  // Strategy 1: Try Google 256px - if found, use immediately (short-circuit)
-  final google256 = await _tryGoogleFavicon(domain, 256);
-  if (google256 != null) {
-    _faviconCache[url] = google256;
-    return google256;
-  }
-
-  // Strategy 2: Try Google 128px - if found, use immediately (short-circuit)
-  final google128 = await _tryGoogleFavicon(domain, 128);
-  if (google128 != null) {
-    _faviconCache[url] = google128;
-    return google128;
-  }
-
-  // Strategy 3: Try other sources and pick the best
   List<_IconCandidate> candidates = [];
 
-  // Try HTML parsing for native icons (might have SVG!)
+  // Try all sources in parallel for best results
+  // Strategy 1: Try Google favicons (fast, reliable)
+  final google256 = await _tryGoogleFavicon(domain, 256);
+  if (google256 != null) {
+    candidates.add(_IconCandidate(google256, 256));
+  }
+
+  final google128 = await _tryGoogleFavicon(domain, 128);
+  if (google128 != null) {
+    candidates.add(_IconCandidate(google128, 128));
+  }
+
+  // Strategy 2: Try HTML parsing for native icons (might have SVG!)
   candidates.addAll(await _extractIconsFromHtml(url, scheme, baseUrl));
 
-  // Try DuckDuckGo
+  // Strategy 3: Try DuckDuckGo
   try {
     final ddg = 'https://icons.duckduckgo.com/ip3/$domain.ico';
     if (await _verifyIconUrl(ddg)) {
@@ -237,7 +251,7 @@ Future<String?> getFaviconUrl(String url) async {
     }
   }
 
-  // Try /favicon.ico at root
+  // Strategy 4: Try /favicon.ico at root
   try {
     final faviconIco = '$baseUrl/favicon.ico';
     if (await _verifyIconUrl(faviconIco)) {
@@ -252,7 +266,7 @@ Future<String?> getFaviconUrl(String url) async {
     }
   }
 
-  // Pick the best quality icon
+  // Pick the best quality icon from all sources
   if (candidates.isEmpty) {
     if (kDebugMode) {
       print('[Icon] No icon found for $url');
@@ -263,6 +277,10 @@ Future<String?> getFaviconUrl(String url) async {
 
   // Sort by quality (highest first) and verify accessibility
   candidates.sort((a, b) => b.quality.compareTo(a.quality));
+
+  if (kDebugMode) {
+    print('[Icon] Found ${candidates.length} candidate(s) for $url');
+  }
 
   for (var candidate in candidates) {
     if (await _verifyIconUrl(candidate.url)) {
