@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,8 +14,9 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/platform/unified_webview.dart';
 import 'package:webspace/platform/webview_factory.dart';
-import 'package:webspace/screens/add_site.dart';
+import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage;
 import 'package:webspace/screens/settings.dart';
+import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -40,111 +42,8 @@ String extractDomain(String url) {
   return domain.isEmpty ? url : domain;
 }
 
-// Cache for favicon URLs to avoid repeated requests
-final Map<String, String?> _faviconCache = {};
+// Cache for page titles
 final Map<String, String?> _pageTitleCache = {};
-
-Future<String?> getFaviconUrl(String url) async {
-  // Check cache first
-  if (_faviconCache.containsKey(url)) {
-    return _faviconCache[url];
-  }
-
-  Uri? uri = Uri.tryParse(url);
-  if (uri == null) {
-    _faviconCache[url] = null;
-    return null;
-  }
-
-  String scheme = uri.scheme;
-  String host = uri.host;
-  int? port = uri.hasPort ? uri.port : null;
-
-  if (scheme.isEmpty || host.isEmpty) {
-    _faviconCache[url] = null;
-    return null;
-  }
-
-  String baseUrl = port != null
-      ? '$scheme://$host:$port'
-      : '$scheme://$host';
-
-  try {
-    // Strategy 1: Try to parse the HTML page and find <link rel="icon"> tags
-    final pageResponse = await http.get(Uri.parse(url)).timeout(
-      Duration(seconds: 3),
-      onTimeout: () => throw TimeoutException('Page fetch timeout'),
-    );
-
-    if (pageResponse.statusCode == 200) {
-      html_dom.Document document = html_parser.parse(pageResponse.body);
-
-      // Extract and cache page title while we're at it
-      final titleElement = document.querySelector('title');
-      if (titleElement != null && titleElement.text.isNotEmpty) {
-        _pageTitleCache[url] = titleElement.text;
-      }
-
-      // Look for favicon in <link> tags
-      // Priority order: icon, shortcut icon, apple-touch-icon
-      List<String> iconRels = ['icon', 'shortcut icon', 'apple-touch-icon'];
-
-      for (String rel in iconRels) {
-        var linkElements = document.querySelectorAll('link[rel*="$rel"]');
-        for (var link in linkElements) {
-          String? href = link.attributes['href'];
-          if (href != null && href.isNotEmpty) {
-            // Resolve relative URLs
-            String faviconUrl;
-            if (href.startsWith('http://') || href.startsWith('https://')) {
-              faviconUrl = href;
-            } else if (href.startsWith('//')) {
-              faviconUrl = '$scheme:$href';
-            } else if (href.startsWith('/')) {
-              faviconUrl = '$baseUrl$href';
-            } else {
-              faviconUrl = '$baseUrl/$href';
-            }
-
-            // Verify the favicon URL is accessible
-            try {
-              final iconResponse = await http.head(Uri.parse(faviconUrl)).timeout(
-                Duration(seconds: 2),
-              );
-              if (iconResponse.statusCode == 200) {
-                _faviconCache[url] = faviconUrl;
-                return faviconUrl;
-              }
-            } catch (e) {
-              // Try next icon
-              continue;
-            }
-          }
-        }
-      }
-    }
-  } catch (e) {
-    // HTML parsing failed, try fallback
-  }
-
-  // Strategy 2: Fallback to /favicon.ico at root
-  String faviconUrl = '$baseUrl/favicon.ico';
-  try {
-    final response = await http.get(Uri.parse(faviconUrl)).timeout(
-      Duration(seconds: 2),
-      onTimeout: () => throw TimeoutException('Favicon fetch timeout'),
-    );
-    if (response.statusCode == 200) {
-      _faviconCache[url] = faviconUrl;
-      return faviconUrl;
-    }
-  } catch (e) {
-    // Silently cache the failure
-  }
-
-  _faviconCache[url] = null;
-  return null;
-}
 
 // Get page title by parsing HTML (fallback for platforms without native title support)
 Future<String?> getPageTitle(String url) async {
@@ -820,8 +719,18 @@ class _WebSpacePageState extends State<WebSpacePage> {
           model.pageTitle = pageTitle;
         }
         _webViewModels.add(model);
-        _currentIndex = _webViewModels.length - 1;
+        final newSiteIndex = _webViewModels.length - 1;
+        _currentIndex = newSiteIndex;
         _saveCurrentIndex();
+
+        // If a non-"All" webspace is currently selected, add the new site to it
+        if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
+          final webspaceIndex = _webspaces.indexWhere((ws) => ws.id == _selectedWebspaceId);
+          if (webspaceIndex != -1) {
+            _webspaces[webspaceIndex].siteIndices.add(newSiteIndex);
+            _saveWebspaces();
+          }
+        }
       });
       _saveWebViewModels();
 
@@ -923,25 +832,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
       button: true,
       enabled: true,
       child: ListTile(
-      leading: FutureBuilder<String?>(
-        future: getFaviconUrl(_webViewModels[index].initUrl),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return CachedNetworkImage(
-              imageUrl: snapshot.data!,
-              errorWidget: (context, url, error) => Icon(Icons.link),
-              width: 20,
-              height: 20,
-              fit: BoxFit.cover,
-            );
-          } else {
-            return SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(),
-            );
-          }
-        },
+      leading: UnifiedFaviconImage(
+        url: _webViewModels[index].initUrl,
+        size: 20,
       ),
       title: Text(
         _webViewModels[index].getDisplayName(),

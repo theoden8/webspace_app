@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../main.dart' show extractDomain;
+import '../services/icon_service.dart' show getFaviconUrl;
 
 class SiteSuggestion {
   final String name;
@@ -13,7 +16,90 @@ class SiteSuggestion {
   });
 }
 
-class FaviconImage extends StatefulWidget {
+// Unified favicon widget that uses getFaviconUrl which tries all sources:
+// 1. Google Favicons at 256px and 128px
+// 2. HTML parsing for native icons (prioritizing SVG)
+// 3. DuckDuckGo favicon service
+// 4. /favicon.ico fallback
+// Then picks the best quality icon found
+class UnifiedFaviconImage extends StatelessWidget {
+  final String url;
+  final double size;
+  final String? domain;
+
+  const UnifiedFaviconImage({
+    required this.url,
+    required this.size,
+    this.domain,
+  });
+
+  bool _isSvgUrl(String url) {
+    return url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: getFaviconUrl(url),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SizedBox(
+            width: size,
+            height: size,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        }
+
+        if (snapshot.hasData && snapshot.data != null) {
+          final iconUrl = snapshot.data!;
+
+          // Use SvgPicture for SVG files, CachedNetworkImage for others
+          if (_isSvgUrl(iconUrl)) {
+            return SvgPicture.network(
+              iconUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              placeholderBuilder: (context) => SizedBox(
+                width: size,
+                height: size,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          } else {
+            return CachedNetworkImage(
+              imageUrl: iconUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              placeholder: (context, url) => SizedBox(
+                width: size,
+                height: size,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              errorWidget: (context, url, error) => Icon(
+                Icons.language,
+                size: size,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            );
+          }
+        }
+
+        // No favicon found
+        return Icon(
+          Icons.language,
+          size: size,
+          color: Theme.of(context).colorScheme.primary,
+        );
+      },
+    );
+  }
+}
+
+// Keep old FaviconImage for backward compatibility (just wraps UnifiedFaviconImage)
+class FaviconImage extends StatelessWidget {
   final String domain;
   final double size;
 
@@ -23,62 +109,11 @@ class FaviconImage extends StatefulWidget {
   });
 
   @override
-  _FaviconImageState createState() => _FaviconImageState();
-}
-
-class _FaviconImageState extends State<FaviconImage> {
-  int _urlIndex = 0;
-
-  List<String> _getFaviconUrls() {
-    return [
-      'https://www.google.com/s2/favicons?domain=${widget.domain}&sz=256',
-      'https://www.google.com/s2/favicons?domain=${widget.domain}&sz=128',
-      'https://icons.duckduckgo.com/ip3/${widget.domain}.ico',
-    ];
-  }
-
-  void _tryNextUrl() {
-    if (_urlIndex < _getFaviconUrls().length - 1 && mounted) {
-      setState(() {
-        _urlIndex++;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final urls = _getFaviconUrls();
-
-    return CachedNetworkImage(
-      imageUrl: urls[_urlIndex],
-      width: widget.size,
-      height: widget.size,
-      fit: BoxFit.contain,
-      filterQuality: FilterQuality.high,
-      placeholder: (context, url) => SizedBox(
-        width: widget.size,
-        height: widget.size,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-      errorWidget: (context, url, error) {
-        // Try next URL on error
-        if (_urlIndex < urls.length - 1) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _tryNextUrl();
-          });
-          return SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
-        }
-        // Final fallback: show icon
-        return Icon(
-          Icons.language,
-          size: widget.size,
-          color: Theme.of(context).colorScheme.primary,
-        );
-      },
+    return UnifiedFaviconImage(
+      url: 'https://$domain',
+      size: size,
+      domain: domain,
     );
   }
 }
@@ -109,6 +144,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     SiteSuggestion(name: 'Facebook', url: 'https://facebook.com', domain: 'facebook.com'),
     SiteSuggestion(name: 'X (Twitter)', url: 'https://x.com', domain: 'x.com'),
     SiteSuggestion(name: 'Google Chat', url: 'https://chat.google.com', domain: 'chat.google.com'),
+    SiteSuggestion(name: 'GitHub', url: 'https://github.com', domain: 'github.com'),
     SiteSuggestion(name: 'GitLab', url: 'https://gitlab.com', domain: 'gitlab.com'),
     SiteSuggestion(name: 'Gitea', url: 'https://gitea.com', domain: 'gitea.com'),
     SiteSuggestion(name: 'Codeberg', url: 'https://codeberg.org', domain: 'codeberg.org'),

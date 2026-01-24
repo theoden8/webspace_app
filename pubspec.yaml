@@ -38,6 +38,7 @@ dependencies:
   shared_preferences: ^2.1.0
   http: ^1.2.2
   cached_network_image: ^3.4.1
+  flutter_svg: ^2.0.10+1
   html: ^0.15.4
 
   # Webview packages
@@ -46,6 +47,7 @@ dependencies:
 
   url_launcher: ^6.1.10
   uuid: ^4.5.1
+  favicon: ^1.1.2
 
 dev_dependencies:
   flutter_test:

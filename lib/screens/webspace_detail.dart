@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 
 class WebspaceDetailScreen extends StatefulWidget {
   final Webspace webspace;
@@ -133,6 +134,10 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
                         checked: isSelected,
                         enabled: !widget.isReadOnly,
                         child: CheckboxListTile(
+                          secondary: UnifiedFaviconImage(
+                            url: site.initUrl,
+                            size: 32,
+                          ),
                           title: Text(site.getDisplayName()),
                           subtitle: Text(extractDomain(site.initUrl)),
                           value: isSelected,
