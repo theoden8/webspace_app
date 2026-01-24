@@ -56,7 +56,7 @@ const Map<String, String> _domainSubstitutions = {
 // Apply domain substitution rules
 String _applyDomainSubstitution(String domain) {
   return _domainSubstitutions[domain] ?? domain;
-};
+}
 
 // Icon candidate with quality scoring
 class _IconCandidate {
