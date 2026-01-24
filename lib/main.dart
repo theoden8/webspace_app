@@ -137,7 +137,7 @@ Future<List<_IconCandidate>> _extractIconsFromHtml(
       }
 
       // Look for favicon in <link> tags
-      List<String> iconRels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+      List<String> iconRels = ['icon'];
 
       for (String rel in iconRels) {
         var linkElements = document.querySelectorAll('link[rel*="$rel"]');
