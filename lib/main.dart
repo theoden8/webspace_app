@@ -150,10 +150,12 @@ Future<List<_IconCandidate>> _extractIconsFromHtml(
             String iconUrl = _resolveIconUrl(href, scheme, baseUrl);
             int quality = 16; // default for unknown size
 
-            // Check if it's an SVG icon (best quality!)
+            // Check if it's an SVG icon
+            // Note: SVG icons are often simple black/white masks, so we deprioritize them
+            // below colored raster icons from services like Google/DuckDuckGo
             bool isSvg = type == 'image/svg+xml' || href.toLowerCase().endsWith('.svg');
             if (isSvg) {
-              quality = 1000;
+              quality = 50; // Lower than colored icons, higher than generic favicon.ico
             } else if (sizes != null) {
               // Parse sizes attribute (e.g., "128x128", "any")
               if (sizes.contains('256')) {
@@ -213,10 +215,10 @@ Future<String?> getFaviconUrl(String url) async {
   }
 
   // Quality scoring:
-  // 1000: SVG (scale-invariant, best quality)
-  // 256: Google 256px
-  // 128: Google 128px, HTML high-res icons
-  // 64: DuckDuckGo
+  // 256: Google 256px (colored, high-res)
+  // 128: Google 128px, HTML high-res icons (colored)
+  // 64: DuckDuckGo (colored)
+  // 50: SVG icons (might be black/white masks, deprioritized)
   // 32: /favicon.ico fallback
   // 16: HTML unknown size icons
 
