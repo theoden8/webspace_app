@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../main.dart' show getFaviconUrl, extractDomain;
 
 class SiteSuggestion {
   final String name;
@@ -13,44 +14,102 @@ class SiteSuggestion {
   });
 }
 
-class FaviconImage extends StatefulWidget {
-  final String domain;
+// Unified favicon widget that tries multiple strategies:
+// 1. Try getFaviconUrl (HTML parsing) for high quality icons
+// 2. Fall back to external services if HTML parsing fails
+class UnifiedFaviconImage extends StatefulWidget {
+  final String url;
   final double size;
+  final String? domain;
 
-  const FaviconImage({
-    required this.domain,
+  const UnifiedFaviconImage({
+    required this.url,
     required this.size,
+    this.domain,
   });
 
   @override
-  _FaviconImageState createState() => _FaviconImageState();
+  _UnifiedFaviconImageState createState() => _UnifiedFaviconImageState();
 }
 
-class _FaviconImageState extends State<FaviconImage> {
-  int _urlIndex = 0;
+class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
+  String? _faviconUrl;
+  bool _isLoading = true;
+  int _fallbackIndex = 0;
 
-  List<String> _getFaviconUrls() {
+  @override
+  void initState() {
+    super.initState();
+    _loadFavicon();
+  }
+
+  Future<void> _loadFavicon() async {
+    // Try HTML parsing first
+    final htmlFavicon = await getFaviconUrl(widget.url);
+    if (mounted) {
+      setState(() {
+        _faviconUrl = htmlFavicon;
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<String> _getFallbackUrls() {
+    final domain = widget.domain ?? extractDomain(widget.url);
     return [
-      'https://www.google.com/s2/favicons?domain=${widget.domain}&sz=256',
-      'https://www.google.com/s2/favicons?domain=${widget.domain}&sz=128',
-      'https://icons.duckduckgo.com/ip3/${widget.domain}.ico',
+      'https://www.google.com/s2/favicons?domain=$domain&sz=256',
+      'https://www.google.com/s2/favicons?domain=$domain&sz=128',
+      'https://icons.duckduckgo.com/ip3/$domain.ico',
     ];
   }
 
-  void _tryNextUrl() {
-    if (_urlIndex < _getFaviconUrls().length - 1 && mounted) {
+  void _tryNextFallback() {
+    if (_fallbackIndex < _getFallbackUrls().length - 1 && mounted) {
       setState(() {
-        _urlIndex++;
+        _fallbackIndex++;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final urls = _getFaviconUrls();
+    if (_isLoading) {
+      return SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+
+    // If we have a favicon from HTML parsing, use it
+    if (_faviconUrl != null) {
+      return CachedNetworkImage(
+        imageUrl: _faviconUrl!,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        placeholder: (context, url) => SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        errorWidget: (context, url, error) {
+          // If HTML favicon fails, try fallback services
+          return _buildFallbackImage();
+        },
+      );
+    }
+
+    // If HTML parsing returned null, use fallback services
+    return _buildFallbackImage();
+  }
+
+  Widget _buildFallbackImage() {
+    final urls = _getFallbackUrls();
 
     return CachedNetworkImage(
-      imageUrl: urls[_urlIndex],
+      imageUrl: urls[_fallbackIndex],
       width: widget.size,
       height: widget.size,
       fit: BoxFit.contain,
@@ -62,9 +121,9 @@ class _FaviconImageState extends State<FaviconImage> {
       ),
       errorWidget: (context, url, error) {
         // Try next URL on error
-        if (_urlIndex < urls.length - 1) {
+        if (_fallbackIndex < urls.length - 1) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _tryNextUrl();
+            _tryNextFallback();
           });
           return SizedBox(
             width: widget.size,
@@ -79,6 +138,26 @@ class _FaviconImageState extends State<FaviconImage> {
           color: Theme.of(context).colorScheme.primary,
         );
       },
+    );
+  }
+}
+
+// Keep old FaviconImage for backward compatibility (just wraps UnifiedFaviconImage)
+class FaviconImage extends StatelessWidget {
+  final String domain;
+  final double size;
+
+  const FaviconImage({
+    required this.domain,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return UnifiedFaviconImage(
+      url: 'https://$domain',
+      size: size,
+      domain: domain,
     );
   }
 }
@@ -109,6 +188,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     SiteSuggestion(name: 'Facebook', url: 'https://facebook.com', domain: 'facebook.com'),
     SiteSuggestion(name: 'X (Twitter)', url: 'https://x.com', domain: 'x.com'),
     SiteSuggestion(name: 'Google Chat', url: 'https://chat.google.com', domain: 'chat.google.com'),
+    SiteSuggestion(name: 'GitHub', url: 'https://github.com', domain: 'github.com'),
     SiteSuggestion(name: 'GitLab', url: 'https://gitlab.com', domain: 'gitlab.com'),
     SiteSuggestion(name: 'Gitea', url: 'https://gitea.com', domain: 'gitea.com'),
     SiteSuggestion(name: 'Codeberg', url: 'https://codeberg.org', domain: 'codeberg.org'),

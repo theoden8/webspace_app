@@ -13,7 +13,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/platform/unified_webview.dart';
 import 'package:webspace/platform/webview_factory.dart';
-import 'package:webspace/screens/add_site.dart';
+import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage;
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
@@ -820,8 +820,18 @@ class _WebSpacePageState extends State<WebSpacePage> {
           model.pageTitle = pageTitle;
         }
         _webViewModels.add(model);
-        _currentIndex = _webViewModels.length - 1;
+        final newSiteIndex = _webViewModels.length - 1;
+        _currentIndex = newSiteIndex;
         _saveCurrentIndex();
+
+        // If a non-"All" webspace is currently selected, add the new site to it
+        if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
+          final webspaceIndex = _webspaces.indexWhere((ws) => ws.id == _selectedWebspaceId);
+          if (webspaceIndex != -1) {
+            _webspaces[webspaceIndex].siteIndices.add(newSiteIndex);
+            _saveWebspaces();
+          }
+        }
       });
       _saveWebViewModels();
 
@@ -923,25 +933,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
       button: true,
       enabled: true,
       child: ListTile(
-      leading: FutureBuilder<String?>(
-        future: getFaviconUrl(_webViewModels[index].initUrl),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return CachedNetworkImage(
-              imageUrl: snapshot.data!,
-              errorWidget: (context, url, error) => Icon(Icons.link),
-              width: 20,
-              height: 20,
-              fit: BoxFit.cover,
-            );
-          } else {
-            return SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(),
-            );
-          }
-        },
+      leading: UnifiedFaviconImage(
+        url: _webViewModels[index].initUrl,
+        size: 20,
       ),
       title: Text(
         _webViewModels[index].getDisplayName(),
