@@ -95,6 +95,59 @@ String _resolveIconUrl(String href, String scheme, String baseUrl) {
   }
 }
 
+// Helper: Check if SVG is monochrome (returns true if it's a colored SVG)
+Future<bool> _isSvgColored(String svgUrl) async {
+  try {
+    final response = await http.get(Uri.parse(svgUrl)).timeout(
+      Duration(seconds: 2),
+    );
+
+    if (response.statusCode != 200) {
+      return false; // Assume monochrome if we can't fetch
+    }
+
+    final svgContent = response.body.toLowerCase();
+
+    // Look for color indicators (excluding black/white/gray)
+    // Check for hex colors that aren't black/white/gray
+    final colorPattern = RegExp(r'fill\s*=\s*["\']#([0-9a-f]{3,6})["\']|stroke\s*=\s*["\']#([0-9a-f]{3,6})["\']');
+    final matches = colorPattern.allMatches(svgContent);
+
+    for (var match in matches) {
+      final color = (match.group(1) ?? match.group(2) ?? '').toLowerCase();
+      // Skip black, white, and gray colors
+      if (color != '000' && color != '000000' &&
+          color != 'fff' && color != 'ffffff' &&
+          color != '333' && color != '666' && color != '999' &&
+          color != 'ccc' && color != 'eee') {
+        if (kDebugMode) {
+          print('[Icon] Found colored SVG with color #$color: $svgUrl');
+        }
+        return true; // Found a real color!
+      }
+    }
+
+    // Check for rgb/hsl colors
+    if (svgContent.contains('rgb(') || svgContent.contains('hsl(')) {
+      if (kDebugMode) {
+        print('[Icon] Found colored SVG with rgb/hsl: $svgUrl');
+      }
+      return true;
+    }
+
+    // If we only find currentColor or no colors, it's a monochrome mask
+    if (kDebugMode) {
+      print('[Icon] SVG appears monochrome: $svgUrl');
+    }
+    return false;
+  } catch (e) {
+    if (kDebugMode) {
+      print('[Icon] Failed to check SVG color: $e');
+    }
+    return false; // Assume monochrome on error
+  }
+}
+
 // Helper: Try Google Favicon service
 Future<String?> _tryGoogleFavicon(String domain, int size) async {
   try {
@@ -151,11 +204,11 @@ Future<List<_IconCandidate>> _extractIconsFromHtml(
             int quality = 16; // default for unknown size
 
             // Check if it's an SVG icon
-            // Note: SVG icons are often simple black/white masks, so we deprioritize them
-            // below colored raster icons from services like Google/DuckDuckGo
             bool isSvg = type == 'image/svg+xml' || href.toLowerCase().endsWith('.svg');
             if (isSvg) {
-              quality = 50; // Lower than colored icons, higher than generic favicon.ico
+              // SVGs need color checking - temporarily mark with negative quality
+              // We'll check and update quality later
+              quality = -1; // Marker for "needs SVG color check"
             } else if (sizes != null) {
               // Parse sizes attribute (e.g., "128x128", "any")
               if (sizes.contains('256')) {
@@ -215,12 +268,14 @@ Future<String?> getFaviconUrl(String url) async {
   }
 
   // Quality scoring:
+  // 1000: Colored SVG icons (scale-invariant, best quality!)
   // 256: Google 256px (colored, high-res)
   // 128: Google 128px, HTML high-res icons (colored)
   // 64: DuckDuckGo (colored)
-  // 50: SVG icons (might be black/white masks, deprioritized)
+  // 50: Monochrome SVG icons (black/white masks)
   // 32: /favicon.ico fallback
   // 16: HTML unknown size icons
+  // -1: SVG that needs color checking (temporary, updated dynamically)
 
   // Try all sources IN PARALLEL to avoid UI freezing
   final results = await Future.wait([
@@ -280,8 +335,21 @@ Future<String?> getFaviconUrl(String url) async {
     }
   }
 
+  // Check SVG icons for color (quality = -1 means needs checking)
+  List<_IconCandidate> finalCandidates = [];
+  for (var candidate in candidates) {
+    if (candidate.quality == -1) {
+      // This is an SVG that needs color checking
+      final isColored = await _isSvgColored(candidate.url);
+      final svgQuality = isColored ? 1000 : 50; // Colored SVG = best, monochrome = low
+      finalCandidates.add(_IconCandidate(candidate.url, svgQuality, verified: candidate.verified));
+    } else {
+      finalCandidates.add(candidate);
+    }
+  }
+
   // Pick the best quality icon from all sources
-  if (candidates.isEmpty) {
+  if (finalCandidates.isEmpty) {
     if (kDebugMode) {
       print('[Icon] No icon found for $url');
     }
@@ -290,14 +358,14 @@ Future<String?> getFaviconUrl(String url) async {
   }
 
   // Sort by quality (highest first)
-  candidates.sort((a, b) => b.quality.compareTo(a.quality));
+  finalCandidates.sort((a, b) => b.quality.compareTo(a.quality));
 
   if (kDebugMode) {
-    print('[Icon] Found ${candidates.length} candidate(s) for $url');
+    print('[Icon] Found ${finalCandidates.length} candidate(s) for $url');
   }
 
   // Return the best candidate, verifying only if needed
-  for (var candidate in candidates) {
+  for (var candidate in finalCandidates) {
     // Skip verification if already verified
     if (candidate.verified) {
       if (kDebugMode) {
