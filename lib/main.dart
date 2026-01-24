@@ -62,8 +62,9 @@ String _applyDomainSubstitution(String domain) {
 class _IconCandidate {
   final String url;
   final int quality;
+  final bool verified; // Whether the URL has already been verified as accessible
 
-  _IconCandidate(this.url, this.quality);
+  _IconCandidate(this.url, this.quality, {this.verified = false});
 }
 
 // Helper: Verify icon URL is accessible
@@ -219,50 +220,61 @@ Future<String?> getFaviconUrl(String url) async {
   // 32: /favicon.ico fallback
   // 16: HTML unknown size icons
 
+  // Try all sources IN PARALLEL to avoid UI freezing
+  final results = await Future.wait([
+    // Google 256px (already verified by _tryGoogleFavicon)
+    _tryGoogleFavicon(domain, 256).then((url) =>
+      url != null ? _IconCandidate(url, 256, verified: true) : null
+    ),
+    // Google 128px (already verified by _tryGoogleFavicon)
+    _tryGoogleFavicon(domain, 128).then((url) =>
+      url != null ? _IconCandidate(url, 128, verified: true) : null
+    ),
+    // HTML parsing for native icons (NOT verified yet)
+    _extractIconsFromHtml(url, scheme, baseUrl),
+    // DuckDuckGo (verified here)
+    Future(() async {
+      try {
+        final ddg = 'https://icons.duckduckgo.com/ip3/$domain.ico';
+        if (await _verifyIconUrl(ddg)) {
+          if (kDebugMode) {
+            print('[Icon] Found DuckDuckGo icon for $domain');
+          }
+          return _IconCandidate(ddg, 64, verified: true);
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('[Icon] DuckDuckGo failed for $domain: $e');
+        }
+      }
+      return null;
+    }),
+    // /favicon.ico at root (verified here)
+    Future(() async {
+      try {
+        final faviconIco = '$baseUrl/favicon.ico';
+        if (await _verifyIconUrl(faviconIco)) {
+          if (kDebugMode) {
+            print('[Icon] Found /favicon.ico for $url');
+          }
+          return _IconCandidate(faviconIco, 32, verified: true);
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('[Icon] /favicon.ico failed for $url: $e');
+        }
+      }
+      return null;
+    }),
+  ]);
+
+  // Collect all candidates from parallel results
   List<_IconCandidate> candidates = [];
-
-  // Try all sources in parallel for best results
-  // Strategy 1: Try Google favicons (fast, reliable)
-  final google256 = await _tryGoogleFavicon(domain, 256);
-  if (google256 != null) {
-    candidates.add(_IconCandidate(google256, 256));
-  }
-
-  final google128 = await _tryGoogleFavicon(domain, 128);
-  if (google128 != null) {
-    candidates.add(_IconCandidate(google128, 128));
-  }
-
-  // Strategy 2: Try HTML parsing for native icons (might have SVG!)
-  candidates.addAll(await _extractIconsFromHtml(url, scheme, baseUrl));
-
-  // Strategy 3: Try DuckDuckGo
-  try {
-    final ddg = 'https://icons.duckduckgo.com/ip3/$domain.ico';
-    if (await _verifyIconUrl(ddg)) {
-      candidates.add(_IconCandidate(ddg, 64));
-      if (kDebugMode) {
-        print('[Icon] Found DuckDuckGo icon for $domain');
-      }
-    }
-  } catch (e) {
-    if (kDebugMode) {
-      print('[Icon] DuckDuckGo failed for $domain: $e');
-    }
-  }
-
-  // Strategy 4: Try /favicon.ico at root
-  try {
-    final faviconIco = '$baseUrl/favicon.ico';
-    if (await _verifyIconUrl(faviconIco)) {
-      candidates.add(_IconCandidate(faviconIco, 32));
-      if (kDebugMode) {
-        print('[Icon] Found /favicon.ico for $url');
-      }
-    }
-  } catch (e) {
-    if (kDebugMode) {
-      print('[Icon] /favicon.ico failed for $url: $e');
+  for (var result in results) {
+    if (result is _IconCandidate) {
+      candidates.add(result);
+    } else if (result is List<_IconCandidate>) {
+      candidates.addAll(result);
     }
   }
 
@@ -275,17 +287,28 @@ Future<String?> getFaviconUrl(String url) async {
     return null;
   }
 
-  // Sort by quality (highest first) and verify accessibility
+  // Sort by quality (highest first)
   candidates.sort((a, b) => b.quality.compareTo(a.quality));
 
   if (kDebugMode) {
     print('[Icon] Found ${candidates.length} candidate(s) for $url');
   }
 
+  // Return the best candidate, verifying only if needed
   for (var candidate in candidates) {
+    // Skip verification if already verified
+    if (candidate.verified) {
+      if (kDebugMode) {
+        print('[Icon] Using pre-verified icon with quality ${candidate.quality} for $url: ${candidate.url}');
+      }
+      _faviconCache[url] = candidate.url;
+      return candidate.url;
+    }
+
+    // Verify unverified candidates (e.g., from HTML)
     if (await _verifyIconUrl(candidate.url)) {
       if (kDebugMode) {
-        print('[Icon] Using icon with quality ${candidate.quality} for $url: ${candidate.url}');
+        print('[Icon] Using verified icon with quality ${candidate.quality} for $url: ${candidate.url}');
       }
       _faviconCache[url] = candidate.url;
       return candidate.url;
