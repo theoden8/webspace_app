@@ -17,16 +17,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.6'
           channel: 'stable'
-          cache: true
-          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
 
       - name: Run flutter pub get
-        run: flutter pub get
+        run: fvm flutter pub get
 
       - name: Check for changes
         id: changes
