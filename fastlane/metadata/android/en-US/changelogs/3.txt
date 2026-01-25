@@ -1,0 +1,3 @@
+✨ Improvements:
+• Enhanced layout for better usability
+• Improved icon fetching reliability
