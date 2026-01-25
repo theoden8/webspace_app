@@ -157,7 +157,7 @@ class SettingsBackupService {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Settings exported to: $filePath')),
+          SnackBar(content: Text('Settings exported successfully')),
         );
       }
       return true;
