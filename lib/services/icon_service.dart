@@ -44,6 +44,33 @@ String _applyDomainSubstitution(String domain) {
   return _domainSubstitutions[domain] ?? domain;
 }
 
+// Check if host is an IP address (IPv4 or IPv6)
+bool _isIpAddress(String host) {
+  // IPv4: digits and dots only, with valid octet pattern
+  final ipv4Pattern = RegExp(r'^(\d{1,3}\.){3}\d{1,3}$');
+  if (ipv4Pattern.hasMatch(host)) return true;
+
+  // IPv6: contains colons (including bracketed form [::1])
+  if (host.contains(':')) return true;
+
+  // Localhost variations
+  if (host == 'localhost') return true;
+
+  return false;
+}
+
+// Check if we should use public icon services (Google, DuckDuckGo)
+// Returns false for http:// sites and IP addresses
+bool _shouldUsePublicIconServices(Uri uri) {
+  // Skip for non-HTTPS sites
+  if (uri.scheme != 'https') return false;
+
+  // Skip for IP addresses and localhost
+  if (_isIpAddress(uri.host)) return false;
+
+  return true;
+}
+
 class _IconCandidate {
   final String url;
   final int quality;
@@ -272,45 +299,51 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
     return;
   }
 
+  // Check if we should use public icon services (skip for http:// and IP addresses)
+  final usePublicServices = _shouldUsePublicIconServices(uri);
+
   if (kDebugMode) {
-    print('[Icon] Stream: Starting progressive fetch for $url (domain: $domain)');
+    print('[Icon] Stream: Starting progressive fetch for $url (domain: $domain, usePublicServices: $usePublicServices)');
   }
 
-  // Phase 1: Quick sources (DuckDuckGo) - typically responds fast
-  final ddgResult = await _tryDuckDuckGo(domain);
-  if (ddgResult != null) {
-    bestUrl = ddgResult;
-    bestQuality = 64;
-    if (kDebugMode) {
-      print('[Icon] Stream: Emitting DuckDuckGo icon (quality: 64)');
+  // Phase 1 & 2: Public icon services (only for HTTPS + non-IP addresses)
+  if (usePublicServices) {
+    // Phase 1: Quick sources (DuckDuckGo) - typically responds fast
+    final ddgResult = await _tryDuckDuckGo(domain);
+    if (ddgResult != null) {
+      bestUrl = ddgResult;
+      bestQuality = 64;
+      if (kDebugMode) {
+        print('[Icon] Stream: Emitting DuckDuckGo icon (quality: 64)');
+      }
+      yield IconUpdate(ddgResult, 64);
     }
-    yield IconUpdate(ddgResult, 64);
-  }
 
-  // Phase 2: Google services in parallel (128px and 256px)
-  final googleResults = await Future.wait([
-    _tryGoogleFavicon(domain, 128),
-    _tryGoogleFavicon(domain, 256),
-  ]);
+    // Phase 2: Google services in parallel (128px and 256px)
+    final googleResults = await Future.wait([
+      _tryGoogleFavicon(domain, 128),
+      _tryGoogleFavicon(domain, 256),
+    ]);
 
-  // Emit Google 128px if better
-  if (googleResults[0] != null && 128 > bestQuality) {
-    bestUrl = googleResults[0];
-    bestQuality = 128;
-    if (kDebugMode) {
-      print('[Icon] Stream: Emitting Google 128px icon');
+    // Emit Google 128px if better
+    if (googleResults[0] != null && 128 > bestQuality) {
+      bestUrl = googleResults[0];
+      bestQuality = 128;
+      if (kDebugMode) {
+        print('[Icon] Stream: Emitting Google 128px icon');
+      }
+      yield IconUpdate(googleResults[0]!, 128);
     }
-    yield IconUpdate(googleResults[0]!, 128);
-  }
 
-  // Emit Google 256px if better
-  if (googleResults[1] != null && 256 > bestQuality) {
-    bestUrl = googleResults[1];
-    bestQuality = 256;
-    if (kDebugMode) {
-      print('[Icon] Stream: Emitting Google 256px icon');
+    // Emit Google 256px if better
+    if (googleResults[1] != null && 256 > bestQuality) {
+      bestUrl = googleResults[1];
+      bestQuality = 256;
+      if (kDebugMode) {
+        print('[Icon] Stream: Emitting Google 256px icon');
+      }
+      yield IconUpdate(googleResults[1]!, 256);
     }
-    yield IconUpdate(googleResults[1]!, 256);
   }
 
   // Phase 3: Favicon package (slowest but can find high-res site-specific icons)
@@ -344,26 +377,34 @@ Future<String?> _fetchFaviconUrlInternal(String url) async {
   }
 
   String domain = _applyDomainSubstitution(uri.host);
+  final usePublicServices = _shouldUsePublicIconServices(uri);
 
   if (kDebugMode) {
-    print('[Icon] Fetching icon for $url (domain: $domain)');
+    print('[Icon] Fetching icon for $url (domain: $domain, usePublicServices: $usePublicServices)');
   }
 
   final List<_IconCandidate> candidates = [];
 
-  // Try all sources in parallel
+  // Try sources in parallel (skip public services for http:// and IP addresses)
   try {
-    final results = await Future.wait([
-      _tryGoogleFavicon(domain, 256).then((url) =>
-        url != null ? _IconCandidate(url, 256) : null),
-      _tryGoogleFavicon(domain, 128).then((url) =>
-        url != null ? _IconCandidate(url, 128) : null),
-      _tryDuckDuckGo(domain).then((url) =>
-        url != null ? _IconCandidate(url, 64) : null),
-      _tryFaviconPackage(url),
-    ]).timeout(
+    final futures = <Future<_IconCandidate?>>[];
+
+    if (usePublicServices) {
+      futures.addAll([
+        _tryGoogleFavicon(domain, 256).then((url) =>
+          url != null ? _IconCandidate(url, 256) : null),
+        _tryGoogleFavicon(domain, 128).then((url) =>
+          url != null ? _IconCandidate(url, 128) : null),
+        _tryDuckDuckGo(domain).then((url) =>
+          url != null ? _IconCandidate(url, 64) : null),
+      ]);
+    }
+
+    futures.add(_tryFaviconPackage(url));
+
+    final results = await Future.wait(futures).timeout(
       Duration(seconds: 15),
-      onTimeout: () => List<_IconCandidate?>.filled(4, null),
+      onTimeout: () => List<_IconCandidate?>.filled(futures.length, null),
     );
 
     candidates.addAll(results.whereType<_IconCandidate>());
