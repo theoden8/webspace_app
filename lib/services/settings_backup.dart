@@ -126,18 +126,17 @@ class SettingsBackupService {
       );
 
       final jsonString = exportToJson(backup);
-      final bytes = utf8.encode(jsonString);
 
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final defaultFileName = 'webspace_backup_$timestamp.json';
 
       // Use FilePicker to let user choose save location
+      // Note: Don't pass bytes parameter as it's not supported on all platforms (e.g., macOS)
       final outputPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Settings Backup',
         fileName: defaultFileName,
         type: FileType.custom,
         allowedExtensions: ['json'],
-        bytes: bytes,
       );
 
       if (outputPath == null) {
@@ -145,18 +144,10 @@ class SettingsBackupService {
         return false;
       }
 
-      // On some platforms, saveFile with bytes doesn't write the file
-      // We need to write it manually
-      if (!outputPath.endsWith('.json')) {
-        final file = File('$outputPath.json');
-        await file.writeAsBytes(bytes);
-      } else {
-        final file = File(outputPath);
-        // Check if file was written by FilePicker, if not write it
-        if (!await file.exists() || await file.length() == 0) {
-          await file.writeAsBytes(bytes);
-        }
-      }
+      // Write file manually (works on all platforms)
+      final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
+      final file = File(filePath);
+      await file.writeAsString(jsonString);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
