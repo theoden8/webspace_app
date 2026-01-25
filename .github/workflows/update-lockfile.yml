@@ -1,0 +1,70 @@
+name: Update Lockfile
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Branch name to commit the updated lockfile to'
+        required: false
+        default: 'update-pubspec-lock'
+        type: string
+
+jobs:
+  update-lockfile:
+    name: Update pubspec.lock
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.6'
+          channel: 'stable'
+          cache: true
+          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: Run flutter pub get
+        run: flutter pub get
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet pubspec.lock; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes to pubspec.lock"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "pubspec.lock has been updated"
+          fi
+
+      - name: Commit and push lockfile
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH_NAME="${{ inputs.branch_name }}"
+
+          # Create or checkout the branch
+          git checkout -B "$BRANCH_NAME"
+
+          # Add and commit the lockfile
+          git add pubspec.lock
+          git commit -m "Update pubspec.lock"
+
+          # Push the branch
+          git push -u origin "$BRANCH_NAME" --force
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
+            echo "## Lockfile Updated" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "pubspec.lock has been updated and pushed to branch \`${{ inputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## No Changes" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "pubspec.lock is already up to date" >> $GITHUB_STEP_SUMMARY
+          fi
