@@ -88,7 +88,13 @@ class WebViewModel {
     await controller!.setThemePreference(_currentTheme);
     // Don't call loadUrl here - it's already initialized with the URL
     if (defaultUserAgent == null) {
-      defaultUserAgent = await controller!.getDefaultUserAgent();
+      try {
+        defaultUserAgent = await controller!.getDefaultUserAgent();
+      } catch (e) {
+        // Silently handle userAgent retrieval failure - this can happen during
+        // testing or when webview isn't fully initialized
+        defaultUserAgent = '';
+      }
     }
   }
 

@@ -91,7 +91,13 @@ class _InAppWebViewController implements UnifiedWebViewController {
 
   @override
   Future<String?> getDefaultUserAgent() async {
-    return await inapp.InAppWebViewController.getDefaultUserAgent();
+    try {
+      return await inapp.InAppWebViewController.getDefaultUserAgent();
+    } catch (e) {
+      // Return null if userAgent retrieval fails (can happen during testing
+      // or when webview isn't fully initialized)
+      return null;
+    }
   }
 
   @override

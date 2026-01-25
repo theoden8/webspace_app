@@ -281,22 +281,35 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 1));
 
-          // Look for site selection checkboxes
+          // Look for site selection checkboxes (in CheckboxListTile)
           print('Looking for site selection elements...');
-          final redditFinder = find.text('Reddit');
-          if (redditFinder.evaluate().isNotEmpty) {
-            print('Selecting Reddit...');
-            await tester.tap(redditFinder);
+
+          // Find CheckboxListTile containing "Reddit" text
+          final redditCheckbox = find.ancestor(
+            of: find.text('Reddit'),
+            matching: find.byType(CheckboxListTile),
+          );
+          if (redditCheckbox.evaluate().isNotEmpty) {
+            print('Selecting Reddit checkbox...');
+            await tester.tap(redditCheckbox.first);
             await tester.pump();
             await Future.delayed(const Duration(seconds: 1));
+          } else {
+            print('Reddit checkbox not found');
           }
 
-          final wikipediaFinder = find.text('Wikipedia');
-          if (wikipediaFinder.evaluate().isNotEmpty) {
-            print('Selecting Wikipedia...');
-            await tester.tap(wikipediaFinder);
+          // Find CheckboxListTile containing "Wikipedia" text
+          final wikipediaCheckbox = find.ancestor(
+            of: find.text('Wikipedia'),
+            matching: find.byType(CheckboxListTile),
+          );
+          if (wikipediaCheckbox.evaluate().isNotEmpty) {
+            print('Selecting Wikipedia checkbox...');
+            await tester.tap(wikipediaCheckbox.first);
             await tester.pump();
             await Future.delayed(const Duration(seconds: 1));
+          } else {
+            print('Wikipedia checkbox not found');
           }
 
           // Screenshot 9: Sites selected
@@ -365,16 +378,90 @@ Future<void> _openDrawer(WidgetTester tester) async {
   print('Opening drawer programmatically...');
 
   try {
-    // Find the ScaffoldState and open drawer programmatically
-    final ScaffoldState scaffoldState = tester.state(find.byType(Scaffold).first);
-    scaffoldState.openDrawer();
+    bool drawerOpened = false;
 
-    // Use pump() with timeout instead of pumpAndSettle to avoid webview issues
+    // Approach 1: Try swipe gesture from left edge (works well on iOS)
+    print('Trying swipe gesture to open drawer...');
+    final screenSize = tester.view.physicalSize / tester.view.devicePixelRatio;
+    await tester.dragFrom(
+      Offset(0, screenSize.height / 2),
+      Offset(screenSize.width * 0.5, 0),
+    );
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+    print('Drawer opened via swipe: $drawerOpened');
+
+    // Approach 2: Try tapping the menu icon
+    if (!drawerOpened) {
+      final menuIcon = find.byIcon(Icons.menu);
+      if (menuIcon.evaluate().isNotEmpty) {
+        print('Found menu icon, tapping...');
+        await tester.tap(menuIcon);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+        print('Drawer opened via menu icon: $drawerOpened');
+      } else {
+        print('Menu icon not found');
+      }
+    }
+
+    // Approach 3: Try any IconButton in the leading position of AppBar
+    if (!drawerOpened) {
+      print('Trying to find leading IconButton in AppBar...');
+      final appBar = find.byType(AppBar);
+      if (appBar.evaluate().isNotEmpty) {
+        final iconButtons = find.descendant(
+          of: appBar,
+          matching: find.byType(IconButton),
+        );
+        if (iconButtons.evaluate().isNotEmpty) {
+          print('Found ${iconButtons.evaluate().length} IconButton(s) in AppBar, tapping first...');
+          await tester.tap(iconButtons.first);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+          drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+          print('Drawer opened via AppBar IconButton: $drawerOpened');
+        }
+      }
+    }
+
+    // Approach 4: Try opening drawer via ScaffoldState
+    if (!drawerOpened) {
+      print('Previous approaches failed, trying ScaffoldState...');
+      final scaffoldFinder = find.byType(Scaffold);
+      final scaffolds = scaffoldFinder.evaluate();
+      print('Found ${scaffolds.length} Scaffold(s)');
+
+      for (int i = 0; i < scaffolds.length && !drawerOpened; i++) {
+        try {
+          final scaffoldElement = scaffolds.elementAt(i);
+          final scaffoldWidget = scaffoldElement.widget as Scaffold;
+          print('Scaffold $i drawer property: ${scaffoldWidget.drawer != null}');
+
+          final ScaffoldState scaffoldState = tester.state(find.byWidget(scaffoldWidget));
+          print('Scaffold $i hasDrawer: ${scaffoldState.hasDrawer}');
+
+          if (scaffoldState.hasDrawer) {
+            print('Scaffold $i has drawer via state, attempting to open...');
+            scaffoldState.openDrawer();
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 300));
+            drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+            print('Drawer opened via Scaffold $i: $drawerOpened');
+          }
+        } catch (e) {
+          print('Failed to open drawer via Scaffold $i: $e');
+        }
+      }
+    }
+
+    // Give drawer animation time to complete
     await Future.delayed(const Duration(seconds: 2));
     await tester.pump();
 
-    // Verify drawer opened
+    // Final verification
     final drawerVisible = find.byType(Drawer).evaluate().isNotEmpty;
     print('Drawer opened: $drawerVisible');
 
@@ -395,11 +482,26 @@ Future<void> _closeDrawer(WidgetTester tester) async {
     if (backButtonFinder.evaluate().isNotEmpty) {
       await tester.tap(backButtonFinder);
     } else {
-      // Fallback: Use ScaffoldState to close drawer programmatically
+      // Fallback: Find the scaffold with an open drawer and close it
       print('Back to Webspaces button not found, closing programmatically');
-      final ScaffoldState scaffoldState = tester.state(find.byType(Scaffold).first);
-      if (scaffoldState.isDrawerOpen) {
-        Navigator.of(scaffoldState.context).pop();
+      final scaffoldFinder = find.byType(Scaffold);
+      final scaffolds = scaffoldFinder.evaluate();
+
+      for (int i = 0; i < scaffolds.length; i++) {
+        try {
+          final scaffoldElement = scaffolds.elementAt(i);
+          final scaffoldWidget = scaffoldElement.widget as Scaffold;
+
+          if (scaffoldWidget.drawer != null) {
+            final ScaffoldState scaffoldState = tester.state(find.byWidget(scaffoldWidget));
+            if (scaffoldState.isDrawerOpen) {
+              Navigator.of(scaffoldState.context).pop();
+              break;
+            }
+          }
+        } catch (e) {
+          print('Failed to close drawer via Scaffold $i: $e');
+        }
       }
     }
 
