@@ -3,8 +3,6 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -107,8 +105,8 @@ class SettingsBackupService {
     return const JsonEncoder.withIndent('  ').convert(backup.toJson());
   }
 
-  /// Export settings and share/save the file
-  static Future<bool> exportAndShare(
+  /// Export settings and save to a file
+  static Future<bool> exportAndSave(
     BuildContext context, {
     required List<WebViewModel> webViewModels,
     required List<Webspace> webspaces,
@@ -128,29 +126,44 @@ class SettingsBackupService {
       );
 
       final jsonString = exportToJson(backup);
+      final bytes = utf8.encode(jsonString);
 
-      // Get temp directory and create file
-      final tempDir = await getTemporaryDirectory();
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-      final fileName = 'webspace_backup_$timestamp.json';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(jsonString);
+      final defaultFileName = 'webspace_backup_$timestamp.json';
 
-      // Share the file
-      final result = await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'WebSpace Settings Backup',
+      // Use FilePicker to let user choose save location
+      final outputPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Settings Backup',
+        fileName: defaultFileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: bytes,
       );
 
-      // Clean up temp file after a delay
-      Future.delayed(Duration(seconds: 30), () {
-        if (file.existsSync()) {
-          file.deleteSync();
-        }
-      });
+      if (outputPath == null) {
+        // User cancelled
+        return false;
+      }
 
-      return result.status == ShareResultStatus.success ||
-          result.status == ShareResultStatus.dismissed;
+      // On some platforms, saveFile with bytes doesn't write the file
+      // We need to write it manually
+      if (!outputPath.endsWith('.json')) {
+        final file = File('$outputPath.json');
+        await file.writeAsBytes(bytes);
+      } else {
+        final file = File(outputPath);
+        // Check if file was written by FilePicker, if not write it
+        if (!await file.exists() || await file.length() == 0) {
+          await file.writeAsBytes(bytes);
+        }
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Settings exported successfully')),
+        );
+      }
+      return true;
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

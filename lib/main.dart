@@ -473,7 +473,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
   // Export settings to a file
   Future<void> _exportSettings() async {
-    await SettingsBackupService.exportAndShare(
+    await SettingsBackupService.exportAndSave(
       context,
       webViewModels: _webViewModels,
       webspaces: _webspaces,

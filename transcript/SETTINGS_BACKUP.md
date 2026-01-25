@@ -10,7 +10,7 @@ This document describes the settings import/export feature for the webspace_app,
 
 - Export all settings to a JSON file
 - Import settings from a backup file
-- Share backup files via system share sheet
+- Save backup files to user-chosen location
 - Cookies are **never** included in backups (security measure)
 - Version-tagged backups for future compatibility
 - Confirmation dialog before importing (shows backup details)
@@ -41,7 +41,7 @@ lib/services/settings_backup.dart
 ├── SettingsBackupService
 │   ├── createBackup() - creates backup excluding cookies
 │   ├── exportToJson() - serializes to JSON string
-│   ├── exportAndShare() - exports and opens share sheet
+│   ├── exportAndSave() - exports and saves to user-chosen location
 │   ├── importFromJson() - parses JSON to backup object
 │   ├── pickAndImport() - opens file picker and imports
 │   ├── restoreSites() - converts backup to WebViewModel list
@@ -61,17 +61,15 @@ User taps "Export Settings" in menu
     ↓
 _exportSettings() called
     ↓
-SettingsBackupService.exportAndShare()
+SettingsBackupService.exportAndSave()
     ↓
 createBackup() - collects all settings, strips cookies
     ↓
 exportToJson() - formats as pretty JSON
     ↓
-Write to temp file (webspace_backup_TIMESTAMP.json)
+FilePicker.platform.saveFile() - user chooses save location
     ↓
-Share.shareXFiles() - opens system share sheet
-    ↓
-Temp file cleaned up after 30 seconds
+Write file to chosen location
 ```
 
 #### Import Flow
@@ -195,7 +193,7 @@ PopupMenuButton<String>(
 1. Navigate to the webspaces list screen (tap webspace icon or "Back to Webspaces")
 2. Tap the triple-dot menu (⋮) in the top-right
 3. Select "Export Settings"
-4. Choose where to save/share the backup file
+4. Choose where to save the backup file
 
 ### Importing Settings
 
@@ -272,9 +270,7 @@ The feature requires these packages (added to `pubspec.yaml`):
 
 ```yaml
 dependencies:
-  file_picker: ^8.0.0      # For selecting import files
-  share_plus: ^10.0.0      # For sharing export files
-  path_provider: ^2.1.0    # For temp directory access
+  file_picker: ^8.0.0      # For selecting import files and saving export files
 ```
 
 ## Platform Support
@@ -338,7 +334,7 @@ fvm flutter test test/settings_backup_test.dart
 ### Key Methods
 
 - `SettingsBackupService.createBackup()` - Create backup excluding cookies
-- `SettingsBackupService.exportAndShare()` - Export and share file
+- `SettingsBackupService.exportAndSave()` - Export and save file
 - `SettingsBackupService.pickAndImport()` - Pick and parse backup file
 - `SettingsBackupService.restoreSites()` - Restore WebViewModel list
 - `SettingsBackupService.restoreWebspaces()` - Restore Webspace list
