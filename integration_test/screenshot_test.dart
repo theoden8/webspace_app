@@ -281,22 +281,35 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 1));
 
-          // Look for site selection checkboxes
+          // Look for site selection checkboxes (in CheckboxListTile)
           print('Looking for site selection elements...');
-          final redditFinder = find.text('Reddit');
-          if (redditFinder.evaluate().isNotEmpty) {
-            print('Selecting Reddit...');
-            await tester.tap(redditFinder);
+
+          // Find CheckboxListTile containing "Reddit" text
+          final redditCheckbox = find.ancestor(
+            of: find.text('Reddit'),
+            matching: find.byType(CheckboxListTile),
+          );
+          if (redditCheckbox.evaluate().isNotEmpty) {
+            print('Selecting Reddit checkbox...');
+            await tester.tap(redditCheckbox.first);
             await tester.pump();
             await Future.delayed(const Duration(seconds: 1));
+          } else {
+            print('Reddit checkbox not found');
           }
 
-          final wikipediaFinder = find.text('Wikipedia');
-          if (wikipediaFinder.evaluate().isNotEmpty) {
-            print('Selecting Wikipedia...');
-            await tester.tap(wikipediaFinder);
+          // Find CheckboxListTile containing "Wikipedia" text
+          final wikipediaCheckbox = find.ancestor(
+            of: find.text('Wikipedia'),
+            matching: find.byType(CheckboxListTile),
+          );
+          if (wikipediaCheckbox.evaluate().isNotEmpty) {
+            print('Selecting Wikipedia checkbox...');
+            await tester.tap(wikipediaCheckbox.first);
             await tester.pump();
             await Future.delayed(const Duration(seconds: 1));
+          } else {
+            print('Wikipedia checkbox not found');
           }
 
           // Screenshot 9: Sites selected
