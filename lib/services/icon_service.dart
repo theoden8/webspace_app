@@ -7,14 +7,25 @@ import 'package:favicon/favicon.dart';
 /// Icon Service - Handles favicon fetching with quality scoring
 ///
 /// Features:
+/// - Progressive loading: icons update as better quality versions are found
 /// - Google & DuckDuckGo services for high-quality icons
 /// - Falls back to favicon package for HTML parsing + favicon.ico
 /// - Domain substitution rules
 /// - Caching to avoid repeated requests
-/// - Max 3 concurrent requests
+/// - Max 5 concurrent requests
 
-// Cache for favicon URLs
+/// Represents an icon update with quality information
+class IconUpdate {
+  final String url;
+  final int quality;
+  final bool isFinal;
+
+  IconUpdate(this.url, this.quality, {this.isFinal = false});
+}
+
+// Cache for favicon URLs (stores best quality found)
 final Map<String, String?> _faviconCache = {};
+final Map<String, int> _faviconQualityCache = {};
 
 // Verified URLs cache
 final Set<String> _verifiedUrls = {};
@@ -31,6 +42,33 @@ final Queue<Completer<void>> _requestQueue = Queue();
 
 String _applyDomainSubstitution(String domain) {
   return _domainSubstitutions[domain] ?? domain;
+}
+
+// Check if host is an IP address (IPv4 or IPv6)
+bool _isIpAddress(String host) {
+  // IPv4: digits and dots only, with valid octet pattern
+  final ipv4Pattern = RegExp(r'^(\d{1,3}\.){3}\d{1,3}$');
+  if (ipv4Pattern.hasMatch(host)) return true;
+
+  // IPv6: contains colons (including bracketed form [::1])
+  if (host.contains(':')) return true;
+
+  // Localhost variations
+  if (host == 'localhost') return true;
+
+  return false;
+}
+
+// Check if we should use public icon services (Google, DuckDuckGo)
+// Returns false for http:// sites and IP addresses
+bool _shouldUsePublicIconServices(Uri uri) {
+  // Skip for non-HTTPS sites
+  if (uri.scheme != 'https') return false;
+
+  // Skip for IP addresses and localhost
+  if (_isIpAddress(uri.host)) return false;
+
+  return true;
 }
 
 class _IconCandidate {
@@ -184,7 +222,7 @@ Future<Favicon?> _findBestIcon(String url) async {
   return favicons.first;
 }
 
-/// Fetches the best quality favicon for a given URL
+/// Fetches the best quality favicon for a given URL (legacy single-result API)
 ///
 /// Quality scoring:
 /// - 256: Google 256px
@@ -231,6 +269,106 @@ Future<String?> getFaviconUrl(String url) async {
   }
 }
 
+/// Progressive favicon loading - yields icons as they're found
+///
+/// Emits IconUpdate objects with increasing quality:
+/// 1. First emits fast sources (DuckDuckGo ~64px)
+/// 2. Then Google services (128px, 256px)
+/// 3. Finally the favicon package for site-specific high-res icons
+///
+/// Each emission only occurs if it's better quality than the previous.
+/// The final emission has isFinal=true.
+Stream<IconUpdate> getFaviconUrlStream(String url) async* {
+  Uri? uri = Uri.tryParse(url);
+  if (uri == null || uri.host.isEmpty) {
+    return;
+  }
+
+  String domain = _applyDomainSubstitution(uri.host);
+  int bestQuality = 0;
+  String? bestUrl;
+
+  // Check cache first - if we have a cached result, emit it immediately
+  if (_faviconCache.containsKey(url) && _faviconCache[url] != null) {
+    final cachedUrl = _faviconCache[url]!;
+    final cachedQuality = _faviconQualityCache[url] ?? 100;
+    if (kDebugMode) {
+      print('[Icon] Stream: Using cached icon for $url (quality: $cachedQuality)');
+    }
+    yield IconUpdate(cachedUrl, cachedQuality, isFinal: true);
+    return;
+  }
+
+  // Check if we should use public icon services (skip for http:// and IP addresses)
+  final usePublicServices = _shouldUsePublicIconServices(uri);
+
+  if (kDebugMode) {
+    print('[Icon] Stream: Starting progressive fetch for $url (domain: $domain, usePublicServices: $usePublicServices)');
+  }
+
+  // Phase 1 & 2: Public icon services (only for HTTPS + non-IP addresses)
+  if (usePublicServices) {
+    // Phase 1: Quick sources (DuckDuckGo) - typically responds fast
+    final ddgResult = await _tryDuckDuckGo(domain);
+    if (ddgResult != null) {
+      bestUrl = ddgResult;
+      bestQuality = 64;
+      if (kDebugMode) {
+        print('[Icon] Stream: Emitting DuckDuckGo icon (quality: 64)');
+      }
+      yield IconUpdate(ddgResult, 64);
+    }
+
+    // Phase 2: Google services in parallel (128px and 256px)
+    final googleResults = await Future.wait([
+      _tryGoogleFavicon(domain, 128),
+      _tryGoogleFavicon(domain, 256),
+    ]);
+
+    // Emit Google 128px if better
+    if (googleResults[0] != null && 128 > bestQuality) {
+      bestUrl = googleResults[0];
+      bestQuality = 128;
+      if (kDebugMode) {
+        print('[Icon] Stream: Emitting Google 128px icon');
+      }
+      yield IconUpdate(googleResults[0]!, 128);
+    }
+
+    // Emit Google 256px if better
+    if (googleResults[1] != null && 256 > bestQuality) {
+      bestUrl = googleResults[1];
+      bestQuality = 256;
+      if (kDebugMode) {
+        print('[Icon] Stream: Emitting Google 256px icon');
+      }
+      yield IconUpdate(googleResults[1]!, 256);
+    }
+  }
+
+  // Phase 3: Favicon package (slowest but can find high-res site-specific icons)
+  final faviconResult = await _tryFaviconPackage(url);
+  if (faviconResult != null && faviconResult.quality > bestQuality) {
+    bestUrl = faviconResult.url;
+    bestQuality = faviconResult.quality;
+    if (kDebugMode) {
+      print('[Icon] Stream: Emitting favicon package icon (quality: ${faviconResult.quality})');
+    }
+    yield IconUpdate(faviconResult.url, faviconResult.quality, isFinal: true);
+  } else if (bestUrl != null) {
+    // Re-emit best as final
+    yield IconUpdate(bestUrl, bestQuality, isFinal: true);
+  }
+
+  // Cache the best result
+  _faviconCache[url] = bestUrl;
+  _faviconQualityCache[url] = bestQuality;
+
+  if (kDebugMode) {
+    print('[Icon] Stream: Completed for $url, best quality: $bestQuality');
+  }
+}
+
 Future<String?> _fetchFaviconUrlInternal(String url) async {
   Uri? uri = Uri.tryParse(url);
   if (uri == null || uri.host.isEmpty) {
@@ -239,26 +377,34 @@ Future<String?> _fetchFaviconUrlInternal(String url) async {
   }
 
   String domain = _applyDomainSubstitution(uri.host);
+  final usePublicServices = _shouldUsePublicIconServices(uri);
 
   if (kDebugMode) {
-    print('[Icon] Fetching icon for $url (domain: $domain)');
+    print('[Icon] Fetching icon for $url (domain: $domain, usePublicServices: $usePublicServices)');
   }
 
   final List<_IconCandidate> candidates = [];
 
-  // Try all sources in parallel
+  // Try sources in parallel (skip public services for http:// and IP addresses)
   try {
-    final results = await Future.wait([
-      _tryGoogleFavicon(domain, 256).then((url) =>
-        url != null ? _IconCandidate(url, 256) : null),
-      _tryGoogleFavicon(domain, 128).then((url) =>
-        url != null ? _IconCandidate(url, 128) : null),
-      _tryDuckDuckGo(domain).then((url) =>
-        url != null ? _IconCandidate(url, 64) : null),
-      _tryFaviconPackage(url),
-    ]).timeout(
+    final futures = <Future<_IconCandidate?>>[];
+
+    if (usePublicServices) {
+      futures.addAll([
+        _tryGoogleFavicon(domain, 256).then((url) =>
+          url != null ? _IconCandidate(url, 256) : null),
+        _tryGoogleFavicon(domain, 128).then((url) =>
+          url != null ? _IconCandidate(url, 128) : null),
+        _tryDuckDuckGo(domain).then((url) =>
+          url != null ? _IconCandidate(url, 64) : null),
+      ]);
+    }
+
+    futures.add(_tryFaviconPackage(url));
+
+    final results = await Future.wait(futures).timeout(
       Duration(seconds: 15),
-      onTimeout: () => List<_IconCandidate?>.filled(4, null),
+      onTimeout: () => List<_IconCandidate?>.filled(futures.length, null),
     );
 
     candidates.addAll(results.whereType<_IconCandidate>());
@@ -378,6 +524,7 @@ Future<_IconCandidate?> _tryFaviconPackage(String url) async {
 /// Clears the favicon cache
 void clearFaviconCache() {
   _faviconCache.clear();
+  _faviconQualityCache.clear();
   _verifiedUrls.clear();
 }
 

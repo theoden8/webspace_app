@@ -1,8 +1,88 @@
 # Icon Fetching Improvements - Transcript
 
+## Date: 2026-01-25
+
+## Summary (Latest Update)
+
+Added progressive icon loading for faster UI updates, SVG dark mode support, and smart filtering of public icon services for local/private sites.
+
+### New Features
+
+#### 1. Progressive Icon Loading
+**Files**: `lib/services/icon_service.dart`, `lib/screens/add_site.dart`
+
+Icons now load progressively instead of waiting for all sources to complete:
+
+**New Stream-based API:**
+```dart
+Stream<IconUpdate> getFaviconUrlStream(String url) async* {
+  // Phase 1: DuckDuckGo (fast, ~64px) - shows icon quickly
+  // Phase 2: Google services (128px, 256px) - upgrades the icon
+  // Phase 3: Favicon package (HTML parsing) - final high-res upgrade
+}
+```
+
+**IconUpdate class:**
+```dart
+class IconUpdate {
+  final String url;
+  final int quality;
+  final bool isFinal;
+}
+```
+
+**Widget Changes:**
+- `UnifiedFaviconImage` converted from `StatelessWidget` to `StatefulWidget`
+- Uses stream listener to progressively update displayed icon
+- Only updates when higher quality icon is found
+
+**Performance Impact:**
+- Before: Users waited 10-15 seconds seeing a spinner
+- After: Icons appear within 1-2 seconds, then upgrade as better versions load
+
+#### 2. SVG Dark Mode Support
+**File**: `lib/screens/add_site.dart`
+
+SVG icons with CSS media queries (like Codeberg's `@media (prefers-color-scheme: dark)`) now render correctly based on app theme:
+
+```dart
+MediaQuery(
+  data: MediaQuery.of(context).copyWith(
+    platformBrightness: Theme.of(context).brightness,
+  ),
+  child: SvgPicture.network(...),
+)
+```
+
+This ensures SVGs see the app's theme, not just the system theme.
+
+#### 3. Smart Public Service Filtering
+**File**: `lib/services/icon_service.dart`
+
+Google and DuckDuckGo icon services are now skipped for:
+- **http:// sites** - non-HTTPS URLs
+- **IPv4 addresses** - e.g., `192.168.1.1`
+- **IPv6 addresses** - e.g., `[::1]`
+- **localhost**
+
+**New Helper Functions:**
+```dart
+bool _isIpAddress(String host) {
+  // Detects IPv4, IPv6, and localhost
+}
+
+bool _shouldUsePublicIconServices(Uri uri) {
+  // Returns false for http:// or IP addresses
+}
+```
+
+**Rationale:** Public icon services won't have favicons for local/private servers, so these requests are skipped to improve performance.
+
+---
+
 ## Date: 2026-01-24
 
-## Summary
+## Summary (Previous Update)
 
 Comprehensive refactoring and improvement of the icon fetching system for the Webspace app. This work adds GitHub to suggested sites, fixes codeberg.org icons, implements intelligent icon source selection, and resolves UI freeze issues when opening the add site screen.
 
@@ -228,6 +308,12 @@ Used `\x27` (hex code for single quote) instead of escaped quote in raw string.
 
 ## Commit History
 
+### 2026-01-25
+10. `3dff6ed` - Add progressive icon loading for faster UI updates
+11. `d567c0b` - Pass app theme to SVG media queries for proper dark mode support
+12. `78d53e6` - Skip Google/DuckDuckGo icon services for http:// and IP addresses
+
+### 2026-01-24
 1. `d25ed73` - Add GitHub, unify icon fetching, and improve webspace UX
 2. `b4bc15c` - Prioritize SVG favicons for better quality icons
 3. `8505ee0` - Unify icon fetching to try all sources and pick best quality
@@ -236,7 +322,7 @@ Used `\x27` (hex code for single quote) instead of escaped quote in raw string.
 6. `619bc19` - Fix UI freeze: parallelize icon fetching and avoid double-verification
 7. `09381b7` - Deprioritize SVG icons to avoid black-and-white masks
 8. `58c56c5` - Detect monochrome SVG icons and prioritize colored SVGs
-9. *Current* - Refactor: Extract icon service, fix regex, create transcript
+9. *Previous* - Refactor: Extract icon service, fix regex, create transcript
 
 ---
 
@@ -259,9 +345,11 @@ Used `\x27` (hex code for single quote) instead of escaped quote in raw string.
 ## Conclusion
 
 This refactoring significantly improves:
-- **Performance**: 5x faster icon fetching, no UI freeze
-- **Quality**: Always picks the best available icon
-- **User Experience**: Icons in more places, better visual feedback
+- **Performance**: Progressive loading shows icons immediately, upgrades as better versions arrive
+- **Quality**: Always picks the best available icon with intelligent SVG color detection
+- **User Experience**: No more waiting for spinners; icons appear fast and improve over time
+- **Theme Support**: SVG icons with dark mode CSS media queries render correctly
+- **Smart Filtering**: Skips unnecessary requests for local/private servers
 - **Maintainability**: Clean service layer, comprehensive documentation
 - **Extensibility**: Easy to add new icon sources or domain rules
 
