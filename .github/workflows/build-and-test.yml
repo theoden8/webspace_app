@@ -31,6 +31,14 @@ jobs:
           flutter-version: '3.38.6'
           channel: 'stable'
 
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
       - name: Install fvm
         run: |
           dart pub global activate fvm
@@ -75,6 +83,14 @@ jobs:
         with:
           flutter-version: '3.38.6'
           channel: 'stable'
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
 
       - name: Install fvm
         run: |
@@ -139,6 +155,14 @@ jobs:
           flutter-version: '3.38.6'
           channel: 'stable'
 
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
       - name: Install fvm
         run: |
           dart pub global activate fvm
@@ -181,6 +205,14 @@ jobs:
         with:
           flutter-version: '3.38.6'
           channel: 'stable'
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
 
       - name: Install fvm
         run: |
