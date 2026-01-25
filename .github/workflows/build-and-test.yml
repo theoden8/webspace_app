@@ -25,13 +25,29 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Setup Flutter
+      - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.6'
           channel: 'stable'
-          cache: true
-          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -44,10 +60,10 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: fvm flutter pub get --enforce-lockfile
 
       - name: Build APK
-        run: flutter build apk --release --flavor fdroid --split-per-abi
+        run: fvm flutter build apk --release --flavor fdroid --split-per-abi
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
@@ -62,13 +78,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.6'
           channel: 'stable'
-          cache: true
-          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -81,16 +113,16 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: fvm flutter pub get --enforce-lockfile
 
       - name: Create iOS platform if not exists
         run: |
           if [ ! -d "ios" ]; then
-            flutter create --platforms=ios .
+            fvm flutter create --platforms=ios .
           fi
 
       - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+        run: fvm flutter build ios --release --no-codesign
 
       - name: Create IPA
         run: |
@@ -117,13 +149,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
 
-      - name: Setup Flutter
+      - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.6'
           channel: 'stable'
-          cache: true
-          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -136,10 +184,10 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: fvm flutter pub get --enforce-lockfile
 
       - name: Run tests
-        run: flutter test
+        run: fvm flutter test
 
       # DISABLED: Linux builds are currently disabled due to webview_cef removal
       # - name: Build Linux
@@ -152,13 +200,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.6'
           channel: 'stable'
-          cache: true
-          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -171,13 +235,13 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get --enforce-lockfile
+        run: fvm flutter pub get --enforce-lockfile
 
       - name: Run tests
-        run: flutter test
+        run: fvm flutter test
 
       - name: Build macOS
-        run: flutter build macos --release
+        run: fvm flutter build macos --release
 
       - name: Create ZIP archive
         run: |
