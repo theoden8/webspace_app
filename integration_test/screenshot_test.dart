@@ -365,48 +365,50 @@ Future<void> _openDrawer(WidgetTester tester) async {
   print('Opening drawer programmatically...');
 
   try {
-    // Find all Scaffolds and try to open the drawer on each one until we find one that works
-    final scaffoldFinder = find.byType(Scaffold);
-    final scaffolds = scaffoldFinder.evaluate();
-    print('Found ${scaffolds.length} Scaffold(s)');
-
     bool drawerOpened = false;
 
-    // Try each scaffold to find the one with a drawer
-    for (int i = 0; i < scaffolds.length && !drawerOpened; i++) {
-      try {
-        final scaffoldElement = scaffolds.elementAt(i);
-        final scaffoldWidget = scaffoldElement.widget as Scaffold;
-
-        // Check if this scaffold has a drawer
-        if (scaffoldWidget.drawer != null) {
-          print('Scaffold $i has a drawer, attempting to open...');
-          final ScaffoldState scaffoldState = tester.state(find.byWidget(scaffoldWidget));
-          scaffoldState.openDrawer();
-
-          // Pump frames to allow drawer animation to start
-          await tester.pump();
-          await tester.pump(const Duration(milliseconds: 100));
-
-          // Check if drawer is now visible
-          drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
-          print('Drawer opened via Scaffold $i: $drawerOpened');
-        }
-      } catch (e) {
-        print('Failed to open drawer via Scaffold $i: $e');
-      }
+    // Primary approach: Try tapping the menu icon (most reliable across platforms)
+    final menuIcon = find.byIcon(Icons.menu);
+    if (menuIcon.evaluate().isNotEmpty) {
+      print('Found menu icon, tapping...');
+      await tester.tap(menuIcon);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+      print('Drawer opened via menu icon: $drawerOpened');
+    } else {
+      print('Menu icon not found');
     }
 
-    // Fallback: try tapping the menu icon if programmatic approach failed
+    // Fallback: Try opening drawer via ScaffoldState
     if (!drawerOpened) {
-      print('Programmatic approach failed, trying menu icon...');
-      final menuIcon = find.byIcon(Icons.menu);
-      if (menuIcon.evaluate().isNotEmpty) {
-        await tester.tap(menuIcon);
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
-        drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
-        print('Drawer opened via menu icon: $drawerOpened');
+      print('Menu icon approach failed, trying ScaffoldState...');
+      final scaffoldFinder = find.byType(Scaffold);
+      final scaffolds = scaffoldFinder.evaluate();
+      print('Found ${scaffolds.length} Scaffold(s)');
+
+      for (int i = 0; i < scaffolds.length && !drawerOpened; i++) {
+        try {
+          final scaffoldElement = scaffolds.elementAt(i);
+          final scaffoldWidget = scaffoldElement.widget as Scaffold;
+          print('Scaffold $i drawer property: ${scaffoldWidget.drawer != null}');
+
+          // Try to get ScaffoldState and open drawer regardless of drawer property
+          // (drawer property may be null if lazily built)
+          final ScaffoldState scaffoldState = tester.state(find.byWidget(scaffoldWidget));
+          print('Scaffold $i hasDrawer: ${scaffoldState.hasDrawer}');
+
+          if (scaffoldState.hasDrawer) {
+            print('Scaffold $i has drawer via state, attempting to open...');
+            scaffoldState.openDrawer();
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 300));
+            drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+            print('Drawer opened via Scaffold $i: $drawerOpened');
+          }
+        } catch (e) {
+          print('Failed to open drawer via Scaffold $i: $e');
+        }
       }
     }
 
