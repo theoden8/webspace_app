@@ -89,12 +89,12 @@ class FaviconFinder {
 
           // Fix relative URLs
           if (iconUrl.startsWith('/')) {
-            iconUrl = uri.scheme + '://' + uri.host + iconUrl;
+            iconUrl = uri.scheme + '://' + uri.host + ":" + uri.port.toString() + iconUrl;
           }
 
           // Fix naked URLs
           if (!iconUrl.startsWith('http')) {
-            iconUrl = uri.scheme + '://' + uri.host + '/' + iconUrl;
+            iconUrl = uri.scheme + '://' + uri.host + ":" + uri.port.toString() + '/' + iconUrl;
           }
 
           // Remove query strings
