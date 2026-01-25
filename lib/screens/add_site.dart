@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../main.dart' show extractDomain;
-import '../services/icon_service.dart' show getFaviconUrl;
+import '../services/icon_service.dart' show getFaviconUrlStream, IconUpdate;
 
 class SiteSuggestion {
   final String name;
@@ -16,13 +16,12 @@ class SiteSuggestion {
   });
 }
 
-// Unified favicon widget that uses getFaviconUrl which tries all sources:
-// 1. Google Favicons at 256px and 128px
-// 2. HTML parsing for native icons (prioritizing SVG)
-// 3. DuckDuckGo favicon service
-// 4. /favicon.ico fallback
-// Then picks the best quality icon found
-class UnifiedFaviconImage extends StatelessWidget {
+// Unified favicon widget with progressive loading
+// Icons update as better quality versions are found:
+// 1. DuckDuckGo (fast, ~64px) - shows first
+// 2. Google Favicons (128px, 256px) - upgrades the icon
+// 3. Site-specific high-res icons via HTML parsing - final upgrade
+class UnifiedFaviconImage extends StatefulWidget {
   final String url;
   final double size;
   final String? domain;
@@ -33,68 +32,122 @@ class UnifiedFaviconImage extends StatelessWidget {
     this.domain,
   });
 
+  @override
+  State<UnifiedFaviconImage> createState() => _UnifiedFaviconImageState();
+}
+
+class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
+  String? _currentIconUrl;
+  int _currentQuality = 0;
+  bool _isLoading = true;
+  Stream<IconUpdate>? _iconStream;
+
   bool _isSvgUrl(String url) {
     return url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
   }
 
   @override
+  void initState() {
+    super.initState();
+    _startIconStream();
+  }
+
+  @override
+  void didUpdateWidget(UnifiedFaviconImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _currentIconUrl = null;
+      _currentQuality = 0;
+      _isLoading = true;
+      _startIconStream();
+    }
+  }
+
+  void _startIconStream() {
+    _iconStream = getFaviconUrlStream(widget.url);
+    _iconStream!.listen(
+      (update) {
+        if (mounted && update.quality > _currentQuality) {
+          setState(() {
+            _currentIconUrl = update.url;
+            _currentQuality = update.quality;
+            if (update.isFinal) {
+              _isLoading = false;
+            }
+          });
+        }
+      },
+      onDone: () {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      },
+      onError: (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: getFaviconUrl(url),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            width: size,
-            height: size,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
-        }
-
-        if (snapshot.hasData && snapshot.data != null) {
-          final iconUrl = snapshot.data!;
-
-          // Use SvgPicture for SVG files, CachedNetworkImage for others
-          if (_isSvgUrl(iconUrl)) {
-            return SvgPicture.network(
-              iconUrl,
-              width: size,
-              height: size,
-              fit: BoxFit.contain,
-              placeholderBuilder: (context) => SizedBox(
-                width: size,
-                height: size,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            );
-          } else {
-            return CachedNetworkImage(
-              imageUrl: iconUrl,
-              width: size,
-              height: size,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-              placeholder: (context, url) => SizedBox(
-                width: size,
-                height: size,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              errorWidget: (context, url, error) => Icon(
-                Icons.language,
-                size: size,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            );
-          }
-        }
-
+    // Show current best icon, or loading indicator if nothing yet
+    if (_currentIconUrl == null) {
+      if (_isLoading) {
+        return SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      } else {
         // No favicon found
         return Icon(
           Icons.language,
-          size: size,
+          size: widget.size,
           color: Theme.of(context).colorScheme.primary,
         );
-      },
-    );
+      }
+    }
+
+    final iconUrl = _currentIconUrl!;
+
+    // Use SvgPicture for SVG files, CachedNetworkImage for others
+    if (_isSvgUrl(iconUrl)) {
+      return SvgPicture.network(
+        iconUrl,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        placeholderBuilder: (context) => SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    } else {
+      return CachedNetworkImage(
+        imageUrl: iconUrl,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        placeholder: (context, url) => SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        errorWidget: (context, url, error) => Icon(
+          Icons.language,
+          size: widget.size,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    }
   }
 }
 
