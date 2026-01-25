@@ -23,6 +23,7 @@ import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart';
+import 'package:webspace/services/settings_backup.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -470,6 +471,137 @@ class _WebSpacePageState extends State<WebSpacePage> {
     _saveWebspaces();
   }
 
+  // Export settings to a file
+  Future<void> _exportSettings() async {
+    await SettingsBackupService.exportAndSave(
+      context,
+      webViewModels: _webViewModels,
+      webspaces: _webspaces,
+      themeMode: _themeMode.index,
+      showUrlBar: _showUrlBar,
+      selectedWebspaceId: _selectedWebspaceId,
+      currentIndex: _currentIndex,
+    );
+  }
+
+  // Import settings from a file
+  Future<void> _importSettings() async {
+    final backup = await SettingsBackupService.pickAndImport(context);
+    if (backup == null) {
+      return;
+    }
+
+    // Show confirmation dialog with backup info
+    final sitesCount = backup.sites.length;
+    final webspacesCount = backup.webspaces.length;
+    final exportDate = backup.exportedAt.toLocal().toString().split('.')[0];
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Import Settings'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This will replace all your current settings with:'),
+            SizedBox(height: 12),
+            Text('  - $sitesCount site(s)'),
+            Text('  - $webspacesCount webspace(s)'),
+            SizedBox(height: 12),
+            Text(
+              'Exported: $exportDate',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Note: Cookies are not included in backups for security.',
+              style: TextStyle(fontSize: 12, color: Colors.orange),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Import'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    // Apply the imported settings
+    setState(() {
+      // Clear existing data
+      _webViewModels.clear();
+      _webspaces.clear();
+
+      // Restore sites
+      _webViewModels.addAll(
+        SettingsBackupService.restoreSites(backup, () {
+          setState(() {});
+        }),
+      );
+
+      // Restore webspaces
+      _webspaces.addAll(SettingsBackupService.restoreWebspaces(backup));
+
+      // Restore other settings
+      _themeMode = ThemeMode.values[backup.themeMode.clamp(0, ThemeMode.values.length - 1)];
+      _showUrlBar = backup.showUrlBar;
+
+      // Restore selection state
+      if (backup.selectedWebspaceId != null &&
+          _webspaces.any((ws) => ws.id == backup.selectedWebspaceId)) {
+        _selectedWebspaceId = backup.selectedWebspaceId;
+      } else {
+        _selectedWebspaceId = kAllWebspaceId;
+      }
+
+      // Restore current index if valid
+      if (backup.currentIndex != null &&
+          backup.currentIndex! >= 0 &&
+          backup.currentIndex! < _webViewModels.length) {
+        _currentIndex = backup.currentIndex;
+      } else {
+        _currentIndex = null;
+      }
+    });
+
+    // Apply theme to app
+    widget.onThemeModeChanged(_themeMode);
+
+    // Save all settings
+    await _saveWebViewModels();
+    await _saveWebspaces();
+    await _saveThemeMode();
+    await _saveShowUrlBar();
+    await _saveSelectedWebspaceId();
+    await _saveCurrentIndex();
+
+    // Apply theme to all webviews
+    final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+    for (var webViewModel in _webViewModels) {
+      await webViewModel.setTheme(webViewTheme);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Settings imported successfully')),
+      );
+    }
+  }
+
   UnifiedWebViewController? getController() {
     if(_currentIndex == null) {
       return null;
@@ -584,6 +716,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
         ),
         PopupMenuButton<String>(
           itemBuilder: (BuildContext context) {
+            final bool onWebspacesList = _currentIndex == null || _currentIndex! >= _webViewModels.length;
             return [
               if (_currentIndex != null && _currentIndex! < _webViewModels.length)
               PopupMenuItem<String>(
@@ -640,6 +773,29 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   ],
                 ),
               ),
+              // Import/Export options (only visible on webspaces list screen)
+              if (onWebspacesList)
+              PopupMenuItem<String>(
+                value: "export",
+                child: Row(
+                  children: [
+                    Icon(Icons.upload),
+                    SizedBox(width: 8),
+                    Text("Export Settings"),
+                  ],
+                ),
+              ),
+              if (onWebspacesList)
+              PopupMenuItem<String>(
+                value: "import",
+                child: Row(
+                  children: [
+                    Icon(Icons.download),
+                    SizedBox(width: 8),
+                    Text("Import Settings"),
+                  ],
+                ),
+              ),
             ];
           },
           onSelected: (String value) async {
@@ -669,6 +825,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   _showUrlBar = !_showUrlBar;
                 });
                 _saveShowUrlBar();
+              break;
+              case 'export':
+                await _exportSettings();
+              break;
+              case 'import':
+                await _importSettings();
               break;
             }
           },
