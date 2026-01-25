@@ -118,15 +118,22 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
     // Use SvgPicture for SVG files, CachedNetworkImage for others
     if (_isSvgUrl(iconUrl)) {
-      return SvgPicture.network(
-        iconUrl,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.contain,
-        placeholderBuilder: (context) => SizedBox(
+      // Wrap in MediaQuery to pass app theme to SVG's CSS media queries
+      // (e.g., @media (prefers-color-scheme: dark) in codeberg's favicon)
+      return MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          platformBrightness: Theme.of(context).brightness,
+        ),
+        child: SvgPicture.network(
+          iconUrl,
           width: widget.size,
           height: widget.size,
-          child: CircularProgressIndicator(strokeWidth: 2),
+          fit: BoxFit.contain,
+          placeholderBuilder: (context) => SizedBox(
+            width: widget.size,
+            height: widget.size,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
         ),
       );
     } else {
