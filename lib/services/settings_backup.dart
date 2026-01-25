@@ -130,13 +130,10 @@ class SettingsBackupService {
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final defaultFileName = 'webspace_backup_$timestamp.json';
 
-      // Use FilePicker to let user choose save location
-      // Note: Don't pass bytes parameter as it's not supported on all platforms (e.g., macOS)
+      // Use FilePicker save dialog
       final outputPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Settings Backup',
         fileName: defaultFileName,
-        type: FileType.custom,
-        allowedExtensions: ['json'],
       );
 
       if (outputPath == null) {
@@ -151,11 +148,12 @@ class SettingsBackupService {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Settings exported successfully')),
+          SnackBar(content: Text('Settings exported to: $filePath')),
         );
       }
       return true;
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('Export failed: $e\n$stack');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Export failed: $e')),
