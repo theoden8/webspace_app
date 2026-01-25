@@ -380,22 +380,56 @@ Future<void> _openDrawer(WidgetTester tester) async {
   try {
     bool drawerOpened = false;
 
-    // Primary approach: Try tapping the menu icon (most reliable across platforms)
-    final menuIcon = find.byIcon(Icons.menu);
-    if (menuIcon.evaluate().isNotEmpty) {
-      print('Found menu icon, tapping...');
-      await tester.tap(menuIcon);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
-      print('Drawer opened via menu icon: $drawerOpened');
-    } else {
-      print('Menu icon not found');
+    // Approach 1: Try swipe gesture from left edge (works well on iOS)
+    print('Trying swipe gesture to open drawer...');
+    final screenSize = tester.view.physicalSize / tester.view.devicePixelRatio;
+    await tester.dragFrom(
+      Offset(0, screenSize.height / 2),
+      Offset(screenSize.width * 0.5, 0),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+    print('Drawer opened via swipe: $drawerOpened');
+
+    // Approach 2: Try tapping the menu icon
+    if (!drawerOpened) {
+      final menuIcon = find.byIcon(Icons.menu);
+      if (menuIcon.evaluate().isNotEmpty) {
+        print('Found menu icon, tapping...');
+        await tester.tap(menuIcon);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+        print('Drawer opened via menu icon: $drawerOpened');
+      } else {
+        print('Menu icon not found');
+      }
     }
 
-    // Fallback: Try opening drawer via ScaffoldState
+    // Approach 3: Try any IconButton in the leading position of AppBar
     if (!drawerOpened) {
-      print('Menu icon approach failed, trying ScaffoldState...');
+      print('Trying to find leading IconButton in AppBar...');
+      final appBar = find.byType(AppBar);
+      if (appBar.evaluate().isNotEmpty) {
+        final iconButtons = find.descendant(
+          of: appBar,
+          matching: find.byType(IconButton),
+        );
+        if (iconButtons.evaluate().isNotEmpty) {
+          print('Found ${iconButtons.evaluate().length} IconButton(s) in AppBar, tapping first...');
+          await tester.tap(iconButtons.first);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+          drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+          print('Drawer opened via AppBar IconButton: $drawerOpened');
+        }
+      }
+    }
+
+    // Approach 4: Try opening drawer via ScaffoldState
+    if (!drawerOpened) {
+      print('Previous approaches failed, trying ScaffoldState...');
       final scaffoldFinder = find.byType(Scaffold);
       final scaffolds = scaffoldFinder.evaluate();
       print('Found ${scaffolds.length} Scaffold(s)');
@@ -406,8 +440,6 @@ Future<void> _openDrawer(WidgetTester tester) async {
           final scaffoldWidget = scaffoldElement.widget as Scaffold;
           print('Scaffold $i drawer property: ${scaffoldWidget.drawer != null}');
 
-          // Try to get ScaffoldState and open drawer regardless of drawer property
-          // (drawer property may be null if lazily built)
           final ScaffoldState scaffoldState = tester.state(find.byWidget(scaffoldWidget));
           print('Scaffold $i hasDrawer: ${scaffoldState.hasDrawer}');
 
