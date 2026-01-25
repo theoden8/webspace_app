@@ -49,10 +49,6 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 10));
       print('App launched and settled');
 
-      // Wait briefly for webspaces list to render
-      print('Waiting for webspaces list...');
-      await tester.pumpAndSettle(const Duration(seconds: 3));
-
       print('========================================');
       print('STARTING SCREENSHOT TOUR');
       print('========================================');
@@ -107,16 +103,17 @@ void main() {
       if (duckDuckGoFinder.evaluate().isNotEmpty) {
         print('Selecting DuckDuckGo site');
         await tester.tap(duckDuckGoFinder);
-        
+
         // Pump multiple frames to advance the drawer closing animation
         // Standard Material drawer animation is typically 300ms
-        // We want to capture mid-animation, so let's advance ~150ms (halfway through)
-        print('Advancing animation frames to capture mid-transition...');
-        await tester.pump(); // Start animation
-        await tester.pump(const Duration(milliseconds: 150)); // Advance to mid-animation
-        
+        // Now let the animation complete and wait for webview to load
+        print('Completing animation and waiting for webview to load...');
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
+        await tester.pump();
+
         // Screenshot 3: Site transitioning (drawer closing animation)
-        print('Capturing site transition with drawer closing');
+        print('Capturing site');
         await binding.takeScreenshot('03-site-webview').timeout(
           _SCREENSHOT_TIMEOUT,
           onTimeout: () {
@@ -124,13 +121,7 @@ void main() {
             return <int>[];
           },
         );
-        print('Screenshot 3 captured successfully (mid-animation)');
-        
-        // Now let the animation complete and wait for webview to load
-        print('Completing animation and waiting for webview to load...');
-        await tester.pumpAndSettle(const Duration(seconds: 2));
-        await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
-        await tester.pump();
+        print('Screenshot 3 captured successfully (site selected)');
 
         // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
         await tester.pump(const Duration(seconds: 2));
@@ -327,7 +318,7 @@ void main() {
           // Look for save button (check icon in AppBar)
           print('Looking for save button...');
           Finder? saveButton = find.byIcon(Icons.check);
-          
+
           // Fallback to text-based save buttons
           if (saveButton.evaluate().isEmpty) {
             saveButton = find.text('Save');
