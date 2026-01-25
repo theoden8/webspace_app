@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:favicon/favicon.dart';
+import '../third_party/favicon/favicon.dart';
 
 /// Icon Service - Handles favicon fetching with quality scoring
 ///
