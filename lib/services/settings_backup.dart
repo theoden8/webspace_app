@@ -133,14 +133,14 @@ class SettingsBackupService {
       final defaultFileName = 'webspace_backup_$timestamp.json';
 
       // Use FilePicker save dialog
-      // On iOS/Android: bytes parameter is required
-      // On macOS: bytes parameter is not supported, write manually
-      final bool isMacOS = !kIsWeb && Platform.isMacOS;
+      // On mobile (iOS/Android): bytes parameter is required
+      // On desktop (macOS/Linux/Windows): bytes not supported, write manually
+      final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
 
       final outputPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Settings Backup',
         fileName: defaultFileName,
-        bytes: isMacOS ? null : bytes,
+        bytes: isMobile ? bytes : null,
       );
 
       if (outputPath == null) {
@@ -148,8 +148,8 @@ class SettingsBackupService {
         return false;
       }
 
-      // On macOS, write file manually since bytes param not supported
-      if (isMacOS) {
+      // On desktop, write file manually since bytes param not supported
+      if (!isMobile) {
         final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
         final file = File(filePath);
         await file.writeAsString(jsonString);
