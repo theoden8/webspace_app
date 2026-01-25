@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/web_view_model.dart';
@@ -126,14 +127,20 @@ class SettingsBackupService {
       );
 
       final jsonString = exportToJson(backup);
+      final bytes = utf8.encode(jsonString);
 
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final defaultFileName = 'webspace_backup_$timestamp.json';
 
       // Use FilePicker save dialog
+      // On iOS/Android: bytes parameter is required
+      // On macOS: bytes parameter is not supported, write manually
+      final bool isMacOS = !kIsWeb && Platform.isMacOS;
+
       final outputPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Settings Backup',
         fileName: defaultFileName,
+        bytes: isMacOS ? null : bytes,
       );
 
       if (outputPath == null) {
@@ -141,10 +148,12 @@ class SettingsBackupService {
         return false;
       }
 
-      // Write file manually (works on all platforms)
-      final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
-      final file = File(filePath);
-      await file.writeAsString(jsonString);
+      // On macOS, write file manually since bytes param not supported
+      if (isMacOS) {
+        final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
+        final file = File(filePath);
+        await file.writeAsString(jsonString);
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
