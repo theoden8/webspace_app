@@ -189,9 +189,8 @@ jobs:
       - name: Run tests
         run: fvm flutter test
 
-      # DISABLED: Linux builds are currently disabled due to webview_cef removal
-      # - name: Build Linux
-      #   run: flutter build linux --release
+      - name: Build Linux
+        run: fvm flutter build linux --release
 
   build-macos:
     name: Build macOS
@@ -273,9 +272,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Android APKs (fdroid flavor, split by ABI)" >> $GITHUB_STEP_SUMMARY
           echo "✅ iOS IPA (unsigned)" >> $GITHUB_STEP_SUMMARY
-          echo "❌ Linux x64 build (disabled)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Linux x64 build" >> $GITHUB_STEP_SUMMARY
           echo "✅ macOS app bundle" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Note: Linux tests run but builds are disabled due to webview_cef removal" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All platform tests and enabled builds completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "All platform builds completed successfully!" >> $GITHUB_STEP_SUMMARY
