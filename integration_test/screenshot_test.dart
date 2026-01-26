@@ -9,7 +9,8 @@ import 'package:webspace/demo_data.dart';
 /// Flutter integration test for generating F-Droid and Play Store screenshots.
 ///
 /// This test seeds demo data automatically on startup and navigates through
-/// the app to capture screenshots at key points.
+/// the app to capture screenshots at key points. Screenshots are captured
+/// for both light and dark themes.
 ///
 /// To run this test and generate screenshots:
 /// 1. flutter test integration_test/screenshot_test.dart
@@ -21,6 +22,75 @@ const Duration _WEBVIEW_LOAD_TIMEOUT = Duration(seconds: 15);
 const Duration _SCREENSHOT_TIMEOUT = Duration(seconds: 5);
 const Duration _DRAWER_TIMEOUT = Duration(seconds: 5);
 
+/// Helper to take a screenshot with both light and dark themes.
+/// Takes the current theme screenshot first, then toggles to the other theme,
+/// takes that screenshot, and toggles back.
+Future<void> _takeThemedScreenshots(
+  IntegrationTestWidgetsFlutterBinding binding,
+  WidgetTester tester,
+  String baseName,
+  String currentTheme,
+) async {
+  final themeSuffix = currentTheme == 'light' ? '-light' : '-dark';
+  print('Capturing $baseName$themeSuffix');
+  await binding.takeScreenshot('$baseName$themeSuffix').timeout(
+    _SCREENSHOT_TIMEOUT,
+    onTimeout: () {
+      print('Warning: Screenshot $baseName$themeSuffix timed out');
+      return <int>[];
+    },
+  );
+  await tester.pump();
+}
+
+/// Toggle the theme by tapping the theme button in the app bar.
+/// Returns the new theme name ('light', 'dark', or 'system').
+Future<String> _toggleTheme(WidgetTester tester, String currentTheme) async {
+  // Find and tap the theme toggle button (cycles light → dark → system)
+  final themeButtonFinder = find.byIcon(Icons.wb_sunny).hitTestable();
+  final darkButtonFinder = find.byIcon(Icons.nights_stay).hitTestable();
+  final systemButtonFinder = find.byIcon(Icons.brightness_auto).hitTestable();
+
+  Finder? buttonToTap;
+  if (themeButtonFinder.evaluate().isNotEmpty) {
+    buttonToTap = themeButtonFinder;
+  } else if (darkButtonFinder.evaluate().isNotEmpty) {
+    buttonToTap = darkButtonFinder;
+  } else if (systemButtonFinder.evaluate().isNotEmpty) {
+    buttonToTap = systemButtonFinder;
+  }
+
+  if (buttonToTap != null && buttonToTap.evaluate().isNotEmpty) {
+    await tester.tap(buttonToTap);
+    await tester.pump();
+    await Future.delayed(const Duration(milliseconds: 500));
+    await tester.pump();
+  }
+
+  // Return the new theme based on cycling order
+  switch (currentTheme) {
+    case 'light':
+      return 'dark';
+    case 'dark':
+      return 'system';
+    case 'system':
+    default:
+      return 'light';
+  }
+}
+
+/// Set the theme to the target theme by cycling through themes.
+Future<String> _setTheme(WidgetTester tester, String currentTheme, String targetTheme) async {
+  String theme = currentTheme;
+  // Cycle through themes until we reach the target
+  while (theme != targetTheme) {
+    theme = await _toggleTheme(tester, theme);
+  }
+  await tester.pump();
+  await Future.delayed(const Duration(milliseconds: 500));
+  return theme;
+}
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -31,336 +101,270 @@ void main() {
   }
 
   group('Screenshot Test', () {
-    testWidgets('Take screenshots of app flow', (WidgetTester tester) async {
-      print('========================================');
-      print('Setting up screenshot test');
-      print('========================================');
+    for (final theme in ['light', 'dark']) {
+      testWidgets('Take screenshots of app flow ($theme theme)', (WidgetTester tester) async {
+        print('========================================');
+        print('Setting up screenshot test ($theme theme)');
+        print('========================================');
 
-      // Seed demo data before launching the app
-      print('Seeding demo data...');
-      await seedDemoData();
-      print('Demo data seeded successfully');
+        // Seed demo data before launching the app
+        print('Seeding demo data...');
+        await seedDemoData();
+        print('Demo data seeded successfully');
 
-      // Launch the app
-      print('Launching app...');
-      app.main();
+        // Launch the app
+        print('Launching app...');
+        app.main();
 
-      // Wait for app to fully load and render
-      await tester.pumpAndSettle(const Duration(seconds: 10));
-      print('App launched and settled');
+        // Wait for app to fully load and render
+        await tester.pumpAndSettle(const Duration(seconds: 10));
+        print('App launched and settled');
 
-      print('========================================');
-      print('STARTING SCREENSHOT TOUR');
-      print('========================================');
+        // Set the theme to the target theme (app starts in light mode)
+        String currentTheme = 'light';
+        if (theme != 'light') {
+          print('Setting theme to $theme...');
+          currentTheme = await _setTheme(tester, currentTheme, theme);
+          await tester.pumpAndSettle(const Duration(seconds: 2));
+        }
 
-      // Convert Flutter surface to image for screenshot capture
-      await binding.convertFlutterSurfaceToImage();
-      await tester.pumpAndSettle();
+        print('========================================');
+        print('STARTING SCREENSHOT TOUR ($theme theme)');
+        print('========================================');
 
-      // Wait for initial site icons to load (with timeout)
-      print('Waiting for site icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
-      await Future.delayed(_ICON_LOAD_TIMEOUT);
-      await tester.pump();
+        // Convert Flutter surface to image for screenshot capture
+        await binding.convertFlutterSurfaceToImage();
+        await tester.pumpAndSettle();
 
-      // Screenshot 1: All sites view (main screen)
-      print('Capturing all sites view');
-      await binding.takeScreenshot('01-all-sites').timeout(
-        _SCREENSHOT_TIMEOUT,
-        onTimeout: () {
-          print('Warning: Screenshot 1 timed out');
-          return <int>[];
-        },
-      );
-      await tester.pump();
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Open drawer to see site list
-      print('Opening drawer via menu button...');
-      print('Looking for drawer elements...');
-      _debugPrintWidgets(tester);
-      await _openDrawer(tester);
-
-      print('Drawer opened, waiting for icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
-      await Future.delayed(_ICON_LOAD_TIMEOUT);
-      await tester.pump();
-
-      // Screenshot 2: Drawer with sites list
-      print('Capturing sites drawer');
-      await binding.takeScreenshot('02-sites-drawer').timeout(
-        _SCREENSHOT_TIMEOUT,
-        onTimeout: () {
-          print('Warning: Screenshot 2 timed out');
-          return <int>[];
-        },
-      );
-      await tester.pump();
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Look for a site to select (DuckDuckGo)
-      print('Looking for DuckDuckGo site...');
-      final duckDuckGoFinder = find.text('DuckDuckGo');
-
-      if (duckDuckGoFinder.evaluate().isNotEmpty) {
-        print('Selecting DuckDuckGo site');
-        await tester.tap(duckDuckGoFinder);
-
-        // Pump multiple frames to advance the drawer closing animation
-        // Standard Material drawer animation is typically 300ms
-        // Now let the animation complete and wait for webview to load
-        print('Completing animation and waiting for webview to load...');
-        await tester.pumpAndSettle(const Duration(seconds: 2));
-        await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
+        // Wait for initial site icons to load (with timeout)
+        print('Waiting for site icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
+        await Future.delayed(_ICON_LOAD_TIMEOUT);
         await tester.pump();
 
-        // Screenshot 3: Site transitioning (drawer closing animation)
-        print('Capturing site');
-        await binding.takeScreenshot('03-site-webview').timeout(
-          _SCREENSHOT_TIMEOUT,
-          onTimeout: () {
-            print('Warning: Screenshot 3 timed out');
-            return <int>[];
-          },
-        );
-        print('Screenshot 3 captured successfully (site selected)');
-
-        // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
-        await tester.pump(const Duration(seconds: 2));
+        // Screenshot 1: All sites view (main screen)
+        await _takeThemedScreenshots(binding, tester, '01-all-sites', currentTheme);
         await Future.delayed(const Duration(seconds: 2));
 
-        // Open drawer again
-        print('Opening drawer to show current site');
+        // Open drawer to see site list
+        print('Opening drawer via menu button...');
+        print('Looking for drawer elements...');
+        _debugPrintWidgets(tester);
         await _openDrawer(tester);
-        await Future.delayed(const Duration(seconds: 2));
 
-        // Screenshot 4: Drawer showing current site
-        print('Capturing drawer with site');
-        await binding.takeScreenshot('04-drawer-with-site').timeout(
-          _SCREENSHOT_TIMEOUT,
-          onTimeout: () {
-            print('Warning: Screenshot 4 timed out');
-            return <int>[];
-          },
-        );
-        print('Screenshot 4 captured successfully');
+        print('Drawer opened, waiting for icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
+        await Future.delayed(_ICON_LOAD_TIMEOUT);
         await tester.pump();
+
+        // Screenshot 2: Drawer with sites list
+        await _takeThemedScreenshots(binding, tester, '02-sites-drawer', currentTheme);
         await Future.delayed(const Duration(seconds: 2));
 
-        // Navigate back to webspaces using "Back to Webspaces" button
-        print('Navigating back to webspaces list...');
-        final backButtonFinder = find.text('Back to Webspaces');
-        if (backButtonFinder.evaluate().isNotEmpty) {
-          await tester.tap(backButtonFinder);
+        // Look for a site to select (DuckDuckGo)
+        print('Looking for DuckDuckGo site...');
+        final duckDuckGoFinder = find.text('DuckDuckGo');
+
+        if (duckDuckGoFinder.evaluate().isNotEmpty) {
+          print('Selecting DuckDuckGo site');
+          await tester.tap(duckDuckGoFinder);
+
+          // Pump multiple frames to advance the drawer closing animation
+          // Standard Material drawer animation is typically 300ms
+          // Now let the animation complete and wait for webview to load
+          print('Completing animation and waiting for webview to load...');
+          await tester.pumpAndSettle(const Duration(seconds: 2));
+          await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
+          await tester.pump();
+
+          // Screenshot 3: Site transitioning (drawer closing animation)
+          await _takeThemedScreenshots(binding, tester, '03-site-webview', currentTheme);
+          print('Screenshot 3 captured successfully (site selected)');
+
+          // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
+          await tester.pump(const Duration(seconds: 2));
+          await Future.delayed(const Duration(seconds: 2));
+
+          // Open drawer again
+          print('Opening drawer to show current site');
+          await _openDrawer(tester);
+          await Future.delayed(const Duration(seconds: 2));
+
+          // Screenshot 4: Drawer showing current site
+          await _takeThemedScreenshots(binding, tester, '04-drawer-with-site', currentTheme);
+          print('Screenshot 4 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
-          print('Back to webspaces list');
-        } else {
-          print('Back to Webspaces button not found');
-        }
-      } else {
-        print('DuckDuckGo site not found');
-      }
 
-      // Look for "Work" webspace
-      print('Looking for Work webspace...');
-      final workWebspaceFinder = find.text('Work');
-
-      if (workWebspaceFinder.evaluate().isNotEmpty) {
-        print('Work webspace found - capturing screenshots');
-        print('Selecting Work webspace');
-        await tester.tap(workWebspaceFinder);
-        await tester.pump();
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Screenshot 6: Work webspace drawer
-        print('Capturing work sites drawer');
-        await binding.takeScreenshot('06-work-sites-drawer').timeout(
-          _SCREENSHOT_TIMEOUT,
-          onTimeout: () {
-            print('Warning: Screenshot 6 timed out');
-            return <int>[];
-          },
-        );
-        print('Screenshot 6 captured successfully');
-        await tester.pump();
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Close drawer before capturing the Work webspace sites
-        await _closeDrawer(tester);
-        await tester.pump();
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Screenshot 5: Work webspace sites
-        print('Capturing work webspace');
-        await binding.takeScreenshot('05-work-webspace').timeout(
-          _SCREENSHOT_TIMEOUT,
-          onTimeout: () {
-            print('Warning: Screenshot 5 timed out');
-            return <int>[];
-          },
-        );
-        await tester.pumpAndSettle(const Duration(seconds: 3));
-      }
-
-      // Demonstrate workspace creation
-      print('Starting workspace creation demonstration...');
-      print('Looking for add workspace button...');
-
-      // Try different possible button labels
-      Finder? addButton = find.text('Add Webspace');
-      if (addButton.evaluate().isEmpty) {
-        addButton = find.text('Add');
-      }
-      if (addButton.evaluate().isEmpty) {
-        addButton = find.text('+');
-      }
-      if (addButton.evaluate().isEmpty) {
-        addButton = find.text('Create Webspace');
-      }
-      if (addButton.evaluate().isEmpty) {
-        addButton = find.text('New Webspace');
-      }
-      // Also try to find by icon
-      if (addButton.evaluate().isEmpty) {
-        addButton = find.byIcon(Icons.add);
-      }
-
-      if (addButton.evaluate().isNotEmpty) {
-        print('Found add button, tapping...');
-        await tester.tap(addButton);
-        await tester.pump();
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Screenshot 7: Add workspace dialog
-        print('Capturing add workspace dialog');
-        await binding.takeScreenshot('07-add-workspace-dialog').timeout(
-          _SCREENSHOT_TIMEOUT,
-          onTimeout: () {
-            print('Warning: Screenshot 7 timed out');
-            return <int>[];
-          },
-        );
-        await tester.pump();
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Look for workspace name field
-        print('Looking for workspace name field...');
-        final nameFieldFinder = find.byType(TextField).first;
-
-        if (nameFieldFinder.evaluate().isNotEmpty) {
-          print('Found name field, entering text...');
-          await tester.tap(nameFieldFinder);
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 1));
-          await tester.enterText(nameFieldFinder, 'Entertainment');
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 1));
-
-          // Dismiss keyboard
-          await tester.testTextInput.receiveAction(TextInputAction.done);
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 1));
-
-          // Screenshot 8: Workspace with name entered
-          print('Capturing workspace name entered');
-          await binding.takeScreenshot('08-workspace-name-entered').timeout(
-            _SCREENSHOT_TIMEOUT,
-            onTimeout: () {
-              print('Warning: Screenshot 8 timed out');
-              return <int>[];
-            },
-          );
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 1));
-
-          // Look for site selection checkboxes (in CheckboxListTile)
-          print('Looking for site selection elements...');
-
-          // Find CheckboxListTile containing "Reddit" text
-          final redditCheckbox = find.ancestor(
-            of: find.text('Reddit'),
-            matching: find.byType(CheckboxListTile),
-          );
-          if (redditCheckbox.evaluate().isNotEmpty) {
-            print('Selecting Reddit checkbox...');
-            await tester.tap(redditCheckbox.first);
-            await tester.pump();
-            await Future.delayed(const Duration(seconds: 1));
-          } else {
-            print('Reddit checkbox not found');
-          }
-
-          // Find CheckboxListTile containing "Wikipedia" text
-          final wikipediaCheckbox = find.ancestor(
-            of: find.text('Wikipedia'),
-            matching: find.byType(CheckboxListTile),
-          );
-          if (wikipediaCheckbox.evaluate().isNotEmpty) {
-            print('Selecting Wikipedia checkbox...');
-            await tester.tap(wikipediaCheckbox.first);
-            await tester.pump();
-            await Future.delayed(const Duration(seconds: 1));
-          } else {
-            print('Wikipedia checkbox not found');
-          }
-
-          // Screenshot 9: Sites selected
-          print('Capturing sites selected');
-          await binding.takeScreenshot('09-workspace-sites-selected').timeout(
-            _SCREENSHOT_TIMEOUT,
-            onTimeout: () {
-              print('Warning: Screenshot 9 timed out');
-              return <int>[];
-            },
-          );
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 1));
-
-          // Look for save button (check icon in AppBar)
-          print('Looking for save button...');
-          Finder? saveButton = find.byIcon(Icons.check);
-
-          // Fallback to text-based save buttons
-          if (saveButton.evaluate().isEmpty) {
-            saveButton = find.text('Save');
-          }
-          if (saveButton.evaluate().isEmpty) {
-            saveButton = find.text('Create');
-          }
-          if (saveButton.evaluate().isEmpty) {
-            saveButton = find.text('Done');
-          }
-
-          if (saveButton.evaluate().isNotEmpty) {
-            print('Found save button (check icon), tapping...');
-            await tester.tap(saveButton);
+          // Navigate back to webspaces using "Back to Webspaces" button
+          print('Navigating back to webspaces list...');
+          final backButtonFinder = find.text('Back to Webspaces');
+          if (backButtonFinder.evaluate().isNotEmpty) {
+            await tester.tap(backButtonFinder);
             await tester.pump();
             await Future.delayed(const Duration(seconds: 2));
-
-            // Screenshot 10: New workspace in list
-            print('Capturing webspaces list with new workspace');
-            await binding.takeScreenshot('10-new-workspace-created').timeout(
-              _SCREENSHOT_TIMEOUT,
-              onTimeout: () {
-                print('Warning: Screenshot 10 timed out');
-                return <int>[];
-              },
-            );
-            await tester.pump();
-            await Future.delayed(const Duration(seconds: 1));
+            print('Back to webspaces list');
           } else {
-            print('Could not find save button');
+            print('Back to Webspaces button not found');
           }
         } else {
-          print('Could not find name field');
+          print('DuckDuckGo site not found');
         }
-      } else {
-        print('Could not find add workspace button');
-      }
 
-      print('========================================');
-      print('Screenshot tour completed');
-      print('========================================');
-    });
+        // Look for "Work" webspace
+        print('Looking for Work webspace...');
+        final workWebspaceFinder = find.text('Work');
+
+        if (workWebspaceFinder.evaluate().isNotEmpty) {
+          print('Work webspace found - capturing screenshots');
+          print('Selecting Work webspace');
+          await tester.tap(workWebspaceFinder);
+          await tester.pump();
+          await Future.delayed(const Duration(seconds: 2));
+
+          // Screenshot 6: Work webspace drawer
+          await _takeThemedScreenshots(binding, tester, '06-work-sites-drawer', currentTheme);
+          print('Screenshot 6 captured successfully');
+          await tester.pump();
+          await Future.delayed(const Duration(seconds: 2));
+
+          // Close drawer before capturing the Work webspace sites
+          await _closeDrawer(tester);
+          await tester.pump();
+          await Future.delayed(const Duration(seconds: 2));
+
+          // Screenshot 5: Work webspace sites
+          await _takeThemedScreenshots(binding, tester, '05-work-webspace', currentTheme);
+          await tester.pumpAndSettle(const Duration(seconds: 3));
+        }
+
+        // Demonstrate workspace creation
+        print('Starting workspace creation demonstration...');
+        print('Looking for add workspace button...');
+
+        // Try different possible button labels
+        Finder? addButton = find.text('Add Webspace');
+        if (addButton.evaluate().isEmpty) {
+          addButton = find.text('Add');
+        }
+        if (addButton.evaluate().isEmpty) {
+          addButton = find.text('+');
+        }
+        if (addButton.evaluate().isEmpty) {
+          addButton = find.text('Create Webspace');
+        }
+        if (addButton.evaluate().isEmpty) {
+          addButton = find.text('New Webspace');
+        }
+        // Also try to find by icon
+        if (addButton.evaluate().isEmpty) {
+          addButton = find.byIcon(Icons.add);
+        }
+
+        if (addButton.evaluate().isNotEmpty) {
+          print('Found add button, tapping...');
+          await tester.tap(addButton);
+          await tester.pump();
+          await Future.delayed(const Duration(seconds: 2));
+
+          // Screenshot 7: Add workspace dialog
+          await _takeThemedScreenshots(binding, tester, '07-add-workspace-dialog', currentTheme);
+          await Future.delayed(const Duration(seconds: 2));
+
+          // Look for workspace name field
+          print('Looking for workspace name field...');
+          final nameFieldFinder = find.byType(TextField).first;
+
+          if (nameFieldFinder.evaluate().isNotEmpty) {
+            print('Found name field, entering text...');
+            await tester.tap(nameFieldFinder);
+            await tester.pump();
+            await Future.delayed(const Duration(seconds: 1));
+            await tester.enterText(nameFieldFinder, 'Entertainment');
+            await tester.pump();
+            await Future.delayed(const Duration(seconds: 1));
+
+            // Dismiss keyboard
+            await tester.testTextInput.receiveAction(TextInputAction.done);
+            await tester.pump();
+            await Future.delayed(const Duration(seconds: 1));
+
+            // Screenshot 8: Workspace with name entered
+            await _takeThemedScreenshots(binding, tester, '08-workspace-name-entered', currentTheme);
+            await Future.delayed(const Duration(seconds: 1));
+
+            // Look for site selection checkboxes (in CheckboxListTile)
+            print('Looking for site selection elements...');
+
+            // Find CheckboxListTile containing "Reddit" text
+            final redditCheckbox = find.ancestor(
+              of: find.text('Reddit'),
+              matching: find.byType(CheckboxListTile),
+            );
+            if (redditCheckbox.evaluate().isNotEmpty) {
+              print('Selecting Reddit checkbox...');
+              await tester.tap(redditCheckbox.first);
+              await tester.pump();
+              await Future.delayed(const Duration(seconds: 1));
+            } else {
+              print('Reddit checkbox not found');
+            }
+
+            // Find CheckboxListTile containing "Wikipedia" text
+            final wikipediaCheckbox = find.ancestor(
+              of: find.text('Wikipedia'),
+              matching: find.byType(CheckboxListTile),
+            );
+            if (wikipediaCheckbox.evaluate().isNotEmpty) {
+              print('Selecting Wikipedia checkbox...');
+              await tester.tap(wikipediaCheckbox.first);
+              await tester.pump();
+              await Future.delayed(const Duration(seconds: 1));
+            } else {
+              print('Wikipedia checkbox not found');
+            }
+
+            // Screenshot 9: Sites selected
+            await _takeThemedScreenshots(binding, tester, '09-workspace-sites-selected', currentTheme);
+            await Future.delayed(const Duration(seconds: 1));
+
+            // Look for save button (check icon in AppBar)
+            print('Looking for save button...');
+            Finder? saveButton = find.byIcon(Icons.check);
+
+            // Fallback to text-based save buttons
+            if (saveButton.evaluate().isEmpty) {
+              saveButton = find.text('Save');
+            }
+            if (saveButton.evaluate().isEmpty) {
+              saveButton = find.text('Create');
+            }
+            if (saveButton.evaluate().isEmpty) {
+              saveButton = find.text('Done');
+            }
+
+            if (saveButton.evaluate().isNotEmpty) {
+              print('Found save button (check icon), tapping...');
+              await tester.tap(saveButton);
+              await tester.pump();
+              await Future.delayed(const Duration(seconds: 2));
+
+              // Screenshot 10: New workspace in list
+              await _takeThemedScreenshots(binding, tester, '10-new-workspace-created', currentTheme);
+              await Future.delayed(const Duration(seconds: 1));
+            } else {
+              print('Could not find save button');
+            }
+          } else {
+            print('Could not find name field');
+          }
+        } else {
+          print('Could not find add workspace button');
+        }
+
+        print('========================================');
+        print('Screenshot tour completed ($theme theme)');
+        print('========================================');
+      });
+    }
   });
 }
 
