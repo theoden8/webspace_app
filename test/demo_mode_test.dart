@@ -306,14 +306,135 @@ void main() {
       // Try to save something new to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
 
-      // Verify initial demo data
-      final initialSites = prefs.getStringList('webViewModels');
-      expect(initialSites!.length, equals(8));
+      // Verify demo data is in demo keys
+      final demoSites = prefs.getStringList(demoWebViewModelsKey);
+      expect(demoSites!.length, equals(8));
 
       // The demo mode flag prevents saves at the application level,
       // not at the SharedPreferences level directly.
       // This test verifies the flag is set correctly after seeding.
       expect(isDemoMode, isTrue);
+    });
+
+    test('seeding demo data does not affect user data keys', () async {
+      // Setup: Create user data in regular keys
+      SharedPreferences.setMockInitialValues({
+        'webViewModels': ['{"initUrl":"https://example.com","name":"User Site"}'],
+        'webspaces': ['{"id":"all","name":"All","siteIndices":[]}'],
+        'selectedWebspaceId': 'all',
+        'currentIndex': 0,
+        'themeMode': 1,
+        'showUrlBar': true,
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Verify user data exists before seeding
+      expect(prefs.getStringList('webViewModels'), isNotNull);
+      expect(prefs.getStringList('webViewModels')!.length, equals(1));
+      expect(prefs.getString('selectedWebspaceId'), equals('all'));
+      expect(prefs.getInt('themeMode'), equals(1));
+      expect(prefs.getBool('showUrlBar'), equals(true));
+
+      // Seed demo data
+      await seedDemoData();
+
+      // Verify user data is still intact in regular keys
+      expect(prefs.getStringList('webViewModels'), isNotNull);
+      expect(prefs.getStringList('webViewModels')!.length, equals(1));
+      expect(prefs.getString('selectedWebspaceId'), equals('all'));
+      expect(prefs.getInt('themeMode'), equals(1));
+      expect(prefs.getBool('showUrlBar'), equals(true));
+
+      // Verify demo data is in demo keys
+      expect(prefs.getStringList(demoWebViewModelsKey), isNotNull);
+      expect(prefs.getStringList(demoWebViewModelsKey)!.length, equals(8));
+      expect(prefs.getString(demoSelectedWebspaceIdKey), equals('all'));
+      expect(prefs.getInt(demoThemeModeKey), equals(0));
+      expect(prefs.getBool(demoShowUrlBarKey), equals(false));
+
+      // Verify marker is set
+      expect(await isDemoModeActive(), isTrue);
+    });
+
+    test('starting normal session wipes demo preferences', () async {
+      // Setup: Create user data and demo data
+      SharedPreferences.setMockInitialValues({
+        // User data
+        'webViewModels': ['{"initUrl":"https://example.com","name":"User Site"}'],
+        'webspaces': ['{"id":"all","name":"All","siteIndices":[]}'],
+        'selectedWebspaceId': 'user_space',
+
+        // Demo data (from previous screenshot test)
+        demoWebViewModelsKey: ['{"initUrl":"https://demo.com","name":"Demo Site"}'],
+        demoWebspacesKey: ['{"id":"all","name":"All","siteIndices":[]}'],
+        demoSelectedWebspaceIdKey: 'demo_space',
+        demoCurrentIndexKey: 10000,
+        demoThemeModeKey: 0,
+        demoShowUrlBarKey: false,
+        'wasDemoMode': true,
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Verify both user and demo data exist
+      expect(prefs.getStringList('webViewModels'), isNotNull);
+      expect(prefs.getStringList(demoWebViewModelsKey), isNotNull);
+      expect(prefs.getBool('wasDemoMode'), isTrue);
+
+      // Simulate normal app startup - clear demo data
+      await clearDemoDataIfNeeded();
+
+      // Verify demo data is cleared
+      expect(prefs.getStringList(demoWebViewModelsKey), isNull);
+      expect(prefs.getStringList(demoWebspacesKey), isNull);
+      expect(prefs.getString(demoSelectedWebspaceIdKey), isNull);
+      expect(prefs.getInt(demoCurrentIndexKey), isNull);
+      expect(prefs.getInt(demoThemeModeKey), isNull);
+      expect(prefs.getBool(demoShowUrlBarKey), isNull);
+      expect(prefs.getBool('wasDemoMode'), isNull);
+
+      // Verify user data is still intact
+      expect(prefs.getStringList('webViewModels'), isNotNull);
+      expect(prefs.getStringList('webViewModels')!.length, equals(1));
+      expect(prefs.getString('selectedWebspaceId'), equals('user_space'));
+    });
+
+    test('changes in demo mode only affect demo keyed preferences', () async {
+      // Setup: Create user data
+      SharedPreferences.setMockInitialValues({
+        'webViewModels': ['{"initUrl":"https://example.com","name":"User Site"}'],
+        'selectedWebspaceId': 'user_space',
+        'themeMode': 1,
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Store original user values
+      final originalSites = prefs.getStringList('webViewModels');
+      final originalSpace = prefs.getString('selectedWebspaceId');
+      final originalTheme = prefs.getInt('themeMode');
+
+      // Seed demo data (enables demo mode)
+      await seedDemoData();
+      expect(isDemoMode, isTrue);
+
+      // Simulate app making changes during demo mode
+      // In real app, isDemoMode would prevent these writes
+      // But let's verify the key separation works
+
+      // Try to modify demo keys
+      await prefs.setStringList(demoWebViewModelsKey, ['{"initUrl":"https://changed.com","name":"Changed"}']);
+      await prefs.setString(demoSelectedWebspaceIdKey, 'changed_space');
+
+      // Verify user data remains unchanged
+      expect(prefs.getStringList('webViewModels'), equals(originalSites));
+      expect(prefs.getString('selectedWebspaceId'), equals(originalSpace));
+      expect(prefs.getInt('themeMode'), equals(originalTheme));
+
+      // Verify demo keys were modified
+      expect(prefs.getStringList(demoWebViewModelsKey)!.length, equals(1));
+      expect(prefs.getString(demoSelectedWebspaceIdKey), equals('changed_space'));
     });
   });
 }
