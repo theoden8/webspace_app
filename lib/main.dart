@@ -152,6 +152,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
   final List<Webspace> _webspaces = [];
   String? _selectedWebspaceId;
 
+  // Track which webview indices have been loaded (for lazy loading)
+  // Only webviews in this set will be created - others remain as placeholders
+  final Set<int> _loadedIndices = {};
+
   @override
   void initState() {
     super.initState();
@@ -227,6 +231,15 @@ class _WebSpacePageState extends State<WebSpacePage> {
       await prefs.setString('selectedWebspaceId', _selectedWebspaceId!);
     } else {
       await prefs.remove('selectedWebspaceId');
+    }
+  }
+
+  /// Set the current index and mark it as loaded for lazy webview creation.
+  /// This ensures only visited webviews are created, not all webviews at once.
+  void _setCurrentIndex(int? index) {
+    _currentIndex = index;
+    if (index != null && index >= 0 && index < _webViewModels.length) {
+      _loadedIndices.add(index);
     }
   }
 
@@ -347,15 +360,15 @@ class _WebSpacePageState extends State<WebSpacePage> {
         if (_selectedWebspaceId != null) {
           final filteredIndices = _getFilteredSiteIndices();
           if (filteredIndices.contains(savedIndex)) {
-            _currentIndex = savedIndex;
+            _setCurrentIndex(savedIndex);
           } else {
-            _currentIndex = null;
+            _setCurrentIndex(null);
           }
         } else {
-          _currentIndex = null;
+          _setCurrentIndex(null);
         }
       } else {
-        _currentIndex = null;
+        _setCurrentIndex(null);
       }
     });
 
@@ -470,7 +483,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
         _webspaces.removeWhere((ws) => ws.id == webspace.id);
         if (_selectedWebspaceId == webspace.id) {
           _selectedWebspaceId = kAllWebspaceId; // Select "All" instead of null
-          _currentIndex = null;
+          _setCurrentIndex(null);
         }
       });
       await _saveWebspaces();
@@ -482,7 +495,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   void _selectWebspace(Webspace webspace) {
     setState(() {
       _selectedWebspaceId = webspace.id;
-      _currentIndex = null;
+      _setCurrentIndex(null);
     });
     _saveSelectedWebspaceId();
     _saveCurrentIndex();
@@ -606,6 +619,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       // Clear existing data
       _webViewModels.clear();
       _webspaces.clear();
+      _loadedIndices.clear(); // Clear lazy loading state
 
       // Restore sites
       _webViewModels.addAll(
@@ -633,9 +647,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
       if (backup.currentIndex != null &&
           backup.currentIndex! >= 0 &&
           backup.currentIndex! < _webViewModels.length) {
-        _currentIndex = backup.currentIndex;
+        _setCurrentIndex(backup.currentIndex);
       } else {
-        _currentIndex = null;
+        _setCurrentIndex(null);
       }
     });
 
@@ -964,7 +978,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
         }
         _webViewModels.add(model);
         final newSiteIndex = _webViewModels.length - 1;
-        _currentIndex = newSiteIndex;
+        _setCurrentIndex(newSiteIndex);
         _saveCurrentIndex();
 
         // If a non-"All" webspace is currently selected, add the new site to it
@@ -1095,7 +1109,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       ),
       onTap: () {
         setState(() {
-          _currentIndex = index;
+          _setCurrentIndex(index);
           _saveCurrentIndex();
         });
         Navigator.pop(context);
@@ -1160,9 +1174,17 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 setState(() {
                   _webViewModels.removeAt(index);
                   if (_currentIndex == index) {
-                    _currentIndex = null;
+                    _setCurrentIndex(null);
                     _saveCurrentIndex();
                   }
+                  // Update _loadedIndices after deletion (shift indices down)
+                  _loadedIndices.remove(index);
+                  _loadedIndices.removeWhere((i) => i >= _webViewModels.length);
+                  final updatedIndices = _loadedIndices
+                      .map((i) => i > index ? i - 1 : i)
+                      .toSet();
+                  _loadedIndices.clear();
+                  _loadedIndices.addAll(updatedIndices);
                   // Update webspace indices after deletion
                   for (var webspace in _webspaces) {
                     webspace.siteIndices = webspace.siteIndices
@@ -1201,7 +1223,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     InkWell(
                       onTap: () {
                         setState(() {
-                          _currentIndex = null;
+                          _setCurrentIndex(null);
                         });
                         _saveSelectedWebspaceId();
                         _saveCurrentIndex();
@@ -1234,7 +1256,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     child: TextButton.icon(
                       onPressed: () {
                         setState(() {
-                          _currentIndex = null;
+                          _setCurrentIndex(null);
                         });
                         _saveSelectedWebspaceId();
                         _saveCurrentIndex();
@@ -1332,35 +1354,47 @@ class _WebSpacePageState extends State<WebSpacePage> {
             )
           : IndexedStack(
               index: _currentIndex!,
-              children: _webViewModels.map<Widget>((webViewModel) => Column(
-                children: [
-                  if(_isFindVisible && getController() != null)
-                    FindToolbar(
-                      webViewController: getController(),
-                      matches: webViewModel.findMatches,
-                      onClose: () {
-                        _toggleFind();
-                      },
+              // Lazy loading: only create webviews for indices that have been visited
+              // This prevents all webviews from loading simultaneously when any site is selected
+              children: _webViewModels.asMap().entries.map<Widget>((entry) {
+                final index = entry.key;
+                final webViewModel = entry.value;
+
+                // Only create actual webview if this index has been loaded
+                if (!_loadedIndices.contains(index)) {
+                  return const SizedBox.shrink(); // Placeholder for unvisited sites
+                }
+
+                return Column(
+                  children: [
+                    if(_isFindVisible && _currentIndex == index && getController() != null)
+                      FindToolbar(
+                        webViewController: getController(),
+                        matches: webViewModel.findMatches,
+                        onClose: () {
+                          _toggleFind();
+                        },
+                      ),
+                    if(_showUrlBar && _currentIndex == index)
+                      UrlBar(
+                        currentUrl: webViewModel.currentUrl,
+                        onUrlSubmitted: (url) async {
+                          final controller = webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels);
+                          if (controller != null) {
+                            await controller.loadUrl(url);
+                            setState(() {
+                              webViewModel.currentUrl = url;
+                            });
+                            await _saveWebViewModels();
+                          }
+                        },
+                      ),
+                    Expanded(
+                      child: webViewModel.getWebView(launchUrl, _cookieManager, _saveWebViewModels)
                     ),
-                  if(_showUrlBar)
-                    UrlBar(
-                      currentUrl: webViewModel.currentUrl,
-                      onUrlSubmitted: (url) async {
-                        final controller = webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels);
-                        if (controller != null) {
-                          await controller.loadUrl(url);
-                          setState(() {
-                            webViewModel.currentUrl = url;
-                          });
-                          await _saveWebViewModels();
-                        }
-                      },
-                    ),
-                  Expanded(
-                    child: webViewModel.getWebView(launchUrl, _cookieManager, _saveWebViewModels)
-                  ),
-                ]
-              )).toList(),
+                  ],
+                );
+              }).toList(),
             ),
       floatingActionButton:
           !(_currentIndex == null || _currentIndex! >= _webViewModels.length) ? null
