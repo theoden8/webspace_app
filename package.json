@@ -1,0 +1,8 @@
+{
+  "name": "webspace-app",
+  "private": true,
+  "description": "WebSpace app development tools",
+  "devDependencies": {
+    "@fission-ai/openspec": "latest"
+  }
+}
