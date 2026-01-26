@@ -1,0 +1,7 @@
+🎉 Major Features:
+• Import/Export: Back up and restore your webspaces
+• Secure cookie storage: Cookies are now stored securely
+
+✨ Improvements:
+• Proxy authentication support
+• Fixed proxy support on available platforms
