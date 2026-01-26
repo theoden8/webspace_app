@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/demo_data.dart' show isDemoMode;
 
 /// Extracts the domain from a URL string.
 /// Returns the host portion of the URL (e.g., "github.com" from "https://github.com/user/repo").
@@ -67,6 +68,7 @@ class CookieSecureStorage {
   /// Saves cookies to secure storage.
   /// Falls back to SharedPreferences if secure storage is unavailable.
   Future<void> saveCookies(Map<String, List<UnifiedCookie>> cookiesByUrl) async {
+    if (isDemoMode) return; // Don't persist in demo mode
     final Map<String, List<Map<String, dynamic>>> jsonMap = {};
     cookiesByUrl.forEach((url, cookies) {
       jsonMap[url] = cookies.map((c) => c.toJson()).toList();
@@ -93,6 +95,7 @@ class CookieSecureStorage {
   /// Saves cookies for a single site URL.
   /// The URL is converted to a domain key before storing.
   Future<void> saveCookiesForUrl(String url, List<UnifiedCookie> cookies) async {
+    if (isDemoMode) return; // Don't persist in demo mode
     final domain = extractDomainFromUrl(url);
     final existingCookies = await loadCookies();
     existingCookies[domain] = cookies;
@@ -102,6 +105,7 @@ class CookieSecureStorage {
   /// Removes cookies for domains not in the provided set of active domains.
   /// This cleans up orphaned cookies after sites are deleted or settings are imported.
   Future<void> removeOrphanedCookies(Set<String> activeDomains) async {
+    if (isDemoMode) return; // Don't persist in demo mode
     final allCookies = await loadCookies();
     final domainsToRemove = allCookies.keys
         .where((domain) => !activeDomains.contains(domain))
@@ -121,6 +125,7 @@ class CookieSecureStorage {
 
   /// Clears all stored cookies from both secure storage and fallback.
   Future<void> clearCookies() async {
+    if (isDemoMode) return; // Don't persist in demo mode
     try {
       await _secureStorage.delete(key: _secureStorageKey);
     } catch (e) {
@@ -138,6 +143,7 @@ class CookieSecureStorage {
   /// Clears cookies from SharedPreferences after migration.
   /// This should be called after confirming cookies are safely in secure storage.
   Future<void> clearSharedPreferencesCookies() async {
+    if (isDemoMode) return; // Don't persist in demo mode
     final prefs = await SharedPreferences.getInstance();
     final webViewModelsJson = prefs.getStringList('webViewModels');
 

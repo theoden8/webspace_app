@@ -22,7 +22,7 @@ import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
-import 'package:webspace/demo_data.dart';
+import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/platform/platform_info.dart';
@@ -159,6 +159,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   Future<void> _saveWebViewModels() async {
+    if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     // Save cookies to secure storage, keyed by domain (not URL)
@@ -195,27 +196,32 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   Future<void> _saveCurrentIndex() async {
+    if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setInt('currentIndex', _currentIndex == null ? 10000 : _currentIndex!);
   }
 
   Future<void> _saveThemeMode() async {
+    if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setInt('themeMode', _themeMode.index);
   }
 
   Future<void> _saveShowUrlBar() async {
+    if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showUrlBar', _showUrlBar);
   }
 
   Future<void> _saveWebspaces() async {
+    if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> webspacesJson = _webspaces.map((webspace) => jsonEncode(webspace.toJson())).toList();
     prefs.setStringList('webspaces', webspacesJson);
   }
 
   Future<void> _saveSelectedWebspaceId() async {
+    if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if (_selectedWebspaceId != null) {
       await prefs.setString('selectedWebspaceId', _selectedWebspaceId!);
