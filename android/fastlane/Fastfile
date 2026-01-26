@@ -21,23 +21,23 @@ platform :android do
 
   desc "Build debug APK"
   lane :build_debug do
-    sh("cd '#{project_root}' && flutter build apk --debug --flavor fdebug")
+    sh("cd '#{project_root}' && fvm flutter build apk --debug --flavor fdebug")
   end
 
   desc "Build F-Droid flavor APK"
   lane :build_fdroid do
-    sh("cd '#{project_root}' && flutter build apk --release --flavor fdroid")
+    sh("cd '#{project_root}' && fvm flutter build apk --release --flavor fdroid")
   end
 
   desc "Build release APK (Fmain flavor)"
   lane :build_release do
-    sh("cd '#{project_root}' && flutter build apk --release --flavor fmain")
+    sh("cd '#{project_root}' && fvm flutter build apk --release --flavor fmain")
   end
 
 
   desc "Build release AAB (Android App Bundle)"
   lane :build_bundle do
-    sh("cd '#{project_root}' && flutter build appbundle --release --flavor fmain")
+    sh("cd '#{project_root}' && fvm flutter build appbundle --release --flavor fmain")
   end
 
   desc "Build Android app (alias for build_release)"
@@ -48,7 +48,7 @@ platform :android do
   desc "Increment version in pubspec.yaml"
   lane :bump_version do
     # Version is managed in pubspec.yaml for Flutter projects
-    sh("cd '#{project_root}' && flutter pub version")
+    sh("cd '#{project_root}' && fvm flutter pub version")
   end
 
   desc "Generate screenshots using Flutter integration test"
@@ -74,7 +74,7 @@ platform :android do
     end
 
     # Run Flutter integration test with screenshot capture
-    sh("cd '#{project_root}' && flutter drive \
+    sh("cd '#{project_root}' && fvm flutter drive \
       --driver=test_driver/integration_test.dart \
       --target=integration_test/screenshot_test.dart \
       --flavor fmain \
@@ -86,6 +86,6 @@ platform :android do
   desc "Clean build artifacts"
   lane :clean do
     sh("cd '#{android_dir}' && ./gradlew clean")
-    sh("cd '#{project_root}' && flutter clean")
+    sh("cd '#{project_root}' && fvm flutter clean")
   end
 end
