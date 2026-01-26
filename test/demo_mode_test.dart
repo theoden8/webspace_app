@@ -181,9 +181,9 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // Verify demo data was seeded
-      final sites = prefs.getStringList('webViewModels');
-      final webspaces = prefs.getStringList('webspaces');
+      // Verify demo data was seeded to demo_* keys
+      final sites = prefs.getStringList(demoWebViewModelsKey);
+      final webspaces = prefs.getStringList(demoWebspacesKey);
 
       expect(sites, isNotNull);
       expect(sites!.length, equals(8)); // 8 demo sites
@@ -308,6 +308,7 @@ void main() {
 
       // Verify demo data is in demo keys
       final demoSites = prefs.getStringList(demoWebViewModelsKey);
+      expect(demoSites, isNotNull);
       expect(demoSites!.length, equals(8));
 
       // The demo mode flag prevents saves at the application level,
