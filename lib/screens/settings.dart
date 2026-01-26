@@ -43,8 +43,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late UserProxySettings _proxySettings;
   late TextEditingController _userAgentController;
   late TextEditingController _proxyAddressController;
+  late TextEditingController _proxyUsernameController;
+  late TextEditingController _proxyPasswordController;
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
+  bool _obscureProxyPassword = true;
 
   String getResetUserAgent() {
     return (widget.webViewModel.userAgent == '') ? (widget.webViewModel.defaultUserAgent ?? '') : widget.webViewModel.userAgent;
@@ -61,12 +64,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       address: PlatformInfo.isProxySupported
           ? widget.webViewModel.proxySettings.address
           : null,
+      username: PlatformInfo.isProxySupported
+          ? widget.webViewModel.proxySettings.username
+          : null,
+      password: PlatformInfo.isProxySupported
+          ? widget.webViewModel.proxySettings.password
+          : null,
     );
     _userAgentController = TextEditingController(
       text: getResetUserAgent(),
     );
     _proxyAddressController = TextEditingController(
       text: _proxySettings.address ?? '',
+    );
+    _proxyUsernameController = TextEditingController(
+      text: _proxySettings.username ?? '',
+    );
+    _proxyPasswordController = TextEditingController(
+      text: _proxySettings.password ?? '',
     );
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
@@ -76,6 +91,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _userAgentController.dispose();
     _proxyAddressController.dispose();
+    _proxyUsernameController.dispose();
+    _proxyPasswordController.dispose();
     super.dispose();
   }
 
@@ -120,6 +137,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _proxySettings.address = _proxyAddressController.text.isEmpty
             ? null
             : _proxyAddressController.text;
+        _proxySettings.username = _proxyUsernameController.text.isEmpty
+            ? null
+            : _proxyUsernameController.text;
+        _proxySettings.password = _proxyPasswordController.text.isEmpty
+            ? null
+            : _proxyPasswordController.text;
 
         widget.webViewModel.proxySettings = _proxySettings;
 
@@ -194,7 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ).toList(),
               ),
             ),
-            if (_proxySettings.type != ProxyType.DEFAULT)
+            if (_proxySettings.type != ProxyType.DEFAULT) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: TextFormField(
@@ -208,6 +231,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   validator: _validateProxyAddress,
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Text(
+                  'Credentials (optional - only if proxy requires authentication)',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: TextFormField(
+                  controller: _proxyUsernameController,
+                  decoration: InputDecoration(
+                    labelText: 'Proxy Username',
+                    hintText: 'Leave empty if not required',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: TextFormField(
+                  controller: _proxyPasswordController,
+                  obscureText: _obscureProxyPassword,
+                  decoration: InputDecoration(
+                    labelText: 'Proxy Password',
+                    hintText: 'Leave empty if not required',
+                    border: OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureProxyPassword = !_obscureProxyPassword;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
           SwitchListTile(
             title: Text('JavaScript Enabled'),
