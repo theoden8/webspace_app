@@ -1,15 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/unified_webview.dart';
 
 /// Service for securely storing cookies using Flutter Secure Storage.
 /// Supports migration from SharedPreferences for backward compatibility.
+/// Falls back to SharedPreferences if secure storage is unavailable.
 class CookieSecureStorage {
   static const String _secureStorageKey = 'secure_cookies';
+  static const String _sharedPrefsCookiesKey = 'cookies_fallback';
   static const String _migrationCompleteKey = 'cookies_migrated_to_secure';
 
   final FlutterSecureStorage _secureStorage;
+  bool _secureStorageAvailable = true;
 
   CookieSecureStorage({FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ?? const FlutterSecureStorage(
@@ -27,10 +31,10 @@ class CookieSecureStorage {
       return secureCookies;
     }
 
-    // Fall back to SharedPreferences
+    // Fall back to SharedPreferences (both legacy webViewModels and fallback key)
     final prefsCookies = await _loadFromSharedPreferences();
     if (prefsCookies.isNotEmpty) {
-      // Migrate to secure storage
+      // Try to migrate to secure storage (will use fallback if secure storage fails)
       await saveCookies(prefsCookies);
       await _markMigrationComplete();
     }
@@ -39,7 +43,7 @@ class CookieSecureStorage {
   }
 
   /// Saves cookies to secure storage.
-  /// Always saves to secure storage, never to SharedPreferences.
+  /// Falls back to SharedPreferences if secure storage is unavailable.
   Future<void> saveCookies(Map<String, List<UnifiedCookie>> cookiesByUrl) async {
     final Map<String, List<Map<String, dynamic>>> jsonMap = {};
     cookiesByUrl.forEach((url, cookies) {
@@ -47,7 +51,21 @@ class CookieSecureStorage {
     });
 
     final jsonString = jsonEncode(jsonMap);
-    await _secureStorage.write(key: _secureStorageKey, value: jsonString);
+
+    if (_secureStorageAvailable) {
+      try {
+        await _secureStorage.write(key: _secureStorageKey, value: jsonString);
+        return;
+      } catch (e) {
+        // Secure storage failed, mark as unavailable and use fallback
+        debugPrint('Secure storage unavailable: $e');
+        _secureStorageAvailable = false;
+      }
+    }
+
+    // Fallback to SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sharedPrefsCookiesKey, jsonString);
   }
 
   /// Saves cookies for a single site URL.
@@ -57,9 +75,20 @@ class CookieSecureStorage {
     await saveCookies(existingCookies);
   }
 
-  /// Clears all stored cookies from secure storage.
+  /// Clears all stored cookies from both secure storage and fallback.
   Future<void> clearCookies() async {
-    await _secureStorage.delete(key: _secureStorageKey);
+    try {
+      await _secureStorage.delete(key: _secureStorageKey);
+    } catch (e) {
+      debugPrint('Failed to clear secure storage cookies: $e');
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_sharedPrefsCookiesKey);
+    } catch (e) {
+      debugPrint('Failed to clear fallback cookies: $e');
+    }
   }
 
   /// Clears cookies from SharedPreferences after migration.
@@ -81,27 +110,46 @@ class CookieSecureStorage {
   }
 
   Future<Map<String, List<UnifiedCookie>>> _loadFromSecureStorage() async {
-    try {
-      final jsonString = await _secureStorage.read(key: _secureStorageKey);
-      if (jsonString == null || jsonString.isEmpty) {
-        return {};
+    // Try secure storage first
+    if (_secureStorageAvailable) {
+      try {
+        final jsonString = await _secureStorage.read(key: _secureStorageKey);
+        if (jsonString != null && jsonString.isNotEmpty) {
+          return _parseJsonCookies(jsonString);
+        }
+      } catch (e) {
+        // Secure storage failed, mark as unavailable
+        debugPrint('Secure storage unavailable for reading: $e');
+        _secureStorageAvailable = false;
       }
-
-      final jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
-      final Map<String, List<UnifiedCookie>> result = {};
-
-      jsonMap.forEach((url, cookiesJson) {
-        final cookiesList = (cookiesJson as List<dynamic>)
-            .map((c) => UnifiedCookie.fromJson(c as Map<String, dynamic>))
-            .toList();
-        result[url] = cookiesList;
-      });
-
-      return result;
-    } catch (e) {
-      // If there's an error reading secure storage, return empty
-      return {};
     }
+
+    // Try SharedPreferences fallback key
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_sharedPrefsCookiesKey);
+      if (jsonString != null && jsonString.isNotEmpty) {
+        return _parseJsonCookies(jsonString);
+      }
+    } catch (e) {
+      debugPrint('Failed to read cookies fallback: $e');
+    }
+
+    return {};
+  }
+
+  Map<String, List<UnifiedCookie>> _parseJsonCookies(String jsonString) {
+    final jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
+    final Map<String, List<UnifiedCookie>> result = {};
+
+    jsonMap.forEach((url, cookiesJson) {
+      final cookiesList = (cookiesJson as List<dynamic>)
+          .map((c) => UnifiedCookie.fromJson(c as Map<String, dynamic>))
+          .toList();
+      result[url] = cookiesList;
+    });
+
+    return result;
   }
 
   Future<Map<String, List<UnifiedCookie>>> _loadFromSharedPreferences() async {
