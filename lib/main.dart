@@ -25,6 +25,8 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
+import 'package:webspace/platform/platform_info.dart';
+import 'package:webspace/settings/proxy.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -81,6 +83,8 @@ Future<String?> getPageTitle(String url) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Initialize platform info to detect proxy support before UI loads
+  await PlatformInfo.initialize();
   runApp(WebSpaceApp());
 }
 
@@ -867,7 +871,22 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => SettingsScreen(webViewModel: _webViewModels[_currentIndex!]),
+                    builder: (context) => SettingsScreen(
+                      webViewModel: _webViewModels[_currentIndex!],
+                      onProxySettingsChanged: (newProxySettings) {
+                        // Sync proxy settings to all WebViewModels (proxy is global)
+                        setState(() {
+                          for (var model in _webViewModels) {
+                            model.proxySettings = UserProxySettings(
+                              type: newProxySettings.type,
+                              address: newProxySettings.address,
+                            );
+                          }
+                        });
+                        // Persist the changes immediately
+                        _saveWebViewModels();
+                      },
+                    ),
                   ),
                 );
                 _saveWebViewModels();

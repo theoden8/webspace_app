@@ -15,12 +15,15 @@ This document describes the proxy feature implementation for the webspace_app, w
 
 ### Key Capabilities
 
-- ✅ Per-webview proxy configuration
+- ✅ Global proxy configuration (shared across all webviews)
 - ✅ Runtime proxy switching without restart
 - ✅ Proxy settings persistence across app restarts
 - ✅ Input validation for proxy addresses
 - ✅ Support for localhost and remote proxy servers
+- ✅ Automatic sync of proxy settings across all sites
 - ✅ Comprehensive test coverage
+
+**Note:** Proxy settings are applied globally via Android's `ProxyController` singleton. Changing proxy on any site updates all sites.
 
 ## Architecture
 
@@ -31,21 +34,37 @@ lib/settings/proxy.dart
 ├── ProxyType enum (DEFAULT, HTTP, HTTPS, SOCKS5)
 └── UserProxySettings class (serialization/deserialization)
 
+lib/platform/platform_info.dart
+├── initialize() - Async initialization for feature detection
+└── isProxySupported - Cached result of WebViewFeature check
+
 lib/platform/unified_webview.dart
-└── UnifiedProxyManager (ProxyController integration)
+└── UnifiedProxyManager (ProxyController singleton integration)
 
 lib/web_view_model.dart
 ├── proxySettings field
 ├── _applyProxySettings() method
 └── updateProxySettings() method
 
+lib/main.dart
+├── PlatformInfo.initialize() called at startup
+└── onProxySettingsChanged callback to sync all WebViewModels
+
 lib/screens/settings.dart
-└── Proxy configuration UI with validation
+├── Proxy configuration UI with validation
+├── onProxySettingsChanged callback parameter
+└── Helper text explaining shared proxy behavior
 ```
 
 ### Data Flow
 
 ```
+App Startup
+    ↓
+PlatformInfo.initialize() - Async WebViewFeature detection
+    ↓
+isProxySupported cached for synchronous access
+
 User Input (Settings UI)
     ↓
 UserProxySettings object
@@ -54,9 +73,13 @@ WebViewModel.updateProxySettings()
     ↓
 UnifiedProxyManager.setProxySettings()
     ↓
-ProxyController.setProxyOverride()
+ProxyController.setProxyOverride() (singleton - applies globally)
     ↓
-Android WebView (proxy applied)
+Android WebView (proxy applied to ALL webviews)
+    ↓
+onProxySettingsChanged callback
+    ↓
+All other WebViewModels updated with same proxy settings
 ```
 
 ## Implementation Details
@@ -76,18 +99,44 @@ class UserProxySettings {
 }
 ```
 
-### 2. Proxy Manager (`lib/platform/unified_webview.dart`)
+### 2. Platform Info (`lib/platform/platform_info.dart`)
 
-The `UnifiedProxyManager` singleton handles proxy configuration:
+Handles async feature detection at app startup:
+
+```dart
+class PlatformInfo {
+  static bool? _isProxySupportedCached;
+
+  /// Call at app startup to detect proxy support
+  static Future<void> initialize() async {
+    _isProxySupportedCached = await WebViewFeature.isFeatureSupported(
+      WebViewFeature.PROXY_OVERRIDE,
+    );
+  }
+
+  /// Returns cached result (safe to call synchronously after init)
+  static bool get isProxySupported => _isProxySupportedCached ?? false;
+}
+```
+
+**Why async initialization?**
+- `WebViewFeature.isFeatureSupported()` is a Future
+- UI code (build methods, initState) must be synchronous
+- Caching at startup allows synchronous access throughout the app
+
+### 3. Proxy Manager (`lib/platform/unified_webview.dart`)
+
+The `UnifiedProxyManager` wraps Android's `ProxyController` singleton:
 
 ```dart
 class UnifiedProxyManager {
   Future<void> setProxySettings(UserProxySettings proxySettings) async {
+    // Uses ProxyController.instance() - a SINGLETON
     // Converts UserProxySettings to ProxyController format
     // Handles type-to-scheme mapping (HTTP → http, SOCKS5 → socks5)
     // Clears proxy when type is DEFAULT
   }
-  
+
   Future<void> clearProxy() async {
     // Removes proxy override
   }
@@ -95,27 +144,28 @@ class UnifiedProxyManager {
 ```
 
 **Key Features:**
-- Singleton pattern ensures consistent proxy state
+- Wraps Android's `ProxyController.instance()` singleton
+- Proxy settings apply GLOBALLY to all webviews
 - Validates proxy address format (host:port)
 - Maps ProxyType to appropriate scheme strings
 - Includes localhost bypass for local resources
 
-### 3. WebView Integration (`lib/web_view_model.dart`)
+### 4. WebView Integration (`lib/web_view_model.dart`)
 
-Proxy settings are applied when webview is initialized:
+Each WebViewModel stores proxy settings (for persistence), but the actual proxy is global:
 
 ```dart
 class WebViewModel {
-  UserProxySettings proxySettings;
-  
+  UserProxySettings proxySettings;  // Stored per-model for persistence
+
   Future<void> setController() async {
     await _applyProxySettings();  // Applied before loading URLs
     // ... other initialization
   }
-  
+
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
     proxySettings = newSettings;
-    await _applyProxySettings();
+    await _applyProxySettings();  // Applies to ALL webviews (singleton)
   }
 }
 ```
@@ -124,21 +174,29 @@ class WebViewModel {
 - Proxy applied before webview loads any content
 - Runtime updates via `updateProxySettings()`
 - Persisted with other webview settings
+- Note: Actual proxy applies globally via ProxyController singleton
 
-### 4. Settings UI (`lib/screens/settings.dart`)
+### 5. Settings UI (`lib/screens/settings.dart`)
 
 Enhanced settings screen with proxy configuration:
 
 **Components:**
 - Platform detection via `PlatformInfo.isProxySupported`
+- Helper text: "Proxy settings are shared across all sites."
 - Dropdown for proxy type selection (only shown on supported platforms)
 - Text field for proxy address (shown when type ≠ DEFAULT)
 - Real-time validation
 - User feedback via SnackBar
+- `onProxySettingsChanged` callback to sync all WebViewModels
+
+**Sync Behavior:**
+- When proxy settings are saved, the callback notifies `main.dart`
+- All other WebViewModels are updated with the same proxy settings
+- Ensures UI consistency across all site settings screens
 
 **Platform-Aware Behavior:**
-- On **supported platforms** (Android, iOS): Full proxy UI is displayed
-- On **unsupported platforms** (Linux, etc.): Proxy UI is completely hidden, DEFAULT proxy is forced
+- On **supported platforms** (Android): Full proxy UI is displayed
+- On **unsupported platforms** (Linux, iOS, macOS, etc.): Proxy UI is completely hidden, DEFAULT proxy is forced
 - Prevents user confusion by hiding non-functional options
 
 **Validation Rules:**
@@ -202,21 +260,26 @@ await webViewModel.updateProxySettings(noProxy);
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
 | Android  | ✅ Full      | Shown         | ProxyController with all options |
-| iOS      | ✅ Full      | Shown         | ProxyController with all options |
-| Linux    | ❌ None      | Hidden        | DEFAULT proxy forced, UI hidden |
-| macOS    | ⚠️ Limited   | Conditional   | Shown only if PROXY_OVERRIDE supported |
-| Windows  | ⚠️ Limited   | Conditional   | Shown only if PROXY_OVERRIDE supported |
+| iOS      | ❌ None      | Hidden        | WebViewFeature not supported |
+| Linux    | ❌ None      | Hidden        | InAppWebView not used |
+| macOS    | ❌ None      | Hidden        | WebViewFeature throws exception |
+| Windows  | ❌ None      | Hidden        | WebViewFeature throws exception |
+
+**Note:** `WebViewFeature.PROXY_OVERRIDE` is only supported on Android. The feature detection uses `WebViewFeature.isFeatureSupported()` which throws on non-Android platforms.
 
 **Platform Detection:**
-- The app checks `PlatformInfo.isProxySupported` at runtime
+- `PlatformInfo.initialize()` is called at app startup (in `main.dart`)
+- Async detection result is cached in `_isProxySupportedCached`
+- `PlatformInfo.isProxySupported` returns the cached value synchronously
 - On unsupported platforms:
   - Proxy UI is completely hidden from Settings screen
   - DEFAULT proxy is automatically enforced
   - Users cannot configure proxy settings
   - Prevents confusion from non-functional options
-- On supported platforms:
+- On supported platforms (Android):
   - Full proxy configuration UI is displayed
   - All proxy types (DEFAULT, HTTP, HTTPS, SOCKS5) are available
+  - Helper text explains that proxy is shared across all sites
 
 ## Testing
 
@@ -323,13 +386,20 @@ Potential improvements for future versions:
 ### Modified Files
 
 1. `lib/settings/proxy.dart` - Proxy types and settings model
-2. `lib/platform/unified_webview.dart` - ProxyController integration
-3. `lib/web_view_model.dart` - Proxy application in WebViewModel
-4. `lib/screens/settings.dart` - Settings UI with validation and platform detection
-   - Added `PlatformInfo` import for platform detection
+2. `lib/platform/platform_info.dart` - Async feature detection with caching
+   - `initialize()` - Async method to detect proxy support at startup
+   - `isProxySupported` - Cached getter for synchronous access
+3. `lib/platform/unified_webview.dart` - ProxyController integration
+4. `lib/main.dart` - App initialization and proxy sync
+   - Calls `PlatformInfo.initialize()` before `runApp()`
+   - Passes `onProxySettingsChanged` callback to SettingsScreen
+   - Callback syncs proxy settings to all WebViewModels
+5. `lib/web_view_model.dart` - Proxy application in WebViewModel
+6. `lib/screens/settings.dart` - Settings UI with validation and platform detection
+   - Added `onProxySettingsChanged` callback parameter
+   - Helper text: "Proxy settings are shared across all sites."
    - Conditional UI rendering based on `isProxySupported`
-   - Force DEFAULT proxy on unsupported platforms in `initState()`
-   - Skip proxy validation/updates on unsupported platforms in `_saveSettings()`
+   - Calls callback when proxy settings are saved
 
 ### New Files
 
@@ -338,11 +408,13 @@ Potential improvements for future versions:
 
 ### Key Methods
 
-- `UnifiedProxyManager.setProxySettings()` - Apply proxy configuration
+- `PlatformInfo.initialize()` - Async feature detection at startup
+- `PlatformInfo.isProxySupported` - Cached synchronous getter
+- `UnifiedProxyManager.setProxySettings()` - Apply proxy configuration (global)
 - `WebViewModel.updateProxySettings()` - Update and apply proxy
 - `WebViewModel._applyProxySettings()` - Internal proxy application
 - `_SettingsScreenState._validateProxyAddress()` - Input validation
-- `_SettingsScreenState._saveSettings()` - Save with validation
+- `_SettingsScreenState._saveSettings()` - Save with validation and sync callback
 
 ## References
 
@@ -356,19 +428,28 @@ Potential improvements for future versions:
 The proxy feature is fully implemented and tested, providing users with flexible proxy configuration options for their webviews. The implementation is robust, well-tested, and follows Flutter best practices.
 
 **Key Features:**
+- **Global Proxy**: Proxy settings apply to all webviews (ProxyController is a singleton)
+- **Automatic Sync**: Changing proxy on any site updates all other sites' settings
 - **Platform-Aware UI**: Automatically hides proxy settings on unsupported platforms
+- **Async Feature Detection**: `PlatformInfo.initialize()` properly awaits WebViewFeature check
 - **Graceful Degradation**: Forces DEFAULT proxy where proxy override isn't available
-- **User-Friendly**: Prevents confusion by only showing functional options
-- **Flexible Configuration**: Full control on Android/iOS devices
+- **User-Friendly**: Helper text explains shared proxy behavior
+
+**Architecture Notes:**
+- `ProxyController.instance()` is Android's singleton - proxy applies globally
+- Each `WebViewModel` stores proxy settings for persistence
+- `onProxySettingsChanged` callback syncs settings across all WebViewModels
+- Feature detection is async but cached for synchronous UI access
 
 **Ideal For:**
-- Privacy-conscious users (Tor integration) - Android/iOS only
-- Corporate environments (HTTP/HTTPS proxies) - Android/iOS only
-- Developers (SSH tunnels, local proxies) - Android/iOS only
+- Privacy-conscious users (Tor integration) - Android only
+- Corporate environments (HTTP/HTTPS proxies) - Android only
+- Developers (SSH tunnels, local proxies) - Android only
 - Testing and debugging scenarios
 
 **Platform Notes:**
-- Linux and other unsupported platforms automatically use system proxy settings
+- Only Android supports `WebViewFeature.PROXY_OVERRIDE`
+- Other platforms automatically use system proxy settings
 - No user intervention needed on unsupported platforms
 - Seamless experience across all platforms
 
