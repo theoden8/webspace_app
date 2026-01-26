@@ -2,12 +2,6 @@ name: Update Lockfile
 
 on:
   workflow_dispatch:
-    inputs:
-      branch_name:
-        description: 'Branch name to commit the updated lockfile to'
-        required: false
-        default: 'update-pubspec-lock'
-        type: string
 
 permissions:
   contents: write
@@ -64,24 +58,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BRANCH_NAME="${{ inputs.branch_name }}"
-
-          # Create or checkout the branch
-          git checkout -B "$BRANCH_NAME"
-
-          # Add and commit the lockfile
           git add pubspec.lock
           git commit -m "Update pubspec.lock"
-
-          # Push the branch
-          git push -u origin "$BRANCH_NAME" --force
+          git push
 
       - name: Summary
         run: |
           if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
             echo "## Lockfile Updated" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "pubspec.lock has been updated and pushed to branch \`${{ inputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "pubspec.lock has been updated and pushed to branch \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           else
             echo "## No Changes" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
