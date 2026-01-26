@@ -143,6 +143,59 @@ The test captures 10 screenshots:
 9. **09-workspace-sites-selected** - Dialog with sites selected
 10. **10-new-workspace-created** - Main screen with newly created workspace
 
+## Separate App Installation (Android)
+
+Screenshot tests on Android use the `fscreenshot` flavor with a different application ID:
+
+- **Production app**: `org.codeberg.theoden8.webspace`
+- **Screenshot app**: `org.codeberg.theoden8.webspace.screenshot`
+
+**Benefits:**
+- Both apps can be installed simultaneously on the same device
+- Screenshot tests don't affect your production app data
+- You can run tests without losing your personal setup
+- Production TestFlight/Play Store app remains untouched
+
+**Usage:**
+When running via fastlane (`cd android && fastlane screenshots`), the `fscreenshot` flavor is automatically used.
+
+**Verification:**
+After running screenshot tests, you should see two apps in your launcher:
+- "WebSpace" (production)
+- "WebSpace (screenshot)" (test app)
+
+## Demo Mode Data Isolation
+
+The screenshot test calls `seedDemoData()` which:
+
+1. **Sets demo mode marker**: `wasDemoMode = true` in SharedPreferences
+2. **Enables demo mode flag**: `isDemoMode = true` (in-memory)
+3. **Writes demo data to separate keys**: Uses `demo_*` prefixed keys
+
+### Key Separation
+
+| User Data Keys | Demo Data Keys |
+|----------------|----------------|
+| `webViewModels` | `demo_webViewModels` |
+| `webspaces` | `demo_webspaces` |
+| `selectedWebspaceId` | `demo_selectedWebspaceId` |
+
+**User data is never overwritten or modified during screenshot tests.**
+
+### Data Cleanup
+
+When you open the app normally after screenshot tests:
+1. App calls `clearDemoDataIfNeeded()` on startup
+2. Detects `wasDemoMode` marker
+3. Removes all `demo_*` keys
+4. Loads from regular keys (your original data)
+
+### Demo Data Content
+
+**8 Sites**: DuckDuckGo, Piped, Nitter, Reddit, GitHub, Hacker News, Weights & Biases, Wikipedia
+
+**4 Workspaces**: All, Work, Privacy, Social
+
 ## Troubleshooting
 
 ### Screenshots not saving
@@ -159,3 +212,21 @@ The test captures 10 screenshots:
 - Check widget tree with Flutter DevTools
 - Verify demo data is seeded correctly
 - Use `find.byType` if text-based finders fail
+
+### Data concerns
+
+**Android**:
+- Production app and screenshot app are completely separate installations
+- No data is shared between them
+- Screenshot tests cannot affect production app
+
+**iOS**:
+- Uses same bundle ID but separate `demo_*` keys
+- Demo data is automatically cleaned up on next normal app launch
+- User data preserved through key separation
+
+**Debug Logging**:
+Check logs for `[DEMO MODE]` and `[APP STATE]` prefixes to see:
+- Which keys are being used (demo vs regular)
+- Data counts before/after operations
+- Verification that user data is preserved

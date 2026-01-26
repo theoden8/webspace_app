@@ -65,6 +65,7 @@ platform :android do
 
     UI.success("Found device: #{device_id}")
     UI.message("Demo data will be seeded by Flutter integration test")
+    UI.message("Using fscreenshot flavor (separate app ID to preserve user data)")
 
     # Clear previous screenshots
     screenshots_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
@@ -74,10 +75,12 @@ platform :android do
     end
 
     # Run Flutter integration test with screenshot capture
+    # Using fscreenshot flavor which has applicationIdSuffix ".screenshot"
+    # This creates a separate app installation that won't interfere with production app
     sh("cd '#{project_root}' && fvm flutter drive \
       --driver=test_driver/integration_test.dart \
       --target=integration_test/screenshot_test.dart \
-      --flavor fmain \
+      --flavor fscreenshot \
       -d #{device_id}")
 
     UI.success("Screenshots saved to: #{screenshots_dir}")

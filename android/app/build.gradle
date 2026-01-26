@@ -80,6 +80,12 @@ android {
         dimension "deploy"
         signingConfig signingConfigs.release
       }
+
+      fscreenshot {
+        dimension "deploy"
+        applicationIdSuffix ".screenshot"
+        versionNameSuffix "-screenshot"
+      }
     }
 
     buildTypes {

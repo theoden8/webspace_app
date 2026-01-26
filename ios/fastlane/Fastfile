@@ -118,6 +118,7 @@ platform :ios do
 
     UI.success("Found iOS device: #{device_id}")
     UI.message("Demo data will be seeded by Flutter integration test")
+    UI.message("Note: iOS uses same bundle ID for screenshots. Consider using a separate scheme for production isolation.")
 
     # Clear previous screenshots
     screenshots_dir = File.join(project_root, "fastlane", "screenshots", "en-US")
@@ -129,6 +130,8 @@ platform :ios do
     end
 
     # Run Flutter integration test with screenshot capture
+    # Note: iOS flavor support would require additional Xcode scheme configuration
+    # For now, demo mode's separate keys ensure data isolation
     sh("cd '#{project_root}' && fvm flutter drive \
       --driver=test_driver/integration_test.dart \
       --target=integration_test/screenshot_test.dart \
