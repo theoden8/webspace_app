@@ -24,6 +24,7 @@ import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/settings_backup.dart';
+import 'package:webspace/services/cookie_secure_storage.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -137,6 +138,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   final List<WebViewModel> _webViewModels = [];
   ThemeMode _themeMode = ThemeMode.system;
   final UnifiedCookieManager _cookieManager = UnifiedCookieManager();
+  final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isFindVisible = false;
@@ -154,7 +156,22 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
   Future<void> _saveWebViewModels() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> webViewModelsJson = _webViewModels.map((webViewModel) => jsonEncode(webViewModel.toJson())).toList();
+
+    // Save cookies to secure storage
+    final Map<String, List<UnifiedCookie>> cookiesByUrl = {};
+    for (final webViewModel in _webViewModels) {
+      if (webViewModel.cookies.isNotEmpty) {
+        cookiesByUrl[webViewModel.initUrl] = webViewModel.cookies;
+      }
+    }
+    await _cookieSecureStorage.saveCookies(cookiesByUrl);
+
+    // Save models to SharedPreferences (cookies will be empty in SharedPreferences)
+    List<String> webViewModelsJson = _webViewModels.map((webViewModel) {
+      final json = webViewModel.toJson();
+      json['cookies'] = []; // Don't store cookies in SharedPreferences
+      return jsonEncode(json);
+    }).toList();
     prefs.setStringList('webViewModels', webViewModelsJson);
   }
 
@@ -242,9 +259,24 @@ class _WebSpacePageState extends State<WebSpacePage> {
           .map((webViewModelJson) => WebViewModel.fromJson(jsonDecode(webViewModelJson), (){setState((){});}))
           .toList();
 
+      // Load cookies from secure storage (with fallback to SharedPreferences)
+      final secureCookies = await _cookieSecureStorage.loadCookies();
+
+      // Merge cookies into loaded models
+      for (final webViewModel in loadedWebViewModels) {
+        final urlCookies = secureCookies[webViewModel.initUrl];
+        if (urlCookies != null && urlCookies.isNotEmpty) {
+          webViewModel.cookies = urlCookies;
+        }
+        // If no secure cookies but model has cookies from SharedPreferences,
+        // they will be migrated on next save
+      }
+
       setState(() {
         _webViewModels.addAll(loadedWebViewModels);
       });
+
+      // Set cookies in the cookie manager
       for (WebViewModel webViewModel in loadedWebViewModels) {
         for(final cookie in webViewModel.cookies) {
           // Skip cookies with empty values to prevent assertion failures
@@ -263,6 +295,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
           );
         }
       }
+
+      // Re-save to ensure cookies are in secure storage
+      // This handles migration from SharedPreferences
+      await _saveWebViewModels();
     }
   }
 
