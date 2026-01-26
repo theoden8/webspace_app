@@ -356,9 +356,180 @@ void main() {
       final systemProxy = UserProxySettings(
         type: ProxyType.DEFAULT,
       );
-      
+
       expect(systemProxy.type, ProxyType.DEFAULT);
       expect(systemProxy.address, null);
+    });
+  });
+
+  group('Proxy Credentials', () {
+    test('UserProxySettings with username and password', () {
+      final proxy = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'proxy.example.com:8080',
+        username: 'myuser',
+        password: 'mypassword',
+      );
+
+      expect(proxy.type, ProxyType.HTTP);
+      expect(proxy.address, 'proxy.example.com:8080');
+      expect(proxy.username, 'myuser');
+      expect(proxy.password, 'mypassword');
+      expect(proxy.hasCredentials, true);
+    });
+
+    test('hasCredentials returns false when username is null', () {
+      final proxy = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'proxy.example.com:8080',
+        username: null,
+        password: 'mypassword',
+      );
+
+      expect(proxy.hasCredentials, false);
+    });
+
+    test('hasCredentials returns false when password is null', () {
+      final proxy = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'proxy.example.com:8080',
+        username: 'myuser',
+        password: null,
+      );
+
+      expect(proxy.hasCredentials, false);
+    });
+
+    test('hasCredentials returns false when username is empty', () {
+      final proxy = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'proxy.example.com:8080',
+        username: '',
+        password: 'mypassword',
+      );
+
+      expect(proxy.hasCredentials, false);
+    });
+
+    test('hasCredentials returns false when password is empty', () {
+      final proxy = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'proxy.example.com:8080',
+        username: 'myuser',
+        password: '',
+      );
+
+      expect(proxy.hasCredentials, false);
+    });
+
+    test('hasCredentials returns false for DEFAULT proxy without credentials', () {
+      final proxy = UserProxySettings(
+        type: ProxyType.DEFAULT,
+      );
+
+      expect(proxy.hasCredentials, false);
+    });
+
+    test('Credentials serialize and deserialize correctly', () {
+      final proxy = UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: 'socks.example.com:1080',
+        username: 'testuser',
+        password: 'testpass123',
+      );
+
+      final json = proxy.toJson();
+      expect(json['username'], 'testuser');
+      expect(json['password'], 'testpass123');
+
+      final restored = UserProxySettings.fromJson(json);
+      expect(restored.username, 'testuser');
+      expect(restored.password, 'testpass123');
+      expect(restored.hasCredentials, true);
+    });
+
+    test('Null credentials deserialize correctly', () {
+      final json = {
+        'type': ProxyType.HTTP.index,
+        'address': 'proxy.example.com:8080',
+        'username': null,
+        'password': null,
+      };
+
+      final proxy = UserProxySettings.fromJson(json);
+      expect(proxy.username, null);
+      expect(proxy.password, null);
+      expect(proxy.hasCredentials, false);
+    });
+
+    test('Missing credentials in JSON deserialize as null', () {
+      final json = {
+        'type': ProxyType.HTTP.index,
+        'address': 'proxy.example.com:8080',
+      };
+
+      final proxy = UserProxySettings.fromJson(json);
+      expect(proxy.username, null);
+      expect(proxy.password, null);
+      expect(proxy.hasCredentials, false);
+    });
+
+    test('WebViewModel serializes proxy credentials', () {
+      final proxySettings = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'proxy.corp.com:3128',
+        username: 'corpuser',
+        password: 'corppass',
+      );
+
+      final viewModel = WebViewModel(
+        initUrl: 'https://example.com',
+        proxySettings: proxySettings,
+      );
+
+      final json = viewModel.toJson();
+      expect(json['proxySettings']['username'], 'corpuser');
+      expect(json['proxySettings']['password'], 'corppass');
+    });
+
+    test('WebViewModel deserializes proxy credentials', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'name': 'Example',
+        'pageTitle': null,
+        'cookies': [],
+        'proxySettings': {
+          'type': ProxyType.HTTP.index,
+          'address': 'proxy.corp.com:3128',
+          'username': 'corpuser',
+          'password': 'corppass',
+        },
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final viewModel = WebViewModel.fromJson(json, null);
+      expect(viewModel.proxySettings.username, 'corpuser');
+      expect(viewModel.proxySettings.password, 'corppass');
+      expect(viewModel.proxySettings.hasCredentials, true);
+    });
+
+    test('Proxy with special characters in credentials', () {
+      final proxy = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'proxy.example.com:8080',
+        username: 'user@domain.com',
+        password: 'p@ss:word/123',
+      );
+
+      final json = proxy.toJson();
+      final restored = UserProxySettings.fromJson(json);
+
+      expect(restored.username, 'user@domain.com');
+      expect(restored.password, 'p@ss:word/123');
+      expect(restored.hasCredentials, true);
     });
   });
 }
