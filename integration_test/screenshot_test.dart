@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -41,54 +40,6 @@ Future<void> _takeThemedScreenshots(
     },
   );
   await tester.pump();
-}
-
-/// Toggle the theme by tapping the theme button in the app bar.
-/// Returns the new theme name ('light', 'dark', or 'system').
-Future<String> _toggleTheme(WidgetTester tester, String currentTheme) async {
-  // Find and tap the theme toggle button (cycles light → dark → system)
-  final themeButtonFinder = find.byIcon(Icons.wb_sunny).hitTestable();
-  final darkButtonFinder = find.byIcon(Icons.nights_stay).hitTestable();
-  final systemButtonFinder = find.byIcon(Icons.brightness_auto).hitTestable();
-
-  Finder? buttonToTap;
-  if (themeButtonFinder.evaluate().isNotEmpty) {
-    buttonToTap = themeButtonFinder;
-  } else if (darkButtonFinder.evaluate().isNotEmpty) {
-    buttonToTap = darkButtonFinder;
-  } else if (systemButtonFinder.evaluate().isNotEmpty) {
-    buttonToTap = systemButtonFinder;
-  }
-
-  if (buttonToTap != null && buttonToTap.evaluate().isNotEmpty) {
-    await tester.tap(buttonToTap);
-    await tester.pump();
-    await Future.delayed(const Duration(milliseconds: 500));
-    await tester.pump();
-  }
-
-  // Return the new theme based on cycling order
-  switch (currentTheme) {
-    case 'light':
-      return 'dark';
-    case 'dark':
-      return 'system';
-    case 'system':
-    default:
-      return 'light';
-  }
-}
-
-/// Set the theme to the target theme by cycling through themes.
-Future<String> _setTheme(WidgetTester tester, String currentTheme, String targetTheme) async {
-  String theme = currentTheme;
-  // Cycle through themes until we reach the target
-  while (theme != targetTheme) {
-    theme = await _toggleTheme(tester, theme);
-  }
-  await tester.pump();
-  await Future.delayed(const Duration(milliseconds: 500));
-  return theme;
 }
 
 void main() {
