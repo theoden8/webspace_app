@@ -183,10 +183,32 @@ void main() {
           await tester.pump(const Duration(seconds: 2));
           await Future.delayed(const Duration(seconds: 2));
 
-          // Open drawer again
+          // Ensure drawer is fully closed before reopening
+          if (find.byType(Drawer).evaluate().isNotEmpty) {
+            print('Drawer still open, closing first...');
+            await _closeDrawerByTappingOutside(tester);
+            await tester.pump();
+            await Future.delayed(const Duration(seconds: 1));
+          }
+
+          // Open drawer again - with retry to ensure it opens
           print('Opening drawer to show current site');
-          await _openDrawer(tester);
-          await Future.delayed(const Duration(seconds: 2));
+          bool drawerOpened = false;
+          for (int attempt = 0; attempt < 3 && !drawerOpened; attempt++) {
+            if (attempt > 0) {
+              print('Retry attempt $attempt to open drawer...');
+              await Future.delayed(const Duration(seconds: 1));
+            }
+            await _openDrawer(tester);
+            await Future.delayed(const Duration(seconds: 2));
+            await tester.pump();
+            drawerOpened = find.byType(Drawer).evaluate().isNotEmpty;
+            print('Drawer visible after attempt ${attempt + 1}: $drawerOpened');
+          }
+
+          if (!drawerOpened) {
+            print('WARNING: Drawer may not be fully open for screenshot 4');
+          }
 
           // Screenshot 4: Drawer showing current site
           await _takeThemedScreenshots(binding, tester, '04-drawer-with-site', currentTheme);
@@ -463,6 +485,21 @@ Future<void> _openDrawer(WidgetTester tester) async {
     await Future.delayed(const Duration(seconds: 2));
   } catch (e) {
     print('Error opening drawer: $e');
+  }
+}
+
+/// Close the navigation drawer by tapping outside of it
+Future<void> _closeDrawerByTappingOutside(WidgetTester tester) async {
+  print('Closing drawer by tapping outside...');
+  try {
+    final screenSize = tester.view.physicalSize / tester.view.devicePixelRatio;
+    // Tap on the right side of the screen (outside the drawer)
+    await tester.tapAt(Offset(screenSize.width * 0.9, screenSize.height / 2));
+    await tester.pump();
+    await Future.delayed(const Duration(milliseconds: 500));
+    await tester.pump();
+  } catch (e) {
+    print('Error closing drawer by tapping outside: $e');
   }
 }
 
