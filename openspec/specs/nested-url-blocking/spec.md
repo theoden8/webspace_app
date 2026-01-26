@@ -1,6 +1,6 @@
 # Nested Webview URL Blocking Specification
 
-## Overview
+## Purpose
 
 Prevents nested webviews from being created for tracking URLs, analytics, service workers, and popups while maintaining functionality for legitimate use cases like Cloudflare challenges.
 

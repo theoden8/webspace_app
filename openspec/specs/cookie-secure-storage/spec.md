@@ -1,6 +1,6 @@
 # Cookie Secure Storage Specification
 
-## Overview
+## Purpose
 
 This feature migrates cookie storage from SharedPreferences to Flutter Secure Storage for improved security. Cookies contain sensitive session data and authentication tokens that should be stored securely.
 

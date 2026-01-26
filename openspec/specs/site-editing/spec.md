@@ -1,6 +1,6 @@
 # Site Editing & Page Title Display Specification
 
-## Overview
+## Purpose
 
 Users can edit site details and see automatic page title extraction instead of just URLs/domains.
 

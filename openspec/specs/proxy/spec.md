@@ -1,6 +1,6 @@
 # Proxy Feature Specification
 
-## Overview
+## Purpose
 
 The proxy feature allows users to configure HTTP, HTTPS, and SOCKS5 proxies for their web views on supported platforms using Flutter InAppWebView's ProxyController.
 
