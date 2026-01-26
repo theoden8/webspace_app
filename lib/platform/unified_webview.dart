@@ -236,12 +236,23 @@ class UnifiedProxyManager {
             scheme = 'http';
         }
 
+        // Build proxy URL with optional credentials
+        String proxyUrl;
+        if (proxySettings.hasCredentials) {
+          // URL-encode username and password to handle special characters
+          final encodedUsername = Uri.encodeComponent(proxySettings.username!);
+          final encodedPassword = Uri.encodeComponent(proxySettings.password!);
+          proxyUrl = '$scheme://$encodedUsername:$encodedPassword@$host:$port';
+        } else {
+          proxyUrl = '$scheme://$host:$port';
+        }
+
         // Set proxy override
         await proxyController.setProxyOverride(
           settings: inapp.ProxySettings(
             proxyRules: [
               inapp.ProxyRule(
-                url: '$scheme://$host:$port',
+                url: proxyUrl,
               ),
             ],
             bypassRules: ['<local>'], // Bypass localhost

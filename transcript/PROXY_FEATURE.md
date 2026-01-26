@@ -21,6 +21,7 @@ This document describes the proxy feature implementation for the webspace_app, w
 - ✅ Input validation for proxy addresses
 - ✅ Support for localhost and remote proxy servers
 - ✅ Automatic sync of proxy settings across all sites
+- ✅ **Proxy authentication** (username/password for authenticated proxies)
 - ✅ Comprehensive test coverage
 
 **Note:** Proxy settings are applied globally via Android's `ProxyController` singleton. Changing proxy on any site updates all sites.
@@ -91,8 +92,14 @@ enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5 }
 
 class UserProxySettings {
   ProxyType type;
-  String? address;  // Format: "host:port"
-  
+  String? address;   // Format: "host:port"
+  String? username;  // Optional: for authenticated proxies
+  String? password;  // Optional: for authenticated proxies
+
+  // Returns true if both username and password are provided and non-empty
+  bool get hasCredentials => username != null && username!.isNotEmpty
+                          && password != null && password!.isNotEmpty;
+
   // JSON serialization for persistence
   Map<String, dynamic> toJson() { ... }
   factory UserProxySettings.fromJson(Map<String, dynamic> json) { ... }
@@ -134,6 +141,9 @@ class UnifiedProxyManager {
     // Uses ProxyController.instance() - a SINGLETON
     // Converts UserProxySettings to ProxyController format
     // Handles type-to-scheme mapping (HTTP → http, SOCKS5 → socks5)
+    // Builds proxy URL with optional credentials:
+    //   - Without auth: scheme://host:port
+    //   - With auth: scheme://username:password@host:port
     // Clears proxy when type is DEFAULT
   }
 
@@ -148,6 +158,8 @@ class UnifiedProxyManager {
 - Proxy settings apply GLOBALLY to all webviews
 - Validates proxy address format (host:port)
 - Maps ProxyType to appropriate scheme strings
+- **Supports authenticated proxies** (username:password in URL)
+- URL-encodes credentials to handle special characters
 - Includes localhost bypass for local resources
 
 ### 4. WebView Integration (`lib/web_view_model.dart`)
@@ -185,9 +197,18 @@ Enhanced settings screen with proxy configuration:
 - Helper text: "Proxy settings are shared across all sites."
 - Dropdown for proxy type selection (only shown on supported platforms)
 - Text field for proxy address (shown when type ≠ DEFAULT)
+- **"Proxy requires authentication" checkbox** (shown when type ≠ DEFAULT)
+- Username and password fields (shown when checkbox is enabled)
+- Password visibility toggle
 - Real-time validation
 - User feedback via SnackBar
 - `onProxySettingsChanged` callback to sync all WebViewModels
+
+**Credentials UI Behavior:**
+- Hidden by default behind "Proxy requires authentication" checkbox
+- Automatically checked if credentials already exist
+- When unchecked, credentials are cleared on save
+- Password field has visibility toggle for convenience
 
 **Sync Behavior:**
 - When proxy settings are saved, the callback notifies `main.dart`
@@ -227,6 +248,20 @@ final corpProxy = UserProxySettings(
 );
 
 await webViewModel.updateProxySettings(corpProxy);
+```
+
+### Example 2b: Authenticated Corporate Proxy
+
+```dart
+final authProxy = UserProxySettings(
+  type: ProxyType.HTTP,
+  address: 'proxy.company.com:8080',
+  username: 'john.doe',
+  password: 'secretpass123',
+);
+
+await webViewModel.updateProxySettings(authProxy);
+// Proxy URL: http://john.doe:secretpass123@proxy.company.com:8080
 ```
 
 ### Example 3: SSH Tunnel (SOCKS5)
@@ -287,12 +322,17 @@ await webViewModel.updateProxySettings(noProxy);
 
 The implementation includes comprehensive test coverage:
 
-#### Unit Tests (`test/proxy_test.dart`) - 23 tests
+#### Unit Tests (`test/proxy_test.dart`) - 38 tests
 - ProxySettings serialization/deserialization
 - ProxyType enum validation
 - WebViewModel proxy integration
 - Address validation
 - Edge cases and error handling
+- **Proxy credentials** (15 tests):
+  - `hasCredentials` logic (null, empty, valid cases)
+  - Credential serialization/deserialization
+  - WebViewModel credential persistence
+  - Special characters in credentials
 
 #### Integration Tests (`test/proxy_integration_test.dart`) - 12 tests
 - End-to-end workflows
@@ -300,7 +340,7 @@ The implementation includes comprehensive test coverage:
 - Persistence and restoration
 - Real-world scenarios
 
-**Total: 35 proxy-specific tests**
+**Total: 50 proxy-specific tests**
 
 ### Running Tests
 
@@ -347,7 +387,11 @@ flutter test test/proxy_integration_test.dart
 
 ## Security Considerations
 
-1. **Proxy Credentials**: Current implementation doesn't support authenticated proxies. Credentials would need to be added to ProxySettings if required.
+1. **Proxy Credentials**:
+   - Credentials are stored in the app's SharedPreferences (same as other settings)
+   - Passwords are obscured in the UI by default with a visibility toggle
+   - Credentials are URL-encoded when applied to handle special characters safely
+   - Consider the security implications of storing proxy credentials locally
 
 2. **HTTPS**: When using HTTP proxy for HTTPS traffic, ensure the proxy supports CONNECT tunneling.
 
@@ -355,13 +399,15 @@ flutter test test/proxy_integration_test.dart
 
 4. **Validation**: All proxy addresses are validated before being applied to prevent configuration errors.
 
+5. **Credential Handling**: Credentials with special characters (e.g., `@`, `:`, `/`) are properly URL-encoded to prevent URL parsing issues.
+
 ## Future Enhancements
 
 Potential improvements for future versions:
 
-1. **Proxy Authentication**
-   - Username/password support
+1. **Advanced Authentication**
    - NTLM authentication for corporate proxies
+   - Kerberos/GSSAPI support
 
 2. **PAC (Proxy Auto-Config)**
    - Support for PAC file URLs
@@ -380,6 +426,10 @@ Potential improvements for future versions:
 5. **Platform Expansion**
    - Linux proxy support (requires webview_cef update)
    - Native macOS proxy integration
+
+6. **Secure Storage**
+   - Store credentials in secure storage (Keychain/Keystore)
+   - Biometric protection for proxy credentials
 
 ## Code References
 
@@ -430,10 +480,11 @@ The proxy feature is fully implemented and tested, providing users with flexible
 **Key Features:**
 - **Global Proxy**: Proxy settings apply to all webviews (ProxyController is a singleton)
 - **Automatic Sync**: Changing proxy on any site updates all other sites' settings
+- **Proxy Authentication**: Optional username/password for authenticated proxies
 - **Platform-Aware UI**: Automatically hides proxy settings on unsupported platforms
 - **Async Feature Detection**: `PlatformInfo.initialize()` properly awaits WebViewFeature check
 - **Graceful Degradation**: Forces DEFAULT proxy where proxy override isn't available
-- **User-Friendly**: Helper text explains shared proxy behavior
+- **User-Friendly**: Helper text explains shared proxy behavior; credentials hidden behind checkbox
 
 **Architecture Notes:**
 - `ProxyController.instance()` is Android's singleton - proxy applies globally
@@ -453,4 +504,4 @@ The proxy feature is fully implemented and tested, providing users with flexible
 - No user intervention needed on unsupported platforms
 - Seamless experience across all platforms
 
-All 69 tests pass, including 35 proxy-specific tests covering unit, integration, and real-world usage scenarios.
+All tests pass, including 50 proxy-specific tests covering unit, integration, credentials, and real-world usage scenarios.
