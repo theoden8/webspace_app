@@ -108,8 +108,8 @@ void main() {
         print('========================================');
 
         // Seed demo data before launching the app
-        print('Seeding demo data...');
-        await seedDemoData();
+        print('Seeding demo data with $theme theme...');
+        await seedDemoData(theme: theme);
         print('Demo data seeded successfully');
 
         // Launch the app
@@ -120,13 +120,8 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 10));
         print('App launched and settled');
 
-        // Set the theme to the target theme (app starts in light mode)
-        String currentTheme = 'light';
-        if (theme != 'light') {
-          print('Setting theme to $theme...');
-          currentTheme = await _setTheme(tester, currentTheme, theme);
-          await tester.pumpAndSettle(const Duration(seconds: 2));
-        }
+        // Theme is already set via seedDemoData
+        String currentTheme = theme;
 
         print('========================================');
         print('STARTING SCREENSHOT TOUR ($theme theme)');
