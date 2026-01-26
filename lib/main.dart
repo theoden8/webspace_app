@@ -854,12 +854,16 @@ class _WebSpacePageState extends State<WebSpacePage> {
                       webViewModel: _webViewModels[_currentIndex!],
                       onProxySettingsChanged: (newProxySettings) {
                         // Sync proxy settings to all WebViewModels (proxy is global)
-                        for (var model in _webViewModels) {
-                          model.proxySettings = UserProxySettings(
-                            type: newProxySettings.type,
-                            address: newProxySettings.address,
-                          );
-                        }
+                        setState(() {
+                          for (var model in _webViewModels) {
+                            model.proxySettings = UserProxySettings(
+                              type: newProxySettings.type,
+                              address: newProxySettings.address,
+                            );
+                          }
+                        });
+                        // Persist the changes immediately
+                        _saveWebViewModels();
                       },
                     ),
                   ),
