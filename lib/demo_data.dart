@@ -9,6 +9,34 @@ import 'package:webspace/webspace_model.dart';
 /// is not overwritten and normal app usage restores user settings.
 bool isDemoMode = false;
 
+/// Key to mark that demo mode was active in previous session
+const String _demoModeMarkerKey = 'wasDemoMode';
+
+/// Clears demo data if app was previously in demo mode.
+/// Should be called when app starts normally (not during screenshot tests).
+Future<void> clearDemoDataIfNeeded() async {
+  final prefs = await SharedPreferences.getInstance();
+  final wasDemoMode = prefs.getBool(_demoModeMarkerKey) ?? false;
+
+  if (wasDemoMode) {
+    print('========================================');
+    print('CLEARING DEMO DATA FROM PREVIOUS SESSION');
+    print('========================================');
+
+    // Clear all demo data
+    await prefs.remove('webViewModels');
+    await prefs.remove('webspaces');
+    await prefs.remove('selectedWebspaceId');
+    await prefs.remove('currentIndex');
+    await prefs.remove('themeMode');
+    await prefs.remove('showUrlBar');
+    await prefs.remove(_demoModeMarkerKey);
+
+    print('Demo data cleared - app will start with clean state');
+    print('========================================');
+  }
+}
+
 /// Seeds demo/test data for screenshots and testing
 Future<void> seedDemoData() async {
   print('========================================');
@@ -16,6 +44,13 @@ Future<void> seedDemoData() async {
   print('========================================');
 
   final prefs = await SharedPreferences.getInstance();
+
+  // Set marker FIRST to indicate demo mode is active
+  await prefs.setBool(_demoModeMarkerKey, true);
+
+  // Enable demo mode to prevent any further saves during the session
+  isDemoMode = true;
+  print('Demo mode enabled - changes will NOT be persisted to storage');
 
   // Clear existing data
   print('Clearing existing data...');
@@ -124,8 +159,4 @@ Future<void> seedDemoData() async {
   print('DEMO DATA SEEDING COMPLETE');
   print('========================================');
   print('The app will load with ${sites.length} sites in ${webspaces.length} webspaces.');
-
-  // Enable demo mode to prevent any further saves during the session
-  isDemoMode = true;
-  print('Demo mode enabled - changes will NOT be persisted to storage');
 }
