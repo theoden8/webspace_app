@@ -6,9 +6,18 @@ import 'package:webspace/platform/unified_webview.dart';
 
 /// Extracts the domain from a URL string.
 /// Returns the host portion of the URL (e.g., "github.com" from "https://github.com/user/repo").
+/// If the input is already a plain domain (no scheme), returns it as-is.
 String extractDomainFromUrl(String url) {
+  if (url.isEmpty) {
+    return url;
+  }
   try {
     final uri = Uri.parse(url);
+    // If host is empty, the input might already be a plain domain
+    // (Uri.parse('example.com').host returns empty string)
+    if (uri.host.isEmpty) {
+      return url;
+    }
     return uri.host;
   } catch (e) {
     // If URL parsing fails, return the original string
