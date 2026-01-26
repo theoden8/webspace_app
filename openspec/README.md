@@ -18,7 +18,7 @@ openspec/
     ├── icon-fetching/spec.md      # Progressive favicon loading
     ├── settings-backup/spec.md    # Import/export settings
     ├── screenshots/spec.md        # Automated screenshot generation
-    ├── demo-mode-persistence/spec.md # Preserve user data during screenshot tests
+    ├── demo-mode/spec.md          # Demo data seeding with user data preservation
     └── platform-support/spec.md   # Platform abstraction layer
 ```
 
@@ -46,7 +46,7 @@ Each spec file follows the OpenSpec format:
 | Icon Fetching | Completed | Progressive favicon loading |
 | Settings Backup | Completed | Import/export JSON backups |
 | Screenshots | Completed | Fastlane integration tests |
-| Demo Mode Persistence | Completed | Preserve user data during screenshot tests |
+| Demo Mode | Completed | Demo data seeding with user data preservation |
 | Platform Support | Completed | iOS, Android, macOS supported |
 
 ## Original Transcripts
