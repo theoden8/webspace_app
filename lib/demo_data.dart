@@ -3,6 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
+/// Global flag to indicate demo mode is active.
+/// When true, the app will not persist any changes to storage.
+/// This is used during screenshot tests to ensure the demo data
+/// is not overwritten and normal app usage restores user settings.
+bool isDemoMode = false;
+
 /// Seeds demo/test data for screenshots and testing
 Future<void> seedDemoData() async {
   print('========================================');
@@ -118,4 +124,8 @@ Future<void> seedDemoData() async {
   print('DEMO DATA SEEDING COMPLETE');
   print('========================================');
   print('The app will load with ${sites.length} sites in ${webspaces.length} webspaces.');
+
+  // Enable demo mode to prevent any further saves during the session
+  isDemoMode = true;
+  print('Demo mode enabled - changes will NOT be persisted to storage');
 }
