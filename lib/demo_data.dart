@@ -9,8 +9,13 @@ import 'package:webspace/webspace_model.dart';
 /// is not overwritten and normal app usage restores user settings.
 bool isDemoMode = false;
 
-/// Seeds demo/test data for screenshots and testing
-Future<void> seedDemoData() async {
+/// Seeds demo/test data for screenshots and testing.
+///
+/// The [theme] parameter sets the initial theme mode:
+/// - 'system' (default): Use system theme
+/// - 'light': Use light theme
+/// - 'dark': Use dark theme
+Future<void> seedDemoData({String theme = 'system'}) async {
   print('========================================');
   print('SEEDING DEMO DATA');
   print('========================================');
@@ -99,7 +104,13 @@ Future<void> seedDemoData() async {
   await prefs.setStringList('webspaces', webspacesJson);
   await prefs.setString('selectedWebspaceId', kAllWebspaceId);
   await prefs.setInt('currentIndex', 10000); // No site selected
-  await prefs.setInt('themeMode', 0); // Light theme
+  // Map theme string to ThemeMode index: system=0, light=1, dark=2
+  final themeIndex = switch (theme) {
+    'light' => 1,
+    'dark' => 2,
+    _ => 0, // system (default)
+  };
+  await prefs.setInt('themeMode', themeIndex);
   await prefs.setBool('showUrlBar', false);
 
   print('Data saved successfully!');

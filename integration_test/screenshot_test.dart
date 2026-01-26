@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -43,54 +42,6 @@ Future<void> _takeThemedScreenshots(
   await tester.pump();
 }
 
-/// Toggle the theme by tapping the theme button in the app bar.
-/// Returns the new theme name ('light', 'dark', or 'system').
-Future<String> _toggleTheme(WidgetTester tester, String currentTheme) async {
-  // Find and tap the theme toggle button (cycles light → dark → system)
-  final themeButtonFinder = find.byIcon(Icons.wb_sunny).hitTestable();
-  final darkButtonFinder = find.byIcon(Icons.nights_stay).hitTestable();
-  final systemButtonFinder = find.byIcon(Icons.brightness_auto).hitTestable();
-
-  Finder? buttonToTap;
-  if (themeButtonFinder.evaluate().isNotEmpty) {
-    buttonToTap = themeButtonFinder;
-  } else if (darkButtonFinder.evaluate().isNotEmpty) {
-    buttonToTap = darkButtonFinder;
-  } else if (systemButtonFinder.evaluate().isNotEmpty) {
-    buttonToTap = systemButtonFinder;
-  }
-
-  if (buttonToTap != null && buttonToTap.evaluate().isNotEmpty) {
-    await tester.tap(buttonToTap);
-    await tester.pump();
-    await Future.delayed(const Duration(milliseconds: 500));
-    await tester.pump();
-  }
-
-  // Return the new theme based on cycling order
-  switch (currentTheme) {
-    case 'light':
-      return 'dark';
-    case 'dark':
-      return 'system';
-    case 'system':
-    default:
-      return 'light';
-  }
-}
-
-/// Set the theme to the target theme by cycling through themes.
-Future<String> _setTheme(WidgetTester tester, String currentTheme, String targetTheme) async {
-  String theme = currentTheme;
-  // Cycle through themes until we reach the target
-  while (theme != targetTheme) {
-    theme = await _toggleTheme(tester, theme);
-  }
-  await tester.pump();
-  await Future.delayed(const Duration(milliseconds: 500));
-  return theme;
-}
-
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -108,8 +59,8 @@ void main() {
         print('========================================');
 
         // Seed demo data before launching the app
-        print('Seeding demo data...');
-        await seedDemoData();
+        print('Seeding demo data with $theme theme...');
+        await seedDemoData(theme: theme);
         print('Demo data seeded successfully');
 
         // Launch the app
@@ -120,13 +71,8 @@ void main() {
         await tester.pumpAndSettle(const Duration(seconds: 10));
         print('App launched and settled');
 
-        // Set the theme to the target theme (app starts in light mode)
-        String currentTheme = 'light';
-        if (theme != 'light') {
-          print('Setting theme to $theme...');
-          currentTheme = await _setTheme(tester, currentTheme, theme);
-          await tester.pumpAndSettle(const Duration(seconds: 2));
-        }
+        // Theme is already set via seedDemoData
+        String currentTheme = theme;
 
         print('========================================');
         print('STARTING SCREENSHOT TOUR ($theme theme)');
