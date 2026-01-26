@@ -1,0 +1,42 @@
+name: OpenSpec Validate
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  validate:
+    name: Validate OpenSpec
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install nvm
+        run: |
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+          echo "NVM_DIR=$HOME/.nvm" >> $GITHUB_ENV
+
+      - name: Install Node.js via nvm
+        run: |
+          . "$HOME/.nvm/nvm.sh"
+          nvm install
+          echo "$(dirname $(nvm which current))" >> $GITHUB_PATH
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate OpenSpec
+        run: npx openspec validate --no-interactive --all
