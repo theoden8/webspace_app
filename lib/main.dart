@@ -26,6 +26,7 @@ import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/platform/platform_info.dart';
+import 'package:webspace/settings/proxy.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -849,7 +850,18 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => SettingsScreen(webViewModel: _webViewModels[_currentIndex!]),
+                    builder: (context) => SettingsScreen(
+                      webViewModel: _webViewModels[_currentIndex!],
+                      onProxySettingsChanged: (newProxySettings) {
+                        // Sync proxy settings to all WebViewModels (proxy is global)
+                        for (var model in _webViewModels) {
+                          model.proxySettings = UserProxySettings(
+                            type: newProxySettings.type,
+                            address: newProxySettings.address,
+                          );
+                        }
+                      },
+                    ),
                   ),
                 );
                 _saveWebViewModels();

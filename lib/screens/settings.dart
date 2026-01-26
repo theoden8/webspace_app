@@ -27,8 +27,13 @@ String generateRandomUserAgent() {
 
 class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
+  /// Callback to sync proxy settings across all WebViewModels
+  final void Function(UserProxySettings)? onProxySettingsChanged;
 
-  SettingsScreen({required this.webViewModel});
+  SettingsScreen({
+    required this.webViewModel,
+    this.onProxySettingsChanged,
+  });
 
   @override
   _SettingsScreenState createState() => _SettingsScreenState();
@@ -120,6 +125,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         // Apply proxy settings immediately
         await widget.webViewModel.updateProxySettings(_proxySettings);
+
+        // Sync proxy settings to all other WebViewModels (proxy is global)
+        widget.onProxySettingsChanged?.call(_proxySettings);
       } else {
         // Force DEFAULT proxy on unsupported platforms
         final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
@@ -158,6 +166,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // Only show proxy settings on supported platforms
           if (PlatformInfo.isProxySupported) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text(
+                'Proxy settings are shared across all sites.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
             ListTile(
               title: Text('Proxy Type'),
               trailing: DropdownButton<ProxyType>(
