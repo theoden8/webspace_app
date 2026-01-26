@@ -12,7 +12,21 @@ bool isDemoMode = false;
 /// Key to mark that demo mode was active in previous session
 const String _demoModeMarkerKey = 'wasDemoMode';
 
-/// Clears demo data if app was previously in demo mode.
+/// Demo data keys - separate from user data keys
+const String demoWebViewModelsKey = 'demo_webViewModels';
+const String demoWebspacesKey = 'demo_webspaces';
+const String demoSelectedWebspaceIdKey = 'demo_selectedWebspaceId';
+const String demoCurrentIndexKey = 'demo_currentIndex';
+const String demoThemeModeKey = 'demo_themeMode';
+const String demoShowUrlBarKey = 'demo_showUrlBar';
+
+/// Checks if demo mode marker is set (screenshot test was run)
+Future<bool> isDemoModeActive() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(_demoModeMarkerKey) ?? false;
+}
+
+/// Clears demo data and marker when app starts normally.
 /// Should be called when app starts normally (not during screenshot tests).
 Future<void> clearDemoDataIfNeeded() async {
   final prefs = await SharedPreferences.getInstance();
@@ -23,16 +37,16 @@ Future<void> clearDemoDataIfNeeded() async {
     print('CLEARING DEMO DATA FROM PREVIOUS SESSION');
     print('========================================');
 
-    // Clear all demo data
-    await prefs.remove('webViewModels');
-    await prefs.remove('webspaces');
-    await prefs.remove('selectedWebspaceId');
-    await prefs.remove('currentIndex');
-    await prefs.remove('themeMode');
-    await prefs.remove('showUrlBar');
+    // Clear all demo data keys
+    await prefs.remove(demoWebViewModelsKey);
+    await prefs.remove(demoWebspacesKey);
+    await prefs.remove(demoSelectedWebspaceIdKey);
+    await prefs.remove(demoCurrentIndexKey);
+    await prefs.remove(demoThemeModeKey);
+    await prefs.remove(demoShowUrlBarKey);
     await prefs.remove(_demoModeMarkerKey);
 
-    print('Demo data cleared - app will start with clean state');
+    print('Demo data cleared - app will load user data');
     print('========================================');
   }
 }
@@ -51,13 +65,7 @@ Future<void> seedDemoData() async {
   // Enable demo mode to prevent any further saves during the session
   isDemoMode = true;
   print('Demo mode enabled - changes will NOT be persisted to storage');
-
-  // Clear existing data
-  print('Clearing existing data...');
-  await prefs.remove('webViewModels');
-  await prefs.remove('webspaces');
-  await prefs.remove('selectedWebspaceId');
-  await prefs.remove('currentIndex');
+  print('User data will be preserved - demo data written to separate keys');
 
   // Create sample sites
   final sites = <WebViewModel>[
@@ -125,30 +133,30 @@ Future<void> seedDemoData() async {
     print('  Webspace $i: ${webspaces[i].name} (${webspaces[i].siteIndices.length} sites)');
   }
 
-  // Serialize and save
-  print('Saving to SharedPreferences...');
+  // Serialize and save to DEMO keys (not regular keys)
+  print('Saving to SharedPreferences (demo keys)...');
   final sitesJson = sites.map((s) => jsonEncode(s.toJson())).toList();
   final webspacesJson = webspaces.map((w) => jsonEncode(w.toJson())).toList();
 
-  await prefs.setStringList('webViewModels', sitesJson);
-  await prefs.setStringList('webspaces', webspacesJson);
-  await prefs.setString('selectedWebspaceId', kAllWebspaceId);
-  await prefs.setInt('currentIndex', 10000); // No site selected
-  await prefs.setInt('themeMode', 0); // Light theme
-  await prefs.setBool('showUrlBar', false);
+  await prefs.setStringList(demoWebViewModelsKey, sitesJson);
+  await prefs.setStringList(demoWebspacesKey, webspacesJson);
+  await prefs.setString(demoSelectedWebspaceIdKey, kAllWebspaceId);
+  await prefs.setInt(demoCurrentIndexKey, 10000); // No site selected
+  await prefs.setInt(demoThemeModeKey, 0); // Light theme
+  await prefs.setBool(demoShowUrlBarKey, false);
 
-  print('Data saved successfully!');
+  print('Data saved successfully to demo keys!');
   print('');
   print('Verifying saved data...');
 
   // Verify
-  final savedSites = prefs.getStringList('webViewModels');
-  final savedWebspaces = prefs.getStringList('webspaces');
-  final selectedId = prefs.getString('selectedWebspaceId');
+  final savedSites = prefs.getStringList(demoWebViewModelsKey);
+  final savedWebspaces = prefs.getStringList(demoWebspacesKey);
+  final selectedId = prefs.getString(demoSelectedWebspaceIdKey);
 
-  print('webViewModels: ${savedSites?.length} items');
-  print('webspaces: ${savedWebspaces?.length} items');
-  print('selectedWebspaceId: $selectedId');
+  print('demo_webViewModels: ${savedSites?.length} items');
+  print('demo_webspaces: ${savedWebspaces?.length} items');
+  print('demo_selectedWebspaceId: $selectedId');
 
   if (savedSites != null && savedSites.isNotEmpty) {
     print('First site: ${savedSites[0].substring(0, savedSites[0].length < 100 ? savedSites[0].length : 100)}...');

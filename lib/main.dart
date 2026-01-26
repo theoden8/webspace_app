@@ -22,7 +22,7 @@ import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
-import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode, clearDemoDataIfNeeded;
+import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode, clearDemoDataIfNeeded, isDemoModeActive, demoWebViewModelsKey, demoWebspacesKey, demoSelectedWebspaceIdKey, demoCurrentIndexKey, demoThemeModeKey, demoShowUrlBarKey;
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/platform/platform_info.dart';
@@ -230,9 +230,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
     }
   }
 
-  Future<void> _loadWebspaces() async {
+  Future<void> _loadWebspaces([String webspacesKey = 'webspaces', String selectedWebspaceIdKey = 'selectedWebspaceId']) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? webspacesJson = prefs.getStringList('webspaces');
+    List<String>? webspacesJson = prefs.getStringList(webspacesKey);
 
     if (webspacesJson != null) {
       List<Webspace> loadedWebspaces = webspacesJson
@@ -247,7 +247,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     // Ensure "All" webspace always exists
     _ensureAllWebspaceExists();
 
-    _selectedWebspaceId = prefs.getString('selectedWebspaceId');
+    _selectedWebspaceId = prefs.getString(selectedWebspaceIdKey);
 
     // If no webspace is selected, select "All" by default
     if (_selectedWebspaceId == null) {
@@ -275,9 +275,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
     }
   }
 
-  Future<void> _loadWebViewModels() async {
+  Future<void> _loadWebViewModels([String webViewModelsKey = 'webViewModels']) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? webViewModelsJson = prefs.getStringList('webViewModels');
+    List<String>? webViewModelsJson = prefs.getStringList(webViewModelsKey);
 
     if (webViewModelsJson != null) {
       List<WebViewModel> loadedWebViewModels = webViewModelsJson
@@ -330,21 +330,50 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   Future<void> _restoreAppState() async {
-    // Clear demo data if previous session was in demo mode
-    await clearDemoDataIfNeeded();
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    // Check if demo mode is active (screenshot test was run)
+    final bool demoModeActive = await isDemoModeActive();
+
+    // Determine which keys to use
+    String webViewModelsKey;
+    String webspacesKey;
+    String selectedWebspaceIdKey;
+    String currentIndexKey;
+    String themeModeKey;
+    String showUrlBarKey;
+
+    if (demoModeActive) {
+      // Load from demo keys during screenshot test
+      webViewModelsKey = demoWebViewModelsKey;
+      webspacesKey = demoWebspacesKey;
+      selectedWebspaceIdKey = demoSelectedWebspaceIdKey;
+      currentIndexKey = demoCurrentIndexKey;
+      themeModeKey = demoThemeModeKey;
+      showUrlBarKey = demoShowUrlBarKey;
+      print('Loading from demo keys for screenshot test');
+    } else {
+      // Clear demo data and load from regular keys
+      await clearDemoDataIfNeeded();
+      webViewModelsKey = 'webViewModels';
+      webspacesKey = 'webspaces';
+      selectedWebspaceIdKey = 'selectedWebspaceId';
+      currentIndexKey = 'currentIndex';
+      themeModeKey = 'themeMode';
+      showUrlBarKey = 'showUrlBar';
+    }
+
     setState(() {
-      _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 0];
-      _showUrlBar = prefs.getBool('showUrlBar') ?? false;
+      _themeMode = ThemeMode.values[prefs.getInt(themeModeKey) ?? 0];
+      _showUrlBar = prefs.getBool(showUrlBarKey) ?? false;
       widget.onThemeModeChanged(_themeMode);
     });
-    await _loadWebspaces();
-    await _loadWebViewModels();
+    await _loadWebspaces(webspacesKey, selectedWebspaceIdKey);
+    await _loadWebViewModels(webViewModelsKey);
 
     // Validate and set current index
     setState(() {
-      int? savedIndex = prefs.getInt('currentIndex');
+      int? savedIndex = prefs.getInt(currentIndexKey);
       if (savedIndex != null && savedIndex < _webViewModels.length && savedIndex != 10000) {
         // Check if the index is valid for the selected webspace
         if (_selectedWebspaceId != null) {
