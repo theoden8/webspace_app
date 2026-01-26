@@ -1,6 +1,8 @@
 # iOS Fastfile
 # This file contains the fastlane.tools configuration for iOS
 
+opt_out_usage
+
 default_platform(:ios)
 
 platform :ios do

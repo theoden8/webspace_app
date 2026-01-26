@@ -2,6 +2,8 @@
 # Uncomment the line if you want fastlane to automatically update itself
 # update_fastlane
 
+opt_out_usage
+
 default_platform(:android)
 
 # Import platform-specific Fastfiles
