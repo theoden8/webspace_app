@@ -9,6 +9,9 @@ on:
         default: 'update-pubspec-lock'
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   update-lockfile:
     name: Update pubspec.lock
