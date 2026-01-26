@@ -32,10 +32,20 @@ Future<void> clearDemoDataIfNeeded() async {
   final prefs = await SharedPreferences.getInstance();
   final wasDemoMode = prefs.getBool(_demoModeMarkerKey) ?? false;
 
+  print('[DEMO MODE] Checking for demo data cleanup...');
+  print('[DEMO MODE] wasDemoMode marker: $wasDemoMode');
+
   if (wasDemoMode) {
     print('========================================');
     print('CLEARING DEMO DATA FROM PREVIOUS SESSION');
     print('========================================');
+
+    // Show what's being cleared
+    print('[DEMO MODE] Keys before cleanup:');
+    print('  demo_webViewModels: ${prefs.getStringList(demoWebViewModelsKey)?.length ?? 0} items');
+    print('  demo_webspaces: ${prefs.getStringList(demoWebspacesKey)?.length ?? 0} items');
+    print('  Regular webViewModels: ${prefs.getStringList('webViewModels')?.length ?? 0} items');
+    print('  Regular webspaces: ${prefs.getStringList('webspaces')?.length ?? 0} items');
 
     // Clear all demo data keys
     await prefs.remove(demoWebViewModelsKey);
@@ -46,8 +56,14 @@ Future<void> clearDemoDataIfNeeded() async {
     await prefs.remove(demoShowUrlBarKey);
     await prefs.remove(_demoModeMarkerKey);
 
+    print('[DEMO MODE] Demo data keys removed');
+    print('[DEMO MODE] Keys after cleanup:');
+    print('  Regular webViewModels: ${prefs.getStringList('webViewModels')?.length ?? 0} items');
+    print('  Regular webspaces: ${prefs.getStringList('webspaces')?.length ?? 0} items');
     print('Demo data cleared - app will load user data');
     print('========================================');
+  } else {
+    print('[DEMO MODE] No demo mode marker found - normal startup');
   }
 }
 
@@ -58,6 +74,11 @@ Future<void> seedDemoData() async {
   print('========================================');
 
   final prefs = await SharedPreferences.getInstance();
+
+  // Show existing user data before seeding
+  print('[DEMO MODE] User data before seeding:');
+  print('  webViewModels: ${prefs.getStringList('webViewModels')?.length ?? 0} items');
+  print('  webspaces: ${prefs.getStringList('webspaces')?.length ?? 0} items');
 
   // Set marker FIRST to indicate demo mode is active
   await prefs.setBool(_demoModeMarkerKey, true);
@@ -167,4 +188,11 @@ Future<void> seedDemoData() async {
   print('DEMO DATA SEEDING COMPLETE');
   print('========================================');
   print('The app will load with ${sites.length} sites in ${webspaces.length} webspaces.');
+
+  print('[DEMO MODE] Final state in SharedPreferences:');
+  print('  User webViewModels: ${prefs.getStringList('webViewModels')?.length ?? 0} items');
+  print('  User webspaces: ${prefs.getStringList('webspaces')?.length ?? 0} items');
+  print('  Demo webViewModels: ${prefs.getStringList(demoWebViewModelsKey)?.length ?? 0} items');
+  print('  Demo webspaces: ${prefs.getStringList(demoWebspacesKey)?.length ?? 0} items');
+  print('  wasDemoMode marker: ${prefs.getBool(_demoModeMarkerKey)}');
 }

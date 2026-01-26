@@ -330,10 +330,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   Future<void> _restoreAppState() async {
+    print('[APP STATE] Starting app state restoration...');
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     // Check if demo mode is active (screenshot test was run)
     final bool demoModeActive = await isDemoModeActive();
+    print('[APP STATE] Demo mode active: $demoModeActive');
 
     // Determine which keys to use
     String webViewModelsKey;
@@ -351,7 +353,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       currentIndexKey = demoCurrentIndexKey;
       themeModeKey = demoThemeModeKey;
       showUrlBarKey = demoShowUrlBarKey;
-      print('Loading from demo keys for screenshot test');
+      print('[APP STATE] Loading from demo keys for screenshot test');
     } else {
       // Clear demo data and load from regular keys
       await clearDemoDataIfNeeded();
@@ -361,7 +363,15 @@ class _WebSpacePageState extends State<WebSpacePage> {
       currentIndexKey = 'currentIndex';
       themeModeKey = 'themeMode';
       showUrlBarKey = 'showUrlBar';
+      print('[APP STATE] Loading from regular keys');
     }
+
+    print('[APP STATE] Using keys:');
+    print('  webViewModelsKey: $webViewModelsKey');
+    print('  webspacesKey: $webspacesKey');
+    print('[APP STATE] Data available in SharedPreferences:');
+    print('  $webViewModelsKey: ${prefs.getStringList(webViewModelsKey)?.length ?? 0} items');
+    print('  $webspacesKey: ${prefs.getStringList(webspacesKey)?.length ?? 0} items');
 
     setState(() {
       _themeMode = ThemeMode.values[prefs.getInt(themeModeKey) ?? 0];
@@ -370,6 +380,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
     });
     await _loadWebspaces(webspacesKey, selectedWebspaceIdKey);
     await _loadWebViewModels(webViewModelsKey);
+
+    print('[APP STATE] Loaded:');
+    print('  _webViewModels: ${_webViewModels.length} items');
+    print('  _webspaces: ${_webspaces.length} items');
 
     // Validate and set current index
     setState(() {
