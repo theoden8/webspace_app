@@ -113,7 +113,7 @@ platform :ios do
 
     # Extract device ID from flutter devices output
     device_id = device_list.match(/• ([\w-]+) •/)[1] rescue ""
-    
+
     if device_id.empty?
       UI.user_error!("Could not parse device ID. Please ensure an iOS simulator or device is available.")
     end
@@ -121,8 +121,10 @@ platform :ios do
     UI.success("Found iOS device: #{device_id}")
     UI.message("Demo data will be seeded by Flutter integration test")
 
-    # Clear previous screenshots
+    # Set screenshot directory for iOS
     screenshots_dir = File.join(project_root, "fastlane", "screenshots", "en-US")
+
+    # Clear previous screenshots
     if Dir.exist?(screenshots_dir)
       UI.message("Clearing previous screenshots from #{screenshots_dir}")
       FileUtils.rm_rf(Dir.glob(File.join(screenshots_dir, "*.png")))
@@ -131,7 +133,8 @@ platform :ios do
     end
 
     # Run Flutter integration test with screenshot capture
-    sh("cd '#{project_root}' && fvm flutter drive \
+    # SCREENSHOT_DIR is passed to the test driver to specify where to save screenshots
+    sh("cd '#{project_root}' && SCREENSHOT_DIR='#{screenshots_dir}' fvm flutter drive \
       --driver=test_driver/integration_test.dart \
       --target=integration_test/screenshot_test.dart \
       -d #{device_id}")

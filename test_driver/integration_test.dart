@@ -2,44 +2,25 @@ import 'dart:io';
 import 'package:integration_test/integration_test_driver_extended.dart';
 
 /// Test driver for integration tests with screenshot capture
-/// 
-/// This saves screenshots to platform-specific directories when using
-/// `flutter drive` command.
-/// 
+///
+/// IMPORTANT: The SCREENSHOT_DIR environment variable should be set by the
+/// calling script (e.g., fastlane) to specify where screenshots should be saved.
+/// This driver runs on the HOST machine, not the target device, so it cannot
+/// reliably detect the target platform at runtime.
+///
 /// Usage:
-///   flutter drive \
+///   SCREENSHOT_DIR=path/to/screenshots flutter drive \
 ///     --driver=test_driver/integration_test.dart \
 ///     --target=integration_test/screenshot_test.dart
-/// 
-/// Screenshots locations:
-///   - Android: fastlane/metadata/android/en-US/images/phoneScreenshots/
-///   - iOS: fastlane/metadata/ios/en-US/images/phoneScreenshots/ (if uncommented)
-///   - Desktop: screenshots/
-/// 
-/// Set SCREENSHOT_DIR environment variable to override:
-///   SCREENSHOT_DIR=my/custom/path flutter drive ...
+///
+/// Fastlane sets SCREENSHOT_DIR automatically based on the target platform.
+/// For manual runs without SCREENSHOT_DIR, screenshots go to 'screenshots/'.
 Future<void> main() async {
+  final screenshotDir = Platform.environment['SCREENSHOT_DIR'] ?? 'screenshots';
+
   await integrationDriver(
-    onScreenshot: (String screenshotName, List<int> screenshotBytes, [Map<String, Object?>? args]) async {
-      // Check for custom directory from environment variable
-      String? screenshotDir = Platform.environment['SCREENSHOT_DIR'];
-      
-      // If not set, use platform-specific defaults
-      if (screenshotDir == null) {
-        // Detect the actual runtime platform
-        if (Platform.isAndroid) {
-          // Save to fastlane directory for Android
-          screenshotDir = 'fastlane/metadata/android/en-US/images/phoneScreenshots';
-        } else if (Platform.isIOS) {
-          // For iOS, you can use fastlane directory too
-          // screenshotDir = 'fastlane/metadata/ios/en-US/images/phoneScreenshots';
-          screenshotDir = 'screenshots';
-        } else {
-          // Desktop or other platforms
-          screenshotDir = 'screenshots';
-        }
-      }
-      
+    onScreenshot: (String screenshotName, List<int> screenshotBytes,
+        [Map<String, Object?>? args]) async {
       final file = File('$screenshotDir/$screenshotName.png');
       await file.create(recursive: true);
       await file.writeAsBytes(screenshotBytes);

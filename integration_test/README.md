@@ -77,56 +77,72 @@ flutter drive \
 - Useful for quick test validation
 
 ### When using `flutter drive` (recommended):
-Screenshots are automatically saved to platform-specific directories:
 
-**Android:**
-```
-fastlane/metadata/android/en-US/images/phoneScreenshots/01-all-sites.png
-fastlane/metadata/android/en-US/images/phoneScreenshots/02-sites-drawer.png
-fastlane/metadata/android/en-US/images/phoneScreenshots/03-site-webview.png
-... (all 10 screenshots)
-```
+**IMPORTANT**: The test driver runs on the **host machine**, not the target device.
+This means it cannot detect whether you're targeting Android or iOS at runtime.
+Use the `SCREENSHOT_DIR` environment variable to specify where screenshots should be saved.
 
-**iOS/Desktop:**
-```
-screenshots/01-all-sites.png
-screenshots/02-sites-drawer.png
-... (all 10 screenshots)
-```
-
-The `test_driver/integration_test.dart` file detects the platform and saves 
-screenshots to the appropriate directory for fastlane integration.
-
-### Custom directory:
+**Via fastlane (recommended):**
 ```bash
-# Override screenshot directory
-SCREENSHOT_DIR=my/custom/path flutter drive \
+# Android - uses fastlane/metadata/android/en-US/images/phoneScreenshots/
+cd android && bundle exec fastlane screenshots
+
+# iOS - uses fastlane/screenshots/en-US/
+cd ios && bundle exec fastlane screenshots
+```
+
+**Manual Android:**
+```bash
+SCREENSHOT_DIR=fastlane/metadata/android/en-US/images/phoneScreenshots flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  --flavor fmain \
+  -d <device_id>
+```
+
+**Manual iOS:**
+```bash
+SCREENSHOT_DIR=fastlane/screenshots/en-US flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart \
+  -d <simulator_id>
+```
+
+**Default (no SCREENSHOT_DIR):**
+```bash
+# Screenshots go to screenshots/ directory
+flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/screenshot_test.dart
 ```
 
 ### View screenshots:
 ```bash
-# Android
+# Android (after running fastlane screenshots)
 ls -la fastlane/metadata/android/en-US/images/phoneScreenshots/
 open fastlane/metadata/android/en-US/images/phoneScreenshots/01-all-sites.png
 
-# iOS/Desktop
+# iOS (after running fastlane screenshots)
+ls -la fastlane/screenshots/en-US/
+open fastlane/screenshots/en-US/01-all-sites.png
+
+# Default location (manual runs without SCREENSHOT_DIR)
 ls -la screenshots/
 open screenshots/01-all-sites.png
 ```
 
-**Note**: The old fastlane screenshots in `fastlane/metadata/android/en-US/images/phoneScreenshots/` 
-are from the Java/UiAutomator tests, not from the Flutter integration tests.
+## Fastlane Integration
 
-## Next Steps
+The screenshot generation is fully integrated with fastlane:
 
-To fully integrate with fastlane for automated Play Store/F-Droid screenshots:
+- **Android**: `cd android && bundle exec fastlane screenshots`
+- **iOS**: `cd ios && bundle exec fastlane screenshots`
 
-1. Create a test_driver file (if using flutter drive)
-2. Configure fastlane to run the Flutter integration test
-3. Set up screenshot locations in fastlane/Screengrabfile
-4. Add metadata for different locales
+The fastlane lanes handle:
+1. Finding connected devices/simulators
+2. Clearing previous screenshots
+3. Setting `SCREENSHOT_DIR` to the correct platform-specific path
+4. Running the Flutter integration test
 
 ## Test Flow
 
