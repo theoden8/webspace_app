@@ -10,35 +10,42 @@ class PlatformInfo {
   static bool get isIOS => !kIsWeb && Platform.isIOS;
   static bool get isWindows => !kIsWeb && Platform.isWindows;
   static bool get isMacOS => !kIsWeb && Platform.isMacOS;
-  
+
   static bool get isMobile => isAndroid || isIOS;
   static bool get isDesktop => isLinux || isWindows || isMacOS;
-  
+
   /// Returns true if flutter_inappwebview should be used
   static bool get useInAppWebView => !isLinux;
 
   /// Returns true if CEF-based webview should be used (currently disabled)
   static bool get useWebViewCef => false;
 
-  static bool get isProxySupported {
+  /// Cached value for proxy support detection
+  static bool? _isProxySupportedCached;
+
+  /// Initialize platform info asynchronously. Call this at app startup.
+  static Future<void> initialize() async {
     if (!useInAppWebView) {
-      return false;
+      _isProxySupportedCached = false;
+      return;
     }
 
     try {
-      // Try to check if PROXY_OVERRIDE feature is supported
-      // This will throw on platforms that don't support the feature check (like macOS)
-      bool ret = false;
-      inapp.WebViewFeature.isFeatureSupported(inapp.WebViewFeature.PROXY_OVERRIDE).then((val) {
-        ret = val;
-      }).catchError((e) {
-        // Feature check not supported on this platform
-        ret = false;
-      });
-      return ret;
+      // Check if PROXY_OVERRIDE feature is supported
+      // This is only supported on Android
+      _isProxySupportedCached = await inapp.WebViewFeature.isFeatureSupported(
+        inapp.WebViewFeature.PROXY_OVERRIDE,
+      );
     } catch (e) {
-      // Catch synchronous errors from platforms that don't support WebViewFeature
-      return false;
+      // Catch errors from platforms that don't support WebViewFeature (like macOS, iOS)
+      _isProxySupportedCached = false;
     }
+  }
+
+  /// Returns true if proxy override is supported on this platform.
+  /// Must call [initialize] before using this getter.
+  static bool get isProxySupported {
+    // Return cached value if available, otherwise false
+    return _isProxySupportedCached ?? false;
   }
 }
