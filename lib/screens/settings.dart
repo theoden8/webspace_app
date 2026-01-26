@@ -48,6 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
   bool _obscureProxyPassword = true;
+  bool _showProxyCredentials = false;
 
   String getResetUserAgent() {
     return (widget.webViewModel.userAgent == '') ? (widget.webViewModel.defaultUserAgent ?? '') : widget.webViewModel.userAgent;
@@ -85,6 +86,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
+    // Show credentials section if credentials already exist
+    _showProxyCredentials = _proxySettings.hasCredentials;
   }
 
   @override
@@ -137,12 +140,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _proxySettings.address = _proxyAddressController.text.isEmpty
             ? null
             : _proxyAddressController.text;
-        _proxySettings.username = _proxyUsernameController.text.isEmpty
-            ? null
-            : _proxyUsernameController.text;
-        _proxySettings.password = _proxyPasswordController.text.isEmpty
-            ? null
-            : _proxyPasswordController.text;
+        // Only save credentials if the checkbox is enabled
+        if (_showProxyCredentials) {
+          _proxySettings.username = _proxyUsernameController.text.isEmpty
+              ? null
+              : _proxyUsernameController.text;
+          _proxySettings.password = _proxyPasswordController.text.isEmpty
+              ? null
+              : _proxyPasswordController.text;
+        } else {
+          _proxySettings.username = null;
+          _proxySettings.password = null;
+        }
 
         widget.webViewModel.proxySettings = _proxySettings;
 
@@ -231,46 +240,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   validator: _validateProxyAddress,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Text(
-                  'Credentials (optional - only if proxy requires authentication)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+              CheckboxListTile(
+                title: Text('Proxy requires authentication'),
+                value: _showProxyCredentials,
+                onChanged: (bool? value) {
+                  setState(() {
+                    _showProxyCredentials = value ?? false;
+                  });
+                },
+                controlAffinity: ListTileControlAffinity.leading,
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: TextFormField(
-                  controller: _proxyUsernameController,
-                  decoration: InputDecoration(
-                    labelText: 'Proxy Username',
-                    hintText: 'Leave empty if not required',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: TextFormField(
-                  controller: _proxyPasswordController,
-                  obscureText: _obscureProxyPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Proxy Password',
-                    hintText: 'Leave empty if not required',
-                    border: OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureProxyPassword = !_obscureProxyPassword;
-                        });
-                      },
+              if (_showProxyCredentials) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _proxyUsernameController,
+                    decoration: InputDecoration(
+                      labelText: 'Proxy Username',
+                      border: OutlineInputBorder(),
                     ),
                   ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: TextFormField(
+                    controller: _proxyPasswordController,
+                    obscureText: _obscureProxyPassword,
+                    decoration: InputDecoration(
+                      labelText: 'Proxy Password',
+                      border: OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureProxyPassword = !_obscureProxyPassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ],
           SwitchListTile(
