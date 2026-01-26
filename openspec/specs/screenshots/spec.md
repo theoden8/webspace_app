@@ -1,6 +1,6 @@
 # Screenshot Generation Specification
 
-## Overview
+## Purpose
 
 Automated screenshot generation for app store submissions using Flutter integration tests and Fastlane.
 
@@ -29,6 +29,12 @@ Screenshots SHALL be generated using Flutter integration tests that work on both
 
 Screenshots SHALL use realistic demo data seeded automatically.
 
+#### Scenario: Seed demo data before screenshots
+
+- **WHEN** the screenshot test starts
+- **THEN** demo sites are seeded (Blog, Tasks, Notes, Dashboard, Wiki, Media Server)
+- **AND** demo webspaces are created (All, Work, Home Server)
+
 Demo sites:
 - My Blog (https://example.com/blog)
 - Tasks (https://tasks.example.com)
@@ -46,8 +52,14 @@ Demo webspaces:
 
 ### Requirement: SCREENSHOT-003 - Screenshot Coverage
 
-The test SHALL capture 10 screenshots covering all major app features:
+The test SHALL capture 10 screenshots covering all major app features.
 
+#### Scenario: Capture all required screenshots
+
+- **WHEN** the screenshot test completes
+- **THEN** 10 screenshots are saved covering main screen, drawer, webview, and workspace features
+
+Screenshots:
 1. `01-all-sites` - Main screen with all sites
 2. `02-sites-drawer` - Navigation drawer with site list
 3. `03-site-webview` - DuckDuckGo site loaded
@@ -63,15 +75,28 @@ The test SHALL capture 10 screenshots covering all major app features:
 
 ### Requirement: SCREENSHOT-004 - Output Locations
 
-Screenshots SHALL be saved to platform-specific directories:
-- **Android**: `fastlane/metadata/android/en-US/images/phoneScreenshots/`
-- **iOS**: `fastlane/screenshots/en-US/`
+Screenshots SHALL be saved to platform-specific directories.
+
+#### Scenario: Save screenshots to correct directories
+
+- **WHEN** screenshots are generated on Android
+- **THEN** files are saved to `fastlane/metadata/android/en-US/images/phoneScreenshots/`
+
+#### Scenario: Save iOS screenshots to correct directories
+
+- **WHEN** screenshots are generated on iOS
+- **THEN** files are saved to `fastlane/screenshots/en-US/`
 
 ---
 
 ### Requirement: SCREENSHOT-005 - Fastlane Integration
 
 Screenshots SHALL be triggerable via Fastlane commands.
+
+#### Scenario: Run screenshots via Fastlane
+
+- **WHEN** the user runs `fastlane screenshots` in the android or ios directory
+- **THEN** screenshots are captured and saved to the appropriate location
 
 ```bash
 # Android

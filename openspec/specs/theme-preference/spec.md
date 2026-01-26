@@ -1,6 +1,6 @@
 # Webview Theme Preference Specification
 
-## Overview
+## Purpose
 
 The app supports suggesting/applying the app's theme (light/dark mode) to webviews. When you toggle the app's theme, all webviews will be instructed to use that theme preference.
 

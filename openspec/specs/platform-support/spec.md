@@ -1,6 +1,6 @@
 # Platform Support Specification
 
-## Overview
+## Purpose
 
 Platform abstraction layer and support status for WebSpace app across different operating systems.
 

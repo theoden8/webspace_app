@@ -1,6 +1,6 @@
 # Webspaces Feature Specification
 
-## Overview
+## Purpose
 
 The Webspaces feature allows users to organize their saved sites into separate workspaces, enabling better organization and context switching between different browsing contexts (e.g., Work, Personal, Research).
 

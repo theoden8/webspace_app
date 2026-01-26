@@ -1,6 +1,6 @@
 # Settings Import/Export Specification
 
-## Overview
+## Purpose
 
 This feature allows users to backup and restore their app configuration including sites, webspaces, and preferences.
 
@@ -54,7 +54,13 @@ Cookies SHALL NEVER be included in backups for security reasons.
 
 ### Requirement: BACKUP-004 - Backup Contents
 
-Backups SHALL include:
+Backups SHALL include all settings except cookies.
+
+#### Scenario: Export all settings except cookies
+
+- **WHEN** settings are exported
+- **THEN** sites, webspaces, theme, and preferences are included
+- **AND** cookies are excluded for security
 
 | Setting | Exported | Notes |
 |---------|----------|-------|

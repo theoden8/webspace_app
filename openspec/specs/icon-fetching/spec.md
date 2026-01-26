@@ -1,6 +1,6 @@
 # Icon Fetching Specification
 
-## Overview
+## Purpose
 
 Comprehensive icon fetching system for the Webspace app that provides high-quality favicons through multiple sources, progressive loading, and intelligent selection.
 
