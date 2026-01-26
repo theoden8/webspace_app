@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/webspace_model.dart';
 
 /// Mock implementation of FlutterSecureStorage for testing
 class MockFlutterSecureStorage implements FlutterSecureStorage {
@@ -350,7 +351,7 @@ void main() {
       // Verify demo data is in demo keys
       expect(prefs.getStringList(demoWebViewModelsKey), isNotNull);
       expect(prefs.getStringList(demoWebViewModelsKey)!.length, equals(8));
-      expect(prefs.getString(demoSelectedWebspaceIdKey), equals('all'));
+      expect(prefs.getString(demoSelectedWebspaceIdKey), equals(kAllWebspaceId));
       expect(prefs.getInt(demoThemeModeKey), equals(0));
       expect(prefs.getBool(demoShowUrlBarKey), equals(false));
 
