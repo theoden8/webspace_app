@@ -1,0 +1,17 @@
+schema: spec-driven
+context: |
+  Tech stack: Flutter/Dart
+  Platform: iOS, Android, macOS (Linux pending)
+  Webview: flutter_inappwebview
+  State: setState + SharedPreferences
+  Testing: Flutter test framework
+
+rules:
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Include platform-specific notes where applicable
+    - Reference file paths for implementation details
+  design:
+    - Keep solutions simple and focused
+    - Prefer official packages over third-party
+    - Use platform abstraction for cross-platform features

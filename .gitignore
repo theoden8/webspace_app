@@ -1,5 +1,8 @@
 # User defined
 .env
+
+# Node.js
+node_modules/
 /.metadata
 /android/key.properties
 
