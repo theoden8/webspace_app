@@ -1,6 +1,8 @@
 # Android Fastfile
 # This file contains the fastlane.tools configuration for Android
 
+opt_out_usage
+
 default_platform(:android)
 
 platform :android do
