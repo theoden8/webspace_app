@@ -164,10 +164,24 @@ void main() {
     mockSecureStorage.clear();
   });
 
+  group('extractDomainFromUrl', () {
+    test('should extract domain from full URL', () {
+      expect(extractDomainFromUrl('https://example.com'), equals('example.com'));
+      expect(extractDomainFromUrl('https://example.com/path'), equals('example.com'));
+      expect(extractDomainFromUrl('https://sub.example.com/path?query=1'), equals('sub.example.com'));
+      expect(extractDomainFromUrl('http://example.com:8080/path'), equals('example.com'));
+    });
+
+    test('should return original string for invalid URLs', () {
+      expect(extractDomainFromUrl('not a url'), equals('not a url'));
+      expect(extractDomainFromUrl(''), equals(''));
+    });
+  });
+
   group('CookieSecureStorage', () {
-    test('should save cookies to secure storage', () async {
+    test('should save cookies to secure storage keyed by domain', () async {
       final cookies = {
-        'https://example.com': [
+        'example.com': [
           UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
           UnifiedCookie(name: 'token', value: 'xyz789', domain: 'example.com'),
         ],
@@ -179,13 +193,13 @@ void main() {
       expect(storedData, isNotNull);
 
       final decoded = jsonDecode(storedData!) as Map<String, dynamic>;
-      expect(decoded['https://example.com'], hasLength(2));
+      expect(decoded['example.com'], hasLength(2));
     });
 
-    test('should load cookies from secure storage', () async {
-      // Pre-populate secure storage
+    test('should load cookies from secure storage keyed by domain', () async {
+      // Pre-populate secure storage with domain-based keys
       final cookiesJson = {
-        'https://example.com': [
+        'example.com': [
           {'name': 'session', 'value': 'abc123', 'domain': 'example.com'},
         ],
       };
@@ -196,13 +210,54 @@ void main() {
 
       final loaded = await cookieSecureStorage.loadCookies();
 
-      expect(loaded['https://example.com'], hasLength(1));
-      expect(loaded['https://example.com']![0].name, equals('session'));
-      expect(loaded['https://example.com']![0].value, equals('abc123'));
+      expect(loaded['example.com'], hasLength(1));
+      expect(loaded['example.com']![0].name, equals('session'));
+      expect(loaded['example.com']![0].value, equals('abc123'));
     });
 
-    test('should migrate cookies from SharedPreferences to secure storage', () async {
-      // Set up SharedPreferences with cookies in webViewModels
+    test('should convert URL keys to domain keys when loading', () async {
+      // Pre-populate secure storage with old URL-based keys
+      final cookiesJson = {
+        'https://example.com/path': [
+          {'name': 'session', 'value': 'abc123', 'domain': 'example.com'},
+        ],
+      };
+      await mockSecureStorage.write(
+        key: 'secure_cookies',
+        value: jsonEncode(cookiesJson),
+      );
+
+      final loaded = await cookieSecureStorage.loadCookies();
+
+      // Should be converted to domain key
+      expect(loaded['example.com'], hasLength(1));
+      expect(loaded['example.com']![0].name, equals('session'));
+    });
+
+    test('should merge cookies when multiple URL keys resolve to same domain', () async {
+      // Pre-populate secure storage with multiple URLs for same domain
+      final cookiesJson = {
+        'https://example.com': [
+          {'name': 'cookie1', 'value': 'value1', 'domain': 'example.com'},
+        ],
+        'https://example.com/other': [
+          {'name': 'cookie2', 'value': 'value2', 'domain': 'example.com'},
+        ],
+      };
+      await mockSecureStorage.write(
+        key: 'secure_cookies',
+        value: jsonEncode(cookiesJson),
+      );
+
+      final loaded = await cookieSecureStorage.loadCookies();
+
+      // Should merge into single domain key
+      expect(loaded['example.com'], hasLength(2));
+      expect(loaded['example.com']!.map((c) => c.name).toSet(), equals({'cookie1', 'cookie2'}));
+    });
+
+    test('should migrate cookies from SharedPreferences to secure storage with domain keys', () async {
+      // Set up SharedPreferences with cookies in webViewModels (old URL-based format)
       final webViewModelsJson = [
         jsonEncode({
           'initUrl': 'https://example.com',
@@ -223,12 +278,13 @@ void main() {
         'webViewModels': webViewModelsJson,
       });
 
-      // Load cookies - should migrate from SharedPreferences
+      // Load cookies - should migrate from SharedPreferences with domain-based keys
       final loaded = await cookieSecureStorage.loadCookies();
 
-      expect(loaded['https://example.com'], hasLength(1));
-      expect(loaded['https://example.com']![0].name, equals('legacy_cookie'));
-      expect(loaded['https://example.com']![0].value, equals('old_value'));
+      // Should be keyed by domain, not URL
+      expect(loaded['example.com'], hasLength(1));
+      expect(loaded['example.com']![0].name, equals('legacy_cookie'));
+      expect(loaded['example.com']![0].value, equals('old_value'));
 
       // Verify cookies are now in secure storage
       final storedData = mockSecureStorage.storage['secure_cookies'];
@@ -239,10 +295,52 @@ void main() {
       expect(prefs.getBool('cookies_migrated_to_secure'), isTrue);
     });
 
+    test('should merge cookies during migration when multiple sites share domain', () async {
+      // Set up SharedPreferences with two sites on same domain
+      final webViewModelsJson = [
+        jsonEncode({
+          'initUrl': 'https://github.com',
+          'currentUrl': 'https://github.com',
+          'name': 'GitHub',
+          'pageTitle': 'GitHub',
+          'cookies': [
+            {'name': 'cookie1', 'value': 'value1', 'domain': 'github.com'},
+          ],
+          'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+        }),
+        jsonEncode({
+          'initUrl': 'https://github.com/org',
+          'currentUrl': 'https://github.com/org',
+          'name': 'GitHub Org',
+          'pageTitle': 'GitHub Org',
+          'cookies': [
+            {'name': 'cookie2', 'value': 'value2', 'domain': 'github.com'},
+          ],
+          'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+        }),
+      ];
+
+      SharedPreferences.setMockInitialValues({
+        'webViewModels': webViewModelsJson,
+      });
+
+      final loaded = await cookieSecureStorage.loadCookies();
+
+      // Should be merged under single domain key
+      expect(loaded['github.com'], hasLength(2));
+      expect(loaded['github.com']!.map((c) => c.name).toSet(), equals({'cookie1', 'cookie2'}));
+    });
+
     test('should prefer secure storage over SharedPreferences', () async {
       // Set up both secure storage and SharedPreferences with different cookies
       final secureCookiesJson = {
-        'https://example.com': [
+        'example.com': [
           {'name': 'secure_cookie', 'value': 'secure_value', 'domain': 'example.com'},
         ],
       };
@@ -274,9 +372,9 @@ void main() {
       // Load cookies - should prefer secure storage
       final loaded = await cookieSecureStorage.loadCookies();
 
-      expect(loaded['https://example.com'], hasLength(1));
-      expect(loaded['https://example.com']![0].name, equals('secure_cookie'));
-      expect(loaded['https://example.com']![0].value, equals('secure_value'));
+      expect(loaded['example.com'], hasLength(1));
+      expect(loaded['example.com']![0].name, equals('secure_cookie'));
+      expect(loaded['example.com']![0].value, equals('secure_value'));
     });
 
     test('should handle empty secure storage and empty SharedPreferences', () async {
@@ -287,7 +385,7 @@ void main() {
       expect(loaded, isEmpty);
     });
 
-    test('should save cookies for single URL', () async {
+    test('should save cookies for single URL (converted to domain)', () async {
       final cookies = [
         UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
       ];
@@ -295,31 +393,31 @@ void main() {
       await cookieSecureStorage.saveCookiesForUrl('https://example.com', cookies);
 
       final loaded = await cookieSecureStorage.loadCookies();
-      expect(loaded['https://example.com'], hasLength(1));
-      expect(loaded['https://example.com']![0].name, equals('session'));
+      expect(loaded['example.com'], hasLength(1));
+      expect(loaded['example.com']![0].name, equals('session'));
     });
 
-    test('should merge cookies when saving for single URL', () async {
-      // Save initial cookies for first URL
+    test('should merge cookies when saving for multiple domains', () async {
+      // Save initial cookies for first domain
       await cookieSecureStorage.saveCookies({
-        'https://first.com': [
+        'first.com': [
           UnifiedCookie(name: 'first', value: 'value1', domain: 'first.com'),
         ],
       });
 
-      // Save cookies for second URL
+      // Save cookies for second domain
       await cookieSecureStorage.saveCookiesForUrl('https://second.com', [
         UnifiedCookie(name: 'second', value: 'value2', domain: 'second.com'),
       ]);
 
       final loaded = await cookieSecureStorage.loadCookies();
-      expect(loaded['https://first.com'], hasLength(1));
-      expect(loaded['https://second.com'], hasLength(1));
+      expect(loaded['first.com'], hasLength(1));
+      expect(loaded['second.com'], hasLength(1));
     });
 
     test('should clear all cookies from secure storage', () async {
       await cookieSecureStorage.saveCookies({
-        'https://example.com': [
+        'example.com': [
           UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
         ],
       });
@@ -328,6 +426,45 @@ void main() {
 
       final loaded = await cookieSecureStorage.loadCookies();
       expect(loaded, isEmpty);
+    });
+
+    test('should remove orphaned cookies', () async {
+      // Save cookies for multiple domains
+      await cookieSecureStorage.saveCookies({
+        'github.com': [
+          UnifiedCookie(name: 'session', value: 'abc', domain: 'github.com'),
+        ],
+        'gitlab.com': [
+          UnifiedCookie(name: 'session', value: 'def', domain: 'gitlab.com'),
+        ],
+        'bitbucket.org': [
+          UnifiedCookie(name: 'session', value: 'ghi', domain: 'bitbucket.org'),
+        ],
+      });
+
+      // Remove orphaned cookies - only github.com and bitbucket.org are active
+      await cookieSecureStorage.removeOrphanedCookies({'github.com', 'bitbucket.org'});
+
+      final loaded = await cookieSecureStorage.loadCookies();
+      expect(loaded.keys, containsAll(['github.com', 'bitbucket.org']));
+      expect(loaded.keys, isNot(contains('gitlab.com')));
+      expect(loaded.length, equals(2));
+    });
+
+    test('should not remove anything when all domains are active', () async {
+      await cookieSecureStorage.saveCookies({
+        'github.com': [
+          UnifiedCookie(name: 'session', value: 'abc', domain: 'github.com'),
+        ],
+        'gitlab.com': [
+          UnifiedCookie(name: 'session', value: 'def', domain: 'gitlab.com'),
+        ],
+      });
+
+      await cookieSecureStorage.removeOrphanedCookies({'github.com', 'gitlab.com'});
+
+      final loaded = await cookieSecureStorage.loadCookies();
+      expect(loaded.length, equals(2));
     });
 
     test('should clear cookies from SharedPreferences', () async {
@@ -384,11 +521,11 @@ void main() {
       );
 
       await cookieSecureStorage.saveCookies({
-        'https://example.com': [cookie],
+        'example.com': [cookie],
       });
 
       final loaded = await cookieSecureStorage.loadCookies();
-      final loadedCookie = loaded['https://example.com']![0];
+      final loadedCookie = loaded['example.com']![0];
 
       expect(loadedCookie.name, equals('test_cookie'));
       expect(loadedCookie.value, equals('test_value'));
@@ -403,14 +540,14 @@ void main() {
 
     test('should handle multiple sites with cookies', () async {
       await cookieSecureStorage.saveCookies({
-        'https://site1.com': [
+        'site1.com': [
           UnifiedCookie(name: 'cookie1', value: 'value1', domain: 'site1.com'),
         ],
-        'https://site2.com': [
+        'site2.com': [
           UnifiedCookie(name: 'cookie2a', value: 'value2a', domain: 'site2.com'),
           UnifiedCookie(name: 'cookie2b', value: 'value2b', domain: 'site2.com'),
         ],
-        'https://site3.com': [
+        'site3.com': [
           UnifiedCookie(name: 'cookie3', value: 'value3', domain: 'site3.com'),
         ],
       });
@@ -418,9 +555,9 @@ void main() {
       final loaded = await cookieSecureStorage.loadCookies();
 
       expect(loaded.keys, hasLength(3));
-      expect(loaded['https://site1.com'], hasLength(1));
-      expect(loaded['https://site2.com'], hasLength(2));
-      expect(loaded['https://site3.com'], hasLength(1));
+      expect(loaded['site1.com'], hasLength(1));
+      expect(loaded['site2.com'], hasLength(2));
+      expect(loaded['site3.com'], hasLength(1));
     });
 
     test('should report migration status correctly', () async {
@@ -452,6 +589,10 @@ void main() {
 
       // Now should be migrated
       expect(await cookieSecureStorage.isMigrationComplete(), isTrue);
+
+      // Verify migrated with domain key
+      final loaded = await cookieSecureStorage.loadCookies();
+      expect(loaded['example.com'], isNotNull);
     });
   });
 }

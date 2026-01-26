@@ -4,9 +4,31 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/unified_webview.dart';
 
+/// Extracts the domain from a URL string.
+/// Returns the host portion of the URL (e.g., "github.com" from "https://github.com/user/repo").
+/// If the input is already a plain domain (no scheme), returns it as-is.
+String extractDomainFromUrl(String url) {
+  if (url.isEmpty) {
+    return url;
+  }
+  try {
+    final uri = Uri.parse(url);
+    // If host is empty, the input might already be a plain domain
+    // (Uri.parse('example.com').host returns empty string)
+    if (uri.host.isEmpty) {
+      return url;
+    }
+    return uri.host;
+  } catch (e) {
+    // If URL parsing fails, return the original string
+    return url;
+  }
+}
+
 /// Service for securely storing cookies using Flutter Secure Storage.
 /// Supports migration from SharedPreferences for backward compatibility.
 /// Falls back to SharedPreferences if secure storage is unavailable.
+/// Cookies are keyed by domain (not full URL) since WebView shares cookies per domain.
 class CookieSecureStorage {
   static const String _secureStorageKey = 'secure_cookies';
   static const String _sharedPrefsCookiesKey = 'cookies_fallback';
@@ -69,10 +91,32 @@ class CookieSecureStorage {
   }
 
   /// Saves cookies for a single site URL.
+  /// The URL is converted to a domain key before storing.
   Future<void> saveCookiesForUrl(String url, List<UnifiedCookie> cookies) async {
+    final domain = extractDomainFromUrl(url);
     final existingCookies = await loadCookies();
-    existingCookies[url] = cookies;
+    existingCookies[domain] = cookies;
     await saveCookies(existingCookies);
+  }
+
+  /// Removes cookies for domains not in the provided set of active domains.
+  /// This cleans up orphaned cookies after sites are deleted or settings are imported.
+  Future<void> removeOrphanedCookies(Set<String> activeDomains) async {
+    final allCookies = await loadCookies();
+    final domainsToRemove = allCookies.keys
+        .where((domain) => !activeDomains.contains(domain))
+        .toList();
+
+    if (domainsToRemove.isEmpty) {
+      return;
+    }
+
+    for (final domain in domainsToRemove) {
+      allCookies.remove(domain);
+    }
+
+    await saveCookies(allCookies);
+    debugPrint('Removed orphaned cookies for domains: $domainsToRemove');
   }
 
   /// Clears all stored cookies from both secure storage and fallback.
@@ -142,11 +186,26 @@ class CookieSecureStorage {
     final jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
     final Map<String, List<UnifiedCookie>> result = {};
 
-    jsonMap.forEach((url, cookiesJson) {
+    jsonMap.forEach((key, cookiesJson) {
       final cookiesList = (cookiesJson as List<dynamic>)
           .map((c) => UnifiedCookie.fromJson(c as Map<String, dynamic>))
           .toList();
-      result[url] = cookiesList;
+
+      // Convert URL keys to domain keys for backward compatibility
+      final domain = extractDomainFromUrl(key);
+
+      // Merge cookies if multiple URL keys resolve to the same domain
+      if (result.containsKey(domain)) {
+        final existingNames = result[domain]!.map((c) => c.name).toSet();
+        for (final cookie in cookiesList) {
+          if (!existingNames.contains(cookie.name)) {
+            result[domain]!.add(cookie);
+            existingNames.add(cookie.name);
+          }
+        }
+      } else {
+        result[domain] = cookiesList;
+      }
     });
 
     return result;
@@ -169,9 +228,24 @@ class CookieSecureStorage {
         final cookiesJson = json['cookies'] as List<dynamic>?;
 
         if (initUrl != null && cookiesJson != null && cookiesJson.isNotEmpty) {
-          result[initUrl] = cookiesJson
+          // Use domain as key instead of full URL (migration to new format)
+          final domain = extractDomainFromUrl(initUrl);
+          final cookies = cookiesJson
               .map((c) => UnifiedCookie.fromJson(c as Map<String, dynamic>))
               .toList();
+
+          // Merge cookies if multiple sites share the same domain
+          if (result.containsKey(domain)) {
+            final existingNames = result[domain]!.map((c) => c.name).toSet();
+            for (final cookie in cookies) {
+              if (!existingNames.contains(cookie.name)) {
+                result[domain]!.add(cookie);
+                existingNames.add(cookie.name);
+              }
+            }
+          } else {
+            result[domain] = cookies;
+          }
         }
       }
 
