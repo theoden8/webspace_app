@@ -21,7 +21,7 @@ Screenshots SHALL be generated using Flutter integration tests that work on both
 
 **Given** an Android emulator is running
 **When** the user runs `fastlane screenshots` in the android directory
-**Then** 10 screenshots are captured and saved
+**Then** 20 screenshots are captured and saved (10 light theme, 10 dark theme)
 
 ---
 
@@ -32,44 +32,59 @@ Screenshots SHALL use realistic demo data seeded automatically.
 #### Scenario: Seed demo data before screenshots
 
 - **WHEN** the screenshot test starts
-- **THEN** demo sites are seeded (Blog, Tasks, Notes, Dashboard, Wiki, Media Server)
-- **AND** demo webspaces are created (All, Work, Home Server)
+- **THEN** demo sites are seeded
+- **AND** demo webspaces are created
 
 Demo sites:
-- My Blog (https://example.com/blog)
-- Tasks (https://tasks.example.com)
-- Notes (https://notes.example.com)
-- Home Dashboard (http://homeserver.local:8080)
-- Personal Wiki (http://192.168.1.100:3000)
-- Media Server (http://192.168.1.101:8096)
+- DuckDuckGo (https://duckduckgo.com)
+- Piped (https://piped.video)
+- Nitter (https://nitter.net)
+- Reddit (https://www.reddit.com)
+- GitHub (https://github.com)
+- Hacker News (https://news.ycombinator.com)
+- Weights & Biases (https://wandb.ai)
+- Wikipedia (https://www.wikipedia.org)
 
 Demo webspaces:
 - **All** - Shows all sites
-- **Work** - Blog, Tasks, Notes
-- **Home Server** - Dashboard, Wiki, Media Server
+- **Work** - GitHub, Hacker News, Weights & Biases
+- **Privacy** - DuckDuckGo, Piped, Nitter
+- **Social** - Nitter, Reddit, Wikipedia
 
 ---
 
 ### Requirement: SCREENSHOT-003 - Screenshot Coverage
 
-The test SHALL capture 10 screenshots covering all major app features.
+The test SHALL capture 20 screenshots covering all major app features in both light and dark themes.
 
 #### Scenario: Capture all required screenshots
 
 - **WHEN** the screenshot test completes
-- **THEN** 10 screenshots are saved covering main screen, drawer, webview, and workspace features
+- **THEN** 20 screenshots are saved covering main screen, drawer, webview, and workspace features in both themes
 
-Screenshots:
-1. `01-all-sites` - Main screen with all sites
-2. `02-sites-drawer` - Navigation drawer with site list
-3. `03-site-webview` - DuckDuckGo site loaded
-4. `04-drawer-with-site` - Drawer showing selected site
-5. `05-work-webspace` - Work webspace view
-6. `06-work-sites-drawer` - Work webspace drawer
-7. `07-add-workspace-dialog` - New workspace dialog
-8. `08-workspace-name-entered` - Dialog with name filled
-9. `09-workspace-sites-selected` - Dialog with sites selected
-10. `10-new-workspace-created` - Main screen with new workspace
+Screenshots (light theme):
+1. `01-all-sites-light` - Main screen with all sites
+2. `02-sites-drawer-light` - Navigation drawer with site list
+3. `03-site-webview-light` - DuckDuckGo site loaded
+4. `04-drawer-with-site-light` - Drawer showing selected site
+5. `05-work-webspace-light` - Work webspace view
+6. `06-work-sites-drawer-light` - Work webspace drawer
+7. `07-add-workspace-dialog-light` - New workspace dialog
+8. `08-workspace-name-entered-light` - Dialog with name filled
+9. `09-workspace-sites-selected-light` - Dialog with sites selected
+10. `10-new-workspace-created-light` - Main screen with new workspace
+
+Screenshots (dark theme):
+11. `01-all-sites-dark` - Main screen with all sites
+12. `02-sites-drawer-dark` - Navigation drawer with site list
+13. `03-site-webview-dark` - DuckDuckGo site loaded
+14. `04-drawer-with-site-dark` - Drawer showing selected site
+15. `05-work-webspace-dark` - Work webspace view
+16. `06-work-sites-drawer-dark` - Work webspace drawer
+17. `07-add-workspace-dialog-dark` - New workspace dialog
+18. `08-workspace-name-entered-dark` - Dialog with name filled
+19. `09-workspace-sites-selected-dark` - Dialog with sites selected
+20. `10-new-workspace-created-dark` - Main screen with new workspace
 
 ---
 
@@ -124,6 +139,28 @@ flutter drive \
 
 ---
 
+### Requirement: SCREENSHOT-007 - Theme Support
+
+Screenshots SHALL be captured in both light and dark themes.
+
+#### Scenario: Generate screenshots for both themes
+
+- **WHEN** the screenshot test runs
+- **THEN** the test runs twice (once per theme)
+- **AND** light theme screenshots are captured with `-light` suffix
+- **AND** dark theme screenshots are captured with `-dark` suffix
+
+#### Implementation Details
+
+The test uses a `for` loop to iterate over `['light', 'dark']` themes:
+1. Demo data is seeded fresh for each theme run
+2. App is launched with default (light) theme
+3. Theme is toggled to target theme using the app's theme button
+4. Full screenshot tour is executed
+5. Screenshots are named with theme suffix (e.g., `01-all-sites-light`)
+
+---
+
 ## Architecture
 
 ```
@@ -155,7 +192,8 @@ flutter drive \
 | Speed | Slower | Faster |
 | Reliability | More flaky | More reliable |
 | Debug | Harder | Standard Flutter tools |
-| Lines of code | ~428 | ~280 |
+| Theme support | Manual | Automated (light + dark) |
+| Lines of code | ~428 | ~540 |
 
 ---
 
