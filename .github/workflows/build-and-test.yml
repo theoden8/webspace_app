@@ -62,6 +62,9 @@ jobs:
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
+      - name: Generate launcher icons
+        run: fvm dart run flutter_launcher_icons
+
       - name: Build APK
         run: fvm flutter build apk --release --flavor fdroid --split-per-abi
 
@@ -120,6 +123,9 @@ jobs:
           if [ ! -d "ios" ]; then
             fvm flutter create --platforms=ios .
           fi
+
+      - name: Generate launcher icons
+        run: fvm dart run flutter_launcher_icons
 
       - name: Build iOS (no codesign)
         run: fvm flutter build ios --release --no-codesign
@@ -189,6 +195,9 @@ jobs:
       - name: Run tests
         run: fvm flutter test
 
+      - name: Generate launcher icons
+        run: fvm dart run flutter_launcher_icons
+
       - name: Build Linux
         run: fvm flutter build linux --release
 
@@ -238,6 +247,9 @@ jobs:
 
       - name: Run tests
         run: fvm flutter test
+
+      - name: Generate launcher icons
+        run: fvm dart run flutter_launcher_icons
 
       - name: Build macOS
         run: fvm flutter build macos --release
