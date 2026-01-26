@@ -32,21 +32,24 @@ Screenshots SHALL use realistic demo data seeded automatically.
 #### Scenario: Seed demo data before screenshots
 
 - **WHEN** the screenshot test starts
-- **THEN** demo sites are seeded (Blog, Tasks, Notes, Dashboard, Wiki, Media Server)
-- **AND** demo webspaces are created (All, Work, Home Server)
+- **THEN** demo sites are seeded
+- **AND** demo webspaces are created
 
 Demo sites:
-- My Blog (https://example.com/blog)
-- Tasks (https://tasks.example.com)
-- Notes (https://notes.example.com)
-- Home Dashboard (http://homeserver.local:8080)
-- Personal Wiki (http://192.168.1.100:3000)
-- Media Server (http://192.168.1.101:8096)
+- DuckDuckGo (https://duckduckgo.com)
+- Piped (https://piped.video)
+- Nitter (https://nitter.net)
+- Reddit (https://www.reddit.com)
+- GitHub (https://github.com)
+- Hacker News (https://news.ycombinator.com)
+- Weights & Biases (https://wandb.ai)
+- Wikipedia (https://www.wikipedia.org)
 
 Demo webspaces:
 - **All** - Shows all sites
-- **Work** - Blog, Tasks, Notes
-- **Home Server** - Dashboard, Wiki, Media Server
+- **Work** - GitHub, Hacker News, Weights & Biases
+- **Privacy** - DuckDuckGo, Piped, Nitter
+- **Social** - Nitter, Reddit, Wikipedia
 
 ---
 
@@ -136,6 +139,28 @@ flutter drive \
 
 ---
 
+### Requirement: SCREENSHOT-007 - Theme Support
+
+Screenshots SHALL be captured in both light and dark themes.
+
+#### Scenario: Generate screenshots for both themes
+
+- **WHEN** the screenshot test runs
+- **THEN** the test runs twice (once per theme)
+- **AND** light theme screenshots are captured with `-light` suffix
+- **AND** dark theme screenshots are captured with `-dark` suffix
+
+#### Implementation Details
+
+The test uses a `for` loop to iterate over `['light', 'dark']` themes:
+1. Demo data is seeded fresh for each theme run
+2. App is launched with default (light) theme
+3. Theme is toggled to target theme using the app's theme button
+4. Full screenshot tour is executed
+5. Screenshots are named with theme suffix (e.g., `01-all-sites-light`)
+
+---
+
 ## Architecture
 
 ```
@@ -167,7 +192,8 @@ flutter drive \
 | Speed | Slower | Faster |
 | Reliability | More flaky | More reliable |
 | Debug | Harder | Standard Flutter tools |
-| Lines of code | ~428 | ~280 |
+| Theme support | Manual | Automated (light + dark) |
+| Lines of code | ~428 | ~540 |
 
 ---
 
