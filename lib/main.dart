@@ -157,14 +157,29 @@ class _WebSpacePageState extends State<WebSpacePage> {
   Future<void> _saveWebViewModels() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    // Save cookies to secure storage
-    final Map<String, List<UnifiedCookie>> cookiesByUrl = {};
+    // Save cookies to secure storage, keyed by domain (not URL)
+    // This is because WebView shares cookies per domain, not per URL
+    final Map<String, List<UnifiedCookie>> cookiesByDomain = {};
     for (final webViewModel in _webViewModels) {
       if (webViewModel.cookies.isNotEmpty) {
-        cookiesByUrl[webViewModel.initUrl] = webViewModel.cookies;
+        final domain = extractDomain(webViewModel.initUrl);
+        // If multiple sites share the same domain, merge their cookies
+        // (In practice, they should have the same cookies since WebView shares per domain)
+        if (cookiesByDomain.containsKey(domain)) {
+          // Merge cookies, avoiding duplicates by name
+          final existingNames = cookiesByDomain[domain]!.map((c) => c.name).toSet();
+          for (final cookie in webViewModel.cookies) {
+            if (!existingNames.contains(cookie.name)) {
+              cookiesByDomain[domain]!.add(cookie);
+              existingNames.add(cookie.name);
+            }
+          }
+        } else {
+          cookiesByDomain[domain] = List.from(webViewModel.cookies);
+        }
       }
     }
-    await _cookieSecureStorage.saveCookies(cookiesByUrl);
+    await _cookieSecureStorage.saveCookies(cookiesByDomain);
 
     // Save models to SharedPreferences (cookies will be empty in SharedPreferences)
     List<String> webViewModelsJson = _webViewModels.map((webViewModel) {
@@ -260,13 +275,15 @@ class _WebSpacePageState extends State<WebSpacePage> {
           .toList();
 
       // Load cookies from secure storage (with fallback to SharedPreferences)
+      // Cookies are keyed by domain, not URL
       final secureCookies = await _cookieSecureStorage.loadCookies();
 
-      // Merge cookies into loaded models
+      // Merge cookies into loaded models by matching domain
       for (final webViewModel in loadedWebViewModels) {
-        final urlCookies = secureCookies[webViewModel.initUrl];
-        if (urlCookies != null && urlCookies.isNotEmpty) {
-          webViewModel.cookies = urlCookies;
+        final domain = extractDomain(webViewModel.initUrl);
+        final domainCookies = secureCookies[domain];
+        if (domainCookies != null && domainCookies.isNotEmpty) {
+          webViewModel.cookies = domainCookies;
         }
         // If no secure cookies but model has cookies from SharedPreferences,
         // they will be migrated on next save
@@ -540,10 +557,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('This will replace all your current settings with:'),
-            SizedBox(height: 12),
-            Text('  - $sitesCount site(s)'),
-            Text('  - $webspacesCount webspace(s)'),
+            Text('Import $sitesCount site(s) and $webspacesCount webspace(s)?'),
             SizedBox(height: 12),
             Text(
               'Exported: $exportDate',
@@ -551,8 +565,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
             ),
             SizedBox(height: 16),
             Text(
-              'Note: Cookies are not included in backups for security.',
-              style: TextStyle(fontSize: 12, color: Colors.orange),
+              'Your login sessions will be preserved for matching domains. '
+              'Logins for removed sites will be cleared.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -624,6 +639,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await _saveShowUrlBar();
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
+
+    // Clean up orphaned cookies (cookies for domains no longer in any site)
+    final activeDomains = _webViewModels
+        .map((model) => extractDomain(model.initUrl))
+        .toSet();
+    await _cookieSecureStorage.removeOrphanedCookies(activeDomains);
 
     // Apply theme to all webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeMode);
