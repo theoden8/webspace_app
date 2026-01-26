@@ -438,5 +438,116 @@ void main() {
       expect(prefs.getStringList(demoWebViewModelsKey)!.length, equals(1));
       expect(prefs.getString(demoSelectedWebspaceIdKey), equals('changed_space'));
     });
+
+    test('complete workflow: user data preserved after demo mode and normal startup', () async {
+      // ==== STEP 1: User sets up app with their data ====
+      SharedPreferences.setMockInitialValues({
+        'webViewModels': [
+          '{"initUrl":"https://gmail.com","name":"Gmail"}',
+          '{"initUrl":"https://calendar.google.com","name":"Calendar"}',
+          '{"initUrl":"https://drive.google.com","name":"Drive"}',
+        ],
+        'webspaces': [
+          '{"id":"${kAllWebspaceId}","name":"All","siteIndices":[]}',
+          '{"id":"user_workspace_1","name":"Work","siteIndices":[0,1,2]}',
+        ],
+        'selectedWebspaceId': 'user_workspace_1',
+        'currentIndex': 1,
+        'themeMode': 1,
+        'showUrlBar': true,
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Verify user's initial setup
+      final initialUserSites = prefs.getStringList('webViewModels');
+      final initialUserWebspaces = prefs.getStringList('webspaces');
+      final initialSelectedId = prefs.getString('selectedWebspaceId');
+
+      expect(initialUserSites, isNotNull);
+      expect(initialUserSites!.length, equals(3), reason: 'User has 3 sites');
+      expect(initialUserWebspaces, isNotNull);
+      expect(initialUserWebspaces!.length, equals(2), reason: 'User has 2 webspaces');
+      expect(initialSelectedId, equals('user_workspace_1'));
+
+      print('✓ User setup verified');
+
+      // ==== STEP 2: Developer runs screenshot tests (demo mode) ====
+      await seedDemoData();
+
+      // Verify demo mode is active
+      expect(isDemoMode, isTrue, reason: 'Demo mode should be enabled');
+      expect(await isDemoModeActive(), isTrue, reason: 'Demo marker should be set');
+
+      // Verify user data is STILL intact after seeding
+      final userSitesAfterSeed = prefs.getStringList('webViewModels');
+      final userWebspacesAfterSeed = prefs.getStringList('webspaces');
+
+      expect(userSitesAfterSeed, equals(initialUserSites), reason: 'User sites should not be modified');
+      expect(userWebspacesAfterSeed, equals(initialUserWebspaces), reason: 'User webspaces should not be modified');
+
+      // Verify demo data was created in separate keys
+      final demoSites = prefs.getStringList(demoWebViewModelsKey);
+      final demoWebspaces = prefs.getStringList(demoWebspacesKey);
+
+      expect(demoSites, isNotNull);
+      expect(demoSites!.length, equals(8), reason: 'Demo has 8 sites');
+      expect(demoWebspaces, isNotNull);
+      expect(demoWebspaces!.length, equals(4), reason: 'Demo has 4 webspaces');
+
+      print('✓ Demo data seeded without affecting user data');
+
+      // ==== STEP 3: User opens app normally (after tests complete) ====
+      // Reset isDemoMode flag to simulate app restart
+      isDemoMode = false;
+
+      // Simulate normal app startup
+      final demoModeActiveBeforeCleanup = await isDemoModeActive();
+      expect(demoModeActiveBeforeCleanup, isTrue, reason: 'Demo marker should still be set');
+
+      // Call cleanup (this is what _restoreAppState does)
+      await clearDemoDataIfNeeded();
+
+      // Verify demo data was cleaned up
+      expect(prefs.getStringList(demoWebViewModelsKey), isNull, reason: 'Demo sites should be removed');
+      expect(prefs.getStringList(demoWebspacesKey), isNull, reason: 'Demo webspaces should be removed');
+      expect(prefs.getString(demoSelectedWebspaceIdKey), isNull, reason: 'Demo selected ID should be removed');
+      expect(await isDemoModeActive(), isFalse, reason: 'Demo marker should be cleared');
+
+      print('✓ Demo data cleaned up');
+
+      // ==== STEP 4: Verify user's original data is restored ====
+      final finalUserSites = prefs.getStringList('webViewModels');
+      final finalUserWebspaces = prefs.getStringList('webspaces');
+      final finalSelectedId = prefs.getString('selectedWebspaceId');
+      final finalCurrentIndex = prefs.getInt('currentIndex');
+      final finalThemeMode = prefs.getInt('themeMode');
+      final finalShowUrlBar = prefs.getBool('showUrlBar');
+
+      // User data should be exactly as it was initially
+      expect(finalUserSites, equals(initialUserSites), reason: 'User sites should be restored');
+      expect(finalUserWebspaces, equals(initialUserWebspaces), reason: 'User webspaces should be restored');
+      expect(finalSelectedId, equals('user_workspace_1'), reason: 'User selected workspace should be restored');
+      expect(finalCurrentIndex, equals(1), reason: 'User current index should be restored');
+      expect(finalThemeMode, equals(1), reason: 'User theme mode should be restored');
+      expect(finalShowUrlBar, equals(true), reason: 'User URL bar setting should be restored');
+
+      // Verify the content hasn't changed
+      expect(finalUserSites!.length, equals(3), reason: 'User should still have 3 sites');
+      expect(finalUserSites[0], contains('gmail.com'), reason: 'Gmail should still be in sites');
+      expect(finalUserSites[1], contains('calendar.google.com'), reason: 'Calendar should still be in sites');
+      expect(finalUserSites[2], contains('drive.google.com'), reason: 'Drive should still be in sites');
+
+      expect(finalUserWebspaces!.length, equals(2), reason: 'User should still have 2 webspaces');
+
+      print('✓ User data completely restored after demo mode');
+      print('');
+      print('========================================');
+      print('COMPLETE WORKFLOW TEST PASSED');
+      print('========================================');
+      print('User had: 3 sites, 2 webspaces');
+      print('Demo mode: 8 sites, 4 webspaces (separate keys)');
+      print('After cleanup: User data intact, demo data removed');
+    });
   });
 }
