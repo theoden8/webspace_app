@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -118,18 +120,32 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     required String key,
     required ValueChanged<String?> listener,
   }) {
-    throw UnimplementedError();
+    // No-op for testing
   }
 
   @override
-  void unregisterListener({required String key}) {
-    throw UnimplementedError();
+  void unregisterListener({
+    required String key,
+    required ValueChanged<String?> listener,
+  }) {
+    // No-op for testing
   }
 
   @override
   void unregisterAllListeners() {
-    throw UnimplementedError();
+    // No-op for testing
   }
+
+  @override
+  void unregisterAllListenersForKey({required String key}) {
+    // No-op for testing
+  }
+
+  @override
+  Future<bool?> isCupertinoProtectedDataAvailable() async => true;
+
+  @override
+  Stream<bool>? get onCupertinoProtectedDataAvailabilityChanged => null;
 }
 
 void main() {
