@@ -1,8 +1,8 @@
 🎉 Major Features:
 • Import/Export: Back up and restore your webspaces
 • Secure cookie storage: Cookies are now stored securely
+• Lazy webview loading: Sites only load when you visit them
 
 ✨ Improvements:
-• Lazy webview loading: Sites only load when you visit them
 • Proxy authentication support
 • Fixed proxy support on available platforms
