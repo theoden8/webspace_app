@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/web_view_model.dart';
 
 // Test the URL blocking logic for captcha support
 // This mirrors the _shouldBlockUrl function in webview.dart
@@ -138,6 +139,54 @@ void main() {
     test('regular URLs should not be detected as Cloudflare', () {
       expect(isCloudflareChallenge('https://gitlab.com'), isFalse);
       expect(isCloudflareChallenge('https://example.com'), isFalse);
+    });
+  });
+
+  group('Captcha Support - Domain Comparison for about: URLs', () {
+    // This tests the shouldOverrideUrlLoading logic in web_view_model.dart
+    // The callback must allow about:blank and about:srcdoc without domain comparison
+
+    /// Simulates the shouldOverrideUrlLoading callback logic
+    bool shouldAllowNavigation(String requestUrl, String initUrl) {
+      // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
+      if (requestUrl == 'about:blank' || requestUrl == 'about:srcdoc') {
+        return true;
+      }
+
+      // Use normalized domain comparison
+      final requestNormalized = getNormalizedDomain(requestUrl);
+      final initialNormalized = getNormalizedDomain(initUrl);
+
+      return requestNormalized == initialNormalized;
+    }
+
+    test('about:blank should be allowed regardless of initial URL', () {
+      expect(shouldAllowNavigation('about:blank', 'https://gitlab.com'), isTrue);
+      expect(shouldAllowNavigation('about:blank', 'https://github.com'), isTrue);
+      expect(shouldAllowNavigation('about:blank', 'https://example.com'), isTrue);
+    });
+
+    test('about:srcdoc should be allowed regardless of initial URL', () {
+      expect(shouldAllowNavigation('about:srcdoc', 'https://gitlab.com'), isTrue);
+      expect(shouldAllowNavigation('about:srcdoc', 'https://github.com'), isTrue);
+      expect(shouldAllowNavigation('about:srcdoc', 'https://example.com'), isTrue);
+    });
+
+    test('getNormalizedDomain returns different value for about: URLs', () {
+      // Without the early return, domain comparison would fail
+      // because getNormalizedDomain('about:blank') != getNormalizedDomain('https://gitlab.com')
+      expect(getNormalizedDomain('about:blank'), isNot(equals('gitlab.com')));
+      expect(getNormalizedDomain('about:srcdoc'), isNot(equals('gitlab.com')));
+    });
+
+    test('same domain navigation should be allowed', () {
+      expect(shouldAllowNavigation('https://gitlab.com/dashboard', 'https://gitlab.com'), isTrue);
+      expect(shouldAllowNavigation('https://www.gitlab.com/login', 'https://gitlab.com'), isTrue);
+    });
+
+    test('different domain navigation should be blocked', () {
+      expect(shouldAllowNavigation('https://github.com', 'https://gitlab.com'), isFalse);
+      expect(shouldAllowNavigation('https://example.com', 'https://gitlab.com'), isFalse);
     });
   });
 }
