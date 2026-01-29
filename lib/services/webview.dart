@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/settings/proxy.dart';
@@ -193,6 +194,10 @@ class WebViewConfig {
   final Function(List<Cookie> cookies)? onCookiesChanged;
   final Function(int activeMatch, int totalMatches)? onFindResult;
   final Function(String url, bool shouldAllow)? shouldOverrideUrlLoading;
+  /// Callback for when a popup window is requested (e.g., Cloudflare challenges).
+  /// Returns a widget (typically a WebView) to display in the popup.
+  /// The callback receives the windowId for the popup and the requested URL.
+  final Future<void> Function(int windowId, String url)? onWindowRequested;
 
   WebViewConfig({
     required this.initialUrl,
@@ -204,6 +209,7 @@ class WebViewConfig {
     this.onCookiesChanged,
     this.onFindResult,
     this.shouldOverrideUrlLoading,
+    this.onWindowRequested,
   });
 }
 
@@ -281,7 +287,13 @@ class _WebViewController implements WebViewController {
       incognito: incognito ?? false,
       supportZoom: true,
       useShouldOverrideUrlLoading: true,
-      supportMultipleWindows: false,
+      // Enable multiple windows for Cloudflare Turnstile and other challenges
+      supportMultipleWindows: true,
+      domStorageEnabled: true,
+      databaseEnabled: true,
+      javaScriptCanOpenWindowsAutomatically: true,
+      // Enable DevTools inspection in debug mode
+      isInspectable: kDebugMode,
     ),
   );
 
@@ -365,13 +377,41 @@ class WebViewFactory {
   ];
 
   static bool _shouldBlockUrl(String url) {
-    if (url.startsWith('about:')) return true;
+    // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile
+    if (url.startsWith('about:') && url != 'about:blank' && url != 'about:srcdoc') return true;
     if (url.contains('/sw_iframe.html') || url.contains('/blank.html') || url.contains('/service_worker/')) return true;
     return _trackingDomains.any((d) => url.contains(d));
   }
 
   static bool _isCloudflareChallenge(String url) =>
-      url.contains('challenges.cloudflare.com') || url.contains('cloudflare.com/cdn-cgi/challenge');
+      url.contains('challenges.cloudflare.com') ||
+      url.contains('cloudflare.com/cdn-cgi/challenge') ||
+      url.contains('cdn-cgi/challenge-platform') ||
+      url.contains('turnstile.com') ||
+      url.contains('cf-turnstile');
+
+  /// Create a popup webview for handling window.open() calls.
+  /// Used for Cloudflare challenges and other popups that require a real window.
+  static Widget createPopupWebView({
+    required int windowId,
+    VoidCallback? onCloseWindow,
+  }) {
+    return inapp.InAppWebView(
+      windowId: windowId,
+      initialSettings: inapp.InAppWebViewSettings(
+        javaScriptEnabled: true,
+        supportZoom: true,
+        domStorageEnabled: true,
+        databaseEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: true,
+        // Enable DevTools inspection in debug mode (chrome://inspect on Android)
+        isInspectable: kDebugMode,
+      ),
+      onCloseWindow: (controller) {
+        onCloseWindow?.call();
+      },
+    );
+  }
 
   static Widget createWebView({
     required WebViewConfig config,
@@ -388,7 +428,16 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        supportMultipleWindows: false,
+        supportMultipleWindows: true,
+        // Required for Cloudflare Turnstile and other challenge systems
+        domStorageEnabled: true,
+        databaseEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: true,
+        // Android: allow file and content access for Cloudflare Turnstile
+        allowFileAccess: true,
+        allowContentAccess: true,
+        // Enable DevTools inspection in debug mode (chrome://inspect on Android)
+        isInspectable: kDebugMode,
       ),
       onWebViewCreated: (controller) => onControllerCreated(_WebViewController(controller)),
       shouldOverrideUrlLoading: (controller, navigationAction) async {
@@ -404,10 +453,19 @@ class WebViewFactory {
       },
       onCreateWindow: (controller, createWindowAction) async {
         final url = createWindowAction.request.url?.toString() ?? '';
-        if (_isCloudflareChallenge(url)) {
+        final windowId = createWindowAction.windowId;
+
+        // If we have a callback for handling popups, use it
+        if (config.onWindowRequested != null && windowId != null) {
+          await config.onWindowRequested!(windowId, url);
+          return true;
+        }
+
+        // For other popups without a handler, load in the same window instead
+        if (url.isNotEmpty) {
           await controller.loadUrl(urlRequest: inapp.URLRequest(url: createWindowAction.request.url));
         }
-        return null;
+        return false;
       },
       onLoadStop: (controller, url) async {
         if (url != null) {

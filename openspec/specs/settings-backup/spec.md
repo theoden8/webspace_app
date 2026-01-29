@@ -39,28 +39,35 @@ Users SHALL be able to import settings from a backup file.
 
 ---
 
-### Requirement: BACKUP-003 - Cookie Exclusion
+### Requirement: BACKUP-003 - Cookie Security
 
-Cookies SHALL NEVER be included in backups for security reasons.
+Only non-secure cookies (`isSecure=false`) SHALL be included in backups.
+Secure cookies (`isSecure=true`) SHALL NEVER be exported for security reasons.
 
-#### Scenario: Verify cookies are excluded
+#### Scenario: Export non-secure cookies only
 
-**Given** sites have session cookies
+**Given** a site has cookies: `[session (isSecure=true), theme (isSecure=false)]`
 **When** settings are exported
-**Then** the backup file contains empty cookies arrays
-**And** no session tokens are included
+**Then** the backup includes only `[theme]`
+**And** the secure `session` cookie is excluded
+
+#### Scenario: Import restores non-secure cookies
+
+**Given** a backup contains non-secure cookies
+**When** settings are imported
+**Then** non-secure cookies are restored to the site
 
 ---
 
 ### Requirement: BACKUP-004 - Backup Contents
 
-Backups SHALL include all settings except cookies.
+Backups SHALL include all settings, with cookies filtered by security flag.
 
-#### Scenario: Export all settings except cookies
+#### Scenario: Export all settings
 
 - **WHEN** settings are exported
-- **THEN** sites, webspaces, theme, and preferences are included
-- **AND** cookies are excluded for security
+- **THEN** sites, webspaces, theme, preferences, and non-secure cookies are included
+- **AND** secure cookies are excluded for security
 
 | Setting | Exported | Notes |
 |---------|----------|-------|
@@ -74,7 +81,8 @@ Backups SHALL include all settings except cookies.
 | URL bar visibility | Yes | Show/hide URL bar setting |
 | Selected webspace | Yes | Currently selected webspace ID |
 | Current site index | Yes | Last viewed site |
-| **Cookies** | **No** | Never exported for security |
+| Non-secure cookies | Yes | Cookies with `isSecure=false` |
+| **Secure cookies** | **No** | `isSecure=true` never exported |
 
 ---
 
@@ -142,7 +150,9 @@ Import/Export options SHALL only appear when on the webspaces list screen.
       "currentUrl": "https://example.com/page",
       "name": "Example Site",
       "pageTitle": "Example - Homepage",
-      "cookies": [],
+      "cookies": [
+        {"name": "theme", "value": "dark", "domain": "example.com", "isSecure": false}
+      ],
       "proxySettings": { "type": 0, "address": null },
       "javascriptEnabled": true,
       "userAgent": "",
