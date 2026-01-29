@@ -684,4 +684,240 @@ void main() {
       expect(loaded.length, equals(2));
     });
   });
+
+  group('COOKIE-006: Secure Flag Enforcement', () {
+    test('secure cookies are NOT stored in SharedPreferences fallback', () async {
+      // Use a mock that always fails to simulate secure storage unavailability
+      final failingSecureStorage = FailingMockSecureStorage();
+      final storage = CookieSecureStorage(secureStorage: failingSecureStorage);
+      SharedPreferences.setMockInitialValues({});
+
+      // Save a mix of secure and non-secure cookies
+      await storage.saveCookies({
+        'github.com': [
+          Cookie(name: 'session', value: 'secret123', domain: 'github.com', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
+        ],
+      });
+
+      // Read from SharedPreferences fallback
+      final prefs = await SharedPreferences.getInstance();
+      final fallbackJson = prefs.getString('cookies_fallback');
+      expect(fallbackJson, isNotNull);
+
+      final decoded = jsonDecode(fallbackJson!) as Map<String, dynamic>;
+      final cookies = decoded['github.com'] as List<dynamic>;
+
+      // Only non-secure cookie should be in fallback
+      expect(cookies, hasLength(1));
+      expect(cookies[0]['name'], equals('theme'));
+      expect(cookies[0]['isSecure'], isNot(true));
+    });
+
+    test('all cookies stored in secure storage when available', () async {
+      // Use working secure storage
+      final workingSecureStorage = MockFlutterSecureStorage();
+      final storage = CookieSecureStorage(secureStorage: workingSecureStorage);
+      SharedPreferences.setMockInitialValues({});
+
+      // Save a mix of secure and non-secure cookies
+      await storage.saveCookies({
+        'github.com': [
+          Cookie(name: 'session', value: 'secret123', domain: 'github.com', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
+        ],
+      });
+
+      // Verify all cookies are in secure storage
+      final storedData = workingSecureStorage.storage['secure_cookies'];
+      expect(storedData, isNotNull);
+
+      final decoded = jsonDecode(storedData!) as Map<String, dynamic>;
+      final cookies = decoded['github.com'] as List<dynamic>;
+
+      // Both cookies should be stored
+      expect(cookies, hasLength(2));
+      expect(cookies.map((c) => c['name']).toSet(), equals({'session', 'theme'}));
+    });
+
+    test('site with only secure cookies has empty entry in fallback', () async {
+      final failingSecureStorage = FailingMockSecureStorage();
+      final storage = CookieSecureStorage(secureStorage: failingSecureStorage);
+      SharedPreferences.setMockInitialValues({});
+
+      // Save only secure cookies
+      await storage.saveCookies({
+        'github.com': [
+          Cookie(name: 'session', value: 'secret', domain: 'github.com', isSecure: true),
+          Cookie(name: 'auth', value: 'token', domain: 'github.com', isSecure: true),
+        ],
+      });
+
+      // Read from SharedPreferences fallback
+      final prefs = await SharedPreferences.getInstance();
+      final fallbackJson = prefs.getString('cookies_fallback');
+      expect(fallbackJson, isNotNull);
+
+      final decoded = jsonDecode(fallbackJson!) as Map<String, dynamic>;
+
+      // github.com should NOT be in fallback since all cookies were secure
+      expect(decoded.containsKey('github.com'), isFalse);
+    });
+
+    test('multiple sites with mixed secure cookies', () async {
+      final failingSecureStorage = FailingMockSecureStorage();
+      final storage = CookieSecureStorage(secureStorage: failingSecureStorage);
+      SharedPreferences.setMockInitialValues({});
+
+      await storage.saveCookies({
+        'github.com': [
+          Cookie(name: 'session', value: 'secret', domain: 'github.com', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
+        ],
+        'gitlab.com': [
+          Cookie(name: 'auth', value: 'token', domain: 'gitlab.com', isSecure: true),
+        ],
+        'example.com': [
+          Cookie(name: 'prefs', value: 'value', domain: 'example.com', isSecure: false),
+        ],
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final fallbackJson = prefs.getString('cookies_fallback');
+      final decoded = jsonDecode(fallbackJson!) as Map<String, dynamic>;
+
+      // github.com should only have non-secure cookie
+      expect(decoded['github.com'], hasLength(1));
+      expect(decoded['github.com'][0]['name'], equals('theme'));
+
+      // gitlab.com should not be present (only had secure cookie)
+      expect(decoded.containsKey('gitlab.com'), isFalse);
+
+      // example.com should have its non-secure cookie
+      expect(decoded['example.com'], hasLength(1));
+      expect(decoded['example.com'][0]['name'], equals('prefs'));
+    });
+  });
+}
+
+/// Mock that always fails to simulate secure storage unavailability
+class FailingMockSecureStorage implements FlutterSecureStorage {
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    throw Exception('Secure storage unavailable');
+  }
+
+  @override
+  Future<String?> read({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    throw Exception('Secure storage unavailable');
+  }
+
+  @override
+  Future<void> delete({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    throw Exception('Secure storage unavailable');
+  }
+
+  @override
+  Future<bool> containsKey({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    throw Exception('Secure storage unavailable');
+  }
+
+  @override
+  Future<Map<String, String>> readAll({
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    throw Exception('Secure storage unavailable');
+  }
+
+  @override
+  Future<void> deleteAll({
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    throw Exception('Secure storage unavailable');
+  }
+
+  @override
+  IOSOptions get iOptions => throw UnimplementedError();
+
+  @override
+  AndroidOptions get aOptions => throw UnimplementedError();
+
+  @override
+  LinuxOptions get lOptions => throw UnimplementedError();
+
+  @override
+  WebOptions get webOptions => throw UnimplementedError();
+
+  @override
+  MacOsOptions get mOptions => throw UnimplementedError();
+
+  @override
+  WindowsOptions get wOptions => throw UnimplementedError();
+
+  @override
+  void registerListener({
+    required String key,
+    required ValueChanged<String?> listener,
+  }) {}
+
+  @override
+  void unregisterListener({
+    required String key,
+    required ValueChanged<String?> listener,
+  }) {}
+
+  @override
+  void unregisterAllListeners() {}
+
+  @override
+  void unregisterAllListenersForKey({required String key}) {}
+
+  @override
+  Future<bool?> isCupertinoProtectedDataAvailable() async => false;
+
+  @override
+  Stream<bool>? get onCupertinoProtectedDataAvailabilityChanged => null;
 }
