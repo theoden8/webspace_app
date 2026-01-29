@@ -21,15 +21,33 @@ class WebspaceDetailScreen extends StatefulWidget {
   _WebspaceDetailScreenState createState() => _WebspaceDetailScreenState();
 }
 
+// Supported languages for webspace
+const List<MapEntry<String?, String>> _languages = [
+  MapEntry(null, 'System default'),
+  MapEntry('en', 'English'),
+  MapEntry('es', 'Español'),
+  MapEntry('fr', 'Français'),
+  MapEntry('de', 'Deutsch'),
+  MapEntry('it', 'Italiano'),
+  MapEntry('pt', 'Português'),
+  MapEntry('ru', 'Русский'),
+  MapEntry('zh', '中文'),
+  MapEntry('ja', '日本語'),
+  MapEntry('ko', '한국어'),
+  MapEntry('ar', 'العربية'),
+];
+
 class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
   late TextEditingController _nameController;
   late Set<int> _selectedIndices;
+  String? _selectedLanguage;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.webspace.name);
     _selectedIndices = Set<int>.from(widget.webspace.siteIndices);
+    _selectedLanguage = widget.webspace.language;
   }
 
   @override
@@ -65,6 +83,8 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
     final updatedWebspace = widget.webspace.copyWith(
       name: trimmedName,
       siteIndices: _selectedIndices.toList()..sort(),
+      language: _selectedLanguage,
+      clearLanguage: _selectedLanguage == null,
     );
     widget.onSave(updatedWebspace);
     Navigator.pop(context);
@@ -102,6 +122,30 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: DropdownButtonFormField<String?>(
+              value: _selectedLanguage,
+              decoration: InputDecoration(
+                labelText: 'Language',
+                border: OutlineInputBorder(),
+              ),
+              items: _languages.map((entry) {
+                return DropdownMenuItem<String?>(
+                  value: entry.key,
+                  child: Text(entry.value),
+                );
+              }).toList(),
+              onChanged: widget.isReadOnly
+                  ? null
+                  : (String? value) {
+                      setState(() {
+                        _selectedLanguage = value;
+                      });
+                    },
+            ),
+          ),
+          SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Row(

@@ -663,6 +663,19 @@ class _WebSpacePageState extends State<WebSpacePage> {
     _saveWebspaces();
   }
 
+  /// Get the language setting for the currently selected webspace.
+  /// Returns null for system default (used by "All" webspace or when no webspace is selected).
+  String? _getSelectedWebspaceLanguage() {
+    if (_selectedWebspaceId == null || _selectedWebspaceId == kAllWebspaceId) {
+      return null; // System default for "All" webspace
+    }
+    final webspace = _webspaces.firstWhere(
+      (ws) => ws.id == _selectedWebspaceId,
+      orElse: () => Webspace(name: ''),
+    );
+    return webspace.language;
+  }
+
   List<int> _getFilteredSiteIndices() {
     if (_selectedWebspaceId == null) {
       return [];
@@ -1538,7 +1551,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         onUrlSubmitted: (url) async {
                           final controller = webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels);
                           if (controller != null) {
-                            await controller.loadUrl(url);
+                            await controller.loadUrl(url, language: _getSelectedWebspaceLanguage());
                             setState(() {
                               webViewModel.currentUrl = url;
                             });
@@ -1552,6 +1565,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         _cookieManager,
                         _saveWebViewModels,
                         onWindowRequested: _showPopupWindow,
+                        language: _getSelectedWebspaceLanguage(),
                       )
                     ),
                   ],

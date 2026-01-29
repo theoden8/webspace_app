@@ -1,9 +1,40 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/demo_data.dart';
+
+/// Check if device is iPad based on screen size
+bool _isTablet(WidgetTester tester) {
+  final size = tester.view.physicalSize / tester.view.devicePixelRatio;
+  // iPad typically has shortest side > 600dp
+  final shortestSide = size.shortestSide;
+  return shortestSide > 600;
+}
+
+/// Set device orientation based on device type
+/// iPad: landscape, iPhone: portrait
+Future<void> _setDeviceOrientation(WidgetTester tester) async {
+  if (Platform.isIOS) {
+    if (_isTablet(tester)) {
+      print('iPad detected - setting landscape orientation');
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    } else {
+      print('iPhone detected - setting portrait orientation');
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+    }
+    await tester.pump();
+  }
+}
 
 /// Flutter integration test for generating F-Droid and Play Store screenshots.
 ///
@@ -70,6 +101,9 @@ void main() {
         // Wait for app to fully load and render
         await tester.pumpAndSettle(const Duration(seconds: 10));
         print('App launched and settled');
+
+        // Set orientation based on device type (iPad: landscape, iPhone: portrait)
+        await _setDeviceOrientation(tester);
 
         // Theme is already set via seedDemoData
         String currentTheme = theme;
@@ -233,8 +267,6 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 7: Add workspace dialog
-          await _takeThemedScreenshots(binding, tester, '07-add-workspace-dialog', currentTheme);
           await Future.delayed(const Duration(seconds: 2));
 
           // Look for workspace name field
@@ -255,8 +287,6 @@ void main() {
             await tester.pump();
             await Future.delayed(const Duration(seconds: 1));
 
-            // Screenshot 8: Workspace with name entered
-            await _takeThemedScreenshots(binding, tester, '08-workspace-name-entered', currentTheme);
             await Future.delayed(const Duration(seconds: 1));
 
             // Look for site selection checkboxes (in CheckboxListTile)
@@ -290,8 +320,8 @@ void main() {
               print('Wikipedia checkbox not found');
             }
 
-            // Screenshot 9: Sites selected
-            await _takeThemedScreenshots(binding, tester, '09-workspace-sites-selected', currentTheme);
+            // Screenshot 7: Sites selected
+            await _takeThemedScreenshots(binding, tester, '07-workspace-sites-selected', currentTheme);
             await Future.delayed(const Duration(seconds: 1));
 
             // Look for save button (check icon in AppBar)
@@ -315,8 +345,8 @@ void main() {
               await tester.pump();
               await Future.delayed(const Duration(seconds: 2));
 
-              // Screenshot 10: New workspace in list
-              await _takeThemedScreenshots(binding, tester, '10-new-workspace-created', currentTheme);
+              // Screenshot 8: New workspace in list
+              await _takeThemedScreenshots(binding, tester, '08-new-workspace-created', currentTheme);
               await Future.delayed(const Duration(seconds: 1));
             } else {
               print('Could not find save button');

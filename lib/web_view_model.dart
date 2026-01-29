@@ -320,6 +320,7 @@ class WebViewModel {
     CookieManager cookieManager,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
+    String? language,
   }) {
     if (webview == null) {
       if (kDebugMode) {
@@ -332,6 +333,7 @@ class WebViewModel {
           userAgent: userAgent.isNotEmpty ? userAgent : null,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
+          language: language,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, shouldAllow) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes

@@ -15,7 +15,11 @@ bool isDemoMode = false;
 /// - 'system' (default): Use system theme
 /// - 'light': Use light theme
 /// - 'dark': Use dark theme
-Future<void> seedDemoData({String theme = 'system'}) async {
+///
+/// The [language] parameter sets the language for all webspaces:
+/// - null (default): Use per-webspace settings or system default
+/// - 'en', 'es', etc.: Override all webspaces with this language
+Future<void> seedDemoData({String theme = 'system', String? language}) async {
   print('========================================');
   print('SEEDING DEMO DATA');
   print('========================================');
@@ -71,28 +75,35 @@ Future<void> seedDemoData({String theme = 'system'}) async {
   }
 
   // Create sample webspaces
+  // Language can be explicitly set per webspace (null = system default)
+  // If a language parameter is passed to seedDemoData, it overrides all webspaces
   final webspaces = <Webspace>[
-    Webspace.all(), // The "All" webspace
+    Webspace.all(), // The "All" webspace (uses system default language)
     Webspace(
       id: 'webspace_work',
       name: 'Work',
       siteIndices: [4, 5, 6], // GitHub, Hacker News, W&B
+      language: language ?? 'en', // English by default
     ),
     Webspace(
       id: 'webspace_privacy',
       name: 'Privacy',
       siteIndices: [0, 1, 2], // DuckDuckGo, Piped, Nitter
+      language: language, // Uses override or system default
     ),
     Webspace(
       id: 'webspace_social',
       name: 'Social',
       siteIndices: [2, 3, 7], // Nitter, Reddit, Wikipedia
+      language: language, // Uses override or system default
     ),
   ];
 
   print('Created ${webspaces.length} webspaces');
   for (var i = 0; i < webspaces.length; i++) {
-    print('  Webspace $i: ${webspaces[i].name} (${webspaces[i].siteIndices.length} sites)');
+    final ws = webspaces[i];
+    final lang = ws.language ?? 'system';
+    print('  Webspace $i: ${ws.name} (${ws.siteIndices.length} sites, lang: $lang)');
   }
 
   // Serialize and save
