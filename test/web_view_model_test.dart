@@ -17,6 +17,8 @@ void main() {
       expect(model.userAgent, equals(''));
       expect(model.thirdPartyCookiesEnabled, isFalse);
       expect(model.proxySettings.type, equals(ProxyType.DEFAULT));
+      expect(model.siteId, isNotEmpty); // Auto-generated siteId
+      expect(model.incognito, isFalse);
     });
 
     test('should serialize to JSON correctly', () {
@@ -30,11 +32,13 @@ void main() {
 
       final json = model.toJson();
 
+      expect(json['siteId'], equals(model.siteId)); // siteId included
       expect(json['initUrl'], equals('https://example.com'));
       expect(json['currentUrl'], equals('https://example.com/page'));
       expect(json['javascriptEnabled'], equals(false));
       expect(json['userAgent'], equals('TestAgent/1.0'));
       expect(json['thirdPartyCookiesEnabled'], equals(true));
+      expect(json['incognito'], equals(false));
       expect(json['cookies'], isList);
       expect(json['proxySettings'], isMap);
     });
@@ -75,6 +79,7 @@ void main() {
       final json = original.toJson();
       final restored = WebViewModel.fromJson(json, null);
 
+      expect(restored.siteId, equals(original.siteId)); // siteId preserved
       expect(restored.initUrl, equals(original.initUrl));
       expect(restored.currentUrl, equals(original.currentUrl));
       expect(restored.cookies.length, equals(original.cookies.length));
@@ -83,6 +88,7 @@ void main() {
       expect(restored.javascriptEnabled, equals(original.javascriptEnabled));
       expect(restored.userAgent, equals(original.userAgent));
       expect(restored.thirdPartyCookiesEnabled, equals(original.thirdPartyCookiesEnabled));
+      expect(restored.incognito, equals(original.incognito));
     });
   });
 

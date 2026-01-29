@@ -69,3 +69,4 @@ ios/fastlane/README.md
 screenshots
 
 /.vscode
+/.claude/settings.local.json
