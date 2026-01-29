@@ -501,5 +501,87 @@ void main() {
       // Different companies, no conflict
       expect(getSecondLevelDomain('https://bbc.co.uk'), equals('bbc.co.uk'));
     });
+
+    test('IP addresses are returned as-is', () {
+      expect(getSecondLevelDomain('http://192.168.1.1:8080'), equals('192.168.1.1'));
+      expect(getSecondLevelDomain('http://10.0.0.1:3000'), equals('10.0.0.1'));
+      expect(getSecondLevelDomain('http://127.0.0.1'), equals('127.0.0.1'));
+    });
+  });
+
+  group('IP Address Cookie Isolation', () {
+    late CookieIsolationTestHarness harness;
+
+    setUp(() {
+      harness = CookieIsolationTestHarness();
+    });
+
+    test('two sites on same IP address should conflict', () async {
+      harness.addSite('http://192.168.1.1:8080/app1', name: 'Local App 1');
+      harness.addSite('http://192.168.1.1:8080/app2', name: 'Local App 2');
+
+      // Login to app 1
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'session', value: 'app1_session', domain: '192.168.1.1'),
+      ]);
+
+      expect(harness.loadedIndices, contains(0));
+
+      // Switch to app 2 - should conflict (same IP)
+      await harness.switchToSite(1);
+
+      // App 1 should be unloaded
+      expect(harness.loadedIndices, isNot(contains(0)));
+      expect(harness.loadedIndices, contains(1));
+
+      // App 1's cookies should be saved
+      var app1Saved = await harness.storage.loadCookiesForSite(harness.sites[0].siteId);
+      expect(app1Saved.any((c) => c.value == 'app1_session'), isTrue);
+    });
+
+    test('sites on different IP addresses should not conflict', () async {
+      harness.addSite('http://192.168.1.1:8080', name: 'Server 1');
+      harness.addSite('http://192.168.1.2:8080', name: 'Server 2');
+      harness.addSite('http://10.0.0.1:3000', name: 'Server 3');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 's1', value: 'server1', domain: '192.168.1.1'),
+      ]);
+
+      await harness.switchToSite(1);
+      await harness.simulateLogin(1, [
+        Cookie(name: 's2', value: 'server2', domain: '192.168.1.2'),
+      ]);
+
+      await harness.switchToSite(2);
+      await harness.simulateLogin(2, [
+        Cookie(name: 's3', value: 'server3', domain: '10.0.0.1'),
+      ]);
+
+      // All three should be loaded - different IPs
+      expect(harness.loadedIndices, containsAll([0, 1, 2]));
+      expect(harness.cookieManager.domainsWithCookies, containsAll(['192.168.1.1', '192.168.1.2', '10.0.0.1']));
+    });
+
+    test('IP site and domain site should not conflict', () async {
+      harness.addSite('http://192.168.1.1:8080', name: 'Local Server');
+      harness.addSite('https://github.com', name: 'GitHub');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'local', value: 'local_session', domain: '192.168.1.1'),
+      ]);
+
+      await harness.switchToSite(1);
+      await harness.simulateLogin(1, [
+        Cookie(name: 'gh', value: 'github_session', domain: 'github.com'),
+      ]);
+
+      // Both should be loaded
+      expect(harness.loadedIndices, containsAll([0, 1]));
+      expect(harness.cookieManager.domainsWithCookies, containsAll(['192.168.1.1', 'github.com']));
+    });
   });
 }

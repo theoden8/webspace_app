@@ -195,6 +195,34 @@ void main() {
       expect(getSecondLevelDomain('https://amazon.co.jp'), equals('amazon.co.jp'));
       expect(getSecondLevelDomain('https://www.amazon.co.jp'), equals('amazon.co.jp'));
     });
+
+    test('should handle IPv4 addresses (return as-is)', () {
+      expect(getSecondLevelDomain('http://192.168.1.1'), equals('192.168.1.1'));
+      expect(getSecondLevelDomain('http://192.168.1.1:8080'), equals('192.168.1.1'));
+      expect(getSecondLevelDomain('http://10.0.0.1:3000'), equals('10.0.0.1'));
+      expect(getSecondLevelDomain('http://127.0.0.1'), equals('127.0.0.1'));
+      expect(getSecondLevelDomain('http://0.0.0.0:5000'), equals('0.0.0.0'));
+    });
+
+    test('should handle IPv6 addresses (return as-is)', () {
+      // Uri.host returns IPv6 addresses without brackets
+      expect(getSecondLevelDomain('http://[::1]'), equals('::1'));
+      expect(getSecondLevelDomain('http://[::1]:8080'), equals('::1'));
+      expect(getSecondLevelDomain('http://[2001:db8::1]'), equals('2001:db8::1'));
+    });
+
+    test('IP addresses on same host should conflict', () {
+      // Two sites on same IP should conflict (same "domain")
+      final ip1 = getSecondLevelDomain('http://192.168.1.1:8080/app1');
+      final ip2 = getSecondLevelDomain('http://192.168.1.1:8080/app2');
+      expect(ip1, equals(ip2));
+    });
+
+    test('different IP addresses should not conflict', () {
+      final ip1 = getSecondLevelDomain('http://192.168.1.1:8080');
+      final ip2 = getSecondLevelDomain('http://192.168.1.2:8080');
+      expect(ip1, isNot(equals(ip2)));
+    });
   });
 
   group('getNormalizedDomain (Nested Webview Navigation)', () {
@@ -243,6 +271,14 @@ void main() {
       expect(getNormalizedDomain('https://openai.com'), equals('openai.com'));
       expect(getNormalizedDomain('https://www.openai.com'), equals('openai.com'));
       expect(getNormalizedDomain('https://platform.openai.com'), equals('openai.com'));
+    });
+
+    test('IP addresses should be returned as-is (no aliasing)', () {
+      expect(getNormalizedDomain('http://192.168.1.1'), equals('192.168.1.1'));
+      expect(getNormalizedDomain('http://192.168.1.1:8080'), equals('192.168.1.1'));
+      expect(getNormalizedDomain('http://10.0.0.1:3000/app'), equals('10.0.0.1'));
+      // Uri.host returns IPv6 addresses without brackets
+      expect(getNormalizedDomain('http://[::1]:8080'), equals('::1'));
     });
   });
 

@@ -52,15 +52,47 @@ const Set<String> _multiPartTlds = {
   'com.ru', 'org.ru', 'gov.ru',
 };
 
+/// Checks if a string is an IPv4 address.
+bool _isIPv4Address(String host) {
+  final parts = host.split('.');
+  if (parts.length != 4) return false;
+  for (final part in parts) {
+    final num = int.tryParse(part);
+    if (num == null || num < 0 || num > 255) return false;
+  }
+  return true;
+}
+
+/// Checks if a string is an IPv6 address (with or without brackets).
+bool _isIPv6Address(String host) {
+  // Remove brackets if present (e.g., [::1] -> ::1)
+  final cleaned = host.startsWith('[') && host.endsWith(']')
+      ? host.substring(1, host.length - 1)
+      : host;
+  // Simple check: contains colons and valid hex characters
+  if (!cleaned.contains(':')) return false;
+  final validChars = RegExp(r'^[0-9a-fA-F:]+$');
+  return validChars.hasMatch(cleaned);
+}
+
 /// Extracts the second-level domain (SLD + TLD) from a URL.
 /// Used for cookie isolation - all subdomains of the same second-level domain
 /// will have their webviews mutually excluded.
 /// Handles multi-part TLDs like .co.uk, .com.au, etc.
+/// IP addresses are returned as-is (they don't have subdomains).
 /// Example: 'mail.google.com' -> 'google.com'
 /// Example: 'api.github.com' -> 'github.com'
 /// Example: 'www.google.co.uk' -> 'google.co.uk'
+/// Example: '192.168.1.1' -> '192.168.1.1'
+/// Example: '[::1]' -> '[::1]'
 String getSecondLevelDomain(String url) {
   final host = extractDomain(url);
+
+  // IP addresses should be returned as-is - they're already unique identifiers
+  if (_isIPv4Address(host) || _isIPv6Address(host)) {
+    return host;
+  }
+
   final parts = host.split('.');
 
   if (parts.length >= 3) {

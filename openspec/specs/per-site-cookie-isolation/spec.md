@@ -124,6 +124,14 @@ Handles country-code second-level domains like `.co.uk`, `.com.au`:
 
 Defined in `_multiPartTlds` set covering 50+ common patterns.
 
+**IP Address Support:**
+IP addresses (IPv4 and IPv6) are returned as-is since they're already unique identifiers:
+- `http://192.168.1.1:8080` -> `192.168.1.1`
+- `http://10.0.0.1:3000/app` -> `10.0.0.1`
+- `http://[::1]:8080` -> `::1`
+
+Two sites on the same IP address will conflict (same as domains).
+
 ### Domain Aliases for Navigation (Separate from Cookie Isolation)
 
 Uses `getNormalizedDomain()` for nested webview URL blocking only:
