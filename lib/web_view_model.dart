@@ -321,6 +321,9 @@ class WebViewModel {
     Function saveFunc,
   ) {
     if (webview == null) {
+      if (kDebugMode) {
+        debugPrint('[WebView] Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
+      }
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           initialUrl: currentUrl,
@@ -333,17 +336,24 @@ class WebViewModel {
             final requestNormalized = getNormalizedDomain(url);
             final initialNormalized = getNormalizedDomain(initUrl);
 
+            if (kDebugMode) {
+              debugPrint('[WebView] shouldOverrideUrlLoading called:');
+              debugPrint('  site: "$name" (siteId: $siteId)');
+              debugPrint('  initUrl: $initUrl');
+              debugPrint('  request: $url');
+              debugPrint('  from: $initialNormalized -> to: $requestNormalized');
+            }
+
             if (requestNormalized == initialNormalized) {
               if (kDebugMode) {
-                debugPrint('[WebView] "$name" navigating within domain: $url');
+                debugPrint('  -> ALLOW (same domain)');
               }
               return true; // Allow - same logical domain
             }
 
             // Open in nested webview with home site title
             if (kDebugMode) {
-              debugPrint('[WebView] "$name" opening nested: $url');
-              debugPrint('  from: $initialNormalized -> to: $requestNormalized');
+              debugPrint('  -> CANCEL (opening nested webview)');
             }
             launchUrlFunc(url, homeTitle: name);
             return false; // Cancel

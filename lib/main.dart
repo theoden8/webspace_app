@@ -1467,6 +1467,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 }
 
                 return Column(
+                  key: ValueKey(webViewModel.siteId), // Ensure correct widget identity
                   children: [
                     if(_isFindVisible && _currentIndex == index && getController() != null)
                       FindToolbar(
