@@ -228,6 +228,22 @@ void main() {
       expect(getNormalizedDomain('https://google.de'), equals('google.com'));
       expect(getNormalizedDomain('https://google.fr'), equals('google.com'));
     });
+
+    test('claude.ai should map to anthropic.com', () {
+      expect(getNormalizedDomain('https://claude.ai'), equals('anthropic.com'));
+      expect(getNormalizedDomain('https://claude.ai/chat'), equals('anthropic.com'));
+      expect(getNormalizedDomain('https://anthropic.com'), equals('anthropic.com'));
+      expect(getNormalizedDomain('https://www.anthropic.com'), equals('anthropic.com'));
+      expect(getNormalizedDomain('https://docs.anthropic.com'), equals('anthropic.com'));
+    });
+
+    test('chatgpt.com should map to openai.com', () {
+      expect(getNormalizedDomain('https://chatgpt.com'), equals('openai.com'));
+      expect(getNormalizedDomain('https://chatgpt.com/chat'), equals('openai.com'));
+      expect(getNormalizedDomain('https://openai.com'), equals('openai.com'));
+      expect(getNormalizedDomain('https://www.openai.com'), equals('openai.com'));
+      expect(getNormalizedDomain('https://platform.openai.com'), equals('openai.com'));
+    });
   });
 
   group('Cookie Isolation Domain Conflict Detection', () {

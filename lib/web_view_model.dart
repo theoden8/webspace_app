@@ -84,6 +84,10 @@ String getSecondLevelDomain(String url) {
 /// All Google properties (gmail.com, regional domains, etc.) are treated as google.com.
 const Map<String, String> _domainAliases = {
   'gmail.com': 'google.com',
+  // Anthropic / Claude
+  'claude.ai': 'anthropic.com',
+  // OpenAI / ChatGPT
+  'chatgpt.com': 'openai.com',
   // Regional Google domains
   'google.co.uk': 'google.com',
   'google.com.au': 'google.com',
