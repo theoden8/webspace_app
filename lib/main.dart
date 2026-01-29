@@ -44,6 +44,19 @@ String extractDomain(String url) {
   return domain.isEmpty ? url : domain;
 }
 
+/// Extracts the second-level domain (SLD + TLD) from a URL.
+/// Used for cookie isolation - sites sharing the same second-level domain
+/// will have their webviews mutually excluded.
+/// Example: 'api.github.com' -> 'github.com'
+String _getSecondLevelDomain(String url) {
+  final host = extractDomain(url);
+  final parts = host.split('.');
+  if (parts.length >= 2) {
+    return '${parts[parts.length - 2]}.${parts.last}';
+  }
+  return host;
+}
+
 // Cache for page titles
 final Map<String, String?> _pageTitleCache = {};
 
@@ -164,29 +177,14 @@ class _WebSpacePageState extends State<WebSpacePage> {
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    // Save cookies to secure storage, keyed by domain (not URL)
-    // This is because WebView shares cookies per domain, not per URL
-    final Map<String, List<Cookie>> cookiesByDomain = {};
+    // Save cookies to secure storage, keyed by siteId for per-site isolation
+    final Map<String, List<Cookie>> cookiesBySiteId = {};
     for (final webViewModel in _webViewModels) {
-      if (webViewModel.cookies.isNotEmpty) {
-        final domain = extractDomain(webViewModel.initUrl);
-        // If multiple sites share the same domain, merge their cookies
-        // (In practice, they should have the same cookies since WebView shares per domain)
-        if (cookiesByDomain.containsKey(domain)) {
-          // Merge cookies, avoiding duplicates by name
-          final existingNames = cookiesByDomain[domain]!.map((c) => c.name).toSet();
-          for (final cookie in webViewModel.cookies) {
-            if (!existingNames.contains(cookie.name)) {
-              cookiesByDomain[domain]!.add(cookie);
-              existingNames.add(cookie.name);
-            }
-          }
-        } else {
-          cookiesByDomain[domain] = List.from(webViewModel.cookies);
-        }
+      if (webViewModel.cookies.isNotEmpty && !webViewModel.incognito) {
+        cookiesBySiteId[webViewModel.siteId] = List.from(webViewModel.cookies);
       }
     }
-    await _cookieSecureStorage.saveCookies(cookiesByDomain);
+    await _cookieSecureStorage.saveCookies(cookiesBySiteId);
 
     // Save models to SharedPreferences (cookies will be empty in SharedPreferences)
     List<String> webViewModelsJson = _webViewModels.map((webViewModel) {
@@ -234,10 +232,92 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
   /// Set the current index and mark it as loaded for lazy webview creation.
   /// This ensures only visited webviews are created, not all webviews at once.
-  void _setCurrentIndex(int? index) {
+  /// Also handles domain conflict detection for per-site cookie isolation.
+  Future<void> _setCurrentIndex(int? index) async {
+    if (index == null || index < 0 || index >= _webViewModels.length) {
+      _currentIndex = index;
+      return;
+    }
+
+    final target = _webViewModels[index];
+
+    // Only check for domain conflicts if target is not incognito
+    if (!target.incognito) {
+      final targetDomain = _getSecondLevelDomain(target.initUrl);
+
+      // Find and unload any conflicting sites (same domain, already loaded)
+      for (final loadedIndex in List.from(_loadedIndices)) {
+        if (loadedIndex == index) continue;
+        if (loadedIndex >= _webViewModels.length) continue;
+
+        final loaded = _webViewModels[loadedIndex];
+        if (loaded.incognito) continue; // Skip incognito sites
+
+        final loadedDomain = _getSecondLevelDomain(loaded.initUrl);
+        if (loadedDomain == targetDomain) {
+          // Domain conflict - unload the conflicting site
+          await _unloadSiteForDomainSwitch(loadedIndex);
+          break; // Only one conflict possible at a time
+        }
+      }
+    }
+
+    // Restore cookies for target site before loading
+    await _restoreCookiesForSite(index);
+
     _currentIndex = index;
-    if (index != null && index >= 0 && index < _webViewModels.length) {
-      _loadedIndices.add(index);
+    _loadedIndices.add(index);
+  }
+
+  /// Unloads a site due to domain conflict with another site.
+  /// Captures cookies, persists them, clears CookieManager, disposes webview.
+  Future<void> _unloadSiteForDomainSwitch(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+
+    final model = _webViewModels[index];
+
+    // Capture current cookies from CookieManager
+    await model.captureCookies(_cookieManager);
+
+    // Persist captured cookies by siteId
+    await _cookieSecureStorage.saveCookiesForSite(model.siteId, model.cookies);
+
+    // Clear CookieManager for this domain
+    final url = Uri.parse(model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl);
+    await _cookieManager.deleteAllCookiesForUrl(url);
+
+    // Dispose webview
+    model.disposeWebView();
+
+    // Remove from loaded indices
+    _loadedIndices.remove(index);
+  }
+
+  /// Restores cookies for a site from secure storage before loading.
+  Future<void> _restoreCookiesForSite(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+
+    final model = _webViewModels[index];
+    if (model.incognito) return; // Don't restore cookies for incognito sites
+
+    // Load persisted cookies by siteId
+    final cookies = await _cookieSecureStorage.loadCookiesForSite(model.siteId);
+    model.cookies = cookies;
+
+    // Restore cookies to CookieManager
+    final url = Uri.parse(model.initUrl);
+    for (final cookie in cookies) {
+      if (cookie.value.isEmpty) continue;
+      await _cookieManager.setCookie(
+        url: url,
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path ?? '/',
+        expiresDate: cookie.expiresDate,
+        isSecure: cookie.isSecure,
+        isHttpOnly: cookie.isHttpOnly,
+      );
     }
   }
 
@@ -295,47 +375,33 @@ class _WebSpacePageState extends State<WebSpacePage> {
           .map((webViewModelJson) => WebViewModel.fromJson(jsonDecode(webViewModelJson), (){setState((){});}))
           .toList();
 
-      // Load cookies from secure storage (with fallback to SharedPreferences)
-      // Cookies are keyed by domain, not URL
+      // Load cookies from secure storage (keyed by siteId or legacy domain)
       final secureCookies = await _cookieSecureStorage.loadCookies();
 
-      // Merge cookies into loaded models by matching domain
+      // Load cookies into models by siteId (or migrate from domain-keyed)
       for (final webViewModel in loadedWebViewModels) {
-        final domain = extractDomain(webViewModel.initUrl);
-        final domainCookies = secureCookies[domain];
-        if (domainCookies != null && domainCookies.isNotEmpty) {
-          webViewModel.cookies = domainCookies;
+        // Try siteId first (new format)
+        var siteCookies = secureCookies[webViewModel.siteId];
+        if (siteCookies == null || siteCookies.isEmpty) {
+          // Fallback: try domain-keyed (legacy migration)
+          final domain = extractDomain(webViewModel.initUrl);
+          siteCookies = secureCookies[domain];
         }
-        // If no secure cookies but model has cookies from SharedPreferences,
-        // they will be migrated on next save
+        if (siteCookies != null && siteCookies.isNotEmpty) {
+          webViewModel.cookies = siteCookies;
+        }
       }
 
       setState(() {
         _webViewModels.addAll(loadedWebViewModels);
       });
 
-      // Set cookies in the cookie manager
-      for (WebViewModel webViewModel in loadedWebViewModels) {
-        for(final cookie in webViewModel.cookies) {
-          // Skip cookies with empty values to prevent assertion failures
-          if (cookie.value.isEmpty) {
-            continue;
-          }
-          await _cookieManager.setCookie(
-            url: Uri.parse(webViewModel.initUrl),
-            name: cookie.name,
-            value: cookie.value,
-            domain: cookie.domain,
-            path: cookie.path ?? "/",
-            expiresDate: cookie.expiresDate,
-            isSecure: cookie.isSecure,
-            isHttpOnly: cookie.isHttpOnly,
-          );
-        }
-      }
+      // NOTE: We don't restore cookies to CookieManager here anymore.
+      // Cookies are restored per-site via _restoreCookiesForSite() when
+      // a site is selected via _setCurrentIndex(). This enables per-site
+      // cookie isolation for same-domain sites.
 
-      // Re-save to ensure cookies are in secure storage
-      // This handles migration from SharedPreferences
+      // Re-save to migrate cookies to siteId-keyed format
       await _saveWebViewModels();
     }
   }
@@ -350,25 +416,22 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await _loadWebspaces();
     await _loadWebViewModels();
 
-    // Validate and set current index
-    setState(() {
-      int? savedIndex = prefs.getInt('currentIndex');
-      if (savedIndex != null && savedIndex < _webViewModels.length && savedIndex != 10000) {
-        // Check if the index is valid for the selected webspace
-        if (_selectedWebspaceId != null) {
-          final filteredIndices = _getFilteredSiteIndices();
-          if (filteredIndices.contains(savedIndex)) {
-            _setCurrentIndex(savedIndex);
-          } else {
-            _setCurrentIndex(null);
-          }
-        } else {
-          _setCurrentIndex(null);
+    // Validate and determine the index to restore
+    int? indexToRestore;
+    int? savedIndex = prefs.getInt('currentIndex');
+    if (savedIndex != null && savedIndex < _webViewModels.length && savedIndex != 10000) {
+      // Check if the index is valid for the selected webspace
+      if (_selectedWebspaceId != null) {
+        final filteredIndices = _getFilteredSiteIndices();
+        if (filteredIndices.contains(savedIndex)) {
+          indexToRestore = savedIndex;
         }
-      } else {
-        _setCurrentIndex(null);
       }
-    });
+    }
+
+    // Set current index (async for cookie restoration)
+    await _setCurrentIndex(indexToRestore);
+    setState(() {}); // Trigger UI update after async operation
 
     // Apply saved theme to all restored webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeMode);
@@ -477,24 +540,28 @@ class _WebSpacePageState extends State<WebSpacePage> {
     );
 
     if (confirmed == true) {
+      final wasSelected = _selectedWebspaceId == webspace.id;
       setState(() {
         _webspaces.removeWhere((ws) => ws.id == webspace.id);
-        if (_selectedWebspaceId == webspace.id) {
+        if (wasSelected) {
           _selectedWebspaceId = kAllWebspaceId; // Select "All" instead of null
-          _setCurrentIndex(null);
         }
       });
+      if (wasSelected) {
+        await _setCurrentIndex(null);
+      }
       await _saveWebspaces();
       await _saveSelectedWebspaceId();
       await _saveCurrentIndex();
     }
   }
 
-  void _selectWebspace(Webspace webspace) {
+  void _selectWebspace(Webspace webspace) async {
     setState(() {
       _selectedWebspaceId = webspace.id;
-      _setCurrentIndex(null);
     });
+    await _setCurrentIndex(null);
+    setState(() {}); // Update UI
     _saveSelectedWebspaceId();
     _saveCurrentIndex();
     // Open drawer after selecting workspace
@@ -640,16 +707,17 @@ class _WebSpacePageState extends State<WebSpacePage> {
       } else {
         _selectedWebspaceId = kAllWebspaceId;
       }
-
-      // Restore current index if valid
-      if (backup.currentIndex != null &&
-          backup.currentIndex! >= 0 &&
-          backup.currentIndex! < _webViewModels.length) {
-        _setCurrentIndex(backup.currentIndex);
-      } else {
-        _setCurrentIndex(null);
-      }
     });
+
+    // Restore current index if valid (async for cookie handling)
+    int? indexToRestore;
+    if (backup.currentIndex != null &&
+        backup.currentIndex! >= 0 &&
+        backup.currentIndex! < _webViewModels.length) {
+      indexToRestore = backup.currentIndex;
+    }
+    await _setCurrentIndex(indexToRestore);
+    setState(() {}); // Update UI after async operation
 
     // Apply theme to app
     widget.onThemeModeChanged(_themeMode);
@@ -662,11 +730,11 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
 
-    // Clean up orphaned cookies (cookies for domains no longer in any site)
-    final activeDomains = _webViewModels
-        .map((model) => extractDomain(model.initUrl))
+    // Clean up orphaned cookies (cookies for siteIds no longer in any site)
+    final activeSiteIds = _webViewModels
+        .map((model) => model.siteId)
         .toSet();
-    await _cookieSecureStorage.removeOrphanedCookies(activeDomains);
+    await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
 
     // Apply theme to all webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeMode);
@@ -966,38 +1034,44 @@ class _WebSpacePageState extends State<WebSpacePage> {
         pageTitle = await getPageTitle(url);
       }
 
-      setState(() {
-        final model = WebViewModel(
-          initUrl: url,
-          incognito: incognito,
-          stateSetterF: () {setState((){});},
-        );
-        if (customName.isNotEmpty) {
-          model.name = customName;
-          model.pageTitle = customName;
-        } else if (pageTitle != null && pageTitle.isNotEmpty) {
-          model.name = pageTitle;
-          model.pageTitle = pageTitle;
-        }
-        _webViewModels.add(model);
-        final newSiteIndex = _webViewModels.length - 1;
-        _setCurrentIndex(newSiteIndex);
-        _saveCurrentIndex();
+      final model = WebViewModel(
+        initUrl: url,
+        incognito: incognito,
+        stateSetterF: () {setState((){});},
+      );
+      if (customName.isNotEmpty) {
+        model.name = customName;
+        model.pageTitle = customName;
+      } else if (pageTitle != null && pageTitle.isNotEmpty) {
+        model.name = pageTitle;
+        model.pageTitle = pageTitle;
+      }
 
-        // If a non-"All" webspace is currently selected, add the new site to it
-        if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
-          final webspaceIndex = _webspaces.indexWhere((ws) => ws.id == _selectedWebspaceId);
-          if (webspaceIndex != -1) {
-            _webspaces[webspaceIndex].siteIndices.add(newSiteIndex);
-            _saveWebspaces();
-          }
-        }
+      setState(() {
+        _webViewModels.add(model);
       });
+
+      final newSiteIndex = _webViewModels.length - 1;
+
+      // If a non-"All" webspace is currently selected, add the new site to it
+      if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
+        final webspaceIndex = _webspaces.indexWhere((ws) => ws.id == _selectedWebspaceId);
+        if (webspaceIndex != -1) {
+          _webspaces[webspaceIndex].siteIndices.add(newSiteIndex);
+          _saveWebspaces();
+        }
+      }
+
+      // Set current index (async for cookie handling)
+      await _setCurrentIndex(newSiteIndex);
+      setState(() {}); // Update UI after async operation
+
+      _saveCurrentIndex();
       _saveWebViewModels();
 
       // Apply current theme to new webview
       final webViewTheme = _themeModeToWebViewTheme(_themeMode);
-      await _webViewModels[_webViewModels.length - 1].setTheme(webViewTheme);
+      await model.setTheme(webViewTheme);
     }
   }
 
@@ -1110,12 +1184,11 @@ class _WebSpacePageState extends State<WebSpacePage> {
         softWrap: false,
         style: TextStyle(fontSize: 12, color: Colors.grey),
       ),
-      onTap: () {
-        setState(() {
-          _setCurrentIndex(index);
-          _saveCurrentIndex();
-        });
+      onTap: () async {
         Navigator.pop(context);
+        await _setCurrentIndex(index);
+        setState(() {});
+        _saveCurrentIndex();
       },
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1174,12 +1247,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
               );
 
               if (confirmed == true) {
+                final wasCurrentIndex = _currentIndex == index;
                 setState(() {
                   _webViewModels.removeAt(index);
-                  if (_currentIndex == index) {
-                    _setCurrentIndex(null);
-                    _saveCurrentIndex();
-                  }
                   // Update _loadedIndices after deletion (shift indices down)
                   _loadedIndices.remove(index);
                   _loadedIndices.removeWhere((i) => i >= _webViewModels.length);
@@ -1196,6 +1266,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         .toList();
                   }
                 });
+                if (wasCurrentIndex) {
+                  await _setCurrentIndex(null);
+                  _saveCurrentIndex();
+                }
                 _saveWebViewModels();
                 _saveWebspaces();
                 Navigator.pop(context);
@@ -1224,10 +1298,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     InkWell(
-                      onTap: () {
-                        setState(() {
-                          _setCurrentIndex(null);
-                        });
+                      onTap: () async {
+                        await _setCurrentIndex(null);
+                        setState(() {});
                         _saveSelectedWebspaceId();
                         _saveCurrentIndex();
                         Navigator.pop(context);
@@ -1257,10 +1330,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     button: true,
                     enabled: true,
                     child: TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _setCurrentIndex(null);
-                        });
+                      onPressed: () async {
+                        await _setCurrentIndex(null);
+                        setState(() {});
                         _saveSelectedWebspaceId();
                         _saveCurrentIndex();
                         Navigator.pop(context);

@@ -595,5 +595,93 @@ void main() {
       final loaded = await cookieSecureStorage.loadCookies();
       expect(loaded['example.com'], isNotNull);
     });
+
+    test('should load cookies for specific siteId', () async {
+      // Save cookies keyed by siteId
+      await cookieSecureStorage.saveCookies({
+        'site-id-1': [
+          Cookie(name: 'cookie1', value: 'value1', domain: 'github.com'),
+        ],
+        'site-id-2': [
+          Cookie(name: 'cookie2', value: 'value2', domain: 'github.com'),
+        ],
+      });
+
+      // Load cookies for specific site
+      final site1Cookies = await cookieSecureStorage.loadCookiesForSite('site-id-1');
+      final site2Cookies = await cookieSecureStorage.loadCookiesForSite('site-id-2');
+      final unknownSiteCookies = await cookieSecureStorage.loadCookiesForSite('unknown-site');
+
+      expect(site1Cookies, hasLength(1));
+      expect(site1Cookies[0].name, equals('cookie1'));
+
+      expect(site2Cookies, hasLength(1));
+      expect(site2Cookies[0].name, equals('cookie2'));
+
+      expect(unknownSiteCookies, isEmpty);
+    });
+
+    test('should save cookies for specific siteId', () async {
+      // Save cookies for first site
+      await cookieSecureStorage.saveCookiesForSite('site-id-1', [
+        Cookie(name: 'cookie1', value: 'value1', domain: 'github.com'),
+      ]);
+
+      // Save cookies for second site
+      await cookieSecureStorage.saveCookiesForSite('site-id-2', [
+        Cookie(name: 'cookie2', value: 'value2', domain: 'github.com'),
+      ]);
+
+      // Verify both are stored independently
+      final allCookies = await cookieSecureStorage.loadCookies();
+      expect(allCookies.keys, containsAll(['site-id-1', 'site-id-2']));
+
+      expect(allCookies['site-id-1'], hasLength(1));
+      expect(allCookies['site-id-1']![0].name, equals('cookie1'));
+
+      expect(allCookies['site-id-2'], hasLength(1));
+      expect(allCookies['site-id-2']![0].name, equals('cookie2'));
+    });
+
+    test('should remove cookies when saving empty list for siteId', () async {
+      // Save cookies for a site
+      await cookieSecureStorage.saveCookiesForSite('site-id-1', [
+        Cookie(name: 'cookie1', value: 'value1', domain: 'github.com'),
+      ]);
+
+      // Verify saved
+      var loaded = await cookieSecureStorage.loadCookiesForSite('site-id-1');
+      expect(loaded, hasLength(1));
+
+      // Save empty list - should remove
+      await cookieSecureStorage.saveCookiesForSite('site-id-1', []);
+
+      // Verify removed
+      loaded = await cookieSecureStorage.loadCookiesForSite('site-id-1');
+      expect(loaded, isEmpty);
+    });
+
+    test('should remove orphaned cookies by siteId', () async {
+      // Save cookies for multiple siteIds
+      await cookieSecureStorage.saveCookies({
+        'site-id-1': [
+          Cookie(name: 'cookie1', value: 'value1', domain: 'github.com'),
+        ],
+        'site-id-2': [
+          Cookie(name: 'cookie2', value: 'value2', domain: 'gitlab.com'),
+        ],
+        'site-id-3': [
+          Cookie(name: 'cookie3', value: 'value3', domain: 'bitbucket.org'),
+        ],
+      });
+
+      // Remove orphaned cookies - only site-id-1 and site-id-3 are active
+      await cookieSecureStorage.removeOrphanedCookies({'site-id-1', 'site-id-3'});
+
+      final loaded = await cookieSecureStorage.loadCookies();
+      expect(loaded.keys, containsAll(['site-id-1', 'site-id-3']));
+      expect(loaded.keys, isNot(contains('site-id-2')));
+      expect(loaded.length, equals(2));
+    });
   });
 }
