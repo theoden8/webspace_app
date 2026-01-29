@@ -70,6 +70,8 @@ class CookieSecureStorage {
 
   /// Saves cookies to secure storage.
   /// Falls back to SharedPreferences if secure storage is unavailable.
+  /// Note: Cookies with isSecure=true are ONLY stored in secure storage,
+  /// never in the SharedPreferences fallback.
   Future<void> saveCookies(Map<String, List<Cookie>> cookiesByUrl) async {
     if (isDemoMode) return; // Don't persist in demo mode
     final Map<String, List<Map<String, dynamic>>> jsonMap = {};
@@ -90,9 +92,19 @@ class CookieSecureStorage {
       }
     }
 
-    // Fallback to SharedPreferences
+    // Fallback to SharedPreferences - but ONLY for non-secure cookies
+    // Cookies with isSecure=true must not be stored in plain text
+    final Map<String, List<Map<String, dynamic>>> nonSecureJsonMap = {};
+    cookiesByUrl.forEach((url, cookies) {
+      final nonSecureCookies = cookies.where((c) => c.isSecure != true).toList();
+      if (nonSecureCookies.isNotEmpty) {
+        nonSecureJsonMap[url] = nonSecureCookies.map((c) => c.toJson()).toList();
+      }
+    });
+
+    final nonSecureJsonString = jsonEncode(nonSecureJsonMap);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_sharedPrefsCookiesKey, jsonString);
+    await prefs.setString(_sharedPrefsCookiesKey, nonSecureJsonString);
   }
 
   /// Saves cookies for a single site URL.
