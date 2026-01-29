@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/settings/proxy.dart';
@@ -291,6 +292,8 @@ class _WebViewController implements WebViewController {
       domStorageEnabled: true,
       databaseEnabled: true,
       javaScriptCanOpenWindowsAutomatically: true,
+      // Enable DevTools inspection in debug mode
+      isInspectable: kDebugMode,
     ),
   );
 
@@ -400,6 +403,8 @@ class WebViewFactory {
         domStorageEnabled: true,
         databaseEnabled: true,
         javaScriptCanOpenWindowsAutomatically: true,
+        // Enable DevTools inspection in debug mode (chrome://inspect on Android)
+        isInspectable: kDebugMode,
       ),
       onCloseWindow: (controller) {
         onCloseWindow?.call();
@@ -427,6 +432,8 @@ class WebViewFactory {
         domStorageEnabled: true,
         databaseEnabled: true,
         javaScriptCanOpenWindowsAutomatically: true,
+        // Enable DevTools inspection in debug mode (chrome://inspect on Android)
+        isInspectable: kDebugMode,
       ),
       onWebViewCreated: (controller) => onControllerCreated(_WebViewController(controller)),
       shouldOverrideUrlLoading: (controller, navigationAction) async {
