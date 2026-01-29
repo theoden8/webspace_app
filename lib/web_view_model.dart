@@ -18,17 +18,32 @@ String extractDomain(String url) {
   return domain.isEmpty ? url : domain;
 }
 
-/// Domain aliases for treating different domains as equivalent.
+/// Extracts the second-level domain (SLD + TLD) from a URL.
+/// Used for cookie isolation - all subdomains of the same second-level domain
+/// will have their webviews mutually excluded.
+/// Example: 'mail.google.com' -> 'google.com'
+/// Example: 'api.github.com' -> 'github.com'
+String getSecondLevelDomain(String url) {
+  final host = extractDomain(url);
+  final parts = host.split('.');
+  if (parts.length >= 2) {
+    return '${parts[parts.length - 2]}.${parts.last}';
+  }
+  return host;
+}
+
+/// Domain aliases for treating different domains as equivalent for navigation.
 /// Key is the alias domain, value is the canonical domain.
-/// Used for both cookie isolation and nested webview URL blocking.
+/// Used ONLY for nested webview URL blocking (not cookie isolation).
 const Map<String, String> _domainAliases = {
   'mail.google.com': 'gmail.com',
   'inbox.google.com': 'gmail.com',
 };
 
 /// Normalizes a domain by applying aliases and extracting second-level domain.
-/// Example: 'mail.google.com' -> 'gmail.com'
-/// Example: 'api.github.com' -> 'github.com'
+/// Used for nested webview URL blocking - determines if navigation stays in same webview.
+/// Example: 'mail.google.com' -> 'gmail.com' (alias)
+/// Example: 'api.github.com' -> 'github.com' (second-level)
 String getNormalizedDomain(String url) {
   final host = extractDomain(url);
 

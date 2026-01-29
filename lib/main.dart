@@ -226,7 +226,8 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
     // Only check for domain conflicts if target is not incognito
     if (!target.incognito) {
-      final targetDomain = getNormalizedDomain(target.initUrl);
+      // Use second-level domain for cookie isolation (e.g., all *.google.com sites conflict)
+      final targetDomain = getSecondLevelDomain(target.initUrl);
 
       // Find and unload any conflicting sites (same domain, already loaded)
       for (final loadedIndex in List.from(_loadedIndices)) {
@@ -236,7 +237,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
         final loaded = _webViewModels[loadedIndex];
         if (loaded.incognito) continue; // Skip incognito sites
 
-        final loadedDomain = getNormalizedDomain(loaded.initUrl);
+        final loadedDomain = getSecondLevelDomain(loaded.initUrl);
         if (loadedDomain == targetDomain) {
           // Domain conflict - unload the conflicting site
           await _unloadSiteForDomainSwitch(loadedIndex);
