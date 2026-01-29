@@ -180,6 +180,21 @@ void main() {
     test('gmail.com extracts to gmail.com (different second-level)', () {
       expect(getSecondLevelDomain('https://gmail.com'), equals('gmail.com'));
     });
+
+    test('should handle multi-part TLDs like .co.uk', () {
+      expect(getSecondLevelDomain('https://google.co.uk'), equals('google.co.uk'));
+      expect(getSecondLevelDomain('https://www.google.co.uk'), equals('google.co.uk'));
+      expect(getSecondLevelDomain('https://mail.google.co.uk'), equals('google.co.uk'));
+      expect(getSecondLevelDomain('https://bbc.co.uk'), equals('bbc.co.uk'));
+      expect(getSecondLevelDomain('https://www.bbc.co.uk'), equals('bbc.co.uk'));
+    });
+
+    test('should handle other multi-part TLDs', () {
+      expect(getSecondLevelDomain('https://google.com.au'), equals('google.com.au'));
+      expect(getSecondLevelDomain('https://www.google.com.au'), equals('google.com.au'));
+      expect(getSecondLevelDomain('https://amazon.co.jp'), equals('amazon.co.jp'));
+      expect(getSecondLevelDomain('https://www.amazon.co.jp'), equals('amazon.co.jp'));
+    });
   });
 
   group('getNormalizedDomain (Nested Webview Navigation)', () {
@@ -197,6 +212,12 @@ void main() {
     test('non-google subdomains extract to second-level', () {
       expect(getNormalizedDomain('https://api.github.com'), equals('github.com'));
       expect(getNormalizedDomain('https://gist.github.com'), equals('github.com'));
+    });
+
+    test('should handle multi-part TLDs', () {
+      expect(getNormalizedDomain('https://google.co.uk'), equals('google.co.uk'));
+      expect(getNormalizedDomain('https://www.google.co.uk'), equals('google.co.uk'));
+      expect(getNormalizedDomain('https://mail.google.co.uk'), equals('google.co.uk'));
     });
   });
 
