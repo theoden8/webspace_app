@@ -377,7 +377,8 @@ class WebViewFactory {
   ];
 
   static bool _shouldBlockUrl(String url) {
-    if (url.startsWith('about:')) return true;
+    // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile
+    if (url.startsWith('about:') && url != 'about:blank' && url != 'about:srcdoc') return true;
     if (url.contains('/sw_iframe.html') || url.contains('/blank.html') || url.contains('/service_worker/')) return true;
     return _trackingDomains.any((d) => url.contains(d));
   }
@@ -432,6 +433,9 @@ class WebViewFactory {
         domStorageEnabled: true,
         databaseEnabled: true,
         javaScriptCanOpenWindowsAutomatically: true,
+        // Android: allow file and content access for Cloudflare Turnstile
+        allowFileAccess: true,
+        allowContentAccess: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
