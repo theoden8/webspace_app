@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/platform/platform_info.dart';
+import 'package:webspace/platform/webview.dart';
 
 String generateRandomUserAgent() {
   // You can modify these values to add more variety to the generated user-agent strings
@@ -47,6 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _proxyPasswordController;
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
+  late bool _incognito;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
 
@@ -86,6 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
+    _incognito = widget.webViewModel.incognito;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
   }
@@ -173,6 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
+      widget.webViewModel.incognito = _incognito;
 
       if (!mounted) return;
 
@@ -333,6 +336,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               setState(() {
                 _thirdPartyCookiesEnabled = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Incognito mode'),
+            subtitle: const Text('No cookies or cache persist'),
+            value: _incognito,
+            onChanged: (bool value) {
+              setState(() {
+                _incognito = value;
               });
             },
           ),

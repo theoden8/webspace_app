@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/platform/webview.dart';
 
 void main() {
-  group('UnifiedCookie', () {
+  group('Cookie', () {
     test('should serialize to JSON correctly', () {
-      final cookie = UnifiedCookie(
+      final cookie = Cookie(
         name: 'test_cookie',
         value: 'test_value',
         domain: 'example.com',
@@ -13,7 +14,7 @@ void main() {
         isSecure: true,
         isHttpOnly: false,
         isSessionOnly: false,
-        sameSite: 'Lax',
+        sameSite: inapp.HTTPCookieSameSitePolicy.LAX,
       );
 
       final json = cookie.toJson();
@@ -26,7 +27,7 @@ void main() {
       expect(json['isSecure'], equals(true));
       expect(json['isHttpOnly'], equals(false));
       expect(json['isSessionOnly'], equals(false));
-      expect(json['sameSite'], equals('Lax'));
+      expect(json['sameSite'], contains('Lax'));
     });
 
     test('should deserialize from JSON correctly', () {
@@ -39,10 +40,10 @@ void main() {
         'isSecure': true,
         'isHttpOnly': false,
         'isSessionOnly': false,
-        'sameSite': 'Lax',
+        'sameSite': 'HTTPCookieSameSitePolicy.LAX',
       };
 
-      final cookie = UnifiedCookie.fromJson(json);
+      final cookie = cookieFromJson(json);
 
       expect(cookie.name, equals('test_cookie'));
       expect(cookie.value, equals('test_value'));
@@ -52,11 +53,11 @@ void main() {
       expect(cookie.isSecure, equals(true));
       expect(cookie.isHttpOnly, equals(false));
       expect(cookie.isSessionOnly, equals(false));
-      expect(cookie.sameSite, equals('Lax'));
+      expect(cookie.sameSite, equals(inapp.HTTPCookieSameSitePolicy.LAX));
     });
 
     test('should handle null values in serialization', () {
-      final cookie = UnifiedCookie(
+      final cookie = Cookie(
         name: 'test_cookie',
         value: 'test_value',
       );
@@ -75,7 +76,7 @@ void main() {
     });
 
     test('should round-trip through JSON correctly', () {
-      final original = UnifiedCookie(
+      final original = Cookie(
         name: 'session_id',
         value: 'abc123xyz',
         domain: 'test.example.com',
@@ -84,11 +85,11 @@ void main() {
         isSecure: true,
         isHttpOnly: true,
         isSessionOnly: false,
-        sameSite: 'Strict',
+        sameSite: inapp.HTTPCookieSameSitePolicy.STRICT,
       );
 
       final json = original.toJson();
-      final restored = UnifiedCookie.fromJson(json);
+      final restored = cookieFromJson(json);
 
       expect(restored.name, equals(original.name));
       expect(restored.value, equals(original.value));
@@ -102,16 +103,16 @@ void main() {
     });
   });
 
-  group('UnifiedFindMatchesResult', () {
+  group('FindMatchesResult', () {
     test('should initialize with zero matches', () {
-      final result = UnifiedFindMatchesResult();
+      final result = FindMatchesResult();
 
       expect(result.activeMatchOrdinal, equals(0));
       expect(result.numberOfMatches, equals(0));
     });
 
     test('should allow updating match counts', () {
-      final result = UnifiedFindMatchesResult();
+      final result = FindMatchesResult();
 
       result.activeMatchOrdinal = 3;
       result.numberOfMatches = 10;

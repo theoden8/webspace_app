@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/platform/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 
 void main() {
@@ -142,8 +142,8 @@ void main() {
       final modelWithCookies = WebViewModel(
         initUrl: 'https://example.com',
         cookies: [
-          UnifiedCookie(name: 'session', value: 'secret123'),
-          UnifiedCookie(name: 'auth', value: 'token456'),
+          Cookie(name: 'session', value: 'secret123'),
+          Cookie(name: 'auth', value: 'token456'),
         ],
       );
 
@@ -182,7 +182,7 @@ void main() {
         initUrl: 'https://example.com',
         currentUrl: 'https://example.com/page',
         name: 'My Site',
-        cookies: [UnifiedCookie(name: 'test', value: 'value')],
+        cookies: [Cookie(name: 'test', value: 'value')],
         proxySettings: UserProxySettings(type: ProxyType.SOCKS5, address: 'localhost:9050'),
         javascriptEnabled: false,
         userAgent: 'Custom/1.0',
@@ -590,7 +590,7 @@ void main() {
       final siteWithCookies = WebViewModel(
         initUrl: 'https://example.com',
         cookies: [
-          UnifiedCookie(name: 'session', value: 'abc123'),
+          Cookie(name: 'session', value: 'abc123'),
         ],
       );
 

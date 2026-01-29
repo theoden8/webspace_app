@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/platform/webview.dart';
 import 'dart:io';
 
 void main() {
@@ -230,9 +230,9 @@ void main() {
     });
   });
 
-  group('UnifiedCookie Tests', () {
-    test('UnifiedCookie serialization works correctly', () {
-      final cookie = UnifiedCookie(
+  group('Cookie Tests', () {
+    test('Cookie serialization works correctly', () {
+      final cookie = Cookie(
         name: 'session_id',
         value: 'test123',
         domain: 'localhost',
@@ -246,7 +246,7 @@ void main() {
       expect(json['value'], 'test123');
       expect(json['domain'], 'localhost');
 
-      final restored = UnifiedCookie.fromJson(json);
+      final restored = cookieFromJson(json);
       expect(restored.name, 'session_id');
       expect(restored.value, 'test123');
       expect(restored.domain, 'localhost');

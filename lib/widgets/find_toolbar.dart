@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:webspace/platform/webview_factory.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/platform/webview.dart';
 
 class FindToolbar extends StatefulWidget {
-  final UnifiedWebViewController? webViewController;
-  final UnifiedFindMatchesResult matches;
+  final WebViewController? webViewController;
+  final FindMatchesResult matches;
   final Function onClose;
 
   FindToolbar({

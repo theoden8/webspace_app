@@ -194,6 +194,7 @@ class AddSiteScreen extends StatefulWidget {
 class _AddSiteScreenState extends State<AddSiteScreen> {
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  bool _incognito = false;
 
   static const List<SiteSuggestion> _suggestions = [
     SiteSuggestion(name: 'DuckDuckGo', url: 'https://duckduckgo.com', domain: 'duckduckgo.com'),
@@ -219,58 +220,76 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   void _showSuggestionDialog(SiteSuggestion suggestion) {
     final TextEditingController nameController = TextEditingController(text: suggestion.name);
     final TextEditingController urlController = TextEditingController(text: suggestion.url);
+    bool incognito = false;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Add Site'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: 'Site Name',
-                  border: OutlineInputBorder(),
-                ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Add Site'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                      labelText: 'Site Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  TextField(
+                    controller: urlController,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    keyboardType: TextInputType.url,
+                    decoration: InputDecoration(
+                      labelText: 'Site URL',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  CheckboxListTile(
+                    title: Text('Incognito mode'),
+                    subtitle: Text('No cookies or cache persist'),
+                    value: incognito,
+                    onChanged: (bool? value) {
+                      setDialogState(() {
+                        incognito = value ?? false;
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
               ),
-              SizedBox(height: 16),
-              TextField(
-                controller: urlController,
-                autocorrect: false,
-                enableSuggestions: false,
-                keyboardType: TextInputType.url,
-                decoration: InputDecoration(
-                  labelText: 'Site URL',
-                  border: OutlineInputBorder(),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text('Cancel'),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                String url = urlController.text.trim();
-                String name = nameController.text.trim();
-                // If no protocol specified, default to https
-                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                  url = 'https://$url';
-                }
-                Navigator.of(context).pop();
-                Navigator.of(context).pop({'url': url, 'name': name});
-              },
-              child: Text('Add'),
-            ),
-          ],
+                ElevatedButton(
+                  onPressed: () {
+                    String url = urlController.text.trim();
+                    String name = nameController.text.trim();
+                    // If no protocol specified, default to https
+                    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                      url = 'https://$url';
+                    }
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop({'url': url, 'name': name, 'incognito': incognito});
+                  },
+                  child: Text('Add'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -358,7 +377,20 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         keyboardType: TextInputType.url,
                         decoration: InputDecoration(labelText: 'Enter website URL'),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 8),
+                      CheckboxListTile(
+                        title: Text('Incognito mode'),
+                        subtitle: Text('No cookies or cache persist'),
+                        value: _incognito,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            _incognito = value ?? false;
+                          });
+                        },
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: () {
                           String url = _urlController.text.trim();
@@ -367,7 +399,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                           if (!url.startsWith('http://') && !url.startsWith('https://')) {
                             url = 'https://$url';
                           }
-                          Navigator.pop(context, {'url': url, 'name': name});
+                          Navigator.pop(context, {'url': url, 'name': name, 'incognito': _incognito});
                         },
                         child: Text('Add Site'),
                       ),

@@ -6,7 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/platform/webview.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 /// Mock implementation of FlutterSecureStorage for testing
 class MockFlutterSecureStorage implements FlutterSecureStorage {
@@ -182,8 +183,8 @@ void main() {
     test('should save cookies to secure storage keyed by domain', () async {
       final cookies = {
         'example.com': [
-          UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
-          UnifiedCookie(name: 'token', value: 'xyz789', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'token', value: 'xyz789', domain: 'example.com'),
         ],
       };
 
@@ -387,7 +388,7 @@ void main() {
 
     test('should save cookies for single URL (converted to domain)', () async {
       final cookies = [
-        UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
+        Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
       ];
 
       await cookieSecureStorage.saveCookiesForUrl('https://example.com', cookies);
@@ -401,13 +402,13 @@ void main() {
       // Save initial cookies for first domain
       await cookieSecureStorage.saveCookies({
         'first.com': [
-          UnifiedCookie(name: 'first', value: 'value1', domain: 'first.com'),
+          Cookie(name: 'first', value: 'value1', domain: 'first.com'),
         ],
       });
 
       // Save cookies for second domain
       await cookieSecureStorage.saveCookiesForUrl('https://second.com', [
-        UnifiedCookie(name: 'second', value: 'value2', domain: 'second.com'),
+        Cookie(name: 'second', value: 'value2', domain: 'second.com'),
       ]);
 
       final loaded = await cookieSecureStorage.loadCookies();
@@ -418,7 +419,7 @@ void main() {
     test('should clear all cookies from secure storage', () async {
       await cookieSecureStorage.saveCookies({
         'example.com': [
-          UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
         ],
       });
 
@@ -432,13 +433,13 @@ void main() {
       // Save cookies for multiple domains
       await cookieSecureStorage.saveCookies({
         'github.com': [
-          UnifiedCookie(name: 'session', value: 'abc', domain: 'github.com'),
+          Cookie(name: 'session', value: 'abc', domain: 'github.com'),
         ],
         'gitlab.com': [
-          UnifiedCookie(name: 'session', value: 'def', domain: 'gitlab.com'),
+          Cookie(name: 'session', value: 'def', domain: 'gitlab.com'),
         ],
         'bitbucket.org': [
-          UnifiedCookie(name: 'session', value: 'ghi', domain: 'bitbucket.org'),
+          Cookie(name: 'session', value: 'ghi', domain: 'bitbucket.org'),
         ],
       });
 
@@ -454,10 +455,10 @@ void main() {
     test('should not remove anything when all domains are active', () async {
       await cookieSecureStorage.saveCookies({
         'github.com': [
-          UnifiedCookie(name: 'session', value: 'abc', domain: 'github.com'),
+          Cookie(name: 'session', value: 'abc', domain: 'github.com'),
         ],
         'gitlab.com': [
-          UnifiedCookie(name: 'session', value: 'def', domain: 'gitlab.com'),
+          Cookie(name: 'session', value: 'def', domain: 'gitlab.com'),
         ],
       });
 
@@ -508,7 +509,7 @@ void main() {
     });
 
     test('should preserve all cookie properties during save and load', () async {
-      final cookie = UnifiedCookie(
+      final cookie = Cookie(
         name: 'test_cookie',
         value: 'test_value',
         domain: '.example.com',
@@ -517,7 +518,7 @@ void main() {
         isSecure: true,
         isHttpOnly: true,
         isSessionOnly: false,
-        sameSite: 'Strict',
+        sameSite: inapp.HTTPCookieSameSitePolicy.STRICT,
       );
 
       await cookieSecureStorage.saveCookies({
@@ -535,20 +536,20 @@ void main() {
       expect(loadedCookie.isSecure, isTrue);
       expect(loadedCookie.isHttpOnly, isTrue);
       expect(loadedCookie.isSessionOnly, isFalse);
-      expect(loadedCookie.sameSite, equals('Strict'));
+      expect(loadedCookie.sameSite, equals(inapp.HTTPCookieSameSitePolicy.STRICT));
     });
 
     test('should handle multiple sites with cookies', () async {
       await cookieSecureStorage.saveCookies({
         'site1.com': [
-          UnifiedCookie(name: 'cookie1', value: 'value1', domain: 'site1.com'),
+          Cookie(name: 'cookie1', value: 'value1', domain: 'site1.com'),
         ],
         'site2.com': [
-          UnifiedCookie(name: 'cookie2a', value: 'value2a', domain: 'site2.com'),
-          UnifiedCookie(name: 'cookie2b', value: 'value2b', domain: 'site2.com'),
+          Cookie(name: 'cookie2a', value: 'value2a', domain: 'site2.com'),
+          Cookie(name: 'cookie2b', value: 'value2b', domain: 'site2.com'),
         ],
         'site3.com': [
-          UnifiedCookie(name: 'cookie3', value: 'value3', domain: 'site3.com'),
+          Cookie(name: 'cookie3', value: 'value3', domain: 'site3.com'),
         ],
       });
 
