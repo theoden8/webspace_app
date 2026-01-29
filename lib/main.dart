@@ -269,7 +269,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   /// Unloads a site due to domain conflict with another site.
-  /// Captures cookies, persists them, clears CookieManager, disposes webview.
+  /// Captures cookies for ALL loaded sites, clears CookieManager, disposes conflicting webview.
   Future<void> _unloadSiteForDomainSwitch(int index) async {
     if (index < 0 || index >= _webViewModels.length) return;
 
@@ -279,25 +279,32 @@ class _WebSpacePageState extends State<WebSpacePage> {
       debugPrint('[CookieIsolation] Unloading site $index: "${model.name}" (siteId: ${model.siteId})');
     }
 
-    // Capture current cookies from CookieManager
-    await model.captureCookies(_cookieManager);
+    // Capture cookies for ALL loaded sites before clearing
+    // This preserves cookies for sites on other domains
+    for (final loadedIndex in _loadedIndices) {
+      if (loadedIndex >= _webViewModels.length) continue;
+      final loadedModel = _webViewModels[loadedIndex];
+      if (loadedModel.incognito) continue;
 
-    if (kDebugMode) {
-      debugPrint('[CookieIsolation] Captured ${model.cookies.length} cookies');
+      await loadedModel.captureCookies(_cookieManager);
+      await _cookieSecureStorage.saveCookiesForSite(loadedModel.siteId, loadedModel.cookies);
+
+      if (kDebugMode) {
+        debugPrint('[CookieIsolation] Captured ${loadedModel.cookies.length} cookies for site $loadedIndex: "${loadedModel.name}"');
+      }
     }
 
-    // Persist captured cookies by siteId
-    await _cookieSecureStorage.saveCookiesForSite(model.siteId, model.cookies);
-
-    // Clear CookieManager for this domain
-    final url = Uri.parse(model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl);
-    await _cookieManager.deleteAllCookiesForUrl(url);
+    // Clear ALL cookies from CookieManager
+    // We use deleteAllCookies() because sites like Google set cookies on multiple
+    // domains (.google.com, accounts.google.com, etc.) that wouldn't be captured
+    // by a single URL query.
+    await _cookieManager.deleteAllCookies();
 
     if (kDebugMode) {
-      debugPrint('[CookieIsolation] Cleared cookies for URL: $url');
+      debugPrint('[CookieIsolation] Cleared ALL cookies from CookieManager');
     }
 
-    // Dispose webview
+    // Dispose webview for the conflicting site only
     model.disposeWebView();
 
     if (kDebugMode) {

@@ -93,6 +93,12 @@ class CookieManager {
       );
     }
   }
+
+  /// Delete ALL cookies from all domains.
+  /// Used for aggressive cookie isolation when switching between same-domain sites.
+  Future<void> deleteAllCookies() async {
+    await _manager.deleteAllCookies();
+  }
 }
 
 /// Find matches result
