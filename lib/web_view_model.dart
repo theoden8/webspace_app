@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show WebUri;
 import 'package:webspace/services/webview.dart';
@@ -198,10 +199,17 @@ class WebViewModel {
             final initialNormalized = getNormalizedDomain(initUrl);
 
             if (requestNormalized == initialNormalized) {
+              if (kDebugMode) {
+                debugPrint('[WebView] "$name" navigating within domain: $url');
+              }
               return true; // Allow - same logical domain
             }
 
             // Open in nested webview with home site title
+            if (kDebugMode) {
+              debugPrint('[WebView] "$name" opening nested: $url');
+              debugPrint('  from: $initialNormalized -> to: $requestNormalized');
+            }
             launchUrlFunc(url, homeTitle: name);
             return false; // Cancel
           },
