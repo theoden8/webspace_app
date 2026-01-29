@@ -215,9 +215,18 @@ void main() {
     });
 
     test('should handle multi-part TLDs', () {
-      expect(getNormalizedDomain('https://google.co.uk'), equals('google.co.uk'));
-      expect(getNormalizedDomain('https://www.google.co.uk'), equals('google.co.uk'));
-      expect(getNormalizedDomain('https://mail.google.co.uk'), equals('google.co.uk'));
+      // Non-Google domains should stay as their second-level domain
+      expect(getNormalizedDomain('https://bbc.co.uk'), equals('bbc.co.uk'));
+      expect(getNormalizedDomain('https://www.bbc.co.uk'), equals('bbc.co.uk'));
+    });
+
+    test('regional Google domains should map to google.com', () {
+      expect(getNormalizedDomain('https://google.co.uk'), equals('google.com'));
+      expect(getNormalizedDomain('https://www.google.co.uk'), equals('google.com'));
+      expect(getNormalizedDomain('https://mail.google.co.uk'), equals('google.com'));
+      expect(getNormalizedDomain('https://google.com.au'), equals('google.com'));
+      expect(getNormalizedDomain('https://google.de'), equals('google.com'));
+      expect(getNormalizedDomain('https://google.fr'), equals('google.com'));
     });
   });
 

@@ -81,17 +81,66 @@ String getSecondLevelDomain(String url) {
 /// Domain aliases for treating different domains as equivalent for navigation.
 /// Key is the alias domain, value is the canonical domain.
 /// Used ONLY for nested webview URL blocking (not cookie isolation).
-/// All Google properties (gmail.com, mail.google.com, etc.) are treated as google.com.
+/// All Google properties (gmail.com, regional domains, etc.) are treated as google.com.
 const Map<String, String> _domainAliases = {
   'gmail.com': 'google.com',
+  // Regional Google domains
+  'google.co.uk': 'google.com',
+  'google.com.au': 'google.com',
+  'google.co.jp': 'google.com',
+  'google.co.in': 'google.com',
+  'google.de': 'google.com',
+  'google.fr': 'google.com',
+  'google.es': 'google.com',
+  'google.it': 'google.com',
+  'google.nl': 'google.com',
+  'google.pl': 'google.com',
+  'google.ru': 'google.com',
+  'google.com.br': 'google.com',
+  'google.com.mx': 'google.com',
+  'google.ca': 'google.com',
+  'google.co.kr': 'google.com',
+  'google.com.tw': 'google.com',
+  'google.com.hk': 'google.com',
+  'google.co.id': 'google.com',
+  'google.co.th': 'google.com',
+  'google.com.vn': 'google.com',
+  'google.com.ph': 'google.com',
+  'google.com.my': 'google.com',
+  'google.com.sg': 'google.com',
+  'google.co.nz': 'google.com',
+  'google.co.za': 'google.com',
+  'google.com.ar': 'google.com',
+  'google.cl': 'google.com',
+  'google.com.co': 'google.com',
+  'google.com.tr': 'google.com',
+  'google.co.il': 'google.com',
+  'google.ae': 'google.com',
+  'google.com.sa': 'google.com',
+  'google.com.eg': 'google.com',
+  'google.com.pk': 'google.com',
+  'google.com.ng': 'google.com',
+  'google.be': 'google.com',
+  'google.at': 'google.com',
+  'google.ch': 'google.com',
+  'google.se': 'google.com',
+  'google.no': 'google.com',
+  'google.dk': 'google.com',
+  'google.fi': 'google.com',
+  'google.ie': 'google.com',
+  'google.pt': 'google.com',
+  'google.cz': 'google.com',
+  'google.ro': 'google.com',
+  'google.hu': 'google.com',
+  'google.gr': 'google.com',
 };
 
 /// Normalizes a domain by applying aliases and extracting second-level domain.
 /// Used for nested webview URL blocking - determines if navigation stays in same webview.
 /// Handles multi-part TLDs like .co.uk, .com.au, etc.
-/// Example: 'mail.google.com' -> 'google.com' (alias resolves to google.com)
-/// Example: 'api.github.com' -> 'github.com' (second-level)
-/// Example: 'www.google.co.uk' -> 'google.co.uk' (multi-part TLD)
+/// Example: 'mail.google.com' -> 'google.com' (second-level)
+/// Example: 'gmail.com' -> 'google.com' (alias)
+/// Example: 'www.google.co.uk' -> 'google.com' (second-level extracted, then aliased)
 String getNormalizedDomain(String url) {
   final host = extractDomain(url);
 
@@ -100,8 +149,15 @@ String getNormalizedDomain(String url) {
     return _domainAliases[host]!;
   }
 
-  // Use getSecondLevelDomain which handles multi-part TLDs
-  return getSecondLevelDomain(url);
+  // Extract second-level domain
+  final secondLevel = getSecondLevelDomain(url);
+
+  // Check if the second-level domain has an alias
+  if (_domainAliases.containsKey(secondLevel)) {
+    return _domainAliases[secondLevel]!;
+  }
+
+  return secondLevel;
 }
 
 class WebViewModel {
