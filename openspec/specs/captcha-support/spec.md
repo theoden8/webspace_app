@@ -149,7 +149,8 @@ All other `about:` URLs are blocked.
 ## Files
 
 ### Modified
-- `lib/services/webview.dart` - WebView settings and URL filtering
+- `lib/services/webview.dart` - WebView settings and URL filtering (`_shouldBlockUrl`)
+- `lib/web_view_model.dart` - Allow about:blank/srcdoc in `shouldOverrideUrlLoading` callback
 
 ### Related Specs
 - `openspec/specs/cookie-secure-storage/spec.md` - Cookie handling

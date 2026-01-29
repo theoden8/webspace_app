@@ -334,6 +334,14 @@ class WebViewModel {
           incognito: incognito,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, shouldAllow) {
+            // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
+            if (url == 'about:blank' || url == 'about:srcdoc') {
+              if (kDebugMode) {
+                debugPrint('[WebView] shouldOverrideUrlLoading: ALLOW $url (captcha iframe support)');
+              }
+              return true;
+            }
+
             // Use normalized domain comparison (handles aliases like mail.google.com -> gmail.com)
             final requestNormalized = getNormalizedDomain(url);
             final initialNormalized = getNormalizedDomain(initUrl);
