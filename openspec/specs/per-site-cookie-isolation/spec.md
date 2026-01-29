@@ -109,18 +109,37 @@ Nested webviews (InAppBrowser for external links) SHALL continue using the singl
 
 ## Implementation Details
 
-### Domain Comparison
+### Domain Comparison for Cookie Isolation
 
-Uses second-level domain (TLD + SLD) for conflict detection:
+Uses `getSecondLevelDomain()` for conflict detection:
 - `api.github.com` -> `github.com`
 - `gist.github.com` -> `github.com`
 - Sites sharing second-level domain are considered conflicting
 
+**Multi-part TLD Support:**
+Handles country-code second-level domains like `.co.uk`, `.com.au`:
+- `www.google.co.uk` -> `google.co.uk`
+- `bbc.co.uk` -> `bbc.co.uk`
+- `amazon.co.jp` -> `amazon.co.jp`
+
+Defined in `_multiPartTlds` set covering 50+ common patterns.
+
+### Domain Aliases for Navigation (Separate from Cookie Isolation)
+
+Uses `getNormalizedDomain()` for nested webview URL blocking only:
+- `gmail.com` -> `google.com` (alias)
+- `google.co.uk` -> `google.com` (regional alias)
+- `claude.ai` -> `anthropic.com` (alias)
+- `chatgpt.com` -> `openai.com` (alias)
+
+**Important:** Domain aliases affect ONLY nested webview navigation, NOT cookie isolation. Two sites on `gmail.com` and `google.com` have separate cookie stores (different second-level domains).
+
 ### Site ID Generation
 
 Each WebViewModel has a unique `siteId` field:
-- Auto-generated on creation using timestamp + random
-- Preserved through serialization
+- Format: `{timestamp_base36}-{random_base36}` (e.g., `lqv2x3k-abc123`)
+- Auto-generated on creation using `DateTime.now().microsecondsSinceEpoch`
+- Preserved through serialization (JSON)
 - Used as storage key for cookies
 
 ### Cookie Storage
@@ -128,17 +147,33 @@ Each WebViewModel has a unique `siteId` field:
 Cookies stored in `CookieSecureStorage` keyed by siteId:
 - Legacy domain-keyed data is migrated on first access
 - Each site maintains its own isolated cookie store
+- Empty cookie lists remove the siteId key (cleanup)
+
+### Aggressive Cookie Clearing
+
+When switching between same-domain sites, ALL cookies are cleared:
+- Uses `CookieManager.deleteAllCookies()` instead of URL-specific deletion
+- Required because services like Google set cookies on multiple domains
+- Before clearing, ALL loaded sites have their cookies captured and saved
+
+### UI Updates on Navigation
+
+`WebViewModel.onUrlChanged` triggers `stateSetterF()` to update:
+- URL bar display
+- Page title extraction
+- State persistence
 
 ## Files
 
 ### Modified
-- `lib/web_view_model.dart` - Added siteId, captureCookies(), disposeWebView()
-- `lib/main.dart` - Domain conflict detection, async _setCurrentIndex()
-- `lib/services/webview.dart` - Added deleteAllCookiesForUrl() to CookieManager
-- `lib/services/cookie_secure_storage.dart` - Added siteId-based methods
+- `lib/web_view_model.dart` - siteId, domain functions, captureCookies(), disposeWebView()
+- `lib/main.dart` - Domain conflict detection, async _setCurrentIndex(), _unloadSiteForDomainSwitch()
+- `lib/services/webview.dart` - deleteAllCookies() method on CookieManager
+- `lib/services/cookie_secure_storage.dart` - loadCookiesForSite(), saveCookiesForSite(), removeOrphanedCookies()
 
 ### Created
-- `test/cookie_isolation_test.dart` - Unit tests for isolation logic
+- `test/cookie_isolation_test.dart` - Unit tests for domain extraction, aliases, siteId
+- `test/cookie_isolation_integration_test.dart` - Integration tests with mock CookieManager
 - `openspec/specs/per-site-cookie-isolation/spec.md` - This specification
 
 ## Migration
@@ -151,11 +186,38 @@ For existing users upgrading:
 
 ## Testing
 
+### Unit Tests
+
 ```bash
-# Run cookie isolation tests
+# Run cookie isolation unit tests (domain extraction, siteId, aliases)
 flutter test test/cookie_isolation_test.dart
 
-# Run all tests
+# Run cookie secure storage tests (siteId-based storage)
+flutter test test/cookie_secure_storage_test.dart
+
+# Run web view model tests (serialization with siteId)
+flutter test test/web_view_model_test.dart
+```
+
+### Integration Tests
+
+```bash
+# Run cookie isolation integration tests (mock CookieManager scenarios)
+flutter test test/cookie_isolation_integration_test.dart
+```
+
+Integration tests cover:
+- 3 sites scenario (2 same domain, 1 different)
+- Different domains don't conflict
+- Subdomains of same second-level domain conflict
+- Incognito sites don't participate in conflicts
+- Cookie persistence across domain switches
+- New site on same domain starts clean
+- Third-party domain always accessible alongside same-domain conflicts
+
+### Run All Tests
+
+```bash
 flutter test
 ```
 
@@ -167,3 +229,16 @@ flutter test
 4. Log into second site with different account
 5. Switch back to first site, verify original session is restored
 6. Create incognito site on same domain, verify no conflict occurs
+
+### Multi-part TLD Testing
+
+1. Create site on `google.co.uk`
+2. Verify it extracts to `google.co.uk` (not `co.uk`)
+3. Create second site on `mail.google.co.uk`
+4. Verify they conflict (same second-level domain)
+
+### Domain Alias Testing
+
+1. Create site on `gmail.com`
+2. Navigate to a Google sign-in page
+3. Verify navigation stays in same webview (gmail.com aliased to google.com for navigation)
