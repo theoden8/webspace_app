@@ -36,9 +36,9 @@ String getSecondLevelDomain(String url) {
 /// Domain aliases for treating different domains as equivalent for navigation.
 /// Key is the alias domain, value is the canonical domain.
 /// Used ONLY for nested webview URL blocking (not cookie isolation).
+/// All Google properties (gmail.com, mail.google.com, etc.) are treated as google.com.
 const Map<String, String> _domainAliases = {
-  'mail.google.com': 'gmail.com',
-  'inbox.google.com': 'gmail.com',
+  'gmail.com': 'google.com',
 };
 
 /// Normalizes a domain by applying aliases and extracting second-level domain.

@@ -183,18 +183,20 @@ void main() {
   });
 
   group('getNormalizedDomain (Nested Webview Navigation)', () {
-    test('should apply domain alias for mail.google.com', () {
-      expect(getNormalizedDomain('https://mail.google.com'), equals('gmail.com'));
-      expect(getNormalizedDomain('https://inbox.google.com'), equals('gmail.com'));
+    test('gmail.com should map to google.com', () {
+      expect(getNormalizedDomain('https://gmail.com'), equals('google.com'));
     });
 
-    test('gmail.com should remain gmail.com', () {
-      expect(getNormalizedDomain('https://gmail.com'), equals('gmail.com'));
-    });
-
-    test('non-aliased subdomains extract to second-level', () {
+    test('all google subdomains should map to google.com', () {
+      expect(getNormalizedDomain('https://mail.google.com'), equals('google.com'));
       expect(getNormalizedDomain('https://drive.google.com'), equals('google.com'));
+      expect(getNormalizedDomain('https://docs.google.com'), equals('google.com'));
+      expect(getNormalizedDomain('https://account.google.com'), equals('google.com'));
+    });
+
+    test('non-google subdomains extract to second-level', () {
       expect(getNormalizedDomain('https://api.github.com'), equals('github.com'));
+      expect(getNormalizedDomain('https://gist.github.com'), equals('github.com'));
     });
   });
 
