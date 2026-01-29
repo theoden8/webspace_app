@@ -78,24 +78,24 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   // Language can be explicitly set per webspace (null = system default)
   // If a language parameter is passed to seedDemoData, it overrides all webspaces
   final webspaces = <Webspace>[
-    Webspace.all(), // The "All" webspace (uses system default language)
+    Webspace.all()..language = language, // The "All" webspace
     Webspace(
       id: 'webspace_work',
       name: 'Work',
       siteIndices: [4, 5, 6], // GitHub, Hacker News, W&B
-      language: language ?? 'en', // English by default
+      language: language ?? 'en', // Use override, or English by default
     ),
     Webspace(
       id: 'webspace_privacy',
       name: 'Privacy',
       siteIndices: [0, 1, 2], // DuckDuckGo, Piped, Nitter
-      language: language, // Uses override or system default
+      language: language, // Use override, or system default
     ),
     Webspace(
       id: 'webspace_social',
       name: 'Social',
       siteIndices: [2, 3, 7], // Nitter, Reddit, Wikipedia
-      language: language, // Uses override or system default
+      language: language, // Use override, or system default
     ),
   ];
 
