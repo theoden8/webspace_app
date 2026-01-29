@@ -314,6 +314,10 @@ class WebViewModel {
           },
           onUrlChanged: (url) async {
             currentUrl = url;
+            // Trigger UI rebuild so URL bar updates
+            if (stateSetterF != null) {
+              stateSetterF!();
+            }
             // Get page title and update name if we have a title
             if (controller != null) {
               var title = await controller!.getTitle();
