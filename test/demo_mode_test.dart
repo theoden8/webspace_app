@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/services/webview.dart';
 
 /// Mock implementation of FlutterSecureStorage for testing
 class MockFlutterSecureStorage implements FlutterSecureStorage {
@@ -215,7 +215,7 @@ void main() {
 
       final cookies = {
         'example.com': [
-          UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
         ],
       };
 
@@ -231,7 +231,7 @@ void main() {
 
       final cookies = {
         'example.com': [
-          UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
         ],
       };
 
@@ -247,7 +247,7 @@ void main() {
 
       await cookieSecureStorage.saveCookiesForUrl(
         'https://example.com',
-        [UnifiedCookie(name: 'test', value: 'value', domain: 'example.com')],
+        [Cookie(name: 'test', value: 'value', domain: 'example.com')],
       );
 
       expect(mockSecureStorage.storage, isEmpty);
@@ -258,7 +258,7 @@ void main() {
       isDemoMode = false;
       await cookieSecureStorage.saveCookies({
         'example.com': [
-          UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
         ],
       });
 
@@ -278,10 +278,10 @@ void main() {
       isDemoMode = false;
       await cookieSecureStorage.saveCookies({
         'example.com': [
-          UnifiedCookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
         ],
         'other.com': [
-          UnifiedCookie(name: 'token', value: 'xyz', domain: 'other.com'),
+          Cookie(name: 'token', value: 'xyz', domain: 'other.com'),
         ],
       });
 

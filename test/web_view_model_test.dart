@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 
 void main() {
@@ -64,8 +64,8 @@ void main() {
         initUrl: 'https://test.com',
         currentUrl: 'https://test.com/path',
         cookies: [
-          UnifiedCookie(name: 'session', value: 'abc123'),
-          UnifiedCookie(name: 'preference', value: 'dark_mode'),
+          Cookie(name: 'session', value: 'abc123'),
+          Cookie(name: 'preference', value: 'dark_mode'),
         ],
         javascriptEnabled: false,
         userAgent: 'Custom/1.0',

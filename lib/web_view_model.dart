@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show WebUri;
-import 'package:webspace/platform/unified_webview.dart';
-import 'package:webspace/platform/webview_factory.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 
 String extractDomain(String url) {
@@ -15,17 +14,18 @@ class WebViewModel {
   String currentUrl;
   String name; // Custom name for the site
   String? pageTitle; // Current page title from webview
-  List<UnifiedCookie> cookies;
+  List<Cookie> cookies;
   Widget? webview;
-  UnifiedWebViewController? controller;
+  WebViewController? controller;
   UserProxySettings proxySettings;
   bool javascriptEnabled;
   String userAgent;
   bool thirdPartyCookiesEnabled;
+  bool incognito; // Private browsing mode - no cookies/cache persist
 
   String? defaultUserAgent;
   Function? stateSetterF;
-  UnifiedFindMatchesResult findMatches = UnifiedFindMatchesResult();
+  FindMatchesResult findMatches = FindMatchesResult();
   WebViewTheme _currentTheme = WebViewTheme.light;
 
   WebViewModel({
@@ -37,12 +37,13 @@ class WebViewModel {
     this.javascriptEnabled = true,
     this.userAgent = '',
     this.thirdPartyCookiesEnabled = false,
+    this.incognito = false,
     this.stateSetterF,
   })  : currentUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
 
-  void removeThirdPartyCookies(UnifiedWebViewController controller) async {
+  void removeThirdPartyCookies(WebViewController controller) async {
     String script = '''
       (function() {
         function getDomain(hostname) {
@@ -83,6 +84,8 @@ class WebViewModel {
     await controller!.setOptions(
       javascriptEnabled: javascriptEnabled,
       userAgent: userAgent.isNotEmpty ? userAgent : null,
+      thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
+      incognito: incognito,
     );
     // Apply current theme preference
     await controller!.setThemePreference(_currentTheme);
@@ -100,7 +103,7 @@ class WebViewModel {
 
   /// Apply proxy settings to the webview
   Future<void> _applyProxySettings() async {
-    final proxyManager = UnifiedProxyManager();
+    final proxyManager = ProxyManager();
     try {
       await proxyManager.setProxySettings(proxySettings);
     } catch (e) {
@@ -124,7 +127,7 @@ class WebViewModel {
 
   Widget getWebView(
     Function(String url, {String? homeTitle}) launchUrlFunc,
-    UnifiedCookieManager cookieManager,
+    CookieManager cookieManager,
     Function saveFunc,
   ) {
     if (webview == null) {
@@ -133,6 +136,8 @@ class WebViewModel {
           initialUrl: currentUrl,
           javascriptEnabled: javascriptEnabled,
           userAgent: userAgent.isNotEmpty ? userAgent : null,
+          thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
+          incognito: incognito,
           shouldOverrideUrlLoading: (url, shouldAllow) {
             String requestDomain = extractDomain(url);
             String initialDomain = extractDomain(initUrl);
@@ -203,9 +208,9 @@ class WebViewModel {
     return webview!;
   }
 
-  UnifiedWebViewController? getController(
+  WebViewController? getController(
     Function(String url, {String? homeTitle}) launchUrlFunc,
-    UnifiedCookieManager cookieManager,
+    CookieManager cookieManager,
     Function saveFunc,
   ) {
     if (webview == null) {
@@ -217,8 +222,8 @@ class WebViewModel {
     return controller;
   }
 
-  Future<void> deleteCookies(UnifiedCookieManager cookieManager) async {
-    for (final UnifiedCookie cookie in cookies) {
+  Future<void> deleteCookies(CookieManager cookieManager) async {
+    for (final Cookie cookie in cookies) {
       await cookieManager.deleteCookie(
         url: Uri.parse(initUrl),
         name: cookie.name,
@@ -245,6 +250,7 @@ class WebViewModel {
         'javascriptEnabled': javascriptEnabled,
         'userAgent': userAgent,
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
+        'incognito': incognito,
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -253,12 +259,13 @@ class WebViewModel {
       currentUrl: json['currentUrl'],
       name: json['name'],
       cookies: (json['cookies'] as List<dynamic>)
-          .map((dynamic e) => UnifiedCookie.fromJson(e))
+          .map((dynamic e) => cookieFromJson(e))
           .toList(),
       proxySettings: UserProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
       userAgent: json['userAgent'],
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
+      incognito: json['incognito'] ?? false,
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }

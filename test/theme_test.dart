@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/main.dart' show extractDomain;
 
 // Helper to convert ThemeMode to WebViewTheme (duplicated from main.dart for testing)

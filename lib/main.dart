@@ -12,8 +12,7 @@ import 'package:html/dom.dart' as html_dom;
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-import 'package:webspace/platform/unified_webview.dart';
-import 'package:webspace/platform/webview_factory.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage;
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/services/icon_service.dart';
@@ -25,7 +24,6 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/platform/platform_info.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Helper to convert ThemeMode to WebViewTheme
@@ -141,7 +139,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
   ThemeMode _themeMode = ThemeMode.system;
-  final UnifiedCookieManager _cookieManager = UnifiedCookieManager();
+  final CookieManager _cookieManager = CookieManager();
   final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -168,7 +166,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
     // Save cookies to secure storage, keyed by domain (not URL)
     // This is because WebView shares cookies per domain, not per URL
-    final Map<String, List<UnifiedCookie>> cookiesByDomain = {};
+    final Map<String, List<Cookie>> cookiesByDomain = {};
     for (final webViewModel in _webViewModels) {
       if (webViewModel.cookies.isNotEmpty) {
         final domain = extractDomain(webViewModel.initUrl);
@@ -683,7 +681,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     }
   }
 
-  UnifiedWebViewController? getController() {
+  WebViewController? getController() {
     if(_currentIndex == null) {
       return null;
     }
@@ -960,6 +958,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     if (result != null && result is Map<String, dynamic>) {
       final url = result['url'] as String;
       final customName = result['name'] as String;
+      final incognito = result['incognito'] as bool? ?? false;
 
       // Try to fetch page title if custom name not provided
       String? pageTitle;
@@ -968,7 +967,11 @@ class _WebSpacePageState extends State<WebSpacePage> {
       }
 
       setState(() {
-        final model = WebViewModel(initUrl: url, stateSetterF: () {setState((){});});
+        final model = WebViewModel(
+          initUrl: url,
+          incognito: incognito,
+          stateSetterF: () {setState((){});},
+        );
         if (customName.isNotEmpty) {
           model.name = customName;
           model.pageTitle = customName;

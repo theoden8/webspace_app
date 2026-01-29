@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:webspace/platform/webview_factory.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {
@@ -16,11 +15,11 @@ class InAppWebViewScreen extends StatefulWidget {
 }
 
 class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
-  UnifiedWebViewController? _controller;
+  WebViewController? _controller;
   String? title;
 
   bool _isFindVisible = false;
-  UnifiedFindMatchesResult findMatches = UnifiedFindMatchesResult();
+  FindMatchesResult findMatches = FindMatchesResult();
 
   @override
   void initState() {
@@ -54,7 +53,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
     }
   }
 
-  void removeAllCookies(UnifiedWebViewController controller) async {
+  void removeAllCookies(WebViewController controller) async {
     String script = '''
       (function() {
         var cookies = document.cookie.split("; ");

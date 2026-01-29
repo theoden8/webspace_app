@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/services/webview.dart';
 
 void main() {
   group('Proxy Integration Tests', () {
@@ -217,11 +217,11 @@ void main() {
       expect(viewModel.proxySettings.address, null);
     });
 
-    test('UnifiedProxyManager singleton behavior', () {
+    test('ProxyManager singleton behavior', () {
       // Verify that we always get the same instance
-      final manager1 = UnifiedProxyManager();
-      final manager2 = UnifiedProxyManager();
-      final manager3 = UnifiedProxyManager();
+      final manager1 = ProxyManager();
+      final manager2 = ProxyManager();
+      final manager3 = ProxyManager();
 
       expect(identical(manager1, manager2), true);
       expect(identical(manager2, manager3), true);

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/platform/unified_webview.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/demo_data.dart' show isDemoMode;
 
 /// Extracts the domain from a URL string.
@@ -47,7 +47,7 @@ class CookieSecureStorage {
   /// Loads cookies for all sites.
   /// First tries secure storage, then falls back to SharedPreferences.
   /// Returns a map of site URL to list of cookies.
-  Future<Map<String, List<UnifiedCookie>>> loadCookies() async {
+  Future<Map<String, List<Cookie>>> loadCookies() async {
     // Try loading from secure storage first
     final secureCookies = await _loadFromSecureStorage();
     if (secureCookies.isNotEmpty) {
@@ -67,7 +67,7 @@ class CookieSecureStorage {
 
   /// Saves cookies to secure storage.
   /// Falls back to SharedPreferences if secure storage is unavailable.
-  Future<void> saveCookies(Map<String, List<UnifiedCookie>> cookiesByUrl) async {
+  Future<void> saveCookies(Map<String, List<Cookie>> cookiesByUrl) async {
     if (isDemoMode) return; // Don't persist in demo mode
     final Map<String, List<Map<String, dynamic>>> jsonMap = {};
     cookiesByUrl.forEach((url, cookies) {
@@ -94,7 +94,7 @@ class CookieSecureStorage {
 
   /// Saves cookies for a single site URL.
   /// The URL is converted to a domain key before storing.
-  Future<void> saveCookiesForUrl(String url, List<UnifiedCookie> cookies) async {
+  Future<void> saveCookiesForUrl(String url, List<Cookie> cookies) async {
     if (isDemoMode) return; // Don't persist in demo mode
     final domain = extractDomainFromUrl(url);
     final existingCookies = await loadCookies();
@@ -159,7 +159,7 @@ class CookieSecureStorage {
     await prefs.setStringList('webViewModels', updatedModels);
   }
 
-  Future<Map<String, List<UnifiedCookie>>> _loadFromSecureStorage() async {
+  Future<Map<String, List<Cookie>>> _loadFromSecureStorage() async {
     // Try secure storage first
     if (_secureStorageAvailable) {
       try {
@@ -188,13 +188,13 @@ class CookieSecureStorage {
     return {};
   }
 
-  Map<String, List<UnifiedCookie>> _parseJsonCookies(String jsonString) {
+  Map<String, List<Cookie>> _parseJsonCookies(String jsonString) {
     final jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
-    final Map<String, List<UnifiedCookie>> result = {};
+    final Map<String, List<Cookie>> result = {};
 
     jsonMap.forEach((key, cookiesJson) {
       final cookiesList = (cookiesJson as List<dynamic>)
-          .map((c) => UnifiedCookie.fromJson(c as Map<String, dynamic>))
+          .map((c) => cookieFromJson(c as Map<String, dynamic>))
           .toList();
 
       // Convert URL keys to domain keys for backward compatibility
@@ -217,7 +217,7 @@ class CookieSecureStorage {
     return result;
   }
 
-  Future<Map<String, List<UnifiedCookie>>> _loadFromSharedPreferences() async {
+  Future<Map<String, List<Cookie>>> _loadFromSharedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final webViewModelsJson = prefs.getStringList('webViewModels');
@@ -226,7 +226,7 @@ class CookieSecureStorage {
         return {};
       }
 
-      final Map<String, List<UnifiedCookie>> result = {};
+      final Map<String, List<Cookie>> result = {};
 
       for (final modelJson in webViewModelsJson) {
         final json = jsonDecode(modelJson) as Map<String, dynamic>;
@@ -237,7 +237,7 @@ class CookieSecureStorage {
           // Use domain as key instead of full URL (migration to new format)
           final domain = extractDomainFromUrl(initUrl);
           final cookies = cookiesJson
-              .map((c) => UnifiedCookie.fromJson(c as Map<String, dynamic>))
+              .map((c) => cookieFromJson(c as Map<String, dynamic>))
               .toList();
 
           // Merge cookies if multiple sites share the same domain
