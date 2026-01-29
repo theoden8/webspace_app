@@ -138,12 +138,13 @@ void main() {
       expect(backup.currentIndex, equals(0));
     });
 
-    test('should exclude cookies from export', () {
+    test('should export only non-secure cookies', () {
       final modelWithCookies = WebViewModel(
         initUrl: 'https://example.com',
         cookies: [
-          Cookie(name: 'session', value: 'secret123'),
-          Cookie(name: 'auth', value: 'token456'),
+          Cookie(name: 'session', value: 'secret123', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', isSecure: false),
+          Cookie(name: 'prefs', value: 'abc'),  // isSecure defaults to null/false
         ],
       );
 
@@ -154,7 +155,29 @@ void main() {
         showUrlBar: false,
       );
 
-      // Cookies should be empty in the backup
+      // Only non-secure cookies should be in the backup
+      final cookies = backup.sites[0]['cookies'] as List;
+      expect(cookies, hasLength(2));
+      expect(cookies.map((c) => c['name']).toSet(), equals({'theme', 'prefs'}));
+    });
+
+    test('should exclude all cookies if all are secure', () {
+      final modelWithCookies = WebViewModel(
+        initUrl: 'https://example.com',
+        cookies: [
+          Cookie(name: 'session', value: 'secret123', isSecure: true),
+          Cookie(name: 'auth', value: 'token456', isSecure: true),
+        ],
+      );
+
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [modelWithCookies],
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+        showUrlBar: false,
+      );
+
+      // No cookies should be in the backup (all were secure)
       expect(backup.sites[0]['cookies'], isEmpty);
     });
 
@@ -177,12 +200,15 @@ void main() {
       expect(backup.webspaces.every((ws) => ws['id'] != kAllWebspaceId), isTrue);
     });
 
-    test('should preserve site settings except cookies', () {
+    test('should preserve site settings with non-secure cookies only', () {
       final model = WebViewModel(
         initUrl: 'https://example.com',
         currentUrl: 'https://example.com/page',
         name: 'My Site',
-        cookies: [Cookie(name: 'test', value: 'value')],
+        cookies: [
+          Cookie(name: 'secure_token', value: 'secret', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', isSecure: false),
+        ],
         proxySettings: UserProxySettings(type: ProxyType.SOCKS5, address: 'localhost:9050'),
         javascriptEnabled: false,
         userAgent: 'Custom/1.0',
@@ -200,7 +226,10 @@ void main() {
       expect(siteJson['initUrl'], equals('https://example.com'));
       expect(siteJson['currentUrl'], equals('https://example.com/page'));
       expect(siteJson['name'], equals('My Site'));
-      expect(siteJson['cookies'], isEmpty); // Cookies stripped
+      // Only non-secure cookie exported
+      final cookies = siteJson['cookies'] as List;
+      expect(cookies, hasLength(1));
+      expect(cookies[0]['name'], equals('theme'));
       expect(siteJson['javascriptEnabled'], equals(false));
       expect(siteJson['userAgent'], equals('Custom/1.0'));
       expect(siteJson['thirdPartyCookiesEnabled'], equals(true));
@@ -325,7 +354,7 @@ void main() {
       expect(sites[0].cookies, isEmpty);
     });
 
-    test('should strip any cookies that might be in backup', () {
+    test('should restore non-secure cookies from backup', () {
       final backup = SettingsBackup(
         version: 1,
         sites: [
@@ -334,7 +363,8 @@ void main() {
             'currentUrl': 'https://example.com',
             'name': 'Test',
             'cookies': [
-              {'name': 'sneaky', 'value': 'cookie'}
+              {'name': 'theme', 'value': 'dark', 'isSecure': false},
+              {'name': 'prefs', 'value': 'abc'},
             ],
             'proxySettings': {'type': 0, 'address': null},
             'javascriptEnabled': true,
@@ -350,8 +380,9 @@ void main() {
 
       final sites = SettingsBackupService.restoreSites(backup, null);
 
-      // Even if cookies were in the backup, they should be stripped
-      expect(sites[0].cookies, isEmpty);
+      // Non-secure cookies should be restored
+      expect(sites[0].cookies, hasLength(2));
+      expect(sites[0].cookies.map((c) => c.name).toSet(), equals({'theme', 'prefs'}));
     });
 
     test('should restore multiple sites', () {
@@ -529,7 +560,6 @@ void main() {
       expect(restoredSites[0].thirdPartyCookiesEnabled, equals(true));
       expect(restoredSites[0].proxySettings.type, equals(ProxyType.HTTP));
       expect(restoredSites[0].proxySettings.address, equals('proxy:8080'));
-      expect(restoredSites[0].cookies, isEmpty); // Cookies stripped
 
       // Verify webspaces
       expect(restoredWebspaces, hasLength(2));
@@ -585,16 +615,17 @@ void main() {
       expect(imported2.showUrlBar, equals(true));
     });
 
-    test('cookies should never appear in export even after import', () {
-      // Create site with cookies
+    test('secure cookies never appear in export, non-secure cookies preserved', () {
+      // Create site with mixed cookies
       final siteWithCookies = WebViewModel(
         initUrl: 'https://example.com',
         cookies: [
-          Cookie(name: 'session', value: 'abc123'),
+          Cookie(name: 'session', value: 'secret', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', isSecure: false),
         ],
       );
 
-      // First export (cookies stripped)
+      // First export (secure cookies stripped, non-secure preserved)
       final backup1 = SettingsBackupService.createBackup(
         webViewModels: [siteWithCookies],
         webspaces: [Webspace.all()],
@@ -602,14 +633,17 @@ void main() {
         showUrlBar: false,
       );
 
-      expect(backup1.sites[0]['cookies'], isEmpty);
+      final cookies1 = backup1.sites[0]['cookies'] as List;
+      expect(cookies1, hasLength(1));
+      expect(cookies1[0]['name'], equals('theme'));
 
       // Import
       final json1 = SettingsBackupService.exportToJson(backup1);
       final imported1 = SettingsBackupService.importFromJson(json1)!;
       final restored1 = SettingsBackupService.restoreSites(imported1, null);
 
-      expect(restored1[0].cookies, isEmpty);
+      expect(restored1[0].cookies, hasLength(1));
+      expect(restored1[0].cookies[0].name, equals('theme'));
 
       // Second export of restored data
       final backup2 = SettingsBackupService.createBackup(
@@ -619,7 +653,9 @@ void main() {
         showUrlBar: false,
       );
 
-      expect(backup2.sites[0]['cookies'], isEmpty);
+      final cookies2 = backup2.sites[0]['cookies'] as List;
+      expect(cookies2, hasLength(1));
+      expect(cookies2[0]['name'], equals('theme'));
     });
   });
 

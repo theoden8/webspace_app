@@ -66,7 +66,9 @@ class SettingsBackup {
 
 /// Service for exporting and importing app settings
 class SettingsBackupService {
-  /// Create a backup from current app state (excluding cookies)
+  /// Create a backup from current app state
+  /// Only non-secure cookies (isSecure=false) are included in the backup.
+  /// Secure cookies are never exported for security reasons.
   static SettingsBackup createBackup({
     required List<WebViewModel> webViewModels,
     required List<Webspace> webspaces,
@@ -75,11 +77,14 @@ class SettingsBackupService {
     String? selectedWebspaceId,
     int? currentIndex,
   }) {
-    // Convert sites to JSON, excluding cookies
+    // Convert sites to JSON, including only non-secure cookies
     final sitesJson = webViewModels.map((model) {
       final json = model.toJson();
-      // Remove cookies from export
-      json['cookies'] = [];
+      // Filter to only non-secure cookies (isSecure != true)
+      final cookies = json['cookies'] as List<dynamic>;
+      json['cookies'] = cookies
+          .where((c) => c['isSecure'] != true)
+          .toList();
       return json;
     }).toList();
 
@@ -235,13 +240,14 @@ class SettingsBackupService {
   }
 
   /// Convert backup sites to WebViewModel list
+  /// Non-secure cookies from the backup are restored.
   static List<WebViewModel> restoreSites(
     SettingsBackup backup,
     Function? stateSetterF,
   ) {
     return backup.sites.map((json) {
-      // Ensure cookies is an empty list (we don't import cookies)
-      json['cookies'] = [];
+      // Non-secure cookies are preserved from the backup
+      // (secure cookies were already filtered out during export)
       return WebViewModel.fromJson(json, stateSetterF);
     }).toList();
   }
