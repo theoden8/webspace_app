@@ -89,21 +89,31 @@ The system SHALL correctly handle cookies for multiple sites.
 
 ### Requirement: COOKIE-006 - Secure Flag Enforcement
 
-Cookies with `isSecure=true` SHALL only be stored in secure storage, never in SharedPreferences fallback.
+Cookies SHALL be stored based on their `isSecure` flag:
+- `isSecure=true` → Flutter Secure Storage only
+- `isSecure=false` → SharedPreferences
 
-#### Scenario: Secure cookie requires secure storage
+#### Scenario: Secure cookie stored in secure storage
 
 **Given** Site A has a cookie with `isSecure=true`
 **When** the cookie is persisted
 **Then** it is stored in Flutter Secure Storage (Keychain/Keystore)
-**And** it is NOT written to SharedPreferences even if secure storage fails
+**And** it is NOT written to SharedPreferences
 
-#### Scenario: Non-secure cookies use fallback
+#### Scenario: Non-secure cookie stored in SharedPreferences
 
 **Given** Site A has a cookie with `isSecure=false`
-**And** Flutter Secure Storage is unavailable
 **When** the cookie is persisted
-**Then** it MAY be stored in SharedPreferences fallback
+**Then** it is stored in SharedPreferences
+**And** it is NOT written to Flutter Secure Storage
+
+#### Scenario: Mixed cookies split by storage
+
+**Given** Site A has cookies with mixed `isSecure` flags
+**When** cookies are persisted
+**Then** secure cookies go to Flutter Secure Storage
+**And** non-secure cookies go to SharedPreferences
+**And** loading merges cookies from both storages
 
 ---
 

@@ -686,10 +686,9 @@ void main() {
   });
 
   group('COOKIE-006: Secure Flag Enforcement', () {
-    test('secure cookies are NOT stored in SharedPreferences fallback', () async {
-      // Use a mock that always fails to simulate secure storage unavailability
-      final failingSecureStorage = FailingMockSecureStorage();
-      final storage = CookieSecureStorage(secureStorage: failingSecureStorage);
+    test('secure cookies stored in secure storage, non-secure in SharedPreferences', () async {
+      final secureStorage = MockFlutterSecureStorage();
+      final storage = CookieSecureStorage(secureStorage: secureStorage);
       SharedPreferences.setMockInitialValues({});
 
       // Save a mix of secure and non-secure cookies
@@ -700,52 +699,73 @@ void main() {
         ],
       });
 
-      // Read from SharedPreferences fallback
+      // Verify secure cookie is in secure storage
+      final secureData = secureStorage.storage['secure_cookies'];
+      expect(secureData, isNotNull);
+      final secureDecoded = jsonDecode(secureData!) as Map<String, dynamic>;
+      expect(secureDecoded['github.com'], hasLength(1));
+      expect(secureDecoded['github.com'][0]['name'], equals('session'));
+
+      // Verify non-secure cookie is in SharedPreferences
       final prefs = await SharedPreferences.getInstance();
-      final fallbackJson = prefs.getString('cookies_fallback');
-      expect(fallbackJson, isNotNull);
-
-      final decoded = jsonDecode(fallbackJson!) as Map<String, dynamic>;
-      final cookies = decoded['github.com'] as List<dynamic>;
-
-      // Only non-secure cookie should be in fallback
-      expect(cookies, hasLength(1));
-      expect(cookies[0]['name'], equals('theme'));
-      expect(cookies[0]['isSecure'], isNot(true));
+      final prefsJson = prefs.getString('cookies_fallback');
+      expect(prefsJson, isNotNull);
+      final prefsDecoded = jsonDecode(prefsJson!) as Map<String, dynamic>;
+      expect(prefsDecoded['github.com'], hasLength(1));
+      expect(prefsDecoded['github.com'][0]['name'], equals('theme'));
     });
 
-    test('all cookies stored in secure storage when available', () async {
-      // Use working secure storage
-      final workingSecureStorage = MockFlutterSecureStorage();
-      final storage = CookieSecureStorage(secureStorage: workingSecureStorage);
-      SharedPreferences.setMockInitialValues({});
+    test('loading merges cookies from both storages', () async {
+      final secureStorage = MockFlutterSecureStorage();
+      final storage = CookieSecureStorage(secureStorage: secureStorage);
 
-      // Save a mix of secure and non-secure cookies
-      await storage.saveCookies({
-        'github.com': [
-          Cookie(name: 'session', value: 'secret123', domain: 'github.com', isSecure: true),
-          Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
-        ],
+      // Pre-populate secure storage with secure cookie
+      await secureStorage.write(
+        key: 'secure_cookies',
+        value: jsonEncode({
+          'github.com': [{'name': 'session', 'value': 'secret', 'domain': 'github.com', 'isSecure': true}],
+        }),
+      );
+
+      // Pre-populate SharedPreferences with non-secure cookie
+      SharedPreferences.setMockInitialValues({
+        'cookies_fallback': jsonEncode({
+          'github.com': [{'name': 'theme', 'value': 'dark', 'domain': 'github.com', 'isSecure': false}],
+        }),
       });
 
-      // Verify all cookies are in secure storage
-      final storedData = workingSecureStorage.storage['secure_cookies'];
-      expect(storedData, isNotNull);
-
-      final decoded = jsonDecode(storedData!) as Map<String, dynamic>;
-      final cookies = decoded['github.com'] as List<dynamic>;
-
-      // Both cookies should be stored
-      expect(cookies, hasLength(2));
-      expect(cookies.map((c) => c['name']).toSet(), equals({'session', 'theme'}));
+      // Load should merge both
+      final loaded = await storage.loadCookies();
+      expect(loaded['github.com'], hasLength(2));
+      expect(loaded['github.com']!.map((c) => c.name).toSet(), equals({'session', 'theme'}));
     });
 
-    test('site with only secure cookies has empty entry in fallback', () async {
+    test('secure cookies NOT stored in SharedPreferences even if secure storage fails', () async {
       final failingSecureStorage = FailingMockSecureStorage();
       final storage = CookieSecureStorage(secureStorage: failingSecureStorage);
       SharedPreferences.setMockInitialValues({});
 
-      // Save only secure cookies
+      await storage.saveCookies({
+        'github.com': [
+          Cookie(name: 'session', value: 'secret', domain: 'github.com', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
+        ],
+      });
+
+      // Only non-secure cookie should be in SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final prefsJson = prefs.getString('cookies_fallback');
+      expect(prefsJson, isNotNull);
+      final decoded = jsonDecode(prefsJson!) as Map<String, dynamic>;
+      expect(decoded['github.com'], hasLength(1));
+      expect(decoded['github.com'][0]['name'], equals('theme'));
+    });
+
+    test('site with only secure cookies has no entry in SharedPreferences', () async {
+      final secureStorage = MockFlutterSecureStorage();
+      final storage = CookieSecureStorage(secureStorage: secureStorage);
+      SharedPreferences.setMockInitialValues({});
+
       await storage.saveCookies({
         'github.com': [
           Cookie(name: 'session', value: 'secret', domain: 'github.com', isSecure: true),
@@ -753,20 +773,15 @@ void main() {
         ],
       });
 
-      // Read from SharedPreferences fallback
+      // SharedPreferences should have no github.com entry
       final prefs = await SharedPreferences.getInstance();
-      final fallbackJson = prefs.getString('cookies_fallback');
-      expect(fallbackJson, isNotNull);
-
-      final decoded = jsonDecode(fallbackJson!) as Map<String, dynamic>;
-
-      // github.com should NOT be in fallback since all cookies were secure
-      expect(decoded.containsKey('github.com'), isFalse);
+      final prefsJson = prefs.getString('cookies_fallback');
+      expect(prefsJson, isNull); // No non-secure cookies at all
     });
 
-    test('multiple sites with mixed secure cookies', () async {
-      final failingSecureStorage = FailingMockSecureStorage();
-      final storage = CookieSecureStorage(secureStorage: failingSecureStorage);
+    test('multiple sites with mixed secure cookies split correctly', () async {
+      final secureStorage = MockFlutterSecureStorage();
+      final storage = CookieSecureStorage(secureStorage: secureStorage);
       SharedPreferences.setMockInitialValues({});
 
       await storage.saveCookies({
@@ -782,20 +797,24 @@ void main() {
         ],
       });
 
+      // Check secure storage
+      final secureData = secureStorage.storage['secure_cookies'];
+      final secureDecoded = jsonDecode(secureData!) as Map<String, dynamic>;
+      expect(secureDecoded['github.com'], hasLength(1));
+      expect(secureDecoded['github.com'][0]['name'], equals('session'));
+      expect(secureDecoded['gitlab.com'], hasLength(1));
+      expect(secureDecoded['gitlab.com'][0]['name'], equals('auth'));
+      expect(secureDecoded.containsKey('example.com'), isFalse); // No secure cookies
+
+      // Check SharedPreferences
       final prefs = await SharedPreferences.getInstance();
-      final fallbackJson = prefs.getString('cookies_fallback');
-      final decoded = jsonDecode(fallbackJson!) as Map<String, dynamic>;
-
-      // github.com should only have non-secure cookie
-      expect(decoded['github.com'], hasLength(1));
-      expect(decoded['github.com'][0]['name'], equals('theme'));
-
-      // gitlab.com should not be present (only had secure cookie)
-      expect(decoded.containsKey('gitlab.com'), isFalse);
-
-      // example.com should have its non-secure cookie
-      expect(decoded['example.com'], hasLength(1));
-      expect(decoded['example.com'][0]['name'], equals('prefs'));
+      final prefsJson = prefs.getString('cookies_fallback');
+      final prefsDecoded = jsonDecode(prefsJson!) as Map<String, dynamic>;
+      expect(prefsDecoded['github.com'], hasLength(1));
+      expect(prefsDecoded['github.com'][0]['name'], equals('theme'));
+      expect(prefsDecoded['example.com'], hasLength(1));
+      expect(prefsDecoded['example.com'][0]['name'], equals('prefs'));
+      expect(prefsDecoded.containsKey('gitlab.com'), isFalse); // No non-secure cookies
     });
   });
 }
