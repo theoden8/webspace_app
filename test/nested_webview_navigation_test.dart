@@ -190,6 +190,70 @@ void main() {
       expect(harness.simulateNavigation(2, 'https://github.com'), isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('Bitbucket'));
     });
+
+    test('parallel loaded sites do not interfere with each other navigation', () {
+      // Scenario: Both sites are loaded simultaneously (IndexedStack keeps both alive)
+      // Navigation in one should not affect the other
+      harness.addSite('https://github.com', name: 'GitHub');
+      harness.addSite('https://gitlab.com', name: 'GitLab');
+      harness.addSite('https://bitbucket.org', name: 'Bitbucket');
+      // All sites created - simulating parallel loading in IndexedStack
+
+      // Interleaved navigation requests from different sites
+      // Site 0 (GitHub) navigates within its domain
+      expect(harness.simulateNavigation(0, 'https://gist.github.com'), isTrue);
+
+      // Site 1 (GitLab) navigates within its domain
+      expect(harness.simulateNavigation(1, 'https://gitlab.com/explore'), isTrue);
+
+      // Site 2 (Bitbucket) navigates within its domain
+      expect(harness.simulateNavigation(2, 'https://bitbucket.org/account'), isTrue);
+
+      // No cross-domain blocking should have occurred
+      expect(harness.launchUrlCalls, isEmpty);
+
+      // Now simulate cross-domain navigation from each site
+      harness.clearLaunchUrlCalls();
+
+      // GitHub tries to open GitLab - should block
+      expect(harness.simulateNavigation(0, 'https://gitlab.com/repo'), isFalse);
+      expect(harness.launchUrlCalls.last.homeTitle, equals('GitHub'));
+
+      // GitLab tries to open Bitbucket - should block
+      expect(harness.simulateNavigation(1, 'https://bitbucket.org/repo'), isFalse);
+      expect(harness.launchUrlCalls.last.homeTitle, equals('GitLab'));
+
+      // Bitbucket tries to open GitHub - should block
+      expect(harness.simulateNavigation(2, 'https://github.com/repo'), isFalse);
+      expect(harness.launchUrlCalls.last.homeTitle, equals('Bitbucket'));
+
+      // Verify each blocked navigation was attributed to correct site
+      expect(harness.launchUrlCalls.length, equals(3));
+    });
+
+    test('rapid switching between sites maintains correct domain checks', () {
+      // Simulate rapid switching between sites - each should maintain its own domain
+      harness.addSite('https://github.com', name: 'GitHub');
+      harness.addSite('https://gitlab.com', name: 'GitLab');
+
+      // Rapid interleaved navigations
+      for (int i = 0; i < 5; i++) {
+        // GitHub allows github.com
+        expect(harness.simulateNavigation(0, 'https://github.com/page$i'), isTrue);
+        // GitLab allows gitlab.com
+        expect(harness.simulateNavigation(1, 'https://gitlab.com/page$i'), isTrue);
+      }
+
+      // No launchUrl calls - all navigations within own domain
+      expect(harness.launchUrlCalls, isEmpty);
+
+      // Now cross-domain - each should block with correct homeTitle
+      expect(harness.simulateNavigation(0, 'https://gitlab.com'), isFalse);
+      expect(harness.launchUrlCalls.last.homeTitle, equals('GitHub'));
+
+      expect(harness.simulateNavigation(1, 'https://github.com'), isFalse);
+      expect(harness.launchUrlCalls.last.homeTitle, equals('GitLab'));
+    });
   });
 
   group('Widget Identity in IndexedStack', () {
