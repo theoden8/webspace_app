@@ -224,6 +224,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
     final target = _webViewModels[index];
 
+    if (kDebugMode) {
+      debugPrint('[CookieIsolation] Switching to site $index: "${target.name}" (siteId: ${target.siteId})');
+      debugPrint('[CookieIsolation] Target domain: ${getSecondLevelDomain(target.initUrl)}');
+      debugPrint('[CookieIsolation] Currently loaded indices: $_loadedIndices');
+    }
+
     // Only check for domain conflicts if target is not incognito
     if (!target.incognito) {
       // Use second-level domain for cookie isolation (e.g., all *.google.com sites conflict)
@@ -238,8 +244,14 @@ class _WebSpacePageState extends State<WebSpacePage> {
         if (loaded.incognito) continue; // Skip incognito sites
 
         final loadedDomain = getSecondLevelDomain(loaded.initUrl);
+        if (kDebugMode) {
+          debugPrint('[CookieIsolation] Checking loaded site $loadedIndex: "${loaded.name}" domain: $loadedDomain');
+        }
         if (loadedDomain == targetDomain) {
           // Domain conflict - unload the conflicting site
+          if (kDebugMode) {
+            debugPrint('[CookieIsolation] CONFLICT! Unloading site $loadedIndex');
+          }
           await _unloadSiteForDomainSwitch(loadedIndex);
           break; // Only one conflict possible at a time
         }
@@ -251,6 +263,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
     _currentIndex = index;
     _loadedIndices.add(index);
+    if (kDebugMode) {
+      debugPrint('[CookieIsolation] After switch, loaded indices: $_loadedIndices');
+    }
   }
 
   /// Unloads a site due to domain conflict with another site.
@@ -260,8 +275,16 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
     final model = _webViewModels[index];
 
+    if (kDebugMode) {
+      debugPrint('[CookieIsolation] Unloading site $index: "${model.name}" (siteId: ${model.siteId})');
+    }
+
     // Capture current cookies from CookieManager
     await model.captureCookies(_cookieManager);
+
+    if (kDebugMode) {
+      debugPrint('[CookieIsolation] Captured ${model.cookies.length} cookies');
+    }
 
     // Persist captured cookies by siteId
     await _cookieSecureStorage.saveCookiesForSite(model.siteId, model.cookies);
@@ -270,8 +293,16 @@ class _WebSpacePageState extends State<WebSpacePage> {
     final url = Uri.parse(model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl);
     await _cookieManager.deleteAllCookiesForUrl(url);
 
+    if (kDebugMode) {
+      debugPrint('[CookieIsolation] Cleared cookies for URL: $url');
+    }
+
     // Dispose webview
     model.disposeWebView();
+
+    if (kDebugMode) {
+      debugPrint('[CookieIsolation] Disposed webview for site $index');
+    }
 
     // Remove from loaded indices
     _loadedIndices.remove(index);
@@ -287,6 +318,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
     // Load persisted cookies by siteId
     final cookies = await _cookieSecureStorage.loadCookiesForSite(model.siteId);
     model.cookies = cookies;
+
+    if (kDebugMode) {
+      debugPrint('[CookieIsolation] Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})');
+    }
 
     // Restore cookies to CookieManager
     final url = Uri.parse(model.initUrl);
