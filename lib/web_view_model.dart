@@ -1,7 +1,16 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show WebUri;
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+
+/// Generates a unique site ID for per-site cookie isolation.
+String _generateSiteId() {
+  final now = DateTime.now().microsecondsSinceEpoch;
+  final random = Random().nextInt(999999);
+  return '${now.toRadixString(36)}-${random.toRadixString(36)}';
+}
 
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
@@ -10,6 +19,7 @@ String extractDomain(String url) {
 }
 
 class WebViewModel {
+  final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
   String currentUrl;
   String name; // Custom name for the site
@@ -29,6 +39,7 @@ class WebViewModel {
   WebViewTheme _currentTheme = WebViewTheme.light;
 
   WebViewModel({
+    String? siteId,
     required this.initUrl,
     String? currentUrl,
     String? name,
@@ -39,7 +50,8 @@ class WebViewModel {
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
     this.stateSetterF,
-  })  : currentUrl = currentUrl ?? initUrl,
+  })  : siteId = siteId ?? _generateSiteId(),
+        currentUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
 
@@ -234,6 +246,21 @@ class WebViewModel {
     cookies = [];
   }
 
+  /// Capture current cookies from CookieManager and store locally.
+  /// Used for per-site cookie isolation when switching between same-domain sites.
+  Future<void> captureCookies(CookieManager cookieManager) async {
+    if (incognito) return; // Don't capture cookies for incognito sites
+    final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
+    cookies = await cookieManager.getCookies(url: url);
+  }
+
+  /// Dispose the webview and controller to release resources.
+  /// Used when unloading a site due to domain conflict.
+  void disposeWebView() {
+    webview = null;
+    controller = null;
+  }
+
   /// Get display name - uses the name field (which auto-updates from page title)
   String getDisplayName() {
     return name;
@@ -241,6 +268,7 @@ class WebViewModel {
 
   // Serialization methods
   Map<String, dynamic> toJson() => {
+        'siteId': siteId,
         'initUrl': initUrl,
         'currentUrl': currentUrl,
         'name': name,
@@ -255,6 +283,7 @@ class WebViewModel {
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
     return WebViewModel(
+      siteId: json['siteId'], // May be null for legacy data, will auto-generate
       initUrl: json['initUrl'],
       currentUrl: json['currentUrl'],
       name: json['name'],

@@ -79,6 +79,20 @@ class CookieManager {
     domain: domain,
     path: path ?? '/',
   );
+
+  /// Delete all cookies for a URL.
+  /// Used for per-site cookie isolation when switching between same-domain sites.
+  Future<void> deleteAllCookiesForUrl(Uri url) async {
+    final cookies = await getCookies(url: url);
+    for (final cookie in cookies) {
+      await deleteCookie(
+        url: url,
+        name: cookie.name,
+        domain: cookie.domain,
+        path: cookie.path,
+      );
+    }
+  }
 }
 
 /// Find matches result

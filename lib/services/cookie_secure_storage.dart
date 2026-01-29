@@ -29,7 +29,10 @@ String extractDomainFromUrl(String url) {
 /// Service for securely storing cookies using Flutter Secure Storage.
 /// Supports migration from SharedPreferences for backward compatibility.
 /// Falls back to SharedPreferences if secure storage is unavailable.
-/// Cookies are keyed by domain (not full URL) since WebView shares cookies per domain.
+///
+/// Storage is keyed by siteId for per-site cookie isolation. This allows
+/// multiple sites on the same domain to have separate cookie contexts.
+/// Legacy data (keyed by domain) is supported for migration.
 class CookieSecureStorage {
   static const String _secureStorageKey = 'secure_cookies';
   static const String _sharedPrefsCookiesKey = 'cookies_fallback';
@@ -102,25 +105,44 @@ class CookieSecureStorage {
     await saveCookies(existingCookies);
   }
 
-  /// Removes cookies for domains not in the provided set of active domains.
+  /// Loads cookies for a specific site by siteId.
+  /// Returns an empty list if no cookies are stored for this site.
+  Future<List<Cookie>> loadCookiesForSite(String siteId) async {
+    final allCookies = await loadCookies();
+    return allCookies[siteId] ?? [];
+  }
+
+  /// Saves cookies for a specific site by siteId.
+  Future<void> saveCookiesForSite(String siteId, List<Cookie> cookies) async {
+    if (isDemoMode) return; // Don't persist in demo mode
+    final existingCookies = await loadCookies();
+    if (cookies.isEmpty) {
+      existingCookies.remove(siteId);
+    } else {
+      existingCookies[siteId] = cookies;
+    }
+    await saveCookies(existingCookies);
+  }
+
+  /// Removes cookies for siteIds not in the provided set of active siteIds.
   /// This cleans up orphaned cookies after sites are deleted or settings are imported.
-  Future<void> removeOrphanedCookies(Set<String> activeDomains) async {
+  Future<void> removeOrphanedCookies(Set<String> activeSiteIds) async {
     if (isDemoMode) return; // Don't persist in demo mode
     final allCookies = await loadCookies();
-    final domainsToRemove = allCookies.keys
-        .where((domain) => !activeDomains.contains(domain))
+    final siteIdsToRemove = allCookies.keys
+        .where((siteId) => !activeSiteIds.contains(siteId))
         .toList();
 
-    if (domainsToRemove.isEmpty) {
+    if (siteIdsToRemove.isEmpty) {
       return;
     }
 
-    for (final domain in domainsToRemove) {
-      allCookies.remove(domain);
+    for (final siteId in siteIdsToRemove) {
+      allCookies.remove(siteId);
     }
 
     await saveCookies(allCookies);
-    debugPrint('Removed orphaned cookies for domains: $domainsToRemove');
+    debugPrint('Removed orphaned cookies for siteIds: $siteIdsToRemove');
   }
 
   /// Clears all stored cookies from both secure storage and fallback.
