@@ -107,6 +107,42 @@ Nested webviews (InAppBrowser for external links) SHALL continue using the singl
 **Then** the nested webview uses shared CookieManager
 **And** no cookie capture/restore occurs
 
+### Requirement: ISO-008 - Per-Site URL Blocking
+
+Each site's webview SHALL use its own `initUrl` for domain comparison when deciding whether to allow navigation or open in a nested webview.
+
+#### Scenario: Site-specific domain comparison
+
+**Given** Site A (`github.com`) and Site B (`gitlab.com`) are both loaded in IndexedStack
+**When** Site B navigates to `gitlab.com/explore`
+**Then** navigation is allowed (same normalized domain)
+**And** Site A's domain (`github.com`) is NOT used for comparison
+
+#### Scenario: Cross-domain opens nested webview
+
+**Given** Site A (`github.com`) is active
+**When** user clicks a link to `gitlab.com`
+**Then** navigation is blocked
+**And** `gitlab.com` opens in nested webview with `homeTitle="GitHub"`
+
+#### Scenario: Parallel loaded sites maintain separate domain contexts
+
+**Given** Sites A, B, C are all loaded simultaneously in IndexedStack
+**When** each site navigates within its own domain
+**Then** all navigations are allowed
+**And** no cross-site interference occurs
+
+### Requirement: ISO-009 - Widget Identity Preservation
+
+Each webview widget SHALL maintain its identity via `ValueKey(siteId)` to prevent Flutter from reusing widget state incorrectly.
+
+#### Scenario: Switching sites preserves widget identity
+
+**Given** Site A and Site B are in IndexedStack
+**When** user switches from Site A to Site B and back
+**Then** each widget maintains its own state
+**And** callbacks reference the correct site's `initUrl`
+
 ## Implementation Details
 
 ### Domain Comparison for Cookie Isolation
@@ -171,6 +207,46 @@ When switching between same-domain sites, ALL cookies are cleared:
 - Page title extraction
 - State persistence
 
+### Nested Webview URL Blocking (shouldOverrideUrlLoading)
+
+Each site's webview has a `shouldOverrideUrlLoading` callback that:
+1. Compares the request URL's normalized domain with the site's `initUrl` normalized domain
+2. If same domain: allows navigation (returns `true`)
+3. If different domain: blocks navigation, opens URL in nested InAppBrowser with site's name as `homeTitle`
+
+```dart
+shouldOverrideUrlLoading: (url, shouldAllow) {
+  final requestNormalized = getNormalizedDomain(url);
+  final initialNormalized = getNormalizedDomain(initUrl);  // Captured from closure
+
+  if (requestNormalized == initialNormalized) {
+    return true;  // Allow - same logical domain
+  }
+
+  launchUrlFunc(url, homeTitle: name);  // Open nested webview
+  return false;  // Cancel navigation
+}
+```
+
+**Critical**: The callback captures `initUrl` from the WebViewModel instance's closure. Each site must have its own callback instance to prevent cross-site interference.
+
+### Widget Identity with ValueKey
+
+IndexedStack keeps all child widgets in the tree. To ensure Flutter doesn't incorrectly reuse widget state when switching sites:
+
+```dart
+IndexedStack(
+  index: currentIndex,
+  children: [
+    for (final model in webViewModels)
+      Column(
+        key: ValueKey(model.siteId),  // Ensures widget identity
+        children: [model.getWebView(...)],
+      ),
+  ],
+)
+```
+
 ## Files
 
 ### Modified
@@ -182,6 +258,7 @@ When switching between same-domain sites, ALL cookies are cleared:
 ### Created
 - `test/cookie_isolation_test.dart` - Unit tests for domain extraction, aliases, siteId
 - `test/cookie_isolation_integration_test.dart` - Integration tests with mock CookieManager
+- `test/nested_webview_navigation_test.dart` - Tests for per-site URL blocking and widget identity
 - `openspec/specs/per-site-cookie-isolation/spec.md` - This specification
 
 ## Migration
@@ -223,6 +300,21 @@ Integration tests cover:
 - New site on same domain starts clean
 - Third-party domain always accessible alongside same-domain conflicts
 
+### Nested Webview Navigation Tests
+
+```bash
+# Run nested webview navigation tests (per-site URL blocking)
+flutter test test/nested_webview_navigation_test.dart
+```
+
+Navigation tests cover:
+- Each site uses its own `initUrl` for domain comparison
+- Parallel loaded sites don't interfere with each other
+- Rapid switching between sites maintains correct domain checks
+- Domain aliases work correctly per site (gmail.com -> google.com)
+- Cross-domain navigation opens nested webview with correct `homeTitle`
+- Widget identity preserved via `ValueKey(siteId)` in IndexedStack
+
 ### Run All Tests
 
 ```bash
@@ -250,3 +342,22 @@ flutter test
 1. Create site on `gmail.com`
 2. Navigate to a Google sign-in page
 3. Verify navigation stays in same webview (gmail.com aliased to google.com for navigation)
+
+### Nested Webview Navigation Testing
+
+1. Create Site A (`github.com`) and Site B (`gitlab.com`)
+2. Click Site A, then click Site B
+3. On Site B, click a link to `gitlab.com/explore`
+4. Verify navigation stays in Site B's webview (NOT opened as nested)
+5. On Site B, click a link to `github.com`
+6. Verify link opens in nested webview with "GitLab" as home title
+7. Switch back to Site A, click a link to `gitlab.com`
+8. Verify link opens in nested webview with "GitHub" as home title
+
+### Parallel Site Navigation Testing
+
+1. Create 3 sites on different domains (e.g., GitHub, GitLab, Bitbucket)
+2. Visit each site to ensure all 3 are loaded in IndexedStack
+3. On each site, navigate within its own domain
+4. Verify all navigations stay in their respective webviews
+5. Verify no site uses another site's domain for URL blocking
