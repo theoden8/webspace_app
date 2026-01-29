@@ -1,0 +1,4 @@
+✨ Improvements:
+• Fix Cloudflare Turnstile captcha verification
+• Add per-site cookie isolation for same-domain sites
+• Add debug logging for nested webview navigation
