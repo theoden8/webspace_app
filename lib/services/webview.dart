@@ -281,7 +281,11 @@ class _WebViewController implements WebViewController {
       incognito: incognito ?? false,
       supportZoom: true,
       useShouldOverrideUrlLoading: true,
-      supportMultipleWindows: false,
+      // Enable multiple windows for Cloudflare Turnstile and other challenges
+      supportMultipleWindows: true,
+      domStorageEnabled: true,
+      databaseEnabled: true,
+      javaScriptCanOpenWindowsAutomatically: true,
     ),
   );
 
@@ -371,7 +375,11 @@ class WebViewFactory {
   }
 
   static bool _isCloudflareChallenge(String url) =>
-      url.contains('challenges.cloudflare.com') || url.contains('cloudflare.com/cdn-cgi/challenge');
+      url.contains('challenges.cloudflare.com') ||
+      url.contains('cloudflare.com/cdn-cgi/challenge') ||
+      url.contains('cdn-cgi/challenge-platform') ||
+      url.contains('turnstile.com') ||
+      url.contains('cf-turnstile');
 
   static Widget createWebView({
     required WebViewConfig config,
@@ -388,7 +396,11 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        supportMultipleWindows: false,
+        supportMultipleWindows: true,
+        // Required for Cloudflare Turnstile and other challenge systems
+        domStorageEnabled: true,
+        databaseEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: true,
       ),
       onWebViewCreated: (controller) => onControllerCreated(_WebViewController(controller)),
       shouldOverrideUrlLoading: (controller, navigationAction) async {
@@ -404,10 +416,15 @@ class WebViewFactory {
       },
       onCreateWindow: (controller, createWindowAction) async {
         final url = createWindowAction.request.url?.toString() ?? '';
+        // Allow Cloudflare challenges to open in a popup window
         if (_isCloudflareChallenge(url)) {
+          return true;
+        }
+        // For other popups, load in the same window instead
+        if (url.isNotEmpty) {
           await controller.loadUrl(urlRequest: inapp.URLRequest(url: createWindowAction.request.url));
         }
-        return null;
+        return false;
       },
       onLoadStop: (controller, url) async {
         if (url != null) {
