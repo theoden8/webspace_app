@@ -390,28 +390,30 @@ void main() {
     });
 
     test('should save cookies for single URL (converted to domain)', () async {
+      // Mix of secure and non-secure cookies (COOKIE-006)
       final cookies = [
-        Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
+        Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
+        Cookie(name: 'theme', value: 'dark', domain: 'example.com', isSecure: false),
       ];
 
       await cookieSecureStorage.saveCookiesForUrl('https://example.com', cookies);
 
       final loaded = await cookieSecureStorage.loadCookies();
-      expect(loaded['example.com'], hasLength(1));
-      expect(loaded['example.com']![0].name, equals('session'));
+      expect(loaded['example.com'], hasLength(2));
+      expect(loaded['example.com']!.map((c) => c.name).toSet(), equals({'session', 'theme'}));
     });
 
     test('should merge cookies when saving for multiple domains', () async {
-      // Save initial cookies for first domain
+      // Save initial cookies for first domain (secure cookie)
       await cookieSecureStorage.saveCookies({
         'first.com': [
-          Cookie(name: 'first', value: 'value1', domain: 'first.com'),
+          Cookie(name: 'first', value: 'value1', domain: 'first.com', isSecure: true),
         ],
       });
 
-      // Save cookies for second domain
+      // Save cookies for second domain (non-secure cookie)
       await cookieSecureStorage.saveCookiesForUrl('https://second.com', [
-        Cookie(name: 'second', value: 'value2', domain: 'second.com'),
+        Cookie(name: 'second', value: 'value2', domain: 'second.com', isSecure: false),
       ]);
 
       final loaded = await cookieSecureStorage.loadCookies();
@@ -419,10 +421,12 @@ void main() {
       expect(loaded['second.com'], hasLength(1));
     });
 
-    test('should clear all cookies from secure storage', () async {
+    test('should clear all cookies from both storages', () async {
+      // Save mix of secure and non-secure cookies (COOKIE-006)
       await cookieSecureStorage.saveCookies({
         'example.com': [
-          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', domain: 'example.com', isSecure: false),
         ],
       });
 
@@ -432,17 +436,18 @@ void main() {
       expect(loaded, isEmpty);
     });
 
-    test('should remove orphaned cookies', () async {
-      // Save cookies for multiple domains
+    test('should remove orphaned cookies from both storages', () async {
+      // Save cookies with mixed secure flags (COOKIE-006)
       await cookieSecureStorage.saveCookies({
         'github.com': [
-          Cookie(name: 'session', value: 'abc', domain: 'github.com'),
+          Cookie(name: 'session', value: 'abc', domain: 'github.com', isSecure: true),
+          Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
         ],
         'gitlab.com': [
-          Cookie(name: 'session', value: 'def', domain: 'gitlab.com'),
+          Cookie(name: 'session', value: 'def', domain: 'gitlab.com', isSecure: true),
         ],
         'bitbucket.org': [
-          Cookie(name: 'session', value: 'ghi', domain: 'bitbucket.org'),
+          Cookie(name: 'prefs', value: 'ghi', domain: 'bitbucket.org', isSecure: false),
         ],
       });
 
@@ -452,16 +457,19 @@ void main() {
       final loaded = await cookieSecureStorage.loadCookies();
       expect(loaded.keys, containsAll(['github.com', 'bitbucket.org']));
       expect(loaded.keys, isNot(contains('gitlab.com')));
-      expect(loaded.length, equals(2));
+      // github.com should have 2 cookies (both secure and non-secure preserved)
+      expect(loaded['github.com'], hasLength(2));
+      expect(loaded['bitbucket.org'], hasLength(1));
     });
 
     test('should not remove anything when all domains are active', () async {
+      // Mix of secure and non-secure (COOKIE-006)
       await cookieSecureStorage.saveCookies({
         'github.com': [
-          Cookie(name: 'session', value: 'abc', domain: 'github.com'),
+          Cookie(name: 'session', value: 'abc', domain: 'github.com', isSecure: true),
         ],
         'gitlab.com': [
-          Cookie(name: 'session', value: 'def', domain: 'gitlab.com'),
+          Cookie(name: 'theme', value: 'def', domain: 'gitlab.com', isSecure: false),
         ],
       });
 
@@ -542,17 +550,18 @@ void main() {
       expect(loadedCookie.sameSite, equals(inapp.HTTPCookieSameSitePolicy.STRICT));
     });
 
-    test('should handle multiple sites with cookies', () async {
+    test('should handle multiple sites with mixed secure cookies', () async {
+      // Mix of secure and non-secure cookies across sites (COOKIE-006)
       await cookieSecureStorage.saveCookies({
         'site1.com': [
-          Cookie(name: 'cookie1', value: 'value1', domain: 'site1.com'),
+          Cookie(name: 'cookie1', value: 'value1', domain: 'site1.com', isSecure: true),
         ],
         'site2.com': [
-          Cookie(name: 'cookie2a', value: 'value2a', domain: 'site2.com'),
-          Cookie(name: 'cookie2b', value: 'value2b', domain: 'site2.com'),
+          Cookie(name: 'cookie2a', value: 'value2a', domain: 'site2.com', isSecure: true),
+          Cookie(name: 'cookie2b', value: 'value2b', domain: 'site2.com', isSecure: false),
         ],
         'site3.com': [
-          Cookie(name: 'cookie3', value: 'value3', domain: 'site3.com'),
+          Cookie(name: 'cookie3', value: 'value3', domain: 'site3.com', isSecure: false),
         ],
       });
 
@@ -599,14 +608,15 @@ void main() {
       expect(loaded['example.com'], isNotNull);
     });
 
-    test('should load cookies for specific siteId', () async {
-      // Save cookies keyed by siteId
+    test('should load cookies for specific siteId with mixed secure flags', () async {
+      // Save cookies keyed by siteId with mixed secure flags (COOKIE-006)
       await cookieSecureStorage.saveCookies({
         'site-id-1': [
-          Cookie(name: 'cookie1', value: 'value1', domain: 'github.com'),
+          Cookie(name: 'session1', value: 'value1', domain: 'github.com', isSecure: true),
+          Cookie(name: 'theme1', value: 'dark', domain: 'github.com', isSecure: false),
         ],
         'site-id-2': [
-          Cookie(name: 'cookie2', value: 'value2', domain: 'github.com'),
+          Cookie(name: 'session2', value: 'value2', domain: 'github.com', isSecure: true),
         ],
       });
 
@@ -615,24 +625,24 @@ void main() {
       final site2Cookies = await cookieSecureStorage.loadCookiesForSite('site-id-2');
       final unknownSiteCookies = await cookieSecureStorage.loadCookiesForSite('unknown-site');
 
-      expect(site1Cookies, hasLength(1));
-      expect(site1Cookies[0].name, equals('cookie1'));
+      expect(site1Cookies, hasLength(2));
+      expect(site1Cookies.map((c) => c.name).toSet(), equals({'session1', 'theme1'}));
 
       expect(site2Cookies, hasLength(1));
-      expect(site2Cookies[0].name, equals('cookie2'));
+      expect(site2Cookies[0].name, equals('session2'));
 
       expect(unknownSiteCookies, isEmpty);
     });
 
-    test('should save cookies for specific siteId', () async {
-      // Save cookies for first site
+    test('should save cookies for specific siteId with mixed secure flags', () async {
+      // Save cookies for first site (secure cookie)
       await cookieSecureStorage.saveCookiesForSite('site-id-1', [
-        Cookie(name: 'cookie1', value: 'value1', domain: 'github.com'),
+        Cookie(name: 'session1', value: 'value1', domain: 'github.com', isSecure: true),
       ]);
 
-      // Save cookies for second site
+      // Save cookies for second site (non-secure cookie)
       await cookieSecureStorage.saveCookiesForSite('site-id-2', [
-        Cookie(name: 'cookie2', value: 'value2', domain: 'github.com'),
+        Cookie(name: 'theme2', value: 'value2', domain: 'github.com', isSecure: false),
       ]);
 
       // Verify both are stored independently
@@ -640,23 +650,24 @@ void main() {
       expect(allCookies.keys, containsAll(['site-id-1', 'site-id-2']));
 
       expect(allCookies['site-id-1'], hasLength(1));
-      expect(allCookies['site-id-1']![0].name, equals('cookie1'));
+      expect(allCookies['site-id-1']![0].name, equals('session1'));
 
       expect(allCookies['site-id-2'], hasLength(1));
-      expect(allCookies['site-id-2']![0].name, equals('cookie2'));
+      expect(allCookies['site-id-2']![0].name, equals('theme2'));
     });
 
     test('should remove cookies when saving empty list for siteId', () async {
-      // Save cookies for a site
+      // Save cookies with mixed secure flags (COOKIE-006)
       await cookieSecureStorage.saveCookiesForSite('site-id-1', [
-        Cookie(name: 'cookie1', value: 'value1', domain: 'github.com'),
+        Cookie(name: 'session', value: 'value1', domain: 'github.com', isSecure: true),
+        Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
       ]);
 
       // Verify saved
       var loaded = await cookieSecureStorage.loadCookiesForSite('site-id-1');
-      expect(loaded, hasLength(1));
+      expect(loaded, hasLength(2));
 
-      // Save empty list - should remove
+      // Save empty list - should remove from both storages
       await cookieSecureStorage.saveCookiesForSite('site-id-1', []);
 
       // Verify removed
@@ -664,17 +675,18 @@ void main() {
       expect(loaded, isEmpty);
     });
 
-    test('should remove orphaned cookies by siteId', () async {
-      // Save cookies for multiple siteIds
+    test('should remove orphaned cookies by siteId from both storages', () async {
+      // Save cookies for multiple siteIds with mixed secure flags (COOKIE-006)
       await cookieSecureStorage.saveCookies({
         'site-id-1': [
-          Cookie(name: 'cookie1', value: 'value1', domain: 'github.com'),
+          Cookie(name: 'session1', value: 'value1', domain: 'github.com', isSecure: true),
         ],
         'site-id-2': [
-          Cookie(name: 'cookie2', value: 'value2', domain: 'gitlab.com'),
+          Cookie(name: 'theme2', value: 'value2', domain: 'gitlab.com', isSecure: false),
         ],
         'site-id-3': [
-          Cookie(name: 'cookie3', value: 'value3', domain: 'bitbucket.org'),
+          Cookie(name: 'session3', value: 'value3', domain: 'bitbucket.org', isSecure: true),
+          Cookie(name: 'prefs3', value: 'abc', domain: 'bitbucket.org', isSecure: false),
         ],
       });
 
