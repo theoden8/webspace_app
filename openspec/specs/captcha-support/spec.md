@@ -14,7 +14,7 @@ This specification documents the WebView settings and behaviors required to supp
 
 ### Requirement: CAPTCHA-001 - JavaScript and DOM Storage
 
-Captcha systems require JavaScript and DOM storage to function.
+The WebView MUST have JavaScript and DOM storage enabled to support captcha systems.
 
 #### Scenario: Enable JavaScript and storage
 
@@ -28,7 +28,7 @@ Captcha systems require JavaScript and DOM storage to function.
 
 ### Requirement: CAPTCHA-002 - Allow Required URLs
 
-Captcha iframes use `about:blank` and `about:srcdoc` for internal rendering.
+The WebView MUST allow `about:blank` and `about:srcdoc` URLs for captcha iframe rendering.
 
 #### Scenario: Allow about:blank
 
@@ -52,7 +52,7 @@ Captcha iframes use `about:blank` and `about:srcdoc` for internal rendering.
 
 ### Requirement: CAPTCHA-003 - Android File and Content Access
 
-Android WebViews require file and content access for some captcha implementations.
+On Android, the WebView MUST have file and content access enabled for captcha implementations.
 
 #### Scenario: Enable file access on Android
 
@@ -65,7 +65,7 @@ Android WebViews require file and content access for some captcha implementation
 
 ### Requirement: CAPTCHA-004 - Popup Window Support
 
-Some captcha systems use popup windows for verification.
+The WebView MUST support popup windows (`window.open()`) for captcha verification flows.
 
 #### Scenario: Support window.open() for captcha
 
@@ -79,7 +79,7 @@ Some captcha systems use popup windows for verification.
 
 ### Requirement: CAPTCHA-005 - Consistent User Agent
 
-Changing user agent during a session causes captcha failures.
+The WebView MUST maintain a consistent user agent throughout the session to prevent captcha failures.
 
 #### Scenario: Maintain consistent user agent
 
@@ -92,7 +92,7 @@ Changing user agent during a session causes captcha failures.
 
 ### Requirement: CAPTCHA-006 - Third-Party Cookies (Optional)
 
-Some captcha systems require third-party cookies. This is configurable per-site.
+The WebView MUST support third-party cookies when enabled per-site for captcha systems that require them.
 
 #### Scenario: Third-party cookies available when enabled
 
