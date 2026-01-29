@@ -18,6 +18,33 @@ String extractDomain(String url) {
   return domain.isEmpty ? url : domain;
 }
 
+/// Domain aliases for treating different domains as equivalent.
+/// Key is the alias domain, value is the canonical domain.
+/// Used for both cookie isolation and nested webview URL blocking.
+const Map<String, String> _domainAliases = {
+  'mail.google.com': 'gmail.com',
+  'inbox.google.com': 'gmail.com',
+};
+
+/// Normalizes a domain by applying aliases and extracting second-level domain.
+/// Example: 'mail.google.com' -> 'gmail.com'
+/// Example: 'api.github.com' -> 'github.com'
+String getNormalizedDomain(String url) {
+  final host = extractDomain(url);
+
+  // Check if the full host has an alias
+  if (_domainAliases.containsKey(host)) {
+    return _domainAliases[host]!;
+  }
+
+  // Extract second-level domain
+  final parts = host.split('.');
+  if (parts.length >= 2) {
+    return '${parts[parts.length - 2]}.${parts.last}';
+  }
+  return host;
+}
+
 class WebViewModel {
   final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
@@ -151,22 +178,12 @@ class WebViewModel {
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
           shouldOverrideUrlLoading: (url, shouldAllow) {
-            String requestDomain = extractDomain(url);
-            String initialDomain = extractDomain(initUrl);
+            // Use normalized domain comparison (handles aliases like mail.google.com -> gmail.com)
+            final requestNormalized = getNormalizedDomain(url);
+            final initialNormalized = getNormalizedDomain(initUrl);
 
-            // Extract top-level and second-level domains
-            List<String> requestDomainParts = requestDomain.split('.');
-            List<String> initialDomainParts = initialDomain.split('.');
-
-            // Compare top-level and second-level domains
-            if (requestDomainParts.length >= 2 && initialDomainParts.length >= 2) {
-              bool sameTopLevelDomain = requestDomainParts.last == initialDomainParts.last;
-              bool sameSecondLevelDomain = requestDomainParts[requestDomainParts.length - 2] ==
-                  initialDomainParts[initialDomainParts.length - 2];
-
-              if (sameTopLevelDomain && sameSecondLevelDomain) {
-                return true; // Allow
-              }
+            if (requestNormalized == initialNormalized) {
+              return true; // Allow - same logical domain
             }
 
             // Open in nested webview with home site title

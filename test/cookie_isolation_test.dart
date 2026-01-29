@@ -2,16 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/webview.dart';
 
-// Test helper: Extract second-level domain (same logic as in main.dart)
-String getSecondLevelDomain(String url) {
-  final uri = Uri.tryParse(url) ?? Uri();
-  final host = uri.host.isEmpty ? url : uri.host;
-  final parts = host.split('.');
-  if (parts.length >= 2) {
-    return '${parts[parts.length - 2]}.${parts.last}';
-  }
-  return host;
-}
+// Use getNormalizedDomain from web_view_model.dart for domain comparison tests
 
 void main() {
   group('Site ID Generation', () {
@@ -146,33 +137,52 @@ void main() {
 
   group('Second-Level Domain Extraction', () {
     test('should extract second-level domain from simple domain', () {
-      expect(getSecondLevelDomain('https://github.com'), equals('github.com'));
-      expect(getSecondLevelDomain('https://gitlab.com'), equals('gitlab.com'));
+      expect(getNormalizedDomain('https://github.com'), equals('github.com'));
+      expect(getNormalizedDomain('https://gitlab.com'), equals('gitlab.com'));
     });
 
     test('should extract second-level domain from subdomain', () {
-      expect(getSecondLevelDomain('https://api.github.com'), equals('github.com'));
-      expect(getSecondLevelDomain('https://gist.github.com'), equals('github.com'));
-      expect(getSecondLevelDomain('https://www.google.com'), equals('google.com'));
+      expect(getNormalizedDomain('https://api.github.com'), equals('github.com'));
+      expect(getNormalizedDomain('https://gist.github.com'), equals('github.com'));
+      expect(getNormalizedDomain('https://www.google.com'), equals('google.com'));
     });
 
     test('should handle multi-level subdomains', () {
-      expect(getSecondLevelDomain('https://a.b.c.example.com'), equals('example.com'));
+      expect(getNormalizedDomain('https://a.b.c.example.com'), equals('example.com'));
     });
 
     test('should handle URLs with paths', () {
-      expect(getSecondLevelDomain('https://github.com/user/repo'), equals('github.com'));
-      expect(getSecondLevelDomain('https://api.github.com/v3/users'), equals('github.com'));
+      expect(getNormalizedDomain('https://github.com/user/repo'), equals('github.com'));
+      expect(getNormalizedDomain('https://api.github.com/v3/users'), equals('github.com'));
     });
 
     test('should handle single-part domains', () {
       // Edge case: localhost or single-word domains
-      expect(getSecondLevelDomain('http://localhost'), equals('localhost'));
+      expect(getNormalizedDomain('http://localhost'), equals('localhost'));
     });
 
     test('should handle invalid URLs gracefully', () {
-      expect(getSecondLevelDomain('not-a-url'), equals('not-a-url'));
-      expect(getSecondLevelDomain(''), equals(''));
+      expect(getNormalizedDomain('not-a-url'), equals('not-a-url'));
+      expect(getNormalizedDomain(''), equals(''));
+    });
+
+    test('should treat mail.google.com as gmail.com (domain alias)', () {
+      expect(getNormalizedDomain('https://mail.google.com'), equals('gmail.com'));
+      expect(getNormalizedDomain('https://mail.google.com/mail/u/0/'), equals('gmail.com'));
+    });
+
+    test('should treat inbox.google.com as gmail.com (domain alias)', () {
+      expect(getNormalizedDomain('https://inbox.google.com'), equals('gmail.com'));
+    });
+
+    test('gmail.com should remain gmail.com', () {
+      expect(getNormalizedDomain('https://gmail.com'), equals('gmail.com'));
+    });
+
+    test('other google subdomains should normalize to google.com', () {
+      expect(getNormalizedDomain('https://www.google.com'), equals('google.com'));
+      expect(getNormalizedDomain('https://drive.google.com'), equals('google.com'));
+      expect(getNormalizedDomain('https://docs.google.com'), equals('google.com'));
     });
   });
 
@@ -181,8 +191,8 @@ void main() {
       final site1 = WebViewModel(initUrl: 'https://github.com/user1');
       final site2 = WebViewModel(initUrl: 'https://github.com/user2');
 
-      final domain1 = getSecondLevelDomain(site1.initUrl);
-      final domain2 = getSecondLevelDomain(site2.initUrl);
+      final domain1 = getNormalizedDomain(site1.initUrl);
+      final domain2 = getNormalizedDomain(site2.initUrl);
 
       expect(domain1, equals(domain2));
     });
@@ -192,9 +202,9 @@ void main() {
       final site2 = WebViewModel(initUrl: 'https://gist.github.com');
       final site3 = WebViewModel(initUrl: 'https://api.github.com');
 
-      final domain1 = getSecondLevelDomain(site1.initUrl);
-      final domain2 = getSecondLevelDomain(site2.initUrl);
-      final domain3 = getSecondLevelDomain(site3.initUrl);
+      final domain1 = getNormalizedDomain(site1.initUrl);
+      final domain2 = getNormalizedDomain(site2.initUrl);
+      final domain3 = getNormalizedDomain(site3.initUrl);
 
       expect(domain1, equals(domain2));
       expect(domain2, equals(domain3));
@@ -204,10 +214,34 @@ void main() {
       final site1 = WebViewModel(initUrl: 'https://github.com');
       final site2 = WebViewModel(initUrl: 'https://gitlab.com');
 
-      final domain1 = getSecondLevelDomain(site1.initUrl);
-      final domain2 = getSecondLevelDomain(site2.initUrl);
+      final domain1 = getNormalizedDomain(site1.initUrl);
+      final domain2 = getNormalizedDomain(site2.initUrl);
 
       expect(domain1, isNot(equals(domain2)));
+    });
+
+    test('mail.google.com and gmail.com should be considered conflicting', () {
+      final site1 = WebViewModel(initUrl: 'https://mail.google.com');
+      final site2 = WebViewModel(initUrl: 'https://gmail.com');
+
+      final domain1 = getNormalizedDomain(site1.initUrl);
+      final domain2 = getNormalizedDomain(site2.initUrl);
+
+      expect(domain1, equals(domain2));
+      expect(domain1, equals('gmail.com'));
+    });
+
+    test('mail.google.com should NOT conflict with drive.google.com', () {
+      final site1 = WebViewModel(initUrl: 'https://mail.google.com');
+      final site2 = WebViewModel(initUrl: 'https://drive.google.com');
+
+      final domain1 = getNormalizedDomain(site1.initUrl);
+      final domain2 = getNormalizedDomain(site2.initUrl);
+
+      // mail.google.com -> gmail.com, drive.google.com -> google.com
+      expect(domain1, isNot(equals(domain2)));
+      expect(domain1, equals('gmail.com'));
+      expect(domain2, equals('google.com'));
     });
   });
 

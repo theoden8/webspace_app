@@ -38,24 +38,7 @@ WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
   }
 }
 
-String extractDomain(String url) {
-  Uri uri = Uri.tryParse(url) ?? Uri();
-  String? domain = uri.host;
-  return domain.isEmpty ? url : domain;
-}
-
-/// Extracts the second-level domain (SLD + TLD) from a URL.
-/// Used for cookie isolation - sites sharing the same second-level domain
-/// will have their webviews mutually excluded.
-/// Example: 'api.github.com' -> 'github.com'
-String _getSecondLevelDomain(String url) {
-  final host = extractDomain(url);
-  final parts = host.split('.');
-  if (parts.length >= 2) {
-    return '${parts[parts.length - 2]}.${parts.last}';
-  }
-  return host;
-}
+// extractDomain and getNormalizedDomain are imported from web_view_model.dart
 
 // Cache for page titles
 final Map<String, String?> _pageTitleCache = {};
@@ -243,7 +226,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
     // Only check for domain conflicts if target is not incognito
     if (!target.incognito) {
-      final targetDomain = _getSecondLevelDomain(target.initUrl);
+      final targetDomain = getNormalizedDomain(target.initUrl);
 
       // Find and unload any conflicting sites (same domain, already loaded)
       for (final loadedIndex in List.from(_loadedIndices)) {
@@ -253,7 +236,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
         final loaded = _webViewModels[loadedIndex];
         if (loaded.incognito) continue; // Skip incognito sites
 
-        final loadedDomain = _getSecondLevelDomain(loaded.initUrl);
+        final loadedDomain = getNormalizedDomain(loaded.initUrl);
         if (loadedDomain == targetDomain) {
           // Domain conflict - unload the conflicting site
           await _unloadSiteForDomainSwitch(loadedIndex);
