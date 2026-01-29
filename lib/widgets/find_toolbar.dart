@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:webspace/platform/webview.dart';
+import 'package:webspace/services/webview.dart';
 
 class FindToolbar extends StatefulWidget {
   final WebViewController? webViewController;

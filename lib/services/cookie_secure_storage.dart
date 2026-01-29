@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/platform/webview.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/demo_data.dart' show isDemoMode;
 
 /// Extracts the domain from a URL string.

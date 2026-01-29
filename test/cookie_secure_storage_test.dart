@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/platform/webview.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 /// Mock implementation of FlutterSecureStorage for testing

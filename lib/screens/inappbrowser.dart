@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:webspace/platform/webview.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {

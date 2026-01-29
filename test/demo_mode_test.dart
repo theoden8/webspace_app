@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/platform/webview.dart';
+import 'package:webspace/services/webview.dart';
 
 /// Mock implementation of FlutterSecureStorage for testing
 class MockFlutterSecureStorage implements FlutterSecureStorage {

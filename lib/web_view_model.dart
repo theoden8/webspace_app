@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show WebUri;
-import 'package:webspace/platform/webview.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 
 String extractDomain(String url) {

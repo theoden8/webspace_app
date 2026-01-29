@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/platform/webview.dart';
+import 'package:webspace/services/webview.dart';
 
 String generateRandomUserAgent() {
   // You can modify these values to add more variety to the generated user-agent strings
