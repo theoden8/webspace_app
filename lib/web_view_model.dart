@@ -318,8 +318,9 @@ class WebViewModel {
   Widget getWebView(
     Function(String url, {String? homeTitle}) launchUrlFunc,
     CookieManager cookieManager,
-    Function saveFunc,
-  ) {
+    Function saveFunc, {
+    Future<void> Function(int windowId, String url)? onWindowRequested,
+  }) {
     if (webview == null) {
       if (kDebugMode) {
         debugPrint('[WebView] Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
@@ -331,6 +332,7 @@ class WebViewModel {
           userAgent: userAgent.isNotEmpty ? userAgent : null,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
+          onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, shouldAllow) {
             // Use normalized domain comparison (handles aliases like mail.google.com -> gmail.com)
             final requestNormalized = getNormalizedDomain(url);

@@ -347,6 +347,61 @@ class _WebSpacePageState extends State<WebSpacePage> {
     }
   }
 
+  /// Shows a popup window for handling window.open() requests from webviews.
+  /// Used for Cloudflare Turnstile challenges and other popup-based flows.
+  Future<void> _showPopupWindow(int windowId, String url) async {
+    if (!mounted) return;
+
+    if (kDebugMode) {
+      debugPrint('[PopupWindow] Opening popup window with id: $windowId, url: $url');
+    }
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          insetPadding: EdgeInsets.all(16),
+          child: Container(
+            width: MediaQuery.of(dialogContext).size.width * 0.9,
+            height: MediaQuery.of(dialogContext).size.height * 0.8,
+            child: Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Verification', style: TextStyle(fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: Icon(Icons.close),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: WebViewFactory.createPopupWebView(
+                    windowId: windowId,
+                    onCloseWindow: () {
+                      if (Navigator.of(dialogContext).canPop()) {
+                        Navigator.of(dialogContext).pop();
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (kDebugMode) {
+      debugPrint('[PopupWindow] Popup window closed');
+    }
+  }
+
   Future<void> _loadWebspaces() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String>? webspacesJson = prefs.getStringList('webspaces');
@@ -1492,7 +1547,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         },
                       ),
                     Expanded(
-                      child: webViewModel.getWebView(launchUrl, _cookieManager, _saveWebViewModels)
+                      child: webViewModel.getWebView(
+                        launchUrl,
+                        _cookieManager,
+                        _saveWebViewModels,
+                        onWindowRequested: _showPopupWindow,
+                      )
                     ),
                   ],
                 );

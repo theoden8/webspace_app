@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -70,6 +71,60 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
     ''';
 
     await controller.evaluateJavascript(script);
+  }
+
+  /// Shows a popup window for handling window.open() requests from webviews.
+  Future<void> _showPopupWindow(int windowId, String url) async {
+    if (!mounted) return;
+
+    if (kDebugMode) {
+      debugPrint('[PopupWindow] Opening popup window with id: $windowId, url: $url');
+    }
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          insetPadding: EdgeInsets.all(16),
+          child: Container(
+            width: MediaQuery.of(dialogContext).size.width * 0.9,
+            height: MediaQuery.of(dialogContext).size.height * 0.8,
+            child: Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Verification', style: TextStyle(fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: Icon(Icons.close),
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: WebViewFactory.createPopupWebView(
+                    windowId: windowId,
+                    onCloseWindow: () {
+                      if (Navigator.of(dialogContext).canPop()) {
+                        Navigator.of(dialogContext).pop();
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (kDebugMode) {
+      debugPrint('[PopupWindow] Popup window closed');
+    }
   }
 
   @override
@@ -160,6 +215,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                     findMatches.numberOfMatches = totalMatches;
                   });
                 },
+                onWindowRequested: _showPopupWindow,
               ),
               onControllerCreated: (controller) {
                 _controller = controller;

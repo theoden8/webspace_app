@@ -229,9 +229,10 @@ void main() {
       // Demo mode disabled
       isDemoMode = false;
 
+      // Use isSecure: true so cookies go to secure storage (COOKIE-006)
       final cookies = {
         'example.com': [
-          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
         ],
       };
 
@@ -255,10 +256,11 @@ void main() {
 
     test('clearCookies does nothing when isDemoMode is true', () async {
       // First, save some cookies with demo mode disabled
+      // Use isSecure: true so cookies go to secure storage (COOKIE-006)
       isDemoMode = false;
       await cookieSecureStorage.saveCookies({
         'example.com': [
-          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
         ],
       });
 
@@ -275,13 +277,14 @@ void main() {
 
     test('removeOrphanedCookies does nothing when isDemoMode is true', () async {
       // First, save some cookies with demo mode disabled
+      // Use isSecure: true so cookies go to secure storage (COOKIE-006)
       isDemoMode = false;
       await cookieSecureStorage.saveCookies({
         'example.com': [
-          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
         ],
         'other.com': [
-          Cookie(name: 'token', value: 'xyz', domain: 'other.com'),
+          Cookie(name: 'token', value: 'xyz', domain: 'other.com', isSecure: true),
         ],
       });
 

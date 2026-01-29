@@ -181,10 +181,11 @@ void main() {
 
   group('CookieSecureStorage', () {
     test('should save cookies to secure storage keyed by domain', () async {
+      // Note: With COOKIE-006, only isSecure=true cookies go to secure storage
       final cookies = {
         'example.com': [
-          Cookie(name: 'session', value: 'abc123', domain: 'example.com'),
-          Cookie(name: 'token', value: 'xyz789', domain: 'example.com'),
+          Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
+          Cookie(name: 'token', value: 'xyz789', domain: 'example.com', isSecure: true),
         ],
       };
 
@@ -259,6 +260,8 @@ void main() {
 
     test('should migrate cookies from SharedPreferences to secure storage with domain keys', () async {
       // Set up SharedPreferences with cookies in webViewModels (old URL-based format)
+      // Note: Legacy cookies without isSecure flag are treated as non-secure (COOKIE-006)
+      // and stored in SharedPreferences, not secure storage
       final webViewModelsJson = [
         jsonEncode({
           'initUrl': 'https://example.com',
@@ -287,12 +290,12 @@ void main() {
       expect(loaded['example.com']![0].name, equals('legacy_cookie'));
       expect(loaded['example.com']![0].value, equals('old_value'));
 
-      // Verify cookies are now in secure storage
-      final storedData = mockSecureStorage.storage['secure_cookies'];
-      expect(storedData, isNotNull);
+      // Legacy cookies without isSecure go to SharedPreferences cookies_fallback (COOKIE-006)
+      final prefs = await SharedPreferences.getInstance();
+      final prefsData = prefs.getString('cookies_fallback');
+      expect(prefsData, isNotNull);
 
       // Verify migration flag was set
-      final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool('cookies_migrated_to_secure'), isTrue);
     });
 

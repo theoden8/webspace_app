@@ -193,6 +193,10 @@ class WebViewConfig {
   final Function(List<Cookie> cookies)? onCookiesChanged;
   final Function(int activeMatch, int totalMatches)? onFindResult;
   final Function(String url, bool shouldAllow)? shouldOverrideUrlLoading;
+  /// Callback for when a popup window is requested (e.g., Cloudflare challenges).
+  /// Returns a widget (typically a WebView) to display in the popup.
+  /// The callback receives the windowId for the popup and the requested URL.
+  final Future<void> Function(int windowId, String url)? onWindowRequested;
 
   WebViewConfig({
     required this.initialUrl,
@@ -204,6 +208,7 @@ class WebViewConfig {
     this.onCookiesChanged,
     this.onFindResult,
     this.shouldOverrideUrlLoading,
+    this.onWindowRequested,
   });
 }
 
@@ -381,6 +386,27 @@ class WebViewFactory {
       url.contains('turnstile.com') ||
       url.contains('cf-turnstile');
 
+  /// Create a popup webview for handling window.open() calls.
+  /// Used for Cloudflare challenges and other popups that require a real window.
+  static Widget createPopupWebView({
+    required int windowId,
+    VoidCallback? onCloseWindow,
+  }) {
+    return inapp.InAppWebView(
+      windowId: windowId,
+      initialSettings: inapp.InAppWebViewSettings(
+        javaScriptEnabled: true,
+        supportZoom: true,
+        domStorageEnabled: true,
+        databaseEnabled: true,
+        javaScriptCanOpenWindowsAutomatically: true,
+      ),
+      onCloseWindow: (controller) {
+        onCloseWindow?.call();
+      },
+    );
+  }
+
   static Widget createWebView({
     required WebViewConfig config,
     required Function(WebViewController) onControllerCreated,
@@ -416,11 +442,15 @@ class WebViewFactory {
       },
       onCreateWindow: (controller, createWindowAction) async {
         final url = createWindowAction.request.url?.toString() ?? '';
-        // Allow Cloudflare challenges to open in a popup window
-        if (_isCloudflareChallenge(url)) {
+        final windowId = createWindowAction.windowId;
+
+        // If we have a callback for handling popups, use it
+        if (config.onWindowRequested != null && windowId != null) {
+          await config.onWindowRequested!(windowId, url);
           return true;
         }
-        // For other popups, load in the same window instead
+
+        // For other popups without a handler, load in the same window instead
         if (url.isNotEmpty) {
           await controller.loadUrl(urlRequest: inapp.URLRequest(url: createWindowAction.request.url));
         }
