@@ -226,14 +226,14 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
     if (kDebugMode) {
       debugPrint('[CookieIsolation] Switching to site $index: "${target.name}" (siteId: ${target.siteId})');
-      debugPrint('[CookieIsolation] Target domain: ${getSecondLevelDomain(target.initUrl)}');
+      debugPrint('[CookieIsolation] Target domain: ${getBaseDomain(target.initUrl)}');
       debugPrint('[CookieIsolation] Currently loaded indices: $_loadedIndices');
     }
 
     // Only check for domain conflicts if target is not incognito
     if (!target.incognito) {
       // Use second-level domain for cookie isolation (e.g., all *.google.com sites conflict)
-      final targetDomain = getSecondLevelDomain(target.initUrl);
+      final targetDomain = getBaseDomain(target.initUrl);
 
       // Find and unload any conflicting sites (same domain, already loaded)
       for (final loadedIndex in List.from(_loadedIndices)) {
@@ -243,7 +243,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
         final loaded = _webViewModels[loadedIndex];
         if (loaded.incognito) continue; // Skip incognito sites
 
-        final loadedDomain = getSecondLevelDomain(loaded.initUrl);
+        final loadedDomain = getBaseDomain(loaded.initUrl);
         if (kDebugMode) {
           debugPrint('[CookieIsolation] Checking loaded site $loadedIndex: "${loaded.name}" domain: $loadedDomain');
         }

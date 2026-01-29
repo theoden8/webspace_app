@@ -102,7 +102,7 @@ class CookieIsolationTestHarness {
 
     final target = sites[index];
     if (!target.incognito) {
-      final targetDomain = getSecondLevelDomain(target.initUrl);
+      final targetDomain = getBaseDomain(target.initUrl);
 
       // Find and unload conflicting sites
       for (final loadedIndex in List.from(loadedIndices)) {
@@ -110,7 +110,7 @@ class CookieIsolationTestHarness {
         final loaded = sites[loadedIndex];
         if (loaded.incognito) continue;
 
-        final loadedDomain = getSecondLevelDomain(loaded.initUrl);
+        final loadedDomain = getBaseDomain(loaded.initUrl);
         if (loadedDomain == targetDomain) {
           // Domain conflict - unload
           await _unloadSiteForDomainSwitch(loadedIndex);
@@ -482,30 +482,30 @@ void main() {
   });
 
   group('Domain Detection for Cookie Isolation', () {
-    test('getSecondLevelDomain correctly identifies conflicting domains', () {
+    test('getBaseDomain correctly identifies conflicting domains', () {
       // Same second-level domain = conflict
-      expect(getSecondLevelDomain('https://github.com'), equals('github.com'));
-      expect(getSecondLevelDomain('https://gist.github.com'), equals('github.com'));
-      expect(getSecondLevelDomain('https://api.github.com'), equals('github.com'));
+      expect(getBaseDomain('https://github.com'), equals('github.com'));
+      expect(getBaseDomain('https://gist.github.com'), equals('github.com'));
+      expect(getBaseDomain('https://api.github.com'), equals('github.com'));
 
       // Different second-level domains = no conflict
-      expect(getSecondLevelDomain('https://gitlab.com'), equals('gitlab.com'));
-      expect(getSecondLevelDomain('https://bitbucket.org'), equals('bitbucket.org'));
+      expect(getBaseDomain('https://gitlab.com'), equals('gitlab.com'));
+      expect(getBaseDomain('https://bitbucket.org'), equals('bitbucket.org'));
     });
 
     test('multi-part TLDs are handled correctly', () {
       // Same company, same conflict
-      expect(getSecondLevelDomain('https://amazon.co.uk'), equals('amazon.co.uk'));
-      expect(getSecondLevelDomain('https://www.amazon.co.uk'), equals('amazon.co.uk'));
+      expect(getBaseDomain('https://amazon.co.uk'), equals('amazon.co.uk'));
+      expect(getBaseDomain('https://www.amazon.co.uk'), equals('amazon.co.uk'));
 
       // Different companies, no conflict
-      expect(getSecondLevelDomain('https://bbc.co.uk'), equals('bbc.co.uk'));
+      expect(getBaseDomain('https://bbc.co.uk'), equals('bbc.co.uk'));
     });
 
     test('IP addresses are returned as-is', () {
-      expect(getSecondLevelDomain('http://192.168.1.1:8080'), equals('192.168.1.1'));
-      expect(getSecondLevelDomain('http://10.0.0.1:3000'), equals('10.0.0.1'));
-      expect(getSecondLevelDomain('http://127.0.0.1'), equals('127.0.0.1'));
+      expect(getBaseDomain('http://192.168.1.1:8080'), equals('192.168.1.1'));
+      expect(getBaseDomain('http://10.0.0.1:3000'), equals('10.0.0.1'));
+      expect(getBaseDomain('http://127.0.0.1'), equals('127.0.0.1'));
     });
   });
 

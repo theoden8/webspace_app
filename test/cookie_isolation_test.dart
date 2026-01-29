@@ -135,92 +135,92 @@ void main() {
     });
   });
 
-  group('getSecondLevelDomain (Cookie Isolation)', () {
+  group('getBaseDomain (Cookie Isolation)', () {
     test('should extract second-level domain from simple domain', () {
-      expect(getSecondLevelDomain('https://github.com'), equals('github.com'));
-      expect(getSecondLevelDomain('https://gitlab.com'), equals('gitlab.com'));
+      expect(getBaseDomain('https://github.com'), equals('github.com'));
+      expect(getBaseDomain('https://gitlab.com'), equals('gitlab.com'));
     });
 
     test('should extract second-level domain from subdomain', () {
-      expect(getSecondLevelDomain('https://api.github.com'), equals('github.com'));
-      expect(getSecondLevelDomain('https://gist.github.com'), equals('github.com'));
-      expect(getSecondLevelDomain('https://www.google.com'), equals('google.com'));
+      expect(getBaseDomain('https://api.github.com'), equals('github.com'));
+      expect(getBaseDomain('https://gist.github.com'), equals('github.com'));
+      expect(getBaseDomain('https://www.google.com'), equals('google.com'));
     });
 
     test('should handle multi-level subdomains', () {
-      expect(getSecondLevelDomain('https://a.b.c.example.com'), equals('example.com'));
+      expect(getBaseDomain('https://a.b.c.example.com'), equals('example.com'));
     });
 
     test('should handle URLs with paths', () {
-      expect(getSecondLevelDomain('https://github.com/user/repo'), equals('github.com'));
-      expect(getSecondLevelDomain('https://api.github.com/v3/users'), equals('github.com'));
+      expect(getBaseDomain('https://github.com/user/repo'), equals('github.com'));
+      expect(getBaseDomain('https://api.github.com/v3/users'), equals('github.com'));
     });
 
     test('should handle single-part domains', () {
-      expect(getSecondLevelDomain('http://localhost'), equals('localhost'));
+      expect(getBaseDomain('http://localhost'), equals('localhost'));
     });
 
     test('should handle invalid URLs gracefully', () {
-      expect(getSecondLevelDomain('not-a-url'), equals('not-a-url'));
-      expect(getSecondLevelDomain(''), equals(''));
+      expect(getBaseDomain('not-a-url'), equals('not-a-url'));
+      expect(getBaseDomain(''), equals(''));
     });
 
     test('mail.google.com should extract to google.com (no alias)', () {
-      expect(getSecondLevelDomain('https://mail.google.com'), equals('google.com'));
-      expect(getSecondLevelDomain('https://mail.google.com/mail/u/0/'), equals('google.com'));
+      expect(getBaseDomain('https://mail.google.com'), equals('google.com'));
+      expect(getBaseDomain('https://mail.google.com/mail/u/0/'), equals('google.com'));
     });
 
     test('all google subdomains should extract to google.com', () {
-      expect(getSecondLevelDomain('https://mail.google.com'), equals('google.com'));
-      expect(getSecondLevelDomain('https://drive.google.com'), equals('google.com'));
-      expect(getSecondLevelDomain('https://docs.google.com'), equals('google.com'));
-      expect(getSecondLevelDomain('https://account.google.com'), equals('google.com'));
+      expect(getBaseDomain('https://mail.google.com'), equals('google.com'));
+      expect(getBaseDomain('https://drive.google.com'), equals('google.com'));
+      expect(getBaseDomain('https://docs.google.com'), equals('google.com'));
+      expect(getBaseDomain('https://account.google.com'), equals('google.com'));
     });
 
     test('gmail.com extracts to gmail.com (different second-level)', () {
-      expect(getSecondLevelDomain('https://gmail.com'), equals('gmail.com'));
+      expect(getBaseDomain('https://gmail.com'), equals('gmail.com'));
     });
 
     test('should handle multi-part TLDs like .co.uk', () {
-      expect(getSecondLevelDomain('https://google.co.uk'), equals('google.co.uk'));
-      expect(getSecondLevelDomain('https://www.google.co.uk'), equals('google.co.uk'));
-      expect(getSecondLevelDomain('https://mail.google.co.uk'), equals('google.co.uk'));
-      expect(getSecondLevelDomain('https://bbc.co.uk'), equals('bbc.co.uk'));
-      expect(getSecondLevelDomain('https://www.bbc.co.uk'), equals('bbc.co.uk'));
+      expect(getBaseDomain('https://google.co.uk'), equals('google.co.uk'));
+      expect(getBaseDomain('https://www.google.co.uk'), equals('google.co.uk'));
+      expect(getBaseDomain('https://mail.google.co.uk'), equals('google.co.uk'));
+      expect(getBaseDomain('https://bbc.co.uk'), equals('bbc.co.uk'));
+      expect(getBaseDomain('https://www.bbc.co.uk'), equals('bbc.co.uk'));
     });
 
     test('should handle other multi-part TLDs', () {
-      expect(getSecondLevelDomain('https://google.com.au'), equals('google.com.au'));
-      expect(getSecondLevelDomain('https://www.google.com.au'), equals('google.com.au'));
-      expect(getSecondLevelDomain('https://amazon.co.jp'), equals('amazon.co.jp'));
-      expect(getSecondLevelDomain('https://www.amazon.co.jp'), equals('amazon.co.jp'));
+      expect(getBaseDomain('https://google.com.au'), equals('google.com.au'));
+      expect(getBaseDomain('https://www.google.com.au'), equals('google.com.au'));
+      expect(getBaseDomain('https://amazon.co.jp'), equals('amazon.co.jp'));
+      expect(getBaseDomain('https://www.amazon.co.jp'), equals('amazon.co.jp'));
     });
 
     test('should handle IPv4 addresses (return as-is)', () {
-      expect(getSecondLevelDomain('http://192.168.1.1'), equals('192.168.1.1'));
-      expect(getSecondLevelDomain('http://192.168.1.1:8080'), equals('192.168.1.1'));
-      expect(getSecondLevelDomain('http://10.0.0.1:3000'), equals('10.0.0.1'));
-      expect(getSecondLevelDomain('http://127.0.0.1'), equals('127.0.0.1'));
-      expect(getSecondLevelDomain('http://0.0.0.0:5000'), equals('0.0.0.0'));
+      expect(getBaseDomain('http://192.168.1.1'), equals('192.168.1.1'));
+      expect(getBaseDomain('http://192.168.1.1:8080'), equals('192.168.1.1'));
+      expect(getBaseDomain('http://10.0.0.1:3000'), equals('10.0.0.1'));
+      expect(getBaseDomain('http://127.0.0.1'), equals('127.0.0.1'));
+      expect(getBaseDomain('http://0.0.0.0:5000'), equals('0.0.0.0'));
     });
 
     test('should handle IPv6 addresses (return as-is)', () {
       // Uri.host returns IPv6 addresses without brackets
-      expect(getSecondLevelDomain('http://[::1]'), equals('::1'));
-      expect(getSecondLevelDomain('http://[::1]:8080'), equals('::1'));
-      expect(getSecondLevelDomain('http://[2001:db8::1]'), equals('2001:db8::1'));
+      expect(getBaseDomain('http://[::1]'), equals('::1'));
+      expect(getBaseDomain('http://[::1]:8080'), equals('::1'));
+      expect(getBaseDomain('http://[2001:db8::1]'), equals('2001:db8::1'));
     });
 
     test('IP addresses on same host should conflict', () {
       // Two sites on same IP should conflict (same "domain")
-      final ip1 = getSecondLevelDomain('http://192.168.1.1:8080/app1');
-      final ip2 = getSecondLevelDomain('http://192.168.1.1:8080/app2');
+      final ip1 = getBaseDomain('http://192.168.1.1:8080/app1');
+      final ip2 = getBaseDomain('http://192.168.1.1:8080/app2');
       expect(ip1, equals(ip2));
     });
 
     test('different IP addresses should not conflict', () {
-      final ip1 = getSecondLevelDomain('http://192.168.1.1:8080');
-      final ip2 = getSecondLevelDomain('http://192.168.1.2:8080');
+      final ip1 = getBaseDomain('http://192.168.1.1:8080');
+      final ip2 = getBaseDomain('http://192.168.1.2:8080');
       expect(ip1, isNot(equals(ip2)));
     });
   });
@@ -284,33 +284,33 @@ void main() {
 
   group('Cookie Isolation Domain Conflict Detection', () {
     test('same domain sites should conflict', () {
-      final domain1 = getSecondLevelDomain('https://github.com/user1');
-      final domain2 = getSecondLevelDomain('https://github.com/user2');
+      final domain1 = getBaseDomain('https://github.com/user1');
+      final domain2 = getBaseDomain('https://github.com/user2');
 
       expect(domain1, equals(domain2));
     });
 
     test('subdomain sites should conflict with main domain', () {
-      final domain1 = getSecondLevelDomain('https://github.com');
-      final domain2 = getSecondLevelDomain('https://gist.github.com');
-      final domain3 = getSecondLevelDomain('https://api.github.com');
+      final domain1 = getBaseDomain('https://github.com');
+      final domain2 = getBaseDomain('https://gist.github.com');
+      final domain3 = getBaseDomain('https://api.github.com');
 
       expect(domain1, equals(domain2));
       expect(domain2, equals(domain3));
     });
 
     test('different second-level domains should not conflict', () {
-      final domain1 = getSecondLevelDomain('https://github.com');
-      final domain2 = getSecondLevelDomain('https://gitlab.com');
+      final domain1 = getBaseDomain('https://github.com');
+      final domain2 = getBaseDomain('https://gitlab.com');
 
       expect(domain1, isNot(equals(domain2)));
     });
 
     test('all google.com subdomains should conflict with each other', () {
-      final mailDomain = getSecondLevelDomain('https://mail.google.com');
-      final driveDomain = getSecondLevelDomain('https://drive.google.com');
-      final docsDomain = getSecondLevelDomain('https://docs.google.com');
-      final accountDomain = getSecondLevelDomain('https://account.google.com');
+      final mailDomain = getBaseDomain('https://mail.google.com');
+      final driveDomain = getBaseDomain('https://drive.google.com');
+      final docsDomain = getBaseDomain('https://docs.google.com');
+      final accountDomain = getBaseDomain('https://account.google.com');
 
       // All should be google.com
       expect(mailDomain, equals('google.com'));
@@ -325,8 +325,8 @@ void main() {
     });
 
     test('gmail.com should NOT conflict with google.com subdomains', () {
-      final gmailDomain = getSecondLevelDomain('https://gmail.com');
-      final mailGoogleDomain = getSecondLevelDomain('https://mail.google.com');
+      final gmailDomain = getBaseDomain('https://gmail.com');
+      final mailGoogleDomain = getBaseDomain('https://mail.google.com');
 
       // gmail.com and google.com are different second-level domains
       expect(gmailDomain, equals('gmail.com'));

@@ -111,7 +111,7 @@ Nested webviews (InAppBrowser for external links) SHALL continue using the singl
 
 ### Domain Comparison for Cookie Isolation
 
-Uses `getSecondLevelDomain()` for conflict detection:
+Uses `getBaseDomain()` for conflict detection:
 - `api.github.com` -> `github.com`
 - `gist.github.com` -> `github.com`
 - Sites sharing second-level domain are considered conflicting

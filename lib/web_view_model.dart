@@ -85,7 +85,7 @@ bool _isIPv6Address(String host) {
 /// Example: 'www.google.co.uk' -> 'google.co.uk'
 /// Example: '192.168.1.1' -> '192.168.1.1'
 /// Example: '[::1]' -> '[::1]'
-String getSecondLevelDomain(String url) {
+String getBaseDomain(String url) {
   final host = extractDomain(url);
 
   // IP addresses should be returned as-is - they're already unique identifiers
@@ -185,8 +185,8 @@ String getNormalizedDomain(String url) {
     return _domainAliases[host]!;
   }
 
-  // Extract second-level domain
-  final secondLevel = getSecondLevelDomain(url);
+  // Extract base domain
+  final secondLevel = getBaseDomain(url);
 
   // Check if the second-level domain has an alias
   if (_domainAliases.containsKey(secondLevel)) {
