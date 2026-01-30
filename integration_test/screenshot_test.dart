@@ -95,97 +95,19 @@ Future<void> _takeThemedScreenshots(
   await tester.pump();
 }
 
-/// Get writable signal directory path.
-/// Tries the app's external cache directory which is accessible to both app and ADB.
-Future<String?> _getSignalDirPath() async {
-  // Try external storage paths that the app should be able to write to
-  // and ADB can read without root
-  // Package name is org.codeberg.theoden8.webspace with flavors fdroid, fdebug, fmain
-  final candidates = [
-    // External cache directories for different build flavors
-    '/sdcard/Android/data/org.codeberg.theoden8.webspace/cache/screenshot_signals',
-    '/sdcard/Android/data/org.codeberg.theoden8.webspace.fdebug/cache/screenshot_signals',
-    '/sdcard/Android/data/org.codeberg.theoden8.webspace.fdroid/cache/screenshot_signals',
-    '/sdcard/Android/data/org.codeberg.theoden8.webspace.fmain/cache/screenshot_signals',
-  ];
-  
-  for (final path in candidates) {
-    // Check if parent directory exists (the app's external data dir)
-    final parentPath = path.replaceAll('/screenshot_signals', '');
-    final parent = Directory(parentPath);
-    print('Checking: $parentPath');
-    try {
-      final exists = await parent.exists();
-      print('  exists: $exists');
-      if (exists) {
-        // Try to create the signal directory
-        final signalDir = Directory(path);
-        if (!await signalDir.exists()) {
-          await signalDir.create(recursive: true);
-        }
-        print('Using signal directory: $path');
-        return path;
-      }
-    } catch (e) {
-      print('  error: $e');
-      // Try next candidate
-      continue;
-    }
-  }
-  
-  print('ERROR: Could not find writable signal directory');
-  return null;
-}
-
-/// Request a native screenshot via file-based signaling.
-/// This writes a request file that the test driver watches for,
-/// waits for the driver to take the screenshot via ADB, then cleans up.
+/// Request a native screenshot by printing a marker that the driver watches for.
+/// The driver will take an ADB screenshot when it sees this marker in the logs.
+/// This avoids file permission issues on Android.
 Future<void> _requestNativeScreenshot(String screenshotName) async {
-  print('Requesting native screenshot: $screenshotName');
+  // Print a unique marker that the driver can detect in logcat
+  // Format: @@NATIVE_SCREENSHOT:<name>@@
+  print('@@NATIVE_SCREENSHOT:$screenshotName@@');
   
-  final signalDirPath = await _getSignalDirPath();
-  if (signalDirPath == null) {
-    print('ERROR: No writable signal directory available');
-    return;
-  }
+  // Give the driver time to capture the screenshot
+  // The driver watches logcat and takes a screenshot when it sees the marker
+  await Future.delayed(const Duration(seconds: 3));
   
-  final requestFile = File('$signalDirPath/${screenshotName}_request');
-  final doneFile = File('$signalDirPath/${screenshotName}_done');
-  
-  try {
-    // Write request file with screenshot name
-    await requestFile.writeAsString(screenshotName);
-    print('Created request file: ${requestFile.path}');
-    
-    // Wait for driver to signal completion (poll for done file)
-    var attempts = 0;
-    const maxAttempts = 60; // 30 seconds max wait
-    while (attempts < maxAttempts) {
-      if (await doneFile.exists()) {
-        print('Native screenshot completed: $screenshotName');
-        // Clean up signal files
-        try {
-          await requestFile.delete();
-          await doneFile.delete();
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-        return;
-      }
-      await Future.delayed(const Duration(milliseconds: 500));
-      attempts++;
-    }
-    
-    print('Warning: Native screenshot timed out waiting for driver: $screenshotName');
-    // Clean up request file
-    try {
-      await requestFile.delete();
-    } catch (e) {
-      // Ignore cleanup errors
-    }
-  } catch (e) {
-    print('Error requesting native screenshot: $e');
-  }
+  print('Native screenshot requested: $screenshotName');
 }
 
 void main() {

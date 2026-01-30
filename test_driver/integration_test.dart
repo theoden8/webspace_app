@@ -18,18 +18,6 @@ import 'package:integration_test/integration_test_driver_extended.dart';
 /// Fastlane sets SCREENSHOT_DIR automatically based on the target platform.
 /// For manual runs without SCREENSHOT_DIR, screenshots go to 'screenshots/'.
 
-/// Possible signal directories on device (app's external cache)
-/// The app will create one of these and we'll find it
-/// Package name is org.codeberg.theoden8.webspace with flavors fdroid, fdebug, fmain
-const _signalDirCandidates = [
-  '/sdcard/Android/data/org.codeberg.theoden8.webspace/cache/screenshot_signals',
-  '/sdcard/Android/data/org.codeberg.theoden8.webspace.fdebug/cache/screenshot_signals',
-  '/sdcard/Android/data/org.codeberg.theoden8.webspace.fdroid/cache/screenshot_signals',
-  '/sdcard/Android/data/org.codeberg.theoden8.webspace.fmain/cache/screenshot_signals',
-];
-
-String? _signalDir;
-
 /// Flag to stop the watcher when test completes
 bool _stopWatcher = false;
 
@@ -70,77 +58,55 @@ Future<void> main() async {
 /// Helper to run a future without awaiting (avoids lint warnings)
 void unawaited(Future<void> future) {}
 
-/// Find which signal directory the app created
-Future<String?> _findSignalDir() async {
-  for (final candidate in _signalDirCandidates) {
-    final result = await Process.run('adb', ['shell', 'test', '-d', candidate, '&&', 'echo', 'exists']);
-    if (result.stdout.toString().contains('exists')) {
-      print('[Driver] Found signal directory: $candidate');
-      return candidate;
-    }
-  }
-  return null;
-}
-
-/// Watches for native screenshot request files on the device.
-/// When a request is found, takes a screenshot via ADB and signals completion.
+/// Watches logcat for native screenshot markers and takes screenshots via ADB.
+/// The test prints @@NATIVE_SCREENSHOT:<name>@@ when it wants a native screenshot.
 Future<void> _watchForNativeScreenshotRequests(String screenshotDir) async {
-  print('[Driver] Native screenshot watcher: initializing...');
-  print('[Driver] Will look for signal directories in: $_signalDirCandidates');
+  print('[Driver] Native screenshot watcher: starting logcat monitor...');
   
-  print('[Driver] Native screenshot watcher: polling for requests...');
+  // Clear logcat first
+  await Process.run('adb', ['logcat', '-c']);
   
-  while (!_stopWatcher) {
-    try {
-      // Find the signal directory if not yet found
-      _signalDir ??= await _findSignalDir();
-      
-      if (_signalDir == null) {
-        // Not found yet, keep waiting
-        await Future.delayed(const Duration(milliseconds: 500));
-        continue;
-      }
-      
-      // List request files
-      final result = await Process.run('adb', ['shell', 'ls', '$_signalDir/']);
-      final output = result.stdout.toString().trim();
-      
-      if (output.isNotEmpty && !output.contains('No such file')) {
-        // Parse request files
-        final files = output.split('\n').where((f) => f.trim().isNotEmpty && f.endsWith('_request')).toList();
+  // Start logcat process to watch for markers
+  final logcat = await Process.start('adb', ['logcat', '-v', 'brief', 'flutter:I', '*:S']);
+  
+  // Track which screenshots we've already taken to avoid duplicates
+  final takenScreenshots = <String>{};
+  
+  logcat.stdout.transform(const SystemEncoding().decoder).listen((data) async {
+    // Look for the marker pattern: @@NATIVE_SCREENSHOT:<name>@@
+    final regex = RegExp(r'@@NATIVE_SCREENSHOT:([^@]+)@@');
+    final matches = regex.allMatches(data);
+    
+    for (final match in matches) {
+      final screenshotName = match.group(1);
+      if (screenshotName != null && !takenScreenshots.contains(screenshotName)) {
+        takenScreenshots.add(screenshotName);
         
-        for (final fileName in files) {
-          final screenshotName = fileName.replaceAll('_request', '');
-          
-          print('[Driver] Found native screenshot request: $screenshotName');
-          
-          // Take the screenshot
-          final outputPath = '$screenshotDir/$screenshotName.png';
-          final success = await _takeNativeScreenshot(outputPath);
-          
-          if (success) {
-            print('[Driver] Native screenshot saved: $outputPath');
-          } else {
-            print('[Driver] Native screenshot failed: $screenshotName');
-          }
-          
-          // Signal completion by creating done file
-          final doneFile = '$_signalDir/${screenshotName}_done';
-          await Process.run('adb', ['shell', 'touch', doneFile]);
-          print('[Driver] Signaled completion: $doneFile');
-          
-          // Remove the request file
-          await Process.run('adb', ['shell', 'rm', '-f', '$_signalDir/$fileName']);
+        print('[Driver] Detected native screenshot request: $screenshotName');
+        
+        // Small delay to ensure the screen is fully rendered
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Take the screenshot
+        final outputPath = '$screenshotDir/$screenshotName.png';
+        final success = await _takeNativeScreenshot(outputPath);
+        
+        if (success) {
+          print('[Driver] Native screenshot saved: $outputPath');
+        } else {
+          print('[Driver] Native screenshot failed: $screenshotName');
         }
       }
-    } catch (e) {
-      print('[Driver] Watcher error: $e');
     }
-    
-    // Poll every 100ms for faster response
+  });
+  
+  // Keep the watcher running until stopped
+  while (!_stopWatcher) {
     await Future.delayed(const Duration(milliseconds: 100));
   }
   
+  // Kill logcat when done
+  logcat.kill();
   print('[Driver] Native screenshot watcher: stopped');
 }
 
