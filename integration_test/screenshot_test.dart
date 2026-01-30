@@ -49,7 +49,8 @@ Future<void> _setDeviceOrientation(WidgetTester tester) async {
 // Timeout constants
 const Duration _ICON_LOAD_TIMEOUT = Duration(seconds: 10);
 const Duration _WEBVIEW_LOAD_TIMEOUT = Duration(seconds: 15);
-const Duration _SCREENSHOT_TIMEOUT = Duration(seconds: 5);
+const Duration _SCREENSHOT_TIMEOUT = Duration(seconds: 10);
+const Duration _NATIVE_SCREENSHOT_TIMEOUT = Duration(seconds: 30);
 const Duration _DRAWER_TIMEOUT = Duration(seconds: 5);
 
 /// Helper to take a screenshot with both light and dark themes.
@@ -78,10 +79,13 @@ Future<void> _takeThemedScreenshots(
   // This is important for native platform views (webviews) which render asynchronously
   await tester.pump();
   
+  // Use longer timeout for native screenshots as ADB screencap takes more time
+  final timeout = useNative ? _NATIVE_SCREENSHOT_TIMEOUT : _SCREENSHOT_TIMEOUT;
+  
   await binding.takeScreenshot(screenshotName).timeout(
-    _SCREENSHOT_TIMEOUT,
+    timeout,
     onTimeout: () {
-      print('Warning: Screenshot $baseName$themeSuffix timed out');
+      print('Warning: Screenshot $baseName$themeSuffix timed out after ${timeout.inSeconds}s');
       return <int>[];
     },
   );
