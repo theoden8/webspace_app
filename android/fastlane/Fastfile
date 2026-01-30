@@ -58,8 +58,9 @@ platform :android do
     UI.message("Generating screenshots with Flutter integration test...")
     UI.message("Project root: #{project_root}")
 
-    # Get connected device ID
-    device_id = sh("adb devices | grep -w 'device' | head -1 | awk '{print $1}'", log: false).strip
+    # Get connected device ID using Android SDK's adb
+    adb_path = ENV['ANDROID_SDK'] ? "#{ENV['ANDROID_SDK']}/platform-tools/adb" : "adb"
+    device_id = sh("#{adb_path} devices | grep -w 'device' | head -1 | awk '{print $1}'", log: false).strip
 
     if device_id.empty?
       UI.user_error!("No Android device connected. Please connect a device or start an emulator.")
