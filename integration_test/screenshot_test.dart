@@ -154,24 +154,16 @@ void main() {
 
         // Convert Flutter surface to image for screenshot capture (required on Android).
         // NOTE: This only captures Flutter-rendered content, not native platform views like webviews.
-        // For screenshots that include webviews (03, 04), we pass useNative: true to use
+        // For screenshots that include webviews (01, 02), we pass useNative: true to use
         // ADB screencap instead, which captures the actual screen including platform views.
         await binding.convertFlutterSurfaceToImage();
         await tester.pumpAndSettle();
-
-        // Wait for initial site icons to load (with timeout)
-        print('Waiting for site icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
-        await Future.delayed(_ICON_LOAD_TIMEOUT);
-        await tester.pump();
 
         // Open drawer to select a site
         print('Opening drawer via menu button...');
         print('Looking for drawer elements...');
         _debugPrintWidgets(tester);
         await _openDrawer(tester);
-
-        print('Drawer opened, waiting for icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
-        await Future.delayed(_ICON_LOAD_TIMEOUT);
         await tester.pump();
         await Future.delayed(const Duration(seconds: 2));
 
