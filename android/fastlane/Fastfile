@@ -97,7 +97,7 @@ platform :android do
 
     Dir.glob(File.join(screenshots_dir, "*.png")).each do |screenshot|
       UI.message("Resizing #{File.basename(screenshot)} to 1080x2340...")
-      sh("convert '#{screenshot}' -resize 1080x2340! '#{screenshot}'")
+      sh("magick '#{screenshot}' -resize 1080x2340! '#{screenshot}'")
     end
 
     UI.success("All screenshots resized to Pixel 5 resolution (1080x2340)")

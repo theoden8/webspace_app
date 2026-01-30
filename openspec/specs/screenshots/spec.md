@@ -233,7 +233,7 @@ fastlane screenshots_framed_all
 - **Automatic resizing**: Screenshots are automatically resized to supported resolutions before framing
   - Android: Resized to Pixel 5 resolution (1080x2340)
   - iOS: Resized to iPhone 13 Pro resolution (1170x2532)
-- Resizing uses ImageMagick's `convert` command (must be installed)
+- Resizing uses ImageMagick's `magick` command (must be installed)
 
 #### Requirements
 

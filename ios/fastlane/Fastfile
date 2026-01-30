@@ -148,7 +148,7 @@ platform :ios do
 
     Dir.glob(File.join(screenshots_dir, "*.png")).each do |screenshot|
       UI.message("Resizing #{File.basename(screenshot)} to 1170x2532...")
-      sh("convert '#{screenshot}' -resize 1170x2532! '#{screenshot}'")
+      sh("magick '#{screenshot}' -resize 1170x2532! '#{screenshot}'")
     end
 
     UI.success("All screenshots resized to iPhone 13 Pro resolution (1170x2532)")
