@@ -10,6 +10,14 @@ on:
       - 'lib/demo_data.dart'
       - 'test_driver/integration_test.dart'
       - '.github/workflows/screenshots.yml'
+  pull_request:
+    branches:
+      - '**'
+    paths:
+      - 'integration_test/screenshot_test.dart'
+      - 'lib/demo_data.dart'
+      - 'test_driver/integration_test.dart'
+      - '.github/workflows/screenshots.yml'
 
 jobs:
   screenshots-android:
@@ -100,8 +108,8 @@ jobs:
             # Create screenshots directory
             mkdir -p screenshots/android
             
-            # Run fastlane screenshots using bundle
-            cd android && bundle exec fastlane screenshots
+            # Run fastlane android screenshots using bundle
+            bundle exec fastlane android screenshots
 
       - name: Upload Android screenshots
         uses: actions/upload-artifact@v4
@@ -192,8 +200,7 @@ jobs:
         run: mkdir -p screenshots/ios
 
       - name: Generate iOS screenshots
-        run: |
-          cd ios && bundle exec fastlane screenshots
+        run: bundle exec fastlane ios screenshots
 
       - name: Upload iOS screenshots
         uses: actions/upload-artifact@v4
