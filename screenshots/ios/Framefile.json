@@ -1,6 +1,6 @@
 {
   "default": {
-    "background": "#FFFFFF",
+    "background": "../background.png",
     "keyword": {
       "show": true,
       "color": "#545454"

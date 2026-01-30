@@ -69,8 +69,8 @@ platform :android do
     UI.success("Found device: #{device_id}")
     UI.message("Demo data will be seeded by Flutter integration test")
 
-    # Set screenshot directory for Android
-    screenshots_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
+    # Raw screenshots go to screenshots/android/ at project root
+    screenshots_dir = File.join(project_root, "screenshots", "android")
 
     # Clear previous screenshots
     if Dir.exist?(screenshots_dir)
@@ -93,9 +93,10 @@ platform :android do
 
   desc "Resize screenshots to supported resolution (Pixel 5: 1080x2340)"
   lane :resize_screenshots do
-    screenshots_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
+    screenshots_dir = File.join(project_root, "screenshots", "android")
 
     Dir.glob(File.join(screenshots_dir, "*.png")).each do |screenshot|
+      next if File.basename(screenshot) == "background.png"
       UI.message("Resizing #{File.basename(screenshot)} to 1080x2340...")
       sh("magick '#{screenshot}' -resize 1080x2340! '#{screenshot}'")
     end
@@ -105,14 +106,27 @@ platform :android do
 
   desc "Frame screenshots with device frames and marketing titles"
   lane :add_device_frames do
+    screenshots_dir = File.join(project_root, "screenshots", "android")
+    output_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
+
     begin
       # Resize screenshots to supported resolution first
       resize_screenshots
 
       frame_screenshots(
-        path: File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots"),
+        path: screenshots_dir,
         white: true
       )
+
+      # Copy framed screenshots to store metadata directory, removing _framed suffix
+      FileUtils.mkdir_p(output_dir)
+      Dir.glob(File.join(screenshots_dir, "*_framed.png")).each do |framed|
+        output_name = File.basename(framed).gsub("_framed", "")
+        FileUtils.cp(framed, File.join(output_dir, output_name))
+        UI.message("Copied #{output_name} to #{output_dir}")
+      end
+
+      UI.success("Framed screenshots copied to: #{output_dir}")
     rescue => ex
       UI.error("Failed to frame screenshots: #{ex.message}")
       if ex.message.include?("Unsupported screen size")
