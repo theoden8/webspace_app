@@ -1,12 +1,6 @@
 {
   "default": {
     "keyword": {
-      "fonts": [
-        {
-          "font": "Arial-BoldMT",
-          "supported": ["*"]
-        }
-      ],
       "color": "#545454"
     },
     "title": {
