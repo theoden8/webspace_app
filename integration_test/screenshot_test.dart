@@ -56,9 +56,10 @@ const Duration _DRAWER_TIMEOUT = Duration(seconds: 5);
 /// Takes the current theme screenshot first, then toggles to the other theme,
 /// takes that screenshot, and toggles back.
 /// 
-/// If [useNative] is true, the test driver will use ADB screencap to capture
-/// the actual screen including webviews (Android only). This is needed because
-/// Flutter's convertFlutterSurfaceToImage() only captures Flutter-rendered content.
+/// If [useNative] is true, the screenshot name will include a marker that
+/// tells the test driver to use ADB screencap to capture the actual screen
+/// including webviews (Android only). This is needed because Flutter's
+/// convertFlutterSurfaceToImage() only captures Flutter-rendered content.
 Future<void> _takeThemedScreenshots(
   IntegrationTestWidgetsFlutterBinding binding,
   WidgetTester tester,
@@ -67,16 +68,17 @@ Future<void> _takeThemedScreenshots(
   bool useNative = false,
 }) async {
   final themeSuffix = currentTheme == 'light' ? '-light' : '-dark';
+  // Add __native__ marker to screenshot name for webview screenshots
+  // The test driver will detect this and use ADB screencap instead
+  final nativeMarker = useNative ? '__native__' : '';
+  final screenshotName = '$baseName$themeSuffix$nativeMarker';
   print('Capturing $baseName$themeSuffix${useNative ? ' (native)' : ''}');
   
   // Pump before screenshot to ensure all pending frame updates are processed
   // This is important for native platform views (webviews) which render asynchronously
   await tester.pump();
   
-  await binding.takeScreenshot(
-    '$baseName$themeSuffix',
-    {'native': useNative},
-  ).timeout(
+  await binding.takeScreenshot(screenshotName).timeout(
     _SCREENSHOT_TIMEOUT,
     onTimeout: () {
       print('Warning: Screenshot $baseName$themeSuffix timed out');

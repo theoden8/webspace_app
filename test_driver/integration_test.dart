@@ -25,17 +25,19 @@ Future<void> main() async {
   await integrationDriver(
     onScreenshot: (String screenshotName, List<int> screenshotBytes,
         [Map<String, Object?>? args]) async {
-      final file = File('$screenshotDir/$screenshotName.png');
-      await file.create(recursive: true);
+      // Check if this screenshot should use native capture
+      // The integration test adds __native__ marker for webview screenshots
+      final useNativeForThis = screenshotName.contains('__native__') || useNativeScreenshots;
       
-      // Check if this specific screenshot should use native capture
-      // The integration test can pass 'native: true' in args for webview screenshots
-      final useNativeForThis = args?['native'] == true || useNativeScreenshots;
+      // Remove the __native__ marker from the filename
+      final cleanName = screenshotName.replaceAll('__native__', '');
+      final file = File('$screenshotDir/$cleanName.png');
+      await file.create(recursive: true);
       
       if (useNativeForThis) {
         // Use ADB screencap to capture the actual screen including webviews
         // This bypasses Flutter's surface capture which misses platform views
-        print('Using native screenshot for: $screenshotName');
+        print('Using native screenshot for: $cleanName');
         final success = await _takeNativeScreenshot(file.path);
         if (success) {
           print('Native screenshot saved: ${file.path}');
