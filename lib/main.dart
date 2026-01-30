@@ -910,7 +910,8 @@ class _WebSpacePageState extends State<WebSpacePage> {
             onPressed: () async {
               final controller = getController();
               if (controller != null) {
-                await controller.loadUrl(_webViewModels[_currentIndex!].initUrl);
+                final model = _webViewModels[_currentIndex!];
+                await controller.loadUrl(model.initUrl, language: model.language);
               }
             },
           ),
