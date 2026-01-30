@@ -94,7 +94,8 @@ platform :android do
   desc "Frame screenshots with device frames and marketing titles"
   lane :add_device_frames do
     frame_screenshots(
-      path: File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
+      path: File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots"),
+      white: true
     )
   end
 

@@ -6,7 +6,6 @@
     "title": {
       "show": false
     },
-    "background": "#FFFFFF",
     "padding": 50,
     "interspace": 30
   },
@@ -15,8 +14,7 @@
       "filter": "*-dark",
       "keyword": {
         "color": "#E0E0E0"
-      },
-      "background": "#1A1A1A"
+      }
     }
   ]
 }
