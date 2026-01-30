@@ -19,7 +19,8 @@ import 'package:integration_test/integration_test_driver_extended.dart';
 /// For manual runs without SCREENSHOT_DIR, screenshots go to 'screenshots/'.
 
 /// Directory on device for screenshot signal files
-const _signalDir = '/sdcard/screenshot_signals';
+/// Using /data/local/tmp which is world-writable and accessible via ADB
+const _signalDir = '/data/local/tmp/screenshot_signals';
 
 /// Flag to stop the watcher when test completes
 bool _stopWatcher = false;

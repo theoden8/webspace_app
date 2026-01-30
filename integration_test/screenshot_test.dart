@@ -99,9 +99,9 @@ Future<void> _takeThemedScreenshots(
 /// This writes a request file that the test driver watches for,
 /// waits for the driver to take the screenshot via ADB, then cleans up.
 Future<void> _requestNativeScreenshot(String screenshotName) async {
-  // Signal files are in a temp directory that both device and host can access via ADB
-  // On Android, /sdcard is accessible to apps and to ADB
-  final signalDir = Directory('/sdcard/screenshot_signals');
+  // Use /data/local/tmp which is world-writable and accessible via ADB
+  // This avoids permission issues with /sdcard on modern Android
+  final signalDir = Directory('/data/local/tmp/screenshot_signals');
   final requestFile = File('${signalDir.path}/${screenshotName}_request');
   final doneFile = File('${signalDir.path}/${screenshotName}_done');
   
