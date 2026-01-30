@@ -21,17 +21,31 @@ import 'package:integration_test/integration_test_driver_extended.dart';
 /// Flag to stop the watcher when test completes
 bool _stopWatcher = false;
 
+/// Check if we're running on Android (by checking for adb)
+Future<bool> _isAndroidTarget() async {
+  try {
+    final result = await Process.run('adb', ['devices']);
+    return result.exitCode == 0 && result.stdout.toString().contains('device');
+  } catch (e) {
+    return false;
+  }
+}
+
 Future<void> main() async {
   final screenshotDir = Platform.environment['SCREENSHOT_DIR'] ?? 'screenshots';
   
   // Connect to the Flutter driver
   final FlutterDriver driver = await FlutterDriver.connect();
   
-  // Start background task to watch for native screenshot requests
-  // This runs concurrently with the integration driver
-  _stopWatcher = false;
-  unawaited(_watchForNativeScreenshotRequests(screenshotDir));
-  print('[Driver] Native screenshot watcher started');
+  // Only start the native screenshot watcher on Android
+  final isAndroid = await _isAndroidTarget();
+  if (isAndroid) {
+    _stopWatcher = false;
+    unawaited(_watchForNativeScreenshotRequests(screenshotDir));
+    print('[Driver] Native screenshot watcher started (Android detected)');
+  } else {
+    print('[Driver] Skipping native screenshot watcher (not Android)');
+  }
 
   await integrationDriver(
     driver: driver,
@@ -52,7 +66,9 @@ Future<void> main() async {
   
   // Stop the watcher
   _stopWatcher = true;
-  print('[Driver] Native screenshot watcher stopped');
+  if (isAndroid) {
+    print('[Driver] Native screenshot watcher stopped');
+  }
 }
 
 /// Helper to run a future without awaiting (avoids lint warnings)
@@ -112,8 +128,15 @@ Future<void> _watchForNativeScreenshotRequests(String screenshotDir) async {
 
 /// Takes a native Android screenshot using ADB screencap.
 /// This captures the actual screen content including webviews.
+/// Hides status bar and navigation bar for clean screenshots.
 Future<bool> _takeNativeScreenshot(String outputPath) async {
   try {
+    // Hide status bar and navigation bar for clean screenshots
+    print('[Driver] Hiding system bars...');
+    await Process.run('adb', ['shell', 'settings', 'put', 'global', 'policy_control', 'immersive.full=*']);
+    // Give time for the system bars to hide
+    await Future.delayed(const Duration(milliseconds: 300));
+    
     // Use adb to capture the screen
     // First capture to device, then pull to host
     const devicePath = '/sdcard/screenshot_temp.png';
@@ -124,6 +147,7 @@ Future<bool> _takeNativeScreenshot(String outputPath) async {
     var result = await Process.run('adb', ['shell', 'screencap', '-p', devicePath]);
     if (result.exitCode != 0) {
       print('[Driver] ADB screencap failed: ${result.stderr}');
+      await _restoreSystemBars();
       return false;
     }
     
@@ -134,6 +158,7 @@ Future<bool> _takeNativeScreenshot(String outputPath) async {
     result = await Process.run('adb', ['pull', devicePath, outputPath]);
     if (result.exitCode != 0) {
       print('[Driver] ADB pull failed: ${result.stderr}');
+      await _restoreSystemBars();
       return false;
     }
     
@@ -144,15 +169,26 @@ Future<bool> _takeNativeScreenshot(String outputPath) async {
       print('[Driver] Screenshot file size: $size bytes');
     } else {
       print('[Driver] WARNING: Screenshot file does not exist after pull!');
+      await _restoreSystemBars();
       return false;
     }
     
     // Clean up temp file on device
     await Process.run('adb', ['shell', 'rm', devicePath]);
     
+    // Restore system bars
+    await _restoreSystemBars();
+    
     return true;
   } catch (e) {
     print('[Driver] Native screenshot error: $e');
+    await _restoreSystemBars();
     return false;
   }
+}
+
+/// Restore system status and navigation bars
+Future<void> _restoreSystemBars() async {
+  print('[Driver] Restoring system bars...');
+  await Process.run('adb', ['shell', 'settings', 'put', 'global', 'policy_control', 'null']);
 }
