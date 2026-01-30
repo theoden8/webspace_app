@@ -91,7 +91,7 @@ platform :android do
     UI.success("Screenshots saved to: #{screenshots_dir}")
   end
 
-  desc "Resize screenshots to supported resolution (Pixel 7: 1080x2400)"
+  desc "Resize screenshots to supported resolution (Pixel 8: 1080x2400)"
   lane :resize_screenshots do
     screenshots_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
 
@@ -100,7 +100,7 @@ platform :android do
       sh("magick '#{screenshot}' -resize 1080x2400! '#{screenshot}'")
     end
 
-    UI.success("All screenshots resized to Pixel 7 resolution (1080x2400)")
+    UI.success("All screenshots resized to Pixel 8 resolution (1080x2400)")
   end
 
   desc "Frame screenshots with device frames and marketing titles"
