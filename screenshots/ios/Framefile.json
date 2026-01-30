@@ -6,17 +6,22 @@
     },
     "title": {
       "show": true,
-      "color": "#545454"
+      "color": "#2C3E50",
+      "font_size": 72,
+      "font_weight": 600
     },
-    "padding": 50,
-    "interspace": 30
+    "padding": 80,
+    "interspace": 40,
+    "title_below_image": false
   },
   "data": [
     {
       "filter": "*-dark",
       "title": {
         "show": true,
-        "color": "#E0E0E0"
+        "color": "#FFFFFF",
+        "font_size": 72,
+        "font_weight": 600
       }
     }
   ]
