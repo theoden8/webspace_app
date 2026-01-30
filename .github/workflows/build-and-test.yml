@@ -380,6 +380,9 @@ jobs:
             
             # Run fastlane android screenshots using bundle
             bundle exec fastlane android screenshots
+            
+            # Add device frames to screenshots
+            bundle exec fastlane android add_device_frames
 
       - name: Upload Android screenshots
         uses: actions/upload-artifact@v4
@@ -476,6 +479,9 @@ jobs:
 
       - name: Generate iOS screenshots
         run: bundle exec fastlane ios screenshots
+
+      - name: Add device frames to iOS screenshots
+        run: bundle exec fastlane ios add_device_frames
 
       - name: Upload iOS screenshots
         uses: actions/upload-artifact@v4
