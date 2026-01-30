@@ -100,47 +100,52 @@ Future<void> _takeThemedScreenshots(
 /// waits for the driver to take the screenshot via ADB, then cleans up.
 Future<void> _requestNativeScreenshot(String screenshotName) async {
   // Signal files are in a temp directory that both device and host can access via ADB
-  const signalDir = '/sdcard/screenshot_signals';
-  final requestFile = '$signalDir/${screenshotName}_request';
-  final doneFile = '$signalDir/${screenshotName}_done';
+  // On Android, /sdcard is accessible to apps and to ADB
+  final signalDir = Directory('/sdcard/screenshot_signals');
+  final requestFile = File('${signalDir.path}/${screenshotName}_request');
+  final doneFile = File('${signalDir.path}/${screenshotName}_done');
   
   print('Requesting native screenshot: $screenshotName');
   
-  // Create signal directory if needed
-  await _adbShell('mkdir -p $signalDir');
-  
-  // Write request file with screenshot name
-  await _adbShell('echo "$screenshotName" > $requestFile');
-  
-  // Wait for driver to signal completion (poll for done file)
-  var attempts = 0;
-  const maxAttempts = 60; // 30 seconds max wait
-  while (attempts < maxAttempts) {
-    final result = await _adbShell('test -f $doneFile && echo "done"');
-    if (result.contains('done')) {
-      print('Native screenshot completed: $screenshotName');
-      // Clean up signal files
-      await _adbShell('rm -f $requestFile $doneFile');
-      return;
-    }
-    await Future.delayed(const Duration(milliseconds: 500));
-    attempts++;
-  }
-  
-  print('Warning: Native screenshot timed out waiting for driver: $screenshotName');
-  // Clean up request file
-  await _adbShell('rm -f $requestFile');
-}
-
-/// Execute an ADB shell command from the device side.
-/// Note: This runs a shell command ON the device, not via ADB from host.
-Future<String> _adbShell(String command) async {
   try {
-    final result = await Process.run('sh', ['-c', command]);
-    return result.stdout.toString();
+    // Create signal directory if needed
+    if (!await signalDir.exists()) {
+      await signalDir.create(recursive: true);
+      print('Created signal directory: ${signalDir.path}');
+    }
+    
+    // Write request file with screenshot name
+    await requestFile.writeAsString(screenshotName);
+    print('Created request file: ${requestFile.path}');
+    
+    // Wait for driver to signal completion (poll for done file)
+    var attempts = 0;
+    const maxAttempts = 60; // 30 seconds max wait
+    while (attempts < maxAttempts) {
+      if (await doneFile.exists()) {
+        print('Native screenshot completed: $screenshotName');
+        // Clean up signal files
+        try {
+          await requestFile.delete();
+          await doneFile.delete();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 500));
+      attempts++;
+    }
+    
+    print('Warning: Native screenshot timed out waiting for driver: $screenshotName');
+    // Clean up request file
+    try {
+      await requestFile.delete();
+    } catch (e) {
+      // Ignore cleanup errors
+    }
   } catch (e) {
-    print('Shell command failed: $e');
-    return '';
+    print('Error requesting native screenshot: $e');
   }
 }
 
