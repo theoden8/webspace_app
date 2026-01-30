@@ -28,6 +28,12 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '2.7'
+          bundler-cache: true
+
       - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
         with:
@@ -91,18 +97,11 @@ jobs:
             adb wait-for-device
             adb shell input keyevent 82
             
-            # Install Ruby and Fastlane
-            sudo apt-get install -y ruby ruby-dev
-            sudo gem install fastlane
-            
             # Create screenshots directory
             mkdir -p screenshots/android
             
-            # Run fastlane screenshots
-            cd android && fastlane screenshots
-            
-            # Run fastlane to add device frames (optional, may fail without proper setup)
-            # fastlane add_device_frames || echo "Framing skipped"
+            # Run fastlane screenshots using bundle
+            cd android && bundle exec fastlane screenshots
 
       - name: Upload Android screenshots
         uses: actions/upload-artifact@v4
@@ -117,6 +116,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '2.7'
+          bundler-cache: true
 
       - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
@@ -183,16 +188,12 @@ jobs:
           xcrun simctl bootstatus "$SIMULATOR_ID" -b
           sleep 10
 
-      - name: Install Fastlane
-        run: |
-          sudo gem install fastlane
-
       - name: Create screenshots directory
         run: mkdir -p screenshots/ios
 
       - name: Generate iOS screenshots
         run: |
-          cd ios && fastlane screenshots
+          cd ios && bundle exec fastlane screenshots
 
       - name: Upload iOS screenshots
         uses: actions/upload-artifact@v4
