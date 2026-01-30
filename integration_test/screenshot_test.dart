@@ -55,20 +55,28 @@ const Duration _DRAWER_TIMEOUT = Duration(seconds: 5);
 /// Helper to take a screenshot with both light and dark themes.
 /// Takes the current theme screenshot first, then toggles to the other theme,
 /// takes that screenshot, and toggles back.
+/// 
+/// If [useNative] is true, the test driver will use ADB screencap to capture
+/// the actual screen including webviews (Android only). This is needed because
+/// Flutter's convertFlutterSurfaceToImage() only captures Flutter-rendered content.
 Future<void> _takeThemedScreenshots(
   IntegrationTestWidgetsFlutterBinding binding,
   WidgetTester tester,
   String baseName,
-  String currentTheme,
-) async {
+  String currentTheme, {
+  bool useNative = false,
+}) async {
   final themeSuffix = currentTheme == 'light' ? '-light' : '-dark';
-  print('Capturing $baseName$themeSuffix');
+  print('Capturing $baseName$themeSuffix${useNative ? ' (native)' : ''}');
   
   // Pump before screenshot to ensure all pending frame updates are processed
   // This is important for native platform views (webviews) which render asynchronously
   await tester.pump();
   
-  await binding.takeScreenshot('$baseName$themeSuffix').timeout(
+  await binding.takeScreenshot(
+    '$baseName$themeSuffix',
+    {'native': useNative},
+  ).timeout(
     _SCREENSHOT_TIMEOUT,
     onTimeout: () {
       print('Warning: Screenshot $baseName$themeSuffix timed out');
@@ -117,12 +125,11 @@ void main() {
         print('STARTING SCREENSHOT TOUR ($theme theme)');
         print('========================================');
 
-        // NOTE: We intentionally do NOT call binding.convertFlutterSurfaceToImage() here.
-        // That method converts the Flutter surface to an offscreen buffer for screenshot capture,
-        // but it only captures Flutter-rendered content, not native platform views like webviews.
-        // By NOT calling it, we rely on the native screenshot mechanism which captures the
-        // entire screen including webviews. This is essential for screenshots 3 and 4 which
-        // need to show the DuckDuckGo webview content.
+        // Convert Flutter surface to image for screenshot capture (required on Android).
+        // NOTE: This only captures Flutter-rendered content, not native platform views like webviews.
+        // For screenshots that include webviews (03, 04), we pass useNative: true to use
+        // ADB screencap instead, which captures the actual screen including platform views.
+        await binding.convertFlutterSurfaceToImage();
         await tester.pumpAndSettle();
 
         // Wait for initial site icons to load (with timeout)
@@ -174,7 +181,8 @@ void main() {
           await tester.pump(const Duration(milliseconds: 500));
 
           // Screenshot 3: DuckDuckGo webview loaded
-          await _takeThemedScreenshots(binding, tester, '03-site-webview', currentTheme);
+          // Use native screenshot to capture the webview content (Flutter surface misses platform views)
+          await _takeThemedScreenshots(binding, tester, '03-site-webview', currentTheme, useNative: true);
           print('Screenshot 3 captured successfully (site selected)');
 
           // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
@@ -208,8 +216,9 @@ void main() {
             print('WARNING: Drawer may not be fully open for screenshot 4');
           }
 
-          // Screenshot 4: Drawer showing current site
-          await _takeThemedScreenshots(binding, tester, '04-drawer-with-site', currentTheme);
+          // Screenshot 4: Drawer showing current site (with webview visible behind drawer)
+          // Use native screenshot to capture the webview content behind the drawer
+          await _takeThemedScreenshots(binding, tester, '04-drawer-with-site', currentTheme, useNative: true);
           print('Screenshot 4 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
