@@ -1053,9 +1053,19 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         // Persist the changes immediately
                         _saveWebViewModels();
                       },
-                      onSettingsSaved: () {
+                      onSettingsSaved: () async {
+                        // Save settings to persistence
+                        await _saveWebViewModels();
                         // Trigger rebuild to recreate webview with new settings
-                        setState(() {});
+                        setState(() {
+                          // Mark the webview as needing recreation
+                          final index = _currentIndex;
+                          if (index != null && index < _webViewModels.length) {
+                            // Ensure the webview is marked for reload
+                            _loadedIndices.remove(index);
+                            _loadedIndices.add(index);
+                          }
+                        });
                       },
                     ),
                   ),

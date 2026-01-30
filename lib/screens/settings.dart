@@ -218,14 +218,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (!mounted) return;
 
+      // Store current URL before disposing webview
+      final currentUrl = widget.webViewModel.currentUrl;
+
       // Dispose the webview so it gets recreated with new settings
       widget.webViewModel.disposeWebView();
+
+      // Update current URL to ensure reload
+      widget.webViewModel.currentUrl = currentUrl;
 
       // Notify parent to rebuild (this will recreate the webview)
       widget.onSettingsSaved?.call();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Settings saved successfully')),
+        SnackBar(content: Text('Settings saved and webview reloaded')),
       );
 
       Navigator.pop(context);
