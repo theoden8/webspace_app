@@ -185,11 +185,17 @@ class PlatformInfo {
 
 /// Configuration for creating a webview
 class WebViewConfig {
+  /// Unique key to force widget recreation when settings change.
+  /// When this key changes, Flutter will create a new widget state.
+  final Key? key;
   final String initialUrl;
   final bool javascriptEnabled;
   final String? userAgent;
   final bool thirdPartyCookiesEnabled;
   final bool incognito;
+  /// Language code for Accept-Language header (e.g., 'en', 'es', 'fr').
+  /// If null, uses system default.
+  final String? language;
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
   final Function(int activeMatch, int totalMatches)? onFindResult;
@@ -200,11 +206,13 @@ class WebViewConfig {
   final Future<void> Function(int windowId, String url)? onWindowRequested;
 
   WebViewConfig({
+    this.key,
     required this.initialUrl,
     this.javascriptEnabled = true,
     this.userAgent,
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
+    this.language,
     this.onUrlChanged,
     this.onCookiesChanged,
     this.onFindResult,
@@ -215,7 +223,7 @@ class WebViewConfig {
 
 /// Controller interface for webview operations
 abstract class WebViewController {
-  Future<void> loadUrl(String url);
+  Future<void> loadUrl(String url, {String? language});
   Future<void> reload();
   Future<Uri?> getUrl();
   Future<String?> getTitle();
@@ -241,7 +249,18 @@ class _WebViewController implements WebViewController {
   _WebViewController(this._c);
 
   @override
-  Future<void> loadUrl(String url) => _c.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url)));
+  Future<void> loadUrl(String url, {String? language}) {
+    final headers = <String, String>{};
+    if (language != null) {
+      headers['Accept-Language'] = '$language, *;q=0.5';
+    }
+    return _c.loadUrl(
+      urlRequest: inapp.URLRequest(
+        url: inapp.WebUri(url),
+        headers: headers.isNotEmpty ? headers : null,
+      ),
+    );
+  }
 
   @override
   Future<void> reload() => _c.reload();
@@ -419,8 +438,18 @@ class WebViewFactory {
   }) {
     final cookieManager = inapp.CookieManager.instance();
 
+    // Build initial URL request with optional Accept-Language header
+    final headers = <String, String>{};
+    if (config.language != null) {
+      headers['Accept-Language'] = '${config.language}, *;q=0.5';
+    }
+
     return inapp.InAppWebView(
-      initialUrlRequest: inapp.URLRequest(url: inapp.WebUri(config.initialUrl)),
+      key: config.key,
+      initialUrlRequest: inapp.URLRequest(
+        url: inapp.WebUri(config.initialUrl),
+        headers: headers.isNotEmpty ? headers : null,
+      ),
       initialSettings: inapp.InAppWebViewSettings(
         javaScriptEnabled: config.javascriptEnabled,
         userAgent: config.userAgent,

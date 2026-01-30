@@ -210,6 +210,7 @@ class WebViewModel {
   String userAgent;
   bool thirdPartyCookiesEnabled;
   bool incognito; // Private browsing mode - no cookies/cache persist
+  String? language; // Language code (e.g., 'en', 'es'), null = system default
 
   String? defaultUserAgent;
   Function? stateSetterF;
@@ -227,6 +228,7 @@ class WebViewModel {
     this.userAgent = '',
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
+    this.language,
     this.stateSetterF,
   })  : siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
@@ -320,18 +322,24 @@ class WebViewModel {
     CookieManager cookieManager,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
+    String? language,
   }) {
     if (webview == null) {
+      // Use this.language directly to ensure we get the current value from WebViewModel
+      final effectiveLanguage = this.language;
       if (kDebugMode) {
         debugPrint('[WebView] Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
+        debugPrint('[WebView] Language: $effectiveLanguage (param: $language)');
       }
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
+          key: UniqueKey(), // Force new widget state when recreating
           initialUrl: currentUrl,
           javascriptEnabled: javascriptEnabled,
           userAgent: userAgent.isNotEmpty ? userAgent : null,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
+          language: effectiveLanguage, // Use WebViewModel's language, not parameter
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, shouldAllow) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
@@ -411,6 +419,9 @@ class WebViewModel {
           },
         ),
         onControllerCreated: (ctrl) {
+          if (kDebugMode) {
+            debugPrint('[WebView] onControllerCreated for "$name" (siteId: $siteId)');
+          }
           controller = ctrl;
           setController();
         },
@@ -425,7 +436,8 @@ class WebViewModel {
     Function saveFunc,
   ) {
     if (webview == null) {
-      webview = getWebView(launchUrlFunc, cookieManager, saveFunc);
+      // Create webview with current language setting
+      webview = getWebView(launchUrlFunc, cookieManager, saveFunc, language: language);
     }
     if (controller != null) {
       setController();
@@ -456,6 +468,9 @@ class WebViewModel {
   /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
+    if (kDebugMode) {
+      debugPrint('[WebView] disposeWebView called for "$name" (siteId: $siteId)');
+    }
     webview = null;
     controller = null;
   }
@@ -478,6 +493,7 @@ class WebViewModel {
         'userAgent': userAgent,
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
         'incognito': incognito,
+        'language': language,
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -494,6 +510,7 @@ class WebViewModel {
       userAgent: json['userAgent'],
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
       incognito: json['incognito'] ?? false,
+      language: json['language'],
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }

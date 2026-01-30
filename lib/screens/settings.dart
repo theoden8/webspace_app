@@ -6,6 +6,39 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 
+// Supported languages for webview
+const List<MapEntry<String?, String>> _languages = [
+  MapEntry(null, 'System default'),
+  MapEntry('en', 'English'),
+  MapEntry('es', 'Español'),
+  MapEntry('fr', 'Français'),
+  MapEntry('de', 'Deutsch'),
+  MapEntry('it', 'Italiano'),
+  MapEntry('pt', 'Português'),
+  MapEntry('pl', 'Polski'),
+  MapEntry('uk', 'Українська'),
+  MapEntry('cs', 'Čeština'),
+  MapEntry('nl', 'Nederlands'),
+  MapEntry('sv', 'Svenska'),
+  MapEntry('no', 'Norsk'),
+  MapEntry('da', 'Dansk'),
+  MapEntry('fi', 'Suomi'),
+  MapEntry('et', 'Eesti'),
+  MapEntry('lv', 'Latviešu'),
+  MapEntry('lt', 'Lietuvių'),
+  MapEntry('el', 'Ελληνικά'),
+  MapEntry('ro', 'Română'),
+  MapEntry('hu', 'Magyar'),
+  MapEntry('tr', 'Türkçe'),
+  MapEntry('zh-CN', '中文 (简体)'),
+  MapEntry('zh-TW', '中文 (繁體)'),
+  MapEntry('ja', '日本語'),
+  MapEntry('ko', '한국어'),
+  MapEntry('ar', 'العربية'),
+  MapEntry('he', 'עברית'),
+  MapEntry('hi', 'हिन्दी'),
+];
+
 String generateRandomUserAgent() {
   // You can modify these values to add more variety to the generated user-agent strings
   List<String> platforms = [
@@ -29,10 +62,13 @@ class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
   /// Callback to sync proxy settings across all WebViewModels
   final void Function(UserProxySettings)? onProxySettingsChanged;
+  /// Callback when settings are saved (to trigger webview reload)
+  final VoidCallback? onSettingsSaved;
 
   SettingsScreen({
     required this.webViewModel,
     this.onProxySettingsChanged,
+    this.onSettingsSaved,
   });
 
   @override
@@ -48,6 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
   late bool _incognito;
+  String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
 
@@ -88,6 +125,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
     _incognito = widget.webViewModel.incognito;
+    _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
   }
@@ -176,11 +214,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
       widget.webViewModel.incognito = _incognito;
+      widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
 
+      // Store current URL before disposing webview
+      final currentUrl = widget.webViewModel.currentUrl;
+
+      // Dispose the webview so it gets recreated with new settings
+      widget.webViewModel.disposeWebView();
+
+      // Update current URL to ensure reload
+      widget.webViewModel.currentUrl = currentUrl;
+
+      // Notify parent to rebuild (this will recreate the webview)
+      widget.onSettingsSaved?.call();
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Settings saved successfully')),
+        SnackBar(content: Text('Settings saved and webview reloaded')),
       );
 
       Navigator.pop(context);
@@ -348,6 +399,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _incognito = value;
               });
             },
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: DropdownButtonFormField<String?>(
+              value: _selectedLanguage,
+              decoration: InputDecoration(
+                labelText: 'Language',
+                helperText: 'Sets Accept-Language header for HTTP requests',
+                border: OutlineInputBorder(),
+              ),
+              items: _languages.map((entry) {
+                return DropdownMenuItem<String?>(
+                  value: entry.key,
+                  child: Text(entry.value),
+                );
+              }).toList(),
+              onChanged: (String? value) {
+                setState(() {
+                  _selectedLanguage = value;
+                });
+              },
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),

@@ -910,7 +910,8 @@ class _WebSpacePageState extends State<WebSpacePage> {
             onPressed: () async {
               final controller = getController();
               if (controller != null) {
-                await controller.loadUrl(_webViewModels[_currentIndex!].initUrl);
+                final model = _webViewModels[_currentIndex!];
+                await controller.loadUrl(model.initUrl, language: model.language);
               }
             },
           ),
@@ -1052,6 +1053,38 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         });
                         // Persist the changes immediately
                         _saveWebViewModels();
+                      },
+                      onSettingsSaved: () async {
+                        // Save settings to persistence
+                        await _saveWebViewModels();
+
+                        // Store current index and URL for reload
+                        final index = _currentIndex;
+                        final model = index != null && index < _webViewModels.length
+                            ? _webViewModels[index]
+                            : null;
+                        final urlToLoad = model?.currentUrl;
+                        final languageToUse = model?.language;
+
+                        // Trigger rebuild to recreate webview with new settings
+                        setState(() {});
+
+                        // After rebuild, wait for controller and reload with language header
+                        if (index != null && model != null && urlToLoad != null) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) async {
+                            // Wait for webview to be created and controller to be set
+                            for (int i = 0; i < 20; i++) {
+                              await Future.delayed(const Duration(milliseconds: 100));
+                              if (model.controller != null) {
+                                if (kDebugMode) {
+                                  debugPrint('[Settings] Reloading URL with language: $languageToUse');
+                                }
+                                await model.controller!.loadUrl(urlToLoad, language: languageToUse);
+                                break;
+                              }
+                            }
+                          });
+                        }
                       },
                     ),
                   ),
@@ -1538,7 +1571,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         onUrlSubmitted: (url) async {
                           final controller = webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels);
                           if (controller != null) {
-                            await controller.loadUrl(url);
+                            await controller.loadUrl(url, language: webViewModel.language);
                             setState(() {
                               webViewModel.currentUrl = url;
                             });
@@ -1552,6 +1585,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         _cookieManager,
                         _saveWebViewModels,
                         onWindowRequested: _showPopupWindow,
+                        language: webViewModel.language,
                       )
                     ),
                   ],
