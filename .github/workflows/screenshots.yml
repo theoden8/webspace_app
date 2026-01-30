@@ -1,0 +1,246 @@
+name: Generate Screenshots
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches:
+      - master
+    paths:
+      - 'integration_test/screenshot_test.dart'
+      - 'lib/demo_data.dart'
+      - 'test_driver/integration_test.dart'
+      - '.github/workflows/screenshots.yml'
+
+jobs:
+  screenshots-android:
+    name: Android Screenshots
+    runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Flutter (for Dart SDK)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.6'
+          channel: 'stable'
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Get dependencies
+        run: fvm flutter pub get --enforce-lockfile
+
+      - name: Install ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+
+      - name: Enable KVM for emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create AVD and start emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            # Wait for emulator to be fully booted
+            adb wait-for-device
+            adb shell input keyevent 82
+            
+            # Install Ruby and Fastlane
+            sudo apt-get install -y ruby ruby-dev
+            sudo gem install fastlane
+            
+            # Create screenshots directory
+            mkdir -p screenshots/android
+            
+            # Run fastlane screenshots
+            cd android && fastlane screenshots
+            
+            # Run fastlane to add device frames (optional, may fail without proper setup)
+            # fastlane add_device_frames || echo "Framing skipped"
+
+      - name: Upload Android screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-screenshots
+          path: screenshots/android/*.png
+          if-no-files-found: warn
+
+  screenshots-ios:
+    name: iOS Screenshots
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter (for Dart SDK)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.6'
+          channel: 'stable'
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Get dependencies
+        run: fvm flutter pub get --enforce-lockfile
+
+      - name: Install ImageMagick
+        run: brew install imagemagick
+
+      - name: List available simulators
+        run: xcrun simctl list devices available
+
+      - name: Boot iOS Simulator
+        run: |
+          # Find and boot an iPhone 15 Pro simulator
+          DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 15 Pro" | grep -v "Max" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
+          if [ -z "$DEVICE_ID" ]; then
+            # Fallback to iPhone 14 Pro if iPhone 15 Pro not available
+            DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 14 Pro" | grep -v "Max" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
+          fi
+          if [ -z "$DEVICE_ID" ]; then
+            # Fallback to any available iPhone
+            DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
+          fi
+          echo "Booting simulator: $DEVICE_ID"
+          xcrun simctl boot "$DEVICE_ID" || true
+          echo "SIMULATOR_ID=$DEVICE_ID" >> $GITHUB_ENV
+
+      - name: Wait for simulator to boot
+        run: |
+          # Wait for simulator to be fully booted
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          sleep 10
+
+      - name: Install Fastlane
+        run: |
+          sudo gem install fastlane
+
+      - name: Create screenshots directory
+        run: mkdir -p screenshots/ios
+
+      - name: Generate iOS screenshots
+        run: |
+          cd ios && fastlane screenshots
+
+      - name: Upload iOS screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          path: screenshots/ios/*.png
+          if-no-files-found: warn
+
+  combine-screenshots:
+    name: Combine Screenshots
+    needs: [screenshots-android, screenshots-ios]
+    runs-on: ubuntu-latest
+    if: always() && (needs.screenshots-android.result == 'success' || needs.screenshots-ios.result == 'success')
+    steps:
+      - name: Download Android screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: android-screenshots
+          path: screenshots/android
+        continue-on-error: true
+
+      - name: Download iOS screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-screenshots
+          path: screenshots/ios
+        continue-on-error: true
+
+      - name: Display screenshots
+        run: |
+          echo "## Generated Screenshots" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -d "screenshots/android" ]; then
+            echo "### Android Screenshots" >> $GITHUB_STEP_SUMMARY
+            ls -la screenshots/android/ >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No Android screenshots found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -d "screenshots/ios" ]; then
+            echo "### iOS Screenshots" >> $GITHUB_STEP_SUMMARY
+            ls -la screenshots/ios/ >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No iOS screenshots found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload combined screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-screenshots
+          path: screenshots/
+          if-no-files-found: warn
