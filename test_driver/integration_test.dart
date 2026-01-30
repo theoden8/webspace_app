@@ -20,11 +20,12 @@ import 'package:integration_test/integration_test_driver_extended.dart';
 
 /// Possible signal directories on device (app's external cache)
 /// The app will create one of these and we'll find it
+/// Package name is org.codeberg.theoden8.webspace with flavors fdroid, fdebug, fmain
 const _signalDirCandidates = [
-  '/sdcard/Android/data/co.nicksoftware.webspace/cache/screenshot_signals',
-  '/sdcard/Android/data/co.nicksoftware.webspace.debug/cache/screenshot_signals',
-  '/sdcard/Android/data/co.nicksoftware.webspace.fdroid/cache/screenshot_signals',
-  '/sdcard/Android/data/co.nicksoftware.webspace.fmain/cache/screenshot_signals',
+  '/sdcard/Android/data/org.codeberg.theoden8.webspace/cache/screenshot_signals',
+  '/sdcard/Android/data/org.codeberg.theoden8.webspace.fdebug/cache/screenshot_signals',
+  '/sdcard/Android/data/org.codeberg.theoden8.webspace.fdroid/cache/screenshot_signals',
+  '/sdcard/Android/data/org.codeberg.theoden8.webspace.fmain/cache/screenshot_signals',
 ];
 
 String? _signalDir;

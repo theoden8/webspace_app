@@ -100,20 +100,24 @@ Future<void> _takeThemedScreenshots(
 Future<String?> _getSignalDirPath() async {
   // Try external storage paths that the app should be able to write to
   // and ADB can read without root
+  // Package name is org.codeberg.theoden8.webspace with flavors fdroid, fdebug, fmain
   final candidates = [
     // External cache directories for different build flavors
-    '/sdcard/Android/data/co.nicksoftware.webspace/cache/screenshot_signals',
-    '/sdcard/Android/data/co.nicksoftware.webspace.debug/cache/screenshot_signals', 
-    '/sdcard/Android/data/co.nicksoftware.webspace.fdroid/cache/screenshot_signals',
-    '/sdcard/Android/data/co.nicksoftware.webspace.fmain/cache/screenshot_signals',
+    '/sdcard/Android/data/org.codeberg.theoden8.webspace/cache/screenshot_signals',
+    '/sdcard/Android/data/org.codeberg.theoden8.webspace.fdebug/cache/screenshot_signals',
+    '/sdcard/Android/data/org.codeberg.theoden8.webspace.fdroid/cache/screenshot_signals',
+    '/sdcard/Android/data/org.codeberg.theoden8.webspace.fmain/cache/screenshot_signals',
   ];
   
   for (final path in candidates) {
     // Check if parent directory exists (the app's external data dir)
     final parentPath = path.replaceAll('/screenshot_signals', '');
     final parent = Directory(parentPath);
+    print('Checking: $parentPath');
     try {
-      if (await parent.exists()) {
+      final exists = await parent.exists();
+      print('  exists: $exists');
+      if (exists) {
         // Try to create the signal directory
         final signalDir = Directory(path);
         if (!await signalDir.exists()) {
@@ -123,6 +127,7 @@ Future<String?> _getSignalDirPath() async {
         return path;
       }
     } catch (e) {
+      print('  error: $e');
       // Try next candidate
       continue;
     }
