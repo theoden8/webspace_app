@@ -142,12 +142,17 @@ platform :ios do
     UI.success("Screenshots saved to: #{screenshots_dir}")
   end
 
-  desc "Frame screenshots with device frames"
+  desc "Frame screenshots with device frames and marketing titles"
   lane :add_device_frames do
     frame_screenshots(
-      path: File.join(project_root, "fastlane", "screenshots"),
-      white: true
+      path: File.join(project_root, "fastlane", "screenshots")
     )
+  end
+
+  desc "Generate and frame screenshots in one step"
+  lane :screenshots_framed do
+    screenshots
+    add_device_frames
   end
 
   desc "Clean build artifacts"

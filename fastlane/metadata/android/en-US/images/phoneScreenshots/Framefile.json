@@ -1,0 +1,28 @@
+{
+  "default": {
+    "keyword": {
+      "fonts": [
+        {
+          "font": "Arial-BoldMT",
+          "supported": ["*"]
+        }
+      ],
+      "color": "#545454"
+    },
+    "title": {
+      "show": false
+    },
+    "background": "#FFFFFF",
+    "padding": 50,
+    "interspace": 30
+  },
+  "data": [
+    {
+      "filter": "*-dark",
+      "keyword": {
+        "color": "#E0E0E0"
+      },
+      "background": "#1A1A1A"
+    }
+  ]
+}

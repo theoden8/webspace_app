@@ -161,6 +161,78 @@ The test uses a `for` loop to iterate over `['light', 'dark']` themes:
 
 ---
 
+### Requirement: SCREENSHOT-008 - Device Frame Integration
+
+Screenshots SHALL be frameable with device bezels and marketing titles using frameit.
+
+#### Scenario: Add device frames to screenshots
+
+- **WHEN** the user runs `fastlane add_device_frames` in the android or ios directory
+- **THEN** screenshots are framed with device bezels
+- **AND** marketing titles from keyword.strings are added
+- **AND** styling from Framefile.json is applied
+
+#### Scenario: Generate and frame in one step
+
+- **WHEN** the user runs `fastlane screenshots_framed`
+- **THEN** screenshots are generated via integration tests
+- **AND** device frames and titles are added automatically
+
+```bash
+# Android - frame existing screenshots
+cd android && fastlane add_device_frames
+
+# iOS - frame existing screenshots
+cd ios && fastlane add_device_frames
+
+# Both platforms - frame existing
+fastlane frame_all
+
+# Generate and frame in one step
+cd android && fastlane screenshots_framed
+cd ios && fastlane screenshots_framed
+fastlane screenshots_framed_all
+```
+
+#### Configuration Files
+
+**keyword.strings** - Marketing titles for each screenshot:
+```
+"01-all-sites-light" = "Organize all your web apps in one place"
+"02-sites-drawer-light" = "Quick access to your favorite sites"
+...
+```
+
+**Framefile.json** - Visual styling configuration:
+```json
+{
+  "default": {
+    "keyword": {
+      "fonts": [{"font": "Arial-BoldMT", "supported": ["*"]}],
+      "color": "#545454"
+    },
+    "background": "#FFFFFF",
+    "padding": 50
+  },
+  "data": [
+    {
+      "filter": "*-dark",
+      "keyword": {"color": "#E0E0E0"},
+      "background": "#1A1A1A"
+    }
+  ]
+}
+```
+
+#### Implementation Details
+
+- Light theme screenshots use white background (#FFFFFF) and dark text (#545454)
+- Dark theme screenshots use dark background (#1A1A1A) and light text (#E0E0E0)
+- Theme detection uses filename pattern matching (`*-dark`)
+- Same marketing titles used across both themes for consistency
+
+---
+
 ## Architecture
 
 ```
@@ -203,9 +275,14 @@ The test uses a `for` loop to iterate over `['light', 'dark']` themes:
 - `integration_test/screenshot_test.dart` - Main screenshot test
 - `test_driver/integration_test.dart` - Test driver with screenshot saving
 - `lib/demo_data.dart` - Demo data seeding logic
+- `fastlane/metadata/android/en-US/images/phoneScreenshots/keyword.strings` - Android marketing titles
+- `fastlane/metadata/android/en-US/images/phoneScreenshots/Framefile.json` - Android frameit config
+- `fastlane/screenshots/en-US/keyword.strings` - iOS marketing titles
+- `fastlane/screenshots/en-US/Framefile.json` - iOS frameit config
 
 ### Modified
-- `android/fastlane/Fastfile` - Android screenshot lane
-- `ios/fastlane/Fastfile` - iOS screenshot lane
+- `android/fastlane/Fastfile` - Android screenshot and frameit lanes
+- `ios/fastlane/Fastfile` - iOS screenshot and frameit lanes
+- `fastlane/Fastfile` - Root-level screenshot coordination lanes
 - `android/fastlane/Screengrabfile` - Android configuration
 - `ios/fastlane/Snapfile` - iOS configuration

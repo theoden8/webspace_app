@@ -90,6 +90,19 @@ platform :android do
     UI.success("Screenshots saved to: #{screenshots_dir}")
   end
 
+  desc "Frame screenshots with device frames and marketing titles"
+  lane :add_device_frames do
+    frame_screenshots(
+      path: File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
+    )
+  end
+
+  desc "Generate and frame screenshots in one step"
+  lane :screenshots_framed do
+    screenshots
+    add_device_frames
+  end
+
   desc "Clean build artifacts"
   lane :clean do
     sh("cd '#{android_dir}' && ./gradlew clean")
