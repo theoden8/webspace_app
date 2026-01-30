@@ -93,10 +93,20 @@ platform :android do
 
   desc "Frame screenshots with device frames and marketing titles"
   lane :add_device_frames do
-    frame_screenshots(
-      path: File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots"),
-      white: true
-    )
+    begin
+      frame_screenshots(
+        path: File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots"),
+        white: true
+      )
+    rescue => ex
+      UI.error("Failed to frame screenshots: #{ex.message}")
+      if ex.message.include?("Unsupported screen size")
+        UI.important("Frameit requires screenshots from devices with standard resolutions.")
+        UI.important("Supported devices include: Pixel 2-8, Nexus 5-6P, Galaxy S8-S21, etc.")
+        UI.important("Current screenshots will remain unframed but are still usable.")
+      end
+      raise ex unless ex.message.include?("Unsupported screen size")
+    end
   end
 
   desc "Generate and frame screenshots in one step"

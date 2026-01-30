@@ -226,10 +226,19 @@ fastlane screenshots_framed_all
 
 #### Implementation Details
 
-- Light theme screenshots use white background (#FFFFFF) and dark text (#545454)
-- Dark theme screenshots use dark background (#1A1A1A) and light text (#E0E0E0)
+- Light theme screenshots use white background and dark text (#545454)
+- Dark theme screenshots use white background and light text (#E0E0E0)
 - Theme detection uses filename pattern matching (`*-dark`)
 - Same marketing titles used across both themes for consistency
+
+#### Device Requirements for Frameit
+
+Frameit requires screenshots from devices with standard resolutions. Supported Android devices include:
+- **Pixel series**: Pixel 2, 3, 3a, 4, 4 XL, 5, 6, 7, 8 (recommended)
+- **Nexus series**: Nexus 5, 5X, 6, 6P, 9
+- **Samsung Galaxy**: S8, S9, S10, S20, S21
+
+If frameit fails with "Unsupported screen size", use an emulator with one of the supported device profiles. Screenshots will still be usable without frames.
 
 ---
 
