@@ -110,6 +110,13 @@ platform :android do
     output_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
 
     begin
+      # Download font if not present
+      font_path = File.join(project_root, "screenshots", "Righteous-Regular.ttf")
+      unless File.exist?(font_path)
+        UI.message("Downloading Righteous font...")
+        sh("curl -L 'https://github.com/google/fonts/raw/main/ofl/righteous/Righteous-Regular.ttf' -o '#{font_path}'")
+      end
+
       # Resize screenshots to supported resolution first
       resize_screenshots
 
