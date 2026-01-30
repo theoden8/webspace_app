@@ -230,15 +230,21 @@ fastlane screenshots_framed_all
 - Dark theme screenshots use white background and light text (#E0E0E0)
 - Theme detection uses filename pattern matching (`*-dark`)
 - Same marketing titles used across both themes for consistency
+- **Automatic resizing**: Screenshots are automatically resized to supported resolutions before framing
+  - Android: Resized to Pixel 5 resolution (1080x2340)
+  - iOS: Resized to iPhone 13 Pro resolution (1170x2532)
+- Resizing uses ImageMagick's `convert` command (must be installed)
 
-#### Device Requirements for Frameit
+#### Requirements
 
-Frameit requires screenshots from devices with standard resolutions. Supported Android devices include:
-- **Pixel series**: Pixel 2, 3, 3a, 4, 4 XL, 5, 6, 7, 8 (recommended)
-- **Nexus series**: Nexus 5, 5X, 6, 6P, 9
-- **Samsung Galaxy**: S8, S9, S10, S20, S21
+- **ImageMagick** must be installed for screenshot resizing:
+  ```bash
+  # macOS
+  brew install imagemagick
 
-If frameit fails with "Unsupported screen size", use an emulator with one of the supported device profiles. Screenshots will still be usable without frames.
+  # Linux (Debian/Ubuntu)
+  sudo apt-get install imagemagick
+  ```
 
 ---
 

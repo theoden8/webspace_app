@@ -142,8 +142,23 @@ platform :ios do
     UI.success("Screenshots saved to: #{screenshots_dir}")
   end
 
+  desc "Resize screenshots to supported resolution (iPhone 13 Pro: 1170x2532)"
+  lane :resize_screenshots do
+    screenshots_dir = File.join(project_root, "fastlane", "screenshots", "en-US")
+
+    Dir.glob(File.join(screenshots_dir, "*.png")).each do |screenshot|
+      UI.message("Resizing #{File.basename(screenshot)} to 1170x2532...")
+      sh("convert '#{screenshot}' -resize 1170x2532! '#{screenshot}'")
+    end
+
+    UI.success("All screenshots resized to iPhone 13 Pro resolution (1170x2532)")
+  end
+
   desc "Frame screenshots with device frames and marketing titles"
   lane :add_device_frames do
+    # Resize screenshots to supported resolution first
+    resize_screenshots
+
     frame_screenshots(
       path: File.join(project_root, "fastlane", "screenshots"),
       white: true
