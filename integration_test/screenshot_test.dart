@@ -164,11 +164,7 @@ void main() {
         await Future.delayed(_ICON_LOAD_TIMEOUT);
         await tester.pump();
 
-        // Screenshot 1: All sites view (main screen)
-        await _takeThemedScreenshots(binding, tester, '01-all-sites', currentTheme);
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Open drawer to see site list
+        // Open drawer to select a site
         print('Opening drawer via menu button...');
         print('Looking for drawer elements...');
         _debugPrintWidgets(tester);
@@ -177,9 +173,6 @@ void main() {
         print('Drawer opened, waiting for icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
         await Future.delayed(_ICON_LOAD_TIMEOUT);
         await tester.pump();
-
-        // Screenshot 2: Drawer with sites list
-        await _takeThemedScreenshots(binding, tester, '02-sites-drawer', currentTheme);
         await Future.delayed(const Duration(seconds: 2));
 
         // Look for a site to select (DuckDuckGo)
@@ -207,10 +200,10 @@ void main() {
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 500));
 
-          // Screenshot 3: DuckDuckGo webview loaded
+          // Screenshot 1: DuckDuckGo webview loaded
           // Use native screenshot to capture the webview content (Flutter surface misses platform views)
-          await _takeThemedScreenshots(binding, tester, '03-site-webview', currentTheme, useNative: true);
-          print('Screenshot 3 captured successfully (site selected)');
+          await _takeThemedScreenshots(binding, tester, '01-site-webview', currentTheme, useNative: true);
+          print('Screenshot 1 captured successfully (site selected)');
 
           // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
           await tester.pump(const Duration(seconds: 2));
@@ -240,13 +233,13 @@ void main() {
           }
 
           if (!drawerOpened) {
-            print('WARNING: Drawer may not be fully open for screenshot 4');
+            print('WARNING: Drawer may not be fully open for screenshot 2');
           }
 
-          // Screenshot 4: Drawer showing current site (with webview visible behind drawer)
+          // Screenshot 2: Drawer showing current site (with webview visible behind drawer)
           // Use native screenshot to capture the webview content behind the drawer
-          await _takeThemedScreenshots(binding, tester, '04-drawer-with-site', currentTheme, useNative: true);
-          print('Screenshot 4 captured successfully');
+          await _takeThemedScreenshots(binding, tester, '02-drawer-with-site', currentTheme, useNative: true);
+          print('Screenshot 2 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
@@ -276,9 +269,9 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 6: Work webspace drawer
-          await _takeThemedScreenshots(binding, tester, '06-work-sites-drawer', currentTheme);
-          print('Screenshot 6 captured successfully');
+          // Screenshot 4: Work webspace drawer
+          await _takeThemedScreenshots(binding, tester, '04-work-sites-drawer', currentTheme);
+          print('Screenshot 4 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
@@ -287,8 +280,8 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 5: Work webspace sites
-          await _takeThemedScreenshots(binding, tester, '05-work-webspace', currentTheme);
+          // Screenshot 3: Work webspace sites
+          await _takeThemedScreenshots(binding, tester, '03-work-webspace', currentTheme);
           await tester.pumpAndSettle(const Duration(seconds: 3));
         }
 
@@ -374,8 +367,8 @@ void main() {
               print('Wikipedia checkbox not found');
             }
 
-            // Screenshot 7: Sites selected
-            await _takeThemedScreenshots(binding, tester, '07-workspace-sites-selected', currentTheme);
+            // Screenshot 5: Sites selected
+            await _takeThemedScreenshots(binding, tester, '05-workspace-sites-selected', currentTheme);
             await Future.delayed(const Duration(seconds: 1));
 
             // Look for save button (check icon in AppBar)

@@ -21,7 +21,7 @@ Screenshots SHALL be generated using Flutter integration tests that work on both
 
 **Given** an Android emulator is running
 **When** the user runs `fastlane screenshots` in the android directory
-**Then** 20 screenshots are captured and saved (10 light theme, 10 dark theme)
+**Then** 10 screenshots are captured and saved (5 light theme, 5 dark theme)
 
 ---
 
@@ -55,38 +55,44 @@ Demo webspaces:
 
 ### Requirement: SCREENSHOT-003 - Screenshot Coverage
 
-The test SHALL capture 7 screenshots per theme (14 total) covering all major app features in both light and dark themes.
+The test SHALL capture 5 screenshots per theme (10 total) covering all major app features in both light and dark themes.
 
 #### Scenario: Capture all required screenshots
 
 - **WHEN** the screenshot test completes
-- **THEN** 14 screenshots are saved covering main screen, drawer, webview, and workspace features in both themes
+- **THEN** 10 screenshots are saved covering webview, drawer, and workspace features in both themes
 - **AND** frameit is used to add device frames and marketing titles
 
 Screenshots (light theme):
-1. `01-all-sites-light` - Main screen with all sites
-2. `02-sites-drawer-light` - Navigation drawer with site list
-3. `03-site-webview-light` - DuckDuckGo site loaded
-4. `04-drawer-with-site-light` - Drawer showing selected site
-5. `05-work-webspace-light` - Work webspace view
-6. `06-work-sites-drawer-light` - Work webspace drawer
-7. `07-workspace-sites-selected-light` - Dialog with sites selected
+1. `01-site-webview-light` - DuckDuckGo site loaded in webview
+2. `02-drawer-with-site-light` - Drawer showing selected site (with webview behind)
+3. `03-work-webspace-light` - Work webspace view
+4. `04-work-sites-drawer-light` - Work webspace drawer
+5. `05-workspace-sites-selected-light` - Dialog with sites selected
 
 Screenshots (dark theme):
-8. `01-all-sites-dark` - Main screen with all sites
-9. `02-sites-drawer-dark` - Navigation drawer with site list
-10. `03-site-webview-dark` - DuckDuckGo site loaded
-11. `04-drawer-with-site-dark` - Drawer showing selected site
-12. `05-work-webspace-dark` - Work webspace view
-13. `06-work-sites-drawer-dark` - Work webspace drawer
-14. `07-workspace-sites-selected-dark` - Dialog with sites selected
+6. `01-site-webview-dark` - DuckDuckGo site loaded in webview
+7. `02-drawer-with-site-dark` - Drawer showing selected site (with webview behind)
+8. `03-work-webspace-dark` - Work webspace view
+9. `04-work-sites-drawer-dark` - Work webspace drawer
+10. `05-workspace-sites-selected-dark` - Dialog with sites selected
 
 #### Screenshot Processing Workflow
 
-1. **Generation**: Flutter integration test captures 7 screenshots per theme (14 total)
-2. **Resizing**: ImageMagick resizes screenshots to Pixel 5 resolution (1080x2340)
+1. **Generation**: Flutter integration test captures 5 screenshots per theme (10 total)
+2. **Resizing**: ImageMagick resizes screenshots to appropriate resolution based on orientation:
+   - Portrait: Pixel 5 (1080x2340) for Android, iPhone 13 Pro (1170x2532) for iOS
+   - Landscape: Pixel 5 landscape (2340x1080) for Android, iPad Pro 12.9" (2732x2048) for iOS
 3. **Framing**: Frameit adds device bezels and marketing titles from keyword.strings
 4. **Output**: Final framed screenshots ready for app store submission
+
+#### Native Screenshots for Webviews (Android)
+
+On Android, screenshots 01 and 02 which include webview content use native ADB screencap instead of Flutter's screenshot mechanism. This is because Flutter's `convertFlutterSurfaceToImage()` only captures Flutter-rendered content and misses native platform views like webviews.
+
+The test prints a marker `@@NATIVE_SCREENSHOT:<name>@@` which the test driver detects via logcat monitoring, then takes an ADB screenshot that captures the full screen including webviews.
+
+On iOS, the standard Flutter screenshot mechanism captures webviews correctly, so native screenshots are not needed.
 
 ---
 
@@ -232,9 +238,11 @@ fastlane screenshots_framed_all
 - Dark theme screenshots use white background and light text (#E0E0E0)
 - Theme detection uses filename pattern matching (`*-dark`)
 - Same marketing titles used across both themes for consistency
-- **Automatic resizing**: Screenshots are automatically resized to supported resolutions before framing
-  - Android: Resized to Pixel 5 resolution (1080x2340)
-  - iOS: Resized to iPhone 13 Pro resolution (1170x2532)
+- **Automatic resizing**: Screenshots are automatically resized to supported resolutions before framing (orientation-aware)
+  - Android Portrait: Resized to Pixel 5 resolution (1080x2340)
+  - Android Landscape: Resized to Pixel 5 landscape (2340x1080)
+  - iOS Portrait: Resized to iPhone 13 Pro resolution (1170x2532)
+  - iOS Landscape: Resized to iPad Pro 12.9" resolution (2732x2048) - required by frameit for landscape
 - Resizing uses ImageMagick's `magick` command (must be installed)
 
 #### Requirements
