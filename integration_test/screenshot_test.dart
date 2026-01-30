@@ -224,17 +224,6 @@ void main() {
             print('Drawer visible after attempt ${attempt + 1}: $drawerOpened');
           }
 
-          if (!drawerOpened) {
-            print('WARNING: Drawer may not be fully open for screenshot 2');
-          }
-
-          // Screenshot 2: Drawer showing current site (with webview visible behind drawer)
-          // Use native screenshot to capture the webview content behind the drawer
-          await _takeThemedScreenshots(binding, tester, '02-drawer-with-site', currentTheme, useNative: true);
-          print('Screenshot 2 captured successfully');
-          await tester.pump();
-          await Future.delayed(const Duration(seconds: 2));
-
           // Navigate back to webspaces using "Back to Webspaces" button
           print('Navigating back to webspaces list...');
           final backButtonFinder = find.text('Back to Webspaces');
@@ -261,9 +250,9 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 4: Work webspace drawer
-          await _takeThemedScreenshots(binding, tester, '04-work-sites-drawer', currentTheme);
-          print('Screenshot 4 captured successfully');
+          // Screenshot 2: Work webspace drawer
+          await _takeThemedScreenshots(binding, tester, '02-work-sites-drawer', currentTheme);
+          print('Screenshot 2 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
@@ -359,8 +348,8 @@ void main() {
               print('Wikipedia checkbox not found');
             }
 
-            // Screenshot 5: Sites selected
-            await _takeThemedScreenshots(binding, tester, '05-workspace-sites-selected', currentTheme);
+            // Screenshot 4: Sites selected
+            await _takeThemedScreenshots(binding, tester, '04-workspace-sites-selected', currentTheme);
             await Future.delayed(const Duration(seconds: 1));
 
             // Look for save button (check icon in AppBar)
