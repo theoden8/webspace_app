@@ -2,11 +2,11 @@
   "default": {
     "background": "../background.png",
     "keyword": {
-      "show": true,
-      "color": "#545454"
+      "show": false
     },
     "title": {
-      "show": false
+      "show": true,
+      "color": "#545454"
     },
     "padding": 50,
     "interspace": 30
@@ -14,7 +14,7 @@
   "data": [
     {
       "filter": "*-dark",
-      "keyword": {
+      "title": {
         "show": true,
         "color": "#E0E0E0"
       }
