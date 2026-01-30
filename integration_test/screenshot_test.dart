@@ -69,27 +69,79 @@ Future<void> _takeThemedScreenshots(
   bool useNative = false,
 }) async {
   final themeSuffix = currentTheme == 'light' ? '-light' : '-dark';
-  // Add __native__ marker to screenshot name for webview screenshots
-  // The test driver will detect this and use ADB screencap instead
-  final nativeMarker = useNative ? '__native__' : '';
-  final screenshotName = '$baseName$themeSuffix$nativeMarker';
-  print('Capturing $baseName$themeSuffix${useNative ? ' (native)' : ''}');
+  final screenshotName = '$baseName$themeSuffix';
+  print('Capturing $screenshotName${useNative ? ' (native)' : ''}');
   
   // Pump before screenshot to ensure all pending frame updates are processed
   // This is important for native platform views (webviews) which render asynchronously
   await tester.pump();
   
-  // Use longer timeout for native screenshots as ADB screencap takes more time
-  final timeout = useNative ? _NATIVE_SCREENSHOT_TIMEOUT : _SCREENSHOT_TIMEOUT;
-  
-  await binding.takeScreenshot(screenshotName).timeout(
-    timeout,
-    onTimeout: () {
-      print('Warning: Screenshot $baseName$themeSuffix timed out after ${timeout.inSeconds}s');
-      return <int>[];
-    },
-  );
+  if (useNative) {
+    // For native screenshots (webviews), we use a file-based signaling mechanism
+    // because binding.takeScreenshot() only captures Flutter-rendered content.
+    // Write a signal file that the test driver watches for, then wait for the
+    // driver to take the screenshot and signal completion.
+    await _requestNativeScreenshot(screenshotName);
+  } else {
+    // For Flutter-only UI, use the standard screenshot mechanism
+    await binding.takeScreenshot(screenshotName).timeout(
+      _SCREENSHOT_TIMEOUT,
+      onTimeout: () {
+        print('Warning: Screenshot $screenshotName timed out after ${_SCREENSHOT_TIMEOUT.inSeconds}s');
+        return <int>[];
+      },
+    );
+  }
   await tester.pump();
+}
+
+/// Request a native screenshot via file-based signaling.
+/// This writes a request file that the test driver watches for,
+/// waits for the driver to take the screenshot via ADB, then cleans up.
+Future<void> _requestNativeScreenshot(String screenshotName) async {
+  // Signal files are in a temp directory that both device and host can access via ADB
+  const signalDir = '/sdcard/screenshot_signals';
+  final requestFile = '$signalDir/${screenshotName}_request';
+  final doneFile = '$signalDir/${screenshotName}_done';
+  
+  print('Requesting native screenshot: $screenshotName');
+  
+  // Create signal directory if needed
+  await _adbShell('mkdir -p $signalDir');
+  
+  // Write request file with screenshot name
+  await _adbShell('echo "$screenshotName" > $requestFile');
+  
+  // Wait for driver to signal completion (poll for done file)
+  var attempts = 0;
+  const maxAttempts = 60; // 30 seconds max wait
+  while (attempts < maxAttempts) {
+    final result = await _adbShell('test -f $doneFile && echo "done"');
+    if (result.contains('done')) {
+      print('Native screenshot completed: $screenshotName');
+      // Clean up signal files
+      await _adbShell('rm -f $requestFile $doneFile');
+      return;
+    }
+    await Future.delayed(const Duration(milliseconds: 500));
+    attempts++;
+  }
+  
+  print('Warning: Native screenshot timed out waiting for driver: $screenshotName');
+  // Clean up request file
+  await _adbShell('rm -f $requestFile');
+}
+
+/// Execute an ADB shell command from the device side.
+/// Note: This runs a shell command ON the device, not via ADB from host.
+Future<String> _adbShell(String command) async {
+  try {
+    final result = await Process.run('sh', ['-c', command]);
+    return result.stdout.toString();
+  } catch (e) {
+    print('Shell command failed: $e');
+    return '';
+  }
 }
 
 void main() {
