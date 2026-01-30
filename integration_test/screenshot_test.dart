@@ -344,10 +344,6 @@ void main() {
               await tester.tap(saveButton);
               await tester.pump();
               await Future.delayed(const Duration(seconds: 2));
-
-              // Screenshot 8: New workspace in list
-              await _takeThemedScreenshots(binding, tester, '08-new-workspace-created', currentTheme);
-              await Future.delayed(const Duration(seconds: 1));
             } else {
               print('Could not find save button');
             }

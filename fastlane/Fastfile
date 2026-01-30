@@ -51,6 +51,56 @@ lane :screenshots_all do
   end
 end
 
+lane :screenshots_framed_all do
+  desc "Generate and frame screenshots for both Android and iOS"
+  android do
+    screenshots_framed
+  end
+
+  ios do
+    screenshots_framed
+  end
+end
+
+lane :android_screenshots_framed do
+  desc "Generate and frame screenshots for Android only"
+  android do
+    screenshots_framed
+  end
+end
+
+lane :ios_screenshots_framed do
+  desc "Generate and frame screenshots for iOS only"
+  ios do
+    screenshots_framed
+  end
+end
+
+lane :frame_all do
+  desc "Add device frames to existing screenshots for both platforms"
+  android do
+    add_device_frames
+  end
+
+  ios do
+    add_device_frames
+  end
+end
+
+lane :android_frame do
+  desc "Add device frames to Android screenshots only"
+  android do
+    add_device_frames
+  end
+end
+
+lane :ios_frame do
+  desc "Add device frames to iOS screenshots only"
+  ios do
+    add_device_frames
+  end
+end
+
 # Helper function to check Flutter version
 def check_flutter
   UI.message("Checking Flutter installation...")

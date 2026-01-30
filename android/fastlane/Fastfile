@@ -58,8 +58,9 @@ platform :android do
     UI.message("Generating screenshots with Flutter integration test...")
     UI.message("Project root: #{project_root}")
 
-    # Get connected device ID
-    device_id = sh("adb devices | grep -w 'device' | head -1 | awk '{print $1}'", log: false).strip
+    # Get connected device ID using Android SDK's adb
+    adb_path = ENV['ANDROID_SDK'] ? "#{ENV['ANDROID_SDK']}/platform-tools/adb" : "adb"
+    device_id = sh("#{adb_path} devices | grep -w 'device' | head -1 | awk '{print $1}'", log: false).strip
 
     if device_id.empty?
       UI.user_error!("No Android device connected. Please connect a device or start an emulator.")
@@ -68,8 +69,8 @@ platform :android do
     UI.success("Found device: #{device_id}")
     UI.message("Demo data will be seeded by Flutter integration test")
 
-    # Set screenshot directory for Android
-    screenshots_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
+    # Raw screenshots go to screenshots/android/ at project root
+    screenshots_dir = File.join(project_root, "screenshots", "android")
 
     # Clear previous screenshots
     if Dir.exist?(screenshots_dir)
@@ -88,6 +89,70 @@ platform :android do
       -d #{device_id}")
 
     UI.success("Screenshots saved to: #{screenshots_dir}")
+  end
+
+  desc "Resize screenshots to supported resolution (Pixel 5: 1080x2340)"
+  lane :resize_screenshots do
+    screenshots_dir = File.join(project_root, "screenshots", "android")
+
+    Dir.glob(File.join(screenshots_dir, "*.png")).each do |screenshot|
+      next if File.basename(screenshot) == "background.png"
+      UI.message("Resizing #{File.basename(screenshot)} to 1080x2340...")
+      sh("magick '#{screenshot}' -resize 1080x2340! '#{screenshot}'")
+    end
+
+    UI.success("All screenshots resized to Pixel 5 resolution (1080x2340)")
+  end
+
+  desc "Frame screenshots with device frames and marketing titles"
+  lane :add_device_frames do
+    screenshots_dir = File.join(project_root, "screenshots", "android")
+    output_dir = File.join(project_root, "fastlane", "metadata", "android", "en-US", "images", "phoneScreenshots")
+
+    begin
+      # Download font if not present
+      font_path = File.join(project_root, "screenshots", "Righteous-Regular.ttf")
+      unless File.exist?(font_path)
+        UI.message("Downloading Righteous font...")
+        sh("curl -L 'https://github.com/google/fonts/raw/main/ofl/righteous/Righteous-Regular.ttf' -o '#{font_path}'")
+      end
+
+      # Resize screenshots to supported resolution first
+      resize_screenshots
+
+      # Remove existing framed screenshots
+      UI.message("Removing old framed screenshots...")
+      FileUtils.rm_rf(Dir.glob(File.join(screenshots_dir, "*_framed.png")))
+
+      frame_screenshots(
+        path: screenshots_dir,
+        white: true
+      )
+
+      # Copy framed screenshots to store metadata directory, removing _framed suffix
+      FileUtils.mkdir_p(output_dir)
+      Dir.glob(File.join(screenshots_dir, "*_framed.png")).each do |framed|
+        output_name = File.basename(framed).gsub("_framed", "")
+        FileUtils.cp(framed, File.join(output_dir, output_name))
+        UI.message("Copied #{output_name} to #{output_dir}")
+      end
+
+      UI.success("Framed screenshots copied to: #{output_dir}")
+    rescue => ex
+      UI.error("Failed to frame screenshots: #{ex.message}")
+      if ex.message.include?("Unsupported screen size")
+        UI.important("Frameit requires screenshots from devices with standard resolutions.")
+        UI.important("Supported devices include: Pixel 2-8, Nexus 5-6P, Galaxy S8-S21, etc.")
+        UI.important("Current screenshots will remain unframed but are still usable.")
+      end
+      raise ex unless ex.message.include?("Unsupported screen size")
+    end
+  end
+
+  desc "Generate and frame screenshots in one step"
+  lane :screenshots_framed do
+    screenshots
+    add_device_frames
   end
 
   desc "Clean build artifacts"

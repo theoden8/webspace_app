@@ -121,8 +121,8 @@ platform :ios do
     UI.success("Found iOS device: #{device_id}")
     UI.message("Demo data will be seeded by Flutter integration test")
 
-    # Set screenshot directory for iOS
-    screenshots_dir = File.join(project_root, "fastlane", "screenshots", "en-US")
+    # Raw screenshots go to screenshots/ios/ at project root
+    screenshots_dir = File.join(project_root, "screenshots", "ios")
 
     # Clear previous screenshots
     if Dir.exist?(screenshots_dir)
@@ -142,12 +142,58 @@ platform :ios do
     UI.success("Screenshots saved to: #{screenshots_dir}")
   end
 
-  desc "Frame screenshots with device frames"
+  desc "Resize screenshots to supported resolution (iPhone 13 Pro: 1170x2532)"
+  lane :resize_screenshots do
+    screenshots_dir = File.join(project_root, "screenshots", "ios")
+
+    Dir.glob(File.join(screenshots_dir, "*.png")).each do |screenshot|
+      next if File.basename(screenshot) == "background.png"
+      UI.message("Resizing #{File.basename(screenshot)} to 1170x2532...")
+      sh("magick '#{screenshot}' -resize 1170x2532! '#{screenshot}'")
+    end
+
+    UI.success("All screenshots resized to iPhone 13 Pro resolution (1170x2532)")
+  end
+
+  desc "Frame screenshots with device frames and marketing titles"
   lane :add_device_frames do
+    screenshots_dir = File.join(project_root, "screenshots", "ios")
+    output_dir = File.join(project_root, "fastlane", "screenshots", "en-US")
+
+    # Download font if not present
+    font_path = File.join(project_root, "screenshots", "Righteous-Regular.ttf")
+    unless File.exist?(font_path)
+      UI.message("Downloading Righteous font...")
+      sh("curl -L 'https://github.com/google/fonts/raw/main/ofl/righteous/Righteous-Regular.ttf' -o '#{font_path}'")
+    end
+
+    # Resize screenshots to supported resolution first
+    resize_screenshots
+
+    # Remove existing framed screenshots
+    UI.message("Removing old framed screenshots...")
+    FileUtils.rm_rf(Dir.glob(File.join(screenshots_dir, "*_framed.png")))
+
     frame_screenshots(
-      path: File.join(project_root, "fastlane", "screenshots"),
+      path: screenshots_dir,
       white: true
     )
+
+    # Copy framed screenshots to store metadata directory, removing _framed suffix
+    FileUtils.mkdir_p(output_dir)
+    Dir.glob(File.join(screenshots_dir, "*_framed.png")).each do |framed|
+      output_name = File.basename(framed).gsub("_framed", "")
+      FileUtils.cp(framed, File.join(output_dir, output_name))
+      UI.message("Copied #{output_name} to #{output_dir}")
+    end
+
+    UI.success("Framed screenshots copied to: #{output_dir}")
+  end
+
+  desc "Generate and frame screenshots in one step"
+  lane :screenshots_framed do
+    screenshots
+    add_device_frames
   end
 
   desc "Clean build artifacts"
