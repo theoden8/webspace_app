@@ -308,7 +308,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.0'
+          ruby-version: '2.7'
           bundler-cache: true
 
       - name: Setup Flutter (for Dart SDK)
@@ -400,11 +400,12 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.0'
+          ruby-version: '2.7'
           bundler-cache: true
 
-      - name: Install CocoaPods
+      - name: Install CocoaPods (compatible with Ruby 2.7)
         run: |
+          sudo gem install ffi -v 1.17.3
           sudo gem install cocoapods
           pod --version
 
