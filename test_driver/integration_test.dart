@@ -19,7 +19,7 @@ import 'package:integration_test/integration_test_driver_extended.dart';
 /// For manual runs without SCREENSHOT_DIR, screenshots go to 'screenshots/'.
 
 /// Directory on device for screenshot signal files
-/// Using /data/local/tmp which is world-writable and accessible via ADB
+/// This is created by the driver with world-writable permissions
 const _signalDir = '/data/local/tmp/screenshot_signals';
 
 /// Flag to stop the watcher when test completes
@@ -67,29 +67,35 @@ void unawaited(Future<void> future) {}
 Future<void> _watchForNativeScreenshotRequests(String screenshotDir) async {
   print('[Driver] Native screenshot watcher: initializing...');
   
-  // Create signal directory on device
+  // Create signal directory on device with world-writable permissions
+  // This allows the app (which runs as a different user) to write files there
   var result = await Process.run('adb', ['shell', 'mkdir', '-p', _signalDir]);
-  print('[Driver] mkdir result: ${result.exitCode}');
+  print('[Driver] mkdir result: ${result.exitCode} - ${result.stderr}');
+  
+  result = await Process.run('adb', ['shell', 'chmod', '777', _signalDir]);
+  print('[Driver] chmod result: ${result.exitCode} - ${result.stderr}');
   
   // Clean up any old signal files
-  await Process.run('adb', ['shell', 'rm', '-rf', '$_signalDir/*']);
+  await Process.run('adb', ['shell', 'rm', '-f', '$_signalDir/*']);
   print('[Driver] Cleaned up old signal files');
+  
+  // Verify the directory exists and is writable
+  result = await Process.run('adb', ['shell', 'ls', '-la', _signalDir]);
+  print('[Driver] Signal directory listing: ${result.stdout}');
   
   print('[Driver] Native screenshot watcher: polling for requests...');
   
   while (!_stopWatcher) {
     try {
-      // List request files using find instead of ls for better reliability
-      final result = await Process.run('adb', ['shell', 'find', _signalDir, '-name', '*_request', '-type', 'f']);
+      // List request files
+      final result = await Process.run('adb', ['shell', 'ls', '$_signalDir/']);
       final output = result.stdout.toString().trim();
       
-      if (output.isNotEmpty && !output.contains('No such file')) {
+      if (output.isNotEmpty) {
         // Parse request files
-        final requestFiles = output.split('\n').where((f) => f.trim().isNotEmpty && f.endsWith('_request')).toList();
+        final files = output.split('\n').where((f) => f.trim().isNotEmpty && f.endsWith('_request')).toList();
         
-        for (final requestFile in requestFiles) {
-          // Extract screenshot name from request file path
-          final fileName = requestFile.split('/').last;
+        for (final fileName in files) {
           final screenshotName = fileName.replaceAll('_request', '');
           
           print('[Driver] Found native screenshot request: $screenshotName');
@@ -110,7 +116,7 @@ Future<void> _watchForNativeScreenshotRequests(String screenshotDir) async {
           print('[Driver] Signaled completion: $doneFile');
           
           // Remove the request file
-          await Process.run('adb', ['shell', 'rm', '-f', requestFile]);
+          await Process.run('adb', ['shell', 'rm', '-f', '$_signalDir/$fileName']);
         }
       }
     } catch (e) {

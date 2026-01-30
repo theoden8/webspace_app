@@ -95,23 +95,28 @@ Future<void> _takeThemedScreenshots(
   await tester.pump();
 }
 
+/// Signal directory path - must be created by driver with world-writable permissions
+const _signalDirPath = '/data/local/tmp/screenshot_signals';
+
 /// Request a native screenshot via file-based signaling.
 /// This writes a request file that the test driver watches for,
 /// waits for the driver to take the screenshot via ADB, then cleans up.
+/// 
+/// IMPORTANT: The driver must create /data/local/tmp/screenshot_signals with 
+/// world-writable permissions (chmod 777) before the test starts.
 Future<void> _requestNativeScreenshot(String screenshotName) async {
-  // Use /data/local/tmp which is world-writable and accessible via ADB
-  // This avoids permission issues with /sdcard on modern Android
-  final signalDir = Directory('/data/local/tmp/screenshot_signals');
-  final requestFile = File('${signalDir.path}/${screenshotName}_request');
-  final doneFile = File('${signalDir.path}/${screenshotName}_done');
+  final signalDir = Directory(_signalDirPath);
+  final requestFile = File('$_signalDirPath/${screenshotName}_request');
+  final doneFile = File('$_signalDirPath/${screenshotName}_done');
   
   print('Requesting native screenshot: $screenshotName');
   
   try {
-    // Create signal directory if needed
+    // Check if signal directory exists (should be created by driver)
     if (!await signalDir.exists()) {
-      await signalDir.create(recursive: true);
-      print('Created signal directory: ${signalDir.path}');
+      print('ERROR: Signal directory does not exist: $_signalDirPath');
+      print('The test driver should create this directory before the test starts.');
+      return;
     }
     
     // Write request file with screenshot name
