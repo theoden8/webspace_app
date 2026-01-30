@@ -55,13 +55,13 @@ Demo webspaces:
 
 ### Requirement: SCREENSHOT-003 - Screenshot Coverage
 
-The test SHALL capture 18 screenshots covering all major app features in both light and dark themes.
+The test SHALL capture 7 screenshots per theme (14 total) covering all major app features in both light and dark themes.
 
 #### Scenario: Capture all required screenshots
 
 - **WHEN** the screenshot test completes
-- **THEN** 18 screenshots are saved covering main screen, drawer, webview, and workspace features in both themes
-- **AND** screenshot #8 (workspace-name-entered) is excluded as not useful for app store display
+- **THEN** 14 screenshots are saved covering main screen, drawer, webview, and workspace features in both themes
+- **AND** frameit is used to add device frames and marketing titles
 
 Screenshots (light theme):
 1. `01-all-sites-light` - Main screen with all sites
@@ -70,20 +70,23 @@ Screenshots (light theme):
 4. `04-drawer-with-site-light` - Drawer showing selected site
 5. `05-work-webspace-light` - Work webspace view
 6. `06-work-sites-drawer-light` - Work webspace drawer
-7. `07-add-workspace-dialog-light` - New workspace dialog
-8. `09-workspace-sites-selected-light` - Dialog with sites selected
-9. `10-new-workspace-created-light` - Main screen with new workspace
+7. `07-workspace-sites-selected-light` - Dialog with sites selected
 
 Screenshots (dark theme):
-10. `01-all-sites-dark` - Main screen with all sites
-11. `02-sites-drawer-dark` - Navigation drawer with site list
-12. `03-site-webview-dark` - DuckDuckGo site loaded
-13. `04-drawer-with-site-dark` - Drawer showing selected site
-14. `05-work-webspace-dark` - Work webspace view
-15. `06-work-sites-drawer-dark` - Work webspace drawer
-16. `07-add-workspace-dialog-dark` - New workspace dialog
-17. `09-workspace-sites-selected-dark` - Dialog with sites selected
-18. `10-new-workspace-created-dark` - Main screen with new workspace
+8. `01-all-sites-dark` - Main screen with all sites
+9. `02-sites-drawer-dark` - Navigation drawer with site list
+10. `03-site-webview-dark` - DuckDuckGo site loaded
+11. `04-drawer-with-site-dark` - Drawer showing selected site
+12. `05-work-webspace-dark` - Work webspace view
+13. `06-work-sites-drawer-dark` - Work webspace drawer
+14. `07-workspace-sites-selected-dark` - Dialog with sites selected
+
+#### Screenshot Processing Workflow
+
+1. **Generation**: Flutter integration test captures 7 screenshots per theme (14 total)
+2. **Resizing**: ImageMagick resizes screenshots to Pixel 5 resolution (1080x2340)
+3. **Framing**: Frameit adds device bezels and marketing titles from keyword.strings
+4. **Output**: Final framed screenshots ready for app store submission
 
 ---
 

@@ -345,9 +345,8 @@ void main() {
               await tester.pump();
               await Future.delayed(const Duration(seconds: 2));
 
-              // Screenshot 8: New workspace in list
-              await _takeThemedScreenshots(binding, tester, '08-new-workspace-created', currentTheme);
-              await Future.delayed(const Duration(seconds: 1));
+              // Screenshot 8 skipped - new workspace in list not needed for store
+              print('Skipping screenshot 8 (new-workspace-created) - not useful for app store');
             } else {
               print('Could not find save button');
             }
