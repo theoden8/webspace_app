@@ -6,9 +6,9 @@
     },
     "title": {
       "show": true,
-      "color": "#2C3E50",
-      "font_size": 72,
-      "font_weight": 600
+      "color": "#6366F1",
+      "font": "Futura-Bold",
+      "font_size": 72
     },
     "padding": 80,
     "interspace": 40,
@@ -19,9 +19,9 @@
       "filter": "*-dark",
       "title": {
         "show": true,
-        "color": "#FFFFFF",
-        "font_size": 72,
-        "font_weight": 600
+        "color": "#A78BFA",
+        "font": "Futura-Bold",
+        "font_size": 72
       }
     }
   ]
