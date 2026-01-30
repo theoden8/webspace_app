@@ -28,7 +28,7 @@ jobs:
               - 'test_driver/integration_test.dart'
               - 'android/fastlane/**'
               - 'ios/fastlane/**'
-              - '.github/workflows/build-and-test.yml'
+              - '.github/workflows/**'
 
   build-android:
     name: Build Android
