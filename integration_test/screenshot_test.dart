@@ -63,6 +63,11 @@ Future<void> _takeThemedScreenshots(
 ) async {
   final themeSuffix = currentTheme == 'light' ? '-light' : '-dark';
   print('Capturing $baseName$themeSuffix');
+  
+  // Pump before screenshot to ensure all pending frame updates are processed
+  // This is important for native platform views (webviews) which render asynchronously
+  await tester.pump();
+  
   await binding.takeScreenshot('$baseName$themeSuffix').timeout(
     _SCREENSHOT_TIMEOUT,
     onTimeout: () {
@@ -112,8 +117,12 @@ void main() {
         print('STARTING SCREENSHOT TOUR ($theme theme)');
         print('========================================');
 
-        // Convert Flutter surface to image for screenshot capture
-        await binding.convertFlutterSurfaceToImage();
+        // NOTE: We intentionally do NOT call binding.convertFlutterSurfaceToImage() here.
+        // That method converts the Flutter surface to an offscreen buffer for screenshot capture,
+        // but it only captures Flutter-rendered content, not native platform views like webviews.
+        // By NOT calling it, we rely on the native screenshot mechanism which captures the
+        // entire screen including webviews. This is essential for screenshots 3 and 4 which
+        // need to show the DuckDuckGo webview content.
         await tester.pumpAndSettle();
 
         // Wait for initial site icons to load (with timeout)
@@ -147,15 +156,24 @@ void main() {
           print('Selecting DuckDuckGo site');
           await tester.tap(duckDuckGoFinder);
 
-          // Pump multiple frames to advance the drawer closing animation
+          // Pump to process the tap event and trigger Navigator.pop + _setCurrentIndex
+          await tester.pump();
+          
+          // Wait for drawer closing animation to complete
           // Standard Material drawer animation is typically 300ms
-          // Now let the animation complete and wait for webview to load
           print('Completing animation and waiting for webview to load...');
           await tester.pumpAndSettle(const Duration(seconds: 2));
+          
+          // Now wait for webview to actually load the page content
+          // The webview is a native platform view that renders outside Flutter's surface
+          print('Waiting for webview to load DuckDuckGo page...');
           await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
+          
+          // Pump a few frames to ensure the native view is fully rendered
           await tester.pump();
+          await tester.pump(const Duration(milliseconds: 500));
 
-          // Screenshot 3: Site transitioning (drawer closing animation)
+          // Screenshot 3: DuckDuckGo webview loaded
           await _takeThemedScreenshots(binding, tester, '03-site-webview', currentTheme);
           print('Screenshot 3 captured successfully (site selected)');
 
