@@ -2,6 +2,12 @@ name: Generate Screenshots
 
 on:
   workflow_dispatch:  # Manual trigger
+  workflow_run:
+    workflows: ["Build and Test"]
+    types:
+      - completed
+    branches:
+      - master
   push:
     branches:
       - master
@@ -9,6 +15,8 @@ on:
       - 'integration_test/screenshot_test.dart'
       - 'lib/demo_data.dart'
       - 'test_driver/integration_test.dart'
+      - 'android/fastlane/**'
+      - 'ios/fastlane/**'
       - '.github/workflows/screenshots.yml'
   pull_request:
     branches:
@@ -17,12 +25,16 @@ on:
       - 'integration_test/screenshot_test.dart'
       - 'lib/demo_data.dart'
       - 'test_driver/integration_test.dart'
+      - 'android/fastlane/**'
+      - 'ios/fastlane/**'
       - '.github/workflows/screenshots.yml'
 
 jobs:
   screenshots-android:
     name: Android Screenshots
     runs-on: ubuntu-latest
+    # Only run if build-and-test succeeded or if triggered manually/by push/PR
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
     steps:
@@ -121,6 +133,8 @@ jobs:
   screenshots-ios:
     name: iOS Screenshots
     runs-on: macos-latest
+    # Only run if build-and-test succeeded or if triggered manually/by push/PR
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
