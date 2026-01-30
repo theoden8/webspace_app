@@ -163,6 +163,10 @@ platform :ios do
     # Resize screenshots to supported resolution first
     resize_screenshots
 
+    # Remove existing framed screenshots
+    UI.message("Removing old framed screenshots...")
+    FileUtils.rm_rf(Dir.glob(File.join(screenshots_dir, "*_framed.png")))
+
     frame_screenshots(
       path: screenshots_dir,
       white: true
