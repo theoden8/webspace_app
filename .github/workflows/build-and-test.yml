@@ -403,6 +403,11 @@ jobs:
           ruby-version: '2.7'
           bundler-cache: true
 
+      - name: Install CocoaPods
+        run: |
+          sudo gem install cocoapods
+          pod --version
+
       - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
         with:
