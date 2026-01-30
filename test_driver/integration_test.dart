@@ -32,23 +32,29 @@ Future<void> main() async {
       // Remove the __native__ marker from the filename
       final cleanName = screenshotName.replaceAll('__native__', '');
       final file = File('$screenshotDir/$cleanName.png');
+      
+      print('[Driver] onScreenshot called: $screenshotName');
+      print('[Driver] useNativeForThis: $useNativeForThis');
+      print('[Driver] screenshotBytes length: ${screenshotBytes.length}');
+      print('[Driver] Output path: ${file.path}');
+      
       await file.create(recursive: true);
       
       if (useNativeForThis) {
         // Use ADB screencap to capture the actual screen including webviews
         // This bypasses Flutter's surface capture which misses platform views
-        print('Using native screenshot for: $cleanName');
+        print('[Driver] Using native screenshot for: $cleanName');
         final success = await _takeNativeScreenshot(file.path);
         if (success) {
-          print('Native screenshot saved: ${file.path}');
+          print('[Driver] Native screenshot saved: ${file.path}');
           return true;
         }
         // Fall back to Flutter screenshot if native fails
-        print('Native screenshot failed, falling back to Flutter screenshot');
+        print('[Driver] Native screenshot failed, falling back to Flutter screenshot');
       }
       
       await file.writeAsBytes(screenshotBytes);
-      print('Screenshot saved: ${file.path}');
+      print('[Driver] Screenshot saved: ${file.path}');
       return true;
     },
   );
@@ -62,18 +68,37 @@ Future<bool> _takeNativeScreenshot(String outputPath) async {
     // First capture to device, then pull to host
     const devicePath = '/sdcard/screenshot_temp.png';
     
+    print('[Driver] Running: adb shell screencap -p $devicePath');
+    
     // Capture screenshot on device
     var result = await Process.run('adb', ['shell', 'screencap', '-p', devicePath]);
+    print('[Driver] screencap exitCode: ${result.exitCode}');
+    print('[Driver] screencap stdout: ${result.stdout}');
+    print('[Driver] screencap stderr: ${result.stderr}');
     if (result.exitCode != 0) {
-      print('ADB screencap failed: ${result.stderr}');
+      print('[Driver] ADB screencap failed: ${result.stderr}');
       return false;
     }
     
+    print('[Driver] Running: adb pull $devicePath $outputPath');
+    
     // Pull screenshot to host
     result = await Process.run('adb', ['pull', devicePath, outputPath]);
+    print('[Driver] pull exitCode: ${result.exitCode}');
+    print('[Driver] pull stdout: ${result.stdout}');
+    print('[Driver] pull stderr: ${result.stderr}');
     if (result.exitCode != 0) {
-      print('ADB pull failed: ${result.stderr}');
+      print('[Driver] ADB pull failed: ${result.stderr}');
       return false;
+    }
+    
+    // Verify file exists and has content
+    final file = File(outputPath);
+    if (await file.exists()) {
+      final size = await file.length();
+      print('[Driver] Screenshot file size: $size bytes');
+    } else {
+      print('[Driver] WARNING: Screenshot file does not exist after pull!');
     }
     
     // Clean up temp file on device
@@ -81,7 +106,7 @@ Future<bool> _takeNativeScreenshot(String outputPath) async {
     
     return true;
   } catch (e) {
-    print('Native screenshot error: $e');
+    print('[Driver] Native screenshot error: $e');
     return false;
   }
 }
