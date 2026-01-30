@@ -95,30 +95,59 @@ Future<void> _takeThemedScreenshots(
   await tester.pump();
 }
 
-/// Signal directory path - must be created by driver with world-writable permissions
-const _signalDirPath = '/data/local/tmp/screenshot_signals';
+/// Get writable signal directory path.
+/// Tries the app's external cache directory which is accessible to both app and ADB.
+Future<String?> _getSignalDirPath() async {
+  // Try external storage paths that the app should be able to write to
+  // and ADB can read without root
+  final candidates = [
+    // External cache directories for different build flavors
+    '/sdcard/Android/data/co.nicksoftware.webspace/cache/screenshot_signals',
+    '/sdcard/Android/data/co.nicksoftware.webspace.debug/cache/screenshot_signals', 
+    '/sdcard/Android/data/co.nicksoftware.webspace.fdroid/cache/screenshot_signals',
+    '/sdcard/Android/data/co.nicksoftware.webspace.fmain/cache/screenshot_signals',
+  ];
+  
+  for (final path in candidates) {
+    // Check if parent directory exists (the app's external data dir)
+    final parentPath = path.replaceAll('/screenshot_signals', '');
+    final parent = Directory(parentPath);
+    try {
+      if (await parent.exists()) {
+        // Try to create the signal directory
+        final signalDir = Directory(path);
+        if (!await signalDir.exists()) {
+          await signalDir.create(recursive: true);
+        }
+        print('Using signal directory: $path');
+        return path;
+      }
+    } catch (e) {
+      // Try next candidate
+      continue;
+    }
+  }
+  
+  print('ERROR: Could not find writable signal directory');
+  return null;
+}
 
 /// Request a native screenshot via file-based signaling.
 /// This writes a request file that the test driver watches for,
 /// waits for the driver to take the screenshot via ADB, then cleans up.
-/// 
-/// IMPORTANT: The driver must create /data/local/tmp/screenshot_signals with 
-/// world-writable permissions (chmod 777) before the test starts.
 Future<void> _requestNativeScreenshot(String screenshotName) async {
-  final signalDir = Directory(_signalDirPath);
-  final requestFile = File('$_signalDirPath/${screenshotName}_request');
-  final doneFile = File('$_signalDirPath/${screenshotName}_done');
-  
   print('Requesting native screenshot: $screenshotName');
   
+  final signalDirPath = await _getSignalDirPath();
+  if (signalDirPath == null) {
+    print('ERROR: No writable signal directory available');
+    return;
+  }
+  
+  final requestFile = File('$signalDirPath/${screenshotName}_request');
+  final doneFile = File('$signalDirPath/${screenshotName}_done');
+  
   try {
-    // Check if signal directory exists (should be created by driver)
-    if (!await signalDir.exists()) {
-      print('ERROR: Signal directory does not exist: $_signalDirPath');
-      print('The test driver should create this directory before the test starts.');
-      return;
-    }
-    
     // Write request file with screenshot name
     await requestFile.writeAsString(screenshotName);
     print('Created request file: ${requestFile.path}');
