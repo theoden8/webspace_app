@@ -1056,16 +1056,34 @@ class _WebSpacePageState extends State<WebSpacePage> {
                       onSettingsSaved: () async {
                         // Save settings to persistence
                         await _saveWebViewModels();
+
+                        // Store current index and URL for reload
+                        final index = _currentIndex;
+                        final model = index != null && index < _webViewModels.length
+                            ? _webViewModels[index]
+                            : null;
+                        final urlToLoad = model?.currentUrl;
+                        final languageToUse = model?.language;
+
                         // Trigger rebuild to recreate webview with new settings
-                        setState(() {
-                          // Mark the webview as needing recreation
-                          final index = _currentIndex;
-                          if (index != null && index < _webViewModels.length) {
-                            // Ensure the webview is marked for reload
-                            _loadedIndices.remove(index);
-                            _loadedIndices.add(index);
-                          }
-                        });
+                        setState(() {});
+
+                        // After rebuild, wait for controller and reload with language header
+                        if (index != null && model != null && urlToLoad != null) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) async {
+                            // Wait for webview to be created and controller to be set
+                            for (int i = 0; i < 20; i++) {
+                              await Future.delayed(const Duration(milliseconds: 100));
+                              if (model.controller != null) {
+                                if (kDebugMode) {
+                                  debugPrint('[Settings] Reloading URL with language: $languageToUse');
+                                }
+                                await model.controller!.loadUrl(urlToLoad, language: languageToUse);
+                                break;
+                              }
+                            }
+                          });
+                        }
                       },
                     ),
                   ),

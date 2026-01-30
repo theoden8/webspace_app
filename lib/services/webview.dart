@@ -185,6 +185,9 @@ class PlatformInfo {
 
 /// Configuration for creating a webview
 class WebViewConfig {
+  /// Unique key to force widget recreation when settings change.
+  /// When this key changes, Flutter will create a new widget state.
+  final Key? key;
   final String initialUrl;
   final bool javascriptEnabled;
   final String? userAgent;
@@ -203,6 +206,7 @@ class WebViewConfig {
   final Future<void> Function(int windowId, String url)? onWindowRequested;
 
   WebViewConfig({
+    this.key,
     required this.initialUrl,
     this.javascriptEnabled = true,
     this.userAgent,
@@ -441,6 +445,7 @@ class WebViewFactory {
     }
 
     return inapp.InAppWebView(
+      key: config.key,
       initialUrlRequest: inapp.URLRequest(
         url: inapp.WebUri(config.initialUrl),
         headers: headers.isNotEmpty ? headers : null,
