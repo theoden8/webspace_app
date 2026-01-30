@@ -1,0 +1,7 @@
+✨ New Features:
+• Language selection: Choose preferred language per site (30+ languages)
+• Accept-Language header support for localized content
+
+🔧 Improvements:
+• Settings changes now apply immediately without restart
+• Enhanced webview recreation for better setting propagation
