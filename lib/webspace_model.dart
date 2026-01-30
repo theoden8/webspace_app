@@ -9,13 +9,11 @@ class Webspace {
   String id; // Unique identifier for the webspace
   String name; // Display name for the webspace
   List<int> siteIndices; // Indices of WebViewModels that belong to this webspace
-  String? language; // Language code (e.g., 'en', 'es'), null = system default
 
   Webspace({
     String? id,
     required this.name,
     List<int>? siteIndices,
-    this.language,
   })  : id = id ?? _uuid.v4(),
         siteIndices = siteIndices ?? [];
 
@@ -24,7 +22,6 @@ class Webspace {
         'id': id,
         'name': name,
         'siteIndices': siteIndices,
-        'language': language,
       };
 
   factory Webspace.fromJson(Map<String, dynamic> json) {
@@ -32,24 +29,19 @@ class Webspace {
       id: json['id'],
       name: json['name'],
       siteIndices: (json['siteIndices'] as List<dynamic>).map((e) => e as int).toList(),
-      language: json['language'],
     );
   }
 
   // Create a copy of this webspace with updated fields
-  // Use clearLanguage: true to explicitly set language to null (system default)
   Webspace copyWith({
     String? id,
     String? name,
     List<int>? siteIndices,
-    String? language,
-    bool clearLanguage = false,
   }) {
     return Webspace(
       id: id ?? this.id,
       name: name ?? this.name,
       siteIndices: siteIndices ?? this.siteIndices,
-      language: clearLanguage ? null : (language ?? this.language),
     );
   }
 

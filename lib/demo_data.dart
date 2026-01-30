@@ -16,9 +16,9 @@ bool isDemoMode = false;
 /// - 'light': Use light theme
 /// - 'dark': Use dark theme
 ///
-/// The [language] parameter sets the language for all webspaces:
-/// - null (default): Use per-webspace settings or system default
-/// - 'en', 'es', etc.: Override all webspaces with this language
+/// The [language] parameter sets the language for all sites:
+/// - null (default): Use per-site settings or system default
+/// - 'en', 'es', etc.: Override all sites with this language
 Future<void> seedDemoData({String theme = 'system', String? language}) async {
   print('========================================');
   print('SEEDING DEMO DATA');
@@ -34,38 +34,48 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   await prefs.remove('currentIndex');
 
   // Create sample sites
+  // Language can be explicitly set per site (null = system default)
+  // If a language parameter is passed to seedDemoData, it overrides all sites
   final sites = <WebViewModel>[
     WebViewModel(
       initUrl: 'https://duckduckgo.com',
       name: 'DuckDuckGo',
+      language: language,
     ),
     WebViewModel(
       initUrl: 'https://piped.video',
       name: 'Piped',
+      language: language,
     ),
     WebViewModel(
       initUrl: 'https://nitter.net',
       name: 'Nitter',
+      language: language,
     ),
     WebViewModel(
       initUrl: 'https://www.reddit.com',
       name: 'Reddit',
+      language: language,
     ),
     WebViewModel(
       initUrl: 'https://github.com',
       name: 'GitHub',
+      language: language ?? 'en', // English by default for GitHub
     ),
     WebViewModel(
       initUrl: 'https://news.ycombinator.com',
       name: 'Hacker News',
+      language: language ?? 'en', // English by default for HN
     ),
     WebViewModel(
       initUrl: 'https://wandb.ai',
       name: 'Weights & Biases',
+      language: language ?? 'en', // English by default for W&B
     ),
     WebViewModel(
       initUrl: 'https://www.wikipedia.org',
       name: 'Wikipedia',
+      language: language, // System default for Wikipedia (multi-language)
     ),
   ];
 
@@ -75,35 +85,29 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   }
 
   // Create sample webspaces
-  // Language can be explicitly set per webspace (null = system default)
-  // If a language parameter is passed to seedDemoData, it overrides all webspaces
   final webspaces = <Webspace>[
-    Webspace.all()..language = language, // The "All" webspace
+    Webspace.all(), // The "All" webspace
     Webspace(
       id: 'webspace_work',
       name: 'Work',
       siteIndices: [4, 5, 6], // GitHub, Hacker News, W&B
-      language: language ?? 'en', // Use override, or English by default
     ),
     Webspace(
       id: 'webspace_privacy',
       name: 'Privacy',
       siteIndices: [0, 1, 2], // DuckDuckGo, Piped, Nitter
-      language: language, // Use override, or system default
     ),
     Webspace(
       id: 'webspace_social',
       name: 'Social',
       siteIndices: [2, 3, 7], // Nitter, Reddit, Wikipedia
-      language: language, // Use override, or system default
     ),
   ];
 
   print('Created ${webspaces.length} webspaces');
   for (var i = 0; i < webspaces.length; i++) {
     final ws = webspaces[i];
-    final lang = ws.language ?? 'system';
-    print('  Webspace $i: ${ws.name} (${ws.siteIndices.length} sites, lang: $lang)');
+    print('  Webspace $i: ${ws.name} (${ws.siteIndices.length} sites)');
   }
 
   // Serialize and save

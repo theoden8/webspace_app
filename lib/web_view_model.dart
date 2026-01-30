@@ -210,6 +210,7 @@ class WebViewModel {
   String userAgent;
   bool thirdPartyCookiesEnabled;
   bool incognito; // Private browsing mode - no cookies/cache persist
+  String? language; // Language code (e.g., 'en', 'es'), null = system default
 
   String? defaultUserAgent;
   Function? stateSetterF;
@@ -227,6 +228,7 @@ class WebViewModel {
     this.userAgent = '',
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
+    this.language,
     this.stateSetterF,
   })  : siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
@@ -480,6 +482,7 @@ class WebViewModel {
         'userAgent': userAgent,
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
         'incognito': incognito,
+        'language': language,
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -496,6 +499,7 @@ class WebViewModel {
       userAgent: json['userAgent'],
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
       incognito: json['incognito'] ?? false,
+      language: json['language'],
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }
