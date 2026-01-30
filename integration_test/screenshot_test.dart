@@ -49,28 +49,68 @@ Future<void> _setDeviceOrientation(WidgetTester tester) async {
 // Timeout constants
 const Duration _ICON_LOAD_TIMEOUT = Duration(seconds: 10);
 const Duration _WEBVIEW_LOAD_TIMEOUT = Duration(seconds: 15);
-const Duration _SCREENSHOT_TIMEOUT = Duration(seconds: 5);
+const Duration _SCREENSHOT_TIMEOUT = Duration(seconds: 10);
+const Duration _NATIVE_SCREENSHOT_TIMEOUT = Duration(seconds: 30);
 const Duration _DRAWER_TIMEOUT = Duration(seconds: 5);
 
 /// Helper to take a screenshot with both light and dark themes.
 /// Takes the current theme screenshot first, then toggles to the other theme,
 /// takes that screenshot, and toggles back.
+/// 
+/// If [useNative] is true on Android, the driver will use ADB screencap to 
+/// capture the actual screen including webviews. This is needed because Flutter's
+/// convertFlutterSurfaceToImage() only captures Flutter-rendered content.
+/// On iOS, useNative is ignored since Flutter screenshots work fine with webviews.
 Future<void> _takeThemedScreenshots(
   IntegrationTestWidgetsFlutterBinding binding,
   WidgetTester tester,
   String baseName,
-  String currentTheme,
-) async {
+  String currentTheme, {
+  bool useNative = false,
+}) async {
   final themeSuffix = currentTheme == 'light' ? '-light' : '-dark';
-  print('Capturing $baseName$themeSuffix');
-  await binding.takeScreenshot('$baseName$themeSuffix').timeout(
-    _SCREENSHOT_TIMEOUT,
-    onTimeout: () {
-      print('Warning: Screenshot $baseName$themeSuffix timed out');
-      return <int>[];
-    },
-  );
+  final screenshotName = '$baseName$themeSuffix';
+  
+  // Only use native screenshots on Android - iOS Flutter screenshots capture webviews fine
+  final isAndroid = Platform.isAndroid;
+  final shouldUseNative = useNative && isAndroid;
+  
+  print('Capturing $screenshotName${shouldUseNative ? ' (native/Android)' : ''}');
+  
+  // Pump before screenshot to ensure all pending frame updates are processed
+  // This is important for native platform views (webviews) which render asynchronously
   await tester.pump();
+  
+  if (shouldUseNative) {
+    // For native screenshots on Android (webviews), use logcat-based signaling
+    // because binding.takeScreenshot() only captures Flutter-rendered content.
+    await _requestNativeScreenshot(screenshotName);
+  } else {
+    // For Flutter-only UI or iOS, use the standard screenshot mechanism
+    await binding.takeScreenshot(screenshotName).timeout(
+      _SCREENSHOT_TIMEOUT,
+      onTimeout: () {
+        print('Warning: Screenshot $screenshotName timed out after ${_SCREENSHOT_TIMEOUT.inSeconds}s');
+        return <int>[];
+      },
+    );
+  }
+  await tester.pump();
+}
+
+/// Request a native screenshot by printing a marker that the driver watches for.
+/// The driver will take an ADB screenshot when it sees this marker in the logs.
+/// This avoids file permission issues on Android.
+Future<void> _requestNativeScreenshot(String screenshotName) async {
+  // Print a unique marker that the driver can detect in logcat
+  // Format: @@NATIVE_SCREENSHOT:<name>@@
+  print('@@NATIVE_SCREENSHOT:$screenshotName@@');
+  
+  // Give the driver time to capture the screenshot
+  // The driver watches logcat and takes a screenshot when it sees the marker
+  await Future.delayed(const Duration(seconds: 3));
+  
+  print('Native screenshot requested: $screenshotName');
 }
 
 void main() {
@@ -112,31 +152,19 @@ void main() {
         print('STARTING SCREENSHOT TOUR ($theme theme)');
         print('========================================');
 
-        // Convert Flutter surface to image for screenshot capture
+        // Convert Flutter surface to image for screenshot capture (required on Android).
+        // NOTE: This only captures Flutter-rendered content, not native platform views like webviews.
+        // For screenshots that include webviews (01, 02), we pass useNative: true to use
+        // ADB screencap instead, which captures the actual screen including platform views.
         await binding.convertFlutterSurfaceToImage();
         await tester.pumpAndSettle();
 
-        // Wait for initial site icons to load (with timeout)
-        print('Waiting for site icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
-        await Future.delayed(_ICON_LOAD_TIMEOUT);
-        await tester.pump();
-
-        // Screenshot 1: All sites view (main screen)
-        await _takeThemedScreenshots(binding, tester, '01-all-sites', currentTheme);
-        await Future.delayed(const Duration(seconds: 2));
-
-        // Open drawer to see site list
+        // Open drawer to select a site
         print('Opening drawer via menu button...');
         print('Looking for drawer elements...');
         _debugPrintWidgets(tester);
         await _openDrawer(tester);
-
-        print('Drawer opened, waiting for icons to load (timeout: ${_ICON_LOAD_TIMEOUT.inSeconds}s)...');
-        await Future.delayed(_ICON_LOAD_TIMEOUT);
         await tester.pump();
-
-        // Screenshot 2: Drawer with sites list
-        await _takeThemedScreenshots(binding, tester, '02-sites-drawer', currentTheme);
         await Future.delayed(const Duration(seconds: 2));
 
         // Look for a site to select (DuckDuckGo)
@@ -147,17 +175,27 @@ void main() {
           print('Selecting DuckDuckGo site');
           await tester.tap(duckDuckGoFinder);
 
-          // Pump multiple frames to advance the drawer closing animation
+          // Pump to process the tap event and trigger Navigator.pop + _setCurrentIndex
+          await tester.pump();
+          
+          // Wait for drawer closing animation to complete
           // Standard Material drawer animation is typically 300ms
-          // Now let the animation complete and wait for webview to load
           print('Completing animation and waiting for webview to load...');
           await tester.pumpAndSettle(const Duration(seconds: 2));
+          
+          // Now wait for webview to actually load the page content
+          // The webview is a native platform view that renders outside Flutter's surface
+          print('Waiting for webview to load DuckDuckGo page...');
           await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
+          
+          // Pump a few frames to ensure the native view is fully rendered
           await tester.pump();
+          await tester.pump(const Duration(milliseconds: 500));
 
-          // Screenshot 3: Site transitioning (drawer closing animation)
-          await _takeThemedScreenshots(binding, tester, '03-site-webview', currentTheme);
-          print('Screenshot 3 captured successfully (site selected)');
+          // Screenshot 1: DuckDuckGo webview loaded
+          // Use native screenshot to capture the webview content (Flutter surface misses platform views)
+          await _takeThemedScreenshots(binding, tester, '01-site-webview', currentTheme, useNative: true);
+          print('Screenshot 1 captured successfully (site selected)');
 
           // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
           await tester.pump(const Duration(seconds: 2));
@@ -187,12 +225,13 @@ void main() {
           }
 
           if (!drawerOpened) {
-            print('WARNING: Drawer may not be fully open for screenshot 4');
+            print('WARNING: Drawer may not be fully open for screenshot 2');
           }
 
-          // Screenshot 4: Drawer showing current site
-          await _takeThemedScreenshots(binding, tester, '04-drawer-with-site', currentTheme);
-          print('Screenshot 4 captured successfully');
+          // Screenshot 2: Drawer showing current site (with webview visible behind drawer)
+          // Use native screenshot to capture the webview content behind the drawer
+          await _takeThemedScreenshots(binding, tester, '02-drawer-with-site', currentTheme, useNative: true);
+          print('Screenshot 2 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
@@ -222,9 +261,9 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 6: Work webspace drawer
-          await _takeThemedScreenshots(binding, tester, '06-work-sites-drawer', currentTheme);
-          print('Screenshot 6 captured successfully');
+          // Screenshot 4: Work webspace drawer
+          await _takeThemedScreenshots(binding, tester, '04-work-sites-drawer', currentTheme);
+          print('Screenshot 4 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
@@ -233,8 +272,8 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 5: Work webspace sites
-          await _takeThemedScreenshots(binding, tester, '05-work-webspace', currentTheme);
+          // Screenshot 3: Work webspace sites
+          await _takeThemedScreenshots(binding, tester, '03-work-webspace', currentTheme);
           await tester.pumpAndSettle(const Duration(seconds: 3));
         }
 
@@ -320,8 +359,8 @@ void main() {
               print('Wikipedia checkbox not found');
             }
 
-            // Screenshot 7: Sites selected
-            await _takeThemedScreenshots(binding, tester, '07-workspace-sites-selected', currentTheme);
+            // Screenshot 5: Sites selected
+            await _takeThemedScreenshots(binding, tester, '05-workspace-sites-selected', currentTheme);
             await Future.delayed(const Duration(seconds: 1));
 
             // Look for save button (check icon in AppBar)

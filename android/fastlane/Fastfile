@@ -91,17 +91,30 @@ platform :android do
     UI.success("Screenshots saved to: #{screenshots_dir}")
   end
 
-  desc "Resize screenshots to supported resolution (Pixel 5: 1080x2340)"
+  desc "Resize screenshots to supported resolution (Pixel 5: 1080x2340 portrait, 2340x1080 landscape)"
   lane :resize_screenshots do
     screenshots_dir = File.join(project_root, "screenshots", "android")
 
     Dir.glob(File.join(screenshots_dir, "*.png")).each do |screenshot|
       next if File.basename(screenshot) == "background.png"
-      UI.message("Resizing #{File.basename(screenshot)} to 1080x2340...")
-      sh("magick '#{screenshot}' -resize 1080x2340! '#{screenshot}'")
+      
+      # Get image dimensions to detect orientation
+      dimensions = `magick identify -format '%wx%h' '#{screenshot}'`.strip.split('x')
+      width = dimensions[0].to_i
+      height = dimensions[1].to_i
+      
+      if width > height
+        # Landscape orientation
+        UI.message("Resizing #{File.basename(screenshot)} to 2340x1080 (landscape)...")
+        sh("magick '#{screenshot}' -resize 2340x1080! '#{screenshot}'")
+      else
+        # Portrait orientation
+        UI.message("Resizing #{File.basename(screenshot)} to 1080x2340 (portrait)...")
+        sh("magick '#{screenshot}' -resize 1080x2340! '#{screenshot}'")
+      end
     end
 
-    UI.success("All screenshots resized to Pixel 5 resolution (1080x2340)")
+    UI.success("All screenshots resized to Pixel 5 resolution (orientation-aware)")
   end
 
   desc "Frame screenshots with device frames and marketing titles"
