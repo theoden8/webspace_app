@@ -155,17 +155,17 @@ platform :ios do
       height = dimensions[1].to_i
       
       if width > height
-        # Landscape orientation
-        UI.message("Resizing #{File.basename(screenshot)} to 2532x1170 (landscape)...")
-        sh("magick '#{screenshot}' -resize 2532x1170! '#{screenshot}'")
+        # Landscape orientation - use iPad Pro 12.9" resolution for frameit compatibility
+        UI.message("Resizing #{File.basename(screenshot)} to 2732x2048 (landscape/iPad)...")
+        sh("magick '#{screenshot}' -resize 2732x2048! '#{screenshot}'")
       else
-        # Portrait orientation
-        UI.message("Resizing #{File.basename(screenshot)} to 1170x2532 (portrait)...")
+        # Portrait orientation - use iPhone 13 Pro resolution
+        UI.message("Resizing #{File.basename(screenshot)} to 1170x2532 (portrait/iPhone)...")
         sh("magick '#{screenshot}' -resize 1170x2532! '#{screenshot}'")
       end
     end
 
-    UI.success("All screenshots resized to iPhone 13 Pro resolution (orientation-aware)")
+    UI.success("All screenshots resized (portrait: iPhone 13 Pro, landscape: iPad Pro 12.9\")")
   end
 
   desc "Frame screenshots with device frames and marketing titles"
