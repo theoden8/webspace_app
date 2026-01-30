@@ -231,7 +231,7 @@ fastlane screenshots_framed_all
 - Theme detection uses filename pattern matching (`*-dark`)
 - Same marketing titles used across both themes for consistency
 - **Automatic resizing**: Screenshots are automatically resized to supported resolutions before framing
-  - Android: Resized to Pixel 9 resolution (1080x2424)
+  - Android: Resized to Pixel 7 resolution (1080x2400)
   - iOS: Resized to iPhone 13 Pro resolution (1170x2532)
 - Resizing uses ImageMagick's `magick` command (must be installed)
 
