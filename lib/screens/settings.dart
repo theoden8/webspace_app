@@ -62,10 +62,13 @@ class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
   /// Callback to sync proxy settings across all WebViewModels
   final void Function(UserProxySettings)? onProxySettingsChanged;
+  /// Callback when settings are saved (to trigger webview reload)
+  final VoidCallback? onSettingsSaved;
 
   SettingsScreen({
     required this.webViewModel,
     this.onProxySettingsChanged,
+    this.onSettingsSaved,
   });
 
   @override
@@ -214,6 +217,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
+
+      // Dispose the webview so it gets recreated with new settings
+      widget.webViewModel.disposeWebView();
+
+      // Notify parent to rebuild (this will recreate the webview)
+      widget.onSettingsSaved?.call();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Settings saved successfully')),

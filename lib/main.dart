@@ -1053,6 +1053,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         // Persist the changes immediately
                         _saveWebViewModels();
                       },
+                      onSettingsSaved: () {
+                        // Trigger rebuild to recreate webview with new settings
+                        setState(() {});
+                      },
                     ),
                   ),
                 );
