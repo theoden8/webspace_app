@@ -1,6 +1,7 @@
 {
   "default": {
     "keyword": {
+      "show": true,
       "color": "#545454"
     },
     "title": {
@@ -13,6 +14,7 @@
     {
       "filter": "*-dark",
       "keyword": {
+        "show": true,
         "color": "#E0E0E0"
       }
     }
