@@ -402,9 +402,10 @@ jobs:
 
       - name: Install CocoaPods, ImageMagick, and Dart
         run: |
-          brew install cocoapods imagemagick-full dart
+          brew install cocoapods imagemagick-full dart-sdk
           brew link --force cocoapods
           brew link --force imagemagick-full
+          brew link --force dart-sdk
 
       - name: Install bundle dependencies
         run: bundle install
