@@ -225,18 +225,11 @@ jobs:
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
 
-      - name: Build iOS (no codesign)
-        run: fvm flutter build ios --release --no-codesign
+      - name: Build IPA
+        run: fvm flutter build ipa --release --no-codesign
 
       - name: Build macOS
         run: fvm flutter build macos --release
-
-      - name: Create IPA
-        run: |
-          mkdir -p Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r webspace.ipa Payload
-          rm -rf Payload
 
       - name: Create macOS ZIP archive
         run: |
@@ -247,7 +240,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: webspace.ipa
+          path: build/ios/ipa/*.ipa
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4
