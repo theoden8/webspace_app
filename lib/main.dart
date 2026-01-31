@@ -859,6 +859,17 @@ class _WebSpacePageState extends State<WebSpacePage> {
     }
   }
 
+  String _getThemeName() {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.dark:
+        return 'Dark';
+      case ThemeMode.system:
+        return 'System';
+    }
+  }
+
   AppBar _buildAppBar() {
     return AppBar(
       title: _currentIndex != null && _currentIndex! < _webViewModels.length
@@ -1025,6 +1036,17 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   ],
                 ),
               ),
+              if (onWebspacesList)
+              PopupMenuItem<String>(
+                value: "theme",
+                child: Row(
+                  children: [
+                    Icon(_getThemeIcon()),
+                    SizedBox(width: 8),
+                    Text("Theme: ${_getThemeName()}"),
+                  ],
+                ),
+              ),
             ];
           },
           onSelected: (String value) async {
@@ -1107,6 +1129,30 @@ class _WebSpacePageState extends State<WebSpacePage> {
               break;
               case 'import':
                 await _importSettings();
+              break;
+              case 'theme':
+                // Cycle through light → dark → system
+                setState(() {
+                  switch (_themeMode) {
+                    case ThemeMode.light:
+                      _themeMode = ThemeMode.dark;
+                      break;
+                    case ThemeMode.dark:
+                      _themeMode = ThemeMode.system;
+                      break;
+                    case ThemeMode.system:
+                      _themeMode = ThemeMode.light;
+                      break;
+                  }
+                });
+                widget.onThemeModeChanged(_themeMode);
+                await _saveThemeMode();
+
+                // Apply theme to all webviews
+                final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+                for (var webViewModel in _webViewModels) {
+                  await webViewModel.setTheme(webViewTheme);
+                }
               break;
             }
           },
