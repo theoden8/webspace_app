@@ -1,27 +1,29 @@
 {
   "default": {
-    "background": "../background.png",
+    "_background": "../background.png",
     "keyword": {
       "show": false
     },
     "title": {
-      "show": true,
-      "color": "#6366F1",
-      "font": "../Righteous-Regular.ttf",
-      "font_size": 72
+      "show": false,
+      "_color": "#6366F1",
+      "_font": "../Righteous-Regular.ttf",
+      "_font_size": 72
     },
-    "padding": 80,
-    "interspace": 40,
+    "_padding": 80,
+    "_interspace": 40,
+    "padding": 0,
+    "interspace": 0,
     "title_below_image": false
   },
   "data": [
     {
       "filter": "*-dark",
       "title": {
-        "show": true,
-        "color": "#A78BFA",
-        "font": "../Righteous-Regular.ttf",
-        "font_size": 72
+        "show": false,
+        "_color": "#A78BFA",
+        "_font": "../Righteous-Regular.ttf",
+        "_font_size": 72
       }
     }
   ]
