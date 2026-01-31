@@ -407,7 +407,9 @@ jobs:
           bundler-cache: true
 
       - name: Install CocoaPods and ImageMagick
-        run: brew install cocoapods imagemagick-full
+        run: |
+          brew install cocoapods imagemagick-full
+          brew link --force imagemagick-full
 
       - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
