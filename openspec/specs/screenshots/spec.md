@@ -22,13 +22,13 @@ Screenshots SHALL be generated using Flutter integration tests on both Android a
 
 - **GIVEN** an Android emulator is running
 - **WHEN** the user runs `bundle exec fastlane android screenshots`
-- **THEN** 8 screenshots are captured (4 per theme)
+- **THEN** 10 screenshots are captured (5 per theme)
 
 #### Scenario: Generate screenshots on iOS
 
 - **GIVEN** an iOS simulator is running
 - **WHEN** the user runs `fastlane ios screenshots`
-- **THEN** 8 screenshots are captured (4 per theme)
+- **THEN** 10 screenshots are captured (5 per theme)
 
 ---
 
@@ -46,12 +46,12 @@ Screenshots SHALL use demo data seeded automatically via `lib/demo_data.dart`.
 
 ### SCREENSHOT-003 - Screenshot Coverage
 
-The test SHALL capture 4 screenshots per theme (8 total): `01-site-webview`, `02-work-sites-drawer`, `03-work-webspace`, `04-workspace-sites-selected`.
+The test SHALL capture 5 screenshots per theme (10 total): `01-site-webview`, `02-site-settings`, `03-work-sites-drawer`, `04-work-webspace`, `05-workspace-sites-selected`.
 
 #### Scenario: Capture all screenshots
 
 - **WHEN** the screenshot test completes
-- **THEN** 8 screenshots are saved with `-light` and `-dark` variants
+- **THEN** 10 screenshots are saved with `-light` and `-dark` variants
 
 #### Scenario: Capture webview content on Android
 
