@@ -400,15 +400,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install CocoaPods, ImageMagick, and Dart
+      - name: Install CocoaPods, ImageMagick, Dart, and Fastlane
         run: |
-          brew install cocoapods imagemagick-full dart-sdk
+          brew install cocoapods imagemagick-full dart-sdk fastlane
           brew link --force cocoapods
           brew link --force imagemagick-full
           brew link --force dart-sdk
-
-      - name: Install bundle dependencies
-        run: bundle install
+          brew link --force fastlane
 
       - name: Cache fvm Flutter SDK
         uses: actions/cache@v4
@@ -470,10 +468,10 @@ jobs:
         run: mkdir -p screenshots/ios
 
       - name: Generate iOS screenshots
-        run: bundle exec fastlane ios screenshots
+        run: fastlane ios screenshots
 
       - name: Add device frames to iOS screenshots
-        run: bundle exec fastlane ios add_device_frames
+        run: fastlane ios add_device_frames
 
       - name: Upload iOS screenshots
         uses: actions/upload-artifact@v4
