@@ -1,8 +1,6 @@
 
-"01-all-sites" = "Organize all your web apps in one place"
-"02-sites-drawer" = "Quick access to your favorite sites"
-"03-site-webview" = "Full-featured web browsing with isolation"
-"04-drawer-with-site" = "Easy navigation between sites"
-"05-work-webspace" = "Group sites into custom workspaces"
-"06-work-sites-drawer" = "Workspace-specific site collections"
-"07-workspace-sites-selected" = "Choose sites for your workspace"
+"01-site-webview" = "Browse with privacy"
+"02-site-settings" = "Per-site settings"
+"03-work-sites-drawer" = "Organize by workspace"
+"04-work-webspace" = "Focused browsing"
+"05-workspace-sites-selected" = "Custom workspaces"
