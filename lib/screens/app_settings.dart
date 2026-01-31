@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/main.dart' show AppTheme;
+import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+
+// Accent color definitions for display
+const Map<AccentColor, Color> _accentColors = {
+  AccentColor.blue: Color(0xFF6B8DD6),
+  AccentColor.green: Color(0xFF7be592),
+  AccentColor.purple: Color(0xFF9B7BD6),
+  AccentColor.orange: Color(0xFFE59B5B),
+  AccentColor.red: Color(0xFFD66B6B),
+  AccentColor.pink: Color(0xFFD66BA8),
+  AccentColor.teal: Color(0xFF5BC4C4),
+  AccentColor.yellow: Color(0xFFD6C86B),
+};
 
 class AppSettingsScreen extends StatefulWidget {
-  final AppTheme currentTheme;
-  final Function(AppTheme) onThemeChanged;
+  final AppThemeSettings currentSettings;
+  final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
 
   const AppSettingsScreen({
     super.key,
-    required this.currentTheme,
-    required this.onThemeChanged,
+    required this.currentSettings,
+    required this.onSettingsChanged,
     required this.onExportSettings,
     required this.onImportSettings,
   });
@@ -21,12 +33,19 @@ class AppSettingsScreen extends StatefulWidget {
 }
 
 class _AppSettingsScreenState extends State<AppSettingsScreen> {
-  late AppTheme _selectedTheme;
+  late AppThemeSettings _settings;
 
   @override
   void initState() {
     super.initState();
-    _selectedTheme = widget.currentTheme;
+    _settings = widget.currentSettings;
+  }
+
+  void _updateSettings(AppThemeSettings newSettings) {
+    setState(() {
+      _settings = newSettings;
+    });
+    widget.onSettingsChanged(newSettings);
   }
 
   @override
@@ -37,7 +56,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
       ),
       body: ListView(
         children: [
-          // Theme Section
+          // Theme Mode Section
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
@@ -47,36 +66,29 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
               ),
             ),
           ),
-          _buildThemeOption(
-            AppTheme.lightBlue,
-            'Light Blue',
-            Icons.wb_sunny,
-            Colors.blue,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: _buildThemeModeRow(),
           ),
-          _buildThemeOption(
-            AppTheme.darkBlue,
-            'Dark Blue',
-            Icons.nights_stay,
-            Colors.blue,
+          
+          const SizedBox(height: 24),
+          
+          // Accent Color Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Accent Color',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-          _buildThemeOption(
-            AppTheme.lightGreen,
-            'Light Green',
-            Icons.wb_sunny,
-            Colors.green,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: _buildAccentColorGrid(),
           ),
-          _buildThemeOption(
-            AppTheme.darkGreen,
-            'Dark Green',
-            Icons.nights_stay,
-            Colors.green,
-          ),
-          _buildThemeOption(
-            AppTheme.system,
-            'System',
-            Icons.brightness_auto,
-            null,
-          ),
+          
+          const SizedBox(height: 8),
           const Divider(height: 32),
 
           // Data Section
@@ -112,43 +124,137 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     );
   }
 
-  Widget _buildThemeOption(AppTheme theme, String label, IconData icon, Color? accentColor) {
-    final isSelected = _selectedTheme == theme;
-    return RadioListTile<AppTheme>(
-      value: theme,
-      groupValue: _selectedTheme,
-      onChanged: (value) {
-        if (value != null) {
-          setState(() {
-            _selectedTheme = value;
-          });
-          widget.onThemeChanged(value);
-        }
-      },
-      title: Row(
-        children: [
-          Icon(
-            icon,
-            color: accentColor,
-            size: 20,
+  Widget _buildThemeModeRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildThemeModeChip(
+            ThemeMode.light,
+            'Light',
+            Icons.wb_sunny,
           ),
-          const SizedBox(width: 12),
-          Text(label),
-          if (accentColor != null) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: accentColor,
-                shape: BoxShape.circle,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildThemeModeChip(
+            ThemeMode.dark,
+            'Dark',
+            Icons.nights_stay,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildThemeModeChip(
+            ThemeMode.system,
+            'System',
+            Icons.brightness_auto,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThemeModeChip(ThemeMode mode, String label, IconData icon) {
+    final isSelected = _settings.themeMode == mode;
+    final accentColor = Theme.of(context).colorScheme.secondary;
+    
+    return GestureDetector(
+      onTap: () {
+        _updateSettings(_settings.copyWith(themeMode: mode));
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? accentColor.withOpacity(0.15) : Colors.transparent,
+          border: Border.all(
+            color: isSelected ? accentColor : Colors.grey.shade400,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 24,
+              color: isSelected ? accentColor : null,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? accentColor : null,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccentColorGrid() {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: AccentColor.values.map((color) {
+        return _buildAccentColorSwatch(color);
+      }).toList(),
+    );
+  }
+
+  Widget _buildAccentColorSwatch(AccentColor color) {
+    final isSelected = _settings.accentColor == color;
+    final displayColor = _accentColors[color]!;
+    final label = color.name[0].toUpperCase() + color.name.substring(1);
+    
+    return GestureDetector(
+      onTap: () {
+        _updateSettings(_settings.copyWith(accentColor: color));
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: displayColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? Colors.white : Colors.transparent,
+                width: 3,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: displayColor.withOpacity(0.6),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: isSelected
+                ? const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 24,
+                  )
+                : null,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
         ],
       ),
-      selected: isSelected,
-      activeColor: Theme.of(context).colorScheme.secondary,
     );
   }
 }
