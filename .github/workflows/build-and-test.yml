@@ -409,6 +409,7 @@ jobs:
       - name: Install CocoaPods and ImageMagick
         run: |
           brew install cocoapods imagemagick-full
+          brew link --force cocoapods
           brew link --force imagemagick-full
 
       - name: Setup Flutter (for Dart SDK)
