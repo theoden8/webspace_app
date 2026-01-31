@@ -400,17 +400,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '2.7'
-          bundler-cache: true
-
       - name: Install CocoaPods, ImageMagick, and Dart
         run: |
           brew install cocoapods imagemagick-full dart
           brew link --force cocoapods
           brew link --force imagemagick-full
+
+      - name: Install bundle dependencies
+        run: bundle install
 
       - name: Cache fvm Flutter SDK
         uses: actions/cache@v4
