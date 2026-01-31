@@ -346,8 +346,11 @@ jobs:
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
-      - name: Install ImageMagick
-        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      - name: Install ImageMagick (AppImage for magick command)
+        run: |
+          curl -L https://imagemagick.org/archive/binaries/magick -o magick
+          chmod +x magick
+          sudo mv magick /usr/local/bin/magick
 
       - name: Enable KVM for emulator acceleration
         run: |
