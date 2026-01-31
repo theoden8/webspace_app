@@ -1005,21 +1005,22 @@ class _WebSpacePageState extends State<WebSpacePage> {
           tooltip: _getThemeTooltip(),
           onPressed: () async {
             setState(() {
-              // Cycle through themes: lightBlue → darkBlue → lightGreen → darkGreen → system
+              // Toggle between light/dark while preserving accent color
               switch (_appTheme) {
                 case AppTheme.lightBlue:
                   _appTheme = AppTheme.darkBlue;
                   break;
                 case AppTheme.darkBlue:
-                  _appTheme = AppTheme.lightGreen;
+                  _appTheme = AppTheme.lightBlue;
                   break;
                 case AppTheme.lightGreen:
                   _appTheme = AppTheme.darkGreen;
                   break;
                 case AppTheme.darkGreen:
-                  _appTheme = AppTheme.system;
+                  _appTheme = AppTheme.lightGreen;
                   break;
                 case AppTheme.system:
+                  // System mode: toggle to light with current accent (default blue)
                   _appTheme = AppTheme.lightBlue;
                   break;
               }
