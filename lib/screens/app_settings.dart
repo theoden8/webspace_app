@@ -92,6 +92,36 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
             'Green',
             const Color(0xFF7be592),
           ),
+          _buildAccentColorOption(
+            AccentColor.purple,
+            'Purple',
+            const Color(0xFF9B7BD6),
+          ),
+          _buildAccentColorOption(
+            AccentColor.orange,
+            'Orange',
+            const Color(0xFFE59B5B),
+          ),
+          _buildAccentColorOption(
+            AccentColor.red,
+            'Red',
+            const Color(0xFFD66B6B),
+          ),
+          _buildAccentColorOption(
+            AccentColor.pink,
+            'Pink',
+            const Color(0xFFD66BA8),
+          ),
+          _buildAccentColorOption(
+            AccentColor.teal,
+            'Teal',
+            const Color(0xFF5BC4C4),
+          ),
+          _buildAccentColorOption(
+            AccentColor.yellow,
+            'Yellow',
+            const Color(0xFFD6C86B),
+          ),
           
           const Divider(height: 32),
 

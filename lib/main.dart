@@ -31,6 +31,12 @@ import 'package:webspace/settings/proxy.dart';
 enum AccentColor {
   blue,
   green,
+  purple,
+  orange,
+  red,
+  pink,
+  teal,
+  yellow,
 }
 
 // App theme settings - combines theme mode and accent color
@@ -113,6 +119,12 @@ AppThemeSettings _legacyAppThemeToSettings(AppTheme appTheme) {
 // Accent colors
 const Color _accentBlue = Color(0xFF6B8DD6);
 const Color _accentGreen = Color(0xFF7be592);
+const Color _accentPurple = Color(0xFF9B7BD6);
+const Color _accentOrange = Color(0xFFE59B5B);
+const Color _accentRed = Color(0xFFD66B6B);
+const Color _accentPink = Color(0xFFD66BA8);
+const Color _accentTeal = Color(0xFF5BC4C4);
+const Color _accentYellow = Color(0xFFD6C86B);
 
 // Get accent color from AccentColor enum
 Color _accentColorToColor(AccentColor accentColor) {
@@ -121,6 +133,18 @@ Color _accentColorToColor(AccentColor accentColor) {
       return _accentBlue;
     case AccentColor.green:
       return _accentGreen;
+    case AccentColor.purple:
+      return _accentPurple;
+    case AccentColor.orange:
+      return _accentOrange;
+    case AccentColor.red:
+      return _accentRed;
+    case AccentColor.pink:
+      return _accentPink;
+    case AccentColor.teal:
+      return _accentTeal;
+    case AccentColor.yellow:
+      return _accentYellow;
   }
 }
 
