@@ -1035,9 +1035,39 @@ class _WebSpacePageState extends State<WebSpacePage> {
             }
           },
         ),
+        // Settings icon button (only visible on webspaces list screen)
+        if (_currentIndex == null || _currentIndex! >= _webViewModels.length)
+          IconButton(
+            icon: Icon(Icons.settings),
+            tooltip: 'App Settings',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AppSettingsScreen(
+                    currentTheme: _appTheme,
+                    onThemeChanged: (AppTheme newTheme) async {
+                      setState(() {
+                        _appTheme = newTheme;
+                      });
+                      widget.onAppThemeChanged(_appTheme);
+                      await _saveAppTheme();
+
+                      // Apply theme to all webviews
+                      final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+                      for (var webViewModel in _webViewModels) {
+                        await webViewModel.setTheme(webViewTheme);
+                      }
+                    },
+                    onExportSettings: _exportSettings,
+                    onImportSettings: _importSettings,
+                  ),
+                ),
+              );
+            },
+          ),
         PopupMenuButton<String>(
           itemBuilder: (BuildContext context) {
-            final bool onWebspacesList = _currentIndex == null || _currentIndex! >= _webViewModels.length;
             return [
               if (_currentIndex != null && _currentIndex! < _webViewModels.length)
               PopupMenuItem<String>(
@@ -1091,18 +1121,6 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     Icon(Icons.settings),
                     SizedBox(width: 8),
                     Text("Settings"),
-                  ],
-                ),
-              ),
-              // App Settings (only visible on webspaces list screen)
-              if (onWebspacesList)
-              PopupMenuItem<String>(
-                value: "appSettings",
-                child: Row(
-                  children: [
-                    Icon(Icons.settings),
-                    SizedBox(width: 8),
-                    Text("App Settings"),
                   ],
                 ),
               ),
@@ -1182,31 +1200,6 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   _showUrlBar = !_showUrlBar;
                 });
                 _saveShowUrlBar();
-              break;
-              case 'appSettings':
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AppSettingsScreen(
-                      currentTheme: _appTheme,
-                      onThemeChanged: (AppTheme newTheme) async {
-                        setState(() {
-                          _appTheme = newTheme;
-                        });
-                        widget.onAppThemeChanged(_appTheme);
-                        await _saveAppTheme();
-
-                        // Apply theme to all webviews
-                        final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
-                        for (var webViewModel in _webViewModels) {
-                          await webViewModel.setTheme(webViewTheme);
-                        }
-                      },
-                      onExportSettings: _exportSettings,
-                      onImportSettings: _importSettings,
-                    ),
-                  ),
-                );
               break;
             }
           },
