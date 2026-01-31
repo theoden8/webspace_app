@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
           restore-keys: |
             fvm-${{ runner.os }}-
 
@@ -186,7 +186,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
           restore-keys: |
             fvm-${{ runner.os }}-
 
