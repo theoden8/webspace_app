@@ -15,6 +15,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage;
 import 'package:webspace/screens/settings.dart';
+import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
@@ -1092,37 +1093,15 @@ class _WebSpacePageState extends State<WebSpacePage> {
                   ],
                 ),
               ),
-              // Import/Export options (only visible on webspaces list screen)
+              // App Settings (only visible on webspaces list screen)
               if (onWebspacesList)
               PopupMenuItem<String>(
-                value: "export",
+                value: "appSettings",
                 child: Row(
                   children: [
-                    Icon(Icons.upload),
+                    Icon(Icons.settings),
                     SizedBox(width: 8),
-                    Text("Export Settings"),
-                  ],
-                ),
-              ),
-              if (onWebspacesList)
-              PopupMenuItem<String>(
-                value: "import",
-                child: Row(
-                  children: [
-                    Icon(Icons.download),
-                    SizedBox(width: 8),
-                    Text("Import Settings"),
-                  ],
-                ),
-              ),
-              if (onWebspacesList)
-              PopupMenuItem<String>(
-                value: "theme",
-                child: Row(
-                  children: [
-                    Icon(_getThemeIcon()),
-                    SizedBox(width: 8),
-                    Text("Theme: ${_getThemeName()}"),
+                    Text("App Settings"),
                   ],
                 ),
               ),
@@ -1203,41 +1182,30 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 });
                 _saveShowUrlBar();
               break;
-              case 'export':
-                await _exportSettings();
-              break;
-              case 'import':
-                await _importSettings();
-              break;
-              case 'theme':
-                // Cycle through themes: lightBlue → darkBlue → lightGreen → darkGreen → system
-                setState(() {
-                  switch (_appTheme) {
-                    case AppTheme.lightBlue:
-                      _appTheme = AppTheme.darkBlue;
-                      break;
-                    case AppTheme.darkBlue:
-                      _appTheme = AppTheme.lightGreen;
-                      break;
-                    case AppTheme.lightGreen:
-                      _appTheme = AppTheme.darkGreen;
-                      break;
-                    case AppTheme.darkGreen:
-                      _appTheme = AppTheme.system;
-                      break;
-                    case AppTheme.system:
-                      _appTheme = AppTheme.lightBlue;
-                      break;
-                  }
-                });
-                widget.onAppThemeChanged(_appTheme);
-                await _saveAppTheme();
+              case 'appSettings':
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AppSettingsScreen(
+                      currentTheme: _appTheme,
+                      onThemeChanged: (AppTheme newTheme) async {
+                        setState(() {
+                          _appTheme = newTheme;
+                        });
+                        widget.onAppThemeChanged(_appTheme);
+                        await _saveAppTheme();
 
-                // Apply theme to all webviews
-                final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
-                for (var webViewModel in _webViewModels) {
-                  await webViewModel.setTheme(webViewTheme);
-                }
+                        // Apply theme to all webviews
+                        final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+                        for (var webViewModel in _webViewModels) {
+                          await webViewModel.setTheme(webViewTheme);
+                        }
+                      },
+                      onExportSettings: _exportSettings,
+                      onImportSettings: _importSettings,
+                    ),
+                  ),
+                );
               break;
             }
           },
