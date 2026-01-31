@@ -30,8 +30,8 @@ jobs:
               - 'ios/fastlane/**'
               - '.github/workflows/**'
 
-  build-android:
-    name: Build Android
+  build-android-linux:
+    name: Build Android & Linux
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
@@ -45,130 +45,6 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
           cache: 'gradle'
-
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.6'
-          channel: 'stable'
-
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-
-      - name: Generate launcher icons
-        run: fvm dart run flutter_launcher_icons
-
-      - name: Build APK
-        run: fvm flutter build apk --release --flavor fdroid --split-per-abi
-
-      - name: Upload APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apks
-          path: build/app/outputs/flutter-apk/*.apk
-
-  build-ios:
-    name: Build iOS
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Dart SDK
-        run: |
-          brew install dart-sdk
-          brew link --force dart-sdk
-
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-
-      - name: Create iOS platform if not exists
-        run: |
-          if [ ! -d "ios" ]; then
-            fvm flutter create --platforms=ios .
-          fi
-
-      - name: Generate launcher icons
-        run: fvm dart run flutter_launcher_icons
-
-      - name: Build iOS (no codesign)
-        run: fvm flutter build ios --release --no-codesign
-
-      - name: Create IPA
-        run: |
-          mkdir -p Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r webspace.ipa Payload
-          rm -rf Payload
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: webspace.ipa
-
-  build-linux:
-    name: Build Linux
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Install Linux dependencies
         run: |
@@ -218,11 +94,20 @@ jobs:
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
 
+      - name: Build APK
+        run: fvm flutter build apk --release --flavor fdroid --split-per-abi
+
       - name: Build Linux
         run: fvm flutter build linux --release
 
-  build-macos:
-    name: Build macOS
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: build/app/outputs/flutter-apk/*.apk
+
+  build-ios-macos:
+    name: Build iOS & macOS
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -267,17 +152,38 @@ jobs:
       - name: Run tests
         run: fvm flutter test
 
+      - name: Create iOS platform if not exists
+        run: |
+          if [ ! -d "ios" ]; then
+            fvm flutter create --platforms=ios .
+          fi
+
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
+
+      - name: Build iOS (no codesign)
+        run: fvm flutter build ios --release --no-codesign
 
       - name: Build macOS
         run: fvm flutter build macos --release
 
-      - name: Create ZIP archive
+      - name: Create IPA
         run: |
-          # Package as zip for now (TODO: create proper DMG in the future)
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r webspace.ipa Payload
+          rm -rf Payload
+
+      - name: Create macOS ZIP archive
+        run: |
           cd build/macos/Build/Products/Release
           zip -r ../../../../../webspace-macos.zip webspace.app
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: webspace.ipa
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4
@@ -287,7 +193,7 @@ jobs:
 
   screenshots-android:
     name: Android Screenshots
-    needs: [check-screenshot-changes, build-android]
+    needs: [check-screenshot-changes, build-android-linux]
     runs-on: ubuntu-latest
     if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     env:
@@ -394,7 +300,7 @@ jobs:
 
   screenshots-ios:
     name: iOS Screenshots
-    needs: [check-screenshot-changes, build-ios]
+    needs: [check-screenshot-changes, build-ios-macos]
     runs-on: macos-latest
     if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     steps:
@@ -483,7 +389,7 @@ jobs:
 
   release-summary:
     name: Release Summary
-    needs: [build-android, build-ios, build-linux, build-macos]
+    needs: [build-android-linux, build-ios-macos]
     runs-on: ubuntu-latest
     if: success()
     steps:
