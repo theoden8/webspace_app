@@ -167,7 +167,7 @@ void main() {
         await tester.pump();
         await Future.delayed(const Duration(seconds: 2));
 
-        // Look for a site to select (SearXNG)
+        // Look for a site to select (SearXNG) to access settings
         print('Looking for SearXNG site...');
         final searxFinder = find.text('SearXNG');
 
@@ -192,16 +192,11 @@ void main() {
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 500));
 
-          // Screenshot 1: SearXNG webview loaded
-          // Use native screenshot to capture the webview content (Flutter surface misses platform views)
-          await _takeThemedScreenshots(binding, tester, '01-site-webview', currentTheme, useNative: true);
-          print('Screenshot 1 captured successfully (site selected)');
-
           // Use pump() instead of pumpAndSettle() to avoid timeout with webviews
           await tester.pump(const Duration(seconds: 2));
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 2: Open Settings from toolbar menu
+          // Screenshot 1: Open Settings from toolbar menu
           print('Opening toolbar menu to access Settings...');
           final popupMenuButton = find.byType(PopupMenuButton<String>);
           if (popupMenuButton.evaluate().isNotEmpty) {
@@ -218,9 +213,9 @@ void main() {
               await tester.pumpAndSettle();
               await Future.delayed(const Duration(seconds: 2));
 
-              // Screenshot 2: Settings screen
-              await _takeThemedScreenshots(binding, tester, '02-site-settings', currentTheme);
-              print('Screenshot 2 captured successfully (settings screen)');
+              // Screenshot 1: Settings screen
+              await _takeThemedScreenshots(binding, tester, '01-site-settings', currentTheme);
+              print('Screenshot 1 captured successfully (settings screen)');
 
               // Go back to webview
               print('Navigating back from Settings...');
@@ -296,9 +291,9 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 3: Work webspace drawer
-          await _takeThemedScreenshots(binding, tester, '03-work-sites-drawer', currentTheme);
-          print('Screenshot 3 captured successfully');
+          // Screenshot 2: Work webspace drawer
+          await _takeThemedScreenshots(binding, tester, '02-work-sites-drawer', currentTheme);
+          print('Screenshot 2 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
@@ -307,8 +302,8 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 4: Work webspace sites
-          await _takeThemedScreenshots(binding, tester, '04-work-webspace', currentTheme);
+          // Screenshot 3: Work webspace sites
+          await _takeThemedScreenshots(binding, tester, '03-work-webspace', currentTheme);
           await tester.pumpAndSettle(const Duration(seconds: 3));
         }
 
@@ -394,8 +389,8 @@ void main() {
               print('Wikipedia checkbox not found');
             }
 
-            // Screenshot 5: Sites selected
-            await _takeThemedScreenshots(binding, tester, '05-workspace-sites-selected', currentTheme);
+            // Screenshot 4: Sites selected
+            await _takeThemedScreenshots(binding, tester, '04-workspace-sites-selected', currentTheme);
             await Future.delayed(const Duration(seconds: 1));
 
             // Look for save button (check icon in AppBar)
