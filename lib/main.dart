@@ -15,6 +15,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage;
 import 'package:webspace/screens/settings.dart';
+import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
@@ -25,6 +26,46 @@ import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/settings/proxy.dart';
+
+// App theme enum combining brightness and accent color
+enum AppTheme {
+  lightBlue,    // Light mode with blue accent (default)
+  darkBlue,     // Dark mode with blue accent
+  lightGreen,   // Light mode with green accent
+  darkGreen,    // Dark mode with green accent
+  system,       // Follow system theme (blue accent)
+}
+
+// Accent colors
+const Color _accentBlue = Color(0xFF6B8DD6);
+const Color _accentGreen = Color(0xFF7be592);
+
+// Get ThemeMode from AppTheme
+ThemeMode _appThemeToThemeMode(AppTheme appTheme) {
+  switch (appTheme) {
+    case AppTheme.lightBlue:
+    case AppTheme.lightGreen:
+      return ThemeMode.light;
+    case AppTheme.darkBlue:
+    case AppTheme.darkGreen:
+      return ThemeMode.dark;
+    case AppTheme.system:
+      return ThemeMode.system;
+  }
+}
+
+// Get accent color from AppTheme
+Color _appThemeToAccentColor(AppTheme appTheme) {
+  switch (appTheme) {
+    case AppTheme.lightBlue:
+    case AppTheme.darkBlue:
+    case AppTheme.system:
+      return _accentBlue;
+    case AppTheme.lightGreen:
+    case AppTheme.darkGreen:
+      return _accentGreen;
+  }
+}
 
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -88,44 +129,45 @@ class WebSpaceApp extends StatefulWidget {
 }
 
 class _WebSpaceAppState extends State<WebSpaceApp> {
-  ThemeMode _themeMode = ThemeMode.light;
+  AppTheme _appTheme = AppTheme.lightBlue;
 
-  void _setThemeMode(ThemeMode themeMode) {
+  void _setAppTheme(AppTheme appTheme) {
     setState(() {
-      _themeMode = themeMode;
+      _appTheme = appTheme;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color magicGreen = Color(0xFF7be592);
+    final Color accentColor = _appThemeToAccentColor(_appTheme);
+    final ThemeMode themeMode = _appThemeToThemeMode(_appTheme);
     return MaterialApp(
       title: 'WebSpace',
       theme: ThemeData.light().copyWith(
         primaryColor: Color(0xFF123456),
         colorScheme: ColorScheme.light().copyWith(
-          secondary: magicGreen,
+          secondary: accentColor,
         ),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
       darkTheme: ThemeData.dark().copyWith(
         primaryColor: Color(0xFF123456),
         colorScheme: ColorScheme.dark().copyWith(
-          secondary: magicGreen,
+          secondary: accentColor,
         ),
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
-      themeMode: _themeMode,
-      home: WebSpacePage(onThemeModeChanged: _setThemeMode),
+      themeMode: themeMode,
+      home: WebSpacePage(onAppThemeChanged: _setAppTheme),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class WebSpacePage extends StatefulWidget {
-  final Function(ThemeMode) onThemeModeChanged;
+  final Function(AppTheme) onAppThemeChanged;
 
-  WebSpacePage({required this.onThemeModeChanged});
+  WebSpacePage({required this.onAppThemeChanged});
 
   @override
   _WebSpacePageState createState() => _WebSpacePageState();
@@ -134,7 +176,7 @@ class WebSpacePage extends StatefulWidget {
 class _WebSpacePageState extends State<WebSpacePage> {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
-  ThemeMode _themeMode = ThemeMode.system;
+  AppTheme _appTheme = AppTheme.lightBlue;
   final CookieManager _cookieManager = CookieManager();
   final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -184,10 +226,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await prefs.setInt('currentIndex', _currentIndex == null ? 10000 : _currentIndex!);
   }
 
-  Future<void> _saveThemeMode() async {
+  Future<void> _saveAppTheme() async {
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeMode', _themeMode.index);
+    await prefs.setInt('appTheme', _appTheme.index);
   }
 
   Future<void> _saveShowUrlBar() async {
@@ -490,9 +532,32 @@ class _WebSpacePageState extends State<WebSpacePage> {
   Future<void> _restoreAppState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? 0];
+      // Load app theme, with migration from old themeMode
+      final savedAppTheme = prefs.getInt('appTheme');
+      if (savedAppTheme != null && savedAppTheme < AppTheme.values.length) {
+        _appTheme = AppTheme.values[savedAppTheme];
+      } else {
+        // Migrate from old themeMode if exists
+        final oldThemeMode = prefs.getInt('themeMode');
+        if (oldThemeMode != null) {
+          // Map old ThemeMode to new AppTheme (assuming green was the old color)
+          switch (oldThemeMode) {
+            case 0: // ThemeMode.system
+              _appTheme = AppTheme.system;
+              break;
+            case 1: // ThemeMode.light
+              _appTheme = AppTheme.lightGreen;
+              break;
+            case 2: // ThemeMode.dark
+              _appTheme = AppTheme.darkGreen;
+              break;
+            default:
+              _appTheme = AppTheme.lightBlue;
+          }
+        }
+      }
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
-      widget.onThemeModeChanged(_themeMode);
+      widget.onAppThemeChanged(_appTheme);
     });
     await _loadWebspaces();
     await _loadWebViewModels();
@@ -515,7 +580,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     setState(() {}); // Trigger UI update after async operation
 
     // Apply saved theme to all restored webviews
-    final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+    final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
     for (var webViewModel in _webViewModels) {
       await webViewModel.setTheme(webViewTheme);
     }
@@ -699,7 +764,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       context,
       webViewModels: _webViewModels,
       webspaces: _webspaces,
-      themeMode: _themeMode.index,
+      themeMode: _appTheme.index,
       showUrlBar: _showUrlBar,
       selectedWebspaceId: _selectedWebspaceId,
       currentIndex: _currentIndex,
@@ -778,7 +843,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       _webspaces.addAll(SettingsBackupService.restoreWebspaces(backup));
 
       // Restore other settings
-      _themeMode = ThemeMode.values[backup.themeMode.clamp(0, ThemeMode.values.length - 1)];
+      _appTheme = AppTheme.values[backup.themeMode.clamp(0, AppTheme.values.length - 1)];
       _showUrlBar = backup.showUrlBar;
 
       // Restore selection state
@@ -801,12 +866,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
     setState(() {}); // Update UI after async operation
 
     // Apply theme to app
-    widget.onThemeModeChanged(_themeMode);
+    widget.onAppThemeChanged(_appTheme);
 
     // Save all settings
     await _saveWebViewModels();
     await _saveWebspaces();
-    await _saveThemeMode();
+    await _saveAppTheme();
     await _saveShowUrlBar();
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
@@ -818,7 +883,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
 
     // Apply theme to all webviews
-    final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+    final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
     for (var webViewModel in _webViewModels) {
       await webViewModel.setTheme(webViewTheme);
     }
@@ -838,7 +903,8 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   IconData _getThemeIcon() {
-    switch (_themeMode) {
+    final themeMode = _appThemeToThemeMode(_appTheme);
+    switch (themeMode) {
       case ThemeMode.light:
         return Icons.wb_sunny;
       case ThemeMode.dark:
@@ -849,13 +915,32 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   String _getThemeTooltip() {
-    switch (_themeMode) {
-      case ThemeMode.light:
-        return 'Light theme';
-      case ThemeMode.dark:
-        return 'Dark theme';
-      case ThemeMode.system:
+    switch (_appTheme) {
+      case AppTheme.lightBlue:
+        return 'Light Blue theme';
+      case AppTheme.darkBlue:
+        return 'Dark Blue theme';
+      case AppTheme.lightGreen:
+        return 'Light Green theme';
+      case AppTheme.darkGreen:
+        return 'Dark Green theme';
+      case AppTheme.system:
         return 'System theme';
+    }
+  }
+
+  String _getThemeName() {
+    switch (_appTheme) {
+      case AppTheme.lightBlue:
+        return 'Light Blue';
+      case AppTheme.darkBlue:
+        return 'Dark Blue';
+      case AppTheme.lightGreen:
+        return 'Light Green';
+      case AppTheme.darkGreen:
+        return 'Dark Green';
+      case AppTheme.system:
+        return 'System';
     }
   }
 
@@ -920,197 +1005,201 @@ class _WebSpacePageState extends State<WebSpacePage> {
           tooltip: _getThemeTooltip(),
           onPressed: () async {
             setState(() {
-              // Cycle through light → dark → system
-              switch (_themeMode) {
-                case ThemeMode.light:
-                  _themeMode = ThemeMode.dark;
+              // Toggle between light/dark while preserving accent color
+              switch (_appTheme) {
+                case AppTheme.lightBlue:
+                  _appTheme = AppTheme.darkBlue;
                   break;
-                case ThemeMode.dark:
-                  _themeMode = ThemeMode.system;
+                case AppTheme.darkBlue:
+                  _appTheme = AppTheme.lightBlue;
                   break;
-                case ThemeMode.system:
-                  _themeMode = ThemeMode.light;
+                case AppTheme.lightGreen:
+                  _appTheme = AppTheme.darkGreen;
+                  break;
+                case AppTheme.darkGreen:
+                  _appTheme = AppTheme.lightGreen;
+                  break;
+                case AppTheme.system:
+                  // System mode: toggle to light with current accent (default blue)
+                  _appTheme = AppTheme.lightBlue;
                   break;
               }
             });
-            widget.onThemeModeChanged(_themeMode);
-            await _saveThemeMode();
+            widget.onAppThemeChanged(_appTheme);
+            await _saveAppTheme();
 
             // Apply theme to all webviews
-            final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+            final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
             for (var webViewModel in _webViewModels) {
               await webViewModel.setTheme(webViewTheme);
             }
           },
         ),
-        PopupMenuButton<String>(
-          itemBuilder: (BuildContext context) {
-            final bool onWebspacesList = _currentIndex == null || _currentIndex! >= _webViewModels.length;
-            return [
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "refresh",
-                child: Row(
-                  children: [
-                    Icon(Icons.refresh),
-                    SizedBox(width: 8),
-                    Text("Refresh"),
-                  ],
-                ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "search",
-                child: Row(
-                  children: [
-                    Icon(Icons.search),
-                    SizedBox(width: 8),
-                    Text("Find"),
-                  ],
-                ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "clear",
-                child: Row(
-                  children: [
-                    Icon(Icons.cookie),
-                    SizedBox(width: 8),
-                    Text("Clear Cookies"),
-                  ],
-                ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "toggleUrlBar",
-                child: Row(
-                  children: [
-                    Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
-                    SizedBox(width: 8),
-                    Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
-                  ],
-                ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "settings",
-                child: Row(
-                  children: [
-                    Icon(Icons.settings),
-                    SizedBox(width: 8),
-                    Text("Settings"),
-                  ],
-                ),
-              ),
-              // Import/Export options (only visible on webspaces list screen)
-              if (onWebspacesList)
-              PopupMenuItem<String>(
-                value: "export",
-                child: Row(
-                  children: [
-                    Icon(Icons.upload),
-                    SizedBox(width: 8),
-                    Text("Export Settings"),
-                  ],
-                ),
-              ),
-              if (onWebspacesList)
-              PopupMenuItem<String>(
-                value: "import",
-                child: Row(
-                  children: [
-                    Icon(Icons.download),
-                    SizedBox(width: 8),
-                    Text("Import Settings"),
-                  ],
-                ),
-              ),
-            ];
-          },
-          onSelected: (String value) async {
-            switch(value) {
-              case 'search':
-                _toggleFind();
-              break;
-              case 'refresh':
-                getController()?.reload();
-              break;
-              case 'settings':
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SettingsScreen(
-                      webViewModel: _webViewModels[_currentIndex!],
-                      onProxySettingsChanged: (newProxySettings) {
-                        // Sync proxy settings to all WebViewModels (proxy is global)
-                        setState(() {
-                          for (var model in _webViewModels) {
-                            model.proxySettings = UserProxySettings(
-                              type: newProxySettings.type,
-                              address: newProxySettings.address,
-                            );
-                          }
-                        });
-                        // Persist the changes immediately
-                        _saveWebViewModels();
-                      },
-                      onSettingsSaved: () async {
-                        // Save settings to persistence
-                        await _saveWebViewModels();
+        // Settings icon button (only visible on webspaces list screen)
+        if (_currentIndex == null || _currentIndex! >= _webViewModels.length)
+          IconButton(
+            icon: Icon(Icons.settings),
+            tooltip: 'App Settings',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AppSettingsScreen(
+                    currentTheme: _appTheme,
+                    onThemeChanged: (AppTheme newTheme) async {
+                      setState(() {
+                        _appTheme = newTheme;
+                      });
+                      widget.onAppThemeChanged(_appTheme);
+                      await _saveAppTheme();
 
-                        // Store current index and URL for reload
-                        final index = _currentIndex;
-                        final model = index != null && index < _webViewModels.length
-                            ? _webViewModels[index]
-                            : null;
-                        final urlToLoad = model?.currentUrl;
-                        final languageToUse = model?.language;
-
-                        // Trigger rebuild to recreate webview with new settings
-                        setState(() {});
-
-                        // After rebuild, wait for controller and reload with language header
-                        if (index != null && model != null && urlToLoad != null) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) async {
-                            // Wait for webview to be created and controller to be set
-                            for (int i = 0; i < 20; i++) {
-                              await Future.delayed(const Duration(milliseconds: 100));
-                              if (model.controller != null) {
-                                if (kDebugMode) {
-                                  debugPrint('[Settings] Reloading URL with language: $languageToUse');
-                                }
-                                await model.controller!.loadUrl(urlToLoad, language: languageToUse);
-                                break;
-                              }
+                      // Apply theme to all webviews
+                      final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+                      for (var webViewModel in _webViewModels) {
+                        await webViewModel.setTheme(webViewTheme);
+                      }
+                    },
+                    onExportSettings: _exportSettings,
+                    onImportSettings: _importSettings,
+                  ),
+                ),
+              );
+            },
+          ),
+        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+          PopupMenuButton<String>(
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem<String>(
+                  value: "refresh",
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh),
+                      SizedBox(width: 8),
+                      Text("Refresh"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: "search",
+                  child: Row(
+                    children: [
+                      Icon(Icons.search),
+                      SizedBox(width: 8),
+                      Text("Find"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: "clear",
+                  child: Row(
+                    children: [
+                      Icon(Icons.cookie),
+                      SizedBox(width: 8),
+                      Text("Clear Cookies"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: "toggleUrlBar",
+                  child: Row(
+                    children: [
+                      Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
+                      SizedBox(width: 8),
+                      Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: "settings",
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings),
+                      SizedBox(width: 8),
+                      Text("Settings"),
+                    ],
+                  ),
+                ),
+              ];
+            },
+            onSelected: (String value) async {
+              switch(value) {
+                case 'search':
+                  _toggleFind();
+                break;
+                case 'refresh':
+                  getController()?.reload();
+                break;
+                case 'settings':
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SettingsScreen(
+                        webViewModel: _webViewModels[_currentIndex!],
+                        onProxySettingsChanged: (newProxySettings) {
+                          // Sync proxy settings to all WebViewModels (proxy is global)
+                          setState(() {
+                            for (var model in _webViewModels) {
+                              model.proxySettings = UserProxySettings(
+                                type: newProxySettings.type,
+                                address: newProxySettings.address,
+                              );
                             }
                           });
-                        }
-                      },
+                          // Persist the changes immediately
+                          _saveWebViewModels();
+                        },
+                        onSettingsSaved: () async {
+                          // Save settings to persistence
+                          await _saveWebViewModels();
+
+                          // Store current index and URL for reload
+                          final index = _currentIndex;
+                          final model = index != null && index < _webViewModels.length
+                              ? _webViewModels[index]
+                              : null;
+                          final urlToLoad = model?.currentUrl;
+                          final languageToUse = model?.language;
+
+                          // Trigger rebuild to recreate webview with new settings
+                          setState(() {});
+
+                          // After rebuild, wait for controller and reload with language header
+                          if (index != null && model != null && urlToLoad != null) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) async {
+                              // Wait for webview to be created and controller to be set
+                              for (int i = 0; i < 20; i++) {
+                                await Future.delayed(const Duration(milliseconds: 100));
+                                if (model.controller != null) {
+                                  if (kDebugMode) {
+                                    debugPrint('[Settings] Reloading URL with language: $languageToUse');
+                                  }
+                                  await model.controller!.loadUrl(urlToLoad, language: languageToUse);
+                                  break;
+                                }
+                              }
+                            });
+                          }
+                        },
+                      ),
                     ),
-                  ),
-                );
-                _saveWebViewModels();
-              break;
-              case 'clear':
-                _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
-                _saveWebViewModels();
-                getController()?.reload();
-              break;
-              case 'toggleUrlBar':
-                setState(() {
-                  _showUrlBar = !_showUrlBar;
-                });
-                _saveShowUrlBar();
-              break;
-              case 'export':
-                await _exportSettings();
-              break;
-              case 'import':
-                await _importSettings();
-              break;
-            }
-          },
-        ),
+                  );
+                  _saveWebViewModels();
+                break;
+                case 'clear':
+                  _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                  _saveWebViewModels();
+                  getController()?.reload();
+                break;
+                case 'toggleUrlBar':
+                  setState(() {
+                    _showUrlBar = !_showUrlBar;
+                  });
+                  _saveShowUrlBar();
+                break;
+              }
+            },
+          ),
       ],
     );
   }
@@ -1120,16 +1209,28 @@ class _WebSpacePageState extends State<WebSpacePage> {
       context,
       MaterialPageRoute(
         builder: (context) => AddSiteScreen(
-          themeMode: _themeMode,
+          themeMode: _appThemeToThemeMode(_appTheme),
           onThemeModeChanged: (ThemeMode mode) async {
+            // Convert ThemeMode back to AppTheme (preserving current accent color)
+            final isGreen = _appTheme == AppTheme.lightGreen || _appTheme == AppTheme.darkGreen;
             setState(() {
-              _themeMode = mode;
+              switch (mode) {
+                case ThemeMode.light:
+                  _appTheme = isGreen ? AppTheme.lightGreen : AppTheme.lightBlue;
+                  break;
+                case ThemeMode.dark:
+                  _appTheme = isGreen ? AppTheme.darkGreen : AppTheme.darkBlue;
+                  break;
+                case ThemeMode.system:
+                  _appTheme = AppTheme.system;
+                  break;
+              }
             });
-            widget.onThemeModeChanged(_themeMode);
-            await _saveThemeMode();
+            widget.onAppThemeChanged(_appTheme);
+            await _saveAppTheme();
 
             // Apply theme to all webviews
-            final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+            final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
             for (var webViewModel in _webViewModels) {
               await webViewModel.setTheme(webViewTheme);
             }
@@ -1184,7 +1285,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       _saveWebViewModels();
 
       // Apply current theme to new webview
-      final webViewTheme = _themeModeToWebViewTheme(_themeMode);
+      final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
       await model.setTheme(webViewTheme);
     }
   }

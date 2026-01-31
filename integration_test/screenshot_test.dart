@@ -167,13 +167,13 @@ void main() {
         await tester.pump();
         await Future.delayed(const Duration(seconds: 2));
 
-        // Look for a site to select (DuckDuckGo)
-        print('Looking for DuckDuckGo site...');
-        final duckDuckGoFinder = find.text('DuckDuckGo');
+        // Look for a site to select (SearXNG)
+        print('Looking for SearXNG site...');
+        final searxFinder = find.text('SearXNG');
 
-        if (duckDuckGoFinder.evaluate().isNotEmpty) {
-          print('Selecting DuckDuckGo site');
-          await tester.tap(duckDuckGoFinder);
+        if (searxFinder.evaluate().isNotEmpty) {
+          print('Selecting SearXNG site');
+          await tester.tap(searxFinder);
 
           // Pump to process the tap event and trigger Navigator.pop + _setCurrentIndex
           await tester.pump();
@@ -185,14 +185,14 @@ void main() {
           
           // Now wait for webview to actually load the page content
           // The webview is a native platform view that renders outside Flutter's surface
-          print('Waiting for webview to load DuckDuckGo page...');
+          print('Waiting for webview to load SearXNG page...');
           await Future.delayed(_WEBVIEW_LOAD_TIMEOUT);
           
           // Pump a few frames to ensure the native view is fully rendered
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 500));
 
-          // Screenshot 1: DuckDuckGo webview loaded
+          // Screenshot 1: SearXNG webview loaded
           // Use native screenshot to capture the webview content (Flutter surface misses platform views)
           await _takeThemedScreenshots(binding, tester, '01-site-webview', currentTheme, useNative: true);
           print('Screenshot 1 captured successfully (site selected)');
@@ -282,7 +282,7 @@ void main() {
             print('Back to Webspaces button not found');
           }
         } else {
-          print('DuckDuckGo site not found');
+          print('SearXNG site not found');
         }
 
         // Look for "Work" webspace
