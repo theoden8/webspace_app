@@ -1066,144 +1066,140 @@ class _WebSpacePageState extends State<WebSpacePage> {
               );
             },
           ),
-        PopupMenuButton<String>(
-          itemBuilder: (BuildContext context) {
-            return [
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "refresh",
-                child: Row(
-                  children: [
-                    Icon(Icons.refresh),
-                    SizedBox(width: 8),
-                    Text("Refresh"),
-                  ],
+        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
+          PopupMenuButton<String>(
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem<String>(
+                  value: "refresh",
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh),
+                      SizedBox(width: 8),
+                      Text("Refresh"),
+                    ],
+                  ),
                 ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "search",
-                child: Row(
-                  children: [
-                    Icon(Icons.search),
-                    SizedBox(width: 8),
-                    Text("Find"),
-                  ],
+                PopupMenuItem<String>(
+                  value: "search",
+                  child: Row(
+                    children: [
+                      Icon(Icons.search),
+                      SizedBox(width: 8),
+                      Text("Find"),
+                    ],
+                  ),
                 ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "clear",
-                child: Row(
-                  children: [
-                    Icon(Icons.cookie),
-                    SizedBox(width: 8),
-                    Text("Clear Cookies"),
-                  ],
+                PopupMenuItem<String>(
+                  value: "clear",
+                  child: Row(
+                    children: [
+                      Icon(Icons.cookie),
+                      SizedBox(width: 8),
+                      Text("Clear Cookies"),
+                    ],
+                  ),
                 ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "toggleUrlBar",
-                child: Row(
-                  children: [
-                    Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
-                    SizedBox(width: 8),
-                    Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
-                  ],
+                PopupMenuItem<String>(
+                  value: "toggleUrlBar",
+                  child: Row(
+                    children: [
+                      Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
+                      SizedBox(width: 8),
+                      Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                    ],
+                  ),
                 ),
-              ),
-              if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-              PopupMenuItem<String>(
-                value: "settings",
-                child: Row(
-                  children: [
-                    Icon(Icons.settings),
-                    SizedBox(width: 8),
-                    Text("Settings"),
-                  ],
+                PopupMenuItem<String>(
+                  value: "settings",
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings),
+                      SizedBox(width: 8),
+                      Text("Settings"),
+                    ],
+                  ),
                 ),
-              ),
-            ];
-          },
-          onSelected: (String value) async {
-            switch(value) {
-              case 'search':
-                _toggleFind();
-              break;
-              case 'refresh':
-                getController()?.reload();
-              break;
-              case 'settings':
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SettingsScreen(
-                      webViewModel: _webViewModels[_currentIndex!],
-                      onProxySettingsChanged: (newProxySettings) {
-                        // Sync proxy settings to all WebViewModels (proxy is global)
-                        setState(() {
-                          for (var model in _webViewModels) {
-                            model.proxySettings = UserProxySettings(
-                              type: newProxySettings.type,
-                              address: newProxySettings.address,
-                            );
-                          }
-                        });
-                        // Persist the changes immediately
-                        _saveWebViewModels();
-                      },
-                      onSettingsSaved: () async {
-                        // Save settings to persistence
-                        await _saveWebViewModels();
-
-                        // Store current index and URL for reload
-                        final index = _currentIndex;
-                        final model = index != null && index < _webViewModels.length
-                            ? _webViewModels[index]
-                            : null;
-                        final urlToLoad = model?.currentUrl;
-                        final languageToUse = model?.language;
-
-                        // Trigger rebuild to recreate webview with new settings
-                        setState(() {});
-
-                        // After rebuild, wait for controller and reload with language header
-                        if (index != null && model != null && urlToLoad != null) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) async {
-                            // Wait for webview to be created and controller to be set
-                            for (int i = 0; i < 20; i++) {
-                              await Future.delayed(const Duration(milliseconds: 100));
-                              if (model.controller != null) {
-                                if (kDebugMode) {
-                                  debugPrint('[Settings] Reloading URL with language: $languageToUse');
-                                }
-                                await model.controller!.loadUrl(urlToLoad, language: languageToUse);
-                                break;
-                              }
+              ];
+            },
+            onSelected: (String value) async {
+              switch(value) {
+                case 'search':
+                  _toggleFind();
+                break;
+                case 'refresh':
+                  getController()?.reload();
+                break;
+                case 'settings':
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SettingsScreen(
+                        webViewModel: _webViewModels[_currentIndex!],
+                        onProxySettingsChanged: (newProxySettings) {
+                          // Sync proxy settings to all WebViewModels (proxy is global)
+                          setState(() {
+                            for (var model in _webViewModels) {
+                              model.proxySettings = UserProxySettings(
+                                type: newProxySettings.type,
+                                address: newProxySettings.address,
+                              );
                             }
                           });
-                        }
-                      },
+                          // Persist the changes immediately
+                          _saveWebViewModels();
+                        },
+                        onSettingsSaved: () async {
+                          // Save settings to persistence
+                          await _saveWebViewModels();
+
+                          // Store current index and URL for reload
+                          final index = _currentIndex;
+                          final model = index != null && index < _webViewModels.length
+                              ? _webViewModels[index]
+                              : null;
+                          final urlToLoad = model?.currentUrl;
+                          final languageToUse = model?.language;
+
+                          // Trigger rebuild to recreate webview with new settings
+                          setState(() {});
+
+                          // After rebuild, wait for controller and reload with language header
+                          if (index != null && model != null && urlToLoad != null) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) async {
+                              // Wait for webview to be created and controller to be set
+                              for (int i = 0; i < 20; i++) {
+                                await Future.delayed(const Duration(milliseconds: 100));
+                                if (model.controller != null) {
+                                  if (kDebugMode) {
+                                    debugPrint('[Settings] Reloading URL with language: $languageToUse');
+                                  }
+                                  await model.controller!.loadUrl(urlToLoad, language: languageToUse);
+                                  break;
+                                }
+                              }
+                            });
+                          }
+                        },
+                      ),
                     ),
-                  ),
-                );
-                _saveWebViewModels();
-              break;
-              case 'clear':
-                _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
-                _saveWebViewModels();
-                getController()?.reload();
-              break;
-              case 'toggleUrlBar':
-                setState(() {
-                  _showUrlBar = !_showUrlBar;
-                });
-                _saveShowUrlBar();
-              break;
-            }
-          },
-        ),
+                  );
+                  _saveWebViewModels();
+                break;
+                case 'clear':
+                  _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                  _saveWebViewModels();
+                  getController()?.reload();
+                break;
+                case 'toggleUrlBar':
+                  setState(() {
+                    _showUrlBar = !_showUrlBar;
+                  });
+                  _saveShowUrlBar();
+                break;
+              }
+            },
+          ),
       ],
     );
   }
