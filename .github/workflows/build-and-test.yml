@@ -448,8 +448,8 @@ jobs:
 
       - name: Install and link ImageMagick (full version)
         run: |
-          brew install imagemagick@6
-          brew link --force imagemagick@6
+          brew install imagemagick-full
+          brew link --force imagemagick-full
 
       - name: List available simulators
         run: xcrun simctl list devices available
