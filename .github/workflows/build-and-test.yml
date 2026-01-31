@@ -406,8 +406,8 @@ jobs:
           ruby-version: '2.7'
           bundler-cache: true
 
-      - name: Install CocoaPods
-        run: brew install cocoapods
+      - name: Link CocoaPods
+        run: brew link --overwrite cocoapods
 
       - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
@@ -446,8 +446,8 @@ jobs:
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
-      - name: Install ImageMagick
-        run: brew install imagemagick
+      - name: Install ImageMagick (full version)
+        run: brew install imagemagick@6 && brew link --force imagemagick@6
 
       - name: List available simulators
         run: xcrun simctl list devices available
