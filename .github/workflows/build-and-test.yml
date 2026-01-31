@@ -7,10 +7,32 @@ on:
   pull_request:
     branches:
       - '**'
+  # Allow manual trigger for testing
+  workflow_dispatch:
 
 jobs:
-  build-android:
-    name: Build Android
+  check-screenshot-changes:
+    name: Check Screenshot Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.filter.outputs.screenshots }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            screenshots:
+              - 'integration_test/screenshot_test.dart'
+              - 'lib/demo_data.dart'
+              - 'test_driver/integration_test.dart'
+              - 'android/fastlane/**'
+              - 'ios/fastlane/**'
+              - '.github/workflows/**'
+
+  build-android-linux:
+    name: Build Android & Linux
+    needs: check-screenshot-changes
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
@@ -25,130 +47,11 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
         with:
-          flutter-version: '3.38.6'
-          channel: 'stable'
-
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-
-      - name: Generate launcher icons
-        run: fvm dart run flutter_launcher_icons
-
-      - name: Build APK
-        run: fvm flutter build apk --release --flavor fdroid --split-per-abi
-
-      - name: Upload APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apks
-          path: build/app/outputs/flutter-apk/*.apk
-
-  build-ios:
-    name: Build iOS
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.6'
-          channel: 'stable'
-
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-
-      - name: Create iOS platform if not exists
-        run: |
-          if [ ! -d "ios" ]; then
-            fvm flutter create --platforms=ios .
-          fi
-
-      - name: Generate launcher icons
-        run: fvm dart run flutter_launcher_icons
-
-      - name: Build iOS (no codesign)
-        run: fvm flutter build ios --release --no-codesign
-
-      - name: Create IPA
-        run: |
-          mkdir -p Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r webspace.ipa Payload
-          rm -rf Payload
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: webspace.ipa
-
-  build-linux:
-    name: Build Linux
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+          ruby-version: '2.7'
+          bundler-cache: true
 
       - name: Install Linux dependencies
         run: |
@@ -165,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
           restore-keys: |
             fvm-${{ runner.os }}-
 
@@ -198,27 +101,92 @@ jobs:
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
 
+      - name: Build APK
+        run: fvm flutter build apk --release --flavor fdroid --split-per-abi
+
       - name: Build Linux
         run: fvm flutter build linux --release
 
-  build-macos:
-    name: Build macOS
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: build/app/outputs/flutter-apk/*.apk
+
+      # Android Screenshots (conditional)
+      - name: Install ImageMagick (AppImage for magick command)
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl -L https://imagemagick.org/archive/binaries/magick -o magick
+          chmod +x magick
+          sudo mv magick /usr/local/bin/magick
+
+      - name: Enable KVM for emulator acceleration
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Setup Android SDK
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        uses: android-actions/setup-android@v3
+
+      - name: Create AVD and generate screenshots
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disk-size: 4096M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            # Wait for emulator to be fully booted
+            adb wait-for-device
+            adb shell input keyevent 82
+            
+            # Create screenshots directory
+            mkdir -p screenshots/android
+            
+            # Run fastlane android screenshots using bundle
+            bundle exec fastlane android screenshots
+
+      - name: Add device frames to screenshots
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: bundle exec fastlane android add_device_frames
+
+      - name: Upload Android screenshots
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-screenshots
+          path: screenshots/android/*.png
+          if-no-files-found: warn
+
+  build-apple:
+    name: Build iOS & macOS
+    needs: check-screenshot-changes
     runs-on: macos-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.6'
-          channel: 'stable'
+      - name: Install Dart SDK, CocoaPods, ImageMagick, and Fastlane
+        run: |
+          brew install dart-sdk cocoapods imagemagick-full fastlane
+          brew link --force dart-sdk
+          brew link --force cocoapods
+          brew link --force imagemagick-full
+          brew link --force fastlane
 
       - name: Cache fvm Flutter SDK
         uses: actions/cache@v4
         with:
           path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('.fvmrc') }}
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
           restore-keys: |
             fvm-${{ runner.os }}-
 
@@ -248,17 +216,31 @@ jobs:
       - name: Run tests
         run: fvm flutter test
 
+      - name: Create iOS platform if not exists
+        run: |
+          if [ ! -d "ios" ]; then
+            fvm flutter create --platforms=ios .
+          fi
+
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
+
+      - name: Build IPA
+        run: fvm flutter build ipa --release --no-codesign
 
       - name: Build macOS
         run: fvm flutter build macos --release
 
-      - name: Create ZIP archive
+      - name: Create macOS ZIP archive
         run: |
-          # Package as zip for now (TODO: create proper DMG in the future)
           cd build/macos/Build/Products/Release
           zip -r ../../../../../webspace-macos.zip webspace.app
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4
@@ -266,9 +248,58 @@ jobs:
           name: macos-app
           path: webspace-macos.zip
 
+      # iOS Screenshots (conditional)
+      - name: List available simulators
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: xcrun simctl list devices available
+
+      - name: Boot iOS Simulator
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          # Find and boot an iPhone 15 Pro simulator
+          DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 15 Pro" | grep -v "Max" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
+          if [ -z "$DEVICE_ID" ]; then
+            # Fallback to iPhone 14 Pro if iPhone 15 Pro not available
+            DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 14 Pro" | grep -v "Max" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
+          fi
+          if [ -z "$DEVICE_ID" ]; then
+            # Fallback to any available iPhone
+            DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
+          fi
+          echo "Booting simulator: $DEVICE_ID"
+          xcrun simctl boot "$DEVICE_ID" || true
+          echo "SIMULATOR_ID=$DEVICE_ID" >> $GITHUB_ENV
+
+      - name: Wait for simulator to boot
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          # Wait for simulator to be fully booted
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          sleep 10
+
+      - name: Create screenshots directory
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: mkdir -p screenshots/ios
+
+      - name: Generate iOS screenshots
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: fastlane ios screenshots
+
+      - name: Add device frames to iOS screenshots
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        run: fastlane ios add_device_frames
+
+      - name: Upload iOS screenshots
+        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          path: screenshots/ios/*.png
+          if-no-files-found: warn
+
   release-summary:
     name: Release Summary
-    needs: [build-android, build-ios, build-linux, build-macos]
+    needs: [build-android-linux, build-apple]
     runs-on: ubuntu-latest
     if: success()
     steps:
