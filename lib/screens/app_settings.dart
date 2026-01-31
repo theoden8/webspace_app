@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/main.dart' show AppTheme;
+import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 
 class AppSettingsScreen extends StatefulWidget {
-  final AppTheme currentTheme;
-  final Function(AppTheme) onThemeChanged;
+  final AppThemeSettings currentSettings;
+  final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
 
   const AppSettingsScreen({
     super.key,
-    required this.currentTheme,
-    required this.onThemeChanged,
+    required this.currentSettings,
+    required this.onSettingsChanged,
     required this.onExportSettings,
     required this.onImportSettings,
   });
@@ -21,12 +21,19 @@ class AppSettingsScreen extends StatefulWidget {
 }
 
 class _AppSettingsScreenState extends State<AppSettingsScreen> {
-  late AppTheme _selectedTheme;
+  late AppThemeSettings _settings;
 
   @override
   void initState() {
     super.initState();
-    _selectedTheme = widget.currentTheme;
+    _settings = widget.currentSettings;
+  }
+
+  void _updateSettings(AppThemeSettings newSettings) {
+    setState(() {
+      _settings = newSettings;
+    });
+    widget.onSettingsChanged(newSettings);
   }
 
   @override
@@ -37,7 +44,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
       ),
       body: ListView(
         children: [
-          // Theme Section
+          // Theme Mode Section
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
@@ -47,36 +54,45 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
               ),
             ),
           ),
-          _buildThemeOption(
-            AppTheme.lightBlue,
-            'Light Blue',
+          _buildThemeModeOption(
+            ThemeMode.light,
+            'Light',
             Icons.wb_sunny,
-            Colors.blue,
           ),
-          _buildThemeOption(
-            AppTheme.darkBlue,
-            'Dark Blue',
+          _buildThemeModeOption(
+            ThemeMode.dark,
+            'Dark',
             Icons.nights_stay,
-            Colors.blue,
           ),
-          _buildThemeOption(
-            AppTheme.lightGreen,
-            'Light Green',
-            Icons.wb_sunny,
-            Colors.green,
-          ),
-          _buildThemeOption(
-            AppTheme.darkGreen,
-            'Dark Green',
-            Icons.nights_stay,
-            Colors.green,
-          ),
-          _buildThemeOption(
-            AppTheme.system,
+          _buildThemeModeOption(
+            ThemeMode.system,
             'System',
             Icons.brightness_auto,
-            null,
           ),
+          
+          const Divider(height: 32),
+          
+          // Accent Color Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Accent Color',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          _buildAccentColorOption(
+            AccentColor.blue,
+            'Blue',
+            const Color(0xFF6B8DD6),
+          ),
+          _buildAccentColorOption(
+            AccentColor.green,
+            'Green',
+            const Color(0xFF7be592),
+          ),
+          
           const Divider(height: 32),
 
           // Data Section
@@ -112,39 +128,57 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     );
   }
 
-  Widget _buildThemeOption(AppTheme theme, String label, IconData icon, Color? accentColor) {
-    final isSelected = _selectedTheme == theme;
-    return RadioListTile<AppTheme>(
-      value: theme,
-      groupValue: _selectedTheme,
+  Widget _buildThemeModeOption(ThemeMode mode, String label, IconData icon) {
+    final isSelected = _settings.themeMode == mode;
+    return RadioListTile<ThemeMode>(
+      value: mode,
+      groupValue: _settings.themeMode,
       onChanged: (value) {
         if (value != null) {
-          setState(() {
-            _selectedTheme = value;
-          });
-          widget.onThemeChanged(value);
+          _updateSettings(_settings.copyWith(themeMode: value));
         }
       },
       title: Row(
         children: [
           Icon(
             icon,
-            color: accentColor,
             size: 20,
           ),
           const SizedBox(width: 12),
           Text(label),
-          if (accentColor != null) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: accentColor,
-                shape: BoxShape.circle,
+        ],
+      ),
+      selected: isSelected,
+      activeColor: Theme.of(context).colorScheme.secondary,
+    );
+  }
+
+  Widget _buildAccentColorOption(AccentColor color, String label, Color displayColor) {
+    final isSelected = _settings.accentColor == color;
+    return RadioListTile<AccentColor>(
+      value: color,
+      groupValue: _settings.accentColor,
+      onChanged: (value) {
+        if (value != null) {
+          _updateSettings(_settings.copyWith(accentColor: value));
+        }
+      },
+      title: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: displayColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? displayColor : Colors.grey.shade400,
+                width: 2,
               ),
             ),
-          ],
+          ),
+          const SizedBox(width: 12),
+          Text(label),
         ],
       ),
       selected: isSelected,

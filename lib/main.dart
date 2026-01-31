@@ -27,7 +27,65 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/settings/proxy.dart';
 
-// App theme enum combining brightness and accent color
+// Accent color enum
+enum AccentColor {
+  blue,
+  green,
+}
+
+// App theme settings - combines theme mode and accent color
+class AppThemeSettings {
+  final ThemeMode themeMode;
+  final AccentColor accentColor;
+
+  const AppThemeSettings({
+    this.themeMode = ThemeMode.system,
+    this.accentColor = AccentColor.blue,
+  });
+
+  AppThemeSettings copyWith({
+    ThemeMode? themeMode,
+    AccentColor? accentColor,
+  }) {
+    return AppThemeSettings(
+      themeMode: themeMode ?? this.themeMode,
+      accentColor: accentColor ?? this.accentColor,
+    );
+  }
+
+  // For backward compatibility - convert to index for storage
+  int toStorageIndex() {
+    // Store as: themeMode * 10 + accentColor
+    return themeMode.index * 10 + accentColor.index;
+  }
+
+  // Restore from storage index
+  static AppThemeSettings fromStorageIndex(int index) {
+    final themeModeIndex = index ~/ 10;
+    final accentColorIndex = index % 10;
+    return AppThemeSettings(
+      themeMode: themeModeIndex < ThemeMode.values.length
+          ? ThemeMode.values[themeModeIndex]
+          : ThemeMode.system,
+      accentColor: accentColorIndex < AccentColor.values.length
+          ? AccentColor.values[accentColorIndex]
+          : AccentColor.blue,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is AppThemeSettings &&
+        other.themeMode == themeMode &&
+        other.accentColor == accentColor;
+  }
+
+  @override
+  int get hashCode => themeMode.hashCode ^ accentColor.hashCode;
+}
+
+// Legacy AppTheme enum for backward compatibility
 enum AppTheme {
   lightBlue,    // Light mode with blue accent (default)
   darkBlue,     // Dark mode with blue accent
@@ -36,33 +94,32 @@ enum AppTheme {
   system,       // Follow system theme (blue accent)
 }
 
+// Convert legacy AppTheme to new AppThemeSettings
+AppThemeSettings _legacyAppThemeToSettings(AppTheme appTheme) {
+  switch (appTheme) {
+    case AppTheme.lightBlue:
+      return AppThemeSettings(themeMode: ThemeMode.light, accentColor: AccentColor.blue);
+    case AppTheme.darkBlue:
+      return AppThemeSettings(themeMode: ThemeMode.dark, accentColor: AccentColor.blue);
+    case AppTheme.lightGreen:
+      return AppThemeSettings(themeMode: ThemeMode.light, accentColor: AccentColor.green);
+    case AppTheme.darkGreen:
+      return AppThemeSettings(themeMode: ThemeMode.dark, accentColor: AccentColor.green);
+    case AppTheme.system:
+      return AppThemeSettings(themeMode: ThemeMode.system, accentColor: AccentColor.blue);
+  }
+}
+
 // Accent colors
 const Color _accentBlue = Color(0xFF6B8DD6);
 const Color _accentGreen = Color(0xFF7be592);
 
-// Get ThemeMode from AppTheme
-ThemeMode _appThemeToThemeMode(AppTheme appTheme) {
-  switch (appTheme) {
-    case AppTheme.lightBlue:
-    case AppTheme.lightGreen:
-      return ThemeMode.light;
-    case AppTheme.darkBlue:
-    case AppTheme.darkGreen:
-      return ThemeMode.dark;
-    case AppTheme.system:
-      return ThemeMode.system;
-  }
-}
-
-// Get accent color from AppTheme
-Color _appThemeToAccentColor(AppTheme appTheme) {
-  switch (appTheme) {
-    case AppTheme.lightBlue:
-    case AppTheme.darkBlue:
-    case AppTheme.system:
+// Get accent color from AccentColor enum
+Color _accentColorToColor(AccentColor accentColor) {
+  switch (accentColor) {
+    case AccentColor.blue:
       return _accentBlue;
-    case AppTheme.lightGreen:
-    case AppTheme.darkGreen:
+    case AccentColor.green:
       return _accentGreen;
   }
 }
@@ -129,18 +186,17 @@ class WebSpaceApp extends StatefulWidget {
 }
 
 class _WebSpaceAppState extends State<WebSpaceApp> {
-  AppTheme _appTheme = AppTheme.lightBlue;
+  AppThemeSettings _themeSettings = const AppThemeSettings();
 
-  void _setAppTheme(AppTheme appTheme) {
+  void _setThemeSettings(AppThemeSettings settings) {
     setState(() {
-      _appTheme = appTheme;
+      _themeSettings = settings;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final Color accentColor = _appThemeToAccentColor(_appTheme);
-    final ThemeMode themeMode = _appThemeToThemeMode(_appTheme);
+    final Color accentColor = _accentColorToColor(_themeSettings.accentColor);
     return MaterialApp(
       title: 'WebSpace',
       theme: ThemeData.light().copyWith(
@@ -157,17 +213,17 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
         ),
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
-      themeMode: themeMode,
-      home: WebSpacePage(onAppThemeChanged: _setAppTheme),
+      themeMode: _themeSettings.themeMode,
+      home: WebSpacePage(onThemeSettingsChanged: _setThemeSettings),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class WebSpacePage extends StatefulWidget {
-  final Function(AppTheme) onAppThemeChanged;
+  final Function(AppThemeSettings) onThemeSettingsChanged;
 
-  WebSpacePage({required this.onAppThemeChanged});
+  WebSpacePage({required this.onThemeSettingsChanged});
 
   @override
   _WebSpacePageState createState() => _WebSpacePageState();
@@ -176,7 +232,7 @@ class WebSpacePage extends StatefulWidget {
 class _WebSpacePageState extends State<WebSpacePage> {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
-  AppTheme _appTheme = AppTheme.lightBlue;
+  AppThemeSettings _themeSettings = const AppThemeSettings();
   final CookieManager _cookieManager = CookieManager();
   final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -226,10 +282,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await prefs.setInt('currentIndex', _currentIndex == null ? 10000 : _currentIndex!);
   }
 
-  Future<void> _saveAppTheme() async {
+  Future<void> _saveThemeSettings() async {
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('appTheme', _appTheme.index);
+    await prefs.setInt('themeSettings', _themeSettings.toStorageIndex());
   }
 
   Future<void> _saveShowUrlBar() async {
@@ -532,32 +588,38 @@ class _WebSpacePageState extends State<WebSpacePage> {
   Future<void> _restoreAppState() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      // Load app theme, with migration from old themeMode
-      final savedAppTheme = prefs.getInt('appTheme');
-      if (savedAppTheme != null && savedAppTheme < AppTheme.values.length) {
-        _appTheme = AppTheme.values[savedAppTheme];
+      // Load theme settings, with migration from old formats
+      final savedThemeSettings = prefs.getInt('themeSettings');
+      if (savedThemeSettings != null) {
+        _themeSettings = AppThemeSettings.fromStorageIndex(savedThemeSettings);
       } else {
-        // Migrate from old themeMode if exists
-        final oldThemeMode = prefs.getInt('themeMode');
-        if (oldThemeMode != null) {
-          // Map old ThemeMode to new AppTheme (assuming green was the old color)
-          switch (oldThemeMode) {
-            case 0: // ThemeMode.system
-              _appTheme = AppTheme.system;
-              break;
-            case 1: // ThemeMode.light
-              _appTheme = AppTheme.lightGreen;
-              break;
-            case 2: // ThemeMode.dark
-              _appTheme = AppTheme.darkGreen;
-              break;
-            default:
-              _appTheme = AppTheme.lightBlue;
+        // Try to migrate from old appTheme format
+        final savedAppTheme = prefs.getInt('appTheme');
+        if (savedAppTheme != null && savedAppTheme < AppTheme.values.length) {
+          _themeSettings = _legacyAppThemeToSettings(AppTheme.values[savedAppTheme]);
+        } else {
+          // Migrate from old themeMode if exists
+          final oldThemeMode = prefs.getInt('themeMode');
+          if (oldThemeMode != null) {
+            // Map old ThemeMode to new settings (assuming green was the old color)
+            switch (oldThemeMode) {
+              case 0: // ThemeMode.system
+                _themeSettings = AppThemeSettings(themeMode: ThemeMode.system, accentColor: AccentColor.green);
+                break;
+              case 1: // ThemeMode.light
+                _themeSettings = AppThemeSettings(themeMode: ThemeMode.light, accentColor: AccentColor.green);
+                break;
+              case 2: // ThemeMode.dark
+                _themeSettings = AppThemeSettings(themeMode: ThemeMode.dark, accentColor: AccentColor.green);
+                break;
+              default:
+                _themeSettings = const AppThemeSettings();
+            }
           }
         }
       }
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
-      widget.onAppThemeChanged(_appTheme);
+      widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
     await _loadWebViewModels();
@@ -580,7 +642,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     setState(() {}); // Trigger UI update after async operation
 
     // Apply saved theme to all restored webviews
-    final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+    final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
     for (var webViewModel in _webViewModels) {
       await webViewModel.setTheme(webViewTheme);
     }
@@ -764,7 +826,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       context,
       webViewModels: _webViewModels,
       webspaces: _webspaces,
-      themeMode: _appTheme.index,
+      themeMode: _themeSettings.toStorageIndex(),
       showUrlBar: _showUrlBar,
       selectedWebspaceId: _selectedWebspaceId,
       currentIndex: _currentIndex,
@@ -842,8 +904,8 @@ class _WebSpacePageState extends State<WebSpacePage> {
       // Restore webspaces
       _webspaces.addAll(SettingsBackupService.restoreWebspaces(backup));
 
-      // Restore other settings
-      _appTheme = AppTheme.values[backup.themeMode.clamp(0, AppTheme.values.length - 1)];
+      // Restore other settings - handle both new and legacy formats
+      _themeSettings = AppThemeSettings.fromStorageIndex(backup.themeMode);
       _showUrlBar = backup.showUrlBar;
 
       // Restore selection state
@@ -866,12 +928,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
     setState(() {}); // Update UI after async operation
 
     // Apply theme to app
-    widget.onAppThemeChanged(_appTheme);
+    widget.onThemeSettingsChanged(_themeSettings);
 
     // Save all settings
     await _saveWebViewModels();
     await _saveWebspaces();
-    await _saveAppTheme();
+    await _saveThemeSettings();
     await _saveShowUrlBar();
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
@@ -883,7 +945,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
 
     // Apply theme to all webviews
-    final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+    final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
     for (var webViewModel in _webViewModels) {
       await webViewModel.setTheme(webViewTheme);
     }
@@ -903,8 +965,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   IconData _getThemeIcon() {
-    final themeMode = _appThemeToThemeMode(_appTheme);
-    switch (themeMode) {
+    switch (_themeSettings.themeMode) {
       case ThemeMode.light:
         return Icons.wb_sunny;
       case ThemeMode.dark:
@@ -915,33 +976,23 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   String _getThemeTooltip() {
-    switch (_appTheme) {
-      case AppTheme.lightBlue:
-        return 'Light Blue theme';
-      case AppTheme.darkBlue:
-        return 'Dark Blue theme';
-      case AppTheme.lightGreen:
-        return 'Light Green theme';
-      case AppTheme.darkGreen:
-        return 'Dark Green theme';
-      case AppTheme.system:
-        return 'System theme';
-    }
+    final modeName = _themeSettings.themeMode == ThemeMode.system
+        ? 'System'
+        : _themeSettings.themeMode == ThemeMode.light
+            ? 'Light'
+            : 'Dark';
+    final colorName = _themeSettings.accentColor == AccentColor.blue ? 'Blue' : 'Green';
+    return '$modeName $colorName theme';
   }
 
   String _getThemeName() {
-    switch (_appTheme) {
-      case AppTheme.lightBlue:
-        return 'Light Blue';
-      case AppTheme.darkBlue:
-        return 'Dark Blue';
-      case AppTheme.lightGreen:
-        return 'Light Green';
-      case AppTheme.darkGreen:
-        return 'Dark Green';
-      case AppTheme.system:
-        return 'System';
-    }
+    final modeName = _themeSettings.themeMode == ThemeMode.system
+        ? 'System'
+        : _themeSettings.themeMode == ThemeMode.light
+            ? 'Light'
+            : 'Dark';
+    final colorName = _themeSettings.accentColor == AccentColor.blue ? 'Blue' : 'Green';
+    return '$modeName $colorName';
   }
 
   AppBar _buildAppBar() {
@@ -1005,31 +1056,19 @@ class _WebSpacePageState extends State<WebSpacePage> {
           tooltip: _getThemeTooltip(),
           onPressed: () async {
             setState(() {
-              // Toggle between light/dark while preserving accent color
-              switch (_appTheme) {
-                case AppTheme.lightBlue:
-                  _appTheme = AppTheme.darkBlue;
-                  break;
-                case AppTheme.darkBlue:
-                  _appTheme = AppTheme.lightBlue;
-                  break;
-                case AppTheme.lightGreen:
-                  _appTheme = AppTheme.darkGreen;
-                  break;
-                case AppTheme.darkGreen:
-                  _appTheme = AppTheme.lightGreen;
-                  break;
-                case AppTheme.system:
-                  // System mode: toggle to light with current accent (default blue)
-                  _appTheme = AppTheme.lightBlue;
-                  break;
-              }
+              // Toggle between light/dark/system while preserving accent color
+              final newMode = _themeSettings.themeMode == ThemeMode.light
+                  ? ThemeMode.dark
+                  : _themeSettings.themeMode == ThemeMode.dark
+                      ? ThemeMode.system
+                      : ThemeMode.light;
+              _themeSettings = _themeSettings.copyWith(themeMode: newMode);
             });
-            widget.onAppThemeChanged(_appTheme);
-            await _saveAppTheme();
+            widget.onThemeSettingsChanged(_themeSettings);
+            await _saveThemeSettings();
 
             // Apply theme to all webviews
-            final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+            final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
             for (var webViewModel in _webViewModels) {
               await webViewModel.setTheme(webViewTheme);
             }
@@ -1045,16 +1084,16 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => AppSettingsScreen(
-                    currentTheme: _appTheme,
-                    onThemeChanged: (AppTheme newTheme) async {
+                    currentSettings: _themeSettings,
+                    onSettingsChanged: (AppThemeSettings newSettings) async {
                       setState(() {
-                        _appTheme = newTheme;
+                        _themeSettings = newSettings;
                       });
-                      widget.onAppThemeChanged(_appTheme);
-                      await _saveAppTheme();
+                      widget.onThemeSettingsChanged(_themeSettings);
+                      await _saveThemeSettings();
 
                       // Apply theme to all webviews
-                      final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+                      final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
                       for (var webViewModel in _webViewModels) {
                         await webViewModel.setTheme(webViewTheme);
                       }
@@ -1209,28 +1248,16 @@ class _WebSpacePageState extends State<WebSpacePage> {
       context,
       MaterialPageRoute(
         builder: (context) => AddSiteScreen(
-          themeMode: _appThemeToThemeMode(_appTheme),
+          themeMode: _themeSettings.themeMode,
           onThemeModeChanged: (ThemeMode mode) async {
-            // Convert ThemeMode back to AppTheme (preserving current accent color)
-            final isGreen = _appTheme == AppTheme.lightGreen || _appTheme == AppTheme.darkGreen;
             setState(() {
-              switch (mode) {
-                case ThemeMode.light:
-                  _appTheme = isGreen ? AppTheme.lightGreen : AppTheme.lightBlue;
-                  break;
-                case ThemeMode.dark:
-                  _appTheme = isGreen ? AppTheme.darkGreen : AppTheme.darkBlue;
-                  break;
-                case ThemeMode.system:
-                  _appTheme = AppTheme.system;
-                  break;
-              }
+              _themeSettings = _themeSettings.copyWith(themeMode: mode);
             });
-            widget.onAppThemeChanged(_appTheme);
-            await _saveAppTheme();
+            widget.onThemeSettingsChanged(_themeSettings);
+            await _saveThemeSettings();
 
             // Apply theme to all webviews
-            final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+            final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
             for (var webViewModel in _webViewModels) {
               await webViewModel.setTheme(webViewTheme);
             }
@@ -1285,7 +1312,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
       _saveWebViewModels();
 
       // Apply current theme to new webview
-      final webViewTheme = _themeModeToWebViewTheme(_appThemeToThemeMode(_appTheme));
+      final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
       await model.setTheme(webViewTheme);
     }
   }
