@@ -201,6 +201,52 @@ void main() {
           await tester.pump(const Duration(seconds: 2));
           await Future.delayed(const Duration(seconds: 2));
 
+          // Screenshot 2: Open Settings from toolbar menu
+          print('Opening toolbar menu to access Settings...');
+          final popupMenuButton = find.byType(PopupMenuButton<String>);
+          if (popupMenuButton.evaluate().isNotEmpty) {
+            print('Found popup menu button, tapping...');
+            await tester.tap(popupMenuButton.first);
+            await tester.pumpAndSettle();
+            await Future.delayed(const Duration(seconds: 1));
+
+            // Look for Settings option in the popup menu
+            final settingsOption = find.text('Settings');
+            if (settingsOption.evaluate().isNotEmpty) {
+              print('Found Settings option, tapping...');
+              await tester.tap(settingsOption);
+              await tester.pumpAndSettle();
+              await Future.delayed(const Duration(seconds: 2));
+
+              // Screenshot 2: Settings screen
+              await _takeThemedScreenshots(binding, tester, '02-site-settings', currentTheme);
+              print('Screenshot 2 captured successfully (settings screen)');
+
+              // Go back to webview
+              print('Navigating back from Settings...');
+              final backButton = find.byType(BackButton);
+              if (backButton.evaluate().isNotEmpty) {
+                await tester.tap(backButton.first);
+              } else {
+                // Try Navigator pop via back arrow icon
+                final backArrow = find.byIcon(Icons.arrow_back);
+                if (backArrow.evaluate().isNotEmpty) {
+                  await tester.tap(backArrow.first);
+                } else {
+                  // Use Navigator.pop as fallback
+                  Navigator.of(tester.element(find.byType(Scaffold).first)).pop();
+                }
+              }
+              await tester.pumpAndSettle();
+              await Future.delayed(const Duration(seconds: 1));
+              print('Returned from Settings');
+            } else {
+              print('Settings option not found in menu');
+            }
+          } else {
+            print('Popup menu button not found');
+          }
+
           // Ensure drawer is fully closed before reopening
           if (find.byType(Drawer).evaluate().isNotEmpty) {
             print('Drawer still open, closing first...');
@@ -250,9 +296,9 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 2: Work webspace drawer
-          await _takeThemedScreenshots(binding, tester, '02-work-sites-drawer', currentTheme);
-          print('Screenshot 2 captured successfully');
+          // Screenshot 3: Work webspace drawer
+          await _takeThemedScreenshots(binding, tester, '03-work-sites-drawer', currentTheme);
+          print('Screenshot 3 captured successfully');
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
@@ -261,8 +307,8 @@ void main() {
           await tester.pump();
           await Future.delayed(const Duration(seconds: 2));
 
-          // Screenshot 3: Work webspace sites
-          await _takeThemedScreenshots(binding, tester, '03-work-webspace', currentTheme);
+          // Screenshot 4: Work webspace sites
+          await _takeThemedScreenshots(binding, tester, '04-work-webspace', currentTheme);
           await tester.pumpAndSettle(const Duration(seconds: 3));
         }
 
@@ -348,8 +394,8 @@ void main() {
               print('Wikipedia checkbox not found');
             }
 
-            // Screenshot 4: Sites selected
-            await _takeThemedScreenshots(binding, tester, '04-workspace-sites-selected', currentTheme);
+            // Screenshot 5: Sites selected
+            await _takeThemedScreenshots(binding, tester, '05-workspace-sites-selected', currentTheme);
             await Future.delayed(const Duration(seconds: 1));
 
             // Look for save button (check icon in AppBar)
