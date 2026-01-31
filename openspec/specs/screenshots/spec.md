@@ -16,96 +16,83 @@ Automated screenshot generation for app store submissions using Flutter integrat
 
 ### SCREENSHOT-001 - Cross-Platform Generation
 
-Screenshots are generated using Flutter integration tests on both Android and iOS.
+Screenshots SHALL be generated using Flutter integration tests on both Android and iOS.
 
-**Workflow:**
-- Android: `bundle exec fastlane android screenshots`
-- iOS: `fastlane ios screenshots`
+#### Scenario: Generate screenshots on Android
 
-**Output:** 8 screenshots total (4 per theme)
+- **GIVEN** an Android emulator is running
+- **WHEN** the user runs `bundle exec fastlane android screenshots`
+- **THEN** 8 screenshots are captured (4 per theme)
+
+#### Scenario: Generate screenshots on iOS
+
+- **GIVEN** an iOS simulator is running
+- **WHEN** the user runs `fastlane ios screenshots`
+- **THEN** 8 screenshots are captured (4 per theme)
 
 ---
 
 ### SCREENSHOT-002 - Demo Data Seeding
 
-Screenshots use demo data seeded automatically via `lib/demo_data.dart`.
+Screenshots SHALL use demo data seeded automatically via `lib/demo_data.dart`.
 
-**Demo sites:** DuckDuckGo, Piped, Nitter, Reddit, GitHub, Hacker News, Weights & Biases, Wikipedia
+#### Scenario: Seed demo data before screenshots
 
-**Demo webspaces:**
-- **All** - All sites
-- **Work** - GitHub, Hacker News, Weights & Biases
-- **Privacy** - DuckDuckGo, Piped, Nitter
-- **Social** - Nitter, Reddit, Wikipedia
+- **WHEN** the screenshot test starts
+- **THEN** demo sites are seeded (DuckDuckGo, Piped, Nitter, Reddit, GitHub, Hacker News, Weights & Biases, Wikipedia)
+- **AND** demo webspaces are created (All, Work, Privacy, Social)
 
 ---
 
 ### SCREENSHOT-003 - Screenshot Coverage
 
-The test captures 4 screenshots per theme (8 total):
+The test SHALL capture 4 screenshots per theme (8 total): `01-site-webview`, `02-work-sites-drawer`, `03-work-webspace`, `04-workspace-sites-selected`.
 
-| # | Name | Description |
-|---|------|-------------|
-| 1 | `01-site-webview` | DuckDuckGo loaded in webview |
-| 2 | `02-work-sites-drawer` | Work webspace drawer |
-| 3 | `03-work-webspace` | Work webspace view |
-| 4 | `04-workspace-sites-selected` | Webspace creation with sites selected |
+#### Scenario: Capture all screenshots
 
-Each screenshot has `-light` and `-dark` variants.
+- **WHEN** the screenshot test completes
+- **THEN** 8 screenshots are saved with `-light` and `-dark` variants
 
-**Native Screenshots (Android only):** Screenshot 01 uses ADB screencap via `@@NATIVE_SCREENSHOT:<name>@@` marker because Flutter's `convertFlutterSurfaceToImage()` misses webview content. iOS captures webviews normally.
+#### Scenario: Capture webview content on Android
+
+- **GIVEN** screenshot 01 includes webview content
+- **WHEN** the test requests screenshot on Android
+- **THEN** ADB screencap is used via `@@NATIVE_SCREENSHOT:<name>@@` marker
 
 ---
 
 ### SCREENSHOT-004 - CI/CD Integration
 
-Screenshots are generated in GitHub Actions workflow (`.github/workflows/build-and-test.yml`).
+Screenshots SHALL be generated in GitHub Actions when relevant files change.
 
-**Trigger conditions** (via `dorny/paths-filter@v3`):
-- `integration_test/screenshot_test.dart`
-- `lib/demo_data.dart`
-- `test_driver/integration_test.dart`
-- `android/fastlane/**`, `ios/fastlane/**`
-- `.github/workflows/**`
-- Manual `workflow_dispatch`
+#### Scenario: Trigger screenshot generation in CI
 
-**Android CI setup:**
-- Ubuntu runner with KVM acceleration
-- Emulator: API 34, Pixel 5, `disk-size: 4096M`
-- ImageMagick via AppImage from imagemagick.org (Ubuntu 24 apt v6.9 lacks `magick`)
-- Ruby 2.7 + bundler for fastlane
-
-**iOS CI setup:**
-- macOS runner
-- Dependencies via Homebrew: `dart-sdk`, `cocoapods`, `imagemagick-full`, `fastlane` (all with `brew link --force`)
-- Simulator: iPhone 15 Pro (fallback chain)
-- FVM for Flutter version management
+- **GIVEN** changes to screenshot-related files (test, demo data, fastlane, workflow)
+- **WHEN** CI workflow runs
+- **THEN** screenshots are generated on both Android emulator and iOS simulator
 
 ---
 
 ### SCREENSHOT-005 - Device Frame Integration
 
-Frameit adds device bezels and marketing titles.
+Screenshots SHALL be frameable with device bezels using frameit.
 
-**Commands:**
-```bash
-cd android && bundle exec fastlane add_device_frames
-cd ios && fastlane add_device_frames
-```
+#### Scenario: Add device frames
 
-**Resizing:** ImageMagick auto-resizes to supported resolutions:
-- Android: Pixel 5 (1080x2340 portrait, 2340x1080 landscape)
-- iOS: iPhone 13 Pro (1170x2532), iPad Pro 12.9" (2732x2048 landscape)
+- **WHEN** the user runs `fastlane add_device_frames`
+- **THEN** screenshots are resized and framed with device bezels
 
 ---
 
 ### SCREENSHOT-006 - Theme Support
 
-Screenshots are captured in both light and dark themes via a loop in `screenshot_test.dart`:
-1. Seed demo data with target theme
-2. Launch app
-3. Execute screenshot tour
-4. Name files with `-light`/`-dark` suffix
+Screenshots SHALL be captured in both light and dark themes.
+
+#### Scenario: Generate themed screenshots
+
+- **WHEN** the screenshot test runs
+- **THEN** it executes twice (once per theme)
+- **AND** files are named with `-light`/`-dark` suffix
 
 ---
 
@@ -118,8 +105,7 @@ Screenshots are captured in both light and dark themes via a loop in `screenshot
 
 **Fastlane config:**
 - `android/fastlane/Fastfile`, `ios/fastlane/Fastfile` - Screenshot lanes
-- `fastlane/metadata/android/en-US/images/phoneScreenshots/` - Android output + frameit config
-- `fastlane/screenshots/en-US/` - iOS output + frameit config
+- `screenshots/android/`, `screenshots/ios/` - Output + frameit config
 
 **CI:**
 - `.github/workflows/build-and-test.yml` - Build + conditional screenshots
