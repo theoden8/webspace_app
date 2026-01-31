@@ -38,8 +38,8 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   // If a language parameter is passed to seedDemoData, it overrides all sites
   final sites = <WebViewModel>[
     WebViewModel(
-      initUrl: 'https://duckduckgo.com',
-      name: 'DuckDuckGo',
+      initUrl: 'https://searx.be',
+      name: 'SearXNG',
       language: language,
     ),
     WebViewModel(

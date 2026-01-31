@@ -39,7 +39,7 @@ Screenshots SHALL use demo data seeded automatically via `lib/demo_data.dart`.
 #### Scenario: Seed demo data before screenshots
 
 - **WHEN** the screenshot test starts
-- **THEN** demo sites are seeded (DuckDuckGo, Piped, Nitter, Reddit, GitHub, Hacker News, Weights & Biases, Wikipedia)
+- **THEN** demo sites are seeded (SearXNG, Piped, Nitter, Reddit, GitHub, Hacker News, Weights & Biases, Wikipedia)
 - **AND** demo webspaces are created (All, Work, Privacy, Social)
 
 ---
