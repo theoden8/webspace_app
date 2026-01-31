@@ -33,7 +33,6 @@ jobs:
   build-android-linux:
     name: Build Android & Linux
     needs: check-screenshot-changes
-    if: always()
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
@@ -170,7 +169,6 @@ jobs:
   build-apple:
     name: Build iOS & macOS
     needs: check-screenshot-changes
-    if: always()
     runs-on: macos-latest
     steps:
       - name: Checkout code
