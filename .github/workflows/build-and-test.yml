@@ -11,6 +11,14 @@ on:
   workflow_dispatch:
 
 jobs:
+  validate-metadata:
+    name: Validate Fastlane Metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate metadata
+        run: ./scripts/validate_fastlane_metadata.sh
+
   check-screenshot-changes:
     name: Check Screenshot Changes
     runs-on: ubuntu-latest

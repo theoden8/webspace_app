@@ -1,4 +1,5 @@
 ✨ New Features:
+• Theming: Separate theme mode and accent color selection
 • Language selection: Choose preferred language per site (30+ languages)
 • Accept-Language header support for localized content
 
