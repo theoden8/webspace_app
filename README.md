@@ -29,53 +29,33 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="23%" alt="Workspace Sites"/>
 </p>
 
-**Features:**
+**Features**
 
-- 🌐 Create multiple webspaces for your favorite sites
-- 🔒 Cookie isolation per site
-- 🔍 Find-in-page functionality
-- 🔄 Proxy support
+- 📱 Organize sites into multiple webspaces
+- 🔒 Per-site cookie isolation with secure storage
+- 🌍 Per-site language preferences (30+ languages)
+- 💾 Import/export settings for backup
+- 🔄 Proxy support with authentication (Android)
+- 🎨 Light/dark mode with accent colors
 
-## Quick Start
+## Development
 
 ### Prerequisites
-```bash
-flutter --version  # >= 3.0.0
-```
+- [FVM](https://fvm.app/) (Flutter Version Manager)
+- Xcode (for iOS/macOS)
+- Android Studio (for Android)
 
-### Installation
+### Setup
 ```bash
-git clone <repository>
+git clone https://github.com/theoden8/webspace_app
 cd webspace_app
-flutter pub get
+
+# Install Flutter version via FVM
+fvm install
+
+# Get dependencies
+fvm flutter pub get
 ```
-
-### Run
-```bash
-# iOS
-flutter run -d ios
-
-# Android
-flutter run -d android
-
-# macOS
-flutter run -d macos
-```
-
-## Usage
-
-1. **Add Site**: Click the "+" button, enter URL (e.g., `example.com:8080`)
-2. **Switch Sites**: Open drawer (☰), tap a site
-3. **Edit Site**: Click title in app bar or edit icon in drawer
-4. **Refresh Title**: Click refresh icon in drawer to re-fetch page title
-
-## Documentation
-
-Detailed documentation is in [`transcript/`](transcript/README.md):
-- Feature guides
-- Implementation notes
-- Known issues
-- Development guides
 
 ## Platform Support
 
@@ -91,28 +71,6 @@ Detailed documentation is in [`transcript/`](transcript/README.md):
 - **Framework**: Flutter
 
 This project is made possible by [flutter_inappwebview](https://github.com/pichillilorenzo/flutter_inappwebview), which provides the advanced webview functionality at the core of WebSpace.
-
-## Development
-
-### Tests
-```bash
-flutter test
-```
-
-### Build
-```bash
-# Release build
-flutter build ios --release
-flutter build apk --release
-flutter build macos --release
-```
-
-### Code Analysis
-```bash
-flutter analyze
-```
-
-This project was initially created with GPT-4 assistance. See [`transcript/0-gpt4-coding.md`](transcript/0-gpt4-coding.md) for the initial development process.
 
 ## License
 
