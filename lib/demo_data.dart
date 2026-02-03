@@ -119,13 +119,16 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   await prefs.setStringList('webspaces', webspacesJson);
   await prefs.setString('selectedWebspaceId', kAllWebspaceId);
   await prefs.setInt('currentIndex', 10000); // No site selected
-  // Map theme string to ThemeMode index: system=0, light=1, dark=2
-  final themeIndex = switch (theme) {
-    'light' => 1,
-    'dark' => 2,
-    _ => 0, // system (default)
+  // Map theme string to themeSettings storage index
+  // Format: themeMode.index * 10 + accentColor.index
+  // ThemeMode: system=0, light=1, dark=2
+  // AccentColor: blue=0 (default)
+  final themeSettingsIndex = switch (theme) {
+    'light' => 10, // light (1) * 10 + blue (0)
+    'dark' => 20,  // dark (2) * 10 + blue (0)
+    _ => 0,        // system (0) * 10 + blue (0)
   };
-  await prefs.setInt('themeMode', themeIndex);
+  await prefs.setInt('themeSettings', themeSettingsIndex);
   await prefs.setBool('showUrlBar', false);
 
   print('Data saved successfully!');
