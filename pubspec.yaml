@@ -70,5 +70,6 @@ flutter_launcher_icons:
     image_path: "assets/webspace_icon.png"  # 1024x1024 PNG recommended
   remove_alpha_ios: true
   image_path: "assets/webspace_icon.png"  # Path to your icon.png
+  image_path_ios_dark_transparent: "assets/webspace_icon_dark.png"
   adaptive_icon_background: "#FFFFFF"  # Optional Android background
   adaptive_icon_foreground: "assets/webspace_icon.png"
