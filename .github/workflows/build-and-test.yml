@@ -19,28 +19,8 @@ jobs:
       - name: Validate metadata
         run: ./scripts/validate_fastlane_metadata.sh
 
-  check-screenshot-changes:
-    name: Check Screenshot Changes
-    runs-on: ubuntu-latest
-    outputs:
-      should_run: ${{ steps.filter.outputs.screenshots }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            screenshots:
-              - 'integration_test/screenshot_test.dart'
-              - 'lib/demo_data.dart'
-              - 'test_driver/integration_test.dart'
-              - 'android/fastlane/**'
-              - 'ios/fastlane/**'
-              - '.github/workflows/**'
-
   build-android-linux:
     name: Build Android & Linux
-    needs: check-screenshot-changes
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
@@ -123,25 +103,25 @@ jobs:
 
       # Android Screenshots (conditional)
       - name: Install ImageMagick (AppImage for magick command)
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: |
           curl -L https://imagemagick.org/archive/binaries/magick -o magick
           chmod +x magick
           sudo mv magick /usr/local/bin/magick
 
       - name: Enable KVM for emulator acceleration
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
       - name: Setup Android SDK
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         uses: android-actions/setup-android@v3
 
       - name: Create AVD and generate screenshots
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -163,11 +143,11 @@ jobs:
             bundle exec fastlane android screenshots
 
       - name: Add device frames to screenshots
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: bundle exec fastlane android add_device_frames
 
       - name: Upload Android screenshots
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: android-screenshots
@@ -176,7 +156,6 @@ jobs:
 
   build-apple:
     name: Build iOS & macOS
-    needs: check-screenshot-changes
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -258,11 +237,11 @@ jobs:
 
       # iOS Screenshots (conditional)
       - name: List available simulators
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: xcrun simctl list devices available
 
       - name: Boot iOS Simulator
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: |
           # Find and boot an iPhone 15 Pro simulator
           DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 15 Pro" | grep -v "Max" | head -1 | grep -oE '\([A-F0-9-]+\)' | tr -d '()')
@@ -279,26 +258,26 @@ jobs:
           echo "SIMULATOR_ID=$DEVICE_ID" >> $GITHUB_ENV
 
       - name: Wait for simulator to boot
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: |
           # Wait for simulator to be fully booted
           xcrun simctl bootstatus "$SIMULATOR_ID" -b
           sleep 10
 
       - name: Create screenshots directory
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: mkdir -p screenshots/ios
 
       - name: Generate iOS screenshots
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: fastlane ios screenshots
 
       - name: Add device frames to iOS screenshots
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         run: fastlane ios add_device_frames
 
       - name: Upload iOS screenshots
-        if: needs.check-screenshot-changes.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: ios-screenshots
