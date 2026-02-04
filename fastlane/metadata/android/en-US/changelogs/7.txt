@@ -1,0 +1,2 @@
+✨ New Features:
+• Show licenses in the app
