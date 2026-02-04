@@ -119,6 +119,32 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
               widget.onImportSettings();
             },
           ),
+
+          const Divider(height: 32),
+
+          // About Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'About',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Licenses'),
+            subtitle: const Text('Open source licenses'),
+            onTap: () {
+              showLicensePage(
+                context: context,
+                applicationName: 'WebSpace',
+                applicationVersion: '0.1.0',
+                applicationLegalese: '© 2023 Kirill Rodriguez',
+              );
+            },
+          ),
         ],
       ),
     );

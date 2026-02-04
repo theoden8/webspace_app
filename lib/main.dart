@@ -199,6 +199,16 @@ Future<String?> getPageTitle(String url) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Register custom licenses
+  LicenseRegistry.addLicense(() async* {
+    final assetsLicense = await rootBundle.loadString('assets/LICENSE');
+    yield LicenseEntryWithLineBreaks(
+      ['WebSpace Assets'],
+      assetsLicense,
+    );
+  });
+
   // Initialize platform info to detect proxy support before UI loads
   await PlatformInfo.initialize();
   runApp(WebSpaceApp());
