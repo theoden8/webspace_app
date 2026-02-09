@@ -6,15 +6,9 @@
   <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
 </a>
 
-<img src="assets/webspace_icon.png" alt="WebSpace Icon" width="120"/>
-
-# WebSpace
+<img src="assets/featureGraphic.png" alt="WebSpace Feature Graphic" width="100%"/>
 
 [![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
-
-**Your favorite web apps, now on your phone.**
-
-<img src="assets/featureGraphic.png" alt="WebSpace Feature Graphic" width="100%"/>
 
 </div>
 
