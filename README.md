@@ -1,20 +1,13 @@
 <div align="center">
 
-<img src="assets/featureGraphic.png" alt="WebSpace Feature Graphic" width="100%"/>
-
----
-
 [![Release](https://img.shields.io/github/v/release/theoden8/webspace_app)](https://github.com/theoden8/webspace_app/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/theoden8/webspace_app/total)](https://github.com/theoden8/webspace_app/releases)
+[![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
 <a href="https://github.com/sponsors/theoden8">
   <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
 </a>
 
-<b><img src="assets/webspace_icon_round.png" alt="WebSpace Icon" width="32"/> WebSpace</b>
-
-[![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
-
-**Your favorite web apps, now on your phone.**
+<img src="assets/featureGraphic.png" alt="WebSpace Feature Graphic" width="100%"/>
 
 </div>
 
