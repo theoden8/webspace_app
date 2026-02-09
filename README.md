@@ -14,6 +14,8 @@
 
 **Your favorite web apps, now on your phone.**
 
+<img src="assets/featureGraphic.png" alt="WebSpace Feature Graphic" width="80%"/>
+
 </div>
 
 ## Overview
