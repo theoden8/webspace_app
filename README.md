@@ -2,8 +2,6 @@
 
 <img src="assets/featureGraphic.png" alt="WebSpace Feature Graphic" width="100%"/>
 
----
-
 [![Release](https://img.shields.io/github/v/release/theoden8/webspace_app)](https://github.com/theoden8/webspace_app/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/theoden8/webspace_app/total)](https://github.com/theoden8/webspace_app/releases)
 <a href="https://github.com/sponsors/theoden8">
