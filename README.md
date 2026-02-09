@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
 </a>
 
-<h1><img src="assets/webspace_icon.png" alt="WebSpace Icon" width="32"/> WebSpace</h1>
+<h1><img src="assets/webspace_icon_round.png" alt="WebSpace Icon" width="32"/> WebSpace</h1>
 
 [![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
 
