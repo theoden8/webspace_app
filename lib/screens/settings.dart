@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/services/html_cache_service.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -85,7 +84,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
   late bool _incognito;
-  late bool _cacheHtml;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -127,7 +125,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
     _incognito = widget.webViewModel.incognito;
-    _cacheHtml = widget.webViewModel.cacheHtml;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -217,13 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
       widget.webViewModel.incognito = _incognito;
-      widget.webViewModel.cacheHtml = _cacheHtml;
       widget.webViewModel.language = _selectedLanguage;
-
-      // Purge HTML cache if caching was disabled
-      if (!_cacheHtml) {
-        await HtmlCacheService.instance.deleteCache(widget.webViewModel.siteId);
-      }
 
       if (!mounted) return;
 
@@ -428,16 +419,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               setState(() {
                 _incognito = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: const Text('Cache HTML'),
-            subtitle: const Text('Offline viewing and faster loads'),
-            value: _cacheHtml,
-            onChanged: _incognito ? null : (bool value) {
-              setState(() {
-                _cacheHtml = value;
               });
             },
           ),
