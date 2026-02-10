@@ -13,7 +13,7 @@ import 'package:html/dom.dart' as html_dom;
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage;
+import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache;
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
@@ -207,6 +207,9 @@ void main() async {
 
   // Initialize HTML cache (clears on app upgrade)
   await HtmlCacheService.instance.initialize();
+
+  // Initialize favicon URL cache
+  await FaviconUrlCache.initialize();
 
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {
