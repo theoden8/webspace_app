@@ -324,6 +324,7 @@ class WebViewModel {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
     Function(String url, String html)? onHtmlLoaded,
+    String? initialHtml,
   }) {
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
@@ -420,6 +421,7 @@ class WebViewModel {
             }
           },
           onHtmlLoaded: onHtmlLoaded,
+          initialHtml: initialHtml,
         ),
         onControllerCreated: (ctrl) {
           if (kDebugMode) {

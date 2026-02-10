@@ -206,6 +206,8 @@ class WebViewConfig {
   final Future<void> Function(int windowId, String url)? onWindowRequested;
   /// Callback when page HTML should be cached. Called on page load with (url, html).
   final Function(String url, String html)? onHtmlLoaded;
+  /// Optional cached HTML to display immediately while the real URL loads.
+  final String? initialHtml;
 
   WebViewConfig({
     this.key,
@@ -221,6 +223,7 @@ class WebViewConfig {
     this.shouldOverrideUrlLoading,
     this.onWindowRequested,
     this.onHtmlLoaded,
+    this.initialHtml,
   });
 }
 
@@ -462,12 +465,22 @@ class WebViewFactory {
       headers['Accept-Language'] = '${config.language}, *;q=0.5';
     }
 
+    // Use cached HTML for instant display, or regular URL request
+    final usesCachedHtml = config.initialHtml != null;
+
     return inapp.InAppWebView(
       key: config.key,
-      initialUrlRequest: inapp.URLRequest(
+      // If we have cached HTML, load it first for instant display
+      initialUrlRequest: usesCachedHtml ? null : inapp.URLRequest(
         url: inapp.WebUri(config.initialUrl),
         headers: headers.isNotEmpty ? headers : null,
       ),
+      initialData: usesCachedHtml ? inapp.InAppWebViewInitialData(
+        data: config.initialHtml!,
+        mimeType: 'text/html',
+        encoding: 'utf-8',
+        baseUrl: inapp.WebUri(config.initialUrl),
+      ) : null,
       initialSettings: inapp.InAppWebViewSettings(
         javaScriptEnabled: config.javascriptEnabled,
         userAgent: config.userAgent,
@@ -486,7 +499,14 @@ class WebViewFactory {
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
-      onWebViewCreated: (controller) => onControllerCreated(_WebViewController(controller)),
+      onWebViewCreated: (controller) {
+        final wrappedController = _WebViewController(controller);
+        onControllerCreated(wrappedController);
+        // If we loaded cached HTML, now navigate to the real URL for fresh content
+        if (usesCachedHtml) {
+          wrappedController.loadUrl(config.initialUrl, language: config.language);
+        }
+      },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;

@@ -1815,6 +1815,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
                           HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
                         },
+                        initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
                       )
                     ),
                   ],

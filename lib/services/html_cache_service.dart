@@ -17,6 +17,9 @@ class HtmlCacheService {
 
   Directory? _cacheDirectory;
 
+  /// In-memory cache for sync access during build
+  final Map<String, String> _memoryCache = {};
+
   /// Initialize the cache service. Call on app startup.
   Future<void> initialize() async {
     final appDir = await getApplicationDocumentsDirectory();
@@ -29,6 +32,41 @@ class HtmlCacheService {
     if (!await _cacheDirectory!.exists()) {
       await _cacheDirectory!.create(recursive: true);
     }
+
+    // Pre-load all cached HTML into memory for sync access
+    await _preloadCache();
+  }
+
+  /// Pre-load all cached HTML files into memory
+  Future<void> _preloadCache() async {
+    if (_cacheDirectory == null || !await _cacheDirectory!.exists()) return;
+
+    try {
+      final files = await _cacheDirectory!.list().toList();
+      for (final entity in files) {
+        if (entity is File && entity.path.endsWith('.html')) {
+          final content = await entity.readAsString();
+          final newlineIndex = content.indexOf('\n');
+          if (newlineIndex != -1) {
+            final siteId = entity.path.split('/').last.replaceAll('.html', '');
+            final html = content.substring(newlineIndex + 1);
+            _memoryCache[siteId] = html;
+          }
+        }
+      }
+      if (kDebugMode) {
+        debugPrint('[HtmlCache] Pre-loaded ${_memoryCache.length} cached pages');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[HtmlCache] Error pre-loading cache: $e');
+      }
+    }
+  }
+
+  /// Get cached HTML synchronously (from pre-loaded memory cache)
+  String? getHtmlSync(String siteId) {
+    return _memoryCache[siteId];
   }
 
   Future<void> _clearCacheOnUpgrade() async {
@@ -77,6 +115,9 @@ class HtmlCacheService {
       // Store URL as first line, then HTML
       final content = '$url\n$html';
       await file.writeAsString(content);
+
+      // Update memory cache
+      _memoryCache[siteId] = html;
 
       if (kDebugMode) {
         debugPrint('[HtmlCache] Saved ${html.length} bytes for site $siteId');
