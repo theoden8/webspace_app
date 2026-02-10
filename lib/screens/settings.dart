@@ -84,6 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
   late bool _incognito;
+  late bool _cacheHtml;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -125,6 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
     _incognito = widget.webViewModel.incognito;
+    _cacheHtml = widget.webViewModel.cacheHtml;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -214,6 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
       widget.webViewModel.incognito = _incognito;
+      widget.webViewModel.cacheHtml = _cacheHtml;
       widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
@@ -381,25 +384,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
-          SwitchListTile(
-            title: const Text('Third-party cookies'),
-            value: _thirdPartyCookiesEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _thirdPartyCookiesEnabled = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: const Text('Incognito mode'),
-            subtitle: const Text('No cookies or cache persist'),
-            value: _incognito,
-            onChanged: (bool value) {
-              setState(() {
-                _incognito = value;
-              });
-            },
-          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: DropdownButtonFormField<String?>(
@@ -421,6 +405,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
+          ),
+          SwitchListTile(
+            title: const Text('Third-party cookies'),
+            value: _thirdPartyCookiesEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _thirdPartyCookiesEnabled = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Incognito mode'),
+            subtitle: const Text('No cookies or cache persist'),
+            value: _incognito,
+            onChanged: (bool value) {
+              setState(() {
+                _incognito = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Cache HTML'),
+            subtitle: const Text('Offline viewing and faster loads'),
+            value: _cacheHtml,
+            onChanged: _incognito ? null : (bool value) {
+              setState(() {
+                _cacheHtml = value;
+              });
+            },
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),

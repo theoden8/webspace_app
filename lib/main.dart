@@ -1812,10 +1812,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         _saveWebViewModels,
                         onWindowRequested: _showPopupWindow,
                         language: webViewModel.language,
-                        onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
+                        onHtmlLoaded: (webViewModel.incognito || !webViewModel.cacheHtml) ? null : (url, html) {
                           HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
                         },
-                        initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
+                        initialHtml: (webViewModel.incognito || !webViewModel.cacheHtml) ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
                       )
                     ),
                   ],
