@@ -53,6 +53,7 @@ dependencies:
   package_info_plus: ^8.0.0
   flutter_cache_manager: ^3.3.0
   path_provider: ^2.1.0
+  encrypt: ^5.0.3
 
 dev_dependencies:
   flutter_test:

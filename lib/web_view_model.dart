@@ -332,6 +332,7 @@ class WebViewModel {
       if (kDebugMode) {
         debugPrint('[WebView] Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
         debugPrint('[WebView] Language: $effectiveLanguage (param: $language)');
+        debugPrint('[WebView] Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)');
       }
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
