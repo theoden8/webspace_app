@@ -409,6 +409,7 @@ class WebViewModel {
             if (!thirdPartyCookiesEnabled && controller != null) {
               removeThirdPartyCookies(controller!);
             }
+            await saveFunc();
           },
           onFindResult: (activeMatch, totalMatches) {
             findMatches.activeMatchOrdinal = activeMatch;
