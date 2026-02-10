@@ -142,6 +142,12 @@ jobs:
             # Run fastlane android screenshots using bundle
             bundle exec fastlane android screenshots
 
+      - name: Cache Fastlane frameit assets
+        uses: actions/cache@v4
+        with:
+          path: ~/.fastlane/frameit/latest
+          key: frameit-${{ runner.os }}
+
       - name: Add device frames to screenshots
         if: github.event_name == 'workflow_dispatch'
         run: bundle exec fastlane android add_device_frames
@@ -271,6 +277,12 @@ jobs:
       - name: Generate iOS screenshots
         if: github.event_name == 'workflow_dispatch'
         run: fastlane ios screenshots
+
+      - name: Cache Fastlane frameit assets
+        uses: actions/cache@v4
+        with:
+          path: ~/.fastlane/frameit/latest
+          key: frameit-${{ runner.os }}
 
       - name: Add device frames to iOS screenshots
         if: github.event_name == 'workflow_dispatch'
