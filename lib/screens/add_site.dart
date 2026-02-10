@@ -1,8 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show extractDomain;
 import '../services/icon_service.dart' show getFaviconUrlStream, IconUpdate;
+
+/// Persistent cache for favicon URLs to avoid re-fetching on app restart
+class FaviconUrlCache {
+  static const String _prefix = 'favicon_url_';
+  static SharedPreferences? _prefs;
+
+  static Future<void> initialize() async {
+    _prefs ??= await SharedPreferences.getInstance();
+  }
+
+  static String? get(String siteUrl) {
+    return _prefs?.getString('$_prefix$siteUrl');
+  }
+
+  static Future<void> set(String siteUrl, String faviconUrl) async {
+    await _prefs?.setString('$_prefix$siteUrl', faviconUrl);
+  }
+}
 
 class SiteSuggestion {
   final String name;
@@ -49,7 +68,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   @override
   void initState() {
     super.initState();
-    _startIconStream();
+    _loadIcon();
   }
 
   @override
@@ -59,8 +78,25 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       _currentIconUrl = null;
       _currentQuality = 0;
       _isLoading = true;
-      _startIconStream();
+      _loadIcon();
     }
+  }
+
+  void _loadIcon() {
+    // Check persistent cache first
+    final cachedUrl = FaviconUrlCache.get(widget.url);
+    if (cachedUrl != null) {
+      // Use cached URL immediately, skip icon_service
+      setState(() {
+        _currentIconUrl = cachedUrl;
+        _currentQuality = 100;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // No cache - fetch via icon_service
+    _startIconStream();
   }
 
   void _startIconStream() {
@@ -73,6 +109,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
             _currentQuality = update.quality;
             if (update.isFinal) {
               _isLoading = false;
+              // Cache the final result
+              FaviconUrlCache.set(widget.url, update.url);
             }
           });
         }
@@ -82,6 +120,10 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
           setState(() {
             _isLoading = false;
           });
+          // Cache whatever we have
+          if (_currentIconUrl != null) {
+            FaviconUrlCache.set(widget.url, _currentIconUrl!);
+          }
         }
       },
       onError: (e) {

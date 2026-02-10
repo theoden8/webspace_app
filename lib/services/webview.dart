@@ -204,6 +204,10 @@ class WebViewConfig {
   /// Returns a widget (typically a WebView) to display in the popup.
   /// The callback receives the windowId for the popup and the requested URL.
   final Future<void> Function(int windowId, String url)? onWindowRequested;
+  /// Callback when page HTML should be cached. Called on page load with (url, html).
+  final Function(String url, String html)? onHtmlLoaded;
+  /// Optional cached HTML to display immediately while the real URL loads.
+  final String? initialHtml;
 
   WebViewConfig({
     this.key,
@@ -218,15 +222,19 @@ class WebViewConfig {
     this.onFindResult,
     this.shouldOverrideUrlLoading,
     this.onWindowRequested,
+    this.onHtmlLoaded,
+    this.initialHtml,
   });
 }
 
 /// Controller interface for webview operations
 abstract class WebViewController {
   Future<void> loadUrl(String url, {String? language});
+  Future<void> loadHtmlString(String html, {String? baseUrl});
   Future<void> reload();
   Future<Uri?> getUrl();
   Future<String?> getTitle();
+  Future<String?> getHtml();
   Future<void> evaluateJavascript(String source);
   Future<void> findAllAsync({required String find});
   Future<void> findNext({required bool forward});
@@ -263,6 +271,16 @@ class _WebViewController implements WebViewController {
   }
 
   @override
+  Future<void> loadHtmlString(String html, {String? baseUrl}) {
+    return _c.loadData(
+      data: html,
+      mimeType: 'text/html',
+      encoding: 'utf-8',
+      baseUrl: baseUrl != null ? inapp.WebUri(baseUrl) : null,
+    );
+  }
+
+  @override
   Future<void> reload() => _c.reload();
 
   @override
@@ -270,6 +288,9 @@ class _WebViewController implements WebViewController {
 
   @override
   Future<String?> getTitle() => _c.getTitle();
+
+  @override
+  Future<String?> getHtml() => _c.getHtml();
 
   @override
   Future<void> evaluateJavascript(String source) => _c.evaluateJavascript(source: source);
@@ -444,12 +465,22 @@ class WebViewFactory {
       headers['Accept-Language'] = '${config.language}, *;q=0.5';
     }
 
+    // Use cached HTML for instant display, or regular URL request
+    final usesCachedHtml = config.initialHtml != null;
+
     return inapp.InAppWebView(
       key: config.key,
-      initialUrlRequest: inapp.URLRequest(
+      // If we have cached HTML, load it first for instant display
+      initialUrlRequest: usesCachedHtml ? null : inapp.URLRequest(
         url: inapp.WebUri(config.initialUrl),
         headers: headers.isNotEmpty ? headers : null,
       ),
+      initialData: usesCachedHtml ? inapp.InAppWebViewInitialData(
+        data: config.initialHtml!,
+        mimeType: 'text/html',
+        encoding: 'utf-8',
+        baseUrl: inapp.WebUri(config.initialUrl),
+      ) : null,
       initialSettings: inapp.InAppWebViewSettings(
         javaScriptEnabled: config.javascriptEnabled,
         userAgent: config.userAgent,
@@ -468,7 +499,14 @@ class WebViewFactory {
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
-      onWebViewCreated: (controller) => onControllerCreated(_WebViewController(controller)),
+      onWebViewCreated: (controller) {
+        final wrappedController = _WebViewController(controller);
+        onControllerCreated(wrappedController);
+        // If we loaded cached HTML, now navigate to the real URL for fresh content
+        if (usesCachedHtml) {
+          wrappedController.loadUrl(config.initialUrl, language: config.language);
+        }
+      },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
@@ -502,6 +540,13 @@ class WebViewFactory {
           if (config.onCookiesChanged != null) {
             final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
             config.onCookiesChanged!(cookies);
+          }
+          // Cache HTML for offline viewing
+          if (config.onHtmlLoaded != null) {
+            final html = await controller.getHtml();
+            if (html != null && html.isNotEmpty) {
+              config.onHtmlLoaded!(url.toString(), html);
+            }
           }
         }
       },

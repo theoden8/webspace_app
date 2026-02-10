@@ -13,7 +13,7 @@ import 'package:html/dom.dart' as html_dom;
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage;
+import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache;
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
@@ -23,6 +23,8 @@ import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
+import 'package:webspace/services/image_cache_service.dart';
+import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -199,6 +201,15 @@ Future<String?> getPageTitle(String url) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Clear image cache on app upgrade
+  await ImageCacheService.clearCacheOnUpgrade();
+
+  // Initialize HTML cache (clears on app upgrade)
+  await HtmlCacheService.instance.initialize();
+
+  // Initialize favicon URL cache
+  await FaviconUrlCache.initialize();
 
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {
@@ -828,9 +839,32 @@ class _WebSpacePageState extends State<WebSpacePage> {
   }
 
   void _selectWebspace(Webspace webspace) async {
+    // Get indices from the previous webspace before switching
+    final previousIndices = _getFilteredSiteIndices().toSet();
+
     setState(() {
       _selectedWebspaceId = webspace.id;
     });
+
+    // Get indices in the new webspace
+    final newIndices = _getFilteredSiteIndices().toSet();
+
+    // Find loaded sites that were in previous webspace but not in new one
+    final indicesToUnload = _loadedIndices
+        .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
+        .toList();
+
+    // Unload sites not in new webspace
+    for (final index in indicesToUnload) {
+      if (index >= 0 && index < _webViewModels.length) {
+        _webViewModels[index].disposeWebView();
+        _loadedIndices.remove(index);
+        if (kDebugMode) {
+          debugPrint('[WebspaceSwitch] Unloaded site $index: "${_webViewModels[index].name}"');
+        }
+      }
+    }
+
     await _setCurrentIndex(null);
     setState(() {}); // Update UI
     _saveSelectedWebspaceId();
@@ -1001,11 +1035,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
 
-    // Clean up orphaned cookies (cookies for siteIds no longer in any site)
+    // Clean up orphaned cookies and HTML cache (for siteIds no longer in any site)
     final activeSiteIds = _webViewModels
         .map((model) => model.siteId)
         .toSet();
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
+    await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
 
     // Apply theme to all webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
@@ -1777,6 +1812,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
                         _saveWebViewModels,
                         onWindowRequested: _showPopupWindow,
                         language: webViewModel.language,
+                        onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
+                          HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
+                        },
+                        initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
                       )
                     ),
                   ],

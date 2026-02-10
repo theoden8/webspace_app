@@ -323,6 +323,8 @@ class WebViewModel {
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
+    Function(String url, String html)? onHtmlLoaded,
+    String? initialHtml,
   }) {
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
@@ -330,6 +332,7 @@ class WebViewModel {
       if (kDebugMode) {
         debugPrint('[WebView] Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
         debugPrint('[WebView] Language: $effectiveLanguage (param: $language)');
+        debugPrint('[WebView] Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)');
       }
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
@@ -409,6 +412,7 @@ class WebViewModel {
             if (!thirdPartyCookiesEnabled && controller != null) {
               removeThirdPartyCookies(controller!);
             }
+            await saveFunc();
           },
           onFindResult: (activeMatch, totalMatches) {
             findMatches.activeMatchOrdinal = activeMatch;
@@ -417,6 +421,8 @@ class WebViewModel {
               stateSetterF!();
             }
           },
+          onHtmlLoaded: onHtmlLoaded,
+          initialHtml: initialHtml,
         ),
         onControllerCreated: (ctrl) {
           if (kDebugMode) {

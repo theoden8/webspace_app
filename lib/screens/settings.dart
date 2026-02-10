@@ -381,25 +381,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
-          SwitchListTile(
-            title: const Text('Third-party cookies'),
-            value: _thirdPartyCookiesEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _thirdPartyCookiesEnabled = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            title: const Text('Incognito mode'),
-            subtitle: const Text('No cookies or cache persist'),
-            value: _incognito,
-            onChanged: (bool value) {
-              setState(() {
-                _incognito = value;
-              });
-            },
-          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: DropdownButtonFormField<String?>(
@@ -421,6 +402,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
+          ),
+          SwitchListTile(
+            title: const Text('Third-party cookies'),
+            value: _thirdPartyCookiesEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _thirdPartyCookiesEnabled = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Incognito mode'),
+            subtitle: const Text('No cookies or cache persist'),
+            value: _incognito,
+            onChanged: (bool value) {
+              setState(() {
+                _incognito = value;
+              });
+            },
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
