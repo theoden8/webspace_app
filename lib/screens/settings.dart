@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/html_cache_service.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -218,6 +219,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.incognito = _incognito;
       widget.webViewModel.cacheHtml = _cacheHtml;
       widget.webViewModel.language = _selectedLanguage;
+
+      // Purge HTML cache if caching was disabled
+      if (!_cacheHtml) {
+        await HtmlCacheService.instance.deleteCache(widget.webViewModel.siteId);
+      }
 
       if (!mounted) return;
 
