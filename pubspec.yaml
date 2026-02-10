@@ -52,6 +52,7 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   package_info_plus: ^8.0.0
   flutter_cache_manager: ^3.3.0
+  path_provider: ^2.1.0
 
 dev_dependencies:
   flutter_test:

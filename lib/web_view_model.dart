@@ -323,6 +323,7 @@ class WebViewModel {
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
+    Function(String url, String html)? onHtmlLoaded,
   }) {
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
@@ -418,6 +419,7 @@ class WebViewModel {
               stateSetterF!();
             }
           },
+          onHtmlLoaded: onHtmlLoaded,
         ),
         onControllerCreated: (ctrl) {
           if (kDebugMode) {

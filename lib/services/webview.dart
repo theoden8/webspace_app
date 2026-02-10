@@ -204,6 +204,8 @@ class WebViewConfig {
   /// Returns a widget (typically a WebView) to display in the popup.
   /// The callback receives the windowId for the popup and the requested URL.
   final Future<void> Function(int windowId, String url)? onWindowRequested;
+  /// Callback when page HTML should be cached. Called on page load with (url, html).
+  final Function(String url, String html)? onHtmlLoaded;
 
   WebViewConfig({
     this.key,
@@ -218,15 +220,18 @@ class WebViewConfig {
     this.onFindResult,
     this.shouldOverrideUrlLoading,
     this.onWindowRequested,
+    this.onHtmlLoaded,
   });
 }
 
 /// Controller interface for webview operations
 abstract class WebViewController {
   Future<void> loadUrl(String url, {String? language});
+  Future<void> loadHtmlString(String html, {String? baseUrl});
   Future<void> reload();
   Future<Uri?> getUrl();
   Future<String?> getTitle();
+  Future<String?> getHtml();
   Future<void> evaluateJavascript(String source);
   Future<void> findAllAsync({required String find});
   Future<void> findNext({required bool forward});
@@ -263,6 +268,16 @@ class _WebViewController implements WebViewController {
   }
 
   @override
+  Future<void> loadHtmlString(String html, {String? baseUrl}) {
+    return _c.loadData(
+      data: html,
+      mimeType: 'text/html',
+      encoding: 'utf-8',
+      baseUrl: baseUrl != null ? inapp.WebUri(baseUrl) : null,
+    );
+  }
+
+  @override
   Future<void> reload() => _c.reload();
 
   @override
@@ -270,6 +285,9 @@ class _WebViewController implements WebViewController {
 
   @override
   Future<String?> getTitle() => _c.getTitle();
+
+  @override
+  Future<String?> getHtml() => _c.getHtml();
 
   @override
   Future<void> evaluateJavascript(String source) => _c.evaluateJavascript(source: source);
@@ -502,6 +520,13 @@ class WebViewFactory {
           if (config.onCookiesChanged != null) {
             final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
             config.onCookiesChanged!(cookies);
+          }
+          // Cache HTML for offline viewing
+          if (config.onHtmlLoaded != null) {
+            final html = await controller.getHtml();
+            if (html != null && html.isNotEmpty) {
+              config.onHtmlLoaded!(url.toString(), html);
+            }
           }
         }
       },
