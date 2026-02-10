@@ -106,6 +106,7 @@ class HtmlCacheService {
   }
 
   /// Pre-load all cached HTML files into memory
+  /// Files that fail to decrypt are discarded (deleted)
   Future<void> _preloadCache() async {
     if (_cacheDirectory == null || !await _cacheDirectory!.exists()) return;
 
@@ -113,14 +114,34 @@ class HtmlCacheService {
       final files = await _cacheDirectory!.list().toList();
       for (final entity in files) {
         if (entity is File && entity.path.endsWith('.enc')) {
-          final encrypted = await entity.readAsString();
-          final decrypted = _decrypt(encrypted);
-          if (decrypted != null) {
-            final newlineIndex = decrypted.indexOf('\n');
-            if (newlineIndex != -1) {
-              final siteId = entity.path.split('/').last.replaceAll('.enc', '');
-              final html = decrypted.substring(newlineIndex + 1);
-              _memoryCache[siteId] = html;
+          try {
+            final encrypted = await entity.readAsString();
+            final decrypted = _decrypt(encrypted);
+            if (decrypted != null) {
+              final newlineIndex = decrypted.indexOf('\n');
+              if (newlineIndex != -1) {
+                final siteId = entity.path.split('/').last.replaceAll('.enc', '');
+                final html = decrypted.substring(newlineIndex + 1);
+                _memoryCache[siteId] = html;
+              } else {
+                // Invalid format - discard
+                await entity.delete();
+                if (kDebugMode) {
+                  debugPrint('[HtmlCache] Discarded invalid cache file: ${entity.path}');
+                }
+              }
+            } else {
+              // Decryption failed - discard (key may have changed)
+              await entity.delete();
+              if (kDebugMode) {
+                debugPrint('[HtmlCache] Discarded undecryptable cache file: ${entity.path}');
+              }
+            }
+          } catch (e) {
+            // File read/decrypt error - discard
+            await entity.delete();
+            if (kDebugMode) {
+              debugPrint('[HtmlCache] Discarded corrupted cache file: ${entity.path} ($e)');
             }
           }
         }
