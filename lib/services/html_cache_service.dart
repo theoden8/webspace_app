@@ -56,9 +56,20 @@ class HtmlCacheService {
     return File('${_cacheDirectory!.path}/$siteId.html');
   }
 
+  /// Max HTML size to cache (10MB)
+  static const int _maxHtmlSize = 10 * 1024 * 1024;
+
   /// Save HTML content for a site
   Future<void> saveHtml(String siteId, String html, String url) async {
     if (_cacheDirectory == null) return;
+
+    // Skip if HTML is too large
+    if (html.length > _maxHtmlSize) {
+      if (kDebugMode) {
+        debugPrint('[HtmlCache] Skipping save for $siteId - HTML too large (${html.length} bytes > $_maxHtmlSize)');
+      }
+      return;
+    }
 
     try {
       final file = _getCacheFile(siteId);
