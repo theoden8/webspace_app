@@ -23,6 +23,7 @@ import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
+import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -199,6 +200,9 @@ Future<String?> getPageTitle(String url) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Clear image cache on app upgrade
+  await ImageCacheService.clearCacheOnUpgrade();
 
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {
