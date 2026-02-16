@@ -138,22 +138,22 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
             itemBuilder: (BuildContext context) {
               return [
                 PopupMenuItem<String>(
-                  value: "copylink",
-                  child: Row(
-                    children: [
-                      Icon(Icons.copy),
-                      SizedBox(width: 8),
-                      Text("Copy Link"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
                   value: "openbrowser",
                   child: Row(
                     children: [
                       Icon(Icons.link),
                       SizedBox(width: 8),
                       Text("Open in Browser"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: "copylink",
+                  child: Row(
+                    children: [
+                      Icon(Icons.copy),
+                      SizedBox(width: 8),
+                      Text("Copy Link"),
                     ],
                   ),
                 ),
