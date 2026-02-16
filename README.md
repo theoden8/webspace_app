@@ -7,10 +7,15 @@
 [![Release](https://img.shields.io/github/v/release/theoden8/webspace_app)](https://github.com/theoden8/webspace_app/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/theoden8/webspace_app/total)](https://github.com/theoden8/webspace_app/releases)
 [![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
-[![Get it on F-Droid](https://img.shields.io/badge/F--Droid-pending-green?logo=f-droid)](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896)
-[![Get it on GitHub](https://img.shields.io/badge/GitHub-release-blue?logo=github)](https://github.com/theoden8/webspace_app/releases/latest)
 <a href="https://github.com/sponsors/theoden8">
   <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
+</a>
+
+<a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896">
+  <img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80">
+</a>
+<a href="https://github.com/theoden8/webspace_app/releases/latest">
+  <img src="https://img.shields.io/badge/Get_it_on-GitHub-blue?logo=github&logoColor=white&style=for-the-badge" alt="Get it on GitHub" height="80">
 </a>
 
 </div>
