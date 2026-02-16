@@ -148,16 +148,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                   ),
                 ),
                 PopupMenuItem<String>(
-                  value: "copylink",
-                  child: Row(
-                    children: [
-                      Icon(Icons.copy),
-                      SizedBox(width: 8),
-                      Text("Copy Link"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
                   value: "refresh",
                   child: Row(
                     children: [
@@ -174,6 +164,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                       Icon(Icons.search),
                       SizedBox(width: 8),
                       Text("Find"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: "copylink",
+                  child: Row(
+                    children: [
+                      Icon(Icons.copy),
+                      SizedBox(width: 8),
+                      Text("Copy Link"),
                     ],
                   ),
                 ),
