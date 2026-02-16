@@ -14,9 +14,6 @@
 <a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896">
   <img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80">
 </a>
-<a href="https://github.com/theoden8/webspace_app/releases/latest">
-  <img src="https://img.shields.io/badge/Get_it_on-GitHub-blue?logo=github&logoColor=white&style=for-the-badge" alt="Get it on GitHub" height="80">
-</a>
 
 </div>
 
