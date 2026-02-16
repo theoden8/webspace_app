@@ -258,6 +258,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     SiteSuggestion(name: 'Reddit', url: 'https://reddit.com', domain: 'reddit.com'),
     SiteSuggestion(name: 'Mastodon', url: 'https://mastodon.social', domain: 'mastodon.social'),
     SiteSuggestion(name: 'Bluesky', url: 'https://bsky.app', domain: 'bsky.app'),
+    SiteSuggestion(name: 'Hugging Face', url: 'https://huggingface.co', domain: 'huggingface.co'),
   ];
 
   void _showSuggestionDialog(SiteSuggestion suggestion) {

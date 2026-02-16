@@ -522,16 +522,18 @@ class WebViewFactory {
         final url = createWindowAction.request.url?.toString() ?? '';
         final windowId = createWindowAction.windowId;
 
-        // If we have a callback for handling popups, use it
+        // Only show popup dialog for Cloudflare challenges (captcha verification).
+        // All other window.open() calls (e.g. Stripe fraud detection, analytics)
+        // are silently dismissed to prevent unwanted popup windows.
+        if (!_isCloudflareChallenge(url)) {
+          return false;
+        }
+
         if (config.onWindowRequested != null && windowId != null) {
           await config.onWindowRequested!(windowId, url);
           return true;
         }
 
-        // For other popups without a handler, load in the same window instead
-        if (url.isNotEmpty) {
-          await controller.loadUrl(urlRequest: inapp.URLRequest(url: createWindowAction.request.url));
-        }
         return false;
       },
       onLoadStop: (controller, url) async {
