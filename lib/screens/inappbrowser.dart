@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/services/webview.dart';
@@ -137,6 +138,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
             itemBuilder: (BuildContext context) {
               return [
                 PopupMenuItem<String>(
+                  value: "copylink",
+                  child: Row(
+                    children: [
+                      Icon(Icons.copy),
+                      SizedBox(width: 8),
+                      Text("Copy Link"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
                   value: "openbrowser",
                   child: Row(
                     children: [
@@ -170,6 +181,19 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
             },
             onSelected: (String value) async {
               switch (value) {
+                case 'copylink':
+                  if (_controller != null) {
+                    final url = await _controller!.getUrl();
+                    if (url != null) {
+                      await Clipboard.setData(ClipboardData(text: url.toString()));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Link copied to clipboard')),
+                        );
+                      }
+                    }
+                  }
+                  break;
                 case 'openbrowser':
                   if (_controller != null) {
                     final url = await _controller!.getUrl();

@@ -414,6 +414,8 @@ class WebViewFactory {
     'googletagmanager.com', 'google-analytics.com', 'googleadservices.com',
     'doubleclick.net', 'facebook.com/tr', 'connect.facebook.net',
     'analytics.twitter.com', 'static.ads-twitter.com',
+    'js.stripe.com', 'js.stripe.dev', 'm.stripe.network', 'm.stripe.com',
+    'b.stripecdn.com',
   ];
 
   static bool _shouldBlockUrl(String url) {
