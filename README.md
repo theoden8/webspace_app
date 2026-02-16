@@ -7,6 +7,7 @@
 [![Release](https://img.shields.io/github/v/release/theoden8/webspace_app)](https://github.com/theoden8/webspace_app/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/theoden8/webspace_app/total)](https://github.com/theoden8/webspace_app/releases)
 [![Build and Test](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/theoden8/webspace_app/actions/workflows/build-and-test.yml)
+[![F-Droid](https://img.shields.io/badge/F--Droid-pending-yellow)](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896)
 <a href="https://github.com/sponsors/theoden8">
   <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
 </a>
