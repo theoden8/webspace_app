@@ -425,7 +425,7 @@ class WebViewFactory {
     return _trackingDomains.any((d) => url.contains(d));
   }
 
-  static bool _isCloudflareChallenge(String url) =>
+  static bool _isCaptchaChallenge(String url) =>
       url.contains('challenges.cloudflare.com') ||
       url.contains('cloudflare.com/cdn-cgi/challenge') ||
       url.contains('cdn-cgi/challenge-platform') ||
@@ -512,7 +512,7 @@ class WebViewFactory {
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
-        if (_isCloudflareChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
+        if (_isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
         if (config.shouldOverrideUrlLoading != null) {
           return config.shouldOverrideUrlLoading!(url, true)
               ? inapp.NavigationActionPolicy.ALLOW
@@ -527,7 +527,7 @@ class WebViewFactory {
         // Only show popup dialog for Cloudflare challenges (captcha verification).
         // All other window.open() calls (e.g. Stripe fraud detection, analytics)
         // are silently dismissed to prevent unwanted popup windows.
-        if (!_isCloudflareChallenge(url)) {
+        if (!_isCaptchaChallenge(url)) {
           return false;
         }
 
