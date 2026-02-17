@@ -56,6 +56,7 @@ fvm dart run flutter_launcher_icons
 - **cookie_secure_storage.dart** - Encrypted cookie storage using flutter_secure_storage
 - **html_cache_service.dart** - AES-encrypted HTML caching (clears on app upgrade)
 - **icon_service.dart** - Favicon fetching and caching
+- **dns_block_service.dart** - Hagezi DNS blocklist download, caching, and O(1) domain lookup
 - **webview.dart** - CookieManager wrapper around flutter_inappwebview, WebViewTheme enum
 
 ### Key Patterns
@@ -92,5 +93,6 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | settings-backup | JSON import/export of all settings |
 | icon-fetching | Progressive favicon loading with fallbacks |
 | clearurls | ClearURLs tracking parameter removal with per-site toggle |
+| dns-blocklist | Hagezi DNS blocklist domain blocking with severity levels and per-site toggle |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.

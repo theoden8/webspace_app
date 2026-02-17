@@ -1,5 +1,7 @@
 ✨ New Features:
-• ClearURLs: automatically strip tracking parameters (utm_source, fbclid, etc.) from URLs
-• Per-site toggle to enable/disable ClearURLs
-• Download ClearURLs rules from App Settings
+• ClearURLs: automatically strip tracking parameters from URLs for privacy
 • DNS Blocklist: block ad/malware/tracker domains using Hagezi blocklists
+
+🔧 Improvements:
+• Improved favicon caching
+• Improved captcha loading
