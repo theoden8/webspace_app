@@ -11,10 +11,12 @@
   <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
 </a>
 
-<table border="0" cellspacing="0" cellpadding="0"><tr>
-<td><a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896"><img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a></td>
-<td><a href="https://apps.apple.com/app/webspace-app/id6758049523"><img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" width="170"></a></td>
-</tr></table>
+<a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896">
+  <img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80">
+</a>
+<a href="https://apps.apple.com/app/webspace-app/id6758049523">
+  <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" width="170">
+</a>
 
 </div>
 
