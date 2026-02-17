@@ -77,6 +77,8 @@ fvm flutter pub get
 
 This project is made possible by [flutter_inappwebview](https://github.com/pichillilorenzo/flutter_inappwebview), which provides the advanced webview functionality at the core of WebSpace.
 
+URL cleaning is powered by rules from [ClearURLs](https://github.com/ClearURLs/Rules) (LGPL-3.0).
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE) - Copyright (c) 2023 Kirill Rodriguez.
