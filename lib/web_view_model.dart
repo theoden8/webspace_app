@@ -116,6 +116,9 @@ String getBaseDomain(String url) {
 /// All Google properties (gmail.com, regional domains, etc.) are treated as google.com.
 const Map<String, String> _domainAliases = {
   'gmail.com': 'google.com',
+  // Discord
+  'discordapp.com': 'discord.com',
+  'discord.gg': 'discord.com',
   // Hugging Face
   'hf.co': 'huggingface.co',
   // Anthropic / Claude

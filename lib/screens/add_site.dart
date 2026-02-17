@@ -252,7 +252,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     SiteSuggestion(name: 'Gitea', url: 'https://gitea.com', domain: 'gitea.com'),
     SiteSuggestion(name: 'Codeberg', url: 'https://codeberg.org', domain: 'codeberg.org'),
     SiteSuggestion(name: 'Slack', url: 'https://slack.com', domain: 'slack.com'),
-    SiteSuggestion(name: 'Discord', url: 'https://discord.com', domain: 'discord.com'),
+    SiteSuggestion(name: 'Discord', url: 'https://discord.com/login', domain: 'discord.com'),
     SiteSuggestion(name: 'Mattermost', url: 'https://mattermost.com', domain: 'mattermost.com'),
     SiteSuggestion(name: 'Gmail', url: 'https://gmail.com', domain: 'gmail.com'),
     SiteSuggestion(name: 'Reddit', url: 'https://reddit.com', domain: 'reddit.com'),
