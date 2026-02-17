@@ -28,6 +28,7 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Accent color enum
@@ -215,6 +216,9 @@ void main() async {
   // Initialize ClearURLs service (loads cached rules from disk)
   await ClearUrlService.instance.initialize();
 
+  // Initialize DNS block service (loads cached blocklist from disk)
+  await DnsBlockService.instance.initialize();
+
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {
     final assetsLicense = await rootBundle.loadString('assets/LICENSE');
@@ -274,6 +278,30 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 Source: https://github.com/ClearURLs/Rules''',
+    );
+  });
+
+  LicenseRegistry.addLicense(() async* {
+    yield const LicenseEntryWithLineBreaks(
+      ['Hagezi DNS Blocklists (domain data)'],
+      '''GNU General Public License v3.0
+
+Copyright (c) Hagezi
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+Source: https://github.com/hagezi/dns-blocklists''',
     );
   });
 

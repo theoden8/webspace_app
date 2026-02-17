@@ -217,6 +217,7 @@ class WebViewModel {
   bool incognito; // Private browsing mode - no cookies/cache persist
   String? language; // Language code (e.g., 'en', 'es'), null = system default
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
+  bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
 
   String? defaultUserAgent;
   Function? stateSetterF;
@@ -236,6 +237,7 @@ class WebViewModel {
     this.incognito = false,
     this.language,
     this.clearUrlEnabled = true,
+    this.dnsBlockEnabled = true,
     this.stateSetterF,
   })  : siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
@@ -351,6 +353,7 @@ class WebViewModel {
           incognito: incognito,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
           clearUrlEnabled: clearUrlEnabled,
+          dnsBlockEnabled: dnsBlockEnabled,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, shouldAllow) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
@@ -509,6 +512,7 @@ class WebViewModel {
         'incognito': incognito,
         'language': language,
         'clearUrlEnabled': clearUrlEnabled,
+        'dnsBlockEnabled': dnsBlockEnabled,
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -527,6 +531,7 @@ class WebViewModel {
       incognito: json['incognito'] ?? false,
       language: json['language'],
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
+      dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }

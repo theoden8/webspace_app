@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/dns_block_service.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -85,6 +86,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _thirdPartyCookiesEnabled;
   late bool _incognito;
   late bool _clearUrlEnabled;
+  late bool _dnsBlockEnabled;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -127,6 +129,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
     _incognito = widget.webViewModel.incognito;
     _clearUrlEnabled = widget.webViewModel.clearUrlEnabled;
+    _dnsBlockEnabled = widget.webViewModel.dnsBlockEnabled;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -217,6 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
       widget.webViewModel.incognito = _incognito;
       widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
+      widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
       widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
@@ -434,6 +438,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _clearUrlEnabled = value;
               });
             },
+          ),
+          SwitchListTile(
+            title: const Text('DNS Blocklist'),
+            subtitle: Text(
+              DnsBlockService.instance.hasBlocklist
+                  ? dnsBlockLevelNames[DnsBlockService.instance.level]
+                  : 'Not configured',
+            ),
+            value: _dnsBlockEnabled,
+            onChanged: DnsBlockService.instance.hasBlocklist
+                ? (bool value) {
+                    setState(() {
+                      _dnsBlockEnabled = value;
+                    });
+                  }
+                : null,
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),

@@ -20,6 +20,7 @@ void main() {
       expect(model.siteId, isNotEmpty); // Auto-generated siteId
       expect(model.incognito, isFalse);
       expect(model.clearUrlEnabled, isTrue);
+      expect(model.dnsBlockEnabled, isTrue);
     });
 
     test('should serialize to JSON correctly', () {
@@ -41,6 +42,7 @@ void main() {
       expect(json['thirdPartyCookiesEnabled'], equals(true));
       expect(json['incognito'], equals(false));
       expect(json['clearUrlEnabled'], equals(true));
+      expect(json['dnsBlockEnabled'], equals(true));
       expect(json['cookies'], isList);
       expect(json['proxySettings'], isMap);
     });
@@ -92,6 +94,7 @@ void main() {
       expect(restored.thirdPartyCookiesEnabled, equals(original.thirdPartyCookiesEnabled));
       expect(restored.incognito, equals(original.incognito));
       expect(restored.clearUrlEnabled, equals(original.clearUrlEnabled));
+      expect(restored.dnsBlockEnabled, equals(original.dnsBlockEnabled));
     });
 
     test('clearUrlEnabled defaults to true when missing from JSON', () {
@@ -120,6 +123,34 @@ void main() {
 
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.clearUrlEnabled, isFalse);
+    });
+
+    test('dnsBlockEnabled defaults to true when missing from JSON', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.dnsBlockEnabled, isTrue);
+    });
+
+    test('dnsBlockEnabled false is preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        dnsBlockEnabled: false,
+      );
+
+      final json = model.toJson();
+      expect(json['dnsBlockEnabled'], equals(false));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.dnsBlockEnabled, isFalse);
     });
   });
 

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
@@ -211,6 +212,8 @@ class WebViewConfig {
   final String? initialHtml;
   /// Whether to strip tracking parameters from URLs via ClearURLs rules.
   final bool clearUrlEnabled;
+  /// Whether to block navigation to domains on the Hagezi DNS blocklist.
+  final bool dnsBlockEnabled;
 
   WebViewConfig({
     this.key,
@@ -221,6 +224,7 @@ class WebViewConfig {
     this.incognito = false,
     this.language,
     this.clearUrlEnabled = true,
+    this.dnsBlockEnabled = true,
     this.onUrlChanged,
     this.onCookiesChanged,
     this.onFindResult,
@@ -517,6 +521,10 @@ class WebViewFactory {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (_isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
+        // DNS blocklist check
+        if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
         // ClearURLs: strip tracking parameters from URLs
         if (config.clearUrlEnabled && ClearUrlService.instance.hasRules) {
           final cleanedUrl = ClearUrlService.instance.cleanUrl(url);
