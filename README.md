@@ -40,6 +40,7 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 - 🌍 Per-site language preferences (30+ languages)
 - 💾 Import/export settings for backup
 - 🔄 Proxy support with authentication (Android)
+- 🧹 ClearURLs tracking parameter removal
 - 🎨 Light/dark mode with accent colors
 
 ## Development

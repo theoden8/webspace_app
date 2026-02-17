@@ -216,6 +216,7 @@ class WebViewModel {
   bool thirdPartyCookiesEnabled;
   bool incognito; // Private browsing mode - no cookies/cache persist
   String? language; // Language code (e.g., 'en', 'es'), null = system default
+  bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
 
   String? defaultUserAgent;
   Function? stateSetterF;
@@ -234,6 +235,7 @@ class WebViewModel {
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
     this.language,
+    this.clearUrlEnabled = true,
     this.stateSetterF,
   })  : siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
@@ -348,6 +350,7 @@ class WebViewModel {
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
+          clearUrlEnabled: clearUrlEnabled,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, shouldAllow) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
@@ -505,6 +508,7 @@ class WebViewModel {
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
         'incognito': incognito,
         'language': language,
+        'clearUrlEnabled': clearUrlEnabled,
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -522,6 +526,7 @@ class WebViewModel {
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
       incognito: json['incognito'] ?? false,
       language: json['language'],
+      clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }

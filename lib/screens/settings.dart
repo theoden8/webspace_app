@@ -84,6 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
   late bool _incognito;
+  late bool _clearUrlEnabled;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -125,6 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _javascriptEnabled = widget.webViewModel.javascriptEnabled;
     _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
     _incognito = widget.webViewModel.incognito;
+    _clearUrlEnabled = widget.webViewModel.clearUrlEnabled;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -214,6 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
       widget.webViewModel.incognito = _incognito;
+      widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
       widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
@@ -419,6 +422,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               setState(() {
                 _incognito = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: const Text('ClearURLs'),
+            subtitle: const Text('Strip tracking parameters from URLs'),
+            value: _clearUrlEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _clearUrlEnabled = value;
               });
             },
           ),

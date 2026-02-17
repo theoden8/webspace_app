@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+import 'package:webspace/services/clearurl_service.dart';
 
 // Accent color definitions for display
 const Map<AccentColor, Color> _accentColors = {
@@ -34,11 +35,48 @@ class AppSettingsScreen extends StatefulWidget {
 
 class _AppSettingsScreenState extends State<AppSettingsScreen> {
   late AppThemeSettings _settings;
+  bool _isDownloadingRules = false;
+  DateTime? _rulesLastUpdated;
 
   @override
   void initState() {
     super.initState();
     _settings = widget.currentSettings;
+    _loadRulesLastUpdated();
+  }
+
+  Future<void> _loadRulesLastUpdated() async {
+    final lastUpdated = await ClearUrlService.instance.getLastUpdated();
+    if (mounted) {
+      setState(() {
+        _rulesLastUpdated = lastUpdated;
+      });
+    }
+  }
+
+  Future<void> _downloadRules() async {
+    setState(() {
+      _isDownloadingRules = true;
+    });
+
+    final success = await ClearUrlService.instance.downloadRules();
+
+    if (mounted) {
+      setState(() {
+        _isDownloadingRules = false;
+      });
+
+      if (success) {
+        await _loadRulesLastUpdated();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ClearURLs rules updated')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to download ClearURLs rules')),
+        );
+      }
+    }
   }
 
   void _updateSettings(AppThemeSettings newSettings) {
@@ -118,6 +156,39 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
               Navigator.pop(context);
               widget.onImportSettings();
             },
+          ),
+
+          const Divider(height: 32),
+
+          // Privacy Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Privacy',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cleaning_services),
+            title: const Text('ClearURLs Rules'),
+            subtitle: Text(
+              _rulesLastUpdated != null
+                  ? 'Updated: ${_rulesLastUpdated!.toLocal().toString().split('.')[0]}'
+                  : 'Not downloaded',
+            ),
+            trailing: _isDownloadingRules
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: 'Download rules',
+                    onPressed: _downloadRules,
+                  ),
           ),
 
           const Divider(height: 32),

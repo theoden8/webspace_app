@@ -19,6 +19,7 @@ void main() {
       expect(model.proxySettings.type, equals(ProxyType.DEFAULT));
       expect(model.siteId, isNotEmpty); // Auto-generated siteId
       expect(model.incognito, isFalse);
+      expect(model.clearUrlEnabled, isTrue);
     });
 
     test('should serialize to JSON correctly', () {
@@ -39,6 +40,7 @@ void main() {
       expect(json['userAgent'], equals('TestAgent/1.0'));
       expect(json['thirdPartyCookiesEnabled'], equals(true));
       expect(json['incognito'], equals(false));
+      expect(json['clearUrlEnabled'], equals(true));
       expect(json['cookies'], isList);
       expect(json['proxySettings'], isMap);
     });
@@ -89,6 +91,35 @@ void main() {
       expect(restored.userAgent, equals(original.userAgent));
       expect(restored.thirdPartyCookiesEnabled, equals(original.thirdPartyCookiesEnabled));
       expect(restored.incognito, equals(original.incognito));
+      expect(restored.clearUrlEnabled, equals(original.clearUrlEnabled));
+    });
+
+    test('clearUrlEnabled defaults to true when missing from JSON', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.clearUrlEnabled, isTrue);
+    });
+
+    test('clearUrlEnabled false is preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        clearUrlEnabled: false,
+      );
+
+      final json = model.toJson();
+      expect(json['clearUrlEnabled'], equals(false));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.clearUrlEnabled, isFalse);
     });
   });
 
