@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/dns_block_service.dart';
 
 // Accent color definitions for display
 const Map<AccentColor, Color> _accentColors = {
@@ -32,13 +34,121 @@ class AppSettingsScreen extends StatefulWidget {
   State<AppSettingsScreen> createState() => _AppSettingsScreenState();
 }
 
-class _AppSettingsScreenState extends State<AppSettingsScreen> {
+class _AppSettingsScreenState extends State<AppSettingsScreen>
+    with SingleTickerProviderStateMixin {
   late AppThemeSettings _settings;
+  bool _isDownloadingRules = false;
+  DateTime? _rulesLastUpdated;
+
+  // DNS Blocklist state
+  bool _isDownloadingBlocklist = false;
+  DateTime? _blocklistLastUpdated;
+  int _dnsBlockLevel = 0; // Downloaded level
+  double _dnsBlockSliderValue = 0; // Ephemeral slider value
+  late AnimationController _spinController;
 
   @override
   void initState() {
     super.initState();
     _settings = widget.currentSettings;
+    _spinController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _loadRulesLastUpdated();
+    _loadBlocklistState();
+  }
+
+  @override
+  void dispose() {
+    _spinController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadBlocklistState() async {
+    final lastUpdated = await DnsBlockService.instance.getLastUpdated();
+    if (mounted) {
+      setState(() {
+        _dnsBlockLevel = DnsBlockService.instance.level;
+        _dnsBlockSliderValue = _dnsBlockLevel.toDouble();
+        _blocklistLastUpdated = lastUpdated;
+      });
+    }
+  }
+
+  Future<void> _downloadBlocklist() async {
+    final level = _dnsBlockSliderValue.round();
+
+    setState(() {
+      _isDownloadingBlocklist = true;
+    });
+    _spinController.repeat();
+
+    final success = await DnsBlockService.instance.downloadList(level);
+
+    if (mounted) {
+      _spinController.stop();
+      _spinController.reset();
+      setState(() {
+        _isDownloadingBlocklist = false;
+      });
+
+      if (success) {
+        await _loadBlocklistState();
+        final domainCount = DnsBlockService.instance.domainCount;
+        final message = level == 0
+            ? 'DNS blocklist disabled'
+            : 'DNS blocklist updated (${_formatNumber(domainCount)} domains)';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to download DNS blocklist')),
+        );
+      }
+    }
+  }
+
+  String _formatNumber(int n) {
+    if (n >= 1000) {
+      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
+    }
+    return n.toString();
+  }
+
+  Future<void> _loadRulesLastUpdated() async {
+    final lastUpdated = await ClearUrlService.instance.getLastUpdated();
+    if (mounted) {
+      setState(() {
+        _rulesLastUpdated = lastUpdated;
+      });
+    }
+  }
+
+  Future<void> _downloadRules() async {
+    setState(() {
+      _isDownloadingRules = true;
+    });
+
+    final success = await ClearUrlService.instance.downloadRules();
+
+    if (mounted) {
+      setState(() {
+        _isDownloadingRules = false;
+      });
+
+      if (success) {
+        await _loadRulesLastUpdated();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ClearURLs rules updated')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to download ClearURLs rules')),
+        );
+      }
+    }
   }
 
   void _updateSettings(AppThemeSettings newSettings) {
@@ -118,6 +228,115 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
               Navigator.pop(context);
               widget.onImportSettings();
             },
+          ),
+
+          const Divider(height: 32),
+
+          // Privacy Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Privacy',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.cleaning_services),
+            title: const Text('ClearURLs Rules'),
+            subtitle: Text(
+              _rulesLastUpdated != null
+                  ? 'Updated: ${_rulesLastUpdated!.toLocal().toString().split('.')[0]}'
+                  : 'Not downloaded',
+            ),
+            trailing: _isDownloadingRules
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: 'Download rules',
+                    onPressed: _downloadRules,
+                  ),
+          ),
+
+          // DNS Blocklist
+          ListTile(
+            leading: const Icon(Icons.shield),
+            title: const Text('DNS Blocklist'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _dnsBlockLevel > 0
+                      ? '${dnsBlockLevelNames[_dnsBlockLevel]} - ${_formatNumber(DnsBlockService.instance.domainCount)} domains'
+                      : 'Not configured',
+                ),
+                if (_blocklistLastUpdated != null)
+                  Text(
+                    'Updated: ${_blocklistLastUpdated!.toLocal().toString().split('.')[0]}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+              ],
+            ),
+            trailing: _isDownloadingBlocklist
+                ? RotationTransition(
+                    turns: _spinController,
+                    child: const Icon(Icons.sync),
+                  )
+                : IconButton(
+                    icon: Icon(
+                      _dnsBlockSliderValue.round() != _dnsBlockLevel
+                          ? Icons.download
+                          : Icons.sync,
+                    ),
+                    tooltip: _dnsBlockSliderValue.round() != _dnsBlockLevel
+                        ? 'Download blocklist'
+                        : 'Refresh blocklist',
+                    onPressed: _downloadBlocklist,
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              children: [
+                Slider(
+                  value: _dnsBlockSliderValue,
+                  min: 0,
+                  max: 5,
+                  divisions: 5,
+                  label: dnsBlockLevelNames[_dnsBlockSliderValue.round()],
+                  onChanged: _isDownloadingBlocklist
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _dnsBlockSliderValue = value;
+                          });
+                        },
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    for (int i = 0; i < dnsBlockLevelNames.length; i++)
+                      Text(
+                        dnsBlockLevelNames[i],
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: _dnsBlockSliderValue.round() == i
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: _dnsBlockSliderValue.round() == i
+                              ? Theme.of(context).colorScheme.secondary
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
 
           const Divider(height: 32),

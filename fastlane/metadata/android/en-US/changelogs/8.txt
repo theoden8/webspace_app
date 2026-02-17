@@ -1,0 +1,7 @@
+✨ New Features:
+• ClearURLs: automatically strip tracking parameters from URLs for privacy
+• DNS Blocklist: block ad/malware/tracker domains using Hagezi blocklists
+
+🔧 Improvements:
+• Improved favicon caching
+• Improved captcha loading
