@@ -334,6 +334,7 @@ class WebViewModel {
     String? language,
     Function(String url, String html)? onHtmlLoaded,
     String? initialHtml,
+    bool Function()? isActive,
   }) {
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
@@ -381,6 +382,16 @@ class WebViewModel {
                 debugPrint('  -> ALLOW (same domain)');
               }
               return true; // Allow - same logical domain
+            }
+
+            // Only open nested webview if this site is currently active.
+            // In IndexedStack, background sites remain alive and can fire
+            // shouldOverrideUrlLoading — don't open dialogs for them.
+            if (isActive != null && !isActive()) {
+              if (kDebugMode) {
+                debugPrint('  -> CANCEL (background site, suppressing nested webview)');
+              }
+              return false;
             }
 
             // Open in nested webview with home site title
