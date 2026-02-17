@@ -433,12 +433,22 @@ class WebViewFactory {
     return _trackingDomains.any((d) => url.contains(d));
   }
 
-  static bool _isCaptchaChallenge(String url) =>
-      url.contains('challenges.cloudflare.com') ||
-      url.contains('cloudflare.com/cdn-cgi/challenge') ||
-      url.contains('cdn-cgi/challenge-platform') ||
-      url.contains('turnstile.com') ||
-      url.contains('cf-turnstile');
+  static const _captchaDomains = [
+    'challenges.cloudflare.com',
+    'hcaptcha.com',
+    'recaptcha.net',
+  ];
+
+  static bool _isCaptchaChallenge(String url) {
+    // Path-based checks that can appear on any domain
+    if (url.contains('cdn-cgi/challenge-platform') ||
+        url.contains('cf-turnstile')) {
+      return true;
+    }
+    final host = Uri.tryParse(url)?.host;
+    if (host == null) return false;
+    return _captchaDomains.any((d) => host == d || host.endsWith('.$d'));
+  }
 
   /// Create a popup webview for handling window.open() calls.
   /// Used for Cloudflare challenges and other popups that require a real window.
