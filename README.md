@@ -12,10 +12,10 @@
 </a>
 
 <a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896">
-  <img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80" style="vertical-align: middle;">
+  <img src="https://gitlab.com/fdroid/artwork/-/raw/master/fdroid-logo-2015/available-on-fdroid.svg" alt="Get it on F-Droid" height="60">
 </a>
 <a href="https://apps.apple.com/app/webspace-app/id6758049523">
-  <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" height="54" style="vertical-align: middle;">
+  <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" height="60">
 </a>
 
 </div>
