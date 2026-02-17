@@ -14,6 +14,9 @@
 <a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896">
   <img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80">
 </a>
+<a href="https://apps.apple.com/app/webspace-app/id6758049523">
+  <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" height="80">
+</a>
 
 </div>
 
