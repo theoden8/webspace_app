@@ -10,8 +10,20 @@ class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
   final bool incognito;
+  final bool thirdPartyCookiesEnabled;
+  final bool clearUrlEnabled;
+  final bool dnsBlockEnabled;
+  final String? language;
 
-  InAppWebViewScreen({required this.url, this.homeTitle, this.incognito = false});
+  InAppWebViewScreen({
+    required this.url,
+    this.homeTitle,
+    required this.incognito,
+    required this.thirdPartyCookiesEnabled,
+    required this.clearUrlEnabled,
+    required this.dnsBlockEnabled,
+    required this.language,
+  });
 
   @override
   _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
@@ -232,6 +244,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
               config: WebViewConfig(
                 initialUrl: widget.url,
                 incognito: widget.incognito,
+                thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
+                clearUrlEnabled: widget.clearUrlEnabled,
+                dnsBlockEnabled: widget.dnsBlockEnabled,
+                language: widget.language,
                 onUrlChanged: (url) {
                   // Keep home site title even when navigating within nested webview
                 },
