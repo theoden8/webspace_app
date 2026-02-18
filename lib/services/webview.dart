@@ -433,12 +433,42 @@ class WebViewFactory {
     return _trackingDomains.any((d) => url.contains(d));
   }
 
-  static bool _isCaptchaChallenge(String url) =>
-      url.contains('challenges.cloudflare.com') ||
-      url.contains('cloudflare.com/cdn-cgi/challenge') ||
-      url.contains('cdn-cgi/challenge-platform') ||
-      url.contains('turnstile.com') ||
-      url.contains('cf-turnstile');
+  static const _captchaDomains = [
+    'challenges.cloudflare.com',
+    'hcaptcha.com',
+  ];
+
+  /// Domains that legitimately serve reCAPTCHA at /recaptcha/ paths.
+  static const _recaptchaDomains = [
+    'google.com',
+    'gstatic.com',
+    'recaptcha.net',
+    'googleapis.com',
+  ];
+
+  static bool _matchesDomain(String host, String domain) =>
+      host == domain || host.endsWith('.$domain');
+
+  @visibleForTesting
+  static bool isCaptchaChallenge(String url) {
+    // Cloudflare path-based checks (only on Cloudflare-controlled paths)
+    if (url.contains('cdn-cgi/challenge-platform') ||
+        url.contains('cf-turnstile')) {
+      return true;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    final host = uri.host;
+    if (host.isEmpty) return false;
+    // Exact captcha domains (hcaptcha, Cloudflare challenges)
+    if (_captchaDomains.any((d) => _matchesDomain(host, d))) return true;
+    // reCAPTCHA: /recaptcha/ path only on known Google-owned domains
+    if (uri.path.contains('/recaptcha/') &&
+        _recaptchaDomains.any((d) => _matchesDomain(host, d))) {
+      return true;
+    }
+    return false;
+  }
 
   /// Create a popup webview for handling window.open() calls.
   /// Used for Cloudflare challenges and other popups that require a real window.
@@ -520,7 +550,7 @@ class WebViewFactory {
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
-        if (_isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
+        if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
         // DNS blocklist check
         if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
           return inapp.NavigationActionPolicy.CANCEL;
@@ -548,7 +578,7 @@ class WebViewFactory {
         // Only show popup dialog for Cloudflare challenges (captcha verification).
         // All other window.open() calls (e.g. Stripe fraud detection, analytics)
         // are silently dismissed to prevent unwanted popup windows.
-        if (!_isCaptchaChallenge(url)) {
+        if (!isCaptchaChallenge(url)) {
           return false;
         }
 
