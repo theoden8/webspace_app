@@ -5,3 +5,4 @@
 🔧 Improvements:
 • Improved favicon caching
 • Improved captcha loading
+• Fixed incognito mode not applying to nested webviews

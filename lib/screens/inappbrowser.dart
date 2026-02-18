@@ -9,8 +9,9 @@ import 'package:webspace/widgets/find_toolbar.dart';
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
+  final bool incognito;
 
-  InAppWebViewScreen({required this.url, this.homeTitle});
+  InAppWebViewScreen({required this.url, this.homeTitle, this.incognito = false});
 
   @override
   _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
@@ -230,6 +231,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
                 initialUrl: widget.url,
+                incognito: widget.incognito,
                 onUrlChanged: (url) {
                   // Keep home site title even when navigating within nested webview
                 },
