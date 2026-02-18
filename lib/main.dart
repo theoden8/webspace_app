@@ -778,11 +778,11 @@ class _WebSpacePageState extends State<WebSpacePage> {
     }
   }
 
-  Future<void> launchUrl(String url, {String? homeTitle}) async {
+  Future<void> launchUrl(String url, {String? homeTitle, bool? incognito}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => InAppWebViewScreen(url: url, homeTitle: homeTitle),
+        builder: (context) => InAppWebViewScreen(url: url, homeTitle: homeTitle, incognito: incognito ?? false),
       ),
     );
   }
