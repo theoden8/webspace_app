@@ -327,7 +327,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, bool? incognito}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required String? language}) launchUrlFunc,
     CookieManager cookieManager,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
@@ -398,7 +398,7 @@ class WebViewModel {
             if (kDebugMode) {
               debugPrint('  -> CANCEL (opening nested webview)');
             }
-            launchUrlFunc(url, homeTitle: name, incognito: incognito);
+            launchUrlFunc(url, homeTitle: name, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, language: this.language);
             return false; // Cancel
           },
           onUrlChanged: (url) async {
@@ -459,7 +459,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, bool? incognito}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required String? language}) launchUrlFunc,
     CookieManager cookieManager,
     Function saveFunc,
   ) {
