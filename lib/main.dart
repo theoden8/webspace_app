@@ -29,6 +29,7 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Accent color enum
@@ -920,20 +921,28 @@ class _WebSpacePageState extends State<WebSpacePage> {
     // Get indices in the new webspace
     final newIndices = _getFilteredSiteIndices().toSet();
 
-    // Find loaded sites that were in previous webspace but not in new one
-    final indicesToUnload = _loadedIndices
-        .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
-        .toList();
+    // Only unload sites when online - preserve live webviews when offline
+    // so users can still view cached content
+    final online = await ConnectivityService.instance.isOnline();
 
-    // Unload sites not in new webspace
-    for (final index in indicesToUnload) {
-      if (index >= 0 && index < _webViewModels.length) {
-        _webViewModels[index].disposeWebView();
-        _loadedIndices.remove(index);
-        if (kDebugMode) {
-          debugPrint('[WebspaceSwitch] Unloaded site $index: "${_webViewModels[index].name}"');
+    if (online) {
+      // Find loaded sites that were in previous webspace but not in new one
+      final indicesToUnload = _loadedIndices
+          .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
+          .toList();
+
+      // Unload sites not in new webspace
+      for (final index in indicesToUnload) {
+        if (index >= 0 && index < _webViewModels.length) {
+          _webViewModels[index].disposeWebView();
+          _loadedIndices.remove(index);
+          if (kDebugMode) {
+            debugPrint('[WebspaceSwitch] Unloaded site $index: "${_webViewModels[index].name}"');
+          }
         }
       }
+    } else if (kDebugMode) {
+      debugPrint('[WebspaceSwitch] Offline - preserving loaded webviews');
     }
 
     await _setCurrentIndex(null);

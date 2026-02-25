@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -539,12 +540,18 @@ class WebViewFactory {
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
-      onWebViewCreated: (controller) {
+      onWebViewCreated: (controller) async {
         final wrappedController = _WebViewController(controller);
         onControllerCreated(wrappedController);
-        // If we loaded cached HTML, now navigate to the real URL for fresh content
+        // If we loaded cached HTML, navigate to the real URL for fresh content
+        // but only when online - offline stays on cached page
         if (usesCachedHtml) {
-          wrappedController.loadUrl(config.initialUrl, language: config.language);
+          final online = await ConnectivityService.instance.isOnline();
+          if (online) {
+            wrappedController.loadUrl(config.initialUrl, language: config.language);
+          } else if (kDebugMode) {
+            debugPrint('[WebView] Offline - staying on cached HTML for ${config.initialUrl}');
+          }
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
