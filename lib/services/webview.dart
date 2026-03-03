@@ -485,6 +485,8 @@ class WebViewFactory {
         domStorageEnabled: true,
         databaseEnabled: true,
         javaScriptCanOpenWindowsAutomatically: true,
+        // Enable browser-level resource caching for offline sub-resource loading
+        cacheEnabled: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
@@ -537,6 +539,8 @@ class WebViewFactory {
         // Android: allow file and content access for Cloudflare Turnstile
         allowFileAccess: true,
         allowContentAccess: true,
+        // Enable browser-level resource caching for offline sub-resource loading
+        cacheEnabled: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
@@ -549,8 +553,14 @@ class WebViewFactory {
           final online = await ConnectivityService.instance.isOnline();
           if (online) {
             wrappedController.loadUrl(config.initialUrl, language: config.language);
-          } else if (kDebugMode) {
-            debugPrint('[WebView] Offline - staying on cached HTML for ${config.initialUrl}');
+          } else {
+            // Switch to cache-first mode so sub-resources load from browser cache
+            await controller.setSettings(settings: inapp.InAppWebViewSettings(
+              cacheMode: inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK,
+            ));
+            if (kDebugMode) {
+              debugPrint('[WebView] Offline - using cached resources for ${config.initialUrl}');
+            }
           }
         }
       },
