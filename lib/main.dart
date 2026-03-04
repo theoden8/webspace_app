@@ -28,6 +28,7 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -218,6 +219,9 @@ void main() async {
 
   // Initialize DNS block service (loads cached blocklist from disk)
   await DnsBlockService.instance.initialize();
+
+  // Initialize content blocker service (loads cached filter lists from disk)
+  await ContentBlockerService.instance.initialize();
 
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {
@@ -784,6 +788,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     required bool thirdPartyCookiesEnabled,
     required bool clearUrlEnabled,
     required bool dnsBlockEnabled,
+    required bool contentBlockEnabled,
     required String? language,
   }) async {
     await Navigator.push(
@@ -796,6 +801,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           clearUrlEnabled: clearUrlEnabled,
           dnsBlockEnabled: dnsBlockEnabled,
+          contentBlockEnabled: contentBlockEnabled,
           language: language,
         ),
       ),

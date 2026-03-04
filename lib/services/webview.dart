@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -214,6 +215,8 @@ class WebViewConfig {
   final bool clearUrlEnabled;
   /// Whether to block navigation to domains on the Hagezi DNS blocklist.
   final bool dnsBlockEnabled;
+  /// Whether to apply ABP content blocker rules (ads, trackers, cosmetic).
+  final bool contentBlockEnabled;
 
   WebViewConfig({
     this.key,
@@ -225,6 +228,7 @@ class WebViewConfig {
     this.language,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
+    this.contentBlockEnabled = true,
     this.onUrlChanged,
     this.onCookiesChanged,
     this.onFindResult,
@@ -538,6 +542,9 @@ class WebViewFactory {
         allowContentAccess: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
+        contentBlockers: config.contentBlockEnabled
+            ? ContentBlockerService.instance.contentBlockers
+            : [],
       ),
       onWebViewCreated: (controller) {
         final wrappedController = _WebViewController(controller);

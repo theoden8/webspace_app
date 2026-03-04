@@ -218,6 +218,7 @@ class WebViewModel {
   String? language; // Language code (e.g., 'en', 'es'), null = system default
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
   bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
+  bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
 
   String? defaultUserAgent;
   Function? stateSetterF;
@@ -238,6 +239,7 @@ class WebViewModel {
     this.language,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
+    this.contentBlockEnabled = true,
     this.stateSetterF,
   })  : siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
@@ -327,7 +329,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required String? language}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language}) launchUrlFunc,
     CookieManager cookieManager,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
@@ -355,6 +357,7 @@ class WebViewModel {
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
           clearUrlEnabled: clearUrlEnabled,
           dnsBlockEnabled: dnsBlockEnabled,
+          contentBlockEnabled: contentBlockEnabled,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, shouldAllow) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
@@ -398,7 +401,7 @@ class WebViewModel {
             if (kDebugMode) {
               debugPrint('  -> CANCEL (opening nested webview)');
             }
-            launchUrlFunc(url, homeTitle: name, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, language: this.language);
+            launchUrlFunc(url, homeTitle: name, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
             return false; // Cancel
           },
           onUrlChanged: (url) async {
@@ -459,7 +462,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required String? language}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language}) launchUrlFunc,
     CookieManager cookieManager,
     Function saveFunc,
   ) {
@@ -524,6 +527,7 @@ class WebViewModel {
         'language': language,
         'clearUrlEnabled': clearUrlEnabled,
         'dnsBlockEnabled': dnsBlockEnabled,
+        'contentBlockEnabled': contentBlockEnabled,
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -543,6 +547,7 @@ class WebViewModel {
       language: json['language'],
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
+      contentBlockEnabled: json['contentBlockEnabled'] ?? true,
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }
