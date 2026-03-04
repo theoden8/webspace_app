@@ -58,8 +58,14 @@ void main() {
       expect(result.cosmeticSelectors['test.org'], contains('.sponsored'));
     });
 
-    test('skips extended CSS selectors (:has)', () {
+    test('converts standard CSS :has() selectors', () {
       final result = parseAbpFilterListSync('##.container:has(.ad)');
+      expect(result.convertedCount, equals(1));
+      expect(result.cosmeticSelectors[''], contains('.container:has(.ad)'));
+    });
+
+    test('skips ABP-only :has-text() selectors', () {
+      final result = parseAbpFilterListSync('##.container:has-text(Sponsored)');
       expect(result.convertedCount, equals(0));
       expect(result.skippedCount, equals(1));
     });
@@ -124,8 +130,8 @@ void main() {
 ||malware.com^
 ''';
       final result = parseAbpFilterListSync(input);
-      expect(result.convertedCount, equals(3)); // 2 domains + 1 cosmetic
-      expect(result.skippedCount, equals(2)); // redirect + extended CSS
+      expect(result.convertedCount, equals(4)); // 2 domains + 1 cosmetic + 1 :has() cosmetic
+      expect(result.skippedCount, equals(1)); // redirect
       expect(result.blockedDomains, contains('ads.example.com'));
       expect(result.blockedDomains, contains('malware.com'));
       expect(result.cosmeticSelectors[''], contains('.ad-banner'));

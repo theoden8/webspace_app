@@ -45,13 +45,17 @@ bool _parseLine(
   // --- Cosmetic filter: ##selector or domain##selector ---
   final cosmeticIdx = line.indexOf('##');
   if (cosmeticIdx >= 0) {
-    // Skip extended CSS selectors
+    // Skip ABP extended CSS selectors (but NOT standard CSS :has() which browsers support)
     final afterHash = line.substring(cosmeticIdx);
     if (afterHash.startsWith('#?#') ||
         afterHash.startsWith('#\$#') ||
-        afterHash.contains(':has(') ||
         afterHash.contains(':has-text(') ||
-        afterHash.contains(':-abp-')) {
+        afterHash.contains(':contains(') ||
+        afterHash.contains(':-abp-') ||
+        afterHash.contains(':matches-path(') ||
+        afterHash.contains(':matches-attr(') ||
+        afterHash.contains(':min-text-length(') ||
+        afterHash.contains(':watch-attr(')) {
       return false;
     }
 

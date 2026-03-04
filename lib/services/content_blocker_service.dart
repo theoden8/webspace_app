@@ -157,35 +157,57 @@ class ContentBlockerService {
 
     if (selectors.isEmpty) return null;
 
+    // Build CSS: one rule per selector so a bad selector doesn't break others.
+    final cssRules = StringBuffer();
+    for (final s in selectors) {
+      final escaped = s.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+      cssRules.write('$escaped { display: none !important; } ');
+    }
+    final cssText = cssRules.toString();
+
     // Build JS that:
-    // 1. Injects a <style> with display:none for all selectors
-    // 2. Uses MutationObserver to re-apply to dynamically added content
-    final escapedSelectors = selectors
+    // 1. Injects a <style> with display:none rules
+    // 2. Uses MutationObserver to force-hide elements (in case site overrides with inline styles)
+    // querySelectorAll batches selectors in small groups to avoid one invalid selector breaking all
+    final escapedForJs = selectors
         .map((s) => s.replaceAll('\\', '\\\\').replaceAll("'", "\\'"))
-        .join(', ');
+        .toList();
+    // Batch selectors into groups of 20 for querySelectorAll resilience
+    final batches = <String>[];
+    for (var i = 0; i < escapedForJs.length; i += 20) {
+      final end = (i + 20 < escapedForJs.length) ? i + 20 : escapedForJs.length;
+      batches.add(escapedForJs.sublist(i, end).join(', '));
+    }
+    final batchArray = batches.map((b) => "'$b'").join(',');
 
     return '''
 (function() {
-  var SEL = '$escapedSelectors';
   var ID = '_webspace_content_blocker_style';
   if (document.getElementById(ID)) return;
+  var CSS = '$cssText';
+  var BATCHES = [$batchArray];
   function inject() {
     if (!document.head && !document.documentElement) return;
     var s = document.createElement('style');
     s.id = ID;
-    s.textContent = SEL + ' { display: none !important; }';
+    s.textContent = CSS;
     (document.head || document.documentElement).appendChild(s);
   }
   inject();
   if (!document.getElementById(ID)) {
-    // head not ready yet — retry when DOM is available
     document.addEventListener('DOMContentLoaded', function() { inject(); });
   }
   function hide() {
-    try { document.querySelectorAll(SEL).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}
+    for (var i = 0; i < BATCHES.length; i++) {
+      try { document.querySelectorAll(BATCHES[i]).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}
+    }
   }
   hide();
-  var obs = new MutationObserver(function() { hide(); });
+  var t = null;
+  var obs = new MutationObserver(function() {
+    if (t) clearTimeout(t);
+    t = setTimeout(hide, 50);
+  });
   if (document.body) {
     obs.observe(document.body, { childList: true, subtree: true });
   } else {
