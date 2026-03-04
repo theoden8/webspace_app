@@ -131,10 +131,8 @@ class ContentBlockerService {
     return false;
   }
 
-  /// Get JavaScript to inject for cosmetic filtering on a given page URL.
-  /// Returns null if no cosmetic rules apply.
-  String? getCosmeticScript(String pageUrl) {
-    // Collect applicable selectors: global + domain-specific
+  /// Collect applicable selectors and text rules for a page URL.
+  ({List<String> selectors, List<TextHideRule> textRules}) _collectRules(String pageUrl) {
     final selectors = <String>[];
     final textRules = <TextHideRule>[];
 
@@ -157,18 +155,50 @@ class ContentBlockerService {
       }
     } catch (_) {}
 
-    if (selectors.isEmpty && textRules.isEmpty) return null;
+    return (selectors: selectors, textRules: textRules);
+  }
 
-    // Build CSS: one rule per selector so a bad selector doesn't break others
+  String _buildCssText(List<String> selectors) {
     final cssRules = StringBuffer();
     for (final s in selectors) {
       final escaped = s.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
       cssRules.write('$escaped { display: none !important; } ');
     }
-    final cssText = cssRules.toString();
+    return cssRules.toString();
+  }
+
+  /// Get CSS-only JavaScript for early injection at DOCUMENT_START.
+  /// Injects a <style> tag with display:none rules before content renders.
+  /// Returns null if no CSS selectors apply.
+  String? getEarlyCssScript(String pageUrl) {
+    final rules = _collectRules(pageUrl);
+    if (rules.selectors.isEmpty) return null;
+
+    final cssText = _buildCssText(rules.selectors);
+
+    return '''
+(function() {
+  var ID = '_webspace_content_blocker_style';
+  if (document.getElementById(ID)) return;
+  var s = document.createElement('style');
+  s.id = ID;
+  s.textContent = '$cssText';
+  (document.head || document.documentElement || document).appendChild(s);
+})();
+''';
+  }
+
+  /// Get full JavaScript for injection after page load.
+  /// Sets up MutationObserver for dynamic content and text-based hiding.
+  /// Returns null if no cosmetic rules apply.
+  String? getCosmeticScript(String pageUrl) {
+    final rules = _collectRules(pageUrl);
+    if (rules.selectors.isEmpty && rules.textRules.isEmpty) return null;
+
+    final cssText = _buildCssText(rules.selectors);
 
     // Batch selectors for querySelectorAll resilience
-    final escapedForJs = selectors
+    final escapedForJs = rules.selectors
         .map((s) => s.replaceAll('\\', '\\\\').replaceAll("'", "\\'"))
         .toList();
     final batches = <String>[];
@@ -179,11 +209,10 @@ class ContentBlockerService {
     final batchArray = batches.map((b) => "'$b'").join(',');
 
     // Build text-match rules array for JS
-    // Each rule: {sel: 'div.class', patterns: ['Promoted', 'Sponsored']}
     final textRulesJs = StringBuffer('[');
-    for (var i = 0; i < textRules.length; i++) {
+    for (var i = 0; i < rules.textRules.length; i++) {
       if (i > 0) textRulesJs.write(',');
-      final r = textRules[i];
+      final r = rules.textRules[i];
       final sel = r.selector.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
       final pats = r.textPatterns
           .map((p) => "'${p.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'")
@@ -195,21 +224,14 @@ class ContentBlockerService {
     return '''
 (function() {
   var ID = '_webspace_content_blocker_style';
-  if (document.getElementById(ID)) return;
-  var CSS = '$cssText';
-  var BATCHES = [$batchArray];
-  var TEXT_RULES = $textRulesJs;
-  function inject() {
-    if (!document.head && !document.documentElement) return;
+  if (!document.getElementById(ID)) {
     var s = document.createElement('style');
     s.id = ID;
-    s.textContent = CSS;
+    s.textContent = '$cssText';
     (document.head || document.documentElement).appendChild(s);
   }
-  inject();
-  if (!document.getElementById(ID)) {
-    document.addEventListener('DOMContentLoaded', function() { inject(); });
-  }
+  var BATCHES = [$batchArray];
+  var TEXT_RULES = $textRulesJs;
   function hideCSS() {
     for (var i = 0; i < BATCHES.length; i++) {
       try { document.querySelectorAll(BATCHES[i]).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}

@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
@@ -512,6 +514,19 @@ class WebViewFactory {
     // Use cached HTML for instant display, or regular URL request
     final usesCachedHtml = config.initialHtml != null;
 
+    // Inject content blocker CSS at DOCUMENT_START so elements are hidden
+    // before they ever render, eliminating the flash of unstyled content.
+    final userScripts = <inapp.UserScript>[];
+    if (config.contentBlockEnabled) {
+      final earlyScript = ContentBlockerService.instance.getEarlyCssScript(config.initialUrl);
+      if (earlyScript != null) {
+        userScripts.add(inapp.UserScript(
+          source: earlyScript,
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        ));
+      }
+    }
+
     return inapp.InAppWebView(
       key: config.key,
       // If we have cached HTML, load it first for instant display
@@ -525,6 +540,7 @@ class WebViewFactory {
         encoding: 'utf-8',
         baseUrl: inapp.WebUri(config.initialUrl),
       ) : null,
+      initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: inapp.InAppWebViewSettings(
         javaScriptEnabled: config.javascriptEnabled,
         userAgent: config.userAgent,
@@ -598,9 +614,9 @@ class WebViewFactory {
         return false;
       },
       onLoadStart: (controller, url) async {
-        // Inject cosmetic filters early so the style tag is in place before content renders
+        // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {
-          final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
+          final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
           if (script != null) {
             await controller.evaluateJavascript(source: script);
           }
@@ -613,7 +629,7 @@ class WebViewFactory {
             final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
             config.onCookiesChanged!(cookies);
           }
-          // Inject cosmetic filter CSS for content blocking
+          // Inject full cosmetic script: MutationObserver + text-based hiding
           if (config.contentBlockEnabled) {
             final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
             if (script != null) {
