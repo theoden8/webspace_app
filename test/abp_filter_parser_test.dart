@@ -1,103 +1,61 @@
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/abp_filter_parser.dart';
 
 void main() {
-  group('abpToRegex', () {
-    test('converts || domain anchor to regex', () {
-      final regex = abpToRegex('||example.com^');
-      expect(regex, equals(r'^https?://([^/]+\.)?example\.com[/:?&=]'));
-    });
-
-    test('converts * wildcard to .*', () {
-      final regex = abpToRegex('||example.com/*/ad');
-      expect(regex, contains('.*'));
-    });
-
-    test('escapes dots', () {
-      final regex = abpToRegex('example.com');
-      expect(regex, contains(r'\.'));
-    });
-
-    test('handles | start anchor', () {
-      final regex = abpToRegex('|https://example.com');
-      expect(regex, startsWith('^'));
-    });
-
-    test('handles | end anchor', () {
-      final regex = abpToRegex('example.com|');
-      expect(regex, endsWith(r'$'));
-    });
-
-    test('handles pattern with no special chars', () {
-      final regex = abpToRegex('ad');
-      expect(regex, equals('ad'));
-    });
-  });
-
   group('parseAbpFilterListSync', () {
     test('skips comment lines', () {
       final result = parseAbpFilterListSync('! This is a comment\n! Another comment');
-      expect(result.rules, isEmpty);
+      expect(result.blockedDomains, isEmpty);
+      expect(result.cosmeticSelectors, isEmpty);
       expect(result.convertedCount, equals(0));
       expect(result.skippedCount, equals(0));
     });
 
     test('skips header lines', () {
       final result = parseAbpFilterListSync('[Adblock Plus 2.0]');
-      expect(result.rules, isEmpty);
       expect(result.convertedCount, equals(0));
     });
 
     test('skips empty lines', () {
       final result = parseAbpFilterListSync('\n\n\n');
-      expect(result.rules, isEmpty);
+      expect(result.blockedDomains, isEmpty);
     });
 
-    test('converts basic network block rule', () {
+    test('converts simple domain block rule', () {
       final result = parseAbpFilterListSync('||ads.example.com^');
       expect(result.convertedCount, equals(1));
       expect(result.skippedCount, equals(0));
-      expect(result.rules.length, equals(1));
-      expect(result.rules[0].action.type, equals(ContentBlockerActionType.BLOCK));
-      expect(result.rules[0].trigger.urlFilter, contains('ads\\.example\\.com'));
+      expect(result.blockedDomains, contains('ads.example.com'));
     });
 
-    test('skips exception rules when skipExceptions is true', () {
-      final result = parseAbpFilterListSync('@@||example.com^', skipExceptions: true);
+    test('converts domain rule without trailing ^', () {
+      final result = parseAbpFilterListSync('||tracker.example.com');
+      expect(result.blockedDomains, contains('tracker.example.com'));
+    });
+
+    test('skips exception rules (@@)', () {
+      final result = parseAbpFilterListSync('@@||example.com^');
       expect(result.convertedCount, equals(0));
       expect(result.skippedCount, equals(1));
     });
 
-    test('converts exception rules when skipExceptions is false', () {
-      // On platforms that support IGNORE_PREVIOUS_RULES (iOS/macOS), exception rules are converted.
-      // On test platform (Linux), IGNORE_PREVIOUS_RULES throws, so we skip this assertion.
-      final result = parseAbpFilterListSync('@@||example.com^', skipExceptions: false);
-      // The rule either converts or is skipped depending on platform
-      expect(result.convertedCount + result.skippedCount, equals(1));
-    });
-
-    test('converts cosmetic filter with ## selector', () {
+    test('converts global cosmetic filter', () {
       final result = parseAbpFilterListSync('##.ad-banner');
       expect(result.convertedCount, equals(1));
-      expect(result.rules[0].action.type,
-          equals(ContentBlockerActionType.CSS_DISPLAY_NONE));
-      expect(result.rules[0].action.selector, equals('.ad-banner'));
-      expect(result.rules[0].trigger.urlFilter, equals('.*'));
+      expect(result.cosmeticSelectors[''], contains('.ad-banner'));
     });
 
     test('converts domain-specific cosmetic filter', () {
       final result = parseAbpFilterListSync('example.com##.ad-sidebar');
       expect(result.convertedCount, equals(1));
-      expect(result.rules[0].action.selector, equals('.ad-sidebar'));
-      expect(result.rules[0].trigger.ifDomain, contains('*example.com'));
+      expect(result.cosmeticSelectors['example.com'], contains('.ad-sidebar'));
     });
 
     test('converts multi-domain cosmetic filter', () {
       final result = parseAbpFilterListSync('example.com,test.org##.sponsored');
       expect(result.convertedCount, equals(1));
-      expect(result.rules[0].trigger.ifDomain, contains('*example.com'));
-      expect(result.rules[0].trigger.ifDomain, contains('*test.org'));
+      expect(result.cosmeticSelectors['example.com'], contains('.sponsored'));
+      expect(result.cosmeticSelectors['test.org'], contains('.sponsored'));
     });
 
     test('skips extended CSS selectors (:has)', () {
@@ -124,46 +82,11 @@ void main() {
       expect(result.skippedCount, equals(1));
     });
 
-    test('parses \$third-party option', () {
-      final result = parseAbpFilterListSync(r'||ads.example.com^$third-party');
-      expect(result.convertedCount, equals(1));
-      expect(result.rules[0].trigger.loadType,
-          contains(ContentBlockerTriggerLoadType.THIRD_PARTY));
-    });
-
-    test('parses \$script resource type', () {
-      final result = parseAbpFilterListSync(r'||ads.example.com^$script');
-      expect(result.convertedCount, equals(1));
-      expect(result.rules[0].trigger.resourceType,
-          contains(ContentBlockerTriggerResourceType.SCRIPT));
-    });
-
-    test('parses \$image resource type', () {
-      final result = parseAbpFilterListSync(r'||ads.example.com^$image');
-      expect(result.convertedCount, equals(1));
-      expect(result.rules[0].trigger.resourceType,
-          contains(ContentBlockerTriggerResourceType.IMAGE));
-    });
-
-    test('parses multiple resource types', () {
-      final result = parseAbpFilterListSync(r'||ads.example.com^$script,image');
-      expect(result.convertedCount, equals(1));
-      expect(result.rules[0].trigger.resourceType,
-          contains(ContentBlockerTriggerResourceType.SCRIPT));
-      expect(result.rules[0].trigger.resourceType,
-          contains(ContentBlockerTriggerResourceType.IMAGE));
-    });
-
-    test('parses \$domain= option with ifDomain', () {
-      final result = parseAbpFilterListSync(r'||ads.com^$domain=example.com');
-      expect(result.convertedCount, equals(1));
-      expect(result.rules[0].trigger.ifDomain, contains('*example.com'));
-    });
-
-    test('parses \$domain= option with unlessDomain', () {
-      final result = parseAbpFilterListSync(r'||ads.com^$domain=~safe.com');
-      expect(result.convertedCount, equals(1));
-      expect(result.rules[0].trigger.unlessDomain, contains('*safe.com'));
+    test('skips complex path rules (not domain-only)', () {
+      // Rules with paths/wildcards are skipped for performance
+      final result = parseAbpFilterListSync(r'||ads.example.com/path$script,third-party');
+      expect(result.convertedCount, equals(0));
+      expect(result.skippedCount, equals(1));
     });
 
     test('skips \$redirect rules', () {
@@ -201,41 +124,44 @@ void main() {
 ||malware.com^
 ''';
       final result = parseAbpFilterListSync(input);
-      expect(result.convertedCount, equals(3)); // 2 network + 1 cosmetic
+      expect(result.convertedCount, equals(3)); // 2 domains + 1 cosmetic
       expect(result.skippedCount, equals(2)); // redirect + extended CSS
+      expect(result.blockedDomains, contains('ads.example.com'));
+      expect(result.blockedDomains, contains('malware.com'));
+      expect(result.cosmeticSelectors[''], contains('.ad-banner'));
     });
 
     test('handles real EasyList-style rules', () {
       const input = '''
 [Adblock Plus 2.0]
 ! Title: EasyList
-! Last modified: 01 Jan 2024
 ||googleads.g.doubleclick.net^
 ||pagead2.googlesyndication.com^
-||securepubads.g.doubleclick.net/tag/js/gpt.js
--advertisement-icon.
--advertising-partner.
 ##.AdSense
 ##.ad-leaderboard
 ###ad-banner
 ''';
       final result = parseAbpFilterListSync(input);
-      // All lines should be convertible
-      expect(result.convertedCount, greaterThan(0));
-      expect(result.rules.length, equals(result.convertedCount));
+      expect(result.blockedDomains, contains('googleads.g.doubleclick.net'));
+      expect(result.blockedDomains, contains('pagead2.googlesyndication.com'));
+      expect(result.cosmeticSelectors[''], containsAll(['.AdSense', '.ad-leaderboard', '#ad-banner']));
     });
 
-    test('handles combined options: type + third-party + domain', () {
-      final result = parseAbpFilterListSync(
-          r'||cdn.ads.com/banner$image,third-party,domain=example.com|test.org');
-      expect(result.convertedCount, equals(1));
-      final rule = result.rules[0];
-      expect(rule.trigger.resourceType,
-          contains(ContentBlockerTriggerResourceType.IMAGE));
-      expect(rule.trigger.loadType,
-          contains(ContentBlockerTriggerLoadType.THIRD_PARTY));
-      expect(rule.trigger.ifDomain, contains('*example.com'));
-      expect(rule.trigger.ifDomain, contains('*test.org'));
+    test('domain blocking is case-insensitive', () {
+      final result = parseAbpFilterListSync('||ADS.Example.COM^');
+      expect(result.blockedDomains, contains('ads.example.com'));
+    });
+
+    test('aggregates selectors from multiple rules', () {
+      const input = '''
+##.ad-banner
+##.ad-sidebar
+example.com##.promoted
+example.com##.sponsored
+''';
+      final result = parseAbpFilterListSync(input);
+      expect(result.cosmeticSelectors['']!.length, equals(2));
+      expect(result.cosmeticSelectors['example.com']!.length, equals(2));
     });
   });
 }

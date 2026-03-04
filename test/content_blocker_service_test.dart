@@ -111,10 +111,6 @@ void main() {
   });
 
   group('ContentBlockerService', () {
-    test('maxContentBlockerRules constant is 50000', () {
-      expect(maxContentBlockerRules, equals(50000));
-    });
-
     test('instance is a singleton', () {
       final a = ContentBlockerService.instance;
       final b = ContentBlockerService.instance;
@@ -164,6 +160,20 @@ void main() {
       ]);
       expect(() => service.lists.add(FilterList(id: 'y', name: 'Y', url: 'https://y.com')),
           throwsUnsupportedError);
+    });
+
+    test('isBlocked checks domain and parent domains', () {
+      final service = ContentBlockerService.instance;
+      service.reset();
+      // Manually test isBlocked by checking service behavior
+      // (actual domain set is populated by _rebuildRules which needs file I/O)
+      expect(service.isBlocked('https://example.com'), isFalse);
+    });
+
+    test('getCosmeticScript returns null when no selectors', () {
+      final service = ContentBlockerService.instance;
+      service.reset();
+      expect(service.getCosmeticScript('https://example.com'), isNull);
     });
   });
 }

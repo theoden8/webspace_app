@@ -542,9 +542,6 @@ class WebViewFactory {
         allowContentAccess: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
-        contentBlockers: config.contentBlockEnabled
-            ? ContentBlockerService.instance.contentBlockers
-            : [],
       ),
       onWebViewCreated: (controller) {
         final wrappedController = _WebViewController(controller);
@@ -560,6 +557,10 @@ class WebViewFactory {
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
         // DNS blocklist check
         if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
+        // Content blocker domain check
+        if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
           return inapp.NavigationActionPolicy.CANCEL;
         }
         // ClearURLs: strip tracking parameters from URLs
@@ -602,6 +603,13 @@ class WebViewFactory {
           if (config.onCookiesChanged != null) {
             final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
             config.onCookiesChanged!(cookies);
+          }
+          // Inject cosmetic filter CSS for content blocking
+          if (config.contentBlockEnabled) {
+            final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
+            if (script != null) {
+              await controller.evaluateJavascript(source: script);
+            }
           }
           // Cache HTML for offline viewing
           if (config.onHtmlLoaded != null) {

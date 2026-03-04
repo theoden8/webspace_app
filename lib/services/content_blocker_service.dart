@@ -2,15 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'abp_filter_parser.dart';
-
-/// Maximum number of content blocker rules to avoid performance issues.
-const int maxContentBlockerRules = 50000;
 
 /// A filter list entry with metadata.
 class FilterList {
@@ -79,7 +75,12 @@ const List<Map<String, String>> _defaultLists = [
   },
 ];
 
-/// Singleton service for managing ABP filter lists and generating ContentBlocker rules.
+/// Singleton service for managing ABP filter lists.
+///
+/// Uses two mechanisms instead of InAppWebView's contentBlockers (which does
+/// O(n) regex per request on Android):
+/// 1. **Domain blocking** — O(1) hash set lookup in shouldOverrideUrlLoading
+/// 2. **Cosmetic filtering** — JavaScript injection with MutationObserver
 class ContentBlockerService {
   static const String _listsKey = 'content_blocker_lists';
   static const String _cacheDir = 'content_blocker_cache';
@@ -91,20 +92,107 @@ class ContentBlockerService {
   ContentBlockerService._();
 
   List<FilterList> _lists = [];
-  List<ContentBlocker> _contentBlockers = [];
+
+  /// Aggregated blocked domains from all enabled lists.
+  Set<String> _blockedDomains = {};
+
+  /// Aggregated cosmetic selectors: domain -> selectors.
+  /// Key '' = global selectors.
+  Map<String, List<String>> _cosmeticSelectors = {};
+
+  /// Cached CSS injection script (rebuilt when rules change).
+  String? _cosmeticScript;
 
   /// All configured filter lists.
   List<FilterList> get lists => List.unmodifiable(_lists);
-
-  /// Aggregated content blocker rules from all enabled lists.
-  List<ContentBlocker> get contentBlockers => _contentBlockers;
 
   /// Total rule count across all enabled lists.
   int get totalRuleCount =>
       _lists.where((l) => l.enabled).fold(0, (sum, l) => sum + l.ruleCount);
 
   /// Whether any rules are loaded.
-  bool get hasRules => _contentBlockers.isNotEmpty;
+  bool get hasRules => _blockedDomains.isNotEmpty || _cosmeticSelectors.isNotEmpty;
+
+  /// Check if a URL's domain (or any parent domain) is blocked.
+  bool isBlocked(String url) {
+    if (_blockedDomains.isEmpty) return false;
+    try {
+      final host = Uri.parse(url).host.toLowerCase();
+      if (host.isEmpty) return false;
+      // Check exact and parent domains: a.b.example.com -> b.example.com -> example.com
+      String domain = host;
+      while (domain.isNotEmpty) {
+        if (_blockedDomains.contains(domain)) return true;
+        final dotIdx = domain.indexOf('.');
+        if (dotIdx < 0) break;
+        domain = domain.substring(dotIdx + 1);
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  /// Get JavaScript to inject for cosmetic filtering on a given page URL.
+  /// Returns null if no cosmetic rules apply.
+  String? getCosmeticScript(String pageUrl) {
+    if (_cosmeticSelectors.isEmpty) return null;
+
+    // Collect applicable selectors: global + domain-specific
+    final selectors = <String>[];
+
+    final global = _cosmeticSelectors[''];
+    if (global != null) selectors.addAll(global);
+
+    try {
+      final host = Uri.parse(pageUrl).host.toLowerCase();
+      // Check domain-specific selectors for this host and parent domains
+      String domain = host;
+      while (domain.isNotEmpty) {
+        final domainSelectors = _cosmeticSelectors[domain];
+        if (domainSelectors != null) selectors.addAll(domainSelectors);
+        final dotIdx = domain.indexOf('.');
+        if (dotIdx < 0) break;
+        domain = domain.substring(dotIdx + 1);
+      }
+    } catch (_) {}
+
+    if (selectors.isEmpty) return null;
+
+    // Build JS that:
+    // 1. Injects a <style> with display:none for all selectors
+    // 2. Uses MutationObserver to re-apply to dynamically added content
+    final escapedSelectors = selectors
+        .map((s) => s.replaceAll('\\', '\\\\').replaceAll("'", "\\'"))
+        .join(', ');
+
+    return '''
+(function() {
+  var SEL = '$escapedSelectors';
+  var ID = '_webspace_content_blocker_style';
+  if (document.getElementById(ID)) return;
+  function inject() {
+    if (!document.head) return;
+    var s = document.createElement('style');
+    s.id = ID;
+    s.textContent = SEL + ' { display: none !important; }';
+    document.head.appendChild(s);
+  }
+  inject();
+  function hide() {
+    try { document.querySelectorAll(SEL).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}
+  }
+  hide();
+  var obs = new MutationObserver(function() { hide(); });
+  if (document.body) {
+    obs.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      hide();
+      if (document.body) obs.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+})();
+''';
+  }
 
   /// Initialize: load list metadata from prefs, parse cached files for enabled lists.
   Future<void> initialize() async {
@@ -130,11 +218,13 @@ class ContentBlockerService {
       }
 
       // Parse cached filter text for enabled lists
-      await _rebuildContentBlockers();
+      await _rebuildRules();
 
       if (kDebugMode) {
         debugPrint(
-            '[ContentBlocker] Initialized: ${_lists.length} lists, ${_contentBlockers.length} rules');
+            '[ContentBlocker] Initialized: ${_lists.length} lists, '
+            '${_blockedDomains.length} blocked domains, '
+            '${_cosmeticSelectors.values.fold<int>(0, (s, l) => s + l.length)} cosmetic selectors');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -166,10 +256,8 @@ class ContentBlockerService {
       await cacheFile.parent.create(recursive: true);
       await cacheFile.writeAsString(response.body);
 
-      // Parse — skip exception rules on platforms that don't support IGNORE_PREVIOUS_RULES
-      final skipExceptions = !kIsWeb && (Platform.isAndroid || Platform.isLinux || Platform.isWindows);
-      final result =
-          await parseAbpFilterList(response.body, skipExceptions: skipExceptions);
+      // Parse
+      final result = await parseAbpFilterList(response.body);
 
       list.ruleCount = result.convertedCount;
       list.skippedCount = result.skippedCount;
@@ -177,7 +265,7 @@ class ContentBlockerService {
       list.enabled = true;
 
       await _saveLists();
-      await _rebuildContentBlockers();
+      await _rebuildRules();
 
       if (kDebugMode) {
         debugPrint(
@@ -228,7 +316,7 @@ class ContentBlockerService {
     } catch (_) {}
 
     await _saveLists();
-    await _rebuildContentBlockers();
+    await _rebuildRules();
   }
 
   /// Toggle a filter list enabled/disabled.
@@ -236,13 +324,13 @@ class ContentBlockerService {
     final list = _lists.firstWhere((l) => l.id == id);
     list.enabled = enabled;
     await _saveLists();
-    await _rebuildContentBlockers();
+    await _rebuildRules();
   }
 
-  /// Rebuild aggregated content blockers from all enabled lists' cached files.
-  Future<void> _rebuildContentBlockers() async {
-    final allRules = <ContentBlocker>[];
-    final skipExceptions = !kIsWeb && (Platform.isAndroid || Platform.isLinux || Platform.isWindows);
+  /// Rebuild aggregated rules from all enabled lists' cached files.
+  Future<void> _rebuildRules() async {
+    final allDomains = <String>{};
+    final allSelectors = <String, List<String>>{};
 
     for (final list in _lists) {
       if (!list.enabled) continue;
@@ -252,8 +340,13 @@ class ContentBlockerService {
         if (!await cacheFile.exists()) continue;
 
         final text = await cacheFile.readAsString();
-        final result = parseAbpFilterListSync(text, skipExceptions: skipExceptions);
-        allRules.addAll(result.rules);
+        final result = parseAbpFilterListSync(text);
+        allDomains.addAll(result.blockedDomains);
+
+        // Merge cosmetic selectors
+        for (final entry in result.cosmeticSelectors.entries) {
+          allSelectors.putIfAbsent(entry.key, () => []).addAll(entry.value);
+        }
 
         // Update counts from re-parse
         list.ruleCount = result.convertedCount;
@@ -266,16 +359,9 @@ class ContentBlockerService {
       }
     }
 
-    // Cap at max rules
-    if (allRules.length > maxContentBlockerRules) {
-      _contentBlockers = allRules.sublist(0, maxContentBlockerRules);
-      if (kDebugMode) {
-        debugPrint(
-            '[ContentBlocker] Capped rules from ${allRules.length} to $maxContentBlockerRules');
-      }
-    } else {
-      _contentBlockers = allRules;
-    }
+    _blockedDomains = allDomains;
+    _cosmeticSelectors = allSelectors;
+    _cosmeticScript = null; // Invalidate cached script
   }
 
   Future<void> _saveLists() async {
@@ -293,7 +379,9 @@ class ContentBlockerService {
   @visibleForTesting
   void reset() {
     _lists = [];
-    _contentBlockers = [];
+    _blockedDomains = {};
+    _cosmeticSelectors = {};
+    _cosmeticScript = null;
   }
 
   /// Exposed for testing: set lists directly.
