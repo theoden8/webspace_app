@@ -100,8 +100,8 @@ class ContentBlockerService {
   /// Key '' = global selectors.
   Map<String, List<String>> _cosmeticSelectors = {};
 
-  /// Cached CSS injection script (rebuilt when rules change).
-  String? _cosmeticScript;
+  /// Aggregated text-based hiding rules: domain -> rules.
+  Map<String, List<TextHideRule>> _textHideRules = {};
 
   /// All configured filter lists.
   List<FilterList> get lists => List.unmodifiable(_lists);
@@ -111,7 +111,7 @@ class ContentBlockerService {
       _lists.where((l) => l.enabled).fold(0, (sum, l) => sum + l.ruleCount);
 
   /// Whether any rules are loaded.
-  bool get hasRules => _blockedDomains.isNotEmpty || _cosmeticSelectors.isNotEmpty;
+  bool get hasRules => _blockedDomains.isNotEmpty || _cosmeticSelectors.isNotEmpty || _textHideRules.isNotEmpty;
 
   /// Check if a URL's domain (or any parent domain) is blocked.
   bool isBlocked(String url) {
@@ -134,30 +134,32 @@ class ContentBlockerService {
   /// Get JavaScript to inject for cosmetic filtering on a given page URL.
   /// Returns null if no cosmetic rules apply.
   String? getCosmeticScript(String pageUrl) {
-    if (_cosmeticSelectors.isEmpty) return null;
-
     // Collect applicable selectors: global + domain-specific
     final selectors = <String>[];
+    final textRules = <TextHideRule>[];
 
-    final global = _cosmeticSelectors[''];
-    if (global != null) selectors.addAll(global);
+    final globalSel = _cosmeticSelectors[''];
+    if (globalSel != null) selectors.addAll(globalSel);
+    final globalText = _textHideRules[''];
+    if (globalText != null) textRules.addAll(globalText);
 
     try {
       final host = Uri.parse(pageUrl).host.toLowerCase();
-      // Check domain-specific selectors for this host and parent domains
       String domain = host;
       while (domain.isNotEmpty) {
-        final domainSelectors = _cosmeticSelectors[domain];
-        if (domainSelectors != null) selectors.addAll(domainSelectors);
+        final ds = _cosmeticSelectors[domain];
+        if (ds != null) selectors.addAll(ds);
+        final tr = _textHideRules[domain];
+        if (tr != null) textRules.addAll(tr);
         final dotIdx = domain.indexOf('.');
         if (dotIdx < 0) break;
         domain = domain.substring(dotIdx + 1);
       }
     } catch (_) {}
 
-    if (selectors.isEmpty) return null;
+    if (selectors.isEmpty && textRules.isEmpty) return null;
 
-    // Build CSS: one rule per selector so a bad selector doesn't break others.
+    // Build CSS: one rule per selector so a bad selector doesn't break others
     final cssRules = StringBuffer();
     for (final s in selectors) {
       final escaped = s.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
@@ -165,14 +167,10 @@ class ContentBlockerService {
     }
     final cssText = cssRules.toString();
 
-    // Build JS that:
-    // 1. Injects a <style> with display:none rules
-    // 2. Uses MutationObserver to force-hide elements (in case site overrides with inline styles)
-    // querySelectorAll batches selectors in small groups to avoid one invalid selector breaking all
+    // Batch selectors for querySelectorAll resilience
     final escapedForJs = selectors
         .map((s) => s.replaceAll('\\', '\\\\').replaceAll("'", "\\'"))
         .toList();
-    // Batch selectors into groups of 20 for querySelectorAll resilience
     final batches = <String>[];
     for (var i = 0; i < escapedForJs.length; i += 20) {
       final end = (i + 20 < escapedForJs.length) ? i + 20 : escapedForJs.length;
@@ -180,12 +178,27 @@ class ContentBlockerService {
     }
     final batchArray = batches.map((b) => "'$b'").join(',');
 
+    // Build text-match rules array for JS
+    // Each rule: {sel: 'div.class', patterns: ['Promoted', 'Sponsored']}
+    final textRulesJs = StringBuffer('[');
+    for (var i = 0; i < textRules.length; i++) {
+      if (i > 0) textRulesJs.write(',');
+      final r = textRules[i];
+      final sel = r.selector.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+      final pats = r.textPatterns
+          .map((p) => "'${p.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'")
+          .join(',');
+      textRulesJs.write("{sel:'$sel',pats:[$pats]}");
+    }
+    textRulesJs.write(']');
+
     return '''
 (function() {
   var ID = '_webspace_content_blocker_style';
   if (document.getElementById(ID)) return;
   var CSS = '$cssText';
   var BATCHES = [$batchArray];
+  var TEXT_RULES = $textRulesJs;
   function inject() {
     if (!document.head && !document.documentElement) return;
     var s = document.createElement('style');
@@ -197,11 +210,28 @@ class ContentBlockerService {
   if (!document.getElementById(ID)) {
     document.addEventListener('DOMContentLoaded', function() { inject(); });
   }
-  function hide() {
+  function hideCSS() {
     for (var i = 0; i < BATCHES.length; i++) {
       try { document.querySelectorAll(BATCHES[i]).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}
     }
   }
+  function hideText() {
+    for (var i = 0; i < TEXT_RULES.length; i++) {
+      var r = TEXT_RULES[i];
+      try {
+        document.querySelectorAll(r.sel).forEach(function(el) {
+          var text = el.textContent || '';
+          for (var j = 0; j < r.pats.length; j++) {
+            if (text.indexOf(r.pats[j]) !== -1) {
+              el.style.display = 'none';
+              break;
+            }
+          }
+        });
+      } catch(e) {}
+    }
+  }
+  function hide() { hideCSS(); hideText(); }
   hide();
   var t = null;
   var obs = new MutationObserver(function() {
@@ -357,6 +387,7 @@ class ContentBlockerService {
   Future<void> _rebuildRules() async {
     final allDomains = <String>{};
     final allSelectors = <String, List<String>>{};
+    final allTextRules = <String, List<TextHideRule>>{};
 
     for (final list in _lists) {
       if (!list.enabled) continue;
@@ -369,12 +400,13 @@ class ContentBlockerService {
         final result = parseAbpFilterListSync(text);
         allDomains.addAll(result.blockedDomains);
 
-        // Merge cosmetic selectors
         for (final entry in result.cosmeticSelectors.entries) {
           allSelectors.putIfAbsent(entry.key, () => []).addAll(entry.value);
         }
+        for (final entry in result.textHideRules.entries) {
+          allTextRules.putIfAbsent(entry.key, () => []).addAll(entry.value);
+        }
 
-        // Update counts from re-parse
         list.ruleCount = result.convertedCount;
         list.skippedCount = result.skippedCount;
       } catch (e) {
@@ -387,7 +419,7 @@ class ContentBlockerService {
 
     _blockedDomains = allDomains;
     _cosmeticSelectors = allSelectors;
-    _cosmeticScript = null; // Invalidate cached script
+    _textHideRules = allTextRules;
   }
 
   Future<void> _saveLists() async {
@@ -407,7 +439,7 @@ class ContentBlockerService {
     _lists = [];
     _blockedDomains = {};
     _cosmeticSelectors = {};
-    _cosmeticScript = null;
+    _textHideRules = {};
   }
 
   /// Exposed for testing: set lists directly.

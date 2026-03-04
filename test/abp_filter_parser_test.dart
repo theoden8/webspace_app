@@ -70,8 +70,18 @@ void main() {
       expect(result.skippedCount, equals(1));
     });
 
-    test('skips #?# extended selectors', () {
-      final result = parseAbpFilterListSync('example.com#?#.ad:has-text(Sponsored)');
+    test('converts #?# rules with :-abp-contains to text hide rules', () {
+      final result = parseAbpFilterListSync(
+        r'linkedin.com#?#div.feed-shared-update-v2:-abp-has(span:-abp-contains(/Promoted|Sponsored/))'
+      );
+      expect(result.convertedCount, equals(1));
+      expect(result.textHideRules['linkedin.com'], isNotEmpty);
+      expect(result.textHideRules['linkedin.com']![0].selector, equals('div.feed-shared-update-v2'));
+      expect(result.textHideRules['linkedin.com']![0].textPatterns, containsAll(['Promoted', 'Sponsored']));
+    });
+
+    test('skips #?# rules without text matching', () {
+      final result = parseAbpFilterListSync('example.com#?#.ad:style(color: red)');
       expect(result.convertedCount, equals(0));
       expect(result.skippedCount, equals(1));
     });
