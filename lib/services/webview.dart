@@ -597,6 +597,15 @@ class WebViewFactory {
 
         return false;
       },
+      onLoadStart: (controller, url) async {
+        // Inject cosmetic filters early so the style tag is in place before content renders
+        if (config.contentBlockEnabled && url != null) {
+          final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
+          if (script != null) {
+            await controller.evaluateJavascript(source: script);
+          }
+        }
+      },
       onLoadStop: (controller, url) async {
         if (url != null) {
           config.onUrlChanged?.call(url.toString());

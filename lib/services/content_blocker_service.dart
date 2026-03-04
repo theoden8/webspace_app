@@ -170,13 +170,17 @@ class ContentBlockerService {
   var ID = '_webspace_content_blocker_style';
   if (document.getElementById(ID)) return;
   function inject() {
-    if (!document.head) return;
+    if (!document.head && !document.documentElement) return;
     var s = document.createElement('style');
     s.id = ID;
     s.textContent = SEL + ' { display: none !important; }';
-    document.head.appendChild(s);
+    (document.head || document.documentElement).appendChild(s);
   }
   inject();
+  if (!document.getElementById(ID)) {
+    // head not ready yet — retry when DOM is available
+    document.addEventListener('DOMContentLoaded', function() { inject(); });
+  }
   function hide() {
     try { document.querySelectorAll(SEL).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}
   }
