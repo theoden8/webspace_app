@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/clearurl_service.dart';
-import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -212,8 +211,8 @@ class WebViewConfig {
   final Future<void> Function(int windowId, String url)? onWindowRequested;
   /// Callback when page HTML should be cached. Called on page load with (url, html).
   final Function(String url, String html)? onHtmlLoaded;
-  /// Optional cached HTML to display immediately while the real URL loads.
-  final String? initialHtml;
+  /// Whether the site has cached content (enables cache-first loading mode).
+  final bool hasCachedContent;
   /// Whether to strip tracking parameters from URLs via ClearURLs rules.
   final bool clearUrlEnabled;
   /// Whether to block navigation to domains on the Hagezi DNS blocklist.
@@ -238,7 +237,7 @@ class WebViewConfig {
     this.shouldOverrideUrlLoading,
     this.onWindowRequested,
     this.onHtmlLoaded,
-    this.initialHtml,
+    this.hasCachedContent = false,
   });
 }
 
@@ -514,8 +513,11 @@ class WebViewFactory {
       headers['Accept-Language'] = '${config.language}, *;q=0.5';
     }
 
-    // Use cached HTML for instant display, or regular URL request
-    final usesCachedHtml = config.initialHtml != null;
+    // When cached HTML exists, the site was previously visited and browser
+    // cache should have CSS/JS/images. Use LOAD_CACHE_ELSE_NETWORK so the
+    // browser loads the full page from its HTTP cache (with correct layout)
+    // and falls back to network when online.
+    final hasCachedContent = config.hasCachedContent;
 
     // Inject content blocker CSS at DOCUMENT_START so elements are hidden
     // before they ever render, eliminating the flash of unstyled content.
@@ -532,17 +534,10 @@ class WebViewFactory {
 
     return inapp.InAppWebView(
       key: config.key,
-      // If we have cached HTML, load it first for instant display
-      initialUrlRequest: usesCachedHtml ? null : inapp.URLRequest(
+      initialUrlRequest: inapp.URLRequest(
         url: inapp.WebUri(config.initialUrl),
         headers: headers.isNotEmpty ? headers : null,
       ),
-      initialData: usesCachedHtml ? inapp.InAppWebViewInitialData(
-        data: config.initialHtml!,
-        mimeType: 'text/html',
-        encoding: 'utf-8',
-        baseUrl: inapp.WebUri(config.initialUrl),
-      ) : null,
       initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: inapp.InAppWebViewSettings(
         javaScriptEnabled: config.javascriptEnabled,
@@ -561,28 +556,15 @@ class WebViewFactory {
         allowContentAccess: true,
         // Enable browser-level resource caching for offline sub-resource loading
         cacheEnabled: true,
+        // Use cache-first when site was previously visited, so offline
+        // pages load from browser cache with full CSS/JS/images intact
+        cacheMode: hasCachedContent ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
-      onWebViewCreated: (controller) async {
+      onWebViewCreated: (controller) {
         final wrappedController = _WebViewController(controller);
         onControllerCreated(wrappedController);
-        // If we loaded cached HTML, navigate to the real URL for fresh content
-        // but only when online - offline stays on cached page
-        if (usesCachedHtml) {
-          final online = await ConnectivityService.instance.isOnline();
-          if (online) {
-            wrappedController.loadUrl(config.initialUrl, language: config.language);
-          } else {
-            // Switch to cache-first mode so sub-resources load from browser cache
-            await controller.setSettings(settings: inapp.InAppWebViewSettings(
-              cacheMode: inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK,
-            ));
-            if (kDebugMode) {
-              debugPrint('[WebView] Offline - using cached resources for ${config.initialUrl}');
-            }
-          }
-        }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         final url = navigationAction.request.url.toString();
@@ -655,9 +637,13 @@ class WebViewFactory {
           }
           // Cache HTML for offline viewing
           if (config.onHtmlLoaded != null) {
-            final html = await controller.getHtml();
-            if (html != null && html.isNotEmpty) {
-              config.onHtmlLoaded!(url.toString(), html);
+            try {
+              final html = await controller.getHtml();
+              if (html != null && html.isNotEmpty) {
+                config.onHtmlLoaded!(url.toString(), html);
+              }
+            } catch (_) {
+              // Controller may have been disposed if webview was unloaded
             }
           }
         }

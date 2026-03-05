@@ -335,7 +335,7 @@ class WebViewModel {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
     Function(String url, String html)? onHtmlLoaded,
-    String? initialHtml,
+    bool hasCachedContent = false,
     bool Function()? isActive,
   }) {
     if (webview == null) {
@@ -344,7 +344,7 @@ class WebViewModel {
       if (kDebugMode) {
         debugPrint('[WebView] Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
         debugPrint('[WebView] Language: $effectiveLanguage (param: $language)');
-        debugPrint('[WebView] Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)');
+        debugPrint('[WebView] Has cached content: $hasCachedContent');
       }
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
@@ -447,7 +447,7 @@ class WebViewModel {
             }
           },
           onHtmlLoaded: onHtmlLoaded,
-          initialHtml: initialHtml,
+          hasCachedContent: hasCachedContent,
         ),
         onControllerCreated: (ctrl) {
           if (kDebugMode) {
