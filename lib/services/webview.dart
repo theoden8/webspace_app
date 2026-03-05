@@ -1,7 +1,10 @@
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -214,6 +217,8 @@ class WebViewConfig {
   final bool clearUrlEnabled;
   /// Whether to block navigation to domains on the Hagezi DNS blocklist.
   final bool dnsBlockEnabled;
+  /// Whether to apply ABP content blocker rules (ads, trackers, cosmetic).
+  final bool contentBlockEnabled;
 
   WebViewConfig({
     this.key,
@@ -225,6 +230,7 @@ class WebViewConfig {
     this.language,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
+    this.contentBlockEnabled = true,
     this.onUrlChanged,
     this.onCookiesChanged,
     this.onFindResult,
@@ -508,6 +514,19 @@ class WebViewFactory {
     // Use cached HTML for instant display, or regular URL request
     final usesCachedHtml = config.initialHtml != null;
 
+    // Inject content blocker CSS at DOCUMENT_START so elements are hidden
+    // before they ever render, eliminating the flash of unstyled content.
+    final userScripts = <inapp.UserScript>[];
+    if (config.contentBlockEnabled) {
+      final earlyScript = ContentBlockerService.instance.getEarlyCssScript(config.initialUrl);
+      if (earlyScript != null) {
+        userScripts.add(inapp.UserScript(
+          source: earlyScript,
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        ));
+      }
+    }
+
     return inapp.InAppWebView(
       key: config.key,
       // If we have cached HTML, load it first for instant display
@@ -521,6 +540,7 @@ class WebViewFactory {
         encoding: 'utf-8',
         baseUrl: inapp.WebUri(config.initialUrl),
       ) : null,
+      initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: inapp.InAppWebViewSettings(
         javaScriptEnabled: config.javascriptEnabled,
         userAgent: config.userAgent,
@@ -553,6 +573,10 @@ class WebViewFactory {
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
         // DNS blocklist check
         if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
+        // Content blocker domain check
+        if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
           return inapp.NavigationActionPolicy.CANCEL;
         }
         // ClearURLs: strip tracking parameters from URLs
@@ -589,12 +613,28 @@ class WebViewFactory {
 
         return false;
       },
+      onLoadStart: (controller, url) async {
+        // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
+        if (config.contentBlockEnabled && url != null) {
+          final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
+          if (script != null) {
+            await controller.evaluateJavascript(source: script);
+          }
+        }
+      },
       onLoadStop: (controller, url) async {
         if (url != null) {
           config.onUrlChanged?.call(url.toString());
           if (config.onCookiesChanged != null) {
             final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
             config.onCookiesChanged!(cookies);
+          }
+          // Inject full cosmetic script: MutationObserver + text-based hiding
+          if (config.contentBlockEnabled) {
+            final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
+            if (script != null) {
+              await controller.evaluateJavascript(source: script);
+            }
           }
           // Cache HTML for offline viewing
           if (config.onHtmlLoaded != null) {
