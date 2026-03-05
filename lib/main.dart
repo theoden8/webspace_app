@@ -1375,6 +1375,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 break;
                 case 'refresh':
                   getController()?.reload();
+                  // Re-fetch favicon for this site
+                  await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
+                  setState(() {});
                 break;
                 case 'settings':
                   await Navigator.push(

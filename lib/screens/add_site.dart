@@ -3,15 +3,20 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show extractDomain;
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, IconUpdate;
+import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, IconUpdate;
 
-/// Persistent cache for favicon URLs to avoid re-fetching on app restart
+/// Persistent cache for favicon URLs and SVG content
 class FaviconUrlCache {
   static const String _prefix = 'favicon_url_';
+  static const String _svgPrefix = 'favicon_svg_';
   static SharedPreferences? _prefs;
 
   static Future<void> initialize() async {
     _prefs ??= await SharedPreferences.getInstance();
+    // Wire up SVG content persistence
+    onSvgContentCached = (url, content) async {
+      await setSvg(url, content);
+    };
   }
 
   static String? get(String siteUrl) {
@@ -20,6 +25,25 @@ class FaviconUrlCache {
 
   static Future<void> set(String siteUrl, String faviconUrl) async {
     await _prefs?.setString('$_prefix$siteUrl', faviconUrl);
+  }
+
+  static String? getSvg(String faviconUrl) {
+    return _prefs?.getString('$_svgPrefix$faviconUrl');
+  }
+
+  static Future<void> setSvg(String faviconUrl, String svgContent) async {
+    await _prefs?.setString('$_svgPrefix$faviconUrl', svgContent);
+  }
+
+  /// Invalidate cached favicon for a site, triggering re-fetch
+  static Future<void> invalidate(String siteUrl) async {
+    final oldUrl = _prefs?.getString('$_prefix$siteUrl');
+    await _prefs?.remove('$_prefix$siteUrl');
+    if (oldUrl != null) {
+      await _prefs?.remove('$_svgPrefix$oldUrl');
+    }
+    // Also clear in-memory caches
+    invalidateFaviconFor(siteUrl);
   }
 }
 
@@ -76,11 +100,19 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   void didUpdateWidget(UnifiedFaviconImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url) {
-      _currentIconUrl = null;
-      _currentQuality = 0;
-      _isLoading = true;
-      _loadIcon();
+      _resetAndLoad();
+    } else if (_currentIconUrl != null && FaviconUrlCache.get(widget.url) == null) {
+      // Cache was invalidated (e.g. by refresh) — re-fetch
+      _resetAndLoad();
     }
+  }
+
+  void _resetAndLoad() {
+    _currentIconUrl = null;
+    _svgContent = null;
+    _currentQuality = 0;
+    _isLoading = true;
+    _loadIcon();
   }
 
   void _loadIcon() {
@@ -104,7 +136,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   }
 
   Future<void> _fetchSvgContent(String url) async {
-    final content = await getSvgContent(url);
+    final persisted = FaviconUrlCache.getSvg(url);
+    final content = await getSvgContent(url, persistedContent: persisted);
     if (mounted) {
       setState(() {
         _svgContent = content;
