@@ -176,36 +176,26 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
     // Use SvgPicture for SVG files, CachedNetworkImage for others
     if (_isSvgUrl(iconUrl)) {
+      if (_svgContent == null) {
+        // SVG not cached yet — show placeholder, never use SvgPicture.network
+        return Icon(
+          Icons.language,
+          size: widget.size,
+          color: Theme.of(context).colorScheme.primary,
+        );
+      }
       // Wrap in MediaQuery to pass app theme to SVG's CSS media queries
       // (e.g., @media (prefers-color-scheme: dark) in codeberg's favicon)
-      final svgWidget = _svgContent != null
-          ? SvgPicture.string(
-              _svgContent!,
-              width: widget.size,
-              height: widget.size,
-              fit: BoxFit.contain,
-            )
-          : SvgPicture.network(
-              iconUrl,
-              width: widget.size,
-              height: widget.size,
-              fit: BoxFit.contain,
-              placeholderBuilder: (context) => SizedBox(
-                width: widget.size,
-                height: widget.size,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              errorBuilder: (context, error, stackTrace) => Icon(
-                Icons.language,
-                size: widget.size,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            );
       return MediaQuery(
         data: MediaQuery.of(context).copyWith(
           platformBrightness: Theme.of(context).brightness,
         ),
-        child: svgWidget,
+        child: SvgPicture.string(
+          _svgContent!,
+          width: widget.size,
+          height: widget.size,
+          fit: BoxFit.contain,
+        ),
       );
     } else {
       return CachedNetworkImage(
