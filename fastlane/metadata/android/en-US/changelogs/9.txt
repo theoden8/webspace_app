@@ -1,0 +1,9 @@
+✨ New Features:
+• Content Blocker: block ads and trackers using EasyList filter lists
+• Cosmetic filtering: hide ad banners, promoted posts, and sponsored content
+• Text-based hiding: detect and hide promoted/sponsored posts on LinkedIn and similar sites
+• Manage multiple filter lists with per-site toggle
+
+🔧 Improvements:
+• Propagate all per-site settings to nested webviews
+• Fix captcha detection to check parsed host

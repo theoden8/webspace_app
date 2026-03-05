@@ -42,6 +42,7 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 - 🔄 Proxy support with authentication (Android)
 - 🧹 ClearURLs tracking parameter removal
 - 🛡️ Hagezi DNS blocklist domain blocking (5 severity levels)
+- 🚫 Content blocker with EasyList/EasyPrivacy ad & tracker filtering
 - 🎨 Light/dark mode with accent colors
 
 ## Development
@@ -81,6 +82,8 @@ This project is made possible by [flutter_inappwebview](https://github.com/pichi
 URL cleaning is powered by rules from [ClearURLs](https://github.com/ClearURLs/Rules) (LGPL-3.0).
 
 DNS domain blocking uses blocklists from [Hagezi](https://github.com/hagezi/dns-blocklists) (GPL-3.0).
+
+Content blocking uses filter lists from [EasyList](https://easylist.to/) (GPL-3.0 / CC BY-SA 3.0), including EasyList, EasyPrivacy, Fanboy's Social Blocking List, and Fanboy's Annoyance List.
 
 ## License
 
