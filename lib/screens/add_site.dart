@@ -3,7 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show extractDomain;
-import '../services/icon_service.dart' show getFaviconUrlStream, IconUpdate;
+import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, IconUpdate;
 
 /// Persistent cache for favicon URLs to avoid re-fetching on app restart
 class FaviconUrlCache {
@@ -57,6 +57,7 @@ class UnifiedFaviconImage extends StatefulWidget {
 
 class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   String? _currentIconUrl;
+  String? _svgContent; // Cached SVG content for offline display
   int _currentQuality = 0;
   bool _isLoading = true;
   Stream<IconUpdate>? _iconStream;
@@ -87,16 +88,28 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     final cachedUrl = FaviconUrlCache.get(widget.url);
     if (cachedUrl != null) {
       // Use cached URL immediately, skip icon_service
-      setState(() {
-        _currentIconUrl = cachedUrl;
-        _currentQuality = 100;
-        _isLoading = false;
-      });
+      _currentIconUrl = cachedUrl;
+      _currentQuality = 100;
+      _isLoading = false;
+      if (_isSvgUrl(cachedUrl)) {
+        _fetchSvgContent(cachedUrl);
+      } else {
+        setState(() {});
+      }
       return;
     }
 
     // No cache - fetch via icon_service
     _startIconStream();
+  }
+
+  Future<void> _fetchSvgContent(String url) async {
+    final content = await getSvgContent(url);
+    if (mounted) {
+      setState(() {
+        _svgContent = content;
+      });
+    }
   }
 
   void _startIconStream() {
@@ -113,6 +126,9 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
               FaviconUrlCache.set(widget.url, update.url);
             }
           });
+          if (_isSvgUrl(update.url)) {
+            _fetchSvgContent(update.url);
+          }
         }
       },
       onDone: () {
@@ -162,21 +178,34 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     if (_isSvgUrl(iconUrl)) {
       // Wrap in MediaQuery to pass app theme to SVG's CSS media queries
       // (e.g., @media (prefers-color-scheme: dark) in codeberg's favicon)
+      final svgWidget = _svgContent != null
+          ? SvgPicture.string(
+              _svgContent!,
+              width: widget.size,
+              height: widget.size,
+              fit: BoxFit.contain,
+            )
+          : SvgPicture.network(
+              iconUrl,
+              width: widget.size,
+              height: widget.size,
+              fit: BoxFit.contain,
+              placeholderBuilder: (context) => SizedBox(
+                width: widget.size,
+                height: widget.size,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              errorBuilder: (context, error, stackTrace) => Icon(
+                Icons.language,
+                size: widget.size,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            );
       return MediaQuery(
         data: MediaQuery.of(context).copyWith(
           platformBrightness: Theme.of(context).brightness,
         ),
-        child: SvgPicture.network(
-          iconUrl,
-          width: widget.size,
-          height: widget.size,
-          fit: BoxFit.contain,
-          placeholderBuilder: (context) => SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+        child: svgWidget,
       );
     } else {
       return CachedNetworkImage(

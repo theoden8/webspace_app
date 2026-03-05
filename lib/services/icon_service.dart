@@ -27,6 +27,30 @@ class IconUpdate {
 final Map<String, String?> _faviconCache = {};
 final Map<String, int> _faviconQualityCache = {};
 
+// Cache for SVG content (avoids re-fetching SVGs from network)
+final Map<String, String> _svgContentCache = {};
+
+/// Get cached SVG content for a URL, or fetch and cache it.
+Future<String?> getSvgContent(String svgUrl) async {
+  if (_svgContentCache.containsKey(svgUrl)) {
+    return _svgContentCache[svgUrl];
+  }
+  try {
+    final response = await http.get(Uri.parse(svgUrl)).timeout(
+      const Duration(seconds: 5),
+    );
+    if (response.statusCode == 200) {
+      _svgContentCache[svgUrl] = response.body;
+      return response.body;
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('[Icon] Failed to fetch SVG content: $e');
+    }
+  }
+  return null;
+}
+
 // Verified URLs cache
 final Set<String> _verifiedUrls = {};
 
@@ -526,6 +550,7 @@ void clearFaviconCache() {
   _faviconCache.clear();
   _faviconQualityCache.clear();
   _verifiedUrls.clear();
+  _svgContentCache.clear();
 }
 
 /// Gets current queue stats (for debugging)
