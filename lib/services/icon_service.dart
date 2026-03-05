@@ -27,6 +27,45 @@ class IconUpdate {
 final Map<String, String?> _faviconCache = {};
 final Map<String, int> _faviconQualityCache = {};
 
+// In-memory cache for SVG content
+final Map<String, String> _svgContentCache = {};
+
+/// Callback to persist SVG content. Set by the UI layer (FaviconUrlCache).
+Future<void> Function(String url, String content)? onSvgContentCached;
+
+/// Get cached SVG content for a URL, or fetch and cache it.
+Future<String?> getSvgContent(String svgUrl, {String? persistedContent}) async {
+  if (_svgContentCache.containsKey(svgUrl)) {
+    return _svgContentCache[svgUrl];
+  }
+  // Use persisted content from disk cache if available
+  if (persistedContent != null) {
+    _svgContentCache[svgUrl] = persistedContent;
+    return persistedContent;
+  }
+  try {
+    final response = await http.get(Uri.parse(svgUrl)).timeout(
+      const Duration(seconds: 5),
+    );
+    if (response.statusCode == 200) {
+      _svgContentCache[svgUrl] = response.body;
+      onSvgContentCached?.call(svgUrl, response.body);
+      return response.body;
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('[Icon] Failed to fetch SVG content: $e');
+    }
+  }
+  return null;
+}
+
+/// Invalidate in-memory caches for a URL so icons are re-fetched.
+void invalidateFaviconFor(String siteUrl) {
+  _faviconCache.remove(siteUrl);
+  _faviconQualityCache.remove(siteUrl);
+}
+
 // Verified URLs cache
 final Set<String> _verifiedUrls = {};
 
@@ -526,6 +565,7 @@ void clearFaviconCache() {
   _faviconCache.clear();
   _faviconQualityCache.clear();
   _verifiedUrls.clear();
+  _svgContentCache.clear();
 }
 
 /// Gets current queue stats (for debugging)
