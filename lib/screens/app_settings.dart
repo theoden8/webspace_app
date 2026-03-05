@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
 // Accent color definitions for display
@@ -46,6 +47,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   int _dnsBlockLevel = 0; // Downloaded level
   double _dnsBlockSliderValue = 0; // Ephemeral slider value
   late AnimationController _spinController;
+
+  // Content Blocker state
+  String? _downloadingListId;
 
   @override
   void initState() {
@@ -108,6 +112,116 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         );
       }
     }
+  }
+
+  Future<void> _downloadContentList(String id) async {
+    setState(() {
+      _downloadingListId = id;
+    });
+
+    final success = await ContentBlockerService.instance.downloadList(id);
+
+    if (mounted) {
+      setState(() {
+        _downloadingListId = null;
+      });
+
+      if (success) {
+        final list = ContentBlockerService.instance.lists
+            .firstWhere((l) => l.id == id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('${list.name}: ${_formatNumber(list.ruleCount)} rules')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to download filter list')),
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadAllContentLists() async {
+    setState(() {
+      _downloadingListId = '__all__';
+    });
+
+    final count = await ContentBlockerService.instance.downloadAllLists();
+
+    if (mounted) {
+      setState(() {
+        _downloadingListId = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Updated $count filter lists')),
+      );
+    }
+  }
+
+  Future<void> _toggleContentList(String id, bool enabled) async {
+    await ContentBlockerService.instance.toggleList(id, enabled);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _removeContentList(String id) async {
+    await ContentBlockerService.instance.removeList(id);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _showAddCustomListDialog() async {
+    final nameController = TextEditingController();
+    final urlController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Custom List'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                hintText: 'e.g., My Custom List',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: urlController,
+              decoration: const InputDecoration(
+                labelText: 'URL',
+                hintText: 'https://example.com/filters.txt',
+              ),
+              keyboardType: TextInputType.url,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true &&
+        nameController.text.isNotEmpty &&
+        urlController.text.isNotEmpty) {
+      final id = await ContentBlockerService.instance
+          .addCustomList(nameController.text, urlController.text);
+      await _downloadContentList(id);
+    }
+
+    nameController.dispose();
+    urlController.dispose();
   }
 
   String _formatNumber(int n) {
@@ -336,6 +450,103 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   ],
                 ),
               ],
+            ),
+          ),
+
+          // Content Blocker
+          const Divider(height: 32),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Content Blocker',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                if (ContentBlockerService.instance.lists
+                    .any((l) => l.enabled))
+                  _downloadingListId == '__all__'
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child:
+                              CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.sync),
+                          tooltip: 'Update all lists',
+                          onPressed: _downloadingListId != null
+                              ? null
+                              : _downloadAllContentLists,
+                        ),
+              ],
+            ),
+          ),
+          ...ContentBlockerService.instance.lists.map((list) {
+            final isDownloading = _downloadingListId == list.id ||
+                _downloadingListId == '__all__';
+            final isDefault = !list.id.startsWith('custom_');
+
+            return ListTile(
+              leading: Switch(
+                value: list.enabled,
+                onChanged: list.lastUpdated != null && !isDownloading
+                    ? (value) => _toggleContentList(list.id, value)
+                    : null,
+              ),
+              title: Text(list.name),
+              subtitle: Text(
+                list.lastUpdated != null
+                    ? '${_formatNumber(list.ruleCount)} rules'
+                    : 'Not downloaded',
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isDownloading)
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else
+                    IconButton(
+                      icon: Icon(
+                        list.lastUpdated != null
+                            ? Icons.sync
+                            : Icons.download,
+                      ),
+                      tooltip: list.lastUpdated != null
+                          ? 'Refresh'
+                          : 'Download',
+                      onPressed: _downloadingListId != null
+                          ? null
+                          : () => _downloadContentList(list.id),
+                    ),
+                  if (!isDefault)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Remove',
+                      onPressed: _downloadingListId != null
+                          ? null
+                          : () => _removeContentList(list.id),
+                    ),
+                ],
+              ),
+            );
+          }),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: OutlinedButton.icon(
+              onPressed:
+                  _downloadingListId != null ? null : _showAddCustomListDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Custom List'),
             ),
           ),
 

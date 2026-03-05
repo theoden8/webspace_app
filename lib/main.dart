@@ -28,6 +28,7 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -220,6 +221,9 @@ void main() async {
   // Initialize DNS block service (loads cached blocklist from disk)
   await DnsBlockService.instance.initialize();
 
+  // Initialize content blocker service (loads cached filter lists from disk)
+  await ContentBlockerService.instance.initialize();
+
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {
     final assetsLicense = await rootBundle.loadString('assets/LICENSE');
@@ -303,6 +307,29 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 Source: https://github.com/hagezi/dns-blocklists''',
+    );
+  });
+
+  LicenseRegistry.addLicense(() async* {
+    yield const LicenseEntryWithLineBreaks(
+      ['EasyList filter lists (filter data)'],
+      '''Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
+
+Copyright (c) The EasyList authors
+
+EasyList, EasyPrivacy, Fanboy's Social Blocking List, and Fanboy's
+Annoyance List are dual-licensed under the GNU General Public License
+version 3 (or later) and Creative Commons Attribution-ShareAlike 3.0
+Unported (or later). Used here under CC BY-SA 3.0.
+
+You are free to share and adapt the material, provided you give
+appropriate credit, provide a link to the license, and indicate if
+changes were made. If you remix, transform, or build upon the material,
+you must distribute your contributions under the same license.
+
+Full license: https://creativecommons.org/licenses/by-sa/3.0/
+Licence page: https://easylist.to/pages/licence.html
+Source: https://easylist.to/''',
     );
   });
 
@@ -785,6 +812,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
     required bool thirdPartyCookiesEnabled,
     required bool clearUrlEnabled,
     required bool dnsBlockEnabled,
+    required bool contentBlockEnabled,
     required String? language,
   }) async {
     await Navigator.push(
@@ -797,6 +825,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           clearUrlEnabled: clearUrlEnabled,
           dnsBlockEnabled: dnsBlockEnabled,
+          contentBlockEnabled: contentBlockEnabled,
           language: language,
         ),
       ),

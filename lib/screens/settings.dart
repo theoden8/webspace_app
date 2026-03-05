@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
 // Supported languages for webview
@@ -87,6 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _incognito;
   late bool _clearUrlEnabled;
   late bool _dnsBlockEnabled;
+  late bool _contentBlockEnabled;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -130,6 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _incognito = widget.webViewModel.incognito;
     _clearUrlEnabled = widget.webViewModel.clearUrlEnabled;
     _dnsBlockEnabled = widget.webViewModel.dnsBlockEnabled;
+    _contentBlockEnabled = widget.webViewModel.contentBlockEnabled;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -221,6 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.incognito = _incognito;
       widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
       widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
+      widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
       widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
@@ -451,6 +455,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ? (bool value) {
                     setState(() {
                       _dnsBlockEnabled = value;
+                    });
+                  }
+                : null,
+          ),
+          SwitchListTile(
+            title: const Text('Content Blocker'),
+            subtitle: Text(
+              ContentBlockerService.instance.hasRules
+                  ? '${ContentBlockerService.instance.totalRuleCount} rules'
+                  : 'Not configured',
+            ),
+            value: _contentBlockEnabled,
+            onChanged: ContentBlockerService.instance.hasRules
+                ? (bool value) {
+                    setState(() {
+                      _contentBlockEnabled = value;
                     });
                   }
                 : null,
