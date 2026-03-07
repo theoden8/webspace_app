@@ -1,3 +1,6 @@
 ✨ New Features:
 • Content Blocker: block ads, trackers, and promoted posts using EasyList filter lists
 • Offline mode: view previously visited sites offline with cached pages
+
+🐛 Bug Fixes:
+• Fix Android 3-button navigation bar overlapping app content
