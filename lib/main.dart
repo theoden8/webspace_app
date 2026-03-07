@@ -1864,11 +1864,13 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 ),
               ),
             ),
-            SizedBox(height: 8.0),
+            SizedBox(height: 8.0 + MediaQuery.of(context).padding.bottom),
           ],
         ),
       ),
-      body: _currentIndex == null || _currentIndex! >= _webViewModels.length
+      body: SafeArea(
+        top: false, // AppBar handles top inset
+        child: _currentIndex == null || _currentIndex! >= _webViewModels.length
           ? WebspacesListScreen(
               webspaces: _webspaces,
               selectedWebspaceId: _selectedWebspaceId,
@@ -1935,6 +1937,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 );
               }).toList(),
             ),
+      ),
       floatingActionButton:
           !(_currentIndex == null || _currentIndex! >= _webViewModels.length) ? null
           : FloatingActionButton(
