@@ -565,6 +565,11 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                     childCount: _suggestions.length,
                   ),
                 ),
+                SliverPadding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom,
+                  ),
+                ),
               ],
             );
           },
