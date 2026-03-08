@@ -2,25 +2,33 @@
 
 ## Purpose
 
-Prevents nested webviews from being created for tracking URLs, analytics, service workers, and popups while maintaining functionality for legitimate use cases like Cloudflare challenges.
+Prevents unwanted nested webviews from being created for tracking URLs, analytics, service workers, popups, and script-initiated cross-domain navigations while maintaining functionality for legitimate use cases like Cloudflare challenges and user-clicked links.
 
 ## Status
 
-- **Branch**: `claude/fix-nested-webview-urls-nUssS`
-- **Date**: 2026-01-11
-- **Status**: Completed
+- **Date**: 2026-03-08
+- **Status**: In Progress
 
 ---
 
 ## Problem Statement
 
-When opening certain websites, multiple nested webviews were being created for:
-- `about:blank` (5x instances)
-- `about:srcdoc` (1x instance)
+When opening certain websites, unwanted nested webviews are created for:
+- `about:blank` / `about:srcdoc` iframes
 - Cloudflare DNS challenges
 - Google Tag Manager service worker iframes
+- Script-initiated cross-domain navigations (Google One Tap, Stripe fraud detection, analytics redirects)
 
-These nested webviews degraded performance and user experience.
+On desktop browsers, third-party auth (Google Sign-In) uses popups via `window.open()`. In a mobile webview, `window.open()` is dismissed, so scripts fall back to redirect-based flows, triggering top-level navigations to `accounts.google.com` etc.
+
+### Observed Cases
+
+| Site | Script | Navigation Target | Trigger |
+|------|--------|-------------------|---------|
+| X.com | Google GSI (`googleGSILibrary`) | accounts.google.com | Auto (Google One Tap) |
+| Reddit | Google GSI | accounts.google.com | Auto (Google One Tap) |
+| Hugging Face | Stripe.js | js.stripe.com, m.stripe.network | Auto (fraud detection) |
+| Various | Google Tag Manager | googletagmanager.com | Auto (analytics) |
 
 ---
 
@@ -28,26 +36,26 @@ These nested webviews degraded performance and user experience.
 
 ### Requirement: NESTED-001 - Disable Multiple Windows
 
-The system SHALL disable automatic nested window creation.
+The system SHALL disable automatic nested window creation via `window.open()`.
 
 #### Scenario: Block popup window creation
 
 **Given** a website attempts to open a popup via window.open()
 **When** the popup request is intercepted
 **Then** no nested webview is created
+**And** captcha challenges (Cloudflare, hCaptcha, reCAPTCHA) are still allowed
 
 ---
 
 ### Requirement: NESTED-002 - Block about: Protocol URLs
 
-The system SHALL block all `about:` protocol URLs.
+The system SHALL block `about:` protocol URLs except `about:blank` and `about:srcdoc` (required for Cloudflare Turnstile iframes).
 
-#### Scenario: Block about:blank
+#### Scenario: Block about: URLs
 
-**Given** a page tries to create an iframe with src="about:blank"
-**When** the navigation is intercepted
+**Given** a page triggers navigation to an about: URL
+**When** the URL is not `about:blank` or `about:srcdoc`
 **Then** the navigation is cancelled
-**And** no nested webview is created
 
 ---
 
@@ -68,30 +76,39 @@ Blocked patterns:
 
 ---
 
-### Requirement: NESTED-004 - Block Tracking Domains
+### Requirement: NESTED-004 - Block Script-Initiated Cross-Domain Navigations
 
-The system SHALL block common tracking and analytics domains:
+The system SHALL block cross-domain navigations that lack a user gesture, preventing automatic nested webview creation.
 
-- googletagmanager.com
-- google-analytics.com
-- googleadservices.com
-- doubleclick.net
-- facebook.com/tr
-- connect.facebook.net
-- analytics.twitter.com
-- static.ads-twitter.com
+This replaces the previous hardcoded `_trackingDomains` blocklist (Stripe, analytics domains) with gesture-based detection using `NavigationAction.hasGesture`.
 
-#### Scenario: Block Google Analytics iframe
+**Note:** A user tap on "Sign in with Google" has `hasGesture = true`, but the resulting script-initiated navigation to `accounts.google.com` may have `hasGesture = false`. This means gesture detection can block user-intended OAuth flows. This is a known limitation — users can disable blocking per-site via the `blockAutoRedirects` toggle (NESTED-006).
 
-**Given** a page includes Google Analytics
-**When** GA tries to create a tracking iframe
-**Then** the iframe is blocked
+#### Scenario: Google One Tap blocked
+
+**Given** the user is viewing x.com (not logged in)
+**And** X.com loads the Google GSI library
+**When** GSI triggers a navigation to accounts.google.com on page load
+**And** the navigation has no user gesture
+**Then** the navigation is silently cancelled
+**And** no nested webview opens
+
+#### Scenario: Direct link click allowed
+
+**Given** the user is viewing a page with an external link
+**When** the user taps the link (hasGesture = true)
+**Then** the navigation opens in a nested webview
 
 ---
 
-### Requirement: NESTED-005 - Allow Cloudflare Challenges
+### Requirement: NESTED-005 - Allow Captcha Challenges
 
-The system SHALL allow Cloudflare challenge URLs to load in the main webview.
+The system SHALL allow captcha/challenge URLs regardless of gesture.
+
+Supported challenges:
+- Cloudflare (`challenges.cloudflare.com`, `cdn-cgi/challenge-platform`, `cf-turnstile`)
+- hCaptcha (`hcaptcha.com`)
+- reCAPTCHA (`/recaptcha/` on `google.com`, `gstatic.com`, `recaptcha.net`, `googleapis.com`)
 
 #### Scenario: Complete Cloudflare challenge
 
@@ -99,13 +116,28 @@ The system SHALL allow Cloudflare challenge URLs to load in the main webview.
 **When** a challenge is triggered
 **Then** the challenge loads in the main webview (not nested)
 **And** the user can complete the challenge
-**And** authentication cookies are preserved
 
 ---
 
-### Requirement: NESTED-006 - Preserve Normal Navigation
+### Requirement: NESTED-006 - Per-Site Toggle for Auto-Redirect Blocking
 
-The system SHALL allow normal website navigation within the same domain.
+The system SHALL provide a per-site setting to disable auto-redirect blocking.
+
+**Field**: `blockAutoRedirects` (default: `true`)
+
+#### Scenario: User disables blocking for a site
+
+**Given** the user has a site where auto-redirects are needed (e.g., an OAuth callback flow)
+**When** the user disables "Block auto-redirects" in site settings
+**Then** all cross-domain navigations open in nested webviews regardless of gesture
+
+---
+
+### Requirement: NESTED-007 - Preserve Same-Domain Navigation
+
+The system SHALL allow normal website navigation within the same domain regardless of gesture.
+
+Uses normalized domain comparison with aliases (e.g., `mail.google.com` → `google.com`).
 
 #### Scenario: Normal internal navigation
 
@@ -117,72 +149,63 @@ The system SHALL allow normal website navigation within the same domain.
 
 ## Implementation
 
-### URL Blocking Helper
+### Decision Flow in shouldOverrideUrlLoading
 
-```dart
-static bool _shouldBlockUrl(String url) {
-  // Block about: URLs
-  if (url.startsWith('about:')) return true;
-
-  // Block service worker patterns
-  if (url.contains('/sw_iframe.html') ||
-      url.contains('/blank.html') ||
-      url.contains('/service_worker/')) return true;
-
-  // Block tracking domains
-  final trackingDomains = [
-    'googletagmanager.com',
-    'google-analytics.com',
-    // ... more domains
-  ];
-
-  for (final domain in trackingDomains) {
-    if (url.contains(domain)) return true;
-  }
-
-  return false;
-}
+```
+URL received
+  │
+  ├─ _shouldBlockUrl? ──────────────── CANCEL (about:, service workers)
+  ├─ isCaptchaChallenge? ───────────── ALLOW
+  ├─ DNS blocklist hit? ────────────── CANCEL
+  ├─ Content blocker hit? ──────────── CANCEL
+  ├─ ClearURLs rewrite? ───────────── CANCEL (reload cleaned)
+  │
+  ├─ Same domain? ──────────────────── ALLOW
+  │
+  ├─ Cross-domain:
+  │   ├─ blockAutoRedirects + no gesture ── CANCEL (silent)
+  │   ├─ blockAutoRedirects OFF ────────── open nested webview
+  │   └─ has gesture ──────────────────── open nested webview
+  │
+  └─ ALLOW
 ```
 
-### Cloudflare Detection
+### Gesture Detection
 
-```dart
-static bool _isCloudflareChallenge(String url) {
-  return url.contains('challenges.cloudflare.com') ||
-         url.contains('cloudflare.com/cdn-cgi/challenge');
-}
-```
+`flutter_inappwebview`'s `NavigationAction` provides:
+- **Android**: `hasGesture` (bool) — `true` when navigation triggered by user tap
+- **iOS**: `navigationType` — `LINK_ACTIVATED` for user-clicked links
+
+### Files
+
+#### `lib/services/webview.dart`
+- `_shouldBlockUrl()` — blocks `about:` (except blank/srcdoc) and service worker patterns
+- `isCaptchaChallenge()` — detects captcha domains and paths
+- `shouldOverrideUrlLoading` callback passes `hasGesture` from `NavigationAction`
+- `onCreateWindow` — dismisses all `window.open()` except captcha challenges
+
+#### `lib/web_view_model.dart`
+- `blockAutoRedirects` field (default: `true`)
+- `shouldOverrideUrlLoading` callback checks gesture before opening nested webview
+- Serialized in `toJson()` / `fromJson()` with `?? true` for backward compat
+
+#### `lib/screens/settings.dart`
+- "Block auto-redirects" toggle per site
 
 ---
 
-## What Gets Blocked
+## Testing
 
-- All `about:` protocol URLs
-- Service worker iframes
-- Tracking iframes
-- Google Tag Manager
-- Google Analytics
-- Google Ad Services
-- DoubleClick
-- Facebook tracking pixels
-- Twitter analytics
-- Any other popup/window.open() attempts
+### Manual Test: Google One Tap Blocked
 
-## What Still Works
+1. Add x.com as a site (not logged in)
+2. Load the page
+3. Verify no nested webview opens for accounts.google.com
+4. Verify the page functions normally
 
-- Normal website navigation within the same domain
-- Cloudflare challenges (redirected to main webview)
-- External links (via existing domain filtering logic)
-- JavaScript execution and dynamic content
-- Cookie persistence
+### Manual Test: Per-Site Toggle
 
----
-
-## Files
-
-### Modified
-- `lib/platform/webview_factory.dart`
-  - Added `_shouldBlockUrl()` helper
-  - Added `_isCloudflareChallenge()` helper
-  - Implemented `onCreateWindow` callback
-  - Set `supportMultipleWindows: false`
+1. Open site settings for any site
+2. Toggle "Block auto-redirects" off
+3. Reload the site
+4. Verify script-initiated cross-domain navigations now open nested webviews

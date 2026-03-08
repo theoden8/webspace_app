@@ -89,6 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _clearUrlEnabled;
   late bool _dnsBlockEnabled;
   late bool _contentBlockEnabled;
+  late bool _blockAutoRedirects;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -133,6 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _clearUrlEnabled = widget.webViewModel.clearUrlEnabled;
     _dnsBlockEnabled = widget.webViewModel.dnsBlockEnabled;
     _contentBlockEnabled = widget.webViewModel.contentBlockEnabled;
+    _blockAutoRedirects = widget.webViewModel.blockAutoRedirects;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -225,6 +227,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
       widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
       widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
+      widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
@@ -474,6 +477,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   }
                 : null,
+          ),
+          SwitchListTile(
+            title: const Text('Block auto-redirects'),
+            subtitle: const Text('Block script-initiated cross-domain navigations'),
+            value: _blockAutoRedirects,
+            onChanged: (bool value) {
+              setState(() {
+                _blockAutoRedirects = value;
+              });
+            },
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),

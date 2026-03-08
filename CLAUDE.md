@@ -87,7 +87,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage |
 | lazy-webview-loading | On-demand webview creation, IndexedStack placeholders |
 | cookie-secure-storage | Encrypted cookie persistence with flutter_secure_storage |
-| nested-url-blocking | Cross-domain navigation opens in nested InAppBrowser |
+| nested-url-blocking | Cross-domain navigation control: nested InAppBrowser, gesture-based auto-redirect blocking |
 | webspaces | Site organization into named collections |
 | proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
 | settings-backup | JSON import/export of all settings |

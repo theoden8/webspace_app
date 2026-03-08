@@ -1,0 +1,1 @@
+• Block unwanted auto-redirects (Google One Tap, Stripe) using gesture detection with per-site toggle

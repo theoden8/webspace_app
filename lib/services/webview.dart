@@ -205,7 +205,7 @@ class WebViewConfig {
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
   final Function(int activeMatch, int totalMatches)? onFindResult;
-  final Function(String url, bool shouldAllow)? shouldOverrideUrlLoading;
+  final Function(String url, bool hasGesture)? shouldOverrideUrlLoading;
   /// Callback for when a popup window is requested (e.g., Cloudflare challenges).
   /// Returns a widget (typically a WebView) to display in the popup.
   /// The callback receives the windowId for the popup and the requested URL.
@@ -426,19 +426,11 @@ String _themeInjectionScript(String themeValue) => '''
 
 /// Factory for creating webviews
 class WebViewFactory {
-  static const _trackingDomains = [
-    'googletagmanager.com', 'google-analytics.com', 'googleadservices.com',
-    'doubleclick.net', 'facebook.com/tr', 'connect.facebook.net',
-    'analytics.twitter.com', 'static.ads-twitter.com',
-    'js.stripe.com', 'js.stripe.dev', 'm.stripe.network', 'm.stripe.com',
-    'b.stripecdn.com',
-  ];
-
   static bool _shouldBlockUrl(String url) {
     // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile
     if (url.startsWith('about:') && url != 'about:blank' && url != 'about:srcdoc') return true;
     if (url.contains('/sw_iframe.html') || url.contains('/blank.html') || url.contains('/service_worker/')) return true;
-    return _trackingDomains.any((d) => url.contains(d));
+    return false;
   }
 
   static const _captchaDomains = [
@@ -605,7 +597,8 @@ class WebViewFactory {
           }
         }
         if (config.shouldOverrideUrlLoading != null) {
-          return config.shouldOverrideUrlLoading!(url, true)
+          final hasGesture = navigationAction.hasGesture ?? true;
+          return config.shouldOverrideUrlLoading!(url, hasGesture)
               ? inapp.NavigationActionPolicy.ALLOW
               : inapp.NavigationActionPolicy.CANCEL;
         }
