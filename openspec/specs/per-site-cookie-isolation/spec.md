@@ -261,6 +261,36 @@ IndexedStack(
 - `test/nested_webview_navigation_test.dart` - Tests for per-site URL blocking and widget identity
 - `openspec/specs/per-site-cookie-isolation/spec.md` - This specification
 
+### Requirement: ISO-010 - Cookie Cleanup on Site Deletion
+
+The system SHALL clean up all cookie-related data when a site is deleted.
+
+#### Scenario: Delete only site on a domain
+
+**Given** Site A (`linkedin.com`) is the only site on that domain
+**When** the user deletes Site A
+**Then** all cookies for `linkedin.com` are deleted from the webview cookie jar
+**And** Site A's cookies are removed from secure storage (by siteId)
+**And** Site A's HTML cache is deleted
+
+#### Scenario: Delete one of multiple sites on same domain
+
+**Given** Site A (`github.com/personal`) and Site B (`github.com/work`) exist
+**When** the user deletes Site A
+**Then** cookies in the webview cookie jar are NOT deleted (Site B still needs them)
+**And** Site A's cookies are removed from secure storage (by siteId)
+**And** Site A's HTML cache is deleted
+**And** Site B continues to function with its cookies intact
+
+#### Scenario: Re-adding a deleted site starts fresh
+
+**Given** Site A (`linkedin.com`) was the only site on that domain and was deleted
+**When** the user adds a new site for `linkedin.com`
+**Then** the new site has no pre-existing cookies
+**And** the user must log in again
+
+---
+
 ## Migration
 
 For existing users upgrading:

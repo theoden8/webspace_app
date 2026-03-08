@@ -167,6 +167,38 @@ class CookieIsolationTestHarness {
     }
   }
 
+  /// Simulates deleting a site, mirroring the cleanup logic in main.dart
+  Future<void> deleteSite(int index) async {
+    final deletedModel = sites[index];
+    final deletedDomain = getBaseDomain(deletedModel.initUrl);
+    final otherSiteSameDomain = sites
+        .where((m) => m != deletedModel && getBaseDomain(m.initUrl) == deletedDomain)
+        .isNotEmpty;
+
+    // Only clear the webview cookie jar if no other site shares this domain
+    if (!otherSiteSameDomain) {
+      await cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
+    }
+
+    // Always clear secure storage for this siteId
+    await storage.saveCookiesForSite(deletedModel.siteId, []);
+
+    // Remove from sites list and loaded indices
+    sites.removeAt(index);
+    loadedIndices.remove(index);
+    // Shift indices down
+    loadedIndices.removeWhere((i) => i >= sites.length);
+    final updatedIndices = loadedIndices.map((i) => i > index ? i - 1 : i).toSet();
+    loadedIndices.clear();
+    loadedIndices.addAll(updatedIndices);
+
+    if (currentIndex == index) {
+      currentIndex = null;
+    } else if (currentIndex != null && currentIndex! > index) {
+      currentIndex = currentIndex! - 1;
+    }
+  }
+
   /// Simulates a site receiving cookies (e.g., after login)
   Future<void> simulateLogin(int index, List<Cookie> cookies) async {
     if (index < 0 || index >= sites.length) return;
@@ -478,6 +510,133 @@ void main() {
       var ghCookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
       expect(ghCookies.any((c) => c.value == 'gh_user2'), isTrue);
       expect(ghCookies.any((c) => c.value == 'gh_user1'), isFalse);
+    });
+  });
+
+  group('Site Deletion Cookie Cleanup', () {
+    late CookieIsolationTestHarness harness;
+
+    setUp(() {
+      harness = CookieIsolationTestHarness();
+    });
+
+    test('deleting sole site on domain clears cookie jar', () async {
+      harness.addSite('https://linkedin.com', name: 'LinkedIn');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'li_at', value: 'auth_token', domain: 'linkedin.com'),
+        Cookie(name: 'JSESSIONID', value: 'session123', domain: 'linkedin.com'),
+      ]);
+
+      // Verify cookies are in jar
+      var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://linkedin.com'));
+      expect(cookies, hasLength(2));
+
+      final siteId = harness.sites[0].siteId;
+      await harness.storage.saveCookiesForSite(siteId, harness.sites[0].cookies);
+
+      // Delete the site
+      await harness.deleteSite(0);
+
+      // Cookie jar should be cleared for this domain
+      cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://linkedin.com'));
+      expect(cookies, isEmpty);
+
+      // Secure storage should be cleared for this siteId
+      var stored = await harness.storage.loadCookiesForSite(siteId);
+      expect(stored, isEmpty);
+    });
+
+    test('deleting one of multiple same-domain sites preserves cookie jar', () async {
+      harness.addSite('https://github.com/personal', name: 'GitHub Personal');
+      harness.addSite('https://github.com/work', name: 'GitHub Work');
+
+      // Login to personal account
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'session', value: 'personal_session', domain: 'github.com'),
+      ]);
+      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, harness.sites[0].cookies);
+
+      // Switch to work account
+      await harness.switchToSite(1);
+      await harness.simulateLogin(1, [
+        Cookie(name: 'session', value: 'work_session', domain: 'github.com'),
+      ]);
+      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, harness.sites[1].cookies);
+
+      final personalSiteId = harness.sites[0].siteId;
+      final workSiteId = harness.sites[1].siteId;
+
+      // Delete personal account (index 0)
+      await harness.deleteSite(0);
+
+      // Cookie jar should NOT be cleared (work account still exists)
+      var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      expect(cookies, isNotEmpty);
+
+      // Personal secure storage should be cleared
+      var personalStored = await harness.storage.loadCookiesForSite(personalSiteId);
+      expect(personalStored, isEmpty);
+
+      // Work secure storage should be intact
+      var workStored = await harness.storage.loadCookiesForSite(workSiteId);
+      expect(workStored, hasLength(1));
+      expect(workStored[0].value, equals('work_session'));
+    });
+
+    test('re-adding deleted site starts with no cookies', () async {
+      harness.addSite('https://linkedin.com', name: 'LinkedIn');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'li_at', value: 'auth_token', domain: 'linkedin.com'),
+      ]);
+      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, harness.sites[0].cookies);
+
+      // Delete
+      await harness.deleteSite(0);
+
+      // Re-add LinkedIn
+      harness.addSite('https://linkedin.com', name: 'LinkedIn New');
+      await harness.switchToSite(0);
+
+      // New site should have no cookies in jar or storage
+      var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://linkedin.com'));
+      expect(cookies, isEmpty);
+
+      var stored = await harness.storage.loadCookiesForSite(harness.sites[0].siteId);
+      expect(stored, isEmpty);
+    });
+
+    test('deleting site does not affect unrelated domains', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+      harness.addSite('https://gitlab.com', name: 'GitLab');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'gh_session', value: 'gh123', domain: 'github.com'),
+      ]);
+
+      await harness.switchToSite(1);
+      await harness.simulateLogin(1, [
+        Cookie(name: 'gl_session', value: 'gl456', domain: 'gitlab.com'),
+      ]);
+      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, harness.sites[1].cookies);
+
+      final gitlabSiteId = harness.sites[1].siteId;
+
+      // Delete GitHub
+      await harness.deleteSite(0);
+
+      // GitLab cookies should be unaffected
+      var glCookies = await harness.cookieManager.getCookies(url: Uri.parse('https://gitlab.com'));
+      expect(glCookies, hasLength(1));
+      expect(glCookies[0].value, equals('gl456'));
+
+      var glStored = await harness.storage.loadCookiesForSite(gitlabSiteId);
+      expect(glStored, hasLength(1));
     });
   });
 
