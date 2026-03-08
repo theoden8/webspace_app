@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Accent color enum
@@ -387,7 +389,7 @@ class WebSpacePage extends StatefulWidget {
   _WebSpacePageState createState() => _WebSpacePageState();
 }
 
-class _WebSpacePageState extends State<WebSpacePage> {
+class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
   AppThemeSettings _themeSettings = const AppThemeSettings();
@@ -409,7 +411,31 @@ class _WebSpacePageState extends State<WebSpacePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _restoreAppState();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _handleShortcutIntent();
+    }
+  }
+
+  Future<void> _handleShortcutIntent() async {
+    final siteId = await ShortcutService.getLaunchSiteId();
+    if (siteId == null) return;
+    final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
+    if (index >= 0 && index != _currentIndex) {
+      await _setCurrentIndex(index);
+      setState(() {});
+    }
   }
 
   Future<void> _saveWebViewModels() async {
@@ -792,6 +818,15 @@ class _WebSpacePageState extends State<WebSpacePage> {
         if (filteredIndices.contains(savedIndex)) {
           indexToRestore = savedIndex;
         }
+      }
+    }
+
+    // Check if launched via home screen shortcut
+    final shortcutSiteId = await ShortcutService.getLaunchSiteId();
+    if (shortcutSiteId != null) {
+      final shortcutIndex = _webViewModels.indexWhere((m) => m.siteId == shortcutSiteId);
+      if (shortcutIndex >= 0) {
+        indexToRestore = shortcutIndex;
       }
     }
 
@@ -1366,6 +1401,17 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     ],
                   ),
                 ),
+                if (Platform.isAndroid)
+                  PopupMenuItem<String>(
+                    value: "addToHome",
+                    child: Row(
+                      children: [
+                        Icon(Icons.add_to_home_screen),
+                        SizedBox(width: 8),
+                        Text("Home Shortcut"),
+                      ],
+                    ),
+                  ),
               ];
             },
             onSelected: (String value) async {
@@ -1445,6 +1491,19 @@ class _WebSpacePageState extends State<WebSpacePage> {
                     _showUrlBar = !_showUrlBar;
                   });
                   _saveShowUrlBar();
+                break;
+                case 'addToHome':
+                  if (_currentIndex != null) {
+                    final model = _webViewModels[_currentIndex!];
+                    // Get favicon URL (non-SVG only, Android can't use SVG for shortcuts)
+                    final faviconUrl = FaviconUrlCache.get(model.initUrl);
+                    final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
+                    await ShortcutService.pinShortcut(
+                      siteId: model.siteId,
+                      label: model.name,
+                      iconUrl: isSvg ? null : faviconUrl,
+                    );
+                  }
                 break;
               }
             },
@@ -1704,6 +1763,9 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 final deletedModel = _webViewModels[index];
                 deletedModel.disposeWebView();
                 _loadedIndices.remove(index);
+
+                // Remove home screen shortcut if one exists
+                await ShortcutService.removeShortcut(deletedModel.siteId);
 
                 // Delete cookies and cache for the removed site
                 final deletedDomain = getBaseDomain(deletedModel.initUrl);

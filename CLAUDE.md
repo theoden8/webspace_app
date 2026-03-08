@@ -95,5 +95,6 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | clearurls | ClearURLs tracking parameter removal with per-site toggle |
 | content-blocker | ABP filter list content blocking (domain, CSS cosmetic, text-based hiding) |
 | dns-blocklist | Hagezi DNS blocklist domain blocking with severity levels and per-site toggle |
+| home-shortcut | Android home screen shortcut for sites via pinned shortcuts API |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
