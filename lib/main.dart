@@ -1702,7 +1702,7 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 final wasCurrentIndex = _currentIndex == index;
                 // Delete cookies from webview cookie jar and secure storage
                 final deletedModel = _webViewModels[index];
-                await deletedModel.deleteCookies(_cookieManager);
+                await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
                 await _cookieSecureStorage.saveCookiesForSite(deletedModel.siteId, []);
                 await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
                 setState(() {
