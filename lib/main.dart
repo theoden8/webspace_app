@@ -1764,6 +1764,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 deletedModel.disposeWebView();
                 _loadedIndices.remove(index);
 
+                // Remove home screen shortcut if one exists
+                await ShortcutService.removeShortcut(deletedModel.siteId);
+
                 // Delete cookies and cache for the removed site
                 final deletedDomain = getBaseDomain(deletedModel.initUrl);
                 final otherSiteSameDomain = _webViewModels

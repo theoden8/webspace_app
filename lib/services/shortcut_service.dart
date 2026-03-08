@@ -24,6 +24,16 @@ class ShortcutService {
     }
   }
 
+  /// Remove a pinned shortcut when a site is deleted (Android only).
+  static Future<void> removeShortcut(String siteId) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('removeShortcut', {'siteId': siteId});
+    } on PlatformException {
+      // Ignore — shortcut may not exist
+    }
+  }
+
   /// Get the siteId from the launch intent (if app was opened via shortcut).
   static Future<String?> getLaunchSiteId() async {
     if (!Platform.isAndroid) return null;

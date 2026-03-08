@@ -30,6 +30,15 @@ class MainActivity: FlutterActivity() {
 
                     pinShortcut(siteId, label, iconUrl, result)
                 }
+                "removeShortcut" -> {
+                    val siteId = call.argument<String>("siteId")
+                    if (siteId != null) {
+                        ShortcutManagerCompat.removeDynamicShortcuts(this, listOf("site_$siteId"))
+                        // Also disable the pinned shortcut so it shows as unavailable
+                        ShortcutManagerCompat.disableShortcuts(this, listOf("site_$siteId"), "Site has been removed")
+                    }
+                    result.success(true)
+                }
                 "getLaunchSiteId" -> {
                     val siteId = intent?.getStringExtra("siteId")
                     result.success(siteId)
