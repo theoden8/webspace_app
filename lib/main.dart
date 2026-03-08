@@ -1408,7 +1408,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       children: [
                         Icon(Icons.add_to_home_screen),
                         SizedBox(width: 8),
-                        Text("Add to Home Screen"),
+                        Text("Home Shortcut"),
                       ],
                     ),
                   ),
