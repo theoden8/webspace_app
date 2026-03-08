@@ -1700,8 +1700,12 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
               if (confirmed == true) {
                 final wasCurrentIndex = _currentIndex == index;
-                // Delete cookies and cache for the removed site
+                // Dispose webview first to stop it from re-setting cookies
                 final deletedModel = _webViewModels[index];
+                deletedModel.disposeWebView();
+                _loadedIndices.remove(index);
+
+                // Delete cookies and cache for the removed site
                 final deletedDomain = getBaseDomain(deletedModel.initUrl);
                 final otherSiteSameDomain = _webViewModels
                     .where((m) => m != deletedModel && getBaseDomain(m.initUrl) == deletedDomain)
@@ -1709,6 +1713,10 @@ class _WebSpacePageState extends State<WebSpacePage> {
                 // Only clear the webview cookie jar if no other site shares this domain
                 if (!otherSiteSameDomain) {
                   await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
+                  // Also clear for currentUrl in case the host differs (e.g. www.linkedin.com vs linkedin.com)
+                  if (deletedModel.currentUrl.isNotEmpty && deletedModel.currentUrl != deletedModel.initUrl) {
+                    await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.currentUrl));
+                  }
                 }
                 await _cookieSecureStorage.saveCookiesForSite(deletedModel.siteId, []);
                 await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
