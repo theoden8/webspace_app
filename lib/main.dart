@@ -1700,6 +1700,11 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
               if (confirmed == true) {
                 final wasCurrentIndex = _currentIndex == index;
+                // Delete cookies from webview cookie jar and secure storage
+                final deletedModel = _webViewModels[index];
+                await deletedModel.deleteCookies(_cookieManager);
+                await _cookieSecureStorage.saveCookiesForSite(deletedModel.siteId, []);
+                await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
                 setState(() {
                   _webViewModels.removeAt(index);
                   // Update _loadedIndices after deletion (shift indices down)
