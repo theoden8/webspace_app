@@ -1,3 +1,6 @@
-• Block unwanted auto-redirects (Google One Tap, Stripe) using gesture detection with per-site toggle
+✨ New Features:
+• Home screen shortcuts for quick site access (Android)
+• Block unwanted auto-redirects (Google One Tap, Stripe) with per-site toggle
+
+🐛 Bug Fixes:
 • Fix cookies persisting after site removal
-• Add home screen shortcuts for sites (Android)
