@@ -1,1 +1,2 @@
 • Block unwanted auto-redirects (Google One Tap, Stripe) using gesture detection with per-site toggle
+• Fix cookies persisting after site removal
