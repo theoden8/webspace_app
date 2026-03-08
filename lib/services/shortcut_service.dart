@@ -1,0 +1,36 @@
+import 'dart:io';
+import 'package:flutter/services.dart';
+
+class ShortcutService {
+  static const _channel = MethodChannel('org.codeberg.theoden8.webspace/shortcuts');
+
+  /// Request a pinned home screen shortcut for a site (Android only).
+  /// Returns true if the request was made successfully.
+  static Future<bool> pinShortcut({
+    required String siteId,
+    required String label,
+    String? iconUrl,
+  }) async {
+    if (!Platform.isAndroid) return false;
+    try {
+      final result = await _channel.invokeMethod('pinShortcut', {
+        'siteId': siteId,
+        'label': label,
+        'iconUrl': iconUrl,
+      });
+      return result == true;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  /// Get the siteId from the launch intent (if app was opened via shortcut).
+  static Future<String?> getLaunchSiteId() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await _channel.invokeMethod('getLaunchSiteId');
+    } on PlatformException {
+      return null;
+    }
+  }
+}
