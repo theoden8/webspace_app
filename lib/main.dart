@@ -1700,9 +1700,16 @@ class _WebSpacePageState extends State<WebSpacePage> {
 
               if (confirmed == true) {
                 final wasCurrentIndex = _currentIndex == index;
-                // Delete cookies from webview cookie jar and secure storage
+                // Delete cookies and cache for the removed site
                 final deletedModel = _webViewModels[index];
-                await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
+                final deletedDomain = getBaseDomain(deletedModel.initUrl);
+                final otherSiteSameDomain = _webViewModels
+                    .where((m) => m != deletedModel && getBaseDomain(m.initUrl) == deletedDomain)
+                    .isNotEmpty;
+                // Only clear the webview cookie jar if no other site shares this domain
+                if (!otherSiteSameDomain) {
+                  await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
+                }
                 await _cookieSecureStorage.saveCookiesForSite(deletedModel.siteId, []);
                 await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
                 setState(() {
