@@ -219,6 +219,7 @@ class WebViewModel {
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
   bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
   bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
+  bool blockAutoRedirects; // Block script-initiated cross-domain navigations
 
   String? defaultUserAgent;
   Function? stateSetterF;
@@ -240,6 +241,7 @@ class WebViewModel {
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
+    this.blockAutoRedirects = true,
     this.stateSetterF,
   })  : siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
@@ -359,7 +361,7 @@ class WebViewModel {
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
           onWindowRequested: onWindowRequested,
-          shouldOverrideUrlLoading: (url, shouldAllow) {
+          shouldOverrideUrlLoading: (url, hasGesture) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
             if (url == 'about:blank' || url == 'about:srcdoc') {
               if (kDebugMode) {
@@ -378,6 +380,7 @@ class WebViewModel {
               debugPrint('  initUrl: $initUrl');
               debugPrint('  request: $url');
               debugPrint('  from: $initialNormalized -> to: $requestNormalized');
+              debugPrint('  hasGesture: $hasGesture');
             }
 
             if (requestNormalized == initialNormalized) {
@@ -385,6 +388,14 @@ class WebViewModel {
                 debugPrint('  -> ALLOW (same domain)');
               }
               return true; // Allow - same logical domain
+            }
+
+            // Block script-initiated cross-domain navigations (Google One Tap, Stripe, etc.)
+            if (blockAutoRedirects && !hasGesture) {
+              if (kDebugMode) {
+                debugPrint('  -> CANCEL (auto-redirect blocked, no user gesture)');
+              }
+              return false;
             }
 
             // Only open nested webview if this site is currently active.
@@ -528,6 +539,7 @@ class WebViewModel {
         'clearUrlEnabled': clearUrlEnabled,
         'dnsBlockEnabled': dnsBlockEnabled,
         'contentBlockEnabled': contentBlockEnabled,
+        'blockAutoRedirects': blockAutoRedirects,
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -548,6 +560,7 @@ class WebViewModel {
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,
+      blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }
