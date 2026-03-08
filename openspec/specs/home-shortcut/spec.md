@@ -74,6 +74,12 @@ The system SHALL use the site's favicon as the shortcut icon when available, fal
 
 The feature SHALL only be available on Android. On iOS/macOS, the menu item is not shown.
 
+#### Scenario: Menu item hidden on non-Android platforms
+
+**Given** the app is running on iOS or macOS
+**When** the user opens the overflow menu
+**Then** the "Add to Home Screen" option is not shown
+
 ---
 
 ## Implementation
