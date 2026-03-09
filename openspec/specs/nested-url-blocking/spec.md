@@ -172,9 +172,24 @@ URL received
 
 ### Gesture Detection
 
-`flutter_inappwebview`'s `NavigationAction` provides:
+`flutter_inappwebview`'s `NavigationAction` provides platform-specific gesture info. The `_hasUserGesture()` helper normalizes this:
+
 - **Android**: `hasGesture` (bool) — `true` when navigation triggered by user tap
-- **iOS**: `navigationType` — `LINK_ACTIVATED` for user-clicked links
+- **iOS/macOS**: `navigationType` — `LINK_ACTIVATED` or `FORM_SUBMITTED` for user-initiated navigations, `OTHER` for script-initiated
+- **Fallback**: defaults to `true` (allow) on unknown platforms
+
+```dart
+static bool _hasUserGesture(NavigationAction action) {
+  if (Platform.isAndroid) {
+    return action.hasGesture ?? true;
+  }
+  if (Platform.isIOS || Platform.isMacOS) {
+    return action.navigationType == NavigationType.LINK_ACTIVATED ||
+           action.navigationType == NavigationType.FORM_SUBMITTED;
+  }
+  return true;
+}
+```
 
 ### Files
 
