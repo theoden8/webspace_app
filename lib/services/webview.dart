@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -426,6 +427,20 @@ String _themeInjectionScript(String themeValue) => '''
 
 /// Factory for creating webviews
 class WebViewFactory {
+  /// Determine if a navigation was triggered by a user gesture.
+  /// Android: uses hasGesture property.
+  /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
+  static bool _hasUserGesture(inapp.NavigationAction action) {
+    if (Platform.isAndroid) {
+      return action.hasGesture ?? true;
+    }
+    if (Platform.isIOS || Platform.isMacOS) {
+      return action.navigationType == inapp.NavigationType.LINK_ACTIVATED ||
+             action.navigationType == inapp.NavigationType.FORM_SUBMITTED;
+    }
+    return true; // Default allow on unknown platforms
+  }
+
   static bool _shouldBlockUrl(String url) {
     // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile
     if (url.startsWith('about:') && url != 'about:blank' && url != 'about:srcdoc') return true;
@@ -597,7 +612,7 @@ class WebViewFactory {
           }
         }
         if (config.shouldOverrideUrlLoading != null) {
-          final hasGesture = navigationAction.hasGesture ?? true;
+          final hasGesture = _hasUserGesture(navigationAction);
           return config.shouldOverrideUrlLoading!(url, hasGesture)
               ? inapp.NavigationActionPolicy.ALLOW
               : inapp.NavigationActionPolicy.CANCEL;
