@@ -526,9 +526,40 @@ class WebViewFactory {
     // so sub-resources (CSS/JS/images) resolve from browser HTTP cache.
     final usesCachedHtml = config.initialHtml != null;
 
+    final userScripts = <inapp.UserScript>[];
+
+    // Block programmatic fullscreen requests (e.g. Twitter auto-fullscreening videos on scroll)
+    userScripts.add(inapp.UserScript(
+      source: '''
+(function() {
+  var origRequest = Element.prototype.requestFullscreen;
+  Element.prototype.requestFullscreen = function() {
+    if (!navigator.userActivation || !navigator.userActivation.isActive) {
+      return Promise.resolve();
+    }
+    return origRequest.apply(this, arguments);
+  };
+  if (Element.prototype.webkitRequestFullscreen) {
+    var origWebkit = Element.prototype.webkitRequestFullscreen;
+    Element.prototype.webkitRequestFullscreen = function() {
+      if (!navigator.userActivation || !navigator.userActivation.isActive) return;
+      return origWebkit.apply(this, arguments);
+    };
+  }
+  if (HTMLVideoElement.prototype.webkitEnterFullscreen) {
+    var origVideo = HTMLVideoElement.prototype.webkitEnterFullscreen;
+    HTMLVideoElement.prototype.webkitEnterFullscreen = function() {
+      if (!navigator.userActivation || !navigator.userActivation.isActive) return;
+      return origVideo.apply(this, arguments);
+    };
+  }
+})();
+''',
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+    ));
+
     // Inject content blocker CSS at DOCUMENT_START so elements are hidden
     // before they ever render, eliminating the flash of unstyled content.
-    final userScripts = <inapp.UserScript>[];
     if (config.contentBlockEnabled) {
       final earlyScript = ContentBlockerService.instance.getEarlyCssScript(config.initialUrl);
       if (earlyScript != null) {
@@ -574,6 +605,8 @@ class WebViewFactory {
         cacheMode: usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null,
         // iOS: play videos inline instead of auto-fullscreen
         allowsInlineMediaPlayback: true,
+        // Require user gesture to start media playback (prevents autoplay)
+        mediaPlaybackRequiresUserGesture: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
