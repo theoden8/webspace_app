@@ -14,6 +14,9 @@ class AbpParseResult {
   /// Domain-anchored network block rules for O(1) lookup.
   final Set<String> blockedDomains;
 
+  /// Exception domains (@@||domain^) that override blocked domains.
+  final Set<String> exceptionDomains;
+
   /// CSS selectors to hide elements, grouped by scope.
   /// Key '' (empty) = global, key 'domain.com' = domain-specific.
   final Map<String, List<String>> cosmeticSelectors;
@@ -26,6 +29,7 @@ class AbpParseResult {
 
   const AbpParseResult({
     required this.blockedDomains,
+    required this.exceptionDomains,
     required this.cosmeticSelectors,
     required this.textHideRules,
     required this.convertedCount,
@@ -92,6 +96,7 @@ String? _extractContainerSelector(String selectorPart) {
 bool _parseLine(
   String line,
   Set<String> blockedDomains,
+  Set<String> exceptionDomains,
   Map<String, List<String>> cosmeticSelectors,
   Map<String, List<TextHideRule>> textHideRules,
 ) {
@@ -127,12 +132,10 @@ bool _parseLine(
   // --- Cosmetic filter: ##selector or domain##selector ---
   final cosmeticIdx = line.indexOf('##');
   if (cosmeticIdx >= 0) {
-    // Skip ABP extended CSS selectors (but NOT standard CSS :has() which browsers support)
     final afterHash = line.substring(cosmeticIdx);
+
+    // Skip snippet rules (#$#) and truly unsupported pseudo-classes
     if (afterHash.startsWith('#\$#') ||
-        afterHash.contains(':has-text(') ||
-        afterHash.contains(':contains(') ||
-        afterHash.contains(':-abp-') ||
         afterHash.contains(':matches-path(') ||
         afterHash.contains(':matches-attr(') ||
         afterHash.contains(':min-text-length(') ||
@@ -140,13 +143,48 @@ bool _parseLine(
       return false;
     }
 
-    final selector = line.substring(cosmeticIdx + 2).trim();
+    var selector = line.substring(cosmeticIdx + 2).trim();
     if (selector.isEmpty) return false;
 
     // HTML filter (##^)
     if (selector.startsWith('^')) return false;
 
     final domainsStr = cosmeticIdx > 0 ? line.substring(0, cosmeticIdx) : '';
+
+    // Handle :has-text() and :contains() — convert to TextHideRule
+    if (selector.contains(':has-text(') || selector.contains(':contains(')) {
+      final patterns = _extractAbpContainsPatterns(
+          selector.replaceAll(':contains(', ':-abp-contains(')
+                   .replaceAll(':has-text(', ':-abp-contains('));
+      if (patterns == null || patterns.isEmpty) return false;
+
+      final containerSelector = _extractContainerSelector(
+          selector.replaceAll(':contains(', ':-abp-contains(')
+                   .replaceAll(':has-text(', ':-abp-contains('));
+      if (containerSelector == null || containerSelector.isEmpty) return false;
+
+      final rule = TextHideRule(selector: containerSelector, textPatterns: patterns);
+      if (domainsStr.isEmpty) {
+        textHideRules.putIfAbsent('', () => []).add(rule);
+      } else {
+        for (final d in domainsStr.split(',')) {
+          final trimmed = d.trim();
+          if (trimmed.isEmpty || trimmed.startsWith('~')) continue;
+          textHideRules.putIfAbsent(trimmed, () => []).add(rule);
+        }
+      }
+      return true;
+    }
+
+    // Rewrite :-abp-has() to standard CSS :has()
+    if (selector.contains(':-abp-has(')) {
+      selector = selector.replaceAll(':-abp-has(', ':has(');
+    }
+
+    // Skip remaining ABP-only pseudo-classes that can't be mapped
+    if (selector.contains(':-abp-')) {
+      return false;
+    }
 
     if (domainsStr.isEmpty) {
       cosmeticSelectors.putIfAbsent('', () => []).add(selector);
@@ -166,7 +204,16 @@ bool _parseLine(
   }
 
   // --- Network rule ---
-  if (line.startsWith('@@')) return false;
+  // Exception rules: @@||domain^ → allowlist domain
+  if (line.startsWith('@@')) {
+    final exceptionPattern = line.substring(2);
+    final exMatch = _simpleDomainRule.firstMatch(exceptionPattern);
+    if (exMatch != null) {
+      exceptionDomains.add(exMatch.group(1)!.toLowerCase());
+      return true;
+    }
+    return false;
+  }
 
   // Check for options
   final dollarIdx = line.lastIndexOf('\$');
@@ -202,6 +249,7 @@ bool _parseLine(
 /// Parse ABP filter text synchronously.
 AbpParseResult parseAbpFilterListSync(String text) {
   final blockedDomains = <String>{};
+  final exceptionDomains = <String>{};
   final cosmeticSelectors = <String, List<String>>{};
   final textHideRules = <String, List<TextHideRule>>{};
   int converted = 0;
@@ -215,7 +263,7 @@ AbpParseResult parseAbpFilterListSync(String text) {
       continue;
     }
 
-    if (_parseLine(trimmed, blockedDomains, cosmeticSelectors, textHideRules)) {
+    if (_parseLine(trimmed, blockedDomains, exceptionDomains, cosmeticSelectors, textHideRules)) {
       converted++;
     } else {
       skipped++;
@@ -224,6 +272,7 @@ AbpParseResult parseAbpFilterListSync(String text) {
 
   return AbpParseResult(
     blockedDomains: blockedDomains,
+    exceptionDomains: exceptionDomains,
     cosmeticSelectors: cosmeticSelectors,
     textHideRules: textHideRules,
     convertedCount: converted,

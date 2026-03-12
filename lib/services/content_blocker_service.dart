@@ -100,6 +100,9 @@ class ContentBlockerService {
   /// Aggregated blocked domains from all enabled lists.
   Set<String> _blockedDomains = {};
 
+  /// Aggregated exception domains (@@||domain^) that override blocked domains.
+  Set<String> _exceptionDomains = {};
+
   /// Aggregated cosmetic selectors: domain -> selectors.
   /// Key '' = global selectors.
   Map<String, List<String>> _cosmeticSelectors = {};
@@ -152,9 +155,8 @@ class ContentBlockerService {
   ///
   /// Hot path. Avoids `Uri.parse` (full RFC 3986 validation, allocates a
   /// `Uri` object) by using [extractHost] and short-circuits via
-  /// [_isBlockedCache] on repeated hosts. The suffix walk is allocation-
-  /// free aside from the parent substring per level. Mirrors the
-  /// optimisation already in place on [DnsBlockService.isBlocked].
+  /// [_isBlockedCache] on repeated hosts. Exception domains (`@@||domain^`)
+  /// override blocked domains.
   bool isBlocked(String url) {
     if (_blockedDomains.isEmpty) return false;
     final host = extractHost(url);
@@ -168,6 +170,10 @@ class ContentBlockerService {
     if (_blockedDomains.isEmpty || host.isEmpty) return false;
     final cached = _isBlockedCache[host];
     if (cached != null) return cached;
+    if (_exceptionDomains.isNotEmpty && hostInSet(host, _exceptionDomains)) {
+      _isBlockedCache.put(host, false);
+      return false;
+    }
     final result = hostInSet(host, _blockedDomains);
     _isBlockedCache.put(host, result);
     return result;
@@ -359,6 +365,7 @@ class ContentBlockerService {
   /// Rebuild aggregated rules from all enabled lists' cached files.
   Future<void> _rebuildRules() async {
     final allDomains = <String>{};
+    final allExceptions = <String>{};
     final allSelectors = <String, List<String>>{};
     final allTextRules = <String, List<TextHideRule>>{};
 
@@ -372,6 +379,7 @@ class ContentBlockerService {
         final text = await cacheFile.readAsString();
         final result = parseAbpFilterListSync(text);
         allDomains.addAll(result.blockedDomains);
+        allExceptions.addAll(result.exceptionDomains);
 
         for (final entry in result.cosmeticSelectors.entries) {
           allSelectors.putIfAbsent(entry.key, () => []).addAll(entry.value);
@@ -388,6 +396,7 @@ class ContentBlockerService {
     }
 
     _blockedDomains = allDomains;
+    _exceptionDomains = allExceptions;
     _cosmeticSelectors = allSelectors;
     _textHideRules = allTextRules;
     _isBlockedCache.clear();
@@ -410,6 +419,7 @@ class ContentBlockerService {
   void reset() {
     _lists = [];
     _blockedDomains = {};
+    _exceptionDomains = {};
     _cosmeticSelectors = {};
     _textHideRules = {};
     _isBlockedCache.clear();
@@ -428,6 +438,20 @@ class ContentBlockerService {
   @visibleForTesting
   void setBlockedDomainsForTest(Set<String> domains) {
     _blockedDomains = domains;
+    _isBlockedCache.clear();
+  }
+
+  /// Exposed for testing: set blocked domains directly.
+  @visibleForTesting
+  void setBlockedDomains(Set<String> domains) {
+    _blockedDomains = domains;
+    _isBlockedCache.clear();
+  }
+
+  /// Exposed for testing: set exception domains directly.
+  @visibleForTesting
+  void setExceptionDomains(Set<String> domains) {
+    _exceptionDomains = domains;
     _isBlockedCache.clear();
   }
 }
