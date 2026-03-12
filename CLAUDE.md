@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **NEVER push directly to master.** Always create a feature/fix branch and push there.
 - Always use `git pull --rebase` when pulling.
+- **Before pushing to a branch, check if it still exists on the remote.** If it was already merged and deleted, create a new branch from master instead.
 
 ## Project Overview
 
