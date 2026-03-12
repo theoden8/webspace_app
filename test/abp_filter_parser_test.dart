@@ -33,10 +33,23 @@ void main() {
       expect(result.blockedDomains, contains('tracker.example.com'));
     });
 
-    test('skips exception rules (@@)', () {
+    test('converts simple exception rules (@@||domain^)', () {
       final result = parseAbpFilterListSync('@@||example.com^');
+      expect(result.convertedCount, equals(1));
+      expect(result.skippedCount, equals(0));
+      expect(result.exceptionDomains, contains('example.com'));
+    });
+
+    test('skips complex exception rules (@@||domain/path)', () {
+      final result = parseAbpFilterListSync(r'@@||example.com/some/path$script');
       expect(result.convertedCount, equals(0));
       expect(result.skippedCount, equals(1));
+      expect(result.exceptionDomains, isEmpty);
+    });
+
+    test('exception domains are case-insensitive', () {
+      final result = parseAbpFilterListSync('@@||CDN.Example.COM^');
+      expect(result.exceptionDomains, contains('cdn.example.com'));
     });
 
     test('converts global cosmetic filter', () {
@@ -64,10 +77,32 @@ void main() {
       expect(result.cosmeticSelectors[''], contains('.container:has(.ad)'));
     });
 
-    test('skips ABP-only :has-text() selectors', () {
+    test('converts :has-text() in ## rules to text hide rules', () {
       final result = parseAbpFilterListSync('##.container:has-text(Sponsored)');
-      expect(result.convertedCount, equals(0));
-      expect(result.skippedCount, equals(1));
+      expect(result.convertedCount, equals(1));
+      expect(result.textHideRules[''], isNotEmpty);
+      expect(result.textHideRules['']![0].selector, equals('.container'));
+      expect(result.textHideRules['']![0].textPatterns, contains('Sponsored'));
+    });
+
+    test('converts :contains() in ## rules to text hide rules', () {
+      final result = parseAbpFilterListSync('example.com##div.post:contains(Advertisement)');
+      expect(result.convertedCount, equals(1));
+      expect(result.textHideRules['example.com'], isNotEmpty);
+      expect(result.textHideRules['example.com']![0].selector, equals('div.post'));
+      expect(result.textHideRules['example.com']![0].textPatterns, contains('Advertisement'));
+    });
+
+    test('converts :-abp-has() to standard :has() in cosmetic rules', () {
+      final result = parseAbpFilterListSync('##div:-abp-has(.ad-label)');
+      expect(result.convertedCount, equals(1));
+      expect(result.cosmeticSelectors[''], contains('div:has(.ad-label)'));
+    });
+
+    test('converts domain-specific :-abp-has() to :has()', () {
+      final result = parseAbpFilterListSync('example.com##.feed-item:-abp-has(span.sponsored)');
+      expect(result.convertedCount, equals(1));
+      expect(result.cosmeticSelectors['example.com'], contains('.feed-item:has(span.sponsored)'));
     });
 
     test('converts #?# rules with :-abp-contains to text hide rules', () {
@@ -138,13 +173,19 @@ void main() {
 ||tracker.com^\$redirect=noopjs
 ##.container:has(.ad)
 ||malware.com^
+@@||cdn.example.com^
+##div:-abp-has(.promo)
+##.post:has-text(Sponsored)
 ''';
       final result = parseAbpFilterListSync(input);
-      expect(result.convertedCount, equals(4)); // 2 domains + 1 cosmetic + 1 :has() cosmetic
+      expect(result.convertedCount, equals(7)); // 2 domains + 1 exception + 2 cosmetic + 1 abp-has + 1 has-text
       expect(result.skippedCount, equals(1)); // redirect
       expect(result.blockedDomains, contains('ads.example.com'));
       expect(result.blockedDomains, contains('malware.com'));
+      expect(result.exceptionDomains, contains('cdn.example.com'));
       expect(result.cosmeticSelectors[''], contains('.ad-banner'));
+      expect(result.cosmeticSelectors[''], contains('div:has(.promo)'));
+      expect(result.textHideRules['']![0].textPatterns, contains('Sponsored'));
     });
 
     test('handles real EasyList-style rules', () {
