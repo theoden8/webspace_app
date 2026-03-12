@@ -572,6 +572,8 @@ class WebViewFactory {
         // When cached HTML is used, set cache-first mode from the start so
         // sub-resources (CSS/JS/images) resolve from browser cache immediately
         cacheMode: usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null,
+        // iOS: play videos inline instead of auto-fullscreen
+        allowsInlineMediaPlayback: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
