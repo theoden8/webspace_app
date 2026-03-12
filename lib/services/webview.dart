@@ -222,6 +222,8 @@ class WebViewConfig {
   final bool dnsBlockEnabled;
   /// Whether to apply ABP content blocker rules (ads, trackers, cosmetic).
   final bool contentBlockEnabled;
+  /// Callback for JS console messages.
+  final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
 
   WebViewConfig({
     this.key,
@@ -241,6 +243,7 @@ class WebViewConfig {
     this.onWindowRequested,
     this.onHtmlLoaded,
     this.initialHtml,
+    this.onConsoleMessage,
   });
 }
 
@@ -677,6 +680,9 @@ class WebViewFactory {
       },
       onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
         config.onFindResult?.call(activeMatchOrdinal, numberOfMatches);
+      },
+      onConsoleMessage: (controller, consoleMessage) {
+        config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
     );
   }

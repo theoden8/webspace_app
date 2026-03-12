@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -298,16 +299,13 @@ class ContentBlockerService {
       // Parse cached filter text for enabled lists
       await _rebuildRules();
 
-      if (kDebugMode) {
-        debugPrint(
-            '[ContentBlocker] Initialized: ${_lists.length} lists, '
-            '${_blockedDomains.length} blocked domains, '
-            '${_cosmeticSelectors.values.fold<int>(0, (s, l) => s + l.length)} cosmetic selectors');
-      }
+      LogService.instance.log('ContentBlocker',
+          'Initialized: ${_lists.length} lists, '
+          '${_blockedDomains.length} blocked domains, '
+          '${_cosmeticSelectors.values.fold<int>(0, (s, l) => s + l.length)} cosmetic selectors',
+          level: LogLevel.info);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[ContentBlocker] Error initializing: $e');
-      }
+      LogService.instance.log('ContentBlocker', 'Error initializing: $e', level: LogLevel.error);
     }
   }
 
@@ -322,10 +320,7 @@ class ContentBlockerService {
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 200) {
-        if (kDebugMode) {
-          debugPrint(
-              '[ContentBlocker] Download failed for ${list.name}: HTTP ${response.statusCode}');
-        }
+        LogService.instance.log('ContentBlocker', 'Download failed for ${list.name}: HTTP ${response.statusCode}', level: LogLevel.error);
         return false;
       }
 
@@ -345,16 +340,11 @@ class ContentBlockerService {
       await _saveLists();
       await _rebuildRules();
 
-      if (kDebugMode) {
-        debugPrint(
-            '[ContentBlocker] Downloaded ${list.name}: ${result.convertedCount} rules, ${result.skippedCount} skipped');
-      }
+      LogService.instance.log('ContentBlocker', 'Downloaded ${list.name}: ${result.convertedCount} rules, ${result.skippedCount} skipped', level: LogLevel.info);
 
       return true;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[ContentBlocker] Error downloading ${list.name}: $e');
-      }
+      LogService.instance.log('ContentBlocker', 'Error downloading ${list.name}: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -432,10 +422,7 @@ class ContentBlockerService {
         list.ruleCount = result.convertedCount;
         list.skippedCount = result.skippedCount;
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint(
-              '[ContentBlocker] Error parsing cached list ${list.name}: $e');
-        }
+        LogService.instance.log('ContentBlocker', 'Error parsing cached list ${list.name}: $e', level: LogLevel.error);
       }
     }
 

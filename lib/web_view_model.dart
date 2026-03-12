@@ -1,10 +1,22 @@
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' show WebUri;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+
+class ConsoleLogEntry {
+  final DateTime timestamp;
+  final String message;
+  final ConsoleMessageLevel level;
+
+  ConsoleLogEntry({
+    required this.timestamp,
+    required this.message,
+    required this.level,
+  });
+}
 
 /// Generates a unique site ID for per-site cookie isolation.
 String _generateSiteId() {
@@ -221,6 +233,9 @@ class WebViewModel {
   bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
 
+  final List<ConsoleLogEntry> consoleLogs = [];
+  static const _maxConsoleLogs = 500;
+
   String? defaultUserAgent;
   Function? stateSetterF;
   FindMatchesResult findMatches = FindMatchesResult();
@@ -312,7 +327,7 @@ class WebViewModel {
     try {
       await proxyManager.setProxySettings(proxySettings);
     } catch (e) {
-      print('Failed to apply proxy settings: $e');
+      LogService.instance.log('WebView', 'Failed to apply proxy settings: $e', level: LogLevel.error);
     }
   }
 
@@ -343,11 +358,9 @@ class WebViewModel {
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
       final effectiveLanguage = this.language;
-      if (kDebugMode) {
-        debugPrint('[WebView] Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
-        debugPrint('[WebView] Language: $effectiveLanguage (param: $language)');
-        debugPrint('[WebView] Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)');
-      }
+      LogService.instance.log('WebView', 'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
+      LogService.instance.log('WebView', 'Language: $effectiveLanguage (param: $language)');
+      LogService.instance.log('WebView', 'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)');
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -364,9 +377,7 @@ class WebViewModel {
           shouldOverrideUrlLoading: (url, hasGesture) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
             if (url == 'about:blank' || url == 'about:srcdoc') {
-              if (kDebugMode) {
-                debugPrint('[WebView] shouldOverrideUrlLoading: ALLOW $url (captcha iframe support)');
-              }
+              LogService.instance.log('WebView', 'shouldOverrideUrlLoading: ALLOW $url (captcha iframe support)');
               return true;
             }
 
@@ -374,27 +385,16 @@ class WebViewModel {
             final requestNormalized = getNormalizedDomain(url);
             final initialNormalized = getNormalizedDomain(initUrl);
 
-            if (kDebugMode) {
-              debugPrint('[WebView] shouldOverrideUrlLoading called:');
-              debugPrint('  site: "$name" (siteId: $siteId)');
-              debugPrint('  initUrl: $initUrl');
-              debugPrint('  request: $url');
-              debugPrint('  from: $initialNormalized -> to: $requestNormalized');
-              debugPrint('  hasGesture: $hasGesture');
-            }
+            LogService.instance.log('WebView', 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url from=$initialNormalized to=$requestNormalized hasGesture=$hasGesture');
 
             if (requestNormalized == initialNormalized) {
-              if (kDebugMode) {
-                debugPrint('  -> ALLOW (same domain)');
-              }
+              LogService.instance.log('WebView', '  -> ALLOW (same domain)');
               return true; // Allow - same logical domain
             }
 
             // Block script-initiated cross-domain navigations (Google One Tap, Stripe, etc.)
             if (blockAutoRedirects && !hasGesture) {
-              if (kDebugMode) {
-                debugPrint('  -> CANCEL (auto-redirect blocked, no user gesture)');
-              }
+              LogService.instance.log('WebView', '  -> CANCEL (auto-redirect blocked, no user gesture)');
               return false;
             }
 
@@ -402,16 +402,12 @@ class WebViewModel {
             // In IndexedStack, background sites remain alive and can fire
             // shouldOverrideUrlLoading — don't open dialogs for them.
             if (isActive != null && !isActive()) {
-              if (kDebugMode) {
-                debugPrint('  -> CANCEL (background site, suppressing nested webview)');
-              }
+              LogService.instance.log('WebView', '  -> CANCEL (background site, suppressing nested webview)');
               return false;
             }
 
             // Open in nested webview with home site title
-            if (kDebugMode) {
-              debugPrint('  -> CANCEL (opening nested webview)');
-            }
+            LogService.instance.log('WebView', '  -> CANCEL (opening nested webview)');
             launchUrlFunc(url, homeTitle: name, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
             return false; // Cancel
           },
@@ -459,11 +455,19 @@ class WebViewModel {
           },
           onHtmlLoaded: onHtmlLoaded,
           initialHtml: initialHtml,
+          onConsoleMessage: (message, level) {
+            consoleLogs.add(ConsoleLogEntry(
+              timestamp: DateTime.now(),
+              message: message,
+              level: level,
+            ));
+            if (consoleLogs.length > _maxConsoleLogs) {
+              consoleLogs.removeAt(0);
+            }
+          },
         ),
         onControllerCreated: (ctrl) {
-          if (kDebugMode) {
-            debugPrint('[WebView] onControllerCreated for "$name" (siteId: $siteId)');
-          }
+          LogService.instance.log('WebView', 'onControllerCreated for "$name" (siteId: $siteId)');
           controller = ctrl;
           setController();
         },
@@ -510,9 +514,7 @@ class WebViewModel {
   /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
-    if (kDebugMode) {
-      debugPrint('[WebView] disposeWebView called for "$name" (siteId: $siteId)');
-    }
+    LogService.instance.log('WebView', 'disposeWebView called for "$name" (siteId: $siteId)');
     webview = null;
     controller = null;
   }
