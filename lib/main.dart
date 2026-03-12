@@ -33,6 +33,8 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
+import 'package:webspace/services/log_service.dart';
+import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Accent color enum
@@ -506,11 +508,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     final target = _webViewModels[index];
 
-    if (kDebugMode) {
-      debugPrint('[CookieIsolation] Switching to site $index: "${target.name}" (siteId: ${target.siteId})');
-      debugPrint('[CookieIsolation] Target domain: ${getBaseDomain(target.initUrl)}');
-      debugPrint('[CookieIsolation] Currently loaded indices: $_loadedIndices');
-    }
+    LogService.instance.log('CookieIsolation', 'Switching to site $index: "${target.name}" (siteId: ${target.siteId})');
+    LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
+    LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');
 
     // Only check for domain conflicts if target is not incognito
     if (!target.incognito) {
@@ -526,14 +526,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (loaded.incognito) continue; // Skip incognito sites
 
         final loadedDomain = getBaseDomain(loaded.initUrl);
-        if (kDebugMode) {
-          debugPrint('[CookieIsolation] Checking loaded site $loadedIndex: "${loaded.name}" domain: $loadedDomain');
-        }
+        LogService.instance.log('CookieIsolation', 'Checking loaded site $loadedIndex: "${loaded.name}" domain: $loadedDomain');
         if (loadedDomain == targetDomain) {
           // Domain conflict - unload the conflicting site
-          if (kDebugMode) {
-            debugPrint('[CookieIsolation] CONFLICT! Unloading site $loadedIndex');
-          }
+          LogService.instance.log('CookieIsolation', 'CONFLICT! Unloading site $loadedIndex', level: LogLevel.warning);
           await _unloadSiteForDomainSwitch(loadedIndex);
           break; // Only one conflict possible at a time
         }
@@ -545,9 +541,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     _currentIndex = index;
     _loadedIndices.add(index);
-    if (kDebugMode) {
-      debugPrint('[CookieIsolation] After switch, loaded indices: $_loadedIndices');
-    }
+    LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
   }
 
   /// Unloads a site due to domain conflict with another site.
@@ -557,9 +551,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     final model = _webViewModels[index];
 
-    if (kDebugMode) {
-      debugPrint('[CookieIsolation] Unloading site $index: "${model.name}" (siteId: ${model.siteId})');
-    }
+    LogService.instance.log('CookieIsolation', 'Unloading site $index: "${model.name}" (siteId: ${model.siteId})');
 
     // Capture cookies for ALL loaded sites before clearing
     // This preserves cookies for sites on other domains
@@ -571,9 +563,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       await loadedModel.captureCookies(_cookieManager);
       await _cookieSecureStorage.saveCookiesForSite(loadedModel.siteId, loadedModel.cookies);
 
-      if (kDebugMode) {
-        debugPrint('[CookieIsolation] Captured ${loadedModel.cookies.length} cookies for site $loadedIndex: "${loadedModel.name}"');
-      }
+      LogService.instance.log('CookieIsolation', 'Captured ${loadedModel.cookies.length} cookies for site $loadedIndex: "${loadedModel.name}"');
     }
 
     // Clear ALL cookies from CookieManager
@@ -582,16 +572,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // by a single URL query.
     await _cookieManager.deleteAllCookies();
 
-    if (kDebugMode) {
-      debugPrint('[CookieIsolation] Cleared ALL cookies from CookieManager');
-    }
+    LogService.instance.log('CookieIsolation', 'Cleared ALL cookies from CookieManager', level: LogLevel.info);
 
     // Dispose webview for the conflicting site only
     model.disposeWebView();
 
-    if (kDebugMode) {
-      debugPrint('[CookieIsolation] Disposed webview for site $index');
-    }
+    LogService.instance.log('CookieIsolation', 'Disposed webview for site $index');
 
     // Remove from loaded indices
     _loadedIndices.remove(index);
@@ -608,9 +594,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final cookies = await _cookieSecureStorage.loadCookiesForSite(model.siteId);
     model.cookies = cookies;
 
-    if (kDebugMode) {
-      debugPrint('[CookieIsolation] Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})');
-    }
+    LogService.instance.log('CookieIsolation', 'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})');
 
     // Restore cookies to CookieManager
     final url = Uri.parse(model.initUrl);
@@ -634,9 +618,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _showPopupWindow(int windowId, String url) async {
     if (!mounted) return;
 
-    if (kDebugMode) {
-      debugPrint('[PopupWindow] Opening popup window with id: $windowId, url: $url');
-    }
+    LogService.instance.log('PopupWindow', 'Opening popup window with id: $windowId, url: $url');
 
     await showDialog(
       context: context,
@@ -679,9 +661,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       },
     );
 
-    if (kDebugMode) {
-      debugPrint('[PopupWindow] Popup window closed');
-    }
+    LogService.instance.log('PopupWindow', 'Popup window closed');
   }
 
   Future<void> _loadWebspaces() async {
@@ -1000,13 +980,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (index >= 0 && index < _webViewModels.length) {
           _webViewModels[index].disposeWebView();
           _loadedIndices.remove(index);
-          if (kDebugMode) {
-            debugPrint('[WebspaceSwitch] Unloaded site $index: "${_webViewModels[index].name}"');
-          }
+          LogService.instance.log('WebspaceSwitch', 'Unloaded site $index: "${_webViewModels[index].name}"');
         }
       }
-    } else if (kDebugMode) {
-      debugPrint('[WebspaceSwitch] Offline - preserving loaded webviews');
+    } else {
+      LogService.instance.log('WebspaceSwitch', 'Offline - preserving loaded webviews');
     }
 
     await _setCurrentIndex(null);
@@ -1412,6 +1390,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       ],
                     ),
                   ),
+                PopupMenuItem<String>(
+                  value: "devTools",
+                  child: Row(
+                    children: [
+                      Icon(Icons.code),
+                      SizedBox(width: 8),
+                      Text("Developer Tools"),
+                    ],
+                  ),
+                ),
               ];
             },
             onSelected: (String value) async {
@@ -1466,9 +1454,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               for (int i = 0; i < 20; i++) {
                                 await Future.delayed(const Duration(milliseconds: 100));
                                 if (model.controller != null) {
-                                  if (kDebugMode) {
-                                    debugPrint('[Settings] Reloading URL with language: $languageToUse');
-                                  }
+                                  LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
                                   await model.controller!.loadUrl(urlToLoad, language: languageToUse);
                                   break;
                                 }
@@ -1502,6 +1488,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       siteId: model.siteId,
                       label: model.name,
                       iconUrl: isSvg ? null : faviconUrl,
+                    );
+                  }
+                break;
+                case 'devTools':
+                  if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DevToolsScreen(
+                          webViewModel: _webViewModels[_currentIndex!],
+                          cookieManager: _cookieManager,
+                        ),
+                      ),
                     );
                   }
                 break;

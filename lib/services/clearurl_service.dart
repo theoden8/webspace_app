@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -52,14 +53,10 @@ class ClearUrlService {
         final contents = await file.readAsString();
         final json = jsonDecode(contents) as Map<String, dynamic>;
         _parseRules(json);
-        if (kDebugMode) {
-          debugPrint('[ClearURLs] Loaded ${_providers.length} providers from cache');
-        }
+        LogService.instance.log('ClearURLs', 'Loaded ${_providers.length} providers from cache', level: LogLevel.info);
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[ClearURLs] Error loading cached rules: $e');
-      }
+      LogService.instance.log('ClearURLs', 'Error loading cached rules: $e', level: LogLevel.error);
     }
   }
 
@@ -72,9 +69,7 @@ class ClearUrlService {
       );
 
       if (response.statusCode != 200) {
-        if (kDebugMode) {
-          debugPrint('[ClearURLs] Download failed: HTTP ${response.statusCode}');
-        }
+        LogService.instance.log('ClearURLs', 'Download failed: HTTP ${response.statusCode}', level: LogLevel.error);
         return false;
       }
 
@@ -91,15 +86,11 @@ class ClearUrlService {
       // Parse
       _parseRules(json);
 
-      if (kDebugMode) {
-        debugPrint('[ClearURLs] Downloaded and parsed ${_providers.length} providers');
-      }
+      LogService.instance.log('ClearURLs', 'Downloaded and parsed ${_providers.length} providers', level: LogLevel.info);
 
       return true;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[ClearURLs] Download error: $e');
-      }
+      LogService.instance.log('ClearURLs', 'Download error: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -213,9 +204,7 @@ class ClearUrlService {
           redirections: redirections,
         ));
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('[ClearURLs] Error parsing provider "${entry.key}": $e');
-        }
+        LogService.instance.log('ClearURLs', 'Error parsing provider "${entry.key}": $e', level: LogLevel.error);
       }
     }
 
@@ -230,9 +219,7 @@ class ClearUrlService {
         try {
           result.add(RegExp(item, caseSensitive: false));
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('[ClearURLs] Invalid regex "$item": $e');
-          }
+          LogService.instance.log('ClearURLs', 'Invalid regex "$item": $e', level: LogLevel.error);
         }
       }
     }

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -68,15 +69,11 @@ class DnsBlockService {
         if (await file.exists()) {
           final contents = await file.readAsString();
           _parseDomains(contents);
-          if (kDebugMode) {
-            debugPrint('[DnsBlock] Loaded ${_blockedDomains.length} domains from cache (level $_level)');
-          }
+          LogService.instance.log('DnsBlock', 'Loaded ${_blockedDomains.length} domains from cache (level $_level)', level: LogLevel.info);
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[DnsBlock] Error loading cached blocklist: $e');
-      }
+      LogService.instance.log('DnsBlock', 'Error loading cached blocklist: $e', level: LogLevel.error);
     }
   }
 
@@ -98,9 +95,7 @@ class DnsBlockService {
         await prefs.setInt(_levelKey, 0);
         await prefs.remove(_lastUpdatedKey);
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('[DnsBlock] Error clearing blocklist: $e');
-        }
+        LogService.instance.log('DnsBlock', 'Error clearing blocklist: $e', level: LogLevel.error);
       }
       return true;
     }
@@ -111,18 +106,14 @@ class DnsBlockService {
     for (final baseUrl in _mirrorBaseUrls) {
       try {
         final url = '$baseUrl$filePath';
-        if (kDebugMode) {
-          debugPrint('[DnsBlock] Trying mirror: $url');
-        }
+        LogService.instance.log('DnsBlock', 'Trying mirror: $url');
 
         final response = await http.get(Uri.parse(url)).timeout(
           const Duration(seconds: 15),
         );
 
         if (response.statusCode != 200) {
-          if (kDebugMode) {
-            debugPrint('[DnsBlock] Mirror failed: HTTP ${response.statusCode}');
-          }
+          LogService.instance.log('DnsBlock', 'Mirror failed: HTTP ${response.statusCode}', level: LogLevel.error);
           continue;
         }
 
@@ -139,22 +130,16 @@ class DnsBlockService {
         await prefs.setInt(_levelKey, level);
         await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
 
-        if (kDebugMode) {
-          debugPrint('[DnsBlock] Downloaded ${_blockedDomains.length} domains (level $level)');
-        }
+        LogService.instance.log('DnsBlock', 'Downloaded ${_blockedDomains.length} domains (level $level)', level: LogLevel.info);
 
         return true;
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint('[DnsBlock] Mirror error: $e');
-        }
+        LogService.instance.log('DnsBlock', 'Mirror error: $e', level: LogLevel.error);
         continue;
       }
     }
 
-    if (kDebugMode) {
-      debugPrint('[DnsBlock] All mirrors failed for level $level');
-    }
+    LogService.instance.log('DnsBlock', 'All mirrors failed for level $level', level: LogLevel.error);
     return false;
   }
 

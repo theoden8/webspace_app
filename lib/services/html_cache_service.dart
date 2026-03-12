@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -60,9 +60,7 @@ class HtmlCacheService {
         final key = encrypt.Key.fromSecureRandom(32);
         keyBase64 = base64.encode(key.bytes);
         await _secureStorage.write(key: _encryptionKeyKey, value: keyBase64);
-        if (kDebugMode) {
-          debugPrint('[HtmlCache] Generated new encryption key');
-        }
+        LogService.instance.log('HtmlCache', 'Generated new encryption key', level: LogLevel.info);
       }
 
       final keyBytes = base64.decode(keyBase64);
@@ -71,13 +69,9 @@ class HtmlCacheService {
       _iv = encrypt.IV(Uint8List.fromList(keyBytes.sublist(0, 16)));
       _encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
 
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Encryption initialized');
-      }
+      LogService.instance.log('HtmlCache', 'Encryption initialized', level: LogLevel.info);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Error initializing encryption: $e');
-      }
+      LogService.instance.log('HtmlCache', 'Error initializing encryption: $e', level: LogLevel.error);
     }
   }
 
@@ -86,9 +80,7 @@ class HtmlCacheService {
     try {
       return _encrypter!.encrypt(plaintext, iv: _iv).base64;
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Encryption error: $e');
-      }
+      LogService.instance.log('HtmlCache', 'Encryption error: $e', level: LogLevel.error);
       return null;
     }
   }
@@ -98,9 +90,7 @@ class HtmlCacheService {
     try {
       return _encrypter!.decrypt64(ciphertext, iv: _iv);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Decryption error: $e');
-      }
+      LogService.instance.log('HtmlCache', 'Decryption error: $e', level: LogLevel.error);
       return null;
     }
   }
@@ -126,33 +116,23 @@ class HtmlCacheService {
               } else {
                 // Invalid format - discard
                 await entity.delete();
-                if (kDebugMode) {
-                  debugPrint('[HtmlCache] Discarded invalid cache file: ${entity.path}');
-                }
+                LogService.instance.log('HtmlCache', 'Discarded invalid cache file: ${entity.path}', level: LogLevel.warning);
               }
             } else {
               // Decryption failed - discard (key may have changed)
               await entity.delete();
-              if (kDebugMode) {
-                debugPrint('[HtmlCache] Discarded undecryptable cache file: ${entity.path}');
-              }
+              LogService.instance.log('HtmlCache', 'Discarded undecryptable cache file: ${entity.path}', level: LogLevel.warning);
             }
           } catch (e) {
             // File read/decrypt error - discard
             await entity.delete();
-            if (kDebugMode) {
-              debugPrint('[HtmlCache] Discarded corrupted cache file: ${entity.path} ($e)');
-            }
+            LogService.instance.log('HtmlCache', 'Discarded corrupted cache file: ${entity.path} ($e)', level: LogLevel.warning);
           }
         }
       }
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Pre-loaded ${_memoryCache.length} cached pages');
-      }
+      LogService.instance.log('HtmlCache', 'Pre-loaded ${_memoryCache.length} cached pages', level: LogLevel.info);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Error pre-loading cache: $e');
-      }
+      LogService.instance.log('HtmlCache', 'Error pre-loading cache: $e', level: LogLevel.error);
     }
   }
 
@@ -172,9 +152,7 @@ class HtmlCacheService {
       // Version changed - clear the HTML cache and generate new key
       if (_cacheDirectory != null && await _cacheDirectory!.exists()) {
         await _cacheDirectory!.delete(recursive: true);
-        if (kDebugMode) {
-          debugPrint('[HtmlCache] Cleared cache on upgrade from $lastVersion to $currentVersion');
-        }
+        LogService.instance.log('HtmlCache', 'Cleared cache on upgrade from $lastVersion to $currentVersion', level: LogLevel.info);
       }
       _memoryCache.clear();
       // Generate new encryption key on upgrade
@@ -199,9 +177,7 @@ class HtmlCacheService {
 
     // Skip if HTML is too large
     if (html.length > _maxHtmlSize) {
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Skipping save for $siteId - HTML too large (${html.length} bytes > $_maxHtmlSize)');
-      }
+      LogService.instance.log('HtmlCache', 'Skipping save for $siteId - HTML too large (${html.length} bytes > $_maxHtmlSize)', level: LogLevel.warning);
       return;
     }
 
@@ -218,13 +194,9 @@ class HtmlCacheService {
       // Update memory cache
       _memoryCache[siteId] = html;
 
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Saved ${html.length} bytes for site $siteId (encrypted)');
-      }
+      LogService.instance.log('HtmlCache', 'Saved ${html.length} bytes for site $siteId (encrypted)', level: LogLevel.info);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Error saving HTML for $siteId: $e');
-      }
+      LogService.instance.log('HtmlCache', 'Error saving HTML for $siteId: $e', level: LogLevel.error);
     }
   }
 
@@ -247,15 +219,11 @@ class HtmlCacheService {
       final url = decrypted.substring(0, newlineIndex);
       final html = decrypted.substring(newlineIndex + 1);
 
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Loaded ${html.length} bytes for site $siteId (decrypted)');
-      }
+      LogService.instance.log('HtmlCache', 'Loaded ${html.length} bytes for site $siteId (decrypted)', level: LogLevel.info);
 
       return (url, html);
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[HtmlCache] Error loading HTML for $siteId: $e');
-      }
+      LogService.instance.log('HtmlCache', 'Error loading HTML for $siteId: $e', level: LogLevel.error);
       return null;
     }
   }
@@ -289,9 +257,7 @@ class HtmlCacheService {
         if (!activeSiteIds.contains(siteId)) {
           await entity.delete();
           _memoryCache.remove(siteId);
-          if (kDebugMode) {
-            debugPrint('[HtmlCache] Removed orphaned cache for $siteId');
-          }
+          LogService.instance.log('HtmlCache', 'Removed orphaned cache for $siteId', level: LogLevel.info);
         }
       }
     }

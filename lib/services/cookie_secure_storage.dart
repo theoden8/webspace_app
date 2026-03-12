@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/demo_data.dart' show isDemoMode;
@@ -114,7 +114,7 @@ class CookieSecureStorage {
         );
       } catch (e) {
         // Secure storage failed - secure cookies are lost (intentional)
-        debugPrint('Secure storage unavailable, secure cookies not persisted: $e');
+        LogService.instance.log('CookieStorage', 'Secure storage unavailable, secure cookies not persisted: $e', level: LogLevel.error);
         _secureStorageAvailable = false;
       }
     } else if (secureJsonMap.isEmpty && _secureStorageAvailable) {
@@ -122,7 +122,7 @@ class CookieSecureStorage {
       try {
         await _secureStorage.delete(key: _secureStorageKey);
       } catch (e) {
-        debugPrint('Failed to clear secure storage: $e');
+        LogService.instance.log('CookieStorage', 'Failed to clear secure storage: $e', level: LogLevel.error);
       }
     }
 
@@ -182,7 +182,7 @@ class CookieSecureStorage {
     }
 
     await saveCookies(allCookies);
-    debugPrint('Removed orphaned cookies for siteIds: $siteIdsToRemove');
+    LogService.instance.log('CookieStorage', 'Removed orphaned cookies for siteIds: $siteIdsToRemove', level: LogLevel.info);
   }
 
   /// Clears all stored cookies from both secure storage and fallback.
@@ -191,14 +191,14 @@ class CookieSecureStorage {
     try {
       await _secureStorage.delete(key: _secureStorageKey);
     } catch (e) {
-      debugPrint('Failed to clear secure storage cookies: $e');
+      LogService.instance.log('CookieStorage', 'Failed to clear secure storage cookies: $e', level: LogLevel.error);
     }
 
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_sharedPrefsCookiesKey);
     } catch (e) {
-      debugPrint('Failed to clear fallback cookies: $e');
+      LogService.instance.log('CookieStorage', 'Failed to clear fallback cookies: $e', level: LogLevel.error);
     }
   }
 
@@ -231,7 +231,7 @@ class CookieSecureStorage {
         return _parseJsonCookies(jsonString);
       }
     } catch (e) {
-      debugPrint('Secure storage unavailable for reading: $e');
+      LogService.instance.log('CookieStorage', 'Secure storage unavailable for reading: $e', level: LogLevel.error);
       _secureStorageAvailable = false;
     }
     return {};
@@ -246,7 +246,7 @@ class CookieSecureStorage {
         return _parseJsonCookies(jsonString);
       }
     } catch (e) {
-      debugPrint('Failed to read non-secure cookies: $e');
+      LogService.instance.log('CookieStorage', 'Failed to read non-secure cookies: $e', level: LogLevel.error);
     }
     return {};
   }

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/services/log_service.dart';
 import '../third_party/favicon/favicon.dart';
 
 /// Icon Service - Handles favicon fetching with quality scoring
@@ -53,9 +53,7 @@ Future<String?> getSvgContent(String svgUrl, {String? persistedContent}) async {
       return response.body;
     }
   } catch (e) {
-    if (kDebugMode) {
-      print('[Icon] Failed to fetch SVG content: $e');
-    }
+    LogService.instance.log('Icon', 'Failed to fetch SVG content: $e', level: LogLevel.error);
   }
   return null;
 }
@@ -156,9 +154,7 @@ Future<bool> _isSvgColored(String svgUrl) async {
     for (var match in attrMatches) {
       final color = match.group(1)!.toLowerCase();
       if (_isRealColor(color)) {
-        if (kDebugMode) {
-          print('[Icon] Found colored SVG with attr color #$color: $svgUrl');
-        }
+        LogService.instance.log('Icon', 'Found colored SVG with attr color #$color: $svgUrl');
         return true;
       }
     }
@@ -182,30 +178,22 @@ Future<bool> _isSvgColored(String svgUrl) async {
       for (var match in cssMatches) {
         final color = match.group(1)!.toLowerCase();
         if (_isRealColor(color)) {
-          if (kDebugMode) {
-            print('[Icon] Found colored SVG with CSS color #$color: $svgUrl');
-          }
+          LogService.instance.log('Icon', 'Found colored SVG with CSS color #$color: $svgUrl');
           return true;
         }
       }
 
       // Check for rgb/hsl
       if (withoutMedia.contains('rgb(') || withoutMedia.contains('hsl(')) {
-        if (kDebugMode) {
-          print('[Icon] Found colored SVG with rgb/hsl: $svgUrl');
-        }
+        LogService.instance.log('Icon', 'Found colored SVG with rgb/hsl: $svgUrl');
         return true;
       }
     }
 
-    if (kDebugMode) {
-      print('[Icon] SVG appears monochrome: $svgUrl');
-    }
+    LogService.instance.log('Icon', 'SVG appears monochrome: $svgUrl');
     return false;
   } catch (e) {
-    if (kDebugMode) {
-      print('[Icon] Failed to check SVG color: $e');
-    }
+    LogService.instance.log('Icon', 'Failed to check SVG color: $e', level: LogLevel.error);
     return false;
   }
 }
@@ -242,9 +230,7 @@ int _compareFavicons(Favicon a, Favicon b, Map<String, bool> svgColorCache) {
 
 Future<Favicon?> _findBestIcon(String url) async {
   final favicons = await FaviconFinder.getAll(url);
-  if (kDebugMode) {
-    print('[Icon] Favicons: ${favicons.map((f) => '${f.url} (width: ${f.width}, height: ${f.height})').join(', ')}');
-  }
+  LogService.instance.log('Icon', 'Favicons: ${favicons.map((f) => '${f.url} (width: ${f.width}, height: ${f.height})').join(', ')}');
   if (favicons.isEmpty) return null;
 
   final svgColorCache = <String, bool>{};
@@ -271,34 +257,26 @@ Future<Favicon?> _findBestIcon(String url) async {
 Future<String?> getFaviconUrl(String url) async {
   // Check cache first
   if (_faviconCache.containsKey(url)) {
-    if (kDebugMode) {
-      print('[Icon] Using cached icon for $url');
-    }
+    LogService.instance.log('Icon', 'Using cached icon for $url');
     return _faviconCache[url];
   }
 
   // Queue management to limit concurrent requests
   if (_activeRequests >= _maxConcurrentRequests) {
-    if (kDebugMode) {
-      print('[Icon] Queueing request for $url (active: $_activeRequests)');
-    }
+    LogService.instance.log('Icon', 'Queueing request for $url (active: $_activeRequests)');
     final completer = Completer<void>();
     _requestQueue.add(completer);
     await completer.future;
   }
 
   _activeRequests++;
-  if (kDebugMode) {
-    print('[Icon] Starting request for $url (active: $_activeRequests, queued: ${_requestQueue.length})');
-  }
+  LogService.instance.log('Icon', 'Starting request for $url (active: $_activeRequests, queued: ${_requestQueue.length})');
 
   try {
     return await _fetchFaviconUrlInternal(url);
   } finally {
     _activeRequests--;
-    if (kDebugMode) {
-      print('[Icon] Finished request for $url (active: $_activeRequests, queued: ${_requestQueue.length})');
-    }
+    LogService.instance.log('Icon', 'Finished request for $url (active: $_activeRequests, queued: ${_requestQueue.length})');
 
     // Process next queued request
     if (_requestQueue.isNotEmpty) {
@@ -331,9 +309,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
   if (_faviconCache.containsKey(url) && _faviconCache[url] != null) {
     final cachedUrl = _faviconCache[url]!;
     final cachedQuality = _faviconQualityCache[url] ?? 100;
-    if (kDebugMode) {
-      print('[Icon] Stream: Using cached icon for $url (quality: $cachedQuality)');
-    }
+    LogService.instance.log('Icon', 'Stream: Using cached icon for $url (quality: $cachedQuality)');
     yield IconUpdate(cachedUrl, cachedQuality, isFinal: true);
     return;
   }
@@ -341,9 +317,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
   // Check if we should use public icon services (skip for http:// and IP addresses)
   final usePublicServices = _shouldUsePublicIconServices(uri);
 
-  if (kDebugMode) {
-    print('[Icon] Stream: Starting progressive fetch for $url (domain: $domain, usePublicServices: $usePublicServices)');
-  }
+  LogService.instance.log('Icon', 'Stream: Starting progressive fetch for $url (domain: $domain, usePublicServices: $usePublicServices)');
 
   // Phase 1 & 2: Public icon services (only for HTTPS + non-IP addresses)
   if (usePublicServices) {
@@ -352,9 +326,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
     if (ddgResult != null) {
       bestUrl = ddgResult;
       bestQuality = 64;
-      if (kDebugMode) {
-        print('[Icon] Stream: Emitting DuckDuckGo icon (quality: 64)');
-      }
+      LogService.instance.log('Icon', 'Stream: Emitting DuckDuckGo icon (quality: 64)');
       yield IconUpdate(ddgResult, 64);
     }
 
@@ -368,9 +340,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
     if (googleResults[0] != null && 128 > bestQuality) {
       bestUrl = googleResults[0];
       bestQuality = 128;
-      if (kDebugMode) {
-        print('[Icon] Stream: Emitting Google 128px icon');
-      }
+      LogService.instance.log('Icon', 'Stream: Emitting Google 128px icon');
       yield IconUpdate(googleResults[0]!, 128);
     }
 
@@ -378,9 +348,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
     if (googleResults[1] != null && 256 > bestQuality) {
       bestUrl = googleResults[1];
       bestQuality = 256;
-      if (kDebugMode) {
-        print('[Icon] Stream: Emitting Google 256px icon');
-      }
+      LogService.instance.log('Icon', 'Stream: Emitting Google 256px icon');
       yield IconUpdate(googleResults[1]!, 256);
     }
   }
@@ -390,9 +358,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
   if (faviconResult != null && faviconResult.quality > bestQuality) {
     bestUrl = faviconResult.url;
     bestQuality = faviconResult.quality;
-    if (kDebugMode) {
-      print('[Icon] Stream: Emitting favicon package icon (quality: ${faviconResult.quality})');
-    }
+    LogService.instance.log('Icon', 'Stream: Emitting favicon package icon (quality: ${faviconResult.quality})');
     yield IconUpdate(faviconResult.url, faviconResult.quality, isFinal: true);
   } else if (bestUrl != null) {
     // Re-emit best as final
@@ -403,9 +369,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
   _faviconCache[url] = bestUrl;
   _faviconQualityCache[url] = bestQuality;
 
-  if (kDebugMode) {
-    print('[Icon] Stream: Completed for $url, best quality: $bestQuality');
-  }
+  LogService.instance.log('Icon', 'Stream: Completed for $url, best quality: $bestQuality');
 }
 
 Future<String?> _fetchFaviconUrlInternal(String url) async {
@@ -418,9 +382,7 @@ Future<String?> _fetchFaviconUrlInternal(String url) async {
   String domain = _applyDomainSubstitution(uri.host);
   final usePublicServices = _shouldUsePublicIconServices(uri);
 
-  if (kDebugMode) {
-    print('[Icon] Fetching icon for $url (domain: $domain, usePublicServices: $usePublicServices)');
-  }
+  LogService.instance.log('Icon', 'Fetching icon for $url (domain: $domain, usePublicServices: $usePublicServices)');
 
   final List<_IconCandidate> candidates = [];
 
@@ -448,9 +410,7 @@ Future<String?> _fetchFaviconUrlInternal(String url) async {
 
     candidates.addAll(results.whereType<_IconCandidate>());
   } catch (e) {
-    if (kDebugMode) {
-      print('[Icon] Error fetching icons for $url: $e');
-    }
+    LogService.instance.log('Icon', 'Error fetching icons for $url: $e', level: LogLevel.error);
   }
 
   if (candidates.isEmpty) {
@@ -461,9 +421,7 @@ Future<String?> _fetchFaviconUrlInternal(String url) async {
   // Sort by quality (highest first)
   candidates.sort((a, b) => b.quality.compareTo(a.quality));
 
-  if (kDebugMode) {
-    print('[Icon] Candidates: ${candidates.map((c) => '${c.url} (quality: ${c.quality})').join(', ')}');
-  }
+  LogService.instance.log('Icon', 'Candidates: ${candidates.map((c) => '${c.url} (quality: ${c.quality})').join(', ')}');
 
   // Return first valid candidate
   for (var candidate in candidates) {
@@ -485,15 +443,11 @@ Future<String?> _tryGoogleFavicon(String domain, int size) async {
   try {
     final googleUrl = 'https://www.google.com/s2/favicons?domain=$domain&sz=$size';
     if (await _verifyIconUrl(googleUrl)) {
-      if (kDebugMode) {
-        print('[Icon] Found Google favicon at ${size}px for $domain');
-      }
+      LogService.instance.log('Icon', 'Found Google favicon at ${size}px for $domain');
       return googleUrl;
     }
   } catch (e) {
-    if (kDebugMode) {
-      print('[Icon] Google ${size}px failed for $domain: $e');
-    }
+    LogService.instance.log('Icon', 'Google ${size}px failed for $domain: $e', level: LogLevel.error);
   }
   return null;
 }
@@ -502,15 +456,11 @@ Future<String?> _tryDuckDuckGo(String domain) async {
   try {
     final ddgUrl = 'https://icons.duckduckgo.com/ip3/$domain.ico';
     if (await _verifyIconUrl(ddgUrl)) {
-      if (kDebugMode) {
-        print('[Icon] Found DuckDuckGo favicon for $domain');
-      }
+      LogService.instance.log('Icon', 'Found DuckDuckGo favicon for $domain');
       return ddgUrl;
     }
   } catch (e) {
-    if (kDebugMode) {
-      print('[Icon] DuckDuckGo failed for $domain: $e');
-    }
+    LogService.instance.log('Icon', 'DuckDuckGo failed for $domain: $e', level: LogLevel.error);
   }
   return null;
 }
@@ -520,9 +470,7 @@ Future<_IconCandidate?> _tryFaviconPackage(String url) async {
     final favicons = await FaviconFinder.getAll(url).timeout(Duration(seconds: 15));
     if (favicons.isEmpty) return null;
 
-    if (kDebugMode) {
-      print('[Icon] Favicons: ${favicons.map((f) => '${f.url} (width: ${f.width}, height: ${f.height})').join(', ')}');
-    }
+    LogService.instance.log('Icon', 'Favicons: ${favicons.map((f) => '${f.url} (width: ${f.width}, height: ${f.height})').join(', ')}');
 
     final svgColorCache = <String, bool>{};
 
@@ -547,15 +495,11 @@ Future<_IconCandidate?> _tryFaviconPackage(String url) async {
         quality = (best.width > 0) ? best.width : 50;
       }
 
-      if (kDebugMode) {
-        print('[Icon] Found favicon via package for $url (quality: $quality) ${best.url}');
-      }
+      LogService.instance.log('Icon', 'Found favicon via package for $url (quality: $quality) ${best.url}');
       return _IconCandidate(best.url, quality);
     }
   } catch (e) {
-    if (kDebugMode) {
-      print('[Icon] FaviconFinder failed for $url: $e');
-    }
+    LogService.instance.log('Icon', 'FaviconFinder failed for $url: $e', level: LogLevel.error);
   }
   return null;
 }

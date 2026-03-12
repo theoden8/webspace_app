@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/webview.dart';
 
 // Accent color definitions for display
 const Map<AccentColor, Color> _accentColors = {
@@ -548,6 +550,34 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               icon: const Icon(Icons.add),
               label: const Text('Add Custom List'),
             ),
+          ),
+
+          const Divider(height: 32),
+
+          // Developer Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Developer',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.article_outlined),
+            title: const Text('App Logs'),
+            subtitle: const Text('View app-level debug logs'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DevToolsScreen(
+                    cookieManager: CookieManager(),
+                  ),
+                ),
+              );
+            },
           ),
 
           const Divider(height: 32),
