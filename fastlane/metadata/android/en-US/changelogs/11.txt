@@ -1,0 +1,2 @@
+✨ New Features:
+• Developer Tools: JS console, cookie inspector, HTML export, and app logs
