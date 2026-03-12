@@ -26,7 +26,6 @@ class DevToolsScreen extends StatefulWidget {
 }
 
 class _DevToolsScreenState extends State<DevToolsScreen> {
-  List<Cookie>? _cookies;
   bool _loadingCookies = false;
   String? _exportedHtml;
   bool _loadingHtml = false;
@@ -146,46 +145,39 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Cookies Tab ──
 
   Widget _buildCookiesTab() {
+    final cookies = widget.webViewModel!.cookies;
     return Column(
       children: [
-        _buildCookieActions(),
+        _buildCookieActions(cookies),
         Expanded(
           child: _loadingCookies
               ? const Center(child: CircularProgressIndicator())
-              : _cookies == null
-                  ? Center(
-                      child: ElevatedButton.icon(
-                        onPressed: _fetchCookies,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Load Cookies'),
-                      ),
-                    )
-                  : _cookies!.isEmpty
-                      ? const Center(child: Text('No cookies'))
-                      : ListView.builder(
-                          itemCount: _cookies!.length,
-                          itemBuilder: (context, index) =>
-                              _buildCookieTile(_cookies![index]),
-                        ),
+              : cookies.isEmpty
+                  ? const Center(child: Text('No cookies'))
+                  : ListView.builder(
+                      itemCount: cookies.length,
+                      itemBuilder: (context, index) =>
+                          _buildCookieTile(cookies[index]),
+                    ),
         ),
       ],
     );
   }
 
-  Widget _buildCookieActions() {
+  Widget _buildCookieActions(List<Cookie> cookies) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       child: Row(
         children: [
           TextButton.icon(
-            onPressed: _fetchCookies,
+            onPressed: _refreshCookies,
             icon: const Icon(Icons.refresh, size: 18),
             label: const Text('Refresh'),
           ),
-          if (_cookies != null && _cookies!.isNotEmpty)
+          if (cookies.isNotEmpty)
             TextButton.icon(
               onPressed: () {
-                final json = _cookies!.map((c) => c.toJson()).toList();
+                final json = cookies.map((c) => c.toJson()).toList();
                 Clipboard.setData(
                     ClipboardData(text: const JsonEncoder.withIndent('  ').convert(json)));
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -200,22 +192,36 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  Future<void> _fetchCookies() async {
+  Future<void> _refreshCookies() async {
     final url = widget.webViewModel!.currentUrl;
     if (url.isEmpty) return;
     setState(() => _loadingCookies = true);
     try {
       final cookies = await widget.cookieManager.getCookies(url: Uri.parse(url));
       if (mounted) {
-        setState(() {
-          _cookies = cookies;
-          _loadingCookies = false;
-        });
+        widget.webViewModel!.cookies = cookies;
+        setState(() => _loadingCookies = false);
       }
     } catch (e) {
       if (mounted) {
         setState(() => _loadingCookies = false);
       }
+    }
+  }
+
+  Future<void> _deleteCookie(Cookie cookie) async {
+    final url = Uri.parse(widget.webViewModel!.currentUrl);
+    await widget.cookieManager.deleteCookie(
+      url: url,
+      name: cookie.name,
+      domain: cookie.domain,
+      path: cookie.path ?? '/',
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Deleted cookie "${cookie.name}"')),
+      );
+      _refreshCookies();
     }
   }
 
@@ -257,6 +263,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   if (cookie.sameSite != null)
                     _buildSameSiteChip(cookie.sameSite.toString()),
                 ],
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () => _deleteCookie(cookie),
+                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                label: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12)),
               ),
             ],
           ),

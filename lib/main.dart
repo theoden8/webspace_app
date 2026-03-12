@@ -1379,6 +1379,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     ],
                   ),
                 ),
+                PopupMenuItem<String>(
+                  value: "devTools",
+                  child: Row(
+                    children: [
+                      Icon(Icons.code),
+                      SizedBox(width: 8),
+                      Text("Developer Tools"),
+                    ],
+                  ),
+                ),
                 if (Platform.isAndroid)
                   PopupMenuItem<String>(
                     value: "addToHome",
@@ -1390,16 +1400,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       ],
                     ),
                   ),
-                PopupMenuItem<String>(
-                  value: "devTools",
-                  child: Row(
-                    children: [
-                      Icon(Icons.code),
-                      SizedBox(width: 8),
-                      Text("Developer Tools"),
-                    ],
-                  ),
-                ),
               ];
             },
             onSelected: (String value) async {
