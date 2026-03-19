@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -158,23 +159,51 @@ Color _accentColorToColor(AccentColor accentColor) {
   }
 }
 
-/// Vivid versions of accent colors for the logo tint.
-/// The base accent colors are muted for UI; the logo needs fully saturated
-/// colors so BlendMode.color produces clean results on the dark-blue icon.
-const Map<AccentColor, Color> _logoTintColors = {
-  AccentColor.blue: Color(0xFF2060E0),
-  AccentColor.green: Color(0xFF20C050),
-  AccentColor.purple: Color(0xFF8030E0),
-  AccentColor.orange: Color(0xFFE08020),
-  AccentColor.red: Color(0xFFE02020),
-  AccentColor.pink: Color(0xFFE020A0),
-  AccentColor.teal: Color(0xFF20C0C0),
-  AccentColor.yellow: Color(0xFFD0C020),
+/// Target hue in degrees for each accent color, used to compute the
+/// hue rotation angle from the source icon blue (~218°).
+const Map<AccentColor, double> _accentHueDegrees = {
+  AccentColor.blue: 222,
+  AccentColor.green: 137,
+  AccentColor.purple: 268,
+  AccentColor.orange: 28,
+  AccentColor.red: 0,
+  AccentColor.pink: 330,
+  AccentColor.teal: 180,
+  AccentColor.yellow: 50,
 };
 
+const double _sourceHue = 218.0;
+
+/// Build a 5x4 hue-rotation color matrix for [angleDeg] degrees.
+/// This rotates colors in RGB space, so a vivid blue becomes a vivid
+/// yellow/green/etc. at the same saturation and brightness.
+ColorFilter _hueRotationFilter(double angleDeg) {
+  final rad = angleDeg * 3.14159265359 / 180.0;
+  final cosA = cos(rad);
+  final sinA = sin(rad);
+  // Hue rotation matrix (Pregibon formula)
+  const double a = 1.0 / 3.0;
+  const double b = 0.57735026919; // sqrt(1/3)
+  return ColorFilter.matrix(<double>[
+    a + cosA * (1 - a) + sinA * (-a),
+    a + cosA * (-a) + sinA * (-b),
+    a + cosA * (-a) + sinA * (b),
+    0, 0,
+    a + cosA * (-a) + sinA * (b),
+    a + cosA * (1 - a) + sinA * (a * 0),
+    a + cosA * (-a) + sinA * (-b),
+    0, 0,
+    a + cosA * (-a) + sinA * (-b),
+    a + cosA * (-a) + sinA * (b),
+    a + cosA * (1 - a) + sinA * (a * 0),
+    0, 0,
+    0, 0, 0, 1, 0,
+  ]);
+}
+
 /// Widget that displays the WebSpace logo tinted to the current accent color.
-/// Uses BlendMode.color with vivid tint colors to recolor blue pixels
-/// while preserving luminance.
+/// Uses a hue rotation color matrix to shift the blue icon to the target hue
+/// while preserving saturation and brightness.
 class AccentLogo extends StatelessWidget {
   final AccentColor accentColor;
   final double size;
@@ -192,10 +221,16 @@ class AccentLogo extends StatelessWidget {
     final asset = brightness == Brightness.dark
         ? 'assets/webspace_icon_dark.png'
         : 'assets/webspace_icon.png';
-    final color = _logoTintColors[accentColor] ?? _accentColorToColor(accentColor);
+    final targetHue = _accentHueDegrees[accentColor] ?? _sourceHue;
+    final rotation = targetHue - _sourceHue;
+
+    // Blue is close enough to source, skip the filter
+    if (rotation.abs() < 10) {
+      return Image.asset(asset, width: size, height: size);
+    }
 
     return ColorFiltered(
-      colorFilter: ColorFilter.mode(color, BlendMode.color),
+      colorFilter: _hueRotationFilter(rotation),
       child: Image.asset(
         asset,
         width: size,
