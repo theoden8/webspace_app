@@ -158,8 +158,23 @@ Color _accentColorToColor(AccentColor accentColor) {
   }
 }
 
+/// Vivid versions of accent colors for the logo tint.
+/// The base accent colors are muted for UI; the logo needs fully saturated
+/// colors so BlendMode.color produces clean results on the dark-blue icon.
+const Map<AccentColor, Color> _logoTintColors = {
+  AccentColor.blue: Color(0xFF2060E0),
+  AccentColor.green: Color(0xFF20C050),
+  AccentColor.purple: Color(0xFF8030E0),
+  AccentColor.orange: Color(0xFFE08020),
+  AccentColor.red: Color(0xFFE02020),
+  AccentColor.pink: Color(0xFFE020A0),
+  AccentColor.teal: Color(0xFF20C0C0),
+  AccentColor.yellow: Color(0xFFD0C020),
+};
+
 /// Widget that displays the WebSpace logo tinted to the current accent color.
-/// Uses BlendMode.hue to shift only the hue while preserving saturation and luminance.
+/// Uses BlendMode.color with vivid tint colors to recolor blue pixels
+/// while preserving luminance.
 class AccentLogo extends StatelessWidget {
   final AccentColor accentColor;
   final double size;
@@ -177,10 +192,10 @@ class AccentLogo extends StatelessWidget {
     final asset = brightness == Brightness.dark
         ? 'assets/webspace_icon_dark.png'
         : 'assets/webspace_icon.png';
-    final color = _accentColorToColor(accentColor);
+    final color = _logoTintColors[accentColor] ?? _accentColorToColor(accentColor);
 
     return ColorFiltered(
-      colorFilter: ColorFilter.mode(color, BlendMode.hue),
+      colorFilter: ColorFilter.mode(color, BlendMode.color),
       child: Image.asset(
         asset,
         width: size,
