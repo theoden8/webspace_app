@@ -159,7 +159,7 @@ Color _accentColorToColor(AccentColor accentColor) {
 }
 
 /// Widget that displays the WebSpace logo tinted to the current accent color.
-/// Uses BlendMode.color to recolor blue pixels while preserving luminance.
+/// Uses BlendMode.hue to shift only the hue while preserving saturation and luminance.
 class AccentLogo extends StatelessWidget {
   final AccentColor accentColor;
   final double size;
@@ -180,7 +180,7 @@ class AccentLogo extends StatelessWidget {
     final color = _accentColorToColor(accentColor);
 
     return ColorFiltered(
-      colorFilter: ColorFilter.mode(color, BlendMode.color),
+      colorFilter: ColorFilter.mode(color, BlendMode.hue),
       child: Image.asset(
         asset,
         width: size,
