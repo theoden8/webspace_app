@@ -158,6 +158,39 @@ Color _accentColorToColor(AccentColor accentColor) {
   }
 }
 
+/// Widget that displays the WebSpace logo tinted to the current accent color.
+/// Uses BlendMode.color to recolor blue pixels while preserving luminance.
+class AccentLogo extends StatelessWidget {
+  final AccentColor accentColor;
+  final double size;
+  final Brightness brightness;
+
+  const AccentLogo({
+    super.key,
+    required this.accentColor,
+    required this.size,
+    this.brightness = Brightness.light,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = brightness == Brightness.dark
+        ? 'assets/webspace_icon_dark.png'
+        : 'assets/webspace_icon.png';
+    final color = _accentColorToColor(accentColor);
+
+    return ColorFiltered(
+      colorFilter: ColorFilter.mode(color, BlendMode.color),
+      child: Image.asset(
+        asset,
+        width: size,
+        height: size,
+        filterQuality: FilterQuality.medium,
+      ),
+    );
+  }
+}
+
 // Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
   switch (mode) {
@@ -1842,10 +1875,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         padding: const EdgeInsets.all(8.0),
                         child: Column(
                           children: [
-                            Icon(
-                              Icons.workspaces,
+                            AccentLogo(
+                              accentColor: _themeSettings.accentColor,
                               size: 72,
-                              color: Theme.of(context).colorScheme.secondary,
+                              brightness: Theme.of(context).brightness,
                             ),
                           SizedBox(height: 8),
                           Text(
@@ -1956,6 +1989,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               webspaces: _webspaces,
               selectedWebspaceId: _selectedWebspaceId,
               totalSitesCount: _webViewModels.length,
+              accentColor: _themeSettings.accentColor,
               onSelectWebspace: _selectWebspace,
               onAddWebspace: _addWebspace,
               onEditWebspace: _editWebspace,
