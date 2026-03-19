@@ -158,11 +158,12 @@ Color _accentColorToColor(AccentColor accentColor) {
   }
 }
 
-/// Grayscale color matrix — converts image to luminance-based grayscale.
-const ColorFilter _grayscaleFilter = ColorFilter.matrix(<double>[
-  0.2126, 0.7152, 0.0722, 0, 0,
-  0.2126, 0.7152, 0.0722, 0, 0,
-  0.2126, 0.7152, 0.0722, 0, 0,
+/// Grayscale + brighten matrix — converts to luminance-based grayscale
+/// with a brightness boost (+60) so the tinted result matches accent colors.
+const ColorFilter _grayscaleBrightFilter = ColorFilter.matrix(<double>[
+  0.2126, 0.7152, 0.0722, 0, 60,
+  0.2126, 0.7152, 0.0722, 0, 60,
+  0.2126, 0.7152, 0.0722, 0, 60,
   0, 0, 0, 1, 0,
 ]);
 
@@ -191,7 +192,7 @@ class AccentLogo extends StatelessWidget {
     return ColorFiltered(
       colorFilter: ColorFilter.mode(color, BlendMode.color),
       child: ColorFiltered(
-        colorFilter: _grayscaleFilter,
+        colorFilter: _grayscaleBrightFilter,
         child: Image.asset(
           asset,
           width: size,
