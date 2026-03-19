@@ -159,11 +159,13 @@ Color _accentColorToColor(AccentColor accentColor) {
 }
 
 /// Grayscale + brighten matrix — converts to luminance-based grayscale
-/// with a brightness boost (+60) so the tinted result matches accent colors.
+/// with a large brightness boost so tinted colors match accent brightness.
+/// The source blue pixels have very low luminance (~38/255); this lifts
+/// them to ~168 so BlendMode.color produces vivid, light results.
 const ColorFilter _grayscaleBrightFilter = ColorFilter.matrix(<double>[
-  0.2126, 0.7152, 0.0722, 0, 60,
-  0.2126, 0.7152, 0.0722, 0, 60,
-  0.2126, 0.7152, 0.0722, 0, 60,
+  0.2126, 0.7152, 0.0722, 0, 130,
+  0.2126, 0.7152, 0.0722, 0, 130,
+  0.2126, 0.7152, 0.0722, 0, 130,
   0, 0, 0, 1, 0,
 ]);
 
