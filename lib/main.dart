@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -159,51 +158,17 @@ Color _accentColorToColor(AccentColor accentColor) {
   }
 }
 
-/// Target hue in degrees for each accent color, used to compute the
-/// hue rotation angle from the source icon blue (~218°).
-const Map<AccentColor, double> _accentHueDegrees = {
-  AccentColor.blue: 222,
-  AccentColor.green: 137,
-  AccentColor.purple: 268,
-  AccentColor.orange: 28,
-  AccentColor.red: 0,
-  AccentColor.pink: 330,
-  AccentColor.teal: 180,
-  AccentColor.yellow: 50,
-};
-
-const double _sourceHue = 218.0;
-
-/// Build a 5x4 hue-rotation color matrix for [angleDeg] degrees.
-/// This rotates colors in RGB space, so a vivid blue becomes a vivid
-/// yellow/green/etc. at the same saturation and brightness.
-ColorFilter _hueRotationFilter(double angleDeg) {
-  final rad = angleDeg * 3.14159265359 / 180.0;
-  final cosA = cos(rad);
-  final sinA = sin(rad);
-  // Hue rotation matrix (Pregibon formula)
-  const double a = 1.0 / 3.0;
-  const double b = 0.57735026919; // sqrt(1/3)
-  return ColorFilter.matrix(<double>[
-    a + cosA * (1 - a) + sinA * (-a),
-    a + cosA * (-a) + sinA * (-b),
-    a + cosA * (-a) + sinA * (b),
-    0, 0,
-    a + cosA * (-a) + sinA * (b),
-    a + cosA * (1 - a) + sinA * (a * 0),
-    a + cosA * (-a) + sinA * (-b),
-    0, 0,
-    a + cosA * (-a) + sinA * (-b),
-    a + cosA * (-a) + sinA * (b),
-    a + cosA * (1 - a) + sinA * (a * 0),
-    0, 0,
-    0, 0, 0, 1, 0,
-  ]);
-}
+/// Grayscale color matrix — converts image to luminance-based grayscale.
+const ColorFilter _grayscaleFilter = ColorFilter.matrix(<double>[
+  0.2126, 0.7152, 0.0722, 0, 0,
+  0.2126, 0.7152, 0.0722, 0, 0,
+  0.2126, 0.7152, 0.0722, 0, 0,
+  0, 0, 0, 1, 0,
+]);
 
 /// Widget that displays the WebSpace logo tinted to the current accent color.
-/// Uses a hue rotation color matrix to shift the blue icon to the target hue
-/// while preserving saturation and brightness.
+/// First converts to grayscale (neutral luminance), then applies the accent
+/// color with BlendMode.color so the result matches the accent exactly.
 class AccentLogo extends StatelessWidget {
   final AccentColor accentColor;
   final double size;
@@ -221,21 +186,18 @@ class AccentLogo extends StatelessWidget {
     final asset = brightness == Brightness.dark
         ? 'assets/webspace_icon_dark.png'
         : 'assets/webspace_icon.png';
-    final targetHue = _accentHueDegrees[accentColor] ?? _sourceHue;
-    final rotation = targetHue - _sourceHue;
-
-    // Blue is close enough to source, skip the filter
-    if (rotation.abs() < 10) {
-      return Image.asset(asset, width: size, height: size);
-    }
+    final color = _accentColorToColor(accentColor);
 
     return ColorFiltered(
-      colorFilter: _hueRotationFilter(rotation),
-      child: Image.asset(
-        asset,
-        width: size,
-        height: size,
-        filterQuality: FilterQuality.medium,
+      colorFilter: ColorFilter.mode(color, BlendMode.color),
+      child: ColorFiltered(
+        colorFilter: _grayscaleFilter,
+        child: Image.asset(
+          asset,
+          width: size,
+          height: size,
+          filterQuality: FilterQuality.medium,
+        ),
       ),
     );
   }
