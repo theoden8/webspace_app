@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show min, max;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -158,21 +161,13 @@ Color _accentColorToColor(AccentColor accentColor) {
   }
 }
 
-/// Grayscale + brighten matrix — converts to luminance-based grayscale
-/// with a large brightness boost so tinted colors match accent brightness.
-/// The source blue pixels have very low luminance (~38/255); this lifts
-/// them to ~168 so BlendMode.color produces vivid, light results.
-const ColorFilter _grayscaleBrightFilter = ColorFilter.matrix(<double>[
-  0.2126, 0.7152, 0.0722, 0, 130,
-  0.2126, 0.7152, 0.0722, 0, 130,
-  0.2126, 0.7152, 0.0722, 0, 130,
-  0, 0, 0, 1, 0,
-]);
-
 /// Widget that displays the WebSpace logo tinted to the current accent color.
-/// First converts to grayscale (neutral luminance), then applies the accent
-/// color with BlendMode.color so the result matches the accent exactly.
-class AccentLogo extends StatelessWidget {
+/// Processes icon pixels directly:
+/// - Background (white in light / black in dark) → transparent
+/// - Structural (black in light / white in dark) → kept as-is
+/// - Colored (blue) → replaced with accent color
+/// Results are cached per (accentColor, brightness) pair.
+class AccentLogo extends StatefulWidget {
   final AccentColor accentColor;
   final double size;
   final Brightness brightness;
@@ -185,23 +180,98 @@ class AccentLogo extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final asset = brightness == Brightness.dark
+  State<AccentLogo> createState() => _AccentLogoState();
+}
+
+class _AccentLogoState extends State<AccentLogo> {
+  ui.Image? _image;
+  static final Map<String, ui.Image> _cache = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAndProcess();
+  }
+
+  @override
+  void didUpdateWidget(AccentLogo old) {
+    super.didUpdateWidget(old);
+    if (old.accentColor != widget.accentColor || old.brightness != widget.brightness) {
+      _loadAndProcess();
+    }
+  }
+
+  String get _cacheKey => '${widget.accentColor.name}_${widget.brightness.name}';
+
+  Future<void> _loadAndProcess() async {
+    final key = _cacheKey;
+    if (_cache.containsKey(key)) {
+      setState(() => _image = _cache[key]);
+      return;
+    }
+
+    final asset = widget.brightness == Brightness.dark
         ? 'assets/webspace_icon_dark.png'
         : 'assets/webspace_icon.png';
-    final color = _accentColorToColor(accentColor);
+    final data = await rootBundle.load(asset);
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final frame = await codec.getNextFrame();
+    final src = frame.image;
+    final byteData = await src.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (byteData == null) return;
 
-    return ColorFiltered(
-      colorFilter: ColorFilter.mode(color, BlendMode.color),
-      child: ColorFiltered(
-        colorFilter: _grayscaleBrightFilter,
-        child: Image.asset(
-          asset,
-          width: size,
-          height: size,
-          filterQuality: FilterQuality.medium,
-        ),
-      ),
+    final pixels = Uint8List.fromList(byteData.buffer.asUint8List());
+    final accent = _accentColorToColor(widget.accentColor);
+    final isLight = widget.brightness == Brightness.light;
+
+    for (int i = 0; i < pixels.length; i += 4) {
+      final r = pixels[i];
+      final g = pixels[i + 1];
+      final b = pixels[i + 2];
+
+      // Compute alpha: distance from background color
+      // Light: white bg → alpha = 255 - min(R,G,B) (white→0, dark→255)
+      // Dark: black bg → alpha = max(R,G,B) (black→0, bright→255)
+      final int alpha;
+      if (isLight) {
+        alpha = 255 - min(r, min(g, b));
+      } else {
+        alpha = max(r, max(g, b));
+      }
+      pixels[i + 3] = alpha;
+
+      // Detect blue pixels (B channel significantly higher than R)
+      // and replace with accent color
+      if (alpha > 0 && b > r + 40) {
+        pixels[i] = accent.red;
+        pixels[i + 1] = accent.green;
+        pixels[i + 2] = accent.blue;
+      }
+    }
+
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+      pixels, src.width, src.height, ui.PixelFormat.rgba8888,
+      (result) => completer.complete(result),
+    );
+    final processed = await completer.future;
+    _cache[key] = processed;
+
+    if (mounted) {
+      setState(() => _image = processed);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_image == null) {
+      return SizedBox(width: widget.size, height: widget.size);
+    }
+    return RawImage(
+      image: _image,
+      width: widget.size,
+      height: widget.size,
+      filterQuality: FilterQuality.medium,
     );
   }
 }
