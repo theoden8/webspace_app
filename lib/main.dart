@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show min, max;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -155,6 +158,127 @@ Color _accentColorToColor(AccentColor accentColor) {
       return _accentTeal;
     case AccentColor.yellow:
       return _accentYellow;
+  }
+}
+
+/// Widget that displays the WebSpace logo tinted to the current accent color.
+/// Processes icon pixels directly:
+/// - Background (white in light / black in dark) → transparent
+/// - Structural (black in light / white in dark) → kept as-is
+/// - Colored (blue) → replaced with accent color
+/// Results are cached per (accentColor, brightness) pair.
+class AccentLogo extends StatefulWidget {
+  final AccentColor accentColor;
+  final double size;
+  final Brightness brightness;
+
+  const AccentLogo({
+    super.key,
+    required this.accentColor,
+    required this.size,
+    this.brightness = Brightness.light,
+  });
+
+  @override
+  State<AccentLogo> createState() => _AccentLogoState();
+}
+
+class _AccentLogoState extends State<AccentLogo> {
+  ui.Image? _image;
+  static final Map<String, ui.Image> _cache = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAndProcess();
+  }
+
+  @override
+  void didUpdateWidget(AccentLogo old) {
+    super.didUpdateWidget(old);
+    if (old.accentColor != widget.accentColor || old.brightness != widget.brightness) {
+      _loadAndProcess();
+    }
+  }
+
+  String get _cacheKey => '${widget.accentColor.name}_${widget.brightness.name}';
+
+  Future<void> _loadAndProcess() async {
+    final key = _cacheKey;
+    if (_cache.containsKey(key)) {
+      setState(() => _image = _cache[key]);
+      return;
+    }
+
+    final asset = widget.brightness == Brightness.dark
+        ? 'assets/webspace_icon_dark.png'
+        : 'assets/webspace_icon.png';
+    final data = await rootBundle.load(asset);
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final frame = await codec.getNextFrame();
+    final src = frame.image;
+    final byteData = await src.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (byteData == null) return;
+
+    final pixels = Uint8List.fromList(byteData.buffer.asUint8List());
+    final accent = _accentColorToColor(widget.accentColor);
+    final isLight = widget.brightness == Brightness.light;
+    final skipRecolor = widget.accentColor == AccentColor.blue;
+
+    for (int i = 0; i < pixels.length; i += 4) {
+      final c0 = pixels[i];     // R (or B on BGRA platforms)
+      final c1 = pixels[i + 1]; // G
+      final c2 = pixels[i + 2]; // B (or R on BGRA platforms)
+
+      // Detect which channel is the blue channel:
+      // In the source icon, blue pixels have one channel >> others.
+      // Use max/min for background detection regardless of channel order.
+      final cMin = min(c0, min(c1, c2));
+      final cMax = max(c0, max(c1, c2));
+
+      // Compute alpha: distance from background color
+      final int alpha;
+      if (isLight) {
+        alpha = 255 - cMin; // white bg → transparent
+      } else {
+        alpha = cMax; // black bg → transparent
+      }
+      pixels[i + 3] = alpha;
+
+      // Detect colored (blue) pixels: the dominant channel is much
+      // higher than the lowest channel, and it's not grey/white/black.
+      // Skip recoloring for blue accent — keep original icon colors.
+      if (!skipRecolor && alpha > 0 && cMax - cMin > 40 && cMax > 60) {
+        pixels[i] = accent.red;
+        pixels[i + 1] = accent.green;
+        pixels[i + 2] = accent.blue;
+      }
+    }
+
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromPixels(
+      pixels, src.width, src.height, ui.PixelFormat.rgba8888,
+      (result) => completer.complete(result),
+    );
+    final processed = await completer.future;
+    _cache[key] = processed;
+
+    if (mounted) {
+      setState(() => _image = processed);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_image == null) {
+      return SizedBox(width: widget.size, height: widget.size);
+    }
+    return RawImage(
+      image: _image,
+      width: widget.size,
+      height: widget.size,
+      filterQuality: FilterQuality.medium,
+    );
   }
 }
 
@@ -1842,10 +1966,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         padding: const EdgeInsets.all(8.0),
                         child: Column(
                           children: [
-                            Icon(
-                              Icons.workspaces,
+                            AccentLogo(
+                              accentColor: _themeSettings.accentColor,
                               size: 72,
-                              color: Theme.of(context).colorScheme.secondary,
+                              brightness: Theme.of(context).brightness,
                             ),
                           SizedBox(height: 8),
                           Text(
@@ -1956,6 +2080,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               webspaces: _webspaces,
               selectedWebspaceId: _selectedWebspaceId,
               totalSitesCount: _webViewModels.length,
+              accentColor: _themeSettings.accentColor,
               onSelectWebspace: _selectWebspace,
               onAddWebspace: _addWebspace,
               onEditWebspace: _editWebspace,

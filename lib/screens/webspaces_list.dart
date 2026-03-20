@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/main.dart' show AccentColor, AccentLogo;
 
 class WebspacesListScreen extends StatelessWidget {
   final List<Webspace> webspaces;
   final String? selectedWebspaceId;
   final int totalSitesCount;
+  final AccentColor accentColor;
   final Function(Webspace) onSelectWebspace;
   final Function() onAddWebspace;
   final Function(Webspace) onEditWebspace;
@@ -16,6 +18,7 @@ class WebspacesListScreen extends StatelessWidget {
     required this.webspaces,
     this.selectedWebspaceId,
     required this.totalSitesCount,
+    required this.accentColor,
     required this.onSelectWebspace,
     required this.onAddWebspace,
     required this.onEditWebspace,
@@ -34,10 +37,10 @@ class WebspacesListScreen extends StatelessWidget {
               child: Column(
                 children: [
                   SizedBox(height: 32),
-                  Icon(
-                    Icons.workspaces_outlined,
+                  AccentLogo(
+                    accentColor: accentColor,
                     size: 80,
-                    color: Theme.of(context).colorScheme.secondary,
+                    brightness: Theme.of(context).brightness,
                   ),
                   SizedBox(height: 24),
                   Text(
