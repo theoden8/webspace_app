@@ -223,26 +223,32 @@ class _AccentLogoState extends State<AccentLogo> {
     final pixels = Uint8List.fromList(byteData.buffer.asUint8List());
     final accent = _accentColorToColor(widget.accentColor);
     final isLight = widget.brightness == Brightness.light;
+    final skipRecolor = widget.accentColor == AccentColor.blue;
 
     for (int i = 0; i < pixels.length; i += 4) {
-      final r = pixels[i];
-      final g = pixels[i + 1];
-      final b = pixels[i + 2];
+      final c0 = pixels[i];     // R (or B on BGRA platforms)
+      final c1 = pixels[i + 1]; // G
+      final c2 = pixels[i + 2]; // B (or R on BGRA platforms)
+
+      // Detect which channel is the blue channel:
+      // In the source icon, blue pixels have one channel >> others.
+      // Use max/min for background detection regardless of channel order.
+      final cMin = min(c0, min(c1, c2));
+      final cMax = max(c0, max(c1, c2));
 
       // Compute alpha: distance from background color
-      // Light: white bg → alpha = 255 - min(R,G,B) (white→0, dark→255)
-      // Dark: black bg → alpha = max(R,G,B) (black→0, bright→255)
       final int alpha;
       if (isLight) {
-        alpha = 255 - min(r, min(g, b));
+        alpha = 255 - cMin; // white bg → transparent
       } else {
-        alpha = max(r, max(g, b));
+        alpha = cMax; // black bg → transparent
       }
       pixels[i + 3] = alpha;
 
-      // Detect blue pixels (B channel significantly higher than R)
-      // and replace with accent color
-      if (alpha > 0 && b > r + 40) {
+      // Detect colored (blue) pixels: the dominant channel is much
+      // higher than the lowest channel, and it's not grey/white/black.
+      // Skip recoloring for blue accent — keep original icon colors.
+      if (!skipRecolor && alpha > 0 && cMax - cMin > 40 && cMax > 60) {
         pixels[i] = accent.red;
         pixels[i + 1] = accent.green;
         pixels[i + 2] = accent.blue;
