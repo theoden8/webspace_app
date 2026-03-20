@@ -1,0 +1,2 @@
+✨ New Features:
+• App logo tinted to match selected accent color
