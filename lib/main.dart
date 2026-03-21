@@ -226,13 +226,10 @@ class _AccentLogoState extends State<AccentLogo> {
     final skipRecolor = widget.accentColor == AccentColor.blue;
 
     for (int i = 0; i < pixels.length; i += 4) {
-      final c0 = pixels[i];     // R (or B on BGRA platforms)
-      final c1 = pixels[i + 1]; // G
-      final c2 = pixels[i + 2]; // B (or R on BGRA platforms)
+      final c0 = pixels[i];
+      final c1 = pixels[i + 1];
+      final c2 = pixels[i + 2];
 
-      // Detect which channel is the blue channel:
-      // In the source icon, blue pixels have one channel >> others.
-      // Use max/min for background detection regardless of channel order.
       final cMin = min(c0, min(c1, c2));
       final cMax = max(c0, max(c1, c2));
 
@@ -243,15 +240,33 @@ class _AccentLogoState extends State<AccentLogo> {
       } else {
         alpha = cMax; // black bg → transparent
       }
-      pixels[i + 3] = alpha;
 
-      // Detect colored (blue) pixels: the dominant channel is much
-      // higher than the lowest channel, and it's not grey/white/black.
-      // Skip recoloring for blue accent — keep original icon colors.
+      // Determine final RGB
+      int r = c0, g = c1, b = c2;
+
+      // Recolor blue pixels to accent (skip for blue accent)
       if (!skipRecolor && alpha > 0 && cMax - cMin > 40 && cMax > 60) {
-        pixels[i] = accent.red;
-        pixels[i + 1] = accent.green;
-        pixels[i + 2] = accent.blue;
+        r = accent.red;
+        g = accent.green;
+        b = accent.blue;
+      }
+
+      // Premultiply alpha: decodeImageFromPixels expects premultiplied RGBA
+      if (alpha == 0) {
+        pixels[i] = 0;
+        pixels[i + 1] = 0;
+        pixels[i + 2] = 0;
+        pixels[i + 3] = 0;
+      } else if (alpha < 255) {
+        pixels[i] = (r * alpha) ~/ 255;
+        pixels[i + 1] = (g * alpha) ~/ 255;
+        pixels[i + 2] = (b * alpha) ~/ 255;
+        pixels[i + 3] = alpha;
+      } else {
+        pixels[i] = r;
+        pixels[i + 1] = g;
+        pixels[i + 2] = b;
+        pixels[i + 3] = 255;
       }
     }
 
