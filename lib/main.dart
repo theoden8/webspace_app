@@ -233,12 +233,14 @@ class _AccentLogoState extends State<AccentLogo> {
       final cMin = min(c0, min(c1, c2));
       final cMax = max(c0, max(c1, c2));
 
-      // Compute alpha: distance from background color
-      final int alpha;
+      // Compute alpha: distance from background color.
+      // Threshold near-background pixels to fully transparent to avoid
+      // faint smudges from JPEG compression noise.
+      int alpha;
       if (isLight) {
-        alpha = 255 - cMin; // white bg → transparent
+        alpha = cMin > 240 ? 0 : 255 - cMin;
       } else {
-        alpha = cMax; // black bg → transparent
+        alpha = cMax < 15 ? 0 : cMax;
       }
 
       // Determine final RGB
