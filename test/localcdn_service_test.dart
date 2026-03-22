@@ -210,6 +210,12 @@ void main() {
     });
   });
 
+  group('Popular resources manifest', () {
+    test('has a non-empty list of popular resources', () {
+      expect(service.popularResourceCount, greaterThan(0));
+    });
+  });
+
   group('LocalCdnService cache state', () {
     test('initial state has no cache', () {
       // Before initialization, resourceCount should be 0

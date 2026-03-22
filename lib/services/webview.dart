@@ -653,7 +653,7 @@ class WebViewFactory {
               final service = LocalCdnService.instance;
               if (!service.isCdnUrl(url)) return null;
 
-              final data = await service.getOrCacheResource(url);
+              final data = await service.getOrFetchResource(url);
               if (data == null) return null;
 
               return inapp.WebResourceResponse(

@@ -57,7 +57,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   // LocalCDN state
   int _localCdnCount = 0;
   String _localCdnSize = '0 B';
+  bool _isDownloadingLocalCdn = false;
   bool _isClearingLocalCdn = false;
+  DateTime? _localCdnLastUpdated;
+  String _localCdnProgress = '';
 
   @override
   void initState() {
@@ -277,11 +280,41 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   Future<void> _loadLocalCdnState() async {
     final count = LocalCdnService.instance.resourceCount;
     final size = await LocalCdnService.instance.cacheSize;
+    final lastUpdated = await LocalCdnService.instance.getLastUpdated();
     if (mounted) {
       setState(() {
         _localCdnCount = count;
         _localCdnSize = LocalCdnService.formatSize(size);
+        _localCdnLastUpdated = lastUpdated;
       });
+    }
+  }
+
+  Future<void> _downloadLocalCdnResources() async {
+    setState(() {
+      _isDownloadingLocalCdn = true;
+      _localCdnProgress = '';
+    });
+
+    final downloaded = await LocalCdnService.instance.downloadPopularResources(
+      onProgress: (completed, total) {
+        if (mounted) {
+          setState(() {
+            _localCdnProgress = '$completed/$total';
+          });
+        }
+      },
+    );
+
+    if (mounted) {
+      setState(() {
+        _isDownloadingLocalCdn = false;
+        _localCdnProgress = '';
+      });
+      await _loadLocalCdnState();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Downloaded $downloaded resources')),
+      );
     }
   }
 
@@ -501,25 +534,48 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 Text(
                   _localCdnCount > 0
                       ? '$_localCdnCount resources ($_localCdnSize)'
-                      : 'No cached resources',
+                      : 'Not downloaded',
                 ),
-                const Text(
-                  'CDN resources are cached automatically as you browse',
-                  style: TextStyle(fontSize: 12),
-                ),
+                if (_localCdnLastUpdated != null)
+                  Text(
+                    'Updated: ${_localCdnLastUpdated!.toLocal().toString().split('.')[0]}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                if (_isDownloadingLocalCdn && _localCdnProgress.isNotEmpty)
+                  Text(
+                    'Downloading $_localCdnProgress...',
+                    style: const TextStyle(fontSize: 12),
+                  ),
               ],
             ),
-            trailing: _isClearingLocalCdn
-                ? const SizedBox(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isDownloadingLocalCdn || _isClearingLocalCdn)
+                  const SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: 'Clear cache',
-                    onPressed: _localCdnCount > 0 ? _clearLocalCdnCache : null,
+                else ...[
+                  IconButton(
+                    icon: Icon(
+                      _localCdnCount > 0 ? Icons.sync : Icons.download,
+                    ),
+                    tooltip: _localCdnCount > 0
+                        ? 'Update resources'
+                        : 'Download resources',
+                    onPressed: _downloadLocalCdnResources,
                   ),
+                  if (_localCdnCount > 0)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Clear cache',
+                      onPressed: _clearLocalCdnCache,
+                    ),
+                ],
+              ],
+            ),
           ),
 
           // Content Blocker
