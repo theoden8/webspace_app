@@ -10,6 +10,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/user_script.dart';
 
 class DevToolsScreen extends StatefulWidget {
   final WebViewModel? webViewModel;
@@ -33,11 +34,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   bool get _hasSite => widget.webViewModel != null;
 
-  int get _tabCount => _hasSite ? 4 : 1;
+  int get _tabCount => _hasSite ? 5 : 1;
 
   List<Tab> get _tabs => [
         if (_hasSite) const Tab(text: 'Console'),
         if (_hasSite) const Tab(text: 'Cookies'),
+        if (_hasSite) const Tab(text: 'Scripts'),
         if (_hasSite) const Tab(text: 'Export'),
         const Tab(text: 'App Logs'),
       ];
@@ -55,6 +57,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           children: [
             if (_hasSite) _buildConsoleTab(),
             if (_hasSite) _buildCookiesTab(),
+            if (_hasSite) _buildScriptsTab(),
             if (_hasSite) _buildExportTab(),
             _buildAppLogsTab(),
           ],
@@ -301,6 +304,70 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       label = 'SameSite=None';
     }
     return _buildSecurityChip(label, color);
+  }
+
+  // ── Scripts Tab ──
+
+  Widget _buildScriptsTab() {
+    final scripts = widget.webViewModel!.userScripts;
+    if (scripts.isEmpty) {
+      return const Center(child: Text('No user scripts configured'));
+    }
+    return ListView.builder(
+      itemCount: scripts.length,
+      itemBuilder: (context, index) {
+        final script = scripts[index];
+        return ExpansionTile(
+          leading: Icon(
+            script.enabled ? Icons.code : Icons.code_off,
+            color: script.enabled ? Colors.green : Colors.grey,
+            size: 20,
+          ),
+          title: Text(script.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+          subtitle: Text(
+            script.injectionTime == UserScriptInjectionTime.atDocumentStart
+                ? 'document start'
+                : 'document end',
+            style: const TextStyle(fontSize: 11),
+          ),
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12.0),
+              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Stack(
+                children: [
+                  SelectableText(
+                    script.source.isEmpty ? '// (empty script)' : script.source,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.copy, size: 16),
+                      tooltip: 'Copy source',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: script.source));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Copied "${script.name}"')),
+                        );
+                      },
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        );
+      },
+    );
   }
 
   // ── Export Tab ──
