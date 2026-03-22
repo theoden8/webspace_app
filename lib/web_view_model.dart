@@ -231,6 +231,7 @@ class WebViewModel {
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
   bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
   bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
+  bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
 
   final List<ConsoleLogEntry> consoleLogs = [];
@@ -256,6 +257,7 @@ class WebViewModel {
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
+    this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
     this.stateSetterF,
   })  : siteId = siteId ?? _generateSiteId(),
@@ -377,6 +379,7 @@ class WebViewModel {
           clearUrlEnabled: clearUrlEnabled,
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
+          localCdnEnabled: localCdnEnabled,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
@@ -545,6 +548,7 @@ class WebViewModel {
         'clearUrlEnabled': clearUrlEnabled,
         'dnsBlockEnabled': dnsBlockEnabled,
         'contentBlockEnabled': contentBlockEnabled,
+        'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
       };
 
@@ -566,6 +570,7 @@ class WebViewModel {
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,
+      localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];

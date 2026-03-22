@@ -7,6 +7,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/localcdn_service.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -89,6 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _clearUrlEnabled;
   late bool _dnsBlockEnabled;
   late bool _contentBlockEnabled;
+  late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
@@ -134,6 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _clearUrlEnabled = widget.webViewModel.clearUrlEnabled;
     _dnsBlockEnabled = widget.webViewModel.dnsBlockEnabled;
     _contentBlockEnabled = widget.webViewModel.contentBlockEnabled;
+    _localCdnEnabled = widget.webViewModel.localCdnEnabled;
     _blockAutoRedirects = widget.webViewModel.blockAutoRedirects;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
@@ -227,6 +230,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
       widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
       widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
+      widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.language = _selectedLanguage;
 
@@ -477,6 +481,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   }
                 : null,
+          ),
+          SwitchListTile(
+            title: const Text('LocalCDN'),
+            subtitle: Text(
+              LocalCdnService.instance.hasCache
+                  ? '${LocalCdnService.instance.resourceCount} cached resources'
+                  : 'Cache CDN resources locally',
+            ),
+            value: _localCdnEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _localCdnEnabled = value;
+              });
+            },
           ),
           SwitchListTile(
             title: const Text('Block auto-redirects'),

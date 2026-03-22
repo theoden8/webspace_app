@@ -8,6 +8,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
@@ -222,6 +223,8 @@ class WebViewConfig {
   final bool dnsBlockEnabled;
   /// Whether to apply ABP content blocker rules (ads, trackers, cosmetic).
   final bool contentBlockEnabled;
+  /// Whether to serve CDN resources from local cache (Android only).
+  final bool localCdnEnabled;
   /// Callback for JS console messages.
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
 
@@ -236,6 +239,7 @@ class WebViewConfig {
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
+    this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onCookiesChanged,
     this.onFindResult,
@@ -562,6 +566,7 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
+        useShouldInterceptRequest: config.localCdnEnabled && Platform.isAndroid,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -642,6 +647,22 @@ class WebViewFactory {
 
         return false;
       },
+      shouldInterceptRequest: config.localCdnEnabled && Platform.isAndroid
+          ? (controller, request) async {
+              final url = request.url.toString();
+              final service = LocalCdnService.instance;
+              if (!service.isCdnUrl(url)) return null;
+
+              final data = await service.getOrCacheResource(url);
+              if (data == null) return null;
+
+              return inapp.WebResourceResponse(
+                contentType: service.getContentType(url),
+                contentEncoding: 'utf-8',
+                data: data,
+              );
+            }
+          : null,
       onLoadStart: (controller, url) async {
         // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {

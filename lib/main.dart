@@ -34,6 +34,7 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -384,6 +385,9 @@ void main() async {
 
   // Initialize content blocker service (loads cached filter lists from disk)
   await ContentBlockerService.instance.initialize();
+
+  // Initialize LocalCDN service (loads cache index from disk)
+  await LocalCdnService.instance.initialize();
 
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {

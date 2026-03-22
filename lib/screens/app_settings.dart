@@ -5,6 +5,7 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/webview.dart';
 
 // Accent color definitions for display
@@ -53,6 +54,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   // Content Blocker state
   String? _downloadingListId;
 
+  // LocalCDN state
+  int _localCdnCount = 0;
+  String _localCdnSize = '0 B';
+  bool _isClearingLocalCdn = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +69,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     );
     _loadRulesLastUpdated();
     _loadBlocklistState();
+    _loadLocalCdnState();
   }
 
   @override
@@ -267,6 +274,35 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     }
   }
 
+  Future<void> _loadLocalCdnState() async {
+    final count = LocalCdnService.instance.resourceCount;
+    final size = await LocalCdnService.instance.cacheSize;
+    if (mounted) {
+      setState(() {
+        _localCdnCount = count;
+        _localCdnSize = LocalCdnService.formatSize(size);
+      });
+    }
+  }
+
+  Future<void> _clearLocalCdnCache() async {
+    setState(() {
+      _isClearingLocalCdn = true;
+    });
+
+    await LocalCdnService.instance.clearCache();
+
+    if (mounted) {
+      setState(() {
+        _isClearingLocalCdn = false;
+      });
+      await _loadLocalCdnState();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('LocalCDN cache cleared')),
+      );
+    }
+  }
+
   void _updateSettings(AppThemeSettings newSettings) {
     setState(() {
       _settings = newSettings;
@@ -453,6 +489,37 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 ),
               ],
             ),
+          ),
+
+          // LocalCDN
+          ListTile(
+            leading: const Icon(Icons.storage),
+            title: const Text('LocalCDN'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _localCdnCount > 0
+                      ? '$_localCdnCount resources ($_localCdnSize)'
+                      : 'No cached resources',
+                ),
+                const Text(
+                  'CDN resources are cached automatically as you browse',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            trailing: _isClearingLocalCdn
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: 'Clear cache',
+                    onPressed: _localCdnCount > 0 ? _clearLocalCdnCache : null,
+                  ),
           ),
 
           // Content Blocker
