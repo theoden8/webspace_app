@@ -1663,7 +1663,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
                     final model = _webViewModels[_currentIndex!];
                     final url = model.currentUrl ?? model.initUrl;
-                    Share.share(url);
+                    SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
                   }
                 break;
                 case 'devTools':
