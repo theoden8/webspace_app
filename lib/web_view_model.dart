@@ -5,6 +5,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/user_script.dart';
 
 class ConsoleLogEntry {
   final DateTime timestamp;
@@ -233,6 +234,7 @@ class WebViewModel {
   bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
+  List<UserScriptConfig> userScripts; // Per-site user scripts
 
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
@@ -259,8 +261,10 @@ class WebViewModel {
     this.contentBlockEnabled = true,
     this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
+    List<UserScriptConfig>? userScripts,
     this.stateSetterF,
-  })  : siteId = siteId ?? _generateSiteId(),
+  })  : userScripts = userScripts ?? [],
+        siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
@@ -380,6 +384,7 @@ class WebViewModel {
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
+          userScripts: userScripts,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
@@ -550,6 +555,7 @@ class WebViewModel {
         'contentBlockEnabled': contentBlockEnabled,
         'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
+        'userScripts': userScripts.map((s) => s.toJson()).toList(),
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -572,6 +578,9 @@ class WebViewModel {
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,
       localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
+      userScripts: (json['userScripts'] as List<dynamic>?)
+          ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
+          .toList(),
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }

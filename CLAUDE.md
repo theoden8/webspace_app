@@ -104,5 +104,6 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | home-shortcut | Android home screen shortcut for sites via pinned shortcuts API |
 | developer-tools | In-app dev tools: JS console, cookie inspector, HTML export, app logs |
 | localcdn | LocalCDN - cache CDN resources locally to prevent CDN tracking (Android) |
+| user-scripts | Per-site custom JavaScript injection with injection timing control |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.

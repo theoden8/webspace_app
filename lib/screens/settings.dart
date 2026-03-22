@@ -8,6 +8,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
+import 'package:webspace/screens/user_scripts.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -67,11 +68,14 @@ class SettingsScreen extends StatefulWidget {
   final void Function(UserProxySettings)? onProxySettingsChanged;
   /// Callback when settings are saved (to trigger webview reload)
   final VoidCallback? onSettingsSaved;
+  /// Callback to clear cookies for this site
+  final VoidCallback? onClearCookies;
 
   SettingsScreen({
     required this.webViewModel,
     this.onProxySettingsChanged,
     this.onSettingsSaved,
+    this.onClearCookies,
   });
 
   @override
@@ -482,6 +486,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }
                 : null,
           ),
+          ListTile(
+            title: const Text('User Scripts'),
+            subtitle: Text(
+              widget.webViewModel.userScripts.isEmpty
+                  ? 'None'
+                  : '${widget.webViewModel.userScripts.where((s) => s.enabled).length} active',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserScriptsScreen(
+                    userScripts: widget.webViewModel.userScripts,
+                    onSave: (scripts) {
+                      widget.webViewModel.userScripts = scripts;
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
           SwitchListTile(
             title: const Text('LocalCDN'),
             subtitle: Text(
@@ -506,6 +532,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
+          if (widget.onClearCookies != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: OutlinedButton.icon(
+                icon: Icon(Icons.cookie, color: Colors.red),
+                label: Text('Clear Cookies', style: TextStyle(color: Colors.red)),
+                style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red)),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text('Clear Cookies'),
+                      content: Text('Are you sure you want to clear all cookies for this site?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text('Clear', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    widget.onClearCookies!();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Cookies cleared')),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
