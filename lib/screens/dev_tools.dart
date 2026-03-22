@@ -51,7 +51,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Developer Tools'),
-          bottom: TabBar(tabs: _tabs),
+          bottom: TabBar(
+            tabs: _tabs,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+          ),
         ),
         body: TabBarView(
           children: [
