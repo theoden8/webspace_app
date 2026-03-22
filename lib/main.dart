@@ -1535,16 +1535,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   ),
                 ),
                 PopupMenuItem<String>(
-                  value: "clear",
-                  child: Row(
-                    children: [
-                      Icon(Icons.cookie),
-                      SizedBox(width: 8),
-                      Text("Clear Cookies"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
                   value: "toggleUrlBar",
                   child: Row(
                     children: [
@@ -1598,6 +1588,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     MaterialPageRoute(
                       builder: (context) => SettingsScreen(
                         webViewModel: _webViewModels[_currentIndex!],
+                        onClearCookies: () {
+                          _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                          _saveWebViewModels();
+                          getController()?.reload();
+                        },
                         onProxySettingsChanged: (newProxySettings) {
                           // Sync proxy settings to all WebViewModels (proxy is global)
                           setState(() {
@@ -1645,11 +1640,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     ),
                   );
                   _saveWebViewModels();
-                break;
-                case 'clear':
-                  _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
-                  _saveWebViewModels();
-                  getController()?.reload();
                 break;
                 case 'toggleUrlBar':
                   setState(() {

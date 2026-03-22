@@ -67,11 +67,14 @@ class SettingsScreen extends StatefulWidget {
   final void Function(UserProxySettings)? onProxySettingsChanged;
   /// Callback when settings are saved (to trigger webview reload)
   final VoidCallback? onSettingsSaved;
+  /// Callback to clear cookies for this site
+  final VoidCallback? onClearCookies;
 
   SettingsScreen({
     required this.webViewModel,
     this.onProxySettingsChanged,
     this.onSettingsSaved,
+    this.onClearCookies,
   });
 
   @override
@@ -511,6 +514,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
+          if (widget.onClearCookies != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: OutlinedButton.icon(
+                icon: Icon(Icons.cookie, color: Colors.red),
+                label: Text('Clear Cookies', style: TextStyle(color: Colors.red)),
+                style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red)),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text('Clear Cookies'),
+                      content: Text('Are you sure you want to clear all cookies for this site?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: Text('Clear', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    widget.onClearCookies!();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Cookies cleared')),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
