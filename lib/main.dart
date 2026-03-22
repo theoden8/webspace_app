@@ -1403,32 +1403,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 ).name
               : 'No Webspace Selected'),
       actions: [
-        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-          IconButton(
-            icon: Icon(Icons.arrow_back),
-            tooltip: 'Go Back',
-            onPressed: () async {
-              final controller = getController();
-              if (controller != null) {
-                final canGoBack = await controller.canGoBack();
-                if (canGoBack) {
-                  await controller.goBack();
-                }
-              }
-            },
-          ),
-        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-          IconButton(
-            icon: Icon(Icons.home),
-            tooltip: 'Go to Home',
-            onPressed: () async {
-              final controller = getController();
-              if (controller != null) {
-                final model = _webViewModels[_currentIndex!];
-                await controller.loadUrl(model.initUrl, language: model.language);
-              }
-            },
-          ),
         IconButton(
           icon: Icon(_getThemeIcon()),
           tooltip: _getThemeTooltip(),
@@ -1488,15 +1462,68 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             itemBuilder: (BuildContext context) {
               return [
                 PopupMenuItem<String>(
-                  value: "refresh",
+                  padding: EdgeInsets.zero,
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      Icon(Icons.refresh),
-                      SizedBox(width: 8),
-                      Text("Refresh"),
+                      IconButton(
+                        icon: Icon(Icons.arrow_back),
+                        tooltip: 'Go Back',
+                        onPressed: () {
+                          Navigator.pop(context);
+                          () async {
+                            final controller = getController();
+                            if (controller != null) {
+                              final canGoBack = await controller.canGoBack();
+                              if (canGoBack) {
+                                await controller.goBack();
+                              }
+                            }
+                          }();
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.home),
+                        tooltip: 'Go to Home',
+                        onPressed: () {
+                          Navigator.pop(context);
+                          () async {
+                            final controller = getController();
+                            if (controller != null) {
+                              final model = _webViewModels[_currentIndex!];
+                              await controller.loadUrl(model.initUrl, language: model.language);
+                            }
+                          }();
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.refresh),
+                        tooltip: 'Refresh',
+                        onPressed: () {
+                          Navigator.pop(context);
+                          () async {
+                            getController()?.reload();
+                            await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
+                            setState(() {});
+                          }();
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.share),
+                        tooltip: 'Share',
+                        onPressed: () {
+                          Navigator.pop(context);
+                          if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
+                            final model = _webViewModels[_currentIndex!];
+                            final url = model.currentUrl ?? model.initUrl;
+                            SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
+                          }
+                        },
+                      ),
                     ],
                   ),
                 ),
+                PopupMenuDivider(),
                 PopupMenuItem<String>(
                   value: "search",
                   child: Row(
@@ -1504,16 +1531,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       Icon(Icons.search),
                       SizedBox(width: 8),
                       Text("Find"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: "clear",
-                  child: Row(
-                    children: [
-                      Icon(Icons.cookie),
-                      SizedBox(width: 8),
-                      Text("Clear Cookies"),
                     ],
                   ),
                 ),
@@ -1547,16 +1564,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     ],
                   ),
                 ),
-                PopupMenuItem<String>(
-                  value: "share",
-                  child: Row(
-                    children: [
-                      Icon(Icons.share),
-                      SizedBox(width: 8),
-                      Text("Share"),
-                    ],
-                  ),
-                ),
                 if (Platform.isAndroid)
                   PopupMenuItem<String>(
                     value: "addToHome",
@@ -1575,18 +1582,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 case 'search':
                   _toggleFind();
                 break;
-                case 'refresh':
-                  getController()?.reload();
-                  // Re-fetch favicon for this site
-                  await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
-                  setState(() {});
-                break;
                 case 'settings':
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => SettingsScreen(
                         webViewModel: _webViewModels[_currentIndex!],
+                        onClearCookies: () {
+                          _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                          _saveWebViewModels();
+                          getController()?.reload();
+                        },
                         onProxySettingsChanged: (newProxySettings) {
                           // Sync proxy settings to all WebViewModels (proxy is global)
                           setState(() {
@@ -1635,11 +1641,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   );
                   _saveWebViewModels();
                 break;
-                case 'clear':
-                  _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
-                  _saveWebViewModels();
-                  getController()?.reload();
-                break;
                 case 'toggleUrlBar':
                   setState(() {
                     _showUrlBar = !_showUrlBar;
@@ -1657,13 +1658,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       label: model.name,
                       iconUrl: isSvg ? null : faviconUrl,
                     );
-                  }
-                break;
-                case 'share':
-                  if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
-                    final model = _webViewModels[_currentIndex!];
-                    final url = model.currentUrl ?? model.initUrl;
-                    SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
                   }
                 break;
                 case 'devTools':
