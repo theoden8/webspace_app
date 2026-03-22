@@ -1,0 +1,2 @@
+✨ New Features:
+• Share current page URL via the popup menu

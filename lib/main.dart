@@ -39,6 +39,7 @@ import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:share_plus/share_plus.dart';
 
 // Accent color enum
 enum AccentColor {
@@ -1546,6 +1547,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     ],
                   ),
                 ),
+                PopupMenuItem<String>(
+                  value: "share",
+                  child: Row(
+                    children: [
+                      Icon(Icons.share),
+                      SizedBox(width: 8),
+                      Text("Share"),
+                    ],
+                  ),
+                ),
                 if (Platform.isAndroid)
                   PopupMenuItem<String>(
                     value: "addToHome",
@@ -1646,6 +1657,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       label: model.name,
                       iconUrl: isSvg ? null : faviconUrl,
                     );
+                  }
+                break;
+                case 'share':
+                  if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
+                    final model = _webViewModels[_currentIndex!];
+                    final url = model.currentUrl ?? model.initUrl;
+                    SharePlus.instance.share(ShareParams(text: url));
                   }
                 break;
                 case 'devTools':
