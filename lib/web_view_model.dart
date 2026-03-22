@@ -334,8 +334,12 @@ class WebViewModel {
   /// Apply theme preference to the webview
   Future<void> setTheme(WebViewTheme theme) async {
     _currentTheme = theme;
-    if (controller != null) {
-      await controller!.setThemePreference(theme);
+    if (controller != null && webview != null) {
+      try {
+        await controller!.setThemePreference(theme);
+      } catch (_) {
+        // Controller may have been disposed during domain conflict unload
+      }
     }
   }
 
