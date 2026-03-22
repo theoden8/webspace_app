@@ -1,2 +1,0 @@
-✨ New Features:
-• LocalCDN - cache CDN resources (JS, CSS, fonts) locally to prevent CDN providers from tracking you across websites. Resources from 14+ CDN providers are deduplicated and served from a local cache after first download.
