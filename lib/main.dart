@@ -1462,7 +1462,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             itemBuilder: (BuildContext context) {
               return [
                 PopupMenuItem<String>(
-                  enabled: false,
                   padding: EdgeInsets.zero,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
