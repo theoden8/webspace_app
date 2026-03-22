@@ -1,3 +1,3 @@
 ✨ New Features:
 • Accent-colored app logo in drawer and webspaces screen
-• Inspect user script source code in Developer Tools
+• Per-site user scripts with source inspection in Developer Tools

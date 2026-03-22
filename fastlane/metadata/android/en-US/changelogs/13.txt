@@ -1,2 +1,0 @@
-✨ New Features:
-• Per-site user scripts: inject custom JavaScript into any site with control over injection timing (document start or end)
