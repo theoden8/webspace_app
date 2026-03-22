@@ -26,7 +26,7 @@ Works on Android via `shouldInterceptRequest`. On iOS/macOS, the feature degrade
 
 ### LCDN-001: CDN URL Pattern Matching
 
-The service must recognize URLs from major CDN providers and extract a canonical (library, version, file) tuple.
+The service SHALL recognize URLs from major CDN providers and extract a canonical (library, version, file) tuple.
 
 #### Scenario: cdnjs.cloudflare.com URL
 
@@ -48,7 +48,7 @@ The service must recognize URLs from major CDN providers and extract a canonical
 
 ### LCDN-002: Cross-CDN Deduplication
 
-The same library served from different CDN providers must produce the same cache key.
+The same library served from different CDN providers SHALL produce the same cache key.
 
 #### Scenario: jQuery from multiple CDNs
 
@@ -58,7 +58,7 @@ The same library served from different CDN providers must produce the same cache
 
 ### LCDN-003: Trusted Source Download
 
-Resources are always downloaded from cdnjs.cloudflare.com, never from the original CDN that was requested.
+Resources SHALL always be downloaded from cdnjs.cloudflare.com. The original CDN that was requested SHALL NOT be contacted.
 
 #### Scenario: Resource requested from googleapis
 
@@ -75,7 +75,7 @@ Resources are always downloaded from cdnjs.cloudflare.com, never from the origin
 
 ### LCDN-004: Pre-Download Popular Resources
 
-Users can download a curated set of popular CDN resources via app settings, similar to DNS blocklist download.
+Users SHALL be able to download a curated set of popular CDN resources via app settings, similar to DNS blocklist download.
 
 #### Scenario: Download popular resources
 
@@ -92,7 +92,7 @@ Users can download a curated set of popular CDN resources via app settings, simi
 
 ### LCDN-005: On-Demand Caching
 
-When a CDN URL is intercepted that isn't pre-downloaded, the resource is fetched from cdnjs on demand.
+When a CDN URL is intercepted that isn't pre-downloaded, the system SHALL fetch the resource from cdnjs on demand.
 
 #### Scenario: Unknown resource encountered
 
@@ -103,7 +103,7 @@ When a CDN URL is intercepted that isn't pre-downloaded, the resource is fetched
 
 ### LCDN-006: Content Type Detection
 
-The service must return the correct MIME type for cached resources based on file extension.
+The service SHALL return the correct MIME type for cached resources based on file extension.
 
 #### Scenario: JavaScript file
 
@@ -125,7 +125,7 @@ The service must return the correct MIME type for cached resources based on file
 
 ### LCDN-007: Per-Site Toggle
 
-Each site has a `localCdnEnabled` boolean (default: true) to enable/disable LocalCDN.
+Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls whether LocalCDN is applied.
 
 #### Scenario: LocalCDN enabled (default)
 
@@ -141,7 +141,7 @@ Each site has a `localCdnEnabled` boolean (default: true) to enable/disable Loca
 
 ### LCDN-008: Per-Site Settings UI
 
-The per-site settings screen shows a toggle for LocalCDN with cache statistics.
+The per-site settings screen SHALL show a toggle for LocalCDN with cache statistics.
 
 #### Scenario: Toggle display
 
@@ -151,7 +151,7 @@ The per-site settings screen shows a toggle for LocalCDN with cache statistics.
 
 ### LCDN-009: App Settings UI
 
-The app settings screen shows LocalCDN with download/update button, cache statistics, last updated timestamp, and clear cache button.
+App Settings SHALL display LocalCDN with a download/update button, cache statistics, last updated timestamp, and a clear cache button.
 
 #### Scenario: Download resources
 
@@ -173,7 +173,7 @@ The app settings screen shows LocalCDN with download/update button, cache statis
 
 ### LCDN-010: Backward Compatibility
 
-Sites created before LocalCDN was added must default to `localCdnEnabled: true`.
+Existing sites without `localCdnEnabled` in their stored JSON SHALL default to `true` on deserialization.
 
 #### Scenario: Legacy JSON without localCdnEnabled
 
@@ -183,7 +183,7 @@ Sites created before LocalCDN was added must default to `localCdnEnabled: true`.
 
 ### LCDN-011: Query Parameter Handling
 
-CDN URLs with query parameters must be matched correctly by stripping query strings.
+CDN URL matching SHALL strip query parameters before pattern matching.
 
 #### Scenario: URL with cache-busting query parameter
 
@@ -193,7 +193,7 @@ CDN URLs with query parameters must be matched correctly by stripping query stri
 
 ### LCDN-012: Cache Persistence
 
-The cache index is persisted via SharedPreferences and the resource files are stored in the app's documents directory.
+The cache index SHALL be persisted via SharedPreferences and the resource files SHALL be stored in the app's documents directory.
 
 #### Scenario: App restart
 
@@ -203,7 +203,7 @@ The cache index is persisted via SharedPreferences and the resource files are st
 
 ### LCDN-013: Platform Support
 
-LocalCDN resource interception works on Android. On other platforms, the feature degrades gracefully.
+LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest`. On iOS/macOS, the feature SHALL degrade gracefully.
 
 #### Scenario: Android
 
