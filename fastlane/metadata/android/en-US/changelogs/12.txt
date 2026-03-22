@@ -1,3 +1,5 @@
 ✨ New Features:
 • Accent-colored app logo in drawer and webspaces screen
+
+🔧 Improvements:
 • Share current page URL via the popup menu
