@@ -210,6 +210,11 @@ class _AccentLogoState extends State<AccentLogo> {
       return;
     }
 
+    // Clear stale image while processing so we don't flash the old color
+    if (_image != null) {
+      setState(() => _image = null);
+    }
+
     final asset = widget.brightness == Brightness.dark
         ? 'assets/webspace_icon_dark.png'
         : 'assets/webspace_icon.png';
