@@ -266,23 +266,10 @@ class _AccentLogoState extends State<AccentLogo> {
         b = accent.blue;
       }
 
-      // Premultiply alpha: decodeImageFromPixels expects premultiplied RGBA
-      if (alpha == 0) {
-        pixels[i] = 0;
-        pixels[i + 1] = 0;
-        pixels[i + 2] = 0;
-        pixels[i + 3] = 0;
-      } else if (alpha < 255) {
-        pixels[i] = (r * alpha) ~/ 255;
-        pixels[i + 1] = (g * alpha) ~/ 255;
-        pixels[i + 2] = (b * alpha) ~/ 255;
-        pixels[i + 3] = alpha;
-      } else {
-        pixels[i] = r;
-        pixels[i + 1] = g;
-        pixels[i + 2] = b;
-        pixels[i + 3] = 255;
-      }
+      pixels[i] = r;
+      pixels[i + 1] = g;
+      pixels[i + 2] = b;
+      pixels[i + 3] = alpha;
     }
 
     final completer = Completer<ui.Image>();
