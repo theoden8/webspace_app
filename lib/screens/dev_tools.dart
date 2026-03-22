@@ -37,11 +37,15 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   int get _tabCount => _hasSite ? 5 : 1;
 
   List<Tab> get _tabs => [
-        if (_hasSite) const Tab(text: 'Console'),
-        if (_hasSite) const Tab(text: 'Cookies'),
-        if (_hasSite) const Tab(text: 'Scripts'),
-        if (_hasSite) const Tab(text: 'Export'),
-        const Tab(text: 'App Logs'),
+        if (_hasSite)
+          const Tab(icon: Icon(Icons.terminal, size: 18), text: 'Console'),
+        if (_hasSite)
+          const Tab(icon: Icon(Icons.cookie_outlined, size: 18), text: 'Cookies'),
+        if (_hasSite)
+          const Tab(icon: Icon(Icons.code, size: 18), text: 'Scripts'),
+        if (_hasSite)
+          const Tab(icon: Icon(Icons.download, size: 18), text: 'Export'),
+        const Tab(icon: Icon(Icons.list_alt, size: 18), text: 'Logs'),
       ];
 
   @override
@@ -55,6 +59,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             tabs: _tabs,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
+            labelPadding:
+                const EdgeInsets.symmetric(horizontal: 12),
           ),
         ),
         body: TabBarView(
