@@ -44,6 +44,7 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 - 🛡️ Hagezi DNS blocklist domain blocking (5 severity levels)
 - 🚫 Content blocker with EasyList/EasyPrivacy ad & tracker filtering
 - 📌 Home screen shortcuts for quick site access (Android)
+- 📜 Per-site user scripts (custom JavaScript injection)
 - 🎨 Light/dark mode with accent colors
 
 ## Development

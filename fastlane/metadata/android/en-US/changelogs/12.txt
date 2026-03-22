@@ -1,5 +1,9 @@
 ✨ New Features:
 • Accent-colored app logo in drawer and webspaces screen
+<<<<<<< claude/add-user-script-loading-cg6Wt
+• Per-site user scripts with source inspection in Developer Tools
+=======
 
 🔧 Improvements:
 • Share current page URL via the popup menu
+>>>>>>> master
