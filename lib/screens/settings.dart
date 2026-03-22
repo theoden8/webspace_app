@@ -7,6 +7,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/screens/user_scripts.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -477,6 +478,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   }
                 : null,
+          ),
+          ListTile(
+            title: const Text('User Scripts'),
+            subtitle: Text(
+              widget.webViewModel.userScripts.isEmpty
+                  ? 'None'
+                  : '${widget.webViewModel.userScripts.where((s) => s.enabled).length} active',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserScriptsScreen(
+                    userScripts: widget.webViewModel.userScripts,
+                    onSave: (scripts) {
+                      widget.webViewModel.userScripts = scripts;
+                    },
+                  ),
+                ),
+              );
+            },
           ),
           SwitchListTile(
             title: const Text('Block auto-redirects'),

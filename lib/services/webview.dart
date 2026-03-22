@@ -9,6 +9,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/user_script.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
 typedef Cookie = inapp.Cookie;
@@ -224,6 +225,8 @@ class WebViewConfig {
   final bool contentBlockEnabled;
   /// Callback for JS console messages.
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
+  /// Per-site user scripts to inject into the webview.
+  final List<UserScriptConfig> userScripts;
 
   WebViewConfig({
     this.key,
@@ -244,6 +247,7 @@ class WebViewConfig {
     this.onHtmlLoaded,
     this.initialHtml,
     this.onConsoleMessage,
+    this.userScripts = const [],
   });
 }
 
@@ -540,6 +544,18 @@ class WebViewFactory {
           injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         ));
       }
+    }
+
+    // Inject per-site user scripts
+    for (final script in config.userScripts) {
+      if (!script.enabled || script.source.isEmpty) continue;
+      userScripts.add(inapp.UserScript(
+        groupName: 'user_scripts',
+        source: script.source,
+        injectionTime: script.injectionTime == UserScriptInjectionTime.atDocumentStart
+            ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
+            : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
+      ));
     }
 
     return inapp.InAppWebView(
