@@ -287,7 +287,6 @@ class AddSiteScreen extends StatefulWidget {
 
 class _AddSiteScreenState extends State<AddSiteScreen> {
   final TextEditingController _urlController = TextEditingController();
-  final TextEditingController _nameController = TextEditingController();
   bool _incognito = false;
 
   static const List<SiteSuggestion> _suggestions = [
@@ -315,7 +314,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   ];
 
   void _showSuggestionDialog(SiteSuggestion suggestion) {
-    final TextEditingController nameController = TextEditingController(text: suggestion.name);
     final TextEditingController urlController = TextEditingController(text: suggestion.url);
     bool incognito = false;
 
@@ -325,20 +323,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('Add Site'),
+              title: Text('Add ${suggestion.name}'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: nameController,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: InputDecoration(
-                      labelText: 'Site Name',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  SizedBox(height: 16),
                   TextField(
                     controller: urlController,
                     autocorrect: false,
@@ -374,13 +362,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                 ElevatedButton(
                   onPressed: () {
                     String url = urlController.text.trim();
-                    String name = nameController.text.trim();
                     // If no protocol specified, default to https
                     if (!url.startsWith('http://') && !url.startsWith('https://')) {
                       url = 'https://$url';
                     }
                     Navigator.of(context).pop();
-                    Navigator.of(context).pop({'url': url, 'name': name, 'incognito': incognito});
+                    Navigator.of(context).pop({'url': url, 'name': '', 'incognito': incognito});
                   },
                   child: Text('Add'),
                 ),
@@ -457,16 +444,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       TextField(
-                        controller: _nameController,
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        decoration: InputDecoration(
-                          labelText: 'Site Name (optional)',
-                          helperText: 'Leave empty to fetch from website',
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      TextField(
                         controller: _urlController,
                         autofocus: true,
                         autocorrect: false,
@@ -491,12 +468,11 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                       ElevatedButton(
                         onPressed: () {
                           String url = _urlController.text.trim();
-                          String name = _nameController.text.trim();
                           // If no protocol specified, default to https
                           if (!url.startsWith('http://') && !url.startsWith('https://')) {
                             url = 'https://$url';
                           }
-                          Navigator.pop(context, {'url': url, 'name': name, 'incognito': _incognito});
+                          Navigator.pop(context, {'url': url, 'name': '', 'incognito': _incognito});
                         },
                         child: Text('Add Site'),
                       ),
