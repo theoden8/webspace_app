@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -508,20 +509,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          SwitchListTile(
-            title: const Text('LocalCDN'),
-            subtitle: Text(
-              LocalCdnService.instance.hasCache
-                  ? '${LocalCdnService.instance.resourceCount} cached resources'
-                  : 'Cache CDN resources locally',
+          if (Platform.isAndroid)
+            SwitchListTile(
+              title: const Text('LocalCDN'),
+              subtitle: Text(
+                LocalCdnService.instance.hasCache
+                    ? '${LocalCdnService.instance.resourceCount} cached resources'
+                    : 'Cache CDN resources locally',
+              ),
+              value: _localCdnEnabled,
+              onChanged: (bool value) {
+                setState(() {
+                  _localCdnEnabled = value;
+                });
+              },
             ),
-            value: _localCdnEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _localCdnEnabled = value;
-              });
-            },
-          ),
           SwitchListTile(
             title: const Text('Block auto-redirects'),
             subtitle: const Text('Block script-initiated cross-domain navigations'),

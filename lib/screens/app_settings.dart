@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
@@ -524,59 +526,60 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             ),
           ),
 
-          // LocalCDN
-          ListTile(
-            leading: const Icon(Icons.storage),
-            title: const Text('LocalCDN'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _localCdnCount > 0
-                      ? '$_localCdnCount resources ($_localCdnSize)'
-                      : 'Not downloaded',
-                ),
-                if (_localCdnLastUpdated != null)
+          // LocalCDN (Android only)
+          if (Platform.isAndroid)
+            ListTile(
+              leading: const Icon(Icons.storage),
+              title: const Text('LocalCDN'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    'Updated: ${_localCdnLastUpdated!.toLocal().toString().split('.')[0]}',
-                    style: const TextStyle(fontSize: 12),
+                    _localCdnCount > 0
+                        ? '$_localCdnCount resources ($_localCdnSize)'
+                        : 'Not downloaded',
                   ),
-                if (_isDownloadingLocalCdn && _localCdnProgress.isNotEmpty)
-                  Text(
-                    'Downloading $_localCdnProgress...',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_isDownloadingLocalCdn || _isClearingLocalCdn)
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else ...[
-                  IconButton(
-                    icon: Icon(
-                      _localCdnCount > 0 ? Icons.sync : Icons.download,
+                  if (_localCdnLastUpdated != null)
+                    Text(
+                      'Updated: ${_localCdnLastUpdated!.toLocal().toString().split('.')[0]}',
+                      style: const TextStyle(fontSize: 12),
                     ),
-                    tooltip: _localCdnCount > 0
-                        ? 'Update resources'
-                        : 'Download resources',
-                    onPressed: _downloadLocalCdnResources,
-                  ),
-                  if (_localCdnCount > 0)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: 'Clear cache',
-                      onPressed: _clearLocalCdnCache,
+                  if (_isDownloadingLocalCdn && _localCdnProgress.isNotEmpty)
+                    Text(
+                      'Downloading $_localCdnProgress...',
+                      style: const TextStyle(fontSize: 12),
                     ),
                 ],
-              ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isDownloadingLocalCdn || _isClearingLocalCdn)
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else ...[
+                    IconButton(
+                      icon: Icon(
+                        _localCdnCount > 0 ? Icons.sync : Icons.download,
+                      ),
+                      tooltip: _localCdnCount > 0
+                          ? 'Update resources'
+                          : 'Download resources',
+                      onPressed: _downloadLocalCdnResources,
+                    ),
+                    if (_localCdnCount > 0)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Clear cache',
+                        onPressed: _clearLocalCdnCache,
+                      ),
+                  ],
+                ],
+              ),
             ),
-          ),
 
           // Content Blocker
           const Divider(height: 32),
