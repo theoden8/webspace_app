@@ -1153,12 +1153,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _selectedWebspaceId = webspace.id;
     });
 
+    // Open drawer immediately so the user sees instant feedback on tap
+    _scaffoldKey.currentState?.openDrawer();
+
     // Get indices in the new webspace
     final newIndices = _getFilteredSiteIndices().toSet();
 
     // Only unload sites when online - preserve live webviews when offline
     // so users can still view cached content
     final online = await ConnectivityService.instance.isOnline();
+    if (!mounted) return;
 
     if (online) {
       // Find loaded sites that were in previous webspace but not in new one
@@ -1179,11 +1183,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     await _setCurrentIndex(null);
+    if (!mounted) return;
     setState(() {}); // Update UI
     _saveSelectedWebspaceId();
     _saveCurrentIndex();
-    // Open drawer after selecting workspace
-    _scaffoldKey.currentState?.openDrawer();
   }
 
   void _reorderWebspaces(int oldIndex, int newIndex) {
