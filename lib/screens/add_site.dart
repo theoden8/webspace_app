@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show extractDomain;
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, IconUpdate;
@@ -337,7 +338,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                       border: OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          incognito ? Icons.visibility_off : Icons.visibility_off_outlined,
+                          incognito ? MdiIcons.incognito : MdiIcons.incognitoOff,
                           color: incognito ? Theme.of(context).colorScheme.primary : null,
                         ),
                         tooltip: incognito ? 'Incognito mode on' : 'Incognito mode off',
@@ -452,7 +453,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                           labelText: 'Enter website URL',
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _incognito ? Icons.visibility_off : Icons.visibility_off_outlined,
+                              _incognito ? MdiIcons.incognito : MdiIcons.incognitoOff,
                               color: _incognito ? Theme.of(context).colorScheme.primary : null,
                             ),
                             tooltip: _incognito ? 'Incognito mode on' : 'Incognito mode off',
