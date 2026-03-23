@@ -9,6 +9,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/widgets/hint_button.dart';
 
 // Accent color definitions for display
 const Map<AccentColor, Color> _accentColors = {
@@ -431,7 +432,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           ListTile(
             leading: const Icon(Icons.cleaning_services),
-            title: const Text('ClearURLs Rules'),
+            title: const Row(
+              children: [
+                Text('ClearURLs Rules'),
+                HintButton(
+                  title: 'ClearURLs',
+                  description:
+                      'Downloads a list of known tracking parameters used by websites (like utm_source, fbclid, etc.). '
+                      'When enabled per-site, these parameters are automatically stripped from URLs to protect your privacy.',
+                ),
+              ],
+            ),
             subtitle: Text(
               _rulesLastUpdated != null
                   ? 'Updated: ${_rulesLastUpdated!.toLocal().toString().split('.')[0]}'
@@ -453,7 +464,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // DNS Blocklist
           ListTile(
             leading: const Icon(Icons.shield),
-            title: const Text('DNS Blocklist'),
+            title: const Row(
+              children: [
+                Text('DNS Blocklist'),
+                HintButton(
+                  title: 'DNS Blocklist',
+                  description:
+                      'Downloads the Hagezi blocklist to block known advertising, tracking, and malware domains. '
+                      'Choose a severity level from Light to Ultimate. Higher levels block more domains but may break some sites. '
+                      'Once downloaded, enable or disable per-site in each site\'s settings.',
+                ),
+              ],
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -530,7 +552,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           if (Platform.isAndroid)
             ListTile(
               leading: const Icon(Icons.storage),
-              title: const Text('LocalCDN'),
+              title: const Row(
+                children: [
+                  Text('LocalCDN'),
+                  HintButton(
+                    title: 'LocalCDN',
+                    description:
+                        'Downloads common JavaScript libraries, fonts, and CSS frameworks to serve locally '
+                        'instead of fetching them from third-party CDN servers (like Google, Cloudflare, jsDelivr). '
+                        'This prevents CDN providers from tracking your browsing across different websites.',
+                  ),
+                ],
+              ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -588,11 +621,23 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    'Content Blocker',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Content Blocker',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const HintButton(
+                        title: 'Content Blocker',
+                        description:
+                            'Blocks ads, trackers, and unwanted page elements using filter lists like EasyList. '
+                            'Supports domain-level blocking, CSS cosmetic filters to hide page elements, '
+                            'and text-based hiding rules. Enable or disable individual filter lists below, '
+                            'and toggle content blocking per-site in each site\'s settings.',
+                      ),
+                    ],
                   ),
                 ),
                 if (ContentBlockerService.instance.lists

@@ -10,6 +10,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/widgets/hint_button.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -446,7 +447,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           SwitchListTile(
-            title: const Text('ClearURLs'),
+            title: Row(
+              children: [
+                const Text('ClearURLs'),
+                const HintButton(
+                  title: 'ClearURLs',
+                  description:
+                      'Removes tracking parameters (like utm_source, fbclid) from URLs before loading them. '
+                      'This helps protect your privacy by preventing sites from tracking where you came from.',
+                ),
+              ],
+            ),
             subtitle: const Text('Strip tracking parameters from URLs'),
             value: _clearUrlEnabled,
             onChanged: (bool value) {
@@ -456,7 +467,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           SwitchListTile(
-            title: const Text('DNS Blocklist'),
+            title: Row(
+              children: [
+                const Text('DNS Blocklist'),
+                const HintButton(
+                  title: 'DNS Blocklist',
+                  description:
+                      'Blocks known advertising, tracking, and malware domains at the DNS level before they can load. '
+                      'Uses the Hagezi blocklist with configurable severity levels. '
+                      'Configure the blocklist level in App Settings.',
+                ),
+              ],
+            ),
             subtitle: Text(
               DnsBlockService.instance.hasBlocklist
                   ? dnsBlockLevelNames[DnsBlockService.instance.level]
@@ -472,7 +494,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : null,
           ),
           SwitchListTile(
-            title: const Text('Content Blocker'),
+            title: Row(
+              children: [
+                const Flexible(child: Text('Content Blocker')),
+                const HintButton(
+                  title: 'Content Blocker',
+                  description:
+                      'Blocks ads, trackers, and unwanted content using filter lists (like EasyList). '
+                      'Supports domain blocking, CSS cosmetic filters, and text-based hiding rules. '
+                      'Manage filter lists in App Settings.',
+                ),
+              ],
+            ),
             subtitle: Text(
               ContentBlockerService.instance.hasRules
                   ? '${ContentBlockerService.instance.totalRuleCount} rules'
@@ -511,7 +544,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           if (Platform.isAndroid)
             SwitchListTile(
-              title: const Text('LocalCDN'),
+              title: Row(
+                children: [
+                  const Text('LocalCDN'),
+                  const HintButton(
+                    title: 'LocalCDN',
+                    description:
+                        'Serves common CDN resources (JavaScript libraries, fonts, CSS frameworks) from a local cache '
+                        'instead of fetching them from third-party CDN servers. '
+                        'This prevents CDN providers from tracking your browsing activity across sites.',
+                  ),
+                ],
+              ),
               subtitle: Text(
                 LocalCdnService.instance.hasCache
                     ? '${LocalCdnService.instance.resourceCount} cached resources'
@@ -525,7 +569,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           SwitchListTile(
-            title: const Text('Block auto-redirects'),
+            title: Row(
+              children: [
+                const Flexible(child: Text('Block auto-redirects')),
+                const HintButton(
+                  title: 'Block Auto-Redirects',
+                  description:
+                      'Prevents scripts from automatically navigating you to a different domain. '
+                      'This helps avoid being silently redirected to tracking or advertising pages.',
+                ),
+              ],
+            ),
             subtitle: const Text('Block script-initiated cross-domain navigations'),
             value: _blockAutoRedirects,
             onChanged: (bool value) {
