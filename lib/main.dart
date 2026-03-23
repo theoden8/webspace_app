@@ -1501,18 +1501,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         },
                       ),
                       IconButton(
-                        icon: Icon(Icons.refresh),
-                        tooltip: 'Refresh',
-                        onPressed: () {
-                          Navigator.pop(context);
-                          () async {
-                            getController()?.reload();
-                            await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
-                            setState(() {});
-                          }();
-                        },
-                      ),
-                      IconButton(
                         icon: Icon(Icons.share),
                         tooltip: 'Share',
                         onPressed: () {
@@ -1522,6 +1510,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                             final url = model.currentUrl ?? model.initUrl;
                             SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
                           }
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.refresh),
+                        tooltip: 'Refresh',
+                        onPressed: () {
+                          Navigator.pop(context);
+                          () async {
+                            getController()?.reload();
+                            await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
+                            setState(() {});
+                          }();
                         },
                       ),
                     ],
