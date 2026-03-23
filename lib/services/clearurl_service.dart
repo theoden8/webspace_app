@@ -103,11 +103,15 @@ class ClearUrlService {
     return DateTime.tryParse(timestamp);
   }
 
+  static final RegExp _urlRegExp = RegExp(r'^https?://', caseSensitive: false);
+
   /// Clean a URL by stripping tracking parameters according to loaded rules.
   /// Returns the cleaned URL, or the original if no changes were made.
   /// Returns an empty string if the URL should be blocked entirely (completeProvider).
+  /// Returns the input unchanged if it is not a valid HTTP(S) URL.
   String cleanUrl(String url) {
     if (_providers.isEmpty) return url;
+    if (!_urlRegExp.hasMatch(url)) return url;
 
     for (final provider in _providers) {
       if (!provider.urlPattern.hasMatch(url)) continue;
