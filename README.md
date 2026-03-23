@@ -43,6 +43,7 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 - 🧹 ClearURLs tracking parameter removal
 - 🛡️ Hagezi DNS blocklist domain blocking (5 severity levels)
 - 🚫 Content blocker with EasyList/EasyPrivacy ad & tracker filtering
+- 📦 LocalCDN - cache CDN resources locally to prevent tracking (Android)
 - 📌 Home screen shortcuts for quick site access (Android)
 - 📜 Per-site user scripts (custom JavaScript injection)
 - 🎨 Light/dark mode with accent colors

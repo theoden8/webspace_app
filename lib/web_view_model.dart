@@ -232,6 +232,7 @@ class WebViewModel {
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
   bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
   bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
+  bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   List<UserScriptConfig> userScripts; // Per-site user scripts
 
@@ -258,6 +259,7 @@ class WebViewModel {
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
+    this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
     List<UserScriptConfig>? userScripts,
     this.stateSetterF,
@@ -381,6 +383,7 @@ class WebViewModel {
           clearUrlEnabled: clearUrlEnabled,
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
+          localCdnEnabled: localCdnEnabled,
           userScripts: userScripts,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
@@ -550,6 +553,7 @@ class WebViewModel {
         'clearUrlEnabled': clearUrlEnabled,
         'dnsBlockEnabled': dnsBlockEnabled,
         'contentBlockEnabled': contentBlockEnabled,
+        'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
       };
@@ -572,6 +576,7 @@ class WebViewModel {
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,
+      localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))

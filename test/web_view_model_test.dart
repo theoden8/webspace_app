@@ -22,6 +22,7 @@ void main() {
       expect(model.clearUrlEnabled, isTrue);
       expect(model.dnsBlockEnabled, isTrue);
       expect(model.contentBlockEnabled, isTrue);
+      expect(model.localCdnEnabled, isTrue);
     });
 
     test('should serialize to JSON correctly', () {
@@ -45,6 +46,7 @@ void main() {
       expect(json['clearUrlEnabled'], equals(true));
       expect(json['dnsBlockEnabled'], equals(true));
       expect(json['contentBlockEnabled'], equals(true));
+      expect(json['localCdnEnabled'], equals(true));
       expect(json['cookies'], isList);
       expect(json['proxySettings'], isMap);
     });
@@ -98,6 +100,7 @@ void main() {
       expect(restored.clearUrlEnabled, equals(original.clearUrlEnabled));
       expect(restored.dnsBlockEnabled, equals(original.dnsBlockEnabled));
       expect(restored.contentBlockEnabled, equals(original.contentBlockEnabled));
+      expect(restored.localCdnEnabled, equals(original.localCdnEnabled));
     });
 
     test('clearUrlEnabled defaults to true when missing from JSON', () {
@@ -182,6 +185,34 @@ void main() {
 
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.contentBlockEnabled, isFalse);
+    });
+
+    test('localCdnEnabled defaults to true when missing from JSON', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.localCdnEnabled, isTrue);
+    });
+
+    test('localCdnEnabled false is preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        localCdnEnabled: false,
+      );
+
+      final json = model.toJson();
+      expect(json['localCdnEnabled'], equals(false));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.localCdnEnabled, isFalse);
     });
   });
 

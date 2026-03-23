@@ -1,5 +1,6 @@
 ✨ New Features:
 • Accent-colored app logo in drawer and webspaces screen
+• LocalCDN - cache CDN resources locally to prevent CDN tracking
 • Per-site user scripts with source inspection in Developer Tools
 
 🔧 Improvements:
