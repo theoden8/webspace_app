@@ -218,6 +218,79 @@ void main() {
       });
     });
 
+    group('URL validation', () {
+      setUp(() {
+        service.loadRulesFromJson({
+          'providers': {
+            'test': {
+              'urlPattern': r'.*',
+              'completeProvider': false,
+              'rules': [r'^utm_source$'],
+              'rawRules': [],
+              'exceptions': [],
+              'redirections': [],
+            },
+          },
+        });
+      });
+
+      test('cleans valid http URL', () {
+        final result = service.cleanUrl(
+          'http://example.com/page?utm_source=test',
+        );
+        expect(result, equals('http://example.com/page'));
+      });
+
+      test('cleans valid https URL', () {
+        final result = service.cleanUrl(
+          'https://example.com/page?utm_source=test',
+        );
+        expect(result, equals('https://example.com/page'));
+      });
+
+      test('returns plain text unchanged', () {
+        const text = 'just some plain text with utm_source in it';
+        expect(service.cleanUrl(text), equals(text));
+      });
+
+      test('returns text with no scheme unchanged', () {
+        const text = 'example.com/page?utm_source=test';
+        expect(service.cleanUrl(text), equals(text));
+      });
+
+      test('returns ftp URL unchanged', () {
+        const text = 'ftp://example.com/file?utm_source=test';
+        expect(service.cleanUrl(text), equals(text));
+      });
+
+      test('returns javascript: URI unchanged', () {
+        const text = 'javascript:alert(1)';
+        expect(service.cleanUrl(text), equals(text));
+      });
+
+      test('returns data: URI unchanged', () {
+        const text = 'data:text/html,<h1>hello</h1>';
+        expect(service.cleanUrl(text), equals(text));
+      });
+
+      test('returns empty string unchanged when no providers match', () {
+        // Load rules with a specific pattern that won't match empty string
+        service.loadRulesFromJson({
+          'providers': {
+            'test': {
+              'urlPattern': r'example\.com',
+              'completeProvider': false,
+              'rules': [r'^utm_source$'],
+              'rawRules': [],
+              'exceptions': [],
+              'redirections': [],
+            },
+          },
+        });
+        expect(service.cleanUrl(''), equals(''));
+      });
+    });
+
     group('hasRules', () {
       test('is false with empty providers', () {
         service.loadRulesFromJson({'providers': {}});
