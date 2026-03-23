@@ -335,20 +335,19 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                     decoration: InputDecoration(
                       labelText: 'Site URL',
                       border: OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          incognito ? Icons.visibility_off : Icons.visibility_off_outlined,
+                          color: incognito ? Theme.of(context).colorScheme.primary : null,
+                        ),
+                        tooltip: incognito ? 'Incognito mode on' : 'Incognito mode off',
+                        onPressed: () {
+                          setDialogState(() {
+                            incognito = !incognito;
+                          });
+                        },
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  CheckboxListTile(
-                    title: Text('Incognito mode'),
-                    subtitle: Text('No cookies or cache persist'),
-                    value: incognito,
-                    onChanged: (bool? value) {
-                      setDialogState(() {
-                        incognito = value ?? false;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
                   ),
                 ],
               ),
@@ -449,20 +448,21 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         autocorrect: false,
                         enableSuggestions: false,
                         keyboardType: TextInputType.url,
-                        decoration: InputDecoration(labelText: 'Enter website URL'),
-                      ),
-                      SizedBox(height: 8),
-                      CheckboxListTile(
-                        title: Text('Incognito mode'),
-                        subtitle: Text('No cookies or cache persist'),
-                        value: _incognito,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            _incognito = value ?? false;
-                          });
-                        },
-                        controlAffinity: ListTileControlAffinity.leading,
-                        contentPadding: EdgeInsets.zero,
+                        decoration: InputDecoration(
+                          labelText: 'Enter website URL',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _incognito ? Icons.visibility_off : Icons.visibility_off_outlined,
+                              color: _incognito ? Theme.of(context).colorScheme.primary : null,
+                            ),
+                            tooltip: _incognito ? 'Incognito mode on' : 'Incognito mode off',
+                            onPressed: () {
+                              setState(() {
+                                _incognito = !_incognito;
+                              });
+                            },
+                          ),
+                        ),
                       ),
                       SizedBox(height: 8),
                       ElevatedButton(
