@@ -1,0 +1,2 @@
+🐛 Bug Fixes:
+• Fixed drawer not opening when tapping a webspace due to a race condition with async network check
