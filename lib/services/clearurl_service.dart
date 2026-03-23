@@ -129,7 +129,10 @@ class ClearUrlService {
           final target = match.group(1);
           if (target != null && target.isNotEmpty) {
             final decoded = Uri.decodeComponent(target);
-            return decoded;
+            // Only use the redirect target if it's a valid HTTP(S) URL
+            if (_urlRegExp.hasMatch(decoded)) {
+              return decoded;
+            }
           }
         }
       }
@@ -162,7 +165,11 @@ class ClearUrlService {
 
       // Apply rawRules - regex replacements on the full URL string
       for (final rawRule in provider.rawRules) {
-        url = url.replaceAll(rawRule, '');
+        final candidate = url.replaceAll(rawRule, '');
+        // Only apply if the result is still a valid HTTP(S) URL
+        if (_urlRegExp.hasMatch(candidate)) {
+          url = candidate;
+        }
       }
     }
 
