@@ -162,6 +162,37 @@ Each site SHALL have a `clearUrlEnabled` setting (default: true) that controls w
 
 ---
 
+### Requirement: CURL-013 - Clean Shared/Copied URLs
+
+When ClearURLs is enabled, URLs copied to clipboard or shared via the Web Share API from within a webview SHALL have tracking parameters stripped.
+
+#### Scenario: Copy share link from site
+
+**Given** ClearURLs is enabled for the site and rules are loaded
+**When** the user clicks a "Share" or "Copy Link" button inside a website (e.g., Reddit share button)
+**And** the site writes a URL with tracking parameters to the clipboard
+**Then** the tracking parameters are stripped before the URL reaches the clipboard
+
+#### Scenario: Web Share API
+
+**Given** ClearURLs is enabled and rules are loaded
+**When** the site calls `navigator.share()` with a URL containing tracking parameters
+**Then** the URL is cleaned before being passed to the native share sheet
+
+#### Scenario: document.execCommand('copy') with URL
+
+**Given** ClearURLs is enabled and rules are loaded
+**When** the site uses `document.execCommand('copy')` and the selected text is a URL
+**Then** the clipboard receives the cleaned URL
+
+#### Scenario: ClearURLs disabled
+
+**Given** ClearURLs is disabled for the site
+**When** the user copies a URL via any method
+**Then** the URL is not modified
+
+---
+
 ### Requirement: CURL-009 - Idempotent Cleaning
 
 Cleaning SHALL be idempotent: applying `cleanUrl()` to an already-cleaned URL SHALL return the same URL, preventing redirect loops.
@@ -279,6 +310,15 @@ shouldOverrideUrlLoading: (controller, navigationAction) async {
 
 No redirect loops occur because `cleanUrl()` is idempotent — a cleaned URL produces the same output when cleaned again.
 
+### Clipboard/Share URL Cleaning
+
+A JavaScript snippet (`_clearUrlShareScript`) is injected at `DOCUMENT_START` that intercepts:
+- `navigator.clipboard.writeText()` — overridden to send URLs to Dart for cleaning via `callHandler('clearUrl', url)` before writing
+- `navigator.share()` — overridden to clean URLs in `data.url` and `data.text` fields
+- `document.execCommand('copy')` — overridden to detect copied URLs and replace with cleaned version via async clipboard API
+
+The Dart-side handler is registered in `onWebViewCreated` via `addJavaScriptHandler(handlerName: 'clearUrl')`, which calls `ClearUrlService.instance.cleanUrl()`. The script is re-injected in `onLoadStart` for in-page navigations.
+
 ### Rules File Storage
 
 - Cached at `getApplicationDocumentsDirectory()/clearurl_rules.json`
@@ -351,3 +391,5 @@ ClearURL service tests cover:
 6. Navigate to the same URL with tracking params
 7. Verify parameters are preserved
 8. Check Licenses page shows "ClearURLs (rules data)" with LGPL-3.0
+9. **Share URL cleaning**: Open Reddit (or similar site with share buttons), click "Share" on a post, paste the copied URL — verify tracking parameters (utm_source, share_id, etc.) are stripped
+10. Disable ClearURLs for the site, repeat step 9 — verify tracking parameters are preserved
