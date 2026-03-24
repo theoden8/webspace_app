@@ -199,6 +199,23 @@ class CookieIsolationTestHarness {
     }
   }
 
+  /// Simulates going to the home screen (e.g., app resume or back button).
+  /// Sets currentIndex to null without touching loadedIndices or cookies.
+  void goHome() {
+    currentIndex = null;
+  }
+
+  /// Simulates a cold app restart: loaded state is cleared (new process),
+  /// currentIndex starts as null (home screen), but secure storage persists.
+  void simulateAppRestart() {
+    loadedIndices.clear();
+    currentIndex = null;
+    for (final site in sites) {
+      site.disposeWebView();
+      site.cookies = [];
+    }
+  }
+
   /// Simulates a site receiving cookies (e.g., after login)
   Future<void> simulateLogin(int index, List<Cookie> cookies) async {
     if (index < 0 || index >= sites.length) return;
@@ -741,6 +758,217 @@ void main() {
       // Both should be loaded
       expect(harness.loadedIndices, containsAll([0, 1]));
       expect(harness.cookieManager.domainsWithCookies, containsAll(['192.168.1.1', 'github.com']));
+    });
+  });
+
+  group('Home Screen on App Reopen', () {
+    late CookieIsolationTestHarness harness;
+
+    setUp(() {
+      harness = CookieIsolationTestHarness();
+    });
+
+    test('goHome sets currentIndex to null without unloading webviews', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+      harness.addSite('https://gitlab.com', name: 'GitLab');
+
+      await harness.switchToSite(0);
+      await harness.switchToSite(1);
+      expect(harness.loadedIndices, containsAll([0, 1]));
+
+      harness.goHome();
+
+      expect(harness.currentIndex, isNull);
+      expect(harness.loadedIndices, containsAll([0, 1])); // webviews still alive
+    });
+
+    test('goHome does not clear cookies from CookieManager', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'session', value: 'gh_token', domain: 'github.com'),
+      ]);
+
+      harness.goHome();
+
+      // Cookies still live in the manager - webview is still running
+      var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      expect(cookies.any((c) => c.value == 'gh_token'), isTrue);
+    });
+
+    test('switching back to a site after goHome works normally', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'session', value: 'gh_token', domain: 'github.com'),
+      ]);
+
+      harness.goHome();
+      expect(harness.currentIndex, isNull);
+
+      // Switch back - should succeed, index becomes 0 again
+      await harness.switchToSite(0);
+      expect(harness.currentIndex, equals(0));
+      expect(harness.loadedIndices, contains(0));
+
+      // Cookies intact
+      var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      expect(cookies.any((c) => c.value == 'gh_token'), isTrue);
+    });
+
+    test('goHome then switching to conflicting domain still triggers isolation', () async {
+      harness.addSite('https://github.com/user1', name: 'GitHub User1');
+      harness.addSite('https://github.com/user2', name: 'GitHub User2');
+
+      // Login to user1
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'session', value: 'user1_token', domain: 'github.com'),
+      ]);
+
+      // Go home (background resume)
+      harness.goHome();
+      expect(harness.loadedIndices, contains(0)); // still loaded
+
+      // Switch to user2 - should detect conflict with user1 and save/clear cookies
+      await harness.switchToSite(1);
+
+      expect(harness.loadedIndices, isNot(contains(0))); // user1 unloaded
+      expect(harness.loadedIndices, contains(1));
+
+      // user1's cookies must have been saved before clearing
+      var user1Saved = await harness.storage.loadCookiesForSite(harness.sites[0].siteId);
+      expect(user1Saved.any((c) => c.value == 'user1_token'), isTrue);
+
+      // user2 has no cookies yet (fresh)
+      var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      expect(cookies.any((c) => c.value == 'user1_token'), isFalse);
+    });
+
+    test('goHome then switching to non-conflicting domain keeps all loaded sites', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+      harness.addSite('https://gitlab.com', name: 'GitLab');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'gh', value: 'gh_token', domain: 'github.com'),
+      ]);
+
+      harness.goHome();
+
+      await harness.switchToSite(1);
+
+      // No conflict - github still loaded
+      expect(harness.loadedIndices, containsAll([0, 1]));
+
+      // GitHub cookies still live
+      var ghCookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      expect(ghCookies.any((c) => c.value == 'gh_token'), isTrue);
+    });
+  });
+
+  group('App Restart Cookie Isolation', () {
+    late CookieIsolationTestHarness harness;
+
+    setUp(() {
+      harness = CookieIsolationTestHarness();
+    });
+
+    test('app restart clears loaded state and shows home screen', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+
+      await harness.switchToSite(0);
+      await harness.simulateLogin(0, [
+        Cookie(name: 'session', value: 'gh_token', domain: 'github.com'),
+      ]);
+      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, harness.sites[0].cookies);
+
+      harness.simulateAppRestart();
+
+      expect(harness.currentIndex, isNull);       // home screen
+      expect(harness.loadedIndices, isEmpty);     // no webviews loaded
+    });
+
+    test('after restart, switching to site restores cookies from secure storage', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+
+      // Pre-populate secure storage (as if saved before the restart)
+      final siteId = harness.sites[0].siteId;
+      await harness.storage.saveCookiesForSite(siteId, [
+        Cookie(name: 'session', value: 'persisted_token', domain: 'github.com'),
+      ]);
+
+      harness.simulateAppRestart();
+
+      // Now user picks the site from home screen
+      await harness.switchToSite(0);
+
+      expect(harness.currentIndex, equals(0));
+      expect(harness.loadedIndices, contains(0));
+
+      // Cookies should be restored from secure storage
+      var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      expect(cookies.any((c) => c.value == 'persisted_token'), isTrue);
+    });
+
+    test('after restart, two conflicting sites still isolate correctly', () async {
+      harness.addSite('https://github.com/user1', name: 'GitHub User1');
+      harness.addSite('https://github.com/user2', name: 'GitHub User2');
+
+      // Simulate cookies saved before restart
+      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, [
+        Cookie(name: 'session', value: 'user1_token', domain: 'github.com'),
+      ]);
+      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, [
+        Cookie(name: 'session', value: 'user2_token', domain: 'github.com'),
+      ]);
+
+      harness.simulateAppRestart();
+
+      // Open user1 from home screen
+      await harness.switchToSite(0);
+      var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      expect(cookies.any((c) => c.value == 'user1_token'), isTrue);
+      expect(cookies.any((c) => c.value == 'user2_token'), isFalse);
+
+      // Go home, then open user2 - conflict triggers
+      harness.goHome();
+      await harness.switchToSite(1);
+
+      cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      expect(cookies.any((c) => c.value == 'user2_token'), isTrue);
+      expect(cookies.any((c) => c.value == 'user1_token'), isFalse);
+
+      // user1 unloaded
+      expect(harness.loadedIndices, isNot(contains(0)));
+      expect(harness.loadedIndices, contains(1));
+    });
+
+    test('after restart, non-conflicting sites can both be loaded without isolation', () async {
+      harness.addSite('https://github.com', name: 'GitHub');
+      harness.addSite('https://gitlab.com', name: 'GitLab');
+
+      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, [
+        Cookie(name: 'gh', value: 'gh_token', domain: 'github.com'),
+      ]);
+      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, [
+        Cookie(name: 'gl', value: 'gl_token', domain: 'gitlab.com'),
+      ]);
+
+      harness.simulateAppRestart();
+
+      await harness.switchToSite(0);
+      await harness.switchToSite(1);
+
+      // Both loaded, no conflict
+      expect(harness.loadedIndices, containsAll([0, 1]));
+
+      var ghCookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
+      var glCookies = await harness.cookieManager.getCookies(url: Uri.parse('https://gitlab.com'));
+      expect(ghCookies.any((c) => c.value == 'gh_token'), isTrue);
+      expect(glCookies.any((c) => c.value == 'gl_token'), isTrue);
     });
   });
 }
