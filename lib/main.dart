@@ -298,7 +298,7 @@ class _AccentLogoState extends State<AccentLogo> {
     final processed = await completer.future;
     _cache[key] = processed;
 
-    if (mounted) {
+    if (mounted && _cacheKey == key) {
       setState(() => _image = processed);
     }
   }
