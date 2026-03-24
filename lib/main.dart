@@ -623,11 +623,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   Future<void> _handleShortcutIntent() async {
     final siteId = await ShortcutService.getLaunchSiteId();
-    if (siteId == null) return;
-    final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
-    if (index >= 0 && index != _currentIndex) {
-      await _setCurrentIndex(index);
-      setState(() {});
+    if (siteId != null) {
+      final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
+      if (index >= 0 && index != _currentIndex) {
+        await _setCurrentIndex(index);
+        setState(() {});
+      }
+    } else {
+      // No shortcut intent - return to home screen without disturbing loaded webviews
+      if (_currentIndex != null) {
+        setState(() {
+          _currentIndex = null;
+        });
+      }
     }
   }
 
@@ -979,18 +987,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _loadWebspaces();
     await _loadWebViewModels();
 
-    // Validate and determine the index to restore
+    // Always start at home screen on launch - only restore index if launched via shortcut
     int? indexToRestore;
-    int? savedIndex = prefs.getInt('currentIndex');
-    if (savedIndex != null && savedIndex < _webViewModels.length && savedIndex != 10000) {
-      // Check if the index is valid for the selected webspace
-      if (_selectedWebspaceId != null) {
-        final filteredIndices = _getFilteredSiteIndices();
-        if (filteredIndices.contains(savedIndex)) {
-          indexToRestore = savedIndex;
-        }
-      }
-    }
 
     // Check if launched via home screen shortcut
     final shortcutSiteId = await ShortcutService.getLaunchSiteId();
