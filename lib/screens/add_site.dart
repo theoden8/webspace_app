@@ -330,7 +330,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     }
 
     final uri = Uri.tryParse(url);
-    if (uri == null || uri.host.isEmpty) {
+    if (uri == null || uri.host.isEmpty ||
+        !(uri.host.contains('.') || uri.host == 'localhost')) {
       if (_previewUrl != null) {
         setState(() => _previewUrl = null);
       }
