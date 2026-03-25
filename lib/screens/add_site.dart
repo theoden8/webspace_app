@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -315,7 +316,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     });
   }
 
-  void _updatePreview() {
+  /// Check if a host is an IP address or localhost (no DNS needed)
+  bool _isDirectHost(String host) {
+    return host == 'localhost' ||
+        host.contains(':') || // IPv6
+        RegExp(r'^(\d{1,3}\.){3}\d{1,3}$').hasMatch(host); // IPv4
+  }
+
+  Future<void> _updatePreview() async {
     final text = _urlController.text.trim();
     if (text.isEmpty) {
       if (_previewUrl != null) {
@@ -338,6 +346,20 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       return;
     }
 
+    // Skip DNS check for IP addresses and localhost
+    if (!_isDirectHost(uri.host)) {
+      try {
+        await InternetAddress.lookup(uri.host);
+      } catch (_) {
+        // DNS lookup failed — domain doesn't exist
+        if (mounted && _previewUrl != null) {
+          setState(() => _previewUrl = null);
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
     final newPreview = '${uri.scheme}://${uri.host}';
     if (_previewUrl != newPreview) {
       setState(() => _previewUrl = newPreview);
