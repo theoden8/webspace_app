@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -289,6 +292,79 @@ class AddSiteScreen extends StatefulWidget {
 class _AddSiteScreenState extends State<AddSiteScreen> {
   final TextEditingController _urlController = TextEditingController();
   bool _incognito = false;
+  Timer? _debounceTimer;
+  String? _previewUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _urlController.addListener(_onUrlChanged);
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _urlController.removeListener(_onUrlChanged);
+    _urlController.dispose();
+    super.dispose();
+  }
+
+  void _onUrlChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 600), () {
+      _updatePreview();
+    });
+  }
+
+  /// Check if a host is an IP address or localhost (no DNS needed)
+  bool _isDirectHost(String host) {
+    return host == 'localhost' ||
+        host.contains(':') || // IPv6
+        RegExp(r'^(\d{1,3}\.){3}\d{1,3}$').hasMatch(host); // IPv4
+  }
+
+  Future<void> _updatePreview() async {
+    final text = _urlController.text.trim();
+    if (text.isEmpty) {
+      if (_previewUrl != null) {
+        setState(() => _previewUrl = null);
+      }
+      return;
+    }
+
+    String url = text;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.host.isEmpty ||
+        !(uri.host.contains('.') || uri.host.contains(':') || uri.host == 'localhost')) {
+      if (_previewUrl != null) {
+        setState(() => _previewUrl = null);
+      }
+      return;
+    }
+
+    // Skip DNS check for IP addresses and localhost
+    if (!_isDirectHost(uri.host)) {
+      try {
+        await InternetAddress.lookup(uri.host);
+      } catch (_) {
+        // DNS lookup failed — domain doesn't exist
+        if (mounted && _previewUrl != null) {
+          setState(() => _previewUrl = null);
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
+    final newPreview = '${uri.scheme}://${uri.host}';
+    if (_previewUrl != newPreview) {
+      setState(() => _previewUrl = newPreview);
+    }
+  }
 
   static const List<SiteSuggestion> _suggestions = [
     SiteSuggestion(name: 'DuckDuckGo', url: 'https://duckduckgo.com', domain: 'duckduckgo.com'),
@@ -451,6 +527,19 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         keyboardType: TextInputType.url,
                         decoration: InputDecoration(
                           labelText: 'Enter website URL',
+                          prefixIcon: _previewUrl != null
+                              ? Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: UnifiedFaviconImage(
+                                      url: _previewUrl!,
+                                      size: 24,
+                                    ),
+                                  ),
+                                )
+                              : null,
                           suffixIcon: IconButton(
                             icon: Icon(
                               _incognito ? MdiIcons.incognito : MdiIcons.incognitoOff,
