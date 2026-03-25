@@ -294,9 +294,11 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   Timer? _debounceTimer;
   String? _previewUrl;
 
-  // Common TLDs for quick validation without network lookup
   static final RegExp _validDomainPattern = RegExp(
     r'^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$',
+  );
+  static final RegExp _ipv4Pattern = RegExp(
+    r'^(\d{1,3}\.){3}\d{1,3}$',
   );
 
   @override
@@ -342,8 +344,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       return;
     }
 
-    // Check the host looks like a valid domain (has a TLD with 2+ letters)
-    if (_validDomainPattern.hasMatch(uri.host)) {
+    // Accept valid domains, IP addresses, and localhost
+    final host = uri.host;
+    final isValid = _validDomainPattern.hasMatch(host) ||
+        _ipv4Pattern.hasMatch(host) ||
+        host.contains(':') || // IPv6
+        host == 'localhost';
+
+    if (isValid) {
       final newPreview = '${uri.scheme}://${uri.host}';
       if (_previewUrl != newPreview) {
         setState(() => _previewUrl = newPreview);
