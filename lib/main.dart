@@ -1436,41 +1436,51 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   AppBar _buildAppBar() {
-    return AppBar(
-      title: _currentIndex != null && _currentIndex! < _webViewModels.length
-          ? GestureDetector(
-              onTap: () {
-                _editSite(_currentIndex!);
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      _webViewModels[_currentIndex!].getDisplayName(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: false,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Icon(Icons.edit, size: 18),
-                ],
+    final bool isViewingSite = _currentIndex != null && _currentIndex! < _webViewModels.length;
+
+    if (isViewingSite) {
+      // Minimal app bar when viewing a site - just hamburger + site name
+      return AppBar(
+        titleSpacing: 0,
+        title: GestureDetector(
+          onTap: () {
+            _editSite(_currentIndex!);
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  _webViewModels[_currentIndex!].getDisplayName(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  style: TextStyle(fontSize: 16),
+                ),
               ),
-            )
-          : Text(_selectedWebspaceId != null
-              ? _webspaces.firstWhere(
-                  (ws) => ws.id == _selectedWebspaceId,
-                  orElse: () => Webspace(name: 'Unknown'),
-                ).name
-              : 'No Webspace Selected'),
+              SizedBox(width: 4),
+              Icon(Icons.edit, size: 14),
+            ],
+          ),
+        ),
+        toolbarHeight: 40,
+      );
+    }
+
+    // Full app bar for webspaces list screen
+    return AppBar(
+      title: Text(_selectedWebspaceId != null
+          ? _webspaces.firstWhere(
+              (ws) => ws.id == _selectedWebspaceId,
+              orElse: () => Webspace(name: 'Unknown'),
+            ).name
+          : 'No Webspace Selected'),
       actions: [
         IconButton(
           icon: Icon(_getThemeIcon()),
           tooltip: _getThemeTooltip(),
           onPressed: () async {
             setState(() {
-              // Toggle between light/dark/system while preserving accent color
               final newMode = _themeSettings.themeMode == ThemeMode.light
                   ? ThemeMode.dark
                   : _themeSettings.themeMode == ThemeMode.dark
@@ -1482,267 +1492,405 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             await _saveThemeSettings();
             if (!mounted) return;
 
-            // Apply theme to all webviews
             final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
             for (var webViewModel in List.from(_webViewModels)) {
               await webViewModel.setTheme(webViewTheme);
             }
           },
         ),
-        // Settings icon button (only visible on webspaces list screen)
-        if (_currentIndex == null || _currentIndex! >= _webViewModels.length)
-          IconButton(
-            icon: Icon(Icons.settings),
-            tooltip: 'App Settings',
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AppSettingsScreen(
-                    currentSettings: _themeSettings,
-                    onSettingsChanged: (AppThemeSettings newSettings) async {
-                      setState(() {
-                        _themeSettings = newSettings;
-                      });
-                      widget.onThemeSettingsChanged(_themeSettings);
-                      await _saveThemeSettings();
+        IconButton(
+          icon: Icon(Icons.settings),
+          tooltip: 'App Settings',
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AppSettingsScreen(
+                  currentSettings: _themeSettings,
+                  onSettingsChanged: (AppThemeSettings newSettings) async {
+                    setState(() {
+                      _themeSettings = newSettings;
+                    });
+                    widget.onThemeSettingsChanged(_themeSettings);
+                    await _saveThemeSettings();
+                    if (!mounted) return;
+
+                    final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
+                    for (var webViewModel in List.from(_webViewModels)) {
+                      await webViewModel.setTheme(webViewTheme);
+                    }
+                  },
+                  onExportSettings: _exportSettings,
+                  onImportSettings: _importSettings,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Build the bottom bar shown when viewing a site.
+  /// Contains: site tab strip, URL bar (optional), find toolbar (optional), and navigation buttons.
+  Widget? _buildBottomBar() {
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
+      return null;
+    }
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final filteredIndices = _getFilteredSiteIndices();
+    final model = _webViewModels[_currentIndex!];
+
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Find toolbar (when visible)
+          if (_isFindVisible && getController() != null)
+            FindToolbar(
+              webViewController: getController(),
+              matches: model.findMatches,
+              onClose: () {
+                _toggleFind();
+              },
+            ),
+          // Site tab strip for quick switching
+          if (filteredIndices.length > 1)
+            Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
+                border: Border(
+                  top: BorderSide(
+                    color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: filteredIndices.length,
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                itemBuilder: (context, listIndex) {
+                  final siteIndex = filteredIndices[listIndex];
+                  final siteModel = _webViewModels[siteIndex];
+                  final isActive = siteIndex == _currentIndex;
+
+                  return GestureDetector(
+                    onTap: () async {
+                      await _setCurrentIndex(siteIndex);
                       if (!mounted) return;
-
-                      // Apply theme to all webviews
-                      final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-                      for (var webViewModel in List.from(_webViewModels)) {
-                        await webViewModel.setTheme(webViewTheme);
-                      }
+                      setState(() {});
+                      _saveCurrentIndex();
                     },
-                    onExportSettings: _exportSettings,
-                    onImportSettings: _importSettings,
-                  ),
-                ),
-              );
-            },
-          ),
-        if (_currentIndex != null && _currentIndex! < _webViewModels.length)
-          PopupMenuButton<String>(
-            itemBuilder: (BuildContext context) {
-              return [
-                PopupMenuItem<String>(
-                  padding: EdgeInsets.zero,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.arrow_back),
-                        tooltip: 'Go Back',
-                        onPressed: () {
-                          Navigator.pop(context);
-                          () async {
-                            final controller = getController();
-                            if (controller != null) {
-                              final canGoBack = await controller.canGoBack();
-                              if (canGoBack) {
-                                await controller.goBack();
-                              }
-                            }
-                          }();
-                        },
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: 140),
+                      margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? theme.colorScheme.primaryContainer
+                            : (isDark ? Color(0xFF2A2A2A) : Colors.white),
+                        borderRadius: BorderRadius.circular(8),
+                        border: isActive
+                            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
+                            : Border.all(
+                                color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
+                                width: 0.5,
+                              ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.home),
-                        tooltip: 'Go to Home',
-                        onPressed: () {
-                          Navigator.pop(context);
-                          () async {
-                            final controller = getController();
-                            if (controller != null) {
-                              final model = _webViewModels[_currentIndex!];
-                              await controller.loadUrl(model.initUrl, language: model.language);
-                            }
-                          }();
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.share),
-                        tooltip: 'Share',
-                        onPressed: () {
-                          Navigator.pop(context);
-                          if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
-                            final model = _webViewModels[_currentIndex!];
-                            final url = model.currentUrl ?? model.initUrl;
-                            SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
-                          }
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.refresh),
-                        tooltip: 'Refresh',
-                        onPressed: () {
-                          Navigator.pop(context);
-                          () async {
-                            getController()?.reload();
-                            await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
-                            setState(() {});
-                          }();
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuDivider(),
-                PopupMenuItem<String>(
-                  value: "search",
-                  child: Row(
-                    children: [
-                      Icon(Icons.search),
-                      SizedBox(width: 8),
-                      Text("Find"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: "toggleUrlBar",
-                  child: Row(
-                    children: [
-                      Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
-                      SizedBox(width: 8),
-                      Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: "settings",
-                  child: Row(
-                    children: [
-                      Icon(Icons.settings),
-                      SizedBox(width: 8),
-                      Text("Settings"),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: "devTools",
-                  child: Row(
-                    children: [
-                      Icon(Icons.code),
-                      SizedBox(width: 8),
-                      Text("Developer Tools"),
-                    ],
-                  ),
-                ),
-                if (Platform.isAndroid)
-                  PopupMenuItem<String>(
-                    value: "addToHome",
-                    child: Row(
-                      children: [
-                        Icon(Icons.add_to_home_screen),
-                        SizedBox(width: 8),
-                        Text("Home Shortcut"),
-                      ],
-                    ),
-                  ),
-              ];
-            },
-            onSelected: (String value) async {
-              switch(value) {
-                case 'search':
-                  _toggleFind();
-                break;
-                case 'settings':
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SettingsScreen(
-                        webViewModel: _webViewModels[_currentIndex!],
-                        onClearCookies: () {
-                          _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
-                          _saveWebViewModels();
-                          getController()?.reload();
-                        },
-                        onProxySettingsChanged: (newProxySettings) {
-                          // Sync proxy settings to all WebViewModels (proxy is global)
-                          setState(() {
-                            for (var model in _webViewModels) {
-                              model.proxySettings = UserProxySettings(
-                                type: newProxySettings.type,
-                                address: newProxySettings.address,
-                              );
-                            }
-                          });
-                          // Persist the changes immediately
-                          _saveWebViewModels();
-                        },
-                        onSettingsSaved: () async {
-                          // Save settings to persistence
-                          await _saveWebViewModels();
-                          if (!mounted) return;
-
-                          // Store current index and URL for reload
-                          final index = _currentIndex;
-                          final model = index != null && index < _webViewModels.length
-                              ? _webViewModels[index]
-                              : null;
-                          final urlToLoad = model?.currentUrl;
-                          final languageToUse = model?.language;
-
-                          // Trigger rebuild to recreate webview with new settings
-                          setState(() {});
-
-                          // After rebuild, wait for controller and reload with language header
-                          if (index != null && model != null && urlToLoad != null) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) async {
-                              // Wait for webview to be created and controller to be set
-                              for (int i = 0; i < 20; i++) {
-                                await Future.delayed(const Duration(milliseconds: 100));
-                                if (!mounted) return;
-                                if (model.controller != null) {
-                                  LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
-                                  await model.controller!.loadUrl(urlToLoad, language: languageToUse);
-                                  break;
-                                }
-                              }
-                            });
-                          }
-                        },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          UnifiedFaviconImage(
+                            url: siteModel.initUrl,
+                            size: 16,
+                          ),
+                          SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              siteModel.getDisplayName(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                                color: isActive
+                                    ? theme.colorScheme.onPrimaryContainer
+                                    : theme.colorScheme.onSurface.withOpacity(0.8),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
-                  await _saveWebViewModels();
-                break;
-                case 'toggleUrlBar':
+                },
+              ),
+            ),
+          // URL bar (when visible)
+          if (_showUrlBar)
+            UrlBar(
+              currentUrl: model.currentUrl,
+              onUrlSubmitted: (url) async {
+                final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels);
+                if (controller != null) {
+                  await controller.loadUrl(url, language: model.language);
+                  if (!mounted) return;
                   setState(() {
-                    _showUrlBar = !_showUrlBar;
+                    model.currentUrl = url;
                   });
-                  await _saveShowUrlBar();
-                break;
-                case 'addToHome':
-                  if (_currentIndex != null) {
-                    final model = _webViewModels[_currentIndex!];
-                    // Get favicon URL (non-SVG only, Android can't use SVG for shortcuts)
-                    final faviconUrl = FaviconUrlCache.get(model.initUrl);
-                    final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
-                    await ShortcutService.pinShortcut(
-                      siteId: model.siteId,
-                      label: model.name,
-                      iconUrl: isSvg ? null : faviconUrl,
-                    );
-                  }
-                break;
-                case 'devTools':
-                  if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DevToolsScreen(
-                          webViewModel: _webViewModels[_currentIndex!],
-                          cookieManager: _cookieManager,
+                  await _saveWebViewModels();
+                }
+              },
+            ),
+          // Navigation buttons row
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  tooltip: 'Go Back',
+                  iconSize: 22,
+                  onPressed: () async {
+                    final controller = getController();
+                    if (controller != null) {
+                      final canGoBack = await controller.canGoBack();
+                      if (canGoBack) {
+                        await controller.goBack();
+                      }
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.home),
+                  tooltip: 'Go to Home',
+                  iconSize: 22,
+                  onPressed: () async {
+                    final controller = getController();
+                    if (controller != null) {
+                      final m = _webViewModels[_currentIndex!];
+                      await controller.loadUrl(m.initUrl, language: m.language);
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.share),
+                  tooltip: 'Share',
+                  iconSize: 22,
+                  onPressed: () {
+                    final m = _webViewModels[_currentIndex!];
+                    final url = m.currentUrl ?? m.initUrl;
+                    SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.refresh),
+                  tooltip: 'Refresh',
+                  iconSize: 22,
+                  onPressed: () async {
+                    getController()?.reload();
+                    await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
+                    setState(() {});
+                  },
+                ),
+                // Overflow menu for less-used actions
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, size: 22),
+                  itemBuilder: (BuildContext context) {
+                    return [
+                      PopupMenuItem<String>(
+                        value: "search",
+                        child: Row(
+                          children: [
+                            Icon(Icons.search),
+                            SizedBox(width: 8),
+                            Text("Find"),
+                          ],
                         ),
                       ),
-                    );
-                  }
-                break;
-              }
-            },
+                      PopupMenuItem<String>(
+                        value: "toggleUrlBar",
+                        child: Row(
+                          children: [
+                            Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
+                            SizedBox(width: 8),
+                            Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: "settings",
+                        child: Row(
+                          children: [
+                            Icon(Icons.settings),
+                            SizedBox(width: 8),
+                            Text("Settings"),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: "devTools",
+                        child: Row(
+                          children: [
+                            Icon(Icons.code),
+                            SizedBox(width: 8),
+                            Text("Developer Tools"),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: "theme",
+                        child: Row(
+                          children: [
+                            Icon(_getThemeIcon()),
+                            SizedBox(width: 8),
+                            Text("Theme: ${_getThemeName()}"),
+                          ],
+                        ),
+                      ),
+                      if (Platform.isAndroid)
+                        PopupMenuItem<String>(
+                          value: "addToHome",
+                          child: Row(
+                            children: [
+                              Icon(Icons.add_to_home_screen),
+                              SizedBox(width: 8),
+                              Text("Home Shortcut"),
+                            ],
+                          ),
+                        ),
+                    ];
+                  },
+                  onSelected: (String value) async {
+                    switch(value) {
+                      case 'search':
+                        _toggleFind();
+                      break;
+                      case 'settings':
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SettingsScreen(
+                              webViewModel: _webViewModels[_currentIndex!],
+                              onClearCookies: () {
+                                _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                                _saveWebViewModels();
+                                getController()?.reload();
+                              },
+                              onProxySettingsChanged: (newProxySettings) {
+                                setState(() {
+                                  for (var mdl in _webViewModels) {
+                                    mdl.proxySettings = UserProxySettings(
+                                      type: newProxySettings.type,
+                                      address: newProxySettings.address,
+                                    );
+                                  }
+                                });
+                                _saveWebViewModels();
+                              },
+                              onSettingsSaved: () async {
+                                await _saveWebViewModels();
+                                if (!mounted) return;
+
+                                final index = _currentIndex;
+                                final mdl = index != null && index < _webViewModels.length
+                                    ? _webViewModels[index]
+                                    : null;
+                                final urlToLoad = mdl?.currentUrl;
+                                final languageToUse = mdl?.language;
+
+                                setState(() {});
+
+                                if (index != null && mdl != null && urlToLoad != null) {
+                                  WidgetsBinding.instance.addPostFrameCallback((_) async {
+                                    for (int i = 0; i < 20; i++) {
+                                      await Future.delayed(const Duration(milliseconds: 100));
+                                      if (!mounted) return;
+                                      if (mdl.controller != null) {
+                                        LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
+                                        await mdl.controller!.loadUrl(urlToLoad, language: languageToUse);
+                                        break;
+                                      }
+                                    }
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        );
+                        await _saveWebViewModels();
+                      break;
+                      case 'toggleUrlBar':
+                        setState(() {
+                          _showUrlBar = !_showUrlBar;
+                        });
+                        await _saveShowUrlBar();
+                      break;
+                      case 'theme':
+                        setState(() {
+                          final newMode = _themeSettings.themeMode == ThemeMode.light
+                              ? ThemeMode.dark
+                              : _themeSettings.themeMode == ThemeMode.dark
+                                  ? ThemeMode.system
+                                  : ThemeMode.light;
+                          _themeSettings = _themeSettings.copyWith(themeMode: newMode);
+                        });
+                        widget.onThemeSettingsChanged(_themeSettings);
+                        await _saveThemeSettings();
+                        if (!mounted) return;
+
+                        final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
+                        for (var webViewModel in List.from(_webViewModels)) {
+                          await webViewModel.setTheme(webViewTheme);
+                        }
+                      break;
+                      case 'addToHome':
+                        if (_currentIndex != null) {
+                          final m = _webViewModels[_currentIndex!];
+                          final faviconUrl = FaviconUrlCache.get(m.initUrl);
+                          final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
+                          await ShortcutService.pinShortcut(
+                            siteId: m.siteId,
+                            label: m.name,
+                            iconUrl: isSvg ? null : faviconUrl,
+                          );
+                        }
+                      break;
+                      case 'devTools':
+                        if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => DevToolsScreen(
+                                webViewModel: _webViewModels[_currentIndex!],
+                                cookieManager: _cookieManager,
+                              ),
+                            ),
+                          );
+                        }
+                      break;
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -2222,62 +2370,33 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             )
           : IndexedStack(
               index: _currentIndex!,
-              // Lazy loading: only create webviews for indices that have been visited
-              // This prevents all webviews from loading simultaneously when any site is selected
               children: _webViewModels.asMap().entries.map<Widget>((entry) {
                 final index = entry.key;
                 final webViewModel = entry.value;
 
-                // Only create actual webview if this index has been loaded
                 if (!_loadedIndices.contains(index)) {
-                  return const SizedBox.shrink(); // Placeholder for unvisited sites
+                  return const SizedBox.shrink();
                 }
 
-                return Column(
-                  key: ValueKey(webViewModel.siteId), // Ensure correct widget identity
-                  children: [
-                    if(_isFindVisible && _currentIndex == index && getController() != null)
-                      FindToolbar(
-                        webViewController: getController(),
-                        matches: webViewModel.findMatches,
-                        onClose: () {
-                          _toggleFind();
-                        },
-                      ),
-                    if(_showUrlBar && _currentIndex == index)
-                      UrlBar(
-                        currentUrl: webViewModel.currentUrl,
-                        onUrlSubmitted: (url) async {
-                          final controller = webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels);
-                          if (controller != null) {
-                            await controller.loadUrl(url, language: webViewModel.language);
-                            if (!mounted) return;
-                            setState(() {
-                              webViewModel.currentUrl = url;
-                            });
-                            await _saveWebViewModels();
-                          }
-                        },
-                      ),
-                    Expanded(
-                      child: webViewModel.getWebView(
-                        launchUrl,
-                        _cookieManager,
-                        _saveWebViewModels,
-                        onWindowRequested: _showPopupWindow,
-                        language: webViewModel.language,
-                        onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
-                          HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
-                        },
-                        initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
-                        isActive: () => _currentIndex == index,
-                      )
-                    ),
-                  ],
+                return SizedBox.expand(
+                  key: ValueKey(webViewModel.siteId),
+                  child: webViewModel.getWebView(
+                    launchUrl,
+                    _cookieManager,
+                    _saveWebViewModels,
+                    onWindowRequested: _showPopupWindow,
+                    language: webViewModel.language,
+                    onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
+                      HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
+                    },
+                    initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
+                    isActive: () => _currentIndex == index,
+                  ),
                 );
               }).toList(),
             ),
       ),
+      bottomNavigationBar: _buildBottomBar(),
       floatingActionButton:
           !(_currentIndex == null || _currentIndex! >= _webViewModels.length) ? null
           : FloatingActionButton(
