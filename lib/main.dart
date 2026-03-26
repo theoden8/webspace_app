@@ -596,6 +596,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Webspace-related state
   final List<Webspace> _webspaces = [];
   String? _selectedWebspaceId;
+  int _selectWebspaceVersion = 0;
+  int _setCurrentIndexVersion = 0;
+  Completer<void>? _webspaceSwitchCompleter;
 
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
@@ -623,10 +626,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   Future<void> _handleShortcutIntent() async {
     final siteId = await ShortcutService.getLaunchSiteId();
+    if (!mounted) return;
     if (siteId != null) {
       final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
       if (index >= 0 && index != _currentIndex) {
         await _setCurrentIndex(index);
+        if (!mounted) return;
         setState(() {});
       }
     } else {
@@ -658,7 +663,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       json['cookies'] = []; // Don't store cookies in SharedPreferences
       return jsonEncode(json);
     }).toList();
-    prefs.setStringList('webViewModels', webViewModelsJson);
+    await prefs.setStringList('webViewModels', webViewModelsJson);
   }
 
   Future<void> _saveCurrentIndex() async {
@@ -683,7 +688,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> webspacesJson = _webspaces.map((webspace) => jsonEncode(webspace.toJson())).toList();
-    prefs.setStringList('webspaces', webspacesJson);
+    await prefs.setStringList('webspaces', webspacesJson);
   }
 
   Future<void> _saveSelectedWebspaceId() async {
@@ -700,6 +705,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// This ensures only visited webviews are created, not all webviews at once.
   /// Also handles domain conflict detection for per-site cookie isolation.
   Future<void> _setCurrentIndex(int? index) async {
+    final version = ++_setCurrentIndexVersion;
+
     if (index == null || index < 0 || index >= _webViewModels.length) {
       _currentIndex = index;
       return;
@@ -730,6 +737,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           // Domain conflict - unload the conflicting site
           LogService.instance.log('CookieIsolation', 'CONFLICT! Unloading site $loadedIndex', level: LogLevel.warning);
           await _unloadSiteForDomainSwitch(loadedIndex);
+          if (version != _setCurrentIndexVersion) return;
           break; // Only one conflict possible at a time
         }
       }
@@ -737,6 +745,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     // Restore cookies for target site before loading
     await _restoreCookiesForSite(index);
+    if (version != _setCurrentIndexVersion) return;
+
+    // Validate index is still in bounds after async gaps
+    if (index >= _webViewModels.length) return;
 
     _currentIndex = index;
     _loadedIndices.add(index);
@@ -1001,11 +1013,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     // Set current index (async for cookie restoration)
     await _setCurrentIndex(indexToRestore);
+    if (!mounted) return;
     setState(() {}); // Trigger UI update after async operation
 
     // Apply saved theme to all restored webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-    for (var webViewModel in _webViewModels) {
+    for (var webViewModel in List.from(_webViewModels)) {
       await webViewModel.setTheme(webViewTheme);
     }
   }
@@ -1126,65 +1139,87 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       ),
     );
 
-    if (confirmed == true) {
-      final wasSelected = _selectedWebspaceId == webspace.id;
-      setState(() {
-        _webspaces.removeWhere((ws) => ws.id == webspace.id);
-        if (wasSelected) {
-          _selectedWebspaceId = kAllWebspaceId; // Select "All" instead of null
-        }
-      });
+    if (confirmed != true || !mounted) return;
+
+    final wasSelected = _selectedWebspaceId == webspace.id;
+    setState(() {
+      _webspaces.removeWhere((ws) => ws.id == webspace.id);
       if (wasSelected) {
-        await _setCurrentIndex(null);
+        _selectedWebspaceId = kAllWebspaceId; // Select "All" instead of null
       }
-      await _saveWebspaces();
-      await _saveSelectedWebspaceId();
-      await _saveCurrentIndex();
+    });
+    if (wasSelected) {
+      await _setCurrentIndex(null);
+      if (!mounted) return;
     }
+    await _saveWebspaces();
+    await _saveSelectedWebspaceId();
+    await _saveCurrentIndex();
   }
 
   void _selectWebspace(Webspace webspace) async {
-    // Get indices from the previous webspace before switching
-    final previousIndices = _getFilteredSiteIndices().toSet();
-
-    setState(() {
-      _selectedWebspaceId = webspace.id;
-    });
-
-    // Open drawer immediately so the user sees instant feedback on tap
-    _scaffoldKey.currentState?.openDrawer();
-
-    // Get indices in the new webspace
-    final newIndices = _getFilteredSiteIndices().toSet();
-
-    // Only unload sites when online - preserve live webviews when offline
-    // so users can still view cached content
-    final online = await ConnectivityService.instance.isOnline();
-    if (!mounted) return;
-
-    if (online) {
-      // Find loaded sites that were in previous webspace but not in new one
-      final indicesToUnload = _loadedIndices
-          .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
-          .toList();
-
-      // Unload sites not in new webspace
-      for (final index in indicesToUnload) {
-        if (index >= 0 && index < _webViewModels.length) {
-          _webViewModels[index].disposeWebView();
-          _loadedIndices.remove(index);
-          LogService.instance.log('WebspaceSwitch', 'Unloaded site $index: "${_webViewModels[index].name}"');
-        }
-      }
-    } else {
-      LogService.instance.log('WebspaceSwitch', 'Offline - preserving loaded webviews');
+    // If the same webspace is already selected, just open the drawer
+    if (_selectedWebspaceId == webspace.id) {
+      _scaffoldKey.currentState?.openDrawer();
+      return;
     }
 
-    await _setCurrentIndex(null);
-    if (!mounted) return;
-    setState(() {}); // Update UI
-    _saveSelectedWebspaceId();
-    _saveCurrentIndex();
+    // Version counter guards against rapid taps: if another call arrives
+    // while we are awaiting, the stale call will detect the version mismatch
+    // and bail out instead of corrupting state.
+    final version = ++_selectWebspaceVersion;
+
+    // Signal that a webspace switch is in progress. Site selection (onTap)
+    // awaits this so the unload finishes before any new site is loaded.
+    final completer = Completer<void>();
+    _webspaceSwitchCompleter = completer;
+
+    try {
+      // Get indices from the previous webspace before switching
+      final previousIndices = _getFilteredSiteIndices().toSet();
+
+      setState(() {
+        _selectedWebspaceId = webspace.id;
+      });
+
+      // Open drawer immediately so the user sees instant feedback on tap
+      _scaffoldKey.currentState?.openDrawer();
+
+      // Get indices in the new webspace
+      final newIndices = _getFilteredSiteIndices().toSet();
+
+      // Only unload sites when online - preserve live webviews when offline
+      // so users can still view cached content
+      final online = await ConnectivityService.instance.isOnline();
+      if (!mounted || version != _selectWebspaceVersion) return;
+
+      if (online) {
+        // Find loaded sites that were in previous webspace but not in new one
+        final indicesToUnload = _loadedIndices
+            .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
+            .toList();
+
+        // Unload sites not in new webspace
+        for (final index in indicesToUnload) {
+          if (index >= 0 && index < _webViewModels.length) {
+            _webViewModels[index].disposeWebView();
+            _loadedIndices.remove(index);
+            LogService.instance.log('WebspaceSwitch', 'Unloaded site $index: "${_webViewModels[index].name}"');
+          }
+        }
+      } else {
+        LogService.instance.log('WebspaceSwitch', 'Offline - preserving loaded webviews');
+      }
+
+      setState(() {}); // Update UI
+      await _saveSelectedWebspaceId();
+      await _saveCurrentIndex();
+    } finally {
+      completer.complete();
+      if (_webspaceSwitchCompleter == completer) {
+        _webspaceSwitchCompleter = null;
+      }
+    }
   }
 
   void _reorderWebspaces(int oldIndex, int newIndex) {
@@ -1452,10 +1487,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             });
             widget.onThemeSettingsChanged(_themeSettings);
             await _saveThemeSettings();
+            if (!mounted) return;
 
             // Apply theme to all webviews
             final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-            for (var webViewModel in _webViewModels) {
+            for (var webViewModel in List.from(_webViewModels)) {
               await webViewModel.setTheme(webViewTheme);
             }
           },
@@ -1477,10 +1513,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       });
                       widget.onThemeSettingsChanged(_themeSettings);
                       await _saveThemeSettings();
+                      if (!mounted) return;
 
                       // Apply theme to all webviews
                       final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-                      for (var webViewModel in _webViewModels) {
+                      for (var webViewModel in List.from(_webViewModels)) {
                         await webViewModel.setTheme(webViewTheme);
                       }
                     },
@@ -1643,6 +1680,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         onSettingsSaved: () async {
                           // Save settings to persistence
                           await _saveWebViewModels();
+                          if (!mounted) return;
 
                           // Store current index and URL for reload
                           final index = _currentIndex;
@@ -1661,6 +1699,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               // Wait for webview to be created and controller to be set
                               for (int i = 0; i < 20; i++) {
                                 await Future.delayed(const Duration(milliseconds: 100));
+                                if (!mounted) return;
                                 if (model.controller != null) {
                                   LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
                                   await model.controller!.loadUrl(urlToLoad, language: languageToUse);
@@ -1673,13 +1712,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       ),
                     ),
                   );
-                  _saveWebViewModels();
+                  await _saveWebViewModels();
                 break;
                 case 'toggleUrlBar':
                   setState(() {
                     _showUrlBar = !_showUrlBar;
                   });
-                  _saveShowUrlBar();
+                  await _saveShowUrlBar();
                 break;
                 case 'addToHome':
                   if (_currentIndex != null) {
@@ -1736,56 +1775,59 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         ),
       ),
     );
-    if (result != null && result is Map<String, dynamic>) {
-      final url = result['url'] as String;
-      final customName = result['name'] as String;
-      final incognito = result['incognito'] as bool? ?? false;
+    if (result == null || result is! Map<String, dynamic>) return;
+    if (!mounted) return;
 
-      // Try to fetch page title if custom name not provided
-      String? pageTitle;
-      if (customName.isEmpty) {
-        pageTitle = await getPageTitle(url);
-      }
+    final url = result['url'] as String;
+    final customName = result['name'] as String;
+    final incognito = result['incognito'] as bool? ?? false;
 
-      final model = WebViewModel(
-        initUrl: url,
-        incognito: incognito,
-        stateSetterF: () {setState((){});},
-      );
-      if (customName.isNotEmpty) {
-        model.name = customName;
-        model.pageTitle = customName;
-      } else if (pageTitle != null && pageTitle.isNotEmpty) {
-        model.name = pageTitle;
-        model.pageTitle = pageTitle;
-      }
-
-      setState(() {
-        _webViewModels.add(model);
-      });
-
-      final newSiteIndex = _webViewModels.length - 1;
-
-      // If a non-"All" webspace is currently selected, add the new site to it
-      if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
-        final webspaceIndex = _webspaces.indexWhere((ws) => ws.id == _selectedWebspaceId);
-        if (webspaceIndex != -1) {
-          _webspaces[webspaceIndex].siteIndices.add(newSiteIndex);
-          _saveWebspaces();
-        }
-      }
-
-      // Set current index (async for cookie handling)
-      await _setCurrentIndex(newSiteIndex);
-      setState(() {}); // Update UI after async operation
-
-      _saveCurrentIndex();
-      _saveWebViewModels();
-
-      // Apply current theme to new webview
-      final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-      await model.setTheme(webViewTheme);
+    // Try to fetch page title if custom name not provided
+    String? pageTitle;
+    if (customName.isEmpty) {
+      pageTitle = await getPageTitle(url);
+      if (!mounted) return;
     }
+
+    final model = WebViewModel(
+      initUrl: url,
+      incognito: incognito,
+      stateSetterF: () {setState((){});},
+    );
+    if (customName.isNotEmpty) {
+      model.name = customName;
+      model.pageTitle = customName;
+    } else if (pageTitle != null && pageTitle.isNotEmpty) {
+      model.name = pageTitle;
+      model.pageTitle = pageTitle;
+    }
+
+    setState(() {
+      _webViewModels.add(model);
+    });
+
+    final newSiteIndex = _webViewModels.length - 1;
+
+    // If a non-"All" webspace is currently selected, add the new site to it
+    if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
+      final webspaceIndex = _webspaces.indexWhere((ws) => ws.id == _selectedWebspaceId);
+      if (webspaceIndex != -1) {
+        _webspaces[webspaceIndex].siteIndices.add(newSiteIndex);
+        await _saveWebspaces();
+      }
+    }
+
+    // Set current index (async for cookie handling)
+    await _setCurrentIndex(newSiteIndex);
+    if (!mounted) return;
+    setState(() {}); // Update UI after async operation
+
+    await _saveCurrentIndex();
+    await _saveWebViewModels();
+
+    // Apply current theme to new webview
+    final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
+    await model.setTheme(webViewTheme);
   }
 
   void _editSite(int index) async {
@@ -1850,27 +1892,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       ),
     );
 
-    if (result != null) {
-      final newName = result['name'];
-      final newUrl = result['url'];
+    if (result == null || !mounted) return;
+    if (index >= _webViewModels.length) return;
 
-      if (newName != null && newName.isNotEmpty) {
-        setState(() {
-          _webViewModels[index].name = newName;
-        });
-      }
+    final newName = result['name'];
+    final newUrl = result['url'];
 
-      if (newUrl != null && newUrl != _webViewModels[index].initUrl) {
-        setState(() {
-          _webViewModels[index].initUrl = newUrl;
-          _webViewModels[index].currentUrl = newUrl;
-          _webViewModels[index].webview = null; // Force recreation with new URL
-          _webViewModels[index].controller = null;
-        });
-      }
-
-      _saveWebViewModels();
+    if (newName != null && newName.isNotEmpty) {
+      setState(() {
+        _webViewModels[index].name = newName;
+      });
     }
+
+    if (newUrl != null && newUrl != _webViewModels[index].initUrl) {
+      setState(() {
+        _webViewModels[index].initUrl = newUrl;
+        _webViewModels[index].currentUrl = newUrl;
+        _webViewModels[index].webview = null; // Force recreation with new URL
+        _webViewModels[index].controller = null;
+      });
+    }
+
+    await _saveWebViewModels();
   }
 
   Widget _buildSiteListTile(BuildContext context, int index) {
@@ -1899,9 +1942,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       ),
       onTap: () async {
         Navigator.pop(context);
+        // Wait for any in-progress webspace switch to finish unloading
+        // before loading this site's cookies and webview
+        await _webspaceSwitchCompleter?.future;
         await _setCurrentIndex(index);
+        if (!mounted) return;
         setState(() {});
-        _saveCurrentIndex();
+        await _saveCurrentIndex();
       },
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1911,13 +1958,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             tooltip: 'Refresh title',
             iconSize: 20,
             onPressed: () async {
-              final title = await getPageTitle(_webViewModels[index].initUrl);
+              final url = _webViewModels[index].initUrl;
+              final title = await getPageTitle(url);
+              if (!mounted) return;
+              if (index >= _webViewModels.length) return;
               if (title != null && title.isNotEmpty) {
                 setState(() {
                   _webViewModels[index].name = title;
                   _webViewModels[index].pageTitle = title;
                 });
-                _saveWebViewModels();
+                await _saveWebViewModels();
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Title updated to: $title')),
                 );
@@ -1959,57 +2010,64 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 ),
               );
 
-              if (confirmed == true) {
-                final wasCurrentIndex = _currentIndex == index;
-                // Dispose webview first to stop it from re-setting cookies
-                final deletedModel = _webViewModels[index];
-                deletedModel.disposeWebView();
-                _loadedIndices.remove(index);
+              if (confirmed != true || !mounted) return;
+              if (index >= _webViewModels.length) return;
 
-                // Remove home screen shortcut if one exists
-                await ShortcutService.removeShortcut(deletedModel.siteId);
+              final wasCurrentIndex = _currentIndex == index;
+              // Dispose webview first to stop it from re-setting cookies
+              final deletedModel = _webViewModels[index];
+              deletedModel.disposeWebView();
+              _loadedIndices.remove(index);
 
-                // Delete cookies and cache for the removed site
-                final deletedDomain = getBaseDomain(deletedModel.initUrl);
-                final otherSiteSameDomain = _webViewModels
-                    .where((m) => m != deletedModel && getBaseDomain(m.initUrl) == deletedDomain)
-                    .isNotEmpty;
-                // Only clear the webview cookie jar if no other site shares this domain
-                if (!otherSiteSameDomain) {
-                  await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
-                  // Also clear for currentUrl in case the host differs (e.g. www.linkedin.com vs linkedin.com)
-                  if (deletedModel.currentUrl.isNotEmpty && deletedModel.currentUrl != deletedModel.initUrl) {
-                    await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.currentUrl));
-                  }
+              // Remove home screen shortcut if one exists
+              await ShortcutService.removeShortcut(deletedModel.siteId);
+              if (!mounted) return;
+
+              // Delete cookies and cache for the removed site
+              final deletedDomain = getBaseDomain(deletedModel.initUrl);
+              final otherSiteSameDomain = _webViewModels
+                  .where((m) => m != deletedModel && getBaseDomain(m.initUrl) == deletedDomain)
+                  .isNotEmpty;
+              // Only clear the webview cookie jar if no other site shares this domain
+              if (!otherSiteSameDomain) {
+                await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
+                // Also clear for currentUrl in case the host differs (e.g. www.linkedin.com vs linkedin.com)
+                if (deletedModel.currentUrl.isNotEmpty && deletedModel.currentUrl != deletedModel.initUrl) {
+                  await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.currentUrl));
                 }
-                await _cookieSecureStorage.saveCookiesForSite(deletedModel.siteId, []);
-                await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
-                setState(() {
-                  _webViewModels.removeAt(index);
-                  // Update _loadedIndices after deletion (shift indices down)
-                  _loadedIndices.remove(index);
-                  _loadedIndices.removeWhere((i) => i >= _webViewModels.length);
-                  final updatedIndices = _loadedIndices
-                      .map((i) => i > index ? i - 1 : i)
-                      .toSet();
-                  _loadedIndices.clear();
-                  _loadedIndices.addAll(updatedIndices);
-                  // Update webspace indices after deletion
-                  for (var webspace in _webspaces) {
-                    webspace.siteIndices = webspace.siteIndices
-                        .where((i) => i != index)
-                        .map((i) => i > index ? i - 1 : i)
-                        .toList();
-                  }
-                });
-                if (wasCurrentIndex) {
-                  await _setCurrentIndex(null);
-                  _saveCurrentIndex();
-                }
-                _saveWebViewModels();
-                _saveWebspaces();
-                Navigator.pop(context);
               }
+              await _cookieSecureStorage.saveCookiesForSite(deletedModel.siteId, []);
+              await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
+              if (!mounted) return;
+              // Re-check index is still valid after async gaps
+              final currentModelIndex = _webViewModels.indexOf(deletedModel);
+              if (currentModelIndex == -1) return; // Already deleted
+              setState(() {
+                _webViewModels.removeAt(currentModelIndex);
+                // Update _loadedIndices after deletion (shift indices down)
+                _loadedIndices.remove(currentModelIndex);
+                _loadedIndices.removeWhere((i) => i >= _webViewModels.length);
+                final updatedIndices = _loadedIndices
+                    .map((i) => i > currentModelIndex ? i - 1 : i)
+                    .toSet();
+                _loadedIndices.clear();
+                _loadedIndices.addAll(updatedIndices);
+                // Update webspace indices after deletion
+                for (var webspace in _webspaces) {
+                  webspace.siteIndices = webspace.siteIndices
+                      .where((i) => i != currentModelIndex)
+                      .map((i) => i > currentModelIndex ? i - 1 : i)
+                      .toList();
+                }
+              });
+              if (wasCurrentIndex) {
+                await _setCurrentIndex(null);
+                if (!mounted) return;
+              }
+              await _saveWebViewModels();
+              await _saveWebspaces();
+              if (!mounted) return;
+              Navigator.pop(context);
             },
           ),
         ],
@@ -2036,9 +2094,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     InkWell(
                       onTap: () async {
                         await _setCurrentIndex(null);
+                        if (!mounted) return;
                         setState(() {});
-                        _saveSelectedWebspaceId();
-                        _saveCurrentIndex();
+                        await _saveSelectedWebspaceId();
+                        await _saveCurrentIndex();
+                        if (!mounted) return;
                         Navigator.pop(context);
                       },
                       child: Padding(
@@ -2068,9 +2128,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     child: TextButton.icon(
                       onPressed: () async {
                         await _setCurrentIndex(null);
+                        if (!mounted) return;
                         setState(() {});
-                        _saveSelectedWebspaceId();
-                        _saveCurrentIndex();
+                        await _saveSelectedWebspaceId();
+                        await _saveCurrentIndex();
+                        if (!mounted) return;
                         Navigator.pop(context);
                       },
                       icon: Icon(Icons.arrow_back, size: 16),
@@ -2111,18 +2173,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       return ReorderableListView.builder(
                         itemCount: filteredIndices.length,
                         onReorder: (int oldListIndex, int newListIndex) {
+                          final webspace = _webspaces.cast<Webspace?>().firstWhere(
+                            (ws) => ws!.id == _selectedWebspaceId,
+                            orElse: () => null,
+                          );
+                          if (webspace == null) return;
+                          if (oldListIndex < 0 || oldListIndex >= webspace.siteIndices.length) return;
                           setState(() {
-                            // Adjust newListIndex if moving down
                             if (newListIndex > oldListIndex) {
                               newListIndex -= 1;
                             }
-
-                            // Get the webspace and reorder its siteIndices
-                            final webspace = _webspaces.firstWhere(
-                              (ws) => ws.id == _selectedWebspaceId,
-                            );
-
-                            // Remove from old position and insert at new position
+                            if (newListIndex < 0 || newListIndex >= webspace.siteIndices.length) return;
                             final movedIndex = webspace.siteIndices.removeAt(oldListIndex);
                             webspace.siteIndices.insert(newListIndex, movedIndex);
                           });
@@ -2197,6 +2258,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           final controller = webViewModel.getController(launchUrl, _cookieManager, _saveWebViewModels);
                           if (controller != null) {
                             await controller.loadUrl(url, language: webViewModel.language);
+                            if (!mounted) return;
                             setState(() {
                               webViewModel.currentUrl = url;
                             });
