@@ -1,2 +1,7 @@
+✨ New Features:
+• Site icon preview in the URL field
+• Always show home screen on app launch and resume
+
 🐛 Bug Fixes:
-• Fixed drawer not opening when tapping a webspace due to a race condition with async network check
+• Fix drawer not opening when selecting a webspace
+• Fix accent color showing wrong color on iOS
