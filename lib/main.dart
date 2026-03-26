@@ -596,6 +596,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Webspace-related state
   final List<Webspace> _webspaces = [];
   String? _selectedWebspaceId;
+  int _selectWebspaceVersion = 0;
 
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
@@ -1144,6 +1145,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   void _selectWebspace(Webspace webspace) async {
+    // Version counter guards against rapid taps: if another call arrives
+    // while we are awaiting, the stale call will detect the version mismatch
+    // and bail out instead of corrupting state.
+    final version = ++_selectWebspaceVersion;
+
     // Get indices from the previous webspace before switching
     final previousIndices = _getFilteredSiteIndices().toSet();
 
@@ -1160,7 +1166,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Only unload sites when online - preserve live webviews when offline
     // so users can still view cached content
     final online = await ConnectivityService.instance.isOnline();
-    if (!mounted) return;
+    if (!mounted || version != _selectWebspaceVersion) return;
 
     if (online) {
       // Find loaded sites that were in previous webspace but not in new one
@@ -1181,10 +1187,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     await _setCurrentIndex(null);
-    if (!mounted) return;
+    if (!mounted || version != _selectWebspaceVersion) return;
     setState(() {}); // Update UI
-    _saveSelectedWebspaceId();
-    _saveCurrentIndex();
+    await _saveSelectedWebspaceId();
+    await _saveCurrentIndex();
   }
 
   void _reorderWebspaces(int oldIndex, int newIndex) {
@@ -2036,9 +2042,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     InkWell(
                       onTap: () async {
                         await _setCurrentIndex(null);
+                        if (!mounted) return;
                         setState(() {});
-                        _saveSelectedWebspaceId();
-                        _saveCurrentIndex();
+                        await _saveSelectedWebspaceId();
+                        await _saveCurrentIndex();
+                        if (!mounted) return;
                         Navigator.pop(context);
                       },
                       child: Padding(
@@ -2068,9 +2076,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     child: TextButton.icon(
                       onPressed: () async {
                         await _setCurrentIndex(null);
+                        if (!mounted) return;
                         setState(() {});
-                        _saveSelectedWebspaceId();
-                        _saveCurrentIndex();
+                        await _saveSelectedWebspaceId();
+                        await _saveCurrentIndex();
+                        if (!mounted) return;
                         Navigator.pop(context);
                       },
                       icon: Icon(Icons.arrow_back, size: 16),
@@ -2111,18 +2121,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       return ReorderableListView.builder(
                         itemCount: filteredIndices.length,
                         onReorder: (int oldListIndex, int newListIndex) {
+                          final webspace = _webspaces.cast<Webspace?>().firstWhere(
+                            (ws) => ws!.id == _selectedWebspaceId,
+                            orElse: () => null,
+                          );
+                          if (webspace == null) return;
+                          if (oldListIndex < 0 || oldListIndex >= webspace.siteIndices.length) return;
                           setState(() {
-                            // Adjust newListIndex if moving down
                             if (newListIndex > oldListIndex) {
                               newListIndex -= 1;
                             }
-
-                            // Get the webspace and reorder its siteIndices
-                            final webspace = _webspaces.firstWhere(
-                              (ws) => ws.id == _selectedWebspaceId,
-                            );
-
-                            // Remove from old position and insert at new position
+                            if (newListIndex < 0 || newListIndex >= webspace.siteIndices.length) return;
                             final movedIndex = webspace.siteIndices.removeAt(oldListIndex);
                             webspace.siteIndices.insert(newListIndex, movedIndex);
                           });
