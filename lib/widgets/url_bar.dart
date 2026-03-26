@@ -76,9 +76,9 @@ class _UrlBarState extends State<UrlBar> {
       decoration: BoxDecoration(
         color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
         border: Border(
-          bottom: BorderSide(
+          top: BorderSide(
             color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
-            width: 1,
+            width: 0.5,
           ),
         ),
       ),
