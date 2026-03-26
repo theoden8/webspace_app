@@ -1,6 +1,6 @@
-✨ New Features:
+🔧 Improvements:
 • Site icon preview in the URL field
-• Always show home screen on app launch and resume
+• Always show home screen on app launch
 
 🐛 Bug Fixes:
 • Fix drawer not opening when selecting a webspace
