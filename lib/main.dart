@@ -598,6 +598,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   String? _selectedWebspaceId;
   int _selectWebspaceVersion = 0;
   int _setCurrentIndexVersion = 0;
+  Completer<void>? _webspaceSwitchCompleter;
 
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
@@ -1168,53 +1169,57 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // and bail out instead of corrupting state.
     final version = ++_selectWebspaceVersion;
 
-    // Get indices from the previous webspace before switching
-    final previousIndices = _getFilteredSiteIndices().toSet();
+    // Signal that a webspace switch is in progress. Site selection (onTap)
+    // awaits this so the unload finishes before any new site is loaded.
+    final completer = Completer<void>();
+    _webspaceSwitchCompleter = completer;
 
-    setState(() {
-      _selectedWebspaceId = webspace.id;
-    });
+    try {
+      // Get indices from the previous webspace before switching
+      final previousIndices = _getFilteredSiteIndices().toSet();
 
-    // Open drawer immediately so the user sees instant feedback on tap
-    _scaffoldKey.currentState?.openDrawer();
+      setState(() {
+        _selectedWebspaceId = webspace.id;
+      });
 
-    // Get indices in the new webspace
-    final newIndices = _getFilteredSiteIndices().toSet();
+      // Open drawer immediately so the user sees instant feedback on tap
+      _scaffoldKey.currentState?.openDrawer();
 
-    // Only unload sites when online - preserve live webviews when offline
-    // so users can still view cached content
-    final online = await ConnectivityService.instance.isOnline();
-    if (!mounted || version != _selectWebspaceVersion) return;
+      // Get indices in the new webspace
+      final newIndices = _getFilteredSiteIndices().toSet();
 
-    // If user already selected a site in the drawer while we were awaiting,
-    // skip unloading and index reset — their site selection takes priority
-    // and _setCurrentIndex already handled cookie isolation for that site.
-    if (_currentIndex != null) {
-      await _saveSelectedWebspaceId();
-      return;
-    }
+      // Only unload sites when online - preserve live webviews when offline
+      // so users can still view cached content
+      final online = await ConnectivityService.instance.isOnline();
+      if (!mounted || version != _selectWebspaceVersion) return;
 
-    if (online) {
-      // Find loaded sites that were in previous webspace but not in new one
-      final indicesToUnload = _loadedIndices
-          .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
-          .toList();
+      if (online) {
+        // Find loaded sites that were in previous webspace but not in new one
+        final indicesToUnload = _loadedIndices
+            .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
+            .toList();
 
-      // Unload sites not in new webspace
-      for (final index in indicesToUnload) {
-        if (index >= 0 && index < _webViewModels.length) {
-          _webViewModels[index].disposeWebView();
-          _loadedIndices.remove(index);
-          LogService.instance.log('WebspaceSwitch', 'Unloaded site $index: "${_webViewModels[index].name}"');
+        // Unload sites not in new webspace
+        for (final index in indicesToUnload) {
+          if (index >= 0 && index < _webViewModels.length) {
+            _webViewModels[index].disposeWebView();
+            _loadedIndices.remove(index);
+            LogService.instance.log('WebspaceSwitch', 'Unloaded site $index: "${_webViewModels[index].name}"');
+          }
         }
+      } else {
+        LogService.instance.log('WebspaceSwitch', 'Offline - preserving loaded webviews');
       }
-    } else {
-      LogService.instance.log('WebspaceSwitch', 'Offline - preserving loaded webviews');
-    }
 
-    setState(() {}); // Update UI
-    await _saveSelectedWebspaceId();
-    await _saveCurrentIndex();
+      setState(() {}); // Update UI
+      await _saveSelectedWebspaceId();
+      await _saveCurrentIndex();
+    } finally {
+      completer.complete();
+      if (_webspaceSwitchCompleter == completer) {
+        _webspaceSwitchCompleter = null;
+      }
+    }
   }
 
   void _reorderWebspaces(int oldIndex, int newIndex) {
@@ -1937,6 +1942,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       ),
       onTap: () async {
         Navigator.pop(context);
+        // Wait for any in-progress webspace switch to finish unloading
+        // before loading this site's cookies and webview
+        await _webspaceSwitchCompleter?.future;
         await _setCurrentIndex(index);
         if (!mounted) return;
         setState(() {});
