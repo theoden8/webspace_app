@@ -1186,6 +1186,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final online = await ConnectivityService.instance.isOnline();
     if (!mounted || version != _selectWebspaceVersion) return;
 
+    // If user already selected a site in the drawer while we were awaiting,
+    // skip unloading and index reset — their site selection takes priority
+    // and _setCurrentIndex already handled cookie isolation for that site.
+    if (_currentIndex != null) {
+      await _saveSelectedWebspaceId();
+      return;
+    }
+
     if (online) {
       // Find loaded sites that were in previous webspace but not in new one
       final indicesToUnload = _loadedIndices
@@ -1204,8 +1212,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       LogService.instance.log('WebspaceSwitch', 'Offline - preserving loaded webviews');
     }
 
-    await _setCurrentIndex(null);
-    if (!mounted || version != _selectWebspaceVersion) return;
     setState(() {}); // Update UI
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
