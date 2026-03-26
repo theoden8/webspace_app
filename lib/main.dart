@@ -634,13 +634,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (!mounted) return;
         setState(() {});
       }
-    } else {
-      // No shortcut intent - return to home screen without disturbing loaded webviews
-      if (_currentIndex != null) {
-        setState(() {
-          _currentIndex = null;
-        });
-      }
     }
   }
 
