@@ -93,12 +93,18 @@ android {
     }
 }
 
+// Offset to ensure new F-Droid version codes (versionCode*10+abi) exceed
+// the old scheme's codes (abi*1000+versionCode) for all architectures.
+// Old max was x86_64: 3*1000+12=3012. With offset 300: (13+300)*10+3=3133>3012.
+def versionCodeOffset = 300
 def abiCodes = ["armeabi-v7a": 1, "arm64-v8a": 2, "x86_64": 3]
 android.applicationVariants.configureEach { variant ->
     variant.outputs.forEach { output ->
         def abiVersionCode = abiCodes.get(output.getFilter(com.android.build.OutputFile.ABI))
         if (abiVersionCode != null) {
-            output.versionCodeOverride = variant.versionCode * 10 + abiVersionCode
+            output.versionCodeOverride = (variant.versionCode + versionCodeOffset) * 10 + abiVersionCode
+        } else {
+            output.versionCodeOverride = (variant.versionCode + versionCodeOffset) * 10
         }
     }
 }
