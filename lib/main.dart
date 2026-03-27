@@ -2081,7 +2081,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     color: theme.colorScheme.primaryContainer.withAlpha(80),
                   )
                 : null,
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -2100,13 +2100,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  _webViewModels[index].getDisplayName(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11),
+                const SizedBox(height: 4),
+                Flexible(
+                  child: Text(
+                    _webViewModels[index].getDisplayName(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11),
+                  ),
                 ),
               ],
             ),
