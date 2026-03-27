@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/dev_tools.dart';
@@ -767,11 +768,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             leading: const Icon(Icons.info_outline),
             title: const Text('Licenses'),
             subtitle: const Text('Open source licenses'),
-            onTap: () {
+            onTap: () async {
+              final packageInfo = await PackageInfo.fromPlatform();
+              if (!context.mounted) return;
               showLicensePage(
                 context: context,
                 applicationName: 'WebSpace',
-                applicationVersion: '0.1.0',
+                applicationVersion: packageInfo.version,
                 applicationLegalese: '© 2023 Kirill Rodriguez',
               );
             },
