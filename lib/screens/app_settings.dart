@@ -455,8 +455,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : IconButton(
-                    icon: const Icon(Icons.download),
-                    tooltip: 'Download rules',
+                    icon: Icon(
+                      _rulesLastUpdated != null
+                          ? Icons.sync
+                          : Icons.download,
+                    ),
+                    tooltip: _rulesLastUpdated != null
+                        ? 'Update rules'
+                        : 'Download rules',
                     onPressed: _downloadRules,
                   ),
           ),
