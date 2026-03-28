@@ -143,6 +143,20 @@ Fetched icons SHALL be cached to avoid redundant network requests.
 **When** the icon is requested again
 **Then** the cached result is returned immediately
 
+#### Scenario: Page refresh does not invalidate icon cache
+
+**Given** a site has a cached favicon
+**When** the user refreshes the page from the nav bar
+**Then** only the page is reloaded
+**And** the cached favicon is NOT re-fetched
+
+#### Scenario: Drawer refresh invalidates icon cache
+
+**Given** a site has a cached favicon
+**When** the user taps the refresh button in the drawer site list
+**Then** the favicon cache is invalidated and the icon is re-fetched
+**And** the page title is also refreshed
+
 ---
 
 ## Performance
