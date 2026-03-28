@@ -1577,11 +1577,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         tooltip: 'Refresh',
                         onPressed: () {
                           Navigator.pop(context);
-                          () async {
-                            getController()?.reload();
-                            await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
-                            setState(() {});
-                          }();
+                          getController()?.reload();
                         },
                       ),
                     ],
