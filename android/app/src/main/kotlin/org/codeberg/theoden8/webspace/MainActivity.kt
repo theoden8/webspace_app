@@ -8,11 +8,24 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterShellArgs
 import io.flutter.plugin.common.MethodChannel
 import java.net.URL
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
+
+    override fun getFlutterShellArgs(): FlutterShellArgs {
+        val args = FlutterShellArgs.fromIntent(intent)
+        // Disable Impeller on x86/x86_64 (Waydroid, emulators) where Vulkan
+        // swapchain creation crashes. Falls back to Skia + OpenGL ES which
+        // is still hardware-accelerated.
+        if (Build.SUPPORTED_ABIS.any { it == "x86_64" || it == "x86" }) {
+            args.remove(FlutterShellArgs.ARG_ENABLE_IMPELLER)
+            args.add(FlutterShellArgs.ARG_DISABLE_IMPELLER)
+        }
+        return args
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
