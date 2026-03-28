@@ -523,6 +523,30 @@ class WebViewModel {
     cookies = await cookieManager.getCookies(url: url);
   }
 
+  /// Pause the webview to reduce resource usage when in background.
+  /// Stops rendering (Android) and JS timers. The webview remains in the
+  /// widget tree but consumes minimal resources.
+  Future<void> pauseWebView() async {
+    if (controller == null) return;
+    try {
+      await controller!.pause();
+      LogService.instance.log('WebView', 'Paused webview for "$name" (siteId: $siteId)');
+    } catch (_) {
+      // Controller may have been disposed
+    }
+  }
+
+  /// Resume a previously paused webview when it becomes active again.
+  Future<void> resumeWebView() async {
+    if (controller == null) return;
+    try {
+      await controller!.resume();
+      LogService.instance.log('WebView', 'Resumed webview for "$name" (siteId: $siteId)');
+    } catch (_) {
+      // Controller may have been disposed
+    }
+  }
+
   /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
