@@ -1944,10 +1944,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         children: [
           IconButton(
             icon: Icon(Icons.refresh),
-            tooltip: 'Refresh title',
+            tooltip: 'Refresh title and icon',
             iconSize: 20,
             onPressed: () async {
               final url = _webViewModels[index].initUrl;
+              await FaviconUrlCache.invalidate(url);
+              if (!mounted) return;
               final title = await getPageTitle(url);
               if (!mounted) return;
               if (index >= _webViewModels.length) return;
@@ -1961,6 +1963,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Title updated to: $title')),
                 );
+              } else {
+                setState(() {});
               }
             },
           ),
