@@ -21,6 +21,7 @@ class SettingsBackup {
   final String? selectedWebspaceId;
   final int? currentIndex;
   final DateTime exportedAt;
+  final List<Map<String, dynamic>>? suggestedSites;
 
   SettingsBackup({
     required this.version,
@@ -31,6 +32,7 @@ class SettingsBackup {
     this.selectedWebspaceId,
     this.currentIndex,
     required this.exportedAt,
+    this.suggestedSites,
   });
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +44,7 @@ class SettingsBackup {
         'selectedWebspaceId': selectedWebspaceId,
         'currentIndex': currentIndex,
         'exportedAt': exportedAt.toIso8601String(),
+        if (suggestedSites != null) 'suggestedSites': suggestedSites,
       };
 
   factory SettingsBackup.fromJson(Map<String, dynamic> json) {
@@ -60,6 +63,9 @@ class SettingsBackup {
       exportedAt: json['exportedAt'] != null
           ? DateTime.parse(json['exportedAt'])
           : DateTime.now(),
+      suggestedSites: (json['suggestedSites'] as List<dynamic>?)
+          ?.map((e) => e as Map<String, dynamic>)
+          .toList(),
     );
   }
 }
@@ -76,6 +82,7 @@ class SettingsBackupService {
     required bool showUrlBar,
     String? selectedWebspaceId,
     int? currentIndex,
+    List<Map<String, dynamic>>? suggestedSites,
   }) {
     // Convert sites to JSON, including only non-secure cookies
     final sitesJson = webViewModels.map((model) {
@@ -103,6 +110,7 @@ class SettingsBackupService {
       selectedWebspaceId: selectedWebspaceId,
       currentIndex: currentIndex,
       exportedAt: DateTime.now(),
+      suggestedSites: suggestedSites,
     );
   }
 
@@ -120,6 +128,7 @@ class SettingsBackupService {
     required bool showUrlBar,
     String? selectedWebspaceId,
     int? currentIndex,
+    List<Map<String, dynamic>>? suggestedSites,
   }) async {
     try {
       final backup = createBackup(
@@ -129,6 +138,7 @@ class SettingsBackupService {
         showUrlBar: showUrlBar,
         selectedWebspaceId: selectedWebspaceId,
         currentIndex: currentIndex,
+        suggestedSites: suggestedSites,
       );
 
       final jsonString = exportToJson(backup);
