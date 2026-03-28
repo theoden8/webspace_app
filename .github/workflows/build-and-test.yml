@@ -164,7 +164,6 @@ jobs:
     name: Emulator Smoke Test (x86_64)
     needs: [build-android-linux]
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
