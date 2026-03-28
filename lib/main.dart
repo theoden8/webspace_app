@@ -623,7 +623,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Pause the active webview when the app goes to background
+      if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+        _webViewModels[_currentIndex!].pauseWebView();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      // Resume the active webview when the app comes back
+      if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+        _webViewModels[_currentIndex!].resumeWebView();
+      }
       _handleShortcutIntent();
     }
   }
@@ -705,6 +714,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final version = ++_setCurrentIndexVersion;
 
     if (index == null || index < 0 || index >= _webViewModels.length) {
+      // Pause the previously active webview when navigating away
+      if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+        await _webViewModels[_currentIndex!].pauseWebView();
+      }
       _currentIndex = index;
       return;
     }
@@ -740,6 +753,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
     }
 
+    // Pause the previously active webview to save resources
+    if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+      await _webViewModels[_currentIndex!].pauseWebView();
+    }
+
     // Restore cookies for target site before loading
     await _restoreCookiesForSite(index);
     if (version != _setCurrentIndexVersion) return;
@@ -749,6 +767,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     _currentIndex = index;
     _loadedIndices.add(index);
+
+    // Resume the newly active webview
+    await _webViewModels[index].resumeWebView();
+
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
   }
 

@@ -277,6 +277,11 @@ abstract class WebViewController {
   Future<void> setThemePreference(WebViewTheme theme);
   Future<void> goBack();
   Future<bool> canGoBack();
+  /// Pause the webview (stop rendering and JS execution).
+  /// On Android this pauses the WebView entirely; on iOS it pauses timers.
+  Future<void> pause();
+  /// Resume a previously paused webview.
+  Future<void> resume();
 }
 
 /// InAppWebView controller wrapper
@@ -376,6 +381,22 @@ class _WebViewController implements WebViewController {
 
   @override
   Future<bool> canGoBack() => _c.canGoBack();
+
+  @override
+  Future<void> pause() async {
+    if (Platform.isAndroid) {
+      await _c.pause();
+    }
+    await _c.pauseTimers();
+  }
+
+  @override
+  Future<void> resume() async {
+    if (Platform.isAndroid) {
+      await _c.resume();
+    }
+    await _c.resumeTimers();
+  }
 }
 
 String _themeInjectionScript(String themeValue) => '''
