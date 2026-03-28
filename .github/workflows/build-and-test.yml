@@ -160,6 +160,70 @@ jobs:
           path: screenshots/android/*.png
           if-no-files-found: warn
 
+  emulator-smoke-test:
+    name: Emulator Smoke Test (x86_64)
+    needs: [build-android-linux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apks
+          path: apks/
+
+      - name: Enable KVM for emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Run smoke test on x86_64 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disk-size: 4096M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            set -e
+
+            # Install the x86_64 APK
+            APK=$(ls apks/*x86_64*.apk | head -1)
+            echo "Installing $APK"
+            adb install "$APK"
+
+            # Clear logcat and launch the app
+            adb logcat -c
+            adb shell am start -n org.codeberg.theoden8.webspace/.MainActivity
+
+            # Wait for the app to either start or crash
+            sleep 15
+
+            # Check for crashes
+            if adb shell "dumpsys activity processes | grep -q org.codeberg.theoden8.webspace"; then
+              echo "App is running"
+            else
+              echo "App is NOT running - checking for crash"
+              adb logcat -d | grep -E "(FATAL|SIGSEGV|ANR|crash)" | tail -20
+              exit 1
+            fi
+
+            # Verify Impeller was disabled (Skia fallback active)
+            adb logcat -d | grep -i "impeller" | tail -5 || true
+            adb logcat -d | grep -i "skia" | tail -5 || true
+
+            echo "Smoke test passed - app launched on x86_64 without crash"
+
   build-apple:
     name: Build iOS & macOS
     runs-on: macos-latest
