@@ -608,6 +608,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Configurable suggested sites
   List<SiteSuggestion> _suggestedSites = [];
 
+  // Guards lifecycle pause/resume against rapid state transitions.
+  // Without this, a quick inactive→resumed sequence could let the resume
+  // platform call complete before the pause call, leaving the webview stuck.
+  Future<void>? _lifecyclePauseFuture;
+
   @override
   void initState() {
     super.initState();
@@ -626,14 +631,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       // Pause the active webview when the app goes to background
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        _webViewModels[_currentIndex!].pauseWebView();
+        _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseWebView();
       }
     } else if (state == AppLifecycleState.resumed) {
-      // Resume the active webview when the app comes back
-      if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        _webViewModels[_currentIndex!].resumeWebView();
-      }
+      // Await any in-flight pause before resuming to prevent ordering inversion
+      _resumeAfterLifecyclePause();
       _handleShortcutIntent();
+    }
+  }
+
+  Future<void> _resumeAfterLifecyclePause() async {
+    if (_lifecyclePauseFuture != null) {
+      await _lifecyclePauseFuture;
+      _lifecyclePauseFuture = null;
+    }
+    if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+      await _webViewModels[_currentIndex!].resumeWebView();
     }
   }
 
@@ -717,6 +730,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Pause the previously active webview when navigating away
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
         await _webViewModels[_currentIndex!].pauseWebView();
+        if (version != _setCurrentIndexVersion) return;
       }
       _currentIndex = index;
       return;
@@ -756,6 +770,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Pause the previously active webview to save resources
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
       await _webViewModels[_currentIndex!].pauseWebView();
+      if (version != _setCurrentIndexVersion) return;
     }
 
     // Restore cookies for target site before loading
