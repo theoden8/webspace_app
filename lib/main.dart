@@ -17,7 +17,7 @@ import 'package:html/dom.dart' as html_dom;
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache;
+import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache, SiteSuggestion;
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
@@ -38,6 +38,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:share_plus/share_plus.dart';
@@ -604,6 +605,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Only webviews in this set will be created - others remain as placeholders
   final Set<int> _loadedIndices = {};
 
+  // Configurable suggested sites
+  List<SiteSuggestion> _suggestedSites = [];
+
   @override
   void initState() {
     super.initState();
@@ -991,6 +995,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     });
     await _loadWebspaces();
     await _loadWebViewModels();
+    _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
 
     // Always start at home screen on launch - only restore index if launched via shortcut
     int? indexToRestore;
@@ -1269,6 +1274,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       showUrlBar: _showUrlBar,
       selectedWebspaceId: _selectedWebspaceId,
       currentIndex: _currentIndex,
+      suggestedSites: _suggestedSites
+          .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
+          .toList(),
     );
   }
 
@@ -1376,6 +1384,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _saveShowUrlBar();
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
+
+    // Restore suggested sites if present in backup
+    if (backup.suggestedSites != null) {
+      _suggestedSites = backup.suggestedSites!
+          .map((e) => SiteSuggestion(
+                name: e['name'] as String,
+                url: e['url'] as String,
+                domain: e['domain'] as String,
+              ))
+          .toList();
+      await suggested_sites.saveSuggestedSites(_suggestedSites);
+    }
 
     // Clean up orphaned cookies and HTML cache (for siteIds no longer in any site)
     final activeSiteIds = _webViewModels
@@ -1764,6 +1784,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             for (var webViewModel in _webViewModels) {
               await webViewModel.setTheme(webViewTheme);
             }
+          },
+          suggestions: _suggestedSites,
+          onSuggestionsChanged: (sites) {
+            _suggestedSites = sites;
+            suggested_sites.saveSuggestedSites(sites);
           },
         ),
       ),

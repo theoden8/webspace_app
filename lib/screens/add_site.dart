@@ -279,10 +279,14 @@ class FaviconImage extends StatelessWidget {
 class AddSiteScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final Function(ThemeMode) onThemeModeChanged;
+  final List<SiteSuggestion> suggestions;
+  final Function(List<SiteSuggestion>) onSuggestionsChanged;
 
   AddSiteScreen({
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.suggestions,
+    required this.onSuggestionsChanged,
   });
 
   @override
@@ -294,10 +298,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
   bool _incognito = false;
   Timer? _debounceTimer;
   String? _previewUrl;
+  late List<SiteSuggestion> _suggestions;
 
   @override
   void initState() {
     super.initState();
+    _suggestions = List.of(widget.suggestions);
     _urlController.addListener(_onUrlChanged);
   }
 
@@ -366,29 +372,79 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     }
   }
 
-  static const List<SiteSuggestion> _suggestions = [
-    SiteSuggestion(name: 'DuckDuckGo', url: 'https://duckduckgo.com', domain: 'duckduckgo.com'),
-    SiteSuggestion(name: 'Claude', url: 'https://claude.ai', domain: 'claude.ai'),
-    SiteSuggestion(name: 'ChatGPT', url: 'https://chatgpt.com', domain: 'chatgpt.com'),
-    SiteSuggestion(name: 'Perplexity', url: 'https://perplexity.ai', domain: 'perplexity.ai'),
-    SiteSuggestion(name: 'Instagram', url: 'https://instagram.com', domain: 'instagram.com'),
-    SiteSuggestion(name: 'Facebook', url: 'https://facebook.com', domain: 'facebook.com'),
-    SiteSuggestion(name: 'X (Twitter)', url: 'https://x.com', domain: 'x.com'),
-    SiteSuggestion(name: 'Google Chat', url: 'https://chat.google.com', domain: 'chat.google.com'),
-    SiteSuggestion(name: 'GitHub', url: 'https://github.com', domain: 'github.com'),
-    SiteSuggestion(name: 'GitLab', url: 'https://gitlab.com', domain: 'gitlab.com'),
-    SiteSuggestion(name: 'Gitea', url: 'https://gitea.com', domain: 'gitea.com'),
-    SiteSuggestion(name: 'Codeberg', url: 'https://codeberg.org', domain: 'codeberg.org'),
-    SiteSuggestion(name: 'Slack', url: 'https://slack.com', domain: 'slack.com'),
-    SiteSuggestion(name: 'Discord', url: 'https://discord.com/login', domain: 'discord.com'),
-    SiteSuggestion(name: 'Mattermost', url: 'https://mattermost.com', domain: 'mattermost.com'),
-    SiteSuggestion(name: 'Gmail', url: 'https://gmail.com', domain: 'gmail.com'),
-    SiteSuggestion(name: 'LinkedIn', url: 'https://linkedin.com', domain: 'linkedin.com'),
-    SiteSuggestion(name: 'Reddit', url: 'https://reddit.com', domain: 'reddit.com'),
-    SiteSuggestion(name: 'Mastodon', url: 'https://mastodon.social', domain: 'mastodon.social'),
-    SiteSuggestion(name: 'Bluesky', url: 'https://bsky.app', domain: 'bsky.app'),
-    SiteSuggestion(name: 'Hugging Face', url: 'https://huggingface.co', domain: 'huggingface.co'),
-  ];
+  void _removeSuggestion(int index) {
+    setState(() {
+      _suggestions.removeAt(index);
+    });
+    widget.onSuggestionsChanged(_suggestions);
+  }
+
+  void _showAddSuggestionDialog() {
+    final nameController = TextEditingController();
+    final urlController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Add Suggested Site'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 8),
+              TextField(
+                controller: urlController,
+                autocorrect: false,
+                enableSuggestions: false,
+                keyboardType: TextInputType.url,
+                decoration: InputDecoration(
+                  labelText: 'URL',
+                  border: OutlineInputBorder(),
+                  hintText: 'https://example.com',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                var url = urlController.text.trim();
+                if (name.isEmpty || url.isEmpty) return;
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                  url = 'https://$url';
+                }
+                final uri = Uri.tryParse(url);
+                if (uri == null || uri.host.isEmpty) return;
+                final suggestion = SiteSuggestion(
+                  name: name,
+                  url: url,
+                  domain: uri.host,
+                );
+                Navigator.of(context).pop();
+                setState(() {
+                  _suggestions.add(suggestion);
+                });
+                widget.onSuggestionsChanged(_suggestions);
+              },
+              child: Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _showSuggestionDialog(SiteSuggestion suggestion) {
     final TextEditingController urlController = TextEditingController(text: suggestion.url);
@@ -573,65 +629,112 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 24),
-                      Text(
-                        'Suggested Sites',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Suggested Sites',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.add, size: 20),
+                            tooltip: 'Add suggested site',
+                            onPressed: _showAddSuggestionDialog,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
                       ),
                       SizedBox(height: 12),
                     ],
                   ),
                 ),
-                SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final suggestion = _suggestions[index];
-                      return InkWell(
-                        onTap: () => _showSuggestionDialog(suggestion),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                if (_suggestions.isNotEmpty)
+                  SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final suggestion = _suggestions[index];
+                        return InkWell(
+                          onTap: () => _showSuggestionDialog(suggestion),
+                          onLongPress: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text('Remove ${suggestion.name}?'),
+                                content: Text('Remove this site from suggestions?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      _removeSuggestion(index);
+                                    },
+                                    child: Text('Remove'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                              ),
                             ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(4.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Center(
-                                    child: FaviconImage(
-                                      domain: suggestion.domain,
-                                      size: iconSize,
+                            child: Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Center(
+                                      child: FaviconImage(
+                                        domain: suggestion.domain,
+                                        size: iconSize,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  suggestion.name,
-                                  style: TextStyle(fontSize: 10),
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                                  SizedBox(height: 2),
+                                  Text(
+                                    suggestion.name,
+                                    style: TextStyle(fontSize: 10),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                    childCount: _suggestions.length,
+                        );
+                      },
+                      childCount: _suggestions.length,
+                    ),
                   ),
-                ),
+                if (_suggestions.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24.0),
+                      child: Center(
+                        child: Text(
+                          'No suggested sites. Tap + to add some.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                  ),
                 SliverPadding(
                   padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).padding.bottom,
