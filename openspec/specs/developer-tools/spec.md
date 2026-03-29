@@ -93,14 +93,30 @@ The app SHALL allow exporting the current page's HTML source.
 
 ### Requirement: DEVTOOLS-004 - App Logs
 
-The app SHALL maintain a ring buffer of app-level log entries accessible from both Developer Tools and App Settings.
+The app SHALL maintain a ring buffer of app-level log entries accessible from both Developer Tools and App Settings, with live streaming updates and auto-scroll.
 
 #### Scenario: View app logs
 
 **Given** the app has been running and logging
 **When** the user opens the App Logs tab
 **Then** timestamped log entries are shown with tag and message
+**And** the view scrolls to the bottom to show the most recent entries
 **And** filter chips allow filtering by level (debug, info, warning, error)
+
+#### Scenario: Live log streaming
+
+**Given** the App Logs tab is open
+**When** new log entries are produced by the app
+**Then** they appear in the list in real time without manual refresh
+**And** if the user is scrolled to the bottom, the view auto-scrolls to show new entries
+
+#### Scenario: Auto-scroll pause on manual scroll
+
+**Given** the App Logs tab is open and auto-scrolling
+**When** the user scrolls up to view older entries
+**Then** auto-scroll is paused so the view does not jump
+**When** the user scrolls back to the bottom
+**Then** auto-scroll resumes
 
 #### Scenario: Export logs for issue reporting
 
@@ -120,7 +136,7 @@ The app SHALL maintain a ring buffer of app-level log entries accessible from bo
 
 ### Requirement: DEVTOOLS-005 - LogService
 
-The app SHALL use a centralized LogService singleton for all debug logging.
+The app SHALL use a centralized LogService singleton (extending ChangeNotifier) for all debug logging, notifying listeners on each new entry.
 
 #### Scenario: Ring buffer behavior
 
@@ -133,6 +149,12 @@ The app SHALL use a centralized LogService singleton for all debug logging.
 **Given** the app is running in debug mode
 **When** a log entry is created
 **Then** it is also printed via debugPrint
+
+#### Scenario: Change notification
+
+**Given** a UI widget is listening to LogService
+**When** a new log entry is added or logs are cleared
+**Then** LogService notifies all listeners so the UI updates in real time
 
 ---
 

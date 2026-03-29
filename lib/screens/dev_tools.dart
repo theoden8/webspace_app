@@ -31,10 +31,50 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   String? _exportedHtml;
   bool _loadingHtml = false;
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
+  final ScrollController _logScrollController = ScrollController();
+  bool _autoScroll = true;
 
   bool get _hasSite => widget.webViewModel != null;
 
   int get _tabCount => _hasSite ? 5 : 1;
+
+  @override
+  void initState() {
+    super.initState();
+    LogService.instance.addListener(_onLogUpdate);
+    _logScrollController.addListener(_onLogScroll);
+  }
+
+  @override
+  void dispose() {
+    LogService.instance.removeListener(_onLogUpdate);
+    _logScrollController.removeListener(_onLogScroll);
+    _logScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onLogUpdate() {
+    if (mounted) {
+      setState(() {});
+      if (_autoScroll) {
+        _scrollToBottom();
+      }
+    }
+  }
+
+  void _onLogScroll() {
+    if (!_logScrollController.hasClients) return;
+    final pos = _logScrollController.position;
+    _autoScroll = pos.pixels >= pos.maxScrollExtent - 50;
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_logScrollController.hasClients) {
+        _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
+      }
+    });
+  }
 
   List<Tab> get _tabs => [
         if (_hasSite)
@@ -520,15 +560,26 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         Expanded(
           child: filtered.isEmpty
               ? const Center(child: Text('No log entries'))
-              : ListView.builder(
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final entry = filtered[index];
-                    return _buildLogEntry(entry);
-                  },
-                ),
+              : _buildLogListView(filtered),
         ),
       ],
+    );
+  }
+
+  Widget _buildLogListView(List<LogEntry> filtered) {
+    // Scroll to bottom on first build so latest logs are visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_autoScroll && _logScrollController.hasClients) {
+        _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
+      }
+    });
+    return ListView.builder(
+      controller: _logScrollController,
+      itemCount: filtered.length,
+      itemBuilder: (context, index) {
+        final entry = filtered[index];
+        return _buildLogEntry(entry);
+      },
     );
   }
 
