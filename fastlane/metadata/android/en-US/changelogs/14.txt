@@ -1,6 +1,8 @@
+✨ New Features:
+• Pause and resume background webviews on site switch for better performance
+
 🔧 Improvements:
 • Fix potential issue with Waydroid support on Linux
-• Pause and resume background webviews on site switch for better performance
 • Configurable suggested sites list with empty default for F-Droid
 
 🐛 Bug Fixes:
