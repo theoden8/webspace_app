@@ -16,7 +16,7 @@ class LogEntry {
   });
 }
 
-class LogService {
+class LogService extends ChangeNotifier {
   static final instance = LogService._();
   LogService._();
 
@@ -37,6 +37,7 @@ class LogService {
     if (kDebugMode) {
       debugPrint('[${entry.tag}/${entry.level.name}] ${entry.message}');
     }
+    notifyListeners();
   }
 
   List<LogEntry> get entries => List.unmodifiable(_entries);
@@ -54,5 +55,6 @@ class LogService {
 
   void clear() {
     _entries.clear();
+    notifyListeners();
   }
 }
