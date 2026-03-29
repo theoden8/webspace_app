@@ -1,0 +1,11 @@
+✨ New Features:
+• Waydroid support for running on Linux via Android container
+
+🔧 Improvements:
+• Pause and resume background webviews on site switch for better performance
+• Configurable suggested sites list with empty default for F-Droid
+• Standardize ClearURLs icon to match other settings
+
+🐛 Bug Fixes:
+• Fix nav bar refresh invalidating favicon cache unnecessarily
+• Fix license page showing hardcoded 0.1.0 instead of actual app version
