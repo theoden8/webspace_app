@@ -1,0 +1,9 @@
+✨ New Features:
+• Pause and resume background webviews on site switch for better performance
+
+🔧 Improvements:
+• Fix potential issue with Waydroid support on Linux
+• Configurable suggested sites list with empty default for F-Droid
+
+🐛 Bug Fixes:
+• Fix favicon cache and license page version display
