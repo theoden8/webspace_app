@@ -42,13 +42,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   void initState() {
     super.initState();
     LogService.instance.addListener(_onLogUpdate);
-    _logScrollController.addListener(_onLogScroll);
   }
 
   @override
   void dispose() {
     LogService.instance.removeListener(_onLogUpdate);
-    _logScrollController.removeListener(_onLogScroll);
     _logScrollController.dispose();
     super.dispose();
   }
@@ -62,10 +60,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
   }
 
-  void _onLogScroll() {
-    if (!_logScrollController.hasClients) return;
-    final pos = _logScrollController.position;
-    _autoScroll = pos.pixels >= pos.maxScrollExtent - 50;
+  bool _onUserScroll(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification &&
+        notification.dragDetails != null) {
+      // User is actively dragging — check if they're near the bottom
+      final pos = _logScrollController.position;
+      _autoScroll = pos.pixels >= pos.maxScrollExtent - 50;
+    }
+    return false;
   }
 
   void _scrollToBottom() {
@@ -573,13 +575,16 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
       }
     });
-    return ListView.builder(
-      controller: _logScrollController,
-      itemCount: filtered.length,
-      itemBuilder: (context, index) {
-        final entry = filtered[index];
-        return _buildLogEntry(entry);
-      },
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onUserScroll,
+      child: ListView.builder(
+        controller: _logScrollController,
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          final entry = filtered[index];
+          return _buildLogEntry(entry);
+        },
+      ),
     );
   }
 
