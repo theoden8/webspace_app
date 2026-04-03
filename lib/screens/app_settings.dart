@@ -29,6 +29,8 @@ class AppSettingsScreen extends StatefulWidget {
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
+  final bool showTabStrip;
+  final ValueChanged<bool> onShowTabStripChanged;
 
   const AppSettingsScreen({
     super.key,
@@ -36,6 +38,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onSettingsChanged,
     required this.onExportSettings,
     required this.onImportSettings,
+    required this.showTabStrip,
+    required this.onShowTabStripChanged,
   });
 
   @override
@@ -45,6 +49,7 @@ class AppSettingsScreen extends StatefulWidget {
 class _AppSettingsScreenState extends State<AppSettingsScreen>
     with SingleTickerProviderStateMixin {
   late AppThemeSettings _settings;
+  late bool _showTabStrip;
   bool _isDownloadingRules = false;
   DateTime? _rulesLastUpdated;
 
@@ -70,6 +75,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   void initState() {
     super.initState();
     _settings = widget.currentSettings;
+    _showTabStrip = widget.showTabStrip;
     _spinController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -388,6 +394,30 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           
           const SizedBox(height: 8),
+          const Divider(height: 32),
+
+          // UI Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Interface',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Site Tab Strip'),
+            subtitle: const Text('Show a tab bar at the bottom to quickly switch between sites'),
+            value: _showTabStrip,
+            onChanged: (value) {
+              setState(() {
+                _showTabStrip = value;
+              });
+              widget.onShowTabStripChanged(value);
+            },
+          ),
+
           const Divider(height: 32),
 
           // Data Section
