@@ -2326,7 +2326,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               crossAxisCount: crossAxisCount,
                               mainAxisSpacing: 4,
                               crossAxisSpacing: 4,
-                              childAspectRatio: crossAxisCount == 1 ? 4.0 : 0.85,
+                              mainAxisExtent: itemHeight,
                             ),
                             itemCount: itemCount,
                             itemBuilder: (BuildContext context, int listIndex) {
