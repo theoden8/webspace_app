@@ -1704,7 +1704,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 }
               },
             ),
-          // Navigation buttons row
+          // Bottom toolbar with popup menu
           Container(
             decoration: BoxDecoration(
               color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
@@ -1716,59 +1716,70 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                IconButton(
-                  icon: Icon(Icons.arrow_back),
-                  tooltip: 'Go Back',
-                  iconSize: 22,
-                  onPressed: () async {
-                    final controller = getController();
-                    if (controller != null) {
-                      final canGoBack = await controller.canGoBack();
-                      if (canGoBack) {
-                        await controller.goBack();
-                      }
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.home),
-                  tooltip: 'Go to Home',
-                  iconSize: 22,
-                  onPressed: () async {
-                    final controller = getController();
-                    if (controller != null) {
-                      final m = _webViewModels[_currentIndex!];
-                      await controller.loadUrl(m.initUrl, language: m.language);
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.share),
-                  tooltip: 'Share',
-                  iconSize: 22,
-                  onPressed: () {
-                    final m = _webViewModels[_currentIndex!];
-                    final url = m.currentUrl ?? m.initUrl;
-                    SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
-                  },
-                ),
-                IconButton(
-                  icon: Icon(Icons.refresh),
-                  tooltip: 'Refresh',
-                  iconSize: 22,
-                  onPressed: () async {
-                    getController()?.reload();
-                    await FaviconUrlCache.invalidate(_webViewModels[_currentIndex!].initUrl);
-                    setState(() {});
-                  },
-                ),
-                // Overflow menu for less-used actions
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, size: 22),
+                  icon: Icon(Icons.more_horiz, size: 22),
+                  tooltip: 'Menu',
                   itemBuilder: (BuildContext context) {
                     return [
+                      PopupMenuItem<String>(
+                        padding: EdgeInsets.zero,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.arrow_back),
+                              tooltip: 'Go Back',
+                              onPressed: () {
+                                Navigator.pop(context);
+                                () async {
+                                  final controller = getController();
+                                  if (controller != null) {
+                                    final canGoBack = await controller.canGoBack();
+                                    if (canGoBack) {
+                                      await controller.goBack();
+                                    }
+                                  }
+                                }();
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.home),
+                              tooltip: 'Go to Home',
+                              onPressed: () {
+                                Navigator.pop(context);
+                                () async {
+                                  final controller = getController();
+                                  if (controller != null) {
+                                    final m = _webViewModels[_currentIndex!];
+                                    await controller.loadUrl(m.initUrl, language: m.language);
+                                  }
+                                }();
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.share),
+                              tooltip: 'Share',
+                              onPressed: () {
+                                Navigator.pop(context);
+                                final m = _webViewModels[_currentIndex!];
+                                final url = m.currentUrl ?? m.initUrl;
+                                SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.refresh),
+                              tooltip: 'Refresh',
+                              onPressed: () {
+                                Navigator.pop(context);
+                                getController()?.reload();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuDivider(),
                       PopupMenuItem<String>(
                         value: "search",
                         child: Row(
