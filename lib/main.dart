@@ -2136,44 +2136,92 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             setState(() {});
             await _saveCurrentIndex();
           },
-          child: Container(
-            decoration: isSelected
-                ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: theme.colorScheme.primaryContainer.withAlpha(80),
-                  )
-                : null,
-            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: theme.colorScheme.surfaceContainerHighest,
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Center(
-                    child: UnifiedFaviconImage(
-                      url: _webViewModels[index].initUrl,
-                      size: 36,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Flexible(
-                  child: Text(
-                    _webViewModels[index].getDisplayName(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > constraints.maxHeight * 1.5;
+              return Container(
+                decoration: isSelected
+                    ? BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: theme.colorScheme.primaryContainer.withAlpha(80),
+                      )
+                    : null,
+                padding: isWide
+                    ? const EdgeInsets.symmetric(vertical: 4, horizontal: 12)
+                    : const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                child: isWide
+                    ? Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              color: theme.colorScheme.surfaceContainerHighest,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Center(
+                              child: UnifiedFaviconImage(
+                                url: _webViewModels[index].initUrl,
+                                size: 28,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _webViewModels[index].getDisplayName(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                                Text(
+                                  extractDomain(_webViewModels[index].initUrl),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: theme.colorScheme.surfaceContainerHighest,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Center(
+                              child: UnifiedFaviconImage(
+                                url: _webViewModels[index].initUrl,
+                                size: 36,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Flexible(
+                            child: Text(
+                              _webViewModels[index].getDisplayName(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+              );
+            },
           ),
         ),
       ),
@@ -2260,18 +2308,32 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         );
                       }
 
-                      return GridView.builder(
-                        padding: const EdgeInsets.all(8),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          mainAxisSpacing: 4,
-                          crossAxisSpacing: 4,
-                          childAspectRatio: 0.85,
-                        ),
-                        itemCount: filteredIndices.length,
-                        itemBuilder: (BuildContext context, int listIndex) {
-                          final index = filteredIndices[listIndex];
-                          return _buildSiteGridTile(context, index);
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          final itemCount = filteredIndices.length;
+                          const itemHeight = 88.0;
+                          final availableHeight = constraints.maxHeight - 16; // padding
+                          final maxRows = (availableHeight / itemHeight).floor().clamp(1, itemCount);
+
+                          int crossAxisCount = 1;
+                          if (itemCount > maxRows) {
+                            crossAxisCount = (itemCount / maxRows).ceil().clamp(1, 4);
+                          }
+
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(8),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              mainAxisSpacing: 4,
+                              crossAxisSpacing: 4,
+                              childAspectRatio: crossAxisCount == 1 ? 4.0 : 0.85,
+                            ),
+                            itemCount: itemCount,
+                            itemBuilder: (BuildContext context, int listIndex) {
+                              final index = filteredIndices[listIndex];
+                              return _buildSiteGridTile(context, index);
+                            },
+                          );
                         },
                       );
                     }(),
