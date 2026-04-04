@@ -19,7 +19,7 @@
 </a>
 &nbsp;&nbsp;
 <a href="https://forms.gle/asFrMPvT9ZHJSXs68">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="57" align="middle">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="62" align="middle">
 </a>
 
 </div>
