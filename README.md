@@ -17,6 +17,9 @@
 <a href="https://apps.apple.com/app/webspace-app/id6758049523">
   <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" width="170" align="middle">
 </a>
+<a href="https://forms.gle/asFrMPvT9ZHJSXs68">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Get it on Google Play" height="58" align="middle">
+</a>
 
 </div>
 
