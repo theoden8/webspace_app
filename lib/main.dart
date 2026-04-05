@@ -2521,43 +2521,40 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               onSecondaryTapDown: (details) {
                 _showSiteContextMenu(context, index, details.globalPosition);
               },
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _webspaceSwitchCompleter?.future;
-                  await _setCurrentIndex(index);
-                  if (!mounted) return;
-                  setState(() {});
-                  await _saveCurrentIndex();
-                },
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _buildSiteGridTileContent(context, index, isSelected, theme),
-                    Positioned(
-                      top: 2,
-                      right: 2,
-                      child: GestureDetector(
-                        onTap: () {
-                          final renderBox = context.findRenderObject() as RenderBox;
-                          final center = renderBox.localToGlobal(
-                            Offset(renderBox.size.width - 8, 8),
-                          );
-                          _showSiteContextMenu(context, index, center);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant.withAlpha(150)),
-                        ),
+              onTap: () async {
+                Navigator.pop(context);
+                await _webspaceSwitchCompleter?.future;
+                await _setCurrentIndex(index);
+                if (!mounted) return;
+                setState(() {});
+                await _saveCurrentIndex();
+              },
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildSiteGridTileContent(context, index, isSelected, theme),
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: GestureDetector(
+                      onTap: () {
+                        final renderBox = context.findRenderObject() as RenderBox;
+                        final center = renderBox.localToGlobal(
+                          Offset(renderBox.size.width - 8, 8),
+                        );
+                        _showSiteContextMenu(context, index, center);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant.withAlpha(150)),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            ),
-          );
+          ),
+        );
       },
     );
   }
