@@ -2594,7 +2594,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                padding: const EdgeInsets.only(top: 8.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -2614,7 +2614,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           children: [
                             AccentLogo(
                               accentColor: _themeSettings.accentColor,
-                              size: 48,
+                              size: 72,
                               brightness: Theme.of(context).brightness,
                             ),
                             SizedBox(height: 4),
@@ -2672,7 +2672,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         builder: (context, constraints) {
                           final itemCount = filteredIndices.length;
                           const itemHeight = 88.0;
-                          final availableHeight = constraints.maxHeight - 16; // padding
+                          final availableHeight = constraints.maxHeight - 12; // padding (top: 4 + bottom: 8)
                           final maxRows = (availableHeight / itemHeight).floor().clamp(1, itemCount);
 
                           int crossAxisCount = 1;
@@ -2681,7 +2681,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           }
 
                           return GridView.builder(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8, top: 4),
                             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: crossAxisCount,
                               mainAxisSpacing: 4,
