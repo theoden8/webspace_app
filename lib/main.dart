@@ -2592,9 +2592,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         child: Column(
           children: [
             SafeArea(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -2609,46 +2609,51 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         Navigator.pop(context);
                       },
                       child: Padding(
-                        padding: const EdgeInsets.all(8.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                         child: Column(
                           children: [
                             AccentLogo(
                               accentColor: _themeSettings.accentColor,
-                              size: 72,
+                              size: 48,
                               brightness: Theme.of(context).brightness,
                             ),
-                          SizedBox(height: 8),
-                          Text(
-                            _selectedWebspaceId != null
-                                ? _webspaces.firstWhere((ws) => ws.id == _selectedWebspaceId, orElse: () => Webspace(name: 'Unknown')).name
-                                : 'No webspace',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                          ),
-                        ],
+                            SizedBox(height: 4),
+                            Text(
+                              _selectedWebspaceId != null
+                                  ? _webspaces.firstWhere((ws) => ws.id == _selectedWebspaceId, orElse: () => Webspace(name: 'Unknown')).name
+                                  : 'No webspace',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  Semantics(
-                    label: 'Back to Webspaces',
-                    button: true,
-                    enabled: true,
-                    child: TextButton.icon(
-                      onPressed: () async {
-                        await _setCurrentIndex(null);
-                        if (!mounted) return;
-                        setState(() {});
-                        await _saveSelectedWebspaceId();
-                        await _saveCurrentIndex();
-                        if (!mounted) return;
-                        Navigator.pop(context);
-                      },
-                      icon: Icon(Icons.arrow_back, size: 16),
-                      label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                    Semantics(
+                      label: 'Back to Webspaces',
+                      button: true,
+                      enabled: true,
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 0),
+                          minimumSize: Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () async {
+                          await _setCurrentIndex(null);
+                          if (!mounted) return;
+                          setState(() {});
+                          await _saveSelectedWebspaceId();
+                          await _saveCurrentIndex();
+                          if (!mounted) return;
+                          Navigator.pop(context);
+                        },
+                        icon: Icon(Icons.arrow_back, size: 16),
+                        label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             ),
             Expanded(
               child: _selectedWebspaceId == null
