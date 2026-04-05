@@ -2538,12 +2538,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       top: 2,
                       right: 2,
                       child: GestureDetector(
-                        onTapDown: (details) {
+                        onTap: () {
                           final renderBox = context.findRenderObject() as RenderBox;
-                          final globalPosition = renderBox.localToGlobal(details.localPosition);
-                          _showSiteContextMenu(context, index, globalPosition);
+                          final center = renderBox.localToGlobal(
+                            Offset(renderBox.size.width - 8, 8),
+                          );
+                          _showSiteContextMenu(context, index, center);
                         },
-                        child: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant.withAlpha(150)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant.withAlpha(150)),
+                        ),
                       ),
                     ),
                   ],
