@@ -2469,19 +2469,99 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     Navigator.pop(context);
   }
 
-  Widget _buildSiteGridTile(BuildContext context, int index) {
+  Widget _buildSiteGridTile(BuildContext context, int index, int listIndex) {
     final isSelected = _currentIndex == index;
     final theme = Theme.of(context);
+    final isCustomWebspace = _selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId;
     return Semantics(
       key: Key('site_$index'),
       label: _webViewModels[index].getDisplayName(),
       button: true,
       enabled: true,
-      child: GestureDetector(
-        onLongPressStart: (details) {
-          _showSiteContextMenu(context, index, details.globalPosition);
-        },
-        child: InkWell(
+      child: isCustomWebspace
+        ? _buildDraggableSiteGridTile(context, index, listIndex, isSelected, theme)
+        : _buildStaticSiteGridTile(context, index, isSelected, theme),
+    );
+  }
+
+  Widget _buildDraggableSiteGridTile(BuildContext context, int index, int listIndex, bool isSelected, ThemeData theme) {
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (details) => details.data != listIndex,
+      onAcceptWithDetails: (details) {
+        _reorderSiteInWebspace(details.data, listIndex);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHovered = candidateData.isNotEmpty;
+        return LongPressDraggable<int>(
+          data: listIndex,
+          feedback: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: 80,
+              height: 88,
+              child: Opacity(
+                opacity: 0.85,
+                child: _buildSiteGridTileContent(context, index, isSelected, theme),
+              ),
+            ),
+          ),
+          childWhenDragging: Opacity(
+            opacity: 0.3,
+            child: _buildSiteGridTileContent(context, index, isSelected, theme),
+          ),
+          child: Container(
+            decoration: isHovered
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: theme.colorScheme.primary, width: 2),
+                  )
+                : null,
+            child: GestureDetector(
+              onSecondaryTapDown: (details) {
+                _showSiteContextMenu(context, index, details.globalPosition);
+              },
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _webspaceSwitchCompleter?.future;
+                  await _setCurrentIndex(index);
+                  if (!mounted) return;
+                  setState(() {});
+                  await _saveCurrentIndex();
+                },
+                child: Stack(
+                  children: [
+                    _buildSiteGridTileContent(context, index, isSelected, theme),
+                    Positioned(
+                      top: 2,
+                      right: 2,
+                      child: GestureDetector(
+                        onTapDown: (details) {
+                          final renderBox = context.findRenderObject() as RenderBox;
+                          final globalPosition = renderBox.localToGlobal(details.localPosition);
+                          _showSiteContextMenu(context, index, globalPosition);
+                        },
+                        child: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant.withAlpha(150)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            ),
+          );
+      },
+    );
+  }
+
+  Widget _buildStaticSiteGridTile(BuildContext context, int index, bool isSelected, ThemeData theme) {
+    return GestureDetector(
+      onLongPressStart: (details) {
+        _showSiteContextMenu(context, index, details.globalPosition);
+      },
+      child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () async {
             Navigator.pop(context);
@@ -2579,6 +2659,47 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             },
           ),
         ),
+    );
+  }
+
+  Widget _buildSiteGridTileContent(BuildContext context, int index, bool isSelected, ThemeData theme) {
+    return Container(
+      decoration: isSelected
+          ? BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: theme.colorScheme.primaryContainer.withAlpha(80),
+            )
+          : null,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: theme.colorScheme.surfaceContainerHighest,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Center(
+              child: UnifiedFaviconImage(
+                url: _webViewModels[index].initUrl,
+                size: 36,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Flexible(
+            child: Text(
+              _webViewModels[index].getDisplayName(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2691,7 +2812,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                             itemCount: itemCount,
                             itemBuilder: (BuildContext context, int listIndex) {
                               final index = filteredIndices[listIndex];
-                              return _buildSiteGridTile(context, index);
+                              return _buildSiteGridTile(context, index, listIndex);
                             },
                           );
                         },
