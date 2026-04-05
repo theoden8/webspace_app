@@ -2532,6 +2532,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   await _saveCurrentIndex();
                 },
                 child: Stack(
+                  fit: StackFit.expand,
                   children: [
                     _buildSiteGridTileContent(context, index, isSelected, theme),
                     Positioned(
@@ -2668,44 +2669,92 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Widget _buildSiteGridTileContent(BuildContext context, int index, bool isSelected, ThemeData theme) {
-    return Container(
-      decoration: isSelected
-          ? BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: theme.colorScheme.primaryContainer.withAlpha(80),
-            )
-          : null,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: theme.colorScheme.surfaceContainerHighest,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Center(
-              child: UnifiedFaviconImage(
-                url: _webViewModels[index].initUrl,
-                size: 36,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Flexible(
-            child: Text(
-              _webViewModels[index].getDisplayName(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11),
-            ),
-          ),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > constraints.maxHeight * 1.5;
+        return Container(
+          decoration: isSelected
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: theme.colorScheme.primaryContainer.withAlpha(80),
+                )
+              : null,
+          padding: isWide
+              ? const EdgeInsets.symmetric(vertical: 4, horizontal: 12)
+              : const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          child: isWide
+              ? Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: theme.colorScheme.surfaceContainerHighest,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Center(
+                        child: UnifiedFaviconImage(
+                          url: _webViewModels[index].initUrl,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _webViewModels[index].getDisplayName(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13),
+                          ),
+                          Text(
+                            extractDomain(_webViewModels[index].initUrl),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: theme.colorScheme.surfaceContainerHighest,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Center(
+                        child: UnifiedFaviconImage(
+                          url: _webViewModels[index].initUrl,
+                          size: 36,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Flexible(
+                      child: Text(
+                        _webViewModels[index].getDisplayName(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 
