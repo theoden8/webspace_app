@@ -1840,7 +1840,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           // Site tab strip for quick switching (with popup menu when tab strip is enabled)
           if (hasTabStrip)
             Container(
-              height: 40,
+              height: 48,
               decoration: BoxDecoration(
                 color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
                 border: Border(
