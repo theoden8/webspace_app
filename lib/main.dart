@@ -554,15 +554,17 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
     return MaterialApp(
       title: 'WebSpace',
       theme: ThemeData.light().copyWith(
-        primaryColor: Color(0xFF123456),
+        primaryColor: accentColor,
         colorScheme: ColorScheme.light().copyWith(
+          primary: accentColor,
           secondary: accentColor,
         ),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
       darkTheme: ThemeData.dark().copyWith(
-        primaryColor: Color(0xFF123456),
+        primaryColor: accentColor,
         colorScheme: ColorScheme.dark().copyWith(
+          primary: accentColor,
           secondary: accentColor,
         ),
         scaffoldBackgroundColor: Color(0xFF000000),
