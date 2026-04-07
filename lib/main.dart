@@ -2889,45 +2889,59 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       ),
       body: SafeArea(
         top: false, // AppBar handles top inset
-        child: _currentIndex == null || _currentIndex! >= _webViewModels.length
-          ? WebspacesListScreen(
-              webspaces: _webspaces,
-              selectedWebspaceId: _selectedWebspaceId,
-              totalSitesCount: _webViewModels.length,
-              accentColor: _themeSettings.accentColor,
-              onSelectWebspace: _selectWebspace,
-              onAddWebspace: _addWebspace,
-              onEditWebspace: _editWebspace,
-              onDeleteWebspace: _deleteWebspace,
-              onReorder: _reorderWebspaces,
-            )
-          : IndexedStack(
-              index: _currentIndex!,
-              children: _webViewModels.asMap().entries.map<Widget>((entry) {
-                final index = entry.key;
-                final webViewModel = entry.value;
-
-                if (!_loadedIndices.contains(index)) {
-                  return const SizedBox.shrink();
-                }
-
-                return SizedBox.expand(
-                  key: ValueKey(webViewModel.siteId),
-                  child: webViewModel.getWebView(
-                    launchUrl,
-                    _cookieManager,
-                    _saveWebViewModels,
-                    onWindowRequested: _showPopupWindow,
-                    language: webViewModel.language,
-                    onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
-                      HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
-                    },
-                    initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
-                    isActive: () => _currentIndex == index,
-                  ),
-                );
-              }).toList(),
+        // Use Stack + Offstage so the IndexedStack (and its webview States)
+        // stay mounted when showing the webspace list. Removing the
+        // IndexedStack from the tree destroys webview States, losing
+        // navigation history and scroll position.
+        child: Stack(
+          children: [
+            Offstage(
+              offstage: _currentIndex != null && _currentIndex! < _webViewModels.length,
+              child: WebspacesListScreen(
+                webspaces: _webspaces,
+                selectedWebspaceId: _selectedWebspaceId,
+                totalSitesCount: _webViewModels.length,
+                accentColor: _themeSettings.accentColor,
+                onSelectWebspace: _selectWebspace,
+                onAddWebspace: _addWebspace,
+                onEditWebspace: _editWebspace,
+                onDeleteWebspace: _deleteWebspace,
+                onReorder: _reorderWebspaces,
+              ),
             ),
+            if (_loadedIndices.isNotEmpty)
+              Offstage(
+                offstage: _currentIndex == null || _currentIndex! >= _webViewModels.length,
+                child: IndexedStack(
+                  index: _currentIndex ?? 0,
+                  children: _webViewModels.asMap().entries.map<Widget>((entry) {
+                    final index = entry.key;
+                    final webViewModel = entry.value;
+
+                    if (!_loadedIndices.contains(index)) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return SizedBox.expand(
+                      key: ValueKey(webViewModel.siteId),
+                      child: webViewModel.getWebView(
+                        launchUrl,
+                        _cookieManager,
+                        _saveWebViewModels,
+                        onWindowRequested: _showPopupWindow,
+                        language: webViewModel.language,
+                        onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
+                          HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
+                        },
+                        initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
+                        isActive: () => _currentIndex == index,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBottomBar(),
       floatingActionButton:
