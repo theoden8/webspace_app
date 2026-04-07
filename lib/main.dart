@@ -231,7 +231,10 @@ class _AccentLogoState extends State<AccentLogo> {
     final pixels = Uint8List.fromList(byteData.buffer.asUint8List());
     final accent = _accentColorToColor(widget.accentColor);
     final isLight = widget.brightness == Brightness.light;
-    final skipRecolor = widget.accentColor == AccentColor.blue;
+    // Only skip recoloring for blue accent on the light icon, whose blue
+    // pixels already match the accent blue.  The dark icon uses a different,
+    // more desaturated blue that looks purple if left untouched.
+    final skipRecolor = widget.accentColor == AccentColor.blue && isLight;
 
     for (int i = 0; i < pixels.length; i += 4) {
       final c0 = pixels[i];
