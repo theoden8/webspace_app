@@ -564,19 +564,17 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
     final Color accentColor = _accentColorToColor(_themeSettings.accentColor);
     return MaterialApp(
       title: 'WebSpace',
-      theme: ThemeData.light().copyWith(
-        primaryColor: accentColor,
-        colorScheme: ColorScheme.light().copyWith(
-          primary: accentColor,
-          secondary: accentColor,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: accentColor,
+          brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
-      darkTheme: ThemeData.dark().copyWith(
-        primaryColor: accentColor,
-        colorScheme: ColorScheme.dark().copyWith(
-          primary: accentColor,
-          secondary: accentColor,
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: accentColor,
+          brightness: Brightness.dark,
         ),
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
