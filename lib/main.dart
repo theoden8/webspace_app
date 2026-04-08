@@ -164,6 +164,71 @@ Color _accentColorToColor(AccentColor accentColor) {
   }
 }
 
+/// Recolor RGBA pixel buffer in-place for logo display.
+/// Exported for testing.
+void recolorLogoPixels(Uint8List pixels, AccentColor accentColor, {required bool isLight}) {
+  final accent = _accentColorToColor(accentColor);
+  final skipRecolor = accentColor == AccentColor.blue;
+
+  for (int i = 0; i < pixels.length; i += 4) {
+    final c0 = pixels[i];
+    final c1 = pixels[i + 1];
+    final c2 = pixels[i + 2];
+
+    final cMin = min(c0, min(c1, c2));
+    final cMax = max(c0, max(c1, c2));
+
+    // Compute alpha: map background to transparent, content to opaque,
+    // with smooth falloff in between to anti-alias edges cleanly.
+    int alpha;
+    if (isLight) {
+      if (cMin >= 200) {
+        alpha = 0;
+      } else if (cMin <= 100) {
+        alpha = 255;
+      } else {
+        alpha = 255 * (200 - cMin) ~/ 100;
+      }
+    } else {
+      if (cMax <= 55) {
+        alpha = 0;
+      } else if (cMax >= 155) {
+        alpha = 255;
+      } else {
+        alpha = 255 * (cMax - 55) ~/ 100;
+      }
+    }
+
+    // Determine final RGB
+    int r = c0, g = c1, b = c2;
+
+    // Recolor blue pixels to accent (skip for blue accent)
+    if (!skipRecolor && alpha > 0 && cMax - cMin > 40 && cMax > 60) {
+      r = accent.red;
+      g = accent.green;
+      b = accent.blue;
+    }
+
+    // Premultiply: Skia/Impeller expect premultiplied RGBA
+    if (alpha == 0) {
+      pixels[i] = 0;
+      pixels[i + 1] = 0;
+      pixels[i + 2] = 0;
+      pixels[i + 3] = 0;
+    } else if (alpha < 255) {
+      pixels[i] = (r * alpha) ~/ 255;
+      pixels[i + 1] = (g * alpha) ~/ 255;
+      pixels[i + 2] = (b * alpha) ~/ 255;
+      pixels[i + 3] = alpha;
+    } else {
+      pixels[i] = r;
+      pixels[i + 1] = g;
+      pixels[i + 2] = b;
+      pixels[i + 3] = 255;
+    }
+  }
+}
+
 /// Widget that displays the WebSpace logo tinted to the current accent color.
 /// Processes icon pixels directly:
 /// - Background (white in light / black in dark) → transparent
@@ -208,6 +273,11 @@ class _AccentLogoState extends State<AccentLogo> {
 
   Future<void> _loadAndProcess() async {
     final key = _cacheKey;
+    // Capture widget properties before any awaits to avoid race conditions:
+    // if the widget updates mid-flight, stale reads would corrupt the cache.
+    final accentColor = widget.accentColor;
+    final brightness = widget.brightness;
+
     if (_cache.containsKey(key)) {
       setState(() => _image = _cache[key]);
       return;
@@ -218,7 +288,7 @@ class _AccentLogoState extends State<AccentLogo> {
       setState(() => _image = null);
     }
 
-    final asset = widget.brightness == Brightness.dark
+    final asset = brightness == Brightness.dark
         ? 'assets/webspace_icon_dark.png'
         : 'assets/webspace_icon.png';
     final data = await rootBundle.load(asset);
@@ -229,67 +299,8 @@ class _AccentLogoState extends State<AccentLogo> {
     if (byteData == null) return;
 
     final pixels = Uint8List.fromList(byteData.buffer.asUint8List());
-    final accent = _accentColorToColor(widget.accentColor);
-    final isLight = widget.brightness == Brightness.light;
-    final skipRecolor = widget.accentColor == AccentColor.blue;
-
-    for (int i = 0; i < pixels.length; i += 4) {
-      final c0 = pixels[i];
-      final c1 = pixels[i + 1];
-      final c2 = pixels[i + 2];
-
-      final cMin = min(c0, min(c1, c2));
-      final cMax = max(c0, max(c1, c2));
-
-      // Compute alpha: map background to transparent, content to opaque,
-      // with smooth falloff in between to anti-alias edges cleanly.
-      int alpha;
-      if (isLight) {
-        if (cMin >= 200) {
-          alpha = 0;
-        } else if (cMin <= 100) {
-          alpha = 255;
-        } else {
-          alpha = 255 * (200 - cMin) ~/ 100;
-        }
-      } else {
-        if (cMax <= 55) {
-          alpha = 0;
-        } else if (cMax >= 155) {
-          alpha = 255;
-        } else {
-          alpha = 255 * (cMax - 55) ~/ 100;
-        }
-      }
-
-      // Determine final RGB
-      int r = c0, g = c1, b = c2;
-
-      // Recolor blue pixels to accent (skip for blue accent)
-      if (!skipRecolor && alpha > 0 && cMax - cMin > 40 && cMax > 60) {
-        r = accent.red;
-        g = accent.green;
-        b = accent.blue;
-      }
-
-      // Premultiply: Skia/Impeller expect premultiplied RGBA
-      if (alpha == 0) {
-        pixels[i] = 0;
-        pixels[i + 1] = 0;
-        pixels[i + 2] = 0;
-        pixels[i + 3] = 0;
-      } else if (alpha < 255) {
-        pixels[i] = (r * alpha) ~/ 255;
-        pixels[i + 1] = (g * alpha) ~/ 255;
-        pixels[i + 2] = (b * alpha) ~/ 255;
-        pixels[i + 3] = alpha;
-      } else {
-        pixels[i] = r;
-        pixels[i + 1] = g;
-        pixels[i + 2] = b;
-        pixels[i + 3] = 255;
-      }
-    }
+    final isLight = brightness == Brightness.light;
+    recolorLogoPixels(pixels, accentColor, isLight: isLight);
 
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
@@ -553,17 +564,17 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
     final Color accentColor = _accentColorToColor(_themeSettings.accentColor);
     return MaterialApp(
       title: 'WebSpace',
-      theme: ThemeData.light().copyWith(
-        primaryColor: Color(0xFF123456),
-        colorScheme: ColorScheme.light().copyWith(
-          secondary: accentColor,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: accentColor,
+          brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
-      darkTheme: ThemeData.dark().copyWith(
-        primaryColor: Color(0xFF123456),
-        colorScheme: ColorScheme.dark().copyWith(
-          secondary: accentColor,
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: accentColor,
+          brightness: Brightness.dark,
         ),
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
