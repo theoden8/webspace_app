@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Sponsor-theoden8-ff69b4" alt="Sponsor theoden8">
 </a>
 
-<a href="https://gitlab.com/fdroid/fdroiddata/-/merge_requests/31896">
+<a href="https://f-droid.org/packages/org.codeberg.theoden8.webspace">
   <img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80" align="middle">
 </a>
 <a href="https://apps.apple.com/app/webspace-app/id6758049523">
