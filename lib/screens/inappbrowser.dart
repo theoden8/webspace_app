@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/services/webview.dart';
@@ -183,12 +183,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                   ),
                 ),
                 PopupMenuItem<String>(
-                  value: "copylink",
+                  value: "share",
                   child: Row(
                     children: [
-                      Icon(Icons.copy),
+                      Icon(Icons.share),
                       SizedBox(width: 8),
-                      Text("Copy Link"),
+                      Text("Share"),
                     ],
                   ),
                 ),
@@ -196,16 +196,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
             },
             onSelected: (String value) async {
               switch (value) {
-                case 'copylink':
+                case 'share':
                   if (_controller != null) {
                     final url = await _controller!.getUrl();
                     if (url != null) {
-                      await Clipboard.setData(ClipboardData(text: url.toString()));
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Link copied to clipboard')),
-                        );
-                      }
+                      SharePlus.instance.share(ShareParams(uri: Uri.parse(url.toString())));
                     }
                   }
                   break;
