@@ -31,8 +31,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   String? _exportedHtml;
   bool _loadingHtml = false;
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
+
+  final ScrollController _consoleScrollController = ScrollController();
+  bool _consoleAutoScroll = true;
+
   final ScrollController _logScrollController = ScrollController();
-  bool _autoScroll = true;
+  bool _logAutoScroll = true;
 
   bool get _hasSite => widget.webViewModel != null;
 
@@ -42,38 +46,64 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   void initState() {
     super.initState();
     LogService.instance.addListener(_onLogUpdate);
+    if (_hasSite) {
+      widget.webViewModel!.onConsoleLogChanged = _onConsoleUpdate;
+    }
   }
 
   @override
   void dispose() {
     LogService.instance.removeListener(_onLogUpdate);
+    if (_hasSite) {
+      widget.webViewModel!.onConsoleLogChanged = null;
+    }
+    _consoleScrollController.dispose();
     _logScrollController.dispose();
     super.dispose();
+  }
+
+  void _onConsoleUpdate() {
+    if (mounted) {
+      setState(() {});
+      if (_consoleAutoScroll) {
+        _scrollToBottom(_consoleScrollController);
+      }
+    }
   }
 
   void _onLogUpdate() {
     if (mounted) {
       setState(() {});
-      if (_autoScroll) {
-        _scrollToBottom();
+      if (_logAutoScroll) {
+        _scrollToBottom(_logScrollController);
       }
     }
   }
 
-  bool _onUserScroll(ScrollNotification notification) {
+  bool _onConsoleUserScroll(ScrollNotification notification) {
     if (notification is ScrollUpdateNotification &&
-        notification.dragDetails != null) {
-      // User is actively dragging — check if they're near the bottom
-      final pos = _logScrollController.position;
-      _autoScroll = pos.pixels >= pos.maxScrollExtent - 50;
+        notification.dragDetails != null &&
+        _consoleScrollController.hasClients) {
+      final pos = _consoleScrollController.position;
+      _consoleAutoScroll = pos.pixels >= pos.maxScrollExtent - 50;
     }
     return false;
   }
 
-  void _scrollToBottom() {
+  bool _onLogUserScroll(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification &&
+        notification.dragDetails != null &&
+        _logScrollController.hasClients) {
+      final pos = _logScrollController.position;
+      _logAutoScroll = pos.pixels >= pos.maxScrollExtent - 50;
+    }
+    return false;
+  }
+
+  void _scrollToBottom(ScrollController controller) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_logScrollController.hasClients) {
-        _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
+      if (controller.hasClients) {
+        controller.jumpTo(controller.position.maxScrollExtent);
       }
     });
   }
@@ -128,12 +158,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         Expanded(
           child: logs.isEmpty
               ? const Center(child: Text('No console messages'))
-              : ListView.builder(
+              : _buildAutoScrollList(
+                  controller: _consoleScrollController,
+                  autoScroll: _consoleAutoScroll,
+                  onUserScroll: _onConsoleUserScroll,
                   itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    final entry = logs[index];
-                    return _buildConsoleEntry(entry);
-                  },
+                  itemBuilder: (context, index) => _buildConsoleEntry(logs[index]),
                 ),
         ),
       ],
@@ -562,28 +592,36 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         Expanded(
           child: filtered.isEmpty
               ? const Center(child: Text('No log entries'))
-              : _buildLogListView(filtered),
+              : _buildAutoScrollList(
+                  controller: _logScrollController,
+                  autoScroll: _logAutoScroll,
+                  onUserScroll: _onLogUserScroll,
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) => _buildLogEntry(filtered[index]),
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildLogListView(List<LogEntry> filtered) {
-    // Scroll to bottom on first build so latest logs are visible
+  Widget _buildAutoScrollList({
+    required ScrollController controller,
+    required bool autoScroll,
+    required bool Function(ScrollNotification) onUserScroll,
+    required int itemCount,
+    required Widget Function(BuildContext, int) itemBuilder,
+  }) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_autoScroll && _logScrollController.hasClients) {
-        _logScrollController.jumpTo(_logScrollController.position.maxScrollExtent);
+      if (autoScroll && controller.hasClients) {
+        controller.jumpTo(controller.position.maxScrollExtent);
       }
     });
     return NotificationListener<ScrollNotification>(
-      onNotification: _onUserScroll,
+      onNotification: onUserScroll,
       child: ListView.builder(
-        controller: _logScrollController,
-        itemCount: filtered.length,
-        itemBuilder: (context, index) {
-          final entry = filtered[index];
-          return _buildLogEntry(entry);
-        },
+        controller: controller,
+        itemCount: itemCount,
+        itemBuilder: itemBuilder,
       ),
     );
   }
