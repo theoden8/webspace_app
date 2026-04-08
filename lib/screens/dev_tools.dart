@@ -33,10 +33,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
 
   final ScrollController _consoleScrollController = ScrollController();
-  bool _consoleAutoScroll = true;
-
   final ScrollController _logScrollController = ScrollController();
-  bool _logAutoScroll = true;
 
   bool get _hasSite => widget.webViewModel != null;
 
@@ -63,49 +60,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   void _onConsoleUpdate() {
-    if (mounted) {
-      setState(() {});
-      if (_consoleAutoScroll) {
-        _scrollToBottom(_consoleScrollController);
-      }
-    }
+    if (mounted) setState(() {});
   }
 
   void _onLogUpdate() {
-    if (mounted) {
-      setState(() {});
-      if (_logAutoScroll) {
-        _scrollToBottom(_logScrollController);
-      }
-    }
-  }
-
-  bool _onConsoleUserScroll(ScrollNotification notification) {
-    if (notification is ScrollUpdateNotification &&
-        notification.dragDetails != null &&
-        _consoleScrollController.hasClients) {
-      final pos = _consoleScrollController.position;
-      _consoleAutoScroll = pos.pixels >= pos.maxScrollExtent - 50;
-    }
-    return false;
-  }
-
-  bool _onLogUserScroll(ScrollNotification notification) {
-    if (notification is ScrollUpdateNotification &&
-        notification.dragDetails != null &&
-        _logScrollController.hasClients) {
-      final pos = _logScrollController.position;
-      _logAutoScroll = pos.pixels >= pos.maxScrollExtent - 50;
-    }
-    return false;
-  }
-
-  void _scrollToBottom(ScrollController controller) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.hasClients) {
-        controller.jumpTo(controller.position.maxScrollExtent);
-      }
-    });
+    if (mounted) setState(() {});
   }
 
   List<Tab> get _tabs => [
@@ -158,12 +117,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         Expanded(
           child: logs.isEmpty
               ? const Center(child: Text('No console messages'))
-              : _buildAutoScrollList(
+              : ListView.builder(
                   controller: _consoleScrollController,
-                  autoScroll: _consoleAutoScroll,
-                  onUserScroll: _onConsoleUserScroll,
+                  reverse: true,
                   itemCount: logs.length,
-                  itemBuilder: (context, index) => _buildConsoleEntry(logs[index]),
+                  itemBuilder: (context, index) {
+                    // reverse: true flips the order, so invert the index
+                    return _buildConsoleEntry(logs[logs.length - 1 - index]);
+                  },
                 ),
         ),
       ],
@@ -592,37 +553,16 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         Expanded(
           child: filtered.isEmpty
               ? const Center(child: Text('No log entries'))
-              : _buildAutoScrollList(
+              : ListView.builder(
                   controller: _logScrollController,
-                  autoScroll: _logAutoScroll,
-                  onUserScroll: _onLogUserScroll,
+                  reverse: true,
                   itemCount: filtered.length,
-                  itemBuilder: (context, index) => _buildLogEntry(filtered[index]),
+                  itemBuilder: (context, index) {
+                    return _buildLogEntry(filtered[filtered.length - 1 - index]);
+                  },
                 ),
         ),
       ],
-    );
-  }
-
-  Widget _buildAutoScrollList({
-    required ScrollController controller,
-    required bool autoScroll,
-    required bool Function(ScrollNotification) onUserScroll,
-    required int itemCount,
-    required Widget Function(BuildContext, int) itemBuilder,
-  }) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (autoScroll && controller.hasClients) {
-        controller.jumpTo(controller.position.maxScrollExtent);
-      }
-    });
-    return NotificationListener<ScrollNotification>(
-      onNotification: onUserScroll,
-      child: ListView.builder(
-        controller: controller,
-        itemCount: itemCount,
-        itemBuilder: itemBuilder,
-      ),
     );
   }
 
