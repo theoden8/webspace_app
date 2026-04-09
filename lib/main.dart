@@ -568,6 +568,8 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
         colorScheme: ColorScheme.fromSeed(
           seedColor: accentColor,
           brightness: Brightness.light,
+        ).copyWith(
+          primary: accentColor,
         ),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
@@ -575,6 +577,8 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
         colorScheme: ColorScheme.fromSeed(
           seedColor: accentColor,
           brightness: Brightness.dark,
+        ).copyWith(
+          primary: accentColor,
         ),
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
