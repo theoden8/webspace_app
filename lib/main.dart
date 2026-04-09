@@ -2496,6 +2496,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Widget _buildDraggableSiteGridTile(BuildContext context, int index, int listIndex, bool isSelected, ThemeData theme) {
+    // Track pointer state for tap detection via raw Listener.
+    // Using Listener instead of GestureDetector avoids the gesture arena
+    // conflict with LongPressDraggable that causes delayed/missed taps.
+    Offset? pointerDownPos;
+    Duration? pointerDownTime;
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != listIndex,
       onAcceptWithDetails: (details) {
@@ -2528,41 +2533,63 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     border: Border.all(color: theme.colorScheme.primary, width: 2),
                   )
                 : null,
-            child: GestureDetector(
-              onSecondaryTapDown: (details) {
-                _showSiteContextMenu(context, index, details.globalPosition);
-              },
-              onTap: () async {
-                Navigator.pop(context);
-                await _webspaceSwitchCompleter?.future;
-                await _setCurrentIndex(index);
-                if (!mounted) return;
-                setState(() {});
-                await _saveCurrentIndex();
-              },
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildSiteGridTileContent(context, index, isSelected, theme),
-                  Positioned(
-                    top: 2,
-                    right: 2,
-                    child: GestureDetector(
-                      onTap: () {
-                        final renderBox = context.findRenderObject() as RenderBox;
-                        final center = renderBox.localToGlobal(
-                          Offset(renderBox.size.width - 8, 8),
-                        );
-                        _showSiteContextMenu(context, index, center);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(4.0),
-                        child: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant.withAlpha(150)),
-                      ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: (event) {
+                    pointerDownPos = event.position;
+                    pointerDownTime = event.timeStamp;
+                  },
+                  onPointerUp: (event) {
+                    if (pointerDownPos != null) {
+                      final distance = (event.position - pointerDownPos!).distance;
+                      final duration = event.timeStamp - pointerDownTime!;
+                      if (distance < 20 && duration < const Duration(milliseconds: 300)) {
+                        Navigator.pop(context);
+                        () async {
+                          await _webspaceSwitchCompleter?.future;
+                          await _setCurrentIndex(index);
+                          if (!mounted) return;
+                          setState(() {});
+                          await _saveCurrentIndex();
+                        }();
+                      }
+                    }
+                    pointerDownPos = null;
+                    pointerDownTime = null;
+                  },
+                  onPointerCancel: (_) {
+                    pointerDownPos = null;
+                    pointerDownTime = null;
+                  },
+                  child: GestureDetector(
+                    onSecondaryTapDown: (details) {
+                      _showSiteContextMenu(context, index, details.globalPosition);
+                    },
+                    child: _buildSiteGridTileContent(context, index, isSelected, theme),
+                  ),
+                ),
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      final renderBox = context.findRenderObject() as RenderBox;
+                      final center = renderBox.localToGlobal(
+                        Offset(renderBox.size.width - 8, 8),
+                      );
+                      _showSiteContextMenu(context, index, center);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Icon(Icons.more_vert, size: 16, color: theme.colorScheme.onSurfaceVariant.withAlpha(150)),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
