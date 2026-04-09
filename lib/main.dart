@@ -1840,9 +1840,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     );
   }
 
-  /// Build the bottom bar shown when viewing a site.
-  /// Contains: find toolbar (optional), site tab strip, and URL bar (optional).
-  Widget? _buildBottomBar() {
+  /// Build the tab strip shown in bottomNavigationBar.
+  /// This stays at the screen bottom and doesn't need to be above the keyboard.
+  Widget? _buildTabStrip() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       return null;
     }
@@ -1850,129 +1850,144 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final filteredIndices = _getFilteredSiteIndices();
-    final model = _webViewModels[_currentIndex!];
 
-    // Don't show bottom bar if there's nothing to display
     final hasTabStrip = _showTabStrip && filteredIndices.length > 1;
-    final hasUrlBar = _showUrlBar;
-    final hasFindToolbar = _isFindVisible && getController() != null;
-    if (!hasTabStrip && !hasUrlBar && !hasFindToolbar) {
+    if (!hasTabStrip) {
+      return null;
+    }
+
+    // Hide when keyboard is open - it's not needed during text input
+    if (MediaQuery.of(context).viewInsets.bottom > 0) {
       return null;
     }
 
     return SafeArea(
       top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Find toolbar (when visible)
-          if (hasFindToolbar)
-            FindToolbar(
-              webViewController: getController(),
-              matches: model.findMatches,
-              onClose: () {
-                _toggleFind();
-              },
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
+          border: Border(
+            top: BorderSide(
+              color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
+              width: 0.5,
             ),
-          // URL bar (when visible) - above tab strip
-          if (hasUrlBar)
-            UrlBar(
-              currentUrl: model.currentUrl,
-              onUrlSubmitted: (url) async {
-                final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels);
-                if (controller != null) {
-                  await controller.loadUrl(url, language: model.language);
-                  if (!mounted) return;
-                  setState(() {
-                    model.currentUrl = url;
-                  });
-                  await _saveWebViewModels();
-                }
-              },
-            ),
-          // Site tab strip for quick switching - hidden when keyboard is open
-          if (hasTabStrip && MediaQuery.of(context).viewInsets.bottom == 0)
-            Container(
-              height: 52,
-              decoration: BoxDecoration(
-                color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
-                border: Border(
-                  top: BorderSide(
-                    color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: filteredIndices.length,
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      itemBuilder: (context, listIndex) {
-                        final siteIndex = filteredIndices[listIndex];
-                        final siteModel = _webViewModels[siteIndex];
-                        final isActive = siteIndex == _currentIndex;
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: filteredIndices.length,
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                itemBuilder: (context, listIndex) {
+                  final siteIndex = filteredIndices[listIndex];
+                  final siteModel = _webViewModels[siteIndex];
+                  final isActive = siteIndex == _currentIndex;
 
-                        return GestureDetector(
-                          onTap: () async {
-                            await _setCurrentIndex(siteIndex);
-                            if (!mounted) return;
-                            setState(() {});
-                            _saveCurrentIndex();
-                          },
-                          child: Container(
-                            constraints: BoxConstraints(maxWidth: 140),
-                            margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? theme.colorScheme.primaryContainer
-                                  : (isDark ? Color(0xFF2A2A2A) : Colors.white),
-                              borderRadius: BorderRadius.circular(8),
-                              border: isActive
-                                  ? Border.all(color: theme.colorScheme.primary, width: 1.5)
-                                  : Border.all(
-                                      color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
-                                      width: 0.5,
-                                    ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                UnifiedFaviconImage(
-                                  url: siteModel.initUrl,
-                                  size: 16,
-                                ),
-                                SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    siteModel.getDisplayName(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                      color: isActive
-                                          ? theme.colorScheme.onPrimaryContainer
-                                          : theme.colorScheme.onSurface.withOpacity(0.8),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                  return GestureDetector(
+                    onTap: () async {
+                      await _setCurrentIndex(siteIndex);
+                      if (!mounted) return;
+                      setState(() {});
+                      _saveCurrentIndex();
+                    },
+                    child: Container(
+                      constraints: BoxConstraints(maxWidth: 140),
+                      margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? theme.colorScheme.primaryContainer
+                            : (isDark ? Color(0xFF2A2A2A) : Colors.white),
+                        borderRadius: BorderRadius.circular(8),
+                        border: isActive
+                            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
+                            : Border.all(
+                                color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
+                                width: 0.5,
+                              ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          UnifiedFaviconImage(
+                            url: siteModel.initUrl,
+                            size: 16,
+                          ),
+                          SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              siteModel.getDisplayName(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                                color: isActive
+                                    ? theme.colorScheme.onPrimaryContainer
+                                    : theme.colorScheme.onSurface.withOpacity(0.8),
+                              ),
                             ),
                           ),
-                        );
-                      },
+                        ],
+                      ),
                     ),
-                  ),
-                  _buildBottomPopupMenu(),
-                ],
+                  );
+                },
               ),
             ),
-        ],
+            _buildBottomPopupMenu(),
+          ],
+        ),
       ),
+    );
+  }
+
+  /// Build the URL bar and find toolbar, placed in the body so that
+  /// resizeToAvoidBottomInset keeps them above the keyboard.
+  Widget? _buildInputBar() {
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
+      return null;
+    }
+
+    final model = _webViewModels[_currentIndex!];
+    final hasUrlBar = _showUrlBar;
+    final hasFindToolbar = _isFindVisible && getController() != null;
+    if (!hasUrlBar && !hasFindToolbar) {
+      return null;
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Find toolbar (when visible)
+        if (hasFindToolbar)
+          FindToolbar(
+            webViewController: getController(),
+            matches: model.findMatches,
+            onClose: () {
+              _toggleFind();
+            },
+          ),
+        // URL bar (when visible)
+        if (hasUrlBar)
+          UrlBar(
+            currentUrl: model.currentUrl,
+            onUrlSubmitted: (url) async {
+              final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels);
+              if (controller != null) {
+                await controller.loadUrl(url, language: model.language);
+                if (!mounted) return;
+                setState(() {
+                  model.currentUrl = url;
+                });
+                await _saveWebViewModels();
+              }
+            },
+          ),
+      ],
     );
   }
 
@@ -2819,15 +2834,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     );
   }
 
-  /// Build the body with the bottom bar integrated, so the keyboard
-  /// resize (resizeToAvoidBottomInset) naturally pushes the bottom bar
-  /// above the keyboard. Using bottomNavigationBar doesn't reliably
-  /// stay above the keyboard with platform webviews on Android.
+  /// Build the body with the input bar (URL bar / find toolbar) integrated,
+  /// so resizeToAvoidBottomInset naturally keeps them above the keyboard.
+  /// The tab strip stays in bottomNavigationBar separately.
   Widget _buildBodyWithBottomBar() {
-    final bottomBar = _buildBottomBar();
+    final inputBar = _buildInputBar();
+    // Tab strip in bottomNavigationBar handles bottom safe area when visible.
+    // When it's absent the body needs safe area for the home indicator.
+    final filteredIndices = _getFilteredSiteIndices();
+    final tabStripVisible = _currentIndex != null
+        && _currentIndex! < _webViewModels.length
+        && _showTabStrip
+        && filteredIndices.length > 1
+        && MediaQuery.of(context).viewInsets.bottom == 0;
     return SafeArea(
       top: false, // AppBar handles top inset
-      bottom: bottomBar == null, // Bottom bar handles its own safe area
+      bottom: !tabStripVisible && inputBar == null,
       // Use Stack + Offstage so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing
@@ -2885,7 +2907,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               ],
             ),
           ),
-          if (bottomBar != null) bottomBar,
+          if (inputBar != null && tabStripVisible) inputBar,
+          if (inputBar != null && !tabStripVisible)
+            SafeArea(top: false, child: inputBar),
         ],
       ),
     );
@@ -3024,6 +3048,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         ),
       ),
       body: _buildBodyWithBottomBar(),
+      bottomNavigationBar: _buildTabStrip(),
       floatingActionButton:
           !(_currentIndex == null || _currentIndex! >= _webViewModels.length) ? null
           : FloatingActionButton(
