@@ -238,6 +238,7 @@ class WebViewModel {
 
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
+  VoidCallback? onConsoleLogChanged;
 
   String? defaultUserAgent;
   Function? stateSetterF;
@@ -476,6 +477,7 @@ class WebViewModel {
             if (consoleLogs.length > _maxConsoleLogs) {
               consoleLogs.removeAt(0);
             }
+            onConsoleLogChanged?.call();
           },
         ),
         onControllerCreated: (ctrl) {

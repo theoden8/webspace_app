@@ -32,9 +32,40 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   bool _loadingHtml = false;
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
 
+  final ScrollController _consoleScrollController = ScrollController();
+  final ScrollController _logScrollController = ScrollController();
+
   bool get _hasSite => widget.webViewModel != null;
 
   int get _tabCount => _hasSite ? 5 : 1;
+
+  @override
+  void initState() {
+    super.initState();
+    LogService.instance.addListener(_onLogUpdate);
+    if (_hasSite) {
+      widget.webViewModel!.onConsoleLogChanged = _onConsoleUpdate;
+    }
+  }
+
+  @override
+  void dispose() {
+    LogService.instance.removeListener(_onLogUpdate);
+    if (_hasSite) {
+      widget.webViewModel!.onConsoleLogChanged = null;
+    }
+    _consoleScrollController.dispose();
+    _logScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onConsoleUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  void _onLogUpdate() {
+    if (mounted) setState(() {});
+  }
 
   List<Tab> get _tabs => [
         if (_hasSite)
@@ -87,10 +118,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           child: logs.isEmpty
               ? const Center(child: Text('No console messages'))
               : ListView.builder(
+                  controller: _consoleScrollController,
+                  reverse: true,
                   itemCount: logs.length,
                   itemBuilder: (context, index) {
-                    final entry = logs[index];
-                    return _buildConsoleEntry(entry);
+                    // reverse: true flips the order, so invert the index
+                    return _buildConsoleEntry(logs[logs.length - 1 - index]);
                   },
                 ),
         ),
@@ -521,10 +554,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           child: filtered.isEmpty
               ? const Center(child: Text('No log entries'))
               : ListView.builder(
+                  controller: _logScrollController,
+                  reverse: true,
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
-                    final entry = filtered[index];
-                    return _buildLogEntry(entry);
+                    return _buildLogEntry(filtered[filtered.length - 1 - index]);
                   },
                 ),
         ),
