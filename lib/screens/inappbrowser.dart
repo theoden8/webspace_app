@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/url_bar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
@@ -15,6 +16,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool dnsBlockEnabled;
   final bool contentBlockEnabled;
   final String? language;
+  final bool showUrlBar;
 
   InAppWebViewScreen({
     required this.url,
@@ -25,6 +27,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.dnsBlockEnabled,
     required this.contentBlockEnabled,
     required this.language,
+    this.showUrlBar = false,
   });
 
   @override
@@ -34,6 +37,7 @@ class InAppWebViewScreen extends StatefulWidget {
 class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
   WebViewController? _controller;
   String? title;
+  late String _currentUrl;
 
   bool _isFindVisible = false;
   FindMatchesResult findMatches = FindMatchesResult();
@@ -43,6 +47,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
     super.initState();
     // Use home site title if provided
     title = widget.homeTitle;
+    _currentUrl = widget.url;
   }
 
   void updateTitle(String newTitle) {
@@ -247,7 +252,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                 contentBlockEnabled: widget.contentBlockEnabled,
                 language: widget.language,
                 onUrlChanged: (url) {
-                  // Keep home site title even when navigating within nested webview
+                  setState(() {
+                    _currentUrl = url;
+                  });
                 },
                 onFindResult: (activeMatch, totalMatches) {
                   setState(() {
@@ -273,6 +280,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
               },
             ),
           ),
+          if (widget.showUrlBar)
+            UrlBar(
+              currentUrl: _currentUrl,
+              onUrlSubmitted: (url) {
+                _controller?.loadUrl(url, language: widget.language);
+              },
+            ),
         ],
       ),
     );
