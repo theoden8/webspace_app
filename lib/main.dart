@@ -1853,23 +1853,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 _toggleFind();
               },
             ),
-          // URL bar (when visible) - above tab strip so keyboard doesn't obscure it
-          if (hasUrlBar)
-            UrlBar(
-              currentUrl: model.currentUrl,
-              onUrlSubmitted: (url) async {
-                final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels);
-                if (controller != null) {
-                  await controller.loadUrl(url, language: model.language);
-                  if (!mounted) return;
-                  setState(() {
-                    model.currentUrl = url;
-                  });
-                  await _saveWebViewModels();
-                }
-              },
-            ),
-          // Site tab strip for quick switching - hidden when keyboard is open to avoid being overlayed
+          // Site tab strip for quick switching - hidden when keyboard is open
           if (hasTabStrip && MediaQuery.of(context).viewInsets.bottom == 0)
             Container(
               height: 52,
@@ -1949,6 +1933,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   _buildBottomPopupMenu(),
                 ],
               ),
+            ),
+          // URL bar (when visible)
+          if (hasUrlBar)
+            UrlBar(
+              currentUrl: model.currentUrl,
+              onUrlSubmitted: (url) async {
+                final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels);
+                if (controller != null) {
+                  await controller.loadUrl(url, language: model.language);
+                  if (!mounted) return;
+                  setState(() {
+                    model.currentUrl = url;
+                  });
+                  await _saveWebViewModels();
+                }
+              },
             ),
         ],
       ),
