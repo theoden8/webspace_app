@@ -1102,6 +1102,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
           language: language,
+          showUrlBar: _showUrlBar,
         ),
       ),
     );
