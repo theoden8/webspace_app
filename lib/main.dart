@@ -143,6 +143,37 @@ const Color _accentTeal = Color(0xFF5BC4C4);
 const Color _accentYellow = Color(0xFFD6C86B);
 
 // Get accent color from AccentColor enum
+/// Build a ColorScheme that preserves the full saturation of [accent].
+/// Uses fromSeed only for neutral surface/background colors, then overrides
+/// all accent-derived roles so nothing gets desaturated by Material 3's HCT.
+ColorScheme _buildAccentColorScheme(Color accent, Brightness brightness) {
+  final bool isLight = brightness == Brightness.light;
+  final hsl = HSLColor.fromColor(accent);
+
+  // Container: a tinted but lighter/darker version of the accent
+  final primaryContainer = isLight
+      ? hsl.withLightness((hsl.lightness * 0.3 + 0.7).clamp(0.80, 0.92)).withSaturation((hsl.saturation * 0.8).clamp(0.0, 1.0)).toColor()
+      : hsl.withLightness((hsl.lightness * 0.35).clamp(0.12, 0.25)).withSaturation((hsl.saturation * 0.8).clamp(0.0, 1.0)).toColor();
+
+  final onPrimaryContainer = isLight
+      ? hsl.withLightness(0.15).toColor()
+      : hsl.withLightness(0.90).toColor();
+
+  // Use fromSeed as base for surface/neutral colors only
+  final base = ColorScheme.fromSeed(seedColor: accent, brightness: brightness);
+
+  return base.copyWith(
+    primary: accent,
+    onPrimary: isLight ? Colors.white : Colors.black,
+    primaryContainer: primaryContainer,
+    onPrimaryContainer: onPrimaryContainer,
+    secondary: accent,
+    onSecondary: isLight ? Colors.white : Colors.black,
+    secondaryContainer: primaryContainer,
+    onSecondaryContainer: onPrimaryContainer,
+  );
+}
+
 Color _accentColorToColor(AccentColor accentColor) {
   switch (accentColor) {
     case AccentColor.blue:
@@ -565,21 +596,11 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
     return MaterialApp(
       title: 'WebSpace',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: accentColor,
-          brightness: Brightness.light,
-        ).copyWith(
-          primary: accentColor,
-        ),
+        colorScheme: _buildAccentColorScheme(accentColor, Brightness.light),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
       darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: accentColor,
-          brightness: Brightness.dark,
-        ).copyWith(
-          primary: accentColor,
-        ),
+        colorScheme: _buildAccentColorScheme(accentColor, Brightness.dark),
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
       themeMode: _themeSettings.themeMode,
