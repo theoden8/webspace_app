@@ -1,14 +1,10 @@
 ✨ New Features:
-• Bottom navigation bar with site tab strip
+• Bottom navigation bar with site tab strip for quick switching
 • App-icon grid layout in drawer
 • Pull-to-refresh and back gesture navigation
 • URL bar in nested webview screen
-
-🔧 Improvements:
-• "Share" replaces "Copy Link" in nested webview menu
+• Share button in nested webview menu
 
 🐛 Bug Fixes:
-• Fix accent color desaturation and theme switching
-• Fix keyboard issues with URL bar
-• Fix navigation history lost after visiting webspace list
-• Fix tap responsiveness on draggable site tiles
+• Fix accent colors appearing washed out
+• Fix theme switching issues
