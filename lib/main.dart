@@ -632,6 +632,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _showUrlBar = false;
   bool _showTabStrip = false;
   bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
+  int _canGoBackVersion = 0; // Guards _updateCanGoBack against stale async results
 
   // Webspace-related state
   final List<Webspace> _webspaces = [];
@@ -828,6 +829,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     _currentIndex = index;
     _loadedIndices.add(index);
+    _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
     _canGoBack = false; // Reset until async check completes
 
     // Resume the newly active webview
@@ -1519,6 +1521,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// via the PopScope URL-comparison fallback.
   void _updateCanGoBack() async {
     if (!Platform.isIOS) return;
+    final version = ++_canGoBackVersion;
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       if (_canGoBack) setState(() => _canGoBack = false);
       return;
@@ -1529,7 +1532,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       return;
     }
     final canGoBack = await controller.canGoBack();
-    if (!mounted) return;
+    if (!mounted || version != _canGoBackVersion) return;
     if (canGoBack != _canGoBack) {
       setState(() => _canGoBack = canGoBack);
     }
@@ -1542,6 +1545,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final model = _webViewModels[_currentIndex!];
     model.currentUrl = model.initUrl;
     model.disposeWebView();
+    _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
     setState(() {
       _canGoBack = false;
     });
