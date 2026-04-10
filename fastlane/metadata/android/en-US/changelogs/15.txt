@@ -6,11 +6,9 @@
 
 🔧 Improvements:
 • "Share" replaces "Copy Link" in nested webview menu
-• Improved drawer header spacing and tab strip sizing
 
 🐛 Bug Fixes:
 • Fix accent color desaturation and theme switching
 • Fix keyboard issues with URL bar
-• Fix navigation history lost when returning from webspace list
+• Fix navigation history lost after visiting webspace list
 • Fix tap responsiveness on draggable site tiles
-• Fix app logs autoscroll
