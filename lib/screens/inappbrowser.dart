@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
@@ -39,7 +41,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
   WebViewController? _controller;
   String? title;
   late String _currentUrl;
-  late final inapp.PullToRefreshController _pullToRefreshController;
+  late final inapp.PullToRefreshController? _pullToRefreshController;
 
   bool _isFindVisible = false;
   FindMatchesResult findMatches = FindMatchesResult();
@@ -50,12 +52,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
     // Use home site title if provided
     title = widget.homeTitle;
     _currentUrl = widget.url;
-    _pullToRefreshController = inapp.PullToRefreshController(
+    final bool isMobile = Platform.isIOS || Platform.isAndroid;
+    _pullToRefreshController = isMobile ? inapp.PullToRefreshController(
       settings: inapp.PullToRefreshSettings(enabled: true),
       onRefresh: () async {
         _controller?.reload();
       },
-    );
+    ) : null;
   }
 
   void updateTitle(String newTitle) {

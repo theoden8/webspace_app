@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -373,12 +374,13 @@ class WebViewModel {
       LogService.instance.log('WebView', 'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
       LogService.instance.log('WebView', 'Language: $effectiveLanguage (param: $language)');
       LogService.instance.log('WebView', 'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)');
-      final pullToRefreshController = inapp.PullToRefreshController(
+      final bool isMobile = Platform.isIOS || Platform.isAndroid;
+      final pullToRefreshController = isMobile ? inapp.PullToRefreshController(
         settings: inapp.PullToRefreshSettings(enabled: true),
         onRefresh: () async {
           controller?.reload();
         },
-      );
+      ) : null;
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
