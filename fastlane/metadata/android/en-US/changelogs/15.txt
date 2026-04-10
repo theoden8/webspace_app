@@ -1,0 +1,10 @@
+✨ New Features:
+• Bottom navigation bar with site tab strip for quick switching
+• App-icon grid layout in drawer
+• Pull-to-refresh and back gesture navigation
+• URL bar in nested webview screen
+• Share button in nested webview menu
+
+🐛 Bug Fixes:
+• Fix accent colors appearing washed out
+• Fix theme switching issues
