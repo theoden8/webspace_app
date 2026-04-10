@@ -68,5 +68,9 @@ ios/fastlane/README.md
 **/fastlane/Preview.html
 screenshots
 
+# Ruby/Bundler
+vendor/
+.bundle/
+
 /.vscode
 /.claude/settings.local.json
