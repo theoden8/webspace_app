@@ -1513,6 +1513,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels);
   }
 
+  /// Compare a current URL against a site's initUrl, ignoring trailing slashes.
+  /// Webviews often normalize "https://example.com" to "https://example.com/"
+  /// so a plain == comparison misses the match.
+  static bool _isHomeUrl(String currentUrl, String initUrl) {
+    final a = currentUrl.endsWith('/') ? currentUrl.substring(0, currentUrl.length - 1) : currentUrl;
+    final b = initUrl.endsWith('/') ? initUrl.substring(0, initUrl.length - 1) : initUrl;
+    return a == b;
+  }
+
   /// Update _canGoBack from the current webview's controller.
   /// Used on iOS to enable drawer edge-swipe when there's no back history.
   /// Note: canGoBack() can return false for pushState/SPA navigations even
@@ -1531,7 +1540,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // there is no meaningful back history.  Set _canGoBack = false immediately
     // so the drawer edge-swipe is enabled without waiting for the async
     // canGoBack() call, which can race with other callbacks.
-    if (model.currentUrl == model.initUrl) {
+    if (_isHomeUrl(model.currentUrl, model.initUrl)) {
       if (_canGoBack) {
         LogService.instance.log('Navigation', '_updateCanGoBack: at home URL, forcing false');
         setState(() => _canGoBack = false);
@@ -3010,7 +3019,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               // synchronously clear _canGoBack so the drawer edge-swipe is
               // enabled immediately for the next gesture.
               final homeUrl = _webViewModels[_currentIndex!].initUrl;
-              if (urlAfter != null && urlAfter == homeUrl) {
+              if (urlAfter != null && _isHomeUrl(urlAfter, homeUrl)) {
                 LogService.instance.log('Navigation', 'Back gesture: landed on home URL, enabling drawer swipe');
                 ++_canGoBackVersion;
                 setState(() => _canGoBack = false);
