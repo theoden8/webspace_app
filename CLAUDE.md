@@ -108,3 +108,12 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | configurable-suggested-sites | Configurable suggested sites list with empty default for fdroid flavor |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
+
+## UI Race Conditions
+
+Async event handlers in the UI (e.g. button callbacks, `onPopInvokedWithResult`, gesture handlers) can be invoked multiple times before the first invocation completes. Always review UI code changes for race conditions:
+
+- **Rapid input**: Users can tap/press buttons faster than async operations resolve. If a handler does `await` before acting, a second invocation can enter the same handler concurrently.
+- **Guard pattern**: Use a boolean flag (e.g. `_isHandling`) to drop concurrent invocations. Always clear the flag in a `finally` block.
+- **State between await gaps**: After any `await`, re-check assumptions — widget may have unmounted (`if (!mounted) return;`), indices may have changed, or another handler may have mutated shared state.
+- **Drawer/dialog flash**: Opening UI in an async callback without a guard can cause a second press to immediately close it, producing a visible flash.
