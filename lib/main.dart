@@ -631,6 +631,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isFindVisible = false;
   bool _showUrlBar = false;
   bool _showTabStrip = false;
+  bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
 
   // Webspace-related state
   final List<Webspace> _webspaces = [];
@@ -777,6 +778,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (version != _setCurrentIndexVersion) return;
       }
       _currentIndex = index;
+      _canGoBack = false;
       return;
     }
 
@@ -826,9 +828,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     _currentIndex = index;
     _loadedIndices.add(index);
+    _canGoBack = false; // Reset until async check completes
 
     // Resume the newly active webview
     await _webViewModels[index].resumeWebView();
+    _updateCanGoBack();
 
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
   }
@@ -1004,7 +1008,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     if (webViewModelsJson != null) {
       List<WebViewModel> loadedWebViewModels = webViewModelsJson
-          .map((webViewModelJson) => WebViewModel.fromJson(jsonDecode(webViewModelJson), (){setState((){});}))
+          .map((webViewModelJson) => WebViewModel.fromJson(jsonDecode(webViewModelJson), (){ setState((){}); _updateCanGoBack(); }))
           .toList();
 
       // Load cookies from secure storage (keyed by siteId or legacy domain)
@@ -1505,6 +1509,30 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       return null;
     }
     return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels);
+  }
+
+  /// Update _canGoBack from the current webview's controller.
+  /// Used on iOS to enable drawer edge-swipe when there's no back history.
+  /// Note: canGoBack() can return false for pushState/SPA navigations even
+  /// when history exists, but that only means the drawer becomes swipeable
+  /// when it shouldn't — the hamburger menu still provides back navigation
+  /// via the PopScope URL-comparison fallback.
+  void _updateCanGoBack() async {
+    if (!Platform.isIOS) return;
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
+      if (_canGoBack) setState(() => _canGoBack = false);
+      return;
+    }
+    final controller = _webViewModels[_currentIndex!].controller;
+    if (controller == null) {
+      if (_canGoBack) setState(() => _canGoBack = false);
+      return;
+    }
+    final canGoBack = await controller.canGoBack();
+    if (!mounted) return;
+    if (canGoBack != _canGoBack) {
+      setState(() => _canGoBack = canGoBack);
+    }
   }
 
   IconData _getThemeIcon() {
@@ -2251,7 +2279,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final model = WebViewModel(
       initUrl: url,
       incognito: incognito,
-      stateSetterF: () {setState((){});},
+      stateSetterF: () { setState((){}); _updateCanGoBack(); },
     );
     if (customName.isNotEmpty) {
       model.name = customName;
@@ -2960,7 +2988,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       key: _scaffoldKey,
       // Disable drawer edge drag when a webview is active to prevent conflict
       // between the drawer swipe gesture and the system back/navigation gesture.
-      drawerEdgeDragWidth: webviewIsVisible ? 0 : null,
+      // On iOS, re-enable it when the webview has no back history — the left
+      // edge swipe does nothing in that state (PopScope blocks pop, drawer drag
+      // is disabled), so letting it open the drawer is strictly additive.
+      drawerEdgeDragWidth: webviewIsVisible
+          ? (Platform.isIOS && !_canGoBack ? null : 0)
+          : null,
       appBar: _buildAppBar(),
       drawer: Drawer(
         child: Column(
