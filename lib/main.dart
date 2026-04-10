@@ -1532,8 +1532,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       return;
     }
     final canGoBack = await controller.canGoBack();
-    if (!mounted || version != _canGoBackVersion) return;
+    if (!mounted || version != _canGoBackVersion) {
+      LogService.instance.log('Navigation', '_updateCanGoBack: stale (v$version != v$_canGoBackVersion), discarding canGoBack=$canGoBack');
+      return;
+    }
     if (canGoBack != _canGoBack) {
+      LogService.instance.log('Navigation', '_updateCanGoBack: $_canGoBack -> $canGoBack');
       setState(() => _canGoBack = canGoBack);
     }
   }
@@ -2963,6 +2967,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         try {
           final scaffoldState = _scaffoldKey.currentState;
           if (scaffoldState != null && scaffoldState.isDrawerOpen) {
+            LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
             Navigator.pop(context);
             return;
           }
@@ -2973,6 +2978,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           // check whether the URL actually changed.
           final controller = getController();
           if (controller == null) {
+            LogService.instance.log('Navigation', 'Back gesture: no controller, opening drawer');
             scaffoldState?.openDrawer();
             return;
           }
@@ -2983,15 +2989,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           if (!mounted) return;
           final urlAfter = (await controller.getUrl())?.toString();
           if (urlBefore == urlAfter) {
+            LogService.instance.log('Navigation', 'Back gesture: URL unchanged ($urlAfter), opening drawer');
             scaffoldState?.openDrawer();
-          } else if (Platform.isIOS && _currentIndex != null && _currentIndex! < _webViewModels.length) {
-            // After a successful goBack(), if we've landed on the home URL,
-            // synchronously clear _canGoBack so the drawer edge-swipe is
-            // enabled immediately for the next gesture.
-            final homeUrl = _webViewModels[_currentIndex!].initUrl;
-            if (urlAfter != null && urlAfter == homeUrl) {
-              ++_canGoBackVersion;
-              setState(() => _canGoBack = false);
+          } else {
+            LogService.instance.log('Navigation', 'Back gesture: navigated back from $urlBefore to $urlAfter');
+            if (Platform.isIOS && _currentIndex != null && _currentIndex! < _webViewModels.length) {
+              // After a successful goBack(), if we've landed on the home URL,
+              // synchronously clear _canGoBack so the drawer edge-swipe is
+              // enabled immediately for the next gesture.
+              final homeUrl = _webViewModels[_currentIndex!].initUrl;
+              if (urlAfter != null && urlAfter == homeUrl) {
+                LogService.instance.log('Navigation', 'Back gesture: landed on home URL, enabling drawer swipe');
+                ++_canGoBackVersion;
+                setState(() => _canGoBack = false);
+              }
             }
           }
         } finally {
