@@ -632,6 +632,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _showUrlBar = false;
   bool _showTabStrip = false;
   bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
+  int _canGoBackVersion = 0; // Guards _updateCanGoBack against stale async results
 
   // Webspace-related state
   final List<Webspace> _webspaces = [];
@@ -828,6 +829,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     _currentIndex = index;
     _loadedIndices.add(index);
+    _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
     _canGoBack = false; // Reset until async check completes
 
     // Resume the newly active webview
@@ -1519,6 +1521,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// via the PopScope URL-comparison fallback.
   void _updateCanGoBack() async {
     if (!Platform.isIOS) return;
+    final version = ++_canGoBackVersion;
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       if (_canGoBack) setState(() => _canGoBack = false);
       return;
@@ -1529,10 +1532,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       return;
     }
     final canGoBack = await controller.canGoBack();
-    if (!mounted) return;
+    if (!mounted || version != _canGoBackVersion) return;
     if (canGoBack != _canGoBack) {
       setState(() => _canGoBack = canGoBack);
     }
+  }
+
+  /// Navigate to the site's initial URL and clear navigation history.
+  /// Disposes the webview so it's recreated fresh with no back history.
+  void _goHome() {
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
+    final model = _webViewModels[_currentIndex!];
+    model.currentUrl = model.initUrl;
+    model.disposeWebView();
+    _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
+    setState(() {
+      _canGoBack = false;
+    });
+    _saveWebViewModels();
   }
 
   IconData _getThemeIcon() {
@@ -1686,13 +1703,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         tooltip: 'Go to Home',
                         onPressed: () {
                           Navigator.pop(context);
-                          () async {
-                            final controller = getController();
-                            if (controller != null) {
-                              final model = _webViewModels[_currentIndex!];
-                              await controller.loadUrl(model.initUrl, language: model.language);
-                            }
-                          }();
+                          _goHome();
                         },
                       ),
                       IconButton(
@@ -2054,13 +2065,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   tooltip: 'Go to Home',
                   onPressed: () {
                     Navigator.pop(context);
-                    () async {
-                      final controller = getController();
-                      if (controller != null) {
-                        final model = _webViewModels[_currentIndex!];
-                        await controller.loadUrl(model.initUrl, language: model.language);
-                      }
-                    }();
+                    _goHome();
                   },
                 ),
                 IconButton(
