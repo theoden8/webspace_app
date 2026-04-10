@@ -1535,6 +1535,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
+  /// Navigate to the site's initial URL and clear navigation history.
+  /// Disposes the webview so it's recreated fresh with no back history.
+  void _goHome() {
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
+    final model = _webViewModels[_currentIndex!];
+    model.currentUrl = model.initUrl;
+    model.disposeWebView();
+    setState(() {
+      _canGoBack = false;
+    });
+    _saveWebViewModels();
+  }
+
   IconData _getThemeIcon() {
     switch (_themeSettings.themeMode) {
       case ThemeMode.light:
@@ -1686,13 +1699,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         tooltip: 'Go to Home',
                         onPressed: () {
                           Navigator.pop(context);
-                          () async {
-                            final controller = getController();
-                            if (controller != null) {
-                              final model = _webViewModels[_currentIndex!];
-                              await controller.loadUrl(model.initUrl, language: model.language);
-                            }
-                          }();
+                          _goHome();
                         },
                       ),
                       IconButton(
@@ -2054,13 +2061,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   tooltip: 'Go to Home',
                   onPressed: () {
                     Navigator.pop(context);
-                    () async {
-                      final controller = getController();
-                      if (controller != null) {
-                        final model = _webViewModels[_currentIndex!];
-                        await controller.loadUrl(model.initUrl, language: model.language);
-                      }
-                    }();
+                    _goHome();
                   },
                 ),
                 IconButton(
