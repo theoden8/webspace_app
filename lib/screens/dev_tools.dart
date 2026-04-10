@@ -35,6 +35,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   final ScrollController _consoleScrollController = ScrollController();
   final ScrollController _logScrollController = ScrollController();
 
+  bool _isSearchVisible = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
   bool get _hasSite => widget.webViewModel != null;
 
   int get _tabCount => _hasSite ? 5 : 1;
@@ -56,6 +61,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     _consoleScrollController.dispose();
     _logScrollController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -79,6 +86,23 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         const Tab(icon: Icon(Icons.list_alt, size: 18), text: 'Logs'),
       ];
 
+  void _toggleSearch() {
+    setState(() {
+      _isSearchVisible = !_isSearchVisible;
+      if (!_isSearchVisible) {
+        _searchQuery = '';
+        _searchController.clear();
+      } else {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  bool _matchesSearch(String text) {
+    if (_searchQuery.isEmpty) return true;
+    return text.toLowerCase().contains(_searchQuery.toLowerCase());
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -86,6 +110,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Developer Tools'),
+          actions: [
+            IconButton(
+              icon: Icon(_isSearchVisible ? Icons.search_off : Icons.search),
+              tooltip: 'Search',
+              onPressed: _toggleSearch,
+            ),
+          ],
           bottom: TabBar(
             tabs: _tabs,
             isScrollable: true,
@@ -94,13 +125,47 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 const EdgeInsets.symmetric(horizontal: 12),
           ),
         ),
-        body: TabBarView(
+        body: Column(
           children: [
-            if (_hasSite) _buildConsoleTab(),
-            if (_hasSite) _buildCookiesTab(),
-            if (_hasSite) _buildScriptsTab(),
-            if (_hasSite) _buildExportTab(),
-            _buildAppLogsTab(),
+            if (_isSearchVisible)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    hintText: 'Filter...',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 20),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                  ),
+                  onChanged: (value) {
+                    setState(() => _searchQuery = value);
+                  },
+                ),
+              ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  if (_hasSite) _buildConsoleTab(),
+                  if (_hasSite) _buildCookiesTab(),
+                  if (_hasSite) _buildScriptsTab(),
+                  if (_hasSite) _buildExportTab(),
+                  _buildAppLogsTab(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -110,13 +175,16 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Console Tab ──
 
   Widget _buildConsoleTab() {
-    final logs = widget.webViewModel!.consoleLogs;
+    final allLogs = widget.webViewModel!.consoleLogs;
+    final logs = _searchQuery.isEmpty
+        ? allLogs
+        : allLogs.where((e) => _matchesSearch(e.message)).toList();
     return Column(
       children: [
         _buildConsoleActions(),
         Expanded(
           child: logs.isEmpty
-              ? const Center(child: Text('No console messages'))
+              ? Center(child: Text(_searchQuery.isEmpty ? 'No console messages' : 'No matches'))
               : ListView.builder(
                   controller: _consoleScrollController,
                   reverse: true,
@@ -191,15 +259,23 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Cookies Tab ──
 
   Widget _buildCookiesTab() {
-    final cookies = widget.webViewModel!.cookies;
+    final allCookies = widget.webViewModel!.cookies;
+    final cookies = _searchQuery.isEmpty
+        ? allCookies
+        : allCookies
+            .where((c) =>
+                _matchesSearch(c.name) ||
+                _matchesSearch(c.value) ||
+                _matchesSearch(c.domain ?? ''))
+            .toList();
     return Column(
       children: [
-        _buildCookieActions(cookies),
+        _buildCookieActions(allCookies),
         Expanded(
           child: _loadingCookies
               ? const Center(child: CircularProgressIndicator())
               : cookies.isEmpty
-                  ? const Center(child: Text('No cookies'))
+                  ? Center(child: Text(_searchQuery.isEmpty ? 'No cookies' : 'No matches'))
                   : ListView.builder(
                       itemCount: cookies.length,
                       itemBuilder: (context, index) =>
@@ -352,9 +428,17 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Scripts Tab ──
 
   Widget _buildScriptsTab() {
-    final scripts = widget.webViewModel!.userScripts;
-    if (scripts.isEmpty) {
+    final allScripts = widget.webViewModel!.userScripts;
+    if (allScripts.isEmpty) {
       return const Center(child: Text('No user scripts configured'));
+    }
+    final scripts = _searchQuery.isEmpty
+        ? allScripts
+        : allScripts
+            .where((s) => _matchesSearch(s.name) || _matchesSearch(s.source))
+            .toList();
+    if (scripts.isEmpty) {
+      return const Center(child: Text('No matches'));
     }
     return ListView.builder(
       itemCount: scripts.length,
@@ -542,9 +626,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Widget _buildAppLogsTab() {
     final allEntries = LogService.instance.entries;
-    final filtered = _activeFilters.length == LogLevel.values.length
+    var filtered = _activeFilters.length == LogLevel.values.length
         ? allEntries
         : allEntries.where((e) => _activeFilters.contains(e.level)).toList();
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered
+          .where((e) => _matchesSearch(e.message) || _matchesSearch(e.tag))
+          .toList();
+    }
 
     return Column(
       children: [
@@ -552,7 +641,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         _buildLogFilters(),
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Text('No log entries'))
+              ? Center(child: Text(_searchQuery.isEmpty ? 'No log entries' : 'No matches'))
               : ListView.builder(
                   controller: _logScrollController,
                   reverse: true,
