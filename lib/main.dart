@@ -627,6 +627,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  bool _isBackHandling = false;
   bool _isFindVisible = false;
   bool _showUrlBar = false;
   bool _showTabStrip = false;
@@ -2924,18 +2925,23 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Allow pop only when no webview is visible (webspace list screen)
       canPop: !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final scaffoldState = _scaffoldKey.currentState;
-        if (scaffoldState != null && scaffoldState.isDrawerOpen) {
-          Navigator.pop(context);
-          return;
-        }
-        // Webview is visible - try to go back in its history
-        final controller = getController();
-        if (controller != null && await controller.canGoBack()) {
-          await controller.goBack();
-        } else {
-          scaffoldState?.openDrawer();
+        if (didPop || _isBackHandling) return;
+        _isBackHandling = true;
+        try {
+          final scaffoldState = _scaffoldKey.currentState;
+          if (scaffoldState != null && scaffoldState.isDrawerOpen) {
+            Navigator.pop(context);
+            return;
+          }
+          // Webview is visible - try to go back in its history
+          final controller = getController();
+          if (controller != null && await controller.canGoBack()) {
+            await controller.goBack();
+          } else {
+            scaffoldState?.openDrawer();
+          }
+        } finally {
+          _isBackHandling = false;
         }
       },
       child: Scaffold(
