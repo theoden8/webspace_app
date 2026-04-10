@@ -1,5 +1,5 @@
 name: webspace
-description: Webspace is a Flutter app that allows you to run multiple webviews in a single app, making it a convenient way to manage multiple web-based applications. The app was written almost entirely using GPT-4 in a span of a few hours.
+description: WebSpace is a mobile app that brings all your favorite websites and web apps together in one organized, streamlined interface.
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.1.8+14
+version: 0.2.0+15
 
 environment:
   sdk: '3.10.7'
