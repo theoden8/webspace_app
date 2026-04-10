@@ -2984,6 +2984,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           final urlAfter = (await controller.getUrl())?.toString();
           if (urlBefore == urlAfter) {
             scaffoldState?.openDrawer();
+          } else if (Platform.isIOS && _currentIndex != null && _currentIndex! < _webViewModels.length) {
+            // After a successful goBack(), if we've landed on the home URL,
+            // synchronously clear _canGoBack so the drawer edge-swipe is
+            // enabled immediately for the next gesture.
+            final homeUrl = _webViewModels[_currentIndex!].initUrl;
+            if (urlAfter != null && urlAfter == homeUrl) {
+              ++_canGoBackVersion;
+              setState(() => _canGoBack = false);
+            }
           }
         } finally {
           _isBackHandling = false;
