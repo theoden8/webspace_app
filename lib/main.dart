@@ -1916,7 +1916,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final isDark = theme.brightness == Brightness.dark;
     final filteredIndices = _getFilteredSiteIndices();
 
-    final hasTabStrip = _showTabStrip && filteredIndices.length > 1;
+    final hasTabStrip = _showTabStrip && filteredIndices.isNotEmpty;
     if (!hasTabStrip) {
       return null;
     }
@@ -2905,7 +2905,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final hasTabStrip = _currentIndex != null
         && _currentIndex! < _webViewModels.length
         && _showTabStrip
-        && filteredIndices.length > 1;
+        && filteredIndices.isNotEmpty;
     return SafeArea(
       top: false, // AppBar handles top inset
       bottom: !hasTabStrip && inputBar == null,
