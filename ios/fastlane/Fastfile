@@ -132,6 +132,11 @@ platform :ios do
       FileUtils.mkdir_p(screenshots_dir)
     end
 
+    # Clean previous build to avoid running a stale cached version on the simulator.
+    # flutter drive does an incremental build which can reuse an old installed app.
+    UI.message("Cleaning previous build...")
+    sh("cd '#{project_root}' && fvm flutter clean && fvm flutter pub get")
+
     # Run Flutter integration test with screenshot capture
     # SCREENSHOT_DIR is passed to the test driver to specify where to save screenshots
     sh("cd '#{project_root}' && SCREENSHOT_DIR='#{screenshots_dir}' fvm flutter drive \
