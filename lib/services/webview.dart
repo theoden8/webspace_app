@@ -230,6 +230,8 @@ class WebViewConfig {
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
   /// Per-site user scripts to inject into the webview.
   final List<UserScriptConfig> userScripts;
+  /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
+  final inapp.PullToRefreshController? pullToRefreshController;
 
   WebViewConfig({
     this.key,
@@ -252,6 +254,7 @@ class WebViewConfig {
     this.initialHtml,
     this.onConsoleMessage,
     this.userScripts = const [],
+    this.pullToRefreshController,
   });
 }
 
@@ -674,6 +677,7 @@ class WebViewFactory {
         encoding: 'utf-8',
         baseUrl: inapp.WebUri(config.initialUrl),
       ) : null,
+      pullToRefreshController: config.pullToRefreshController,
       initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: inapp.InAppWebViewSettings(
         javaScriptEnabled: config.javascriptEnabled,
@@ -802,6 +806,8 @@ class WebViewFactory {
         }
       },
       onLoadStop: (controller, url) async {
+        // End pull-to-refresh animation
+        config.pullToRefreshController?.endRefreshing();
         if (url != null) {
           config.onUrlChanged?.call(url.toString());
           if (config.onCookiesChanged != null) {

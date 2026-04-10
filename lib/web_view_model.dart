@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -372,6 +373,12 @@ class WebViewModel {
       LogService.instance.log('WebView', 'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
       LogService.instance.log('WebView', 'Language: $effectiveLanguage (param: $language)');
       LogService.instance.log('WebView', 'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)');
+      final pullToRefreshController = inapp.PullToRefreshController(
+        settings: inapp.PullToRefreshSettings(enabled: true),
+        onRefresh: () async {
+          controller?.reload();
+        },
+      );
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -386,6 +393,7 @@ class WebViewModel {
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
           userScripts: userScripts,
+          pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
             // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
