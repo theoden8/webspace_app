@@ -2919,8 +2919,23 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final bool webviewIsVisible = _currentIndex != null && _currentIndex! < _webViewModels.length;
+    return PopScope(
+      // Allow pop only when no webview is visible (webspace list screen)
+      canPop: !webviewIsVisible,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        // Webview is visible - try to go back in its history
+        final controller = getController();
+        if (controller != null && await controller.canGoBack()) {
+          await controller.goBack();
+        }
+      },
+      child: Scaffold(
       key: _scaffoldKey,
+      // On iOS, disable drawer edge drag when a webview is active to prevent
+      // conflict between the drawer swipe gesture and in-page swipe-back gesture.
+      drawerEdgeDragWidth: (Platform.isIOS || Platform.isMacOS) && webviewIsVisible ? 0 : null,
       appBar: _buildAppBar(),
       drawer: Drawer(
         child: Column(
@@ -3059,6 +3074,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               },
               child: Icon(Icons.add),
             ),
+    ),
     );
   }
 }
