@@ -2925,10 +2925,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       canPop: !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        final scaffoldState = _scaffoldKey.currentState;
+        if (scaffoldState != null && scaffoldState.isDrawerOpen) {
+          Navigator.pop(context);
+          return;
+        }
         // Webview is visible - try to go back in its history
         final controller = getController();
         if (controller != null && await controller.canGoBack()) {
           await controller.goBack();
+        } else {
+          scaffoldState?.openDrawer();
         }
       },
       child: Scaffold(
