@@ -834,6 +834,14 @@ class WebViewFactory {
           }
         }
       },
+      onUpdateVisitedHistory: (controller, url, androidIsReload) {
+        // Fires on every history change including back/forward gestures.
+        // onLoadStop may not fire for BFCache restorations (iOS Safari back
+        // gesture), so this ensures the URL bar stays in sync.
+        if (url != null) {
+          config.onUrlChanged?.call(url.toString());
+        }
+      },
       onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
         config.onFindResult?.call(activeMatchOrdinal, numberOfMatches);
       },
