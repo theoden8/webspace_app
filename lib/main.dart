@@ -628,7 +628,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isBackHandling = false;
-  DateTime? _lastGoBackTime;
   bool _isFindVisible = false;
   bool _showUrlBar = false;
   bool _showTabStrip = false;
@@ -2935,20 +2934,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             return;
           }
           // Webview is visible - try to go back in its history.
-          // After goBack(), the native back-forward list may not have
-          // settled yet, so canGoBack() can return a stale false. Skip
-          // the check when we recently navigated back and just retry
-          // goBack() (it's a no-op when there's truly no history).
+          // Don't trust canGoBack(): it can return false for pushState
+          // entries on some webview versions. Instead, always attempt
+          // goBack() (which is a no-op when there's no history) and
+          // check whether the URL actually changed.
           final controller = getController();
-          final recentGoBack = _lastGoBackTime != null &&
-              DateTime.now().difference(_lastGoBackTime!) <
-                  const Duration(milliseconds: 500);
-          if (controller != null &&
-              (recentGoBack || await controller.canGoBack())) {
-            _lastGoBackTime = DateTime.now();
-            await controller.goBack();
-          } else {
-            _lastGoBackTime = null;
+          if (controller == null) {
+            scaffoldState?.openDrawer();
+            return;
+          }
+          final urlBefore = (await controller.getUrl())?.toString();
+          await controller.goBack();
+          // Give the native webview time to process the navigation
+          await Future.delayed(const Duration(milliseconds: 150));
+          if (!mounted) return;
+          final urlAfter = (await controller.getUrl())?.toString();
+          if (urlBefore == urlAfter) {
             scaffoldState?.openDrawer();
           }
         } finally {
