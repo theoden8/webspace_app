@@ -177,7 +177,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
-      child: Text(
+      child: SelectableText(
         '[${_formatTimeMs(entry.timestamp)}] ${entry.message}',
         style: TextStyle(
           fontFamily: 'monospace',
@@ -642,7 +642,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 1.0),
-      child: Text(
+      child: SelectableText(
         '[${_formatTime(entry.timestamp)}] [${entry.tag}] ${entry.message}',
         style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: color),
       ),
