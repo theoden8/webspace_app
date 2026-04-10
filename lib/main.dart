@@ -627,6 +627,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  bool _isBackHandling = false;
   bool _isFindVisible = false;
   bool _showUrlBar = false;
   bool _showTabStrip = false;
@@ -2924,11 +2925,35 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Allow pop only when no webview is visible (webspace list screen)
       canPop: !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        // Webview is visible - try to go back in its history
-        final controller = getController();
-        if (controller != null && await controller.canGoBack()) {
+        if (didPop || _isBackHandling) return;
+        _isBackHandling = true;
+        try {
+          final scaffoldState = _scaffoldKey.currentState;
+          if (scaffoldState != null && scaffoldState.isDrawerOpen) {
+            Navigator.pop(context);
+            return;
+          }
+          // Webview is visible - try to go back in its history.
+          // Don't trust canGoBack(): it can return false for pushState
+          // entries on some webview versions. Instead, always attempt
+          // goBack() (which is a no-op when there's no history) and
+          // check whether the URL actually changed.
+          final controller = getController();
+          if (controller == null) {
+            scaffoldState?.openDrawer();
+            return;
+          }
+          final urlBefore = (await controller.getUrl())?.toString();
           await controller.goBack();
+          // Give the native webview time to process the navigation
+          await Future.delayed(const Duration(milliseconds: 150));
+          if (!mounted) return;
+          final urlAfter = (await controller.getUrl())?.toString();
+          if (urlBefore == urlAfter) {
+            scaffoldState?.openDrawer();
+          }
+        } finally {
+          _isBackHandling = false;
         }
       },
       child: Scaffold(
