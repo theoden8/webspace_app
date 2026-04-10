@@ -1526,7 +1526,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (_canGoBack) setState(() => _canGoBack = false);
       return;
     }
-    final controller = _webViewModels[_currentIndex!].controller;
+    final model = _webViewModels[_currentIndex!];
+    // Synchronous fast-path: if the current URL matches the site's home URL,
+    // there is no meaningful back history.  Set _canGoBack = false immediately
+    // so the drawer edge-swipe is enabled without waiting for the async
+    // canGoBack() call, which can race with other callbacks.
+    if (model.currentUrl == model.initUrl) {
+      if (_canGoBack) {
+        LogService.instance.log('Navigation', '_updateCanGoBack: at home URL, forcing false');
+        setState(() => _canGoBack = false);
+      }
+      return;
+    }
+    final controller = model.controller;
     if (controller == null) {
       if (_canGoBack) setState(() => _canGoBack = false);
       return;
