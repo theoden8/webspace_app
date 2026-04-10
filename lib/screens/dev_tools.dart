@@ -187,10 +187,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               ? Center(child: Text(_searchQuery.isEmpty ? 'No console messages' : 'No matches'))
               : ListView.builder(
                   controller: _consoleScrollController,
-                  reverse: true,
+                  reverse: _searchQuery.isEmpty,
                   itemCount: logs.length,
                   itemBuilder: (context, index) {
-                    // reverse: true flips the order, so invert the index
                     return _buildConsoleEntry(logs[logs.length - 1 - index]);
                   },
                 ),
@@ -644,7 +643,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               ? Center(child: Text(_searchQuery.isEmpty ? 'No log entries' : 'No matches'))
               : ListView.builder(
                   controller: _logScrollController,
-                  reverse: true,
+                  reverse: _searchQuery.isEmpty,
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
                     return _buildLogEntry(filtered[filtered.length - 1 - index]);
