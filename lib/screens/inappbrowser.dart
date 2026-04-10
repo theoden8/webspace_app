@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -38,6 +39,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
   WebViewController? _controller;
   String? title;
   late String _currentUrl;
+  late final inapp.PullToRefreshController _pullToRefreshController;
 
   bool _isFindVisible = false;
   FindMatchesResult findMatches = FindMatchesResult();
@@ -48,6 +50,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
     // Use home site title if provided
     title = widget.homeTitle;
     _currentUrl = widget.url;
+    _pullToRefreshController = inapp.PullToRefreshController(
+      settings: inapp.PullToRefreshSettings(enabled: true),
+      onRefresh: () async {
+        _controller?.reload();
+      },
+    );
   }
 
   void updateTitle(String newTitle) {
@@ -251,6 +259,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                 dnsBlockEnabled: widget.dnsBlockEnabled,
                 contentBlockEnabled: widget.contentBlockEnabled,
                 language: widget.language,
+                pullToRefreshController: _pullToRefreshController,
                 onUrlChanged: (url) {
                   setState(() {
                     _currentUrl = url;
