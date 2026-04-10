@@ -628,6 +628,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isBackHandling = false;
+  DateTime? _lastGoBackTime;
   bool _isFindVisible = false;
   bool _showUrlBar = false;
   bool _showTabStrip = false;
@@ -2933,11 +2934,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             Navigator.pop(context);
             return;
           }
-          // Webview is visible - try to go back in its history
+          // Webview is visible - try to go back in its history.
+          // After goBack(), the native back-forward list may not have
+          // settled yet, so canGoBack() can return a stale false. Skip
+          // the check when we recently navigated back and just retry
+          // goBack() (it's a no-op when there's truly no history).
           final controller = getController();
-          if (controller != null && await controller.canGoBack()) {
+          final recentGoBack = _lastGoBackTime != null &&
+              DateTime.now().difference(_lastGoBackTime!) <
+                  const Duration(milliseconds: 500);
+          if (controller != null &&
+              (recentGoBack || await controller.canGoBack())) {
+            _lastGoBackTime = DateTime.now();
             await controller.goBack();
           } else {
+            _lastGoBackTime = null;
             scaffoldState?.openDrawer();
           }
         } finally {
