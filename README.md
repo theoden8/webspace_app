@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/featureGraphic.png" alt="WebSpace Feature Graphic" width="100%"/>
+<img src="assets/featureGraphic.jpg" alt="WebSpace Feature Graphic" width="100%"/>
 
 ---
 
@@ -31,10 +31,10 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 ## Screenshots
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="23%" alt="All Sites"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="23%" alt="Sites Drawer"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="23%" alt="Work Webspace"/>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="23%" alt="Workspace Sites"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg" width="23%" alt="All Sites"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.jpg" width="23%" alt="Sites Drawer"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.jpg" width="23%" alt="Work Webspace"/>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.jpg" width="23%" alt="Workspace Sites"/>
 </p>
 
 **Features**
