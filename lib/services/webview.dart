@@ -762,16 +762,28 @@ class WebViewFactory {
         final url = createWindowAction.request.url?.toString() ?? '';
         final windowId = createWindowAction.windowId;
 
-        // Only show popup dialog for Cloudflare challenges (captcha verification).
-        // All other window.open() calls (e.g. Stripe fraud detection, analytics)
-        // are silently dismissed to prevent unwanted popup windows.
-        if (!isCaptchaChallenge(url)) {
+        // Show popup dialog for Cloudflare challenges (captcha verification).
+        if (isCaptchaChallenge(url)) {
+          if (config.onWindowRequested != null && windowId != null) {
+            await config.onWindowRequested!(windowId, url);
+            return true;
+          }
           return false;
         }
 
-        if (config.onWindowRequested != null && windowId != null) {
-          await config.onWindowRequested!(windowId, url);
-          return true;
+        // For target="_blank" links (e.g., badge clicks on GitHub), delegate
+        // to shouldOverrideUrlLoading which handles cross-domain navigation
+        // by opening a nested webview. On iOS, target="_blank" links may
+        // only trigger onCreateWindow without shouldOverrideUrlLoading.
+        // Script-initiated window.open() (analytics, Stripe) have no user
+        // gesture and are silently blocked by the auto-redirect check.
+        if (url.startsWith('http') && config.shouldOverrideUrlLoading != null) {
+          final hasGesture = _hasUserGesture(createWindowAction);
+          final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
+          if (allow) {
+            // Same-domain target="_blank": load in current webview
+            controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url)));
+          }
         }
 
         return false;
