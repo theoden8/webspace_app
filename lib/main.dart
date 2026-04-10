@@ -2933,9 +2933,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       },
       child: Scaffold(
       key: _scaffoldKey,
-      // On iOS, disable drawer edge drag when a webview is active to prevent
-      // conflict between the drawer swipe gesture and in-page swipe-back gesture.
-      drawerEdgeDragWidth: (Platform.isIOS || Platform.isMacOS) && webviewIsVisible ? 0 : null,
+      // Disable drawer edge drag when a webview is active to prevent conflict
+      // between the drawer swipe gesture and the system back/navigation gesture.
+      drawerEdgeDragWidth: webviewIsVisible ? 0 : null,
       appBar: _buildAppBar(),
       drawer: Drawer(
         child: Column(
