@@ -193,6 +193,7 @@ The URL bar SHALL stay in sync with the current webview URL across all navigatio
 - At the start of each `_updateCanGoBack()` call
 - When `_goHome()` resets state
 - When `_setCurrentIndex()` switches sites
+- When the PopScope handler detects landing on the home URL
 
 After the `await`, the result is discarded if `version != _canGoBackVersion`.
 
@@ -203,6 +204,16 @@ _updateCanGoBack() called         _goHome() called
   ... IPC resolves true ...
   version(1) != counter(2) → DISCARD
 ```
+
+### Guard: RACE-005 - Home URL Synchronous Fast-Path
+
+**Problem:** After `goBack()` lands on the site's home URL, `_canGoBack` must become `false` to enable the iOS drawer edge swipe. But `_updateCanGoBack()` is async — it calls `await canGoBack()` which takes indeterminate time. Meanwhile, `onLoadStop` or `onUpdateVisitedHistory` callbacks can fire and start *new* `_updateCanGoBack()` calls whose version counters post-date the PopScope handler's bump, making the version guard (RACE-001) ineffective against them.
+
+**Solution:** `_updateCanGoBack()` checks `currentUrl` against `initUrl` *synchronously* before the async `canGoBack()` call (using `_isHomeUrl()` which normalizes trailing slashes). When at the home URL, `_canGoBack` is set to `false` immediately and the async path is skipped entirely, eliminating the race window.
+
+Additionally, the PopScope handler performs the same check right after a successful `goBack()` to cover the window before `onUrlChanged` fires.
+
+**Note:** URL comparison uses `_isHomeUrl()` which strips trailing slashes, since webviews normalize `https://example.com` to `https://example.com/`.
 
 ### Guard: RACE-002 - _isBackHandling Flag
 
@@ -251,7 +262,8 @@ System back gesture received
       ├─ wait 150ms
       ├─ urlAfter = getUrl()
       │
-      ├─ URL changed? ─────────── back succeeded (done)
+      ├─ URL changed? ─────────── back succeeded
+      │   └─ (iOS) at home URL? ── _canGoBack=false (enable drawer swipe)
       └─ URL same? ────────────── open drawer (fallback)
 ```
 
@@ -292,7 +304,8 @@ Home button pressed
 - `_canGoBack` — iOS-only state: whether current webview has back history
 - `_canGoBackVersion` — version counter guarding `_updateCanGoBack`
 - `_isBackHandling` — boolean guard for PopScope handler
-- `_updateCanGoBack()` — async check of `controller.canGoBack()` with version guard
+- `_isHomeUrl()` — static helper: compares URLs ignoring trailing slash normalization
+- `_updateCanGoBack()` — async check of `controller.canGoBack()` with version guard and synchronous home-URL fast-path (RACE-005)
 - `_goHome()` — synchronous: dispose webview, reset URL, invalidate version
 - `PopScope` widget — wraps Scaffold, handles system back gesture with URL comparison
 - `drawerEdgeDragWidth` — conditional drawer edge swipe based on platform and `_canGoBack`
@@ -347,9 +360,8 @@ Home button pressed
 
 1. (iOS) Start at a site's home URL
 2. Navigate to a second page
-3. Press the back button in the menu to return to the home URL
-4. Wait ~200ms for `_updateCanGoBack` to resolve
-5. Swipe from the left edge — verify the drawer opens
+3. Swipe back (system back gesture) to return to the home URL
+4. Immediately swipe from the left edge — verify the drawer opens (no delay needed; home URL fast-path in `_updateCanGoBack` enables drawer synchronously)
 
 ### Manual Test: Rapid Home Tap (Race Condition)
 
