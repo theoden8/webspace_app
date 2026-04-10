@@ -2840,16 +2840,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Widget _buildBodyWithBottomBar() {
     final inputBar = _buildInputBar();
     // Tab strip in bottomNavigationBar handles bottom safe area when visible.
-    // When it's absent the body needs safe area for the home indicator.
+    // Input bar has its own SafeArea. Only apply body safe area when neither
+    // is present (e.g. webspace list screen).
     final filteredIndices = _getFilteredSiteIndices();
-    final tabStripVisible = _currentIndex != null
+    final hasTabStrip = _currentIndex != null
         && _currentIndex! < _webViewModels.length
         && _showTabStrip
-        && filteredIndices.length > 1
-        && MediaQuery.of(context).viewInsets.bottom == 0;
+        && filteredIndices.length > 1;
     return SafeArea(
       top: false, // AppBar handles top inset
-      bottom: !tabStripVisible && inputBar == null,
+      bottom: !hasTabStrip && inputBar == null,
       // Use Stack + Offstage so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing
@@ -2907,9 +2907,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               ],
             ),
           ),
-          if (inputBar != null && tabStripVisible) inputBar,
-          if (inputBar != null && !tabStripVisible)
-            SafeArea(top: false, child: inputBar),
+          // Always wrap in SafeArea to keep the widget tree stable when
+          // the keyboard opens/closes (changing tree structure would unmount
+          // the UrlBar, losing TextField focus and closing the keyboard).
+          // SafeArea naturally adds 0 padding when keyboard is open.
+          if (inputBar != null) SafeArea(top: false, child: inputBar),
         ],
       ),
     );
