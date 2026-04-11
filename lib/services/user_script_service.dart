@@ -27,8 +27,29 @@ const String _shimTemplate = r'''
   window.__wsFetchShimInstalled = true;
   var _origAppend = Node.prototype.appendChild;
   var _origInsert = Node.prototype.insertBefore;
+  var _origCreate = document.createElement.bind(document);
   var SCRIPT_HANDLER = '__SCRIPT_HANDLER_NAME__';
   var FETCH_HANDLER = '__FETCH_HANDLER_NAME__';
+
+  // Extract CSP nonce from existing page elements. Pages with
+  // style-src CSP (like LinkedIn) block <style> elements without a
+  // valid nonce. Libraries like Dark Reader create styles via
+  // createElement('style') — we auto-apply the nonce so CSP allows them.
+  var _nonce = '';
+  function findNonce() {
+    if (_nonce) return _nonce;
+    var el = document.querySelector('style[nonce]') || document.querySelector('script[nonce]');
+    if (el) _nonce = el.nonce || el.getAttribute('nonce') || '';
+    return _nonce;
+  }
+  document.createElement = function(tag, opts) {
+    var el = _origCreate(tag, opts);
+    if (tag.toLowerCase() === 'style') {
+      var n = findNonce();
+      if (n) el.setAttribute('nonce', n);
+    }
+    return el;
+  };
 
   // Lazily capture the bridge reference. At DOCUMENT_START the
   // flutter_inappwebview bridge may not be injected yet. By the time
