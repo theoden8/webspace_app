@@ -912,10 +912,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     LogService.instance.log('CookieIsolation', 'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})');
 
-    // Restore cookies to CookieManager
+    // Restore cookies to CookieManager, skipping blocked ones
     final url = Uri.parse(model.initUrl);
     for (final cookie in cookies) {
       if (cookie.value.isEmpty) continue;
+      if (model.isCookieBlocked(cookie.name, cookie.domain)) continue;
       await _cookieManager.setCookie(
         url: url,
         name: cookie.name,
@@ -1934,6 +1935,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         builder: (context) => DevToolsScreen(
                           webViewModel: _webViewModels[_currentIndex!],
                           cookieManager: _cookieManager,
+                          onSave: _saveWebViewModels,
                         ),
                       ),
                     );
@@ -2301,6 +2303,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   builder: (context) => DevToolsScreen(
                     webViewModel: _webViewModels[_currentIndex!],
                     cookieManager: _cookieManager,
+                    onSave: _saveWebViewModels,
                   ),
                 ),
               );

@@ -13,14 +13,18 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/user_script.dart';
 
+typedef VoidAsyncCallback = Future<void> Function();
+
 class DevToolsScreen extends StatefulWidget {
   final WebViewModel? webViewModel;
   final CookieManager cookieManager;
+  final VoidAsyncCallback? onSave;
 
   const DevToolsScreen({
     super.key,
     this.webViewModel,
     required this.cookieManager,
+    this.onSave,
   });
 
   @override
@@ -266,6 +270,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Widget _buildCookiesTab() {
     final allCookies = widget.webViewModel!.cookies;
+    final blocked = widget.webViewModel!.blockedCookies;
     final cookies = _searchQuery.isEmpty
         ? allCookies
         : allCookies
@@ -274,18 +279,36 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 _matchesSearch(c.value) ||
                 _matchesSearch(c.domain ?? ''))
             .toList();
+    final filteredBlocked = _searchQuery.isEmpty
+        ? blocked.toList()
+        : blocked.where((b) => _matchesSearch(b.name) || _matchesSearch(b.domain)).toList();
     return Column(
       children: [
         _buildCookieActions(allCookies),
         Expanded(
           child: _loadingCookies
               ? const Center(child: CircularProgressIndicator())
-              : cookies.isEmpty
+              : (cookies.isEmpty && filteredBlocked.isEmpty)
                   ? Center(child: Text(_searchQuery.isEmpty ? 'No cookies' : 'No matches'))
-                  : ListView.builder(
-                      itemCount: cookies.length,
-                      itemBuilder: (context, index) =>
-                          _buildCookieTile(cookies[index]),
+                  : ListView(
+                      children: [
+                        if (filteredBlocked.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            child: Text(
+                              'Blocked (${filteredBlocked.length})',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red.shade300,
+                              ),
+                            ),
+                          ),
+                          ...filteredBlocked.map(_buildBlockedCookieTile),
+                          const Divider(),
+                        ],
+                        ...cookies.map(_buildCookieTile),
+                      ],
                     ),
         ),
       ],
@@ -353,6 +376,29 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
   }
 
+  Future<void> _blockCookie(Cookie cookie) async {
+    final domain = cookie.domain ?? extractDomain(widget.webViewModel!.currentUrl);
+    final rule = BlockedCookie(name: cookie.name, domain: domain);
+    setState(() {
+      widget.webViewModel!.blockedCookies.add(rule);
+    });
+    // Delete the cookie immediately from the webview
+    await _deleteCookie(cookie);
+    await widget.onSave?.call();
+  }
+
+  Future<void> _unblockCookie(BlockedCookie rule) async {
+    setState(() {
+      widget.webViewModel!.blockedCookies.remove(rule);
+    });
+    await widget.onSave?.call();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unblocked cookie "${rule.name}"')),
+      );
+    }
+  }
+
   Widget _buildCookieTile(Cookie cookie) {
     return ExpansionTile(
       title: Text(cookie.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
@@ -393,15 +439,38 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: () => _deleteCookie(cookie),
-                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                label: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12)),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _deleteCookie(cookie),
+                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                    label: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12)),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () => _blockCookie(cookie),
+                    icon: const Icon(Icons.block, size: 16, color: Colors.orange),
+                    label: const Text('Block', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBlockedCookieTile(BlockedCookie rule) {
+    return ListTile(
+      leading: Icon(Icons.block, color: Colors.red.shade300, size: 20),
+      title: Text(rule.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+      subtitle: Text(rule.domain, style: const TextStyle(fontSize: 11)),
+      trailing: TextButton.icon(
+        onPressed: () => _unblockCookie(rule),
+        icon: const Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+        label: const Text('Unblock', style: TextStyle(color: Colors.green, fontSize: 12)),
+      ),
     );
   }
 
