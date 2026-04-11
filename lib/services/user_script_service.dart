@@ -79,7 +79,15 @@ const String _shimTemplate = r'''
         // Dark Reader checks setFetchMethod before trying fetch() and
         // throws if not set — it never calls window.fetch on its own.
         if (window.DarkReader && window.DarkReader.setFetchMethod) {
-          try { window.DarkReader.setFetchMethod(window.__wsFetch); } catch(e) {}
+          console.log('__ws: DarkReader detected, __wsFetch=' + typeof window.__wsFetch);
+          if (window.__wsFetch) {
+            try {
+              window.DarkReader.setFetchMethod(window.__wsFetch);
+              console.log('__ws: setFetchMethod configured');
+            } catch(e) { console.error('__ws: setFetchMethod error:', e); }
+          }
+        } else {
+          console.log('__ws: script loaded, DarkReader=' + typeof window.DarkReader);
         }
         if (onload) try { onload.call(scriptEl); } catch(e) {}
       }
