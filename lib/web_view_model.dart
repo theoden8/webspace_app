@@ -367,6 +367,7 @@ class WebViewModel {
     Function(String url, String html)? onHtmlLoaded,
     String? initialHtml,
     bool Function()? isActive,
+    Future<bool> Function(String url)? onConfirmScriptFetch,
   }) {
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
@@ -405,6 +406,7 @@ class WebViewModel {
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
           userScripts: userScripts,
+          onConfirmScriptFetch: onConfirmScriptFetch,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {

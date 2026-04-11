@@ -12,6 +12,73 @@ enum UserScriptInjectionTime {
   atDocumentEnd,
 }
 
+/// Trusted CDN domains for user script external dependencies.
+/// URLs matching these domains are fetched without user confirmation.
+/// Other http/https URLs prompt the user before fetching.
+const Set<String> scriptFetchWhitelist = {
+  // General-purpose CDNs
+  'cdn.jsdelivr.net',
+  'unpkg.com',
+  'cdnjs.cloudflare.com',
+  'cdn.cloudflare.com',
+  // GitHub / GitLab raw content
+  'raw.githubusercontent.com',
+  'gist.githubusercontent.com',
+  'gitlab.com',
+  // Google hosted libraries
+  'ajax.googleapis.com',
+  // Microsoft / jQuery
+  'ajax.aspnetcdn.com',
+  'code.jquery.com',
+  // Specific popular libraries
+  'cdn.skypack.dev',
+  'esm.sh',
+  'ga.jspm.io',
+};
+
+/// Result of validating a URL for script fetching.
+enum ScriptFetchUrlStatus {
+  /// URL is on the trusted whitelist — fetch without confirmation.
+  whitelisted,
+  /// URL is valid http/https but not whitelisted — requires user confirmation.
+  requiresConfirmation,
+  /// URL scheme is blocked (javascript:, data:, blob:, file://) or invalid.
+  blocked,
+}
+
+/// Validate a URL for script fetching and classify it.
+///
+/// Returns [ScriptFetchUrlStatus.whitelisted] for trusted CDN domains,
+/// [ScriptFetchUrlStatus.requiresConfirmation] for other http/https URLs,
+/// and [ScriptFetchUrlStatus.blocked] for dangerous or invalid URLs.
+ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
+  final Uri uri;
+  try {
+    uri = Uri.parse(url);
+  } catch (_) {
+    return ScriptFetchUrlStatus.blocked;
+  }
+
+  final scheme = uri.scheme.toLowerCase();
+
+  // Only allow http and https
+  if (scheme != 'http' && scheme != 'https') {
+    return ScriptFetchUrlStatus.blocked;
+  }
+
+  final host = uri.host.toLowerCase();
+  if (host.isEmpty) return ScriptFetchUrlStatus.blocked;
+
+  // Check whitelist: exact match or subdomain match
+  for (final domain in scriptFetchWhitelist) {
+    if (host == domain || host.endsWith('.$domain')) {
+      return ScriptFetchUrlStatus.whitelisted;
+    }
+  }
+
+  return ScriptFetchUrlStatus.requiresConfirmation;
+}
+
 class UserScriptConfig {
   String name;
   String source;

@@ -153,16 +153,54 @@ User scripts that load external libraries via `document.createElement('script')`
 
 1. Shim is injected at `AT_DOCUMENT_START` before user scripts, patching `appendChild` and `insertBefore`
 2. When a `<script src="...">` element is appended, the shim sends the URL to a Dart handler
-3. Dart fetches the URL via HTTP (outside the browser, bypassing CSP)
-4. Dart injects the fetched content via `evaluateJavascript` (native level, bypasses CSP)
-5. The script element's `onload` callback is fired
+3. Dart classifies the URL via `classifyScriptFetchUrl()`
+4. If whitelisted: Dart fetches the URL via HTTP (bypassing CSP) and injects the content natively
+5. If not whitelisted: Dart shows a confirmation dialog; user must approve before fetching
+6. If blocked scheme: request is rejected immediately
+7. The script element's `onload` / `onerror` callback is fired based on the result
 
-Security measures:
+#### URL Classification (`classifyScriptFetchUrl`)
+
+| Status | Condition | Behavior |
+|--------|-----------|----------|
+| `whitelisted` | URL host matches a trusted CDN domain (exact or subdomain) | Fetched without user confirmation |
+| `requiresConfirmation` | Valid `http://` or `https://` URL not on the whitelist | User sees a confirmation dialog before fetching |
+| `blocked` | Non-http(s) scheme, empty host, or invalid URL | Rejected immediately, `onerror` fires |
+
+#### Trusted CDN Whitelist
+
+The following domains (and their subdomains) are fetched without confirmation:
+
+| Domain | Purpose |
+|--------|---------|
+| `cdn.jsdelivr.net` | jsDelivr CDN (npm, GitHub) |
+| `unpkg.com` | unpkg CDN (npm) |
+| `cdnjs.cloudflare.com` | Cloudflare CDNJS |
+| `cdn.cloudflare.com` | Cloudflare CDN |
+| `raw.githubusercontent.com` | GitHub raw file content |
+| `gist.githubusercontent.com` | GitHub Gist raw content |
+| `gitlab.com` | GitLab raw content |
+| `ajax.googleapis.com` | Google Hosted Libraries |
+| `ajax.aspnetcdn.com` | Microsoft Ajax CDN |
+| `code.jquery.com` | jQuery CDN |
+| `cdn.skypack.dev` | Skypack CDN |
+| `esm.sh` | ESM CDN |
+| `ga.jspm.io` | jspm CDN |
+
+Subdomain matching: `sub.cdn.jsdelivr.net` matches `cdn.jsdelivr.net`. Partial matches are rejected: `evil-unpkg.com` does NOT match `unpkg.com`.
+
+#### Blocked URL Schemes
+
+`javascript:`, `data:`, `blob:`, `file://`, `ftp://`, and any non-http(s) scheme.
+
+#### Security Measures
+
+- Only `http://` and `https://` URLs are intercepted by the JS shim; other schemes fall through to normal (CSP-governed) DOM behavior
 - Handler name is randomized per webview instance (page code cannot guess it)
-- `callHandler` reference is captured at `DOCUMENT_START` before page code can tamper
-- Blocked URL schemes: `javascript:`, `data:`, `blob:`, `file://`
+- `callHandler` reference is captured at `DOCUMENT_START` before page code can tamper with it
 - Response size limit: 5 MB
-- URL must have a valid scheme and host
+- URL must have a valid scheme and non-empty host
+- Non-whitelisted URLs require explicit user approval via confirmation dialog
 
 Scripts can also specify an optional `url` field for explicit CDN URL fetching with cached `urlSource`. At injection time, `fullSource = urlSource + source`.
 

@@ -2958,6 +2958,30 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                             },
                             initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
                             isActive: () => _currentIndex == index,
+                            onConfirmScriptFetch: (url) async {
+                              if (!mounted) return false;
+                              final result = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Load external script?'),
+                                  content: Text(
+                                    'A user script wants to load:\n\n$url\n\n'
+                                    'This URL is not on the trusted CDN list. Allow?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Deny'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Allow'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              return result ?? false;
+                            },
                           ),
                         );
                       }).toList(),

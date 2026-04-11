@@ -232,6 +232,9 @@ class WebViewConfig {
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
   /// Per-site user scripts to inject into the webview.
   final List<UserScriptConfig> userScripts;
+  /// Callback to confirm fetching a script from a non-whitelisted URL.
+  /// Returns true if the user approves, false to block.
+  final Future<bool> Function(String url)? onConfirmScriptFetch;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
 
@@ -256,6 +259,7 @@ class WebViewConfig {
     this.initialHtml,
     this.onConsoleMessage,
     this.userScripts = const [],
+    this.onConfirmScriptFetch,
     this.pullToRefreshController,
   });
 }
@@ -552,19 +556,15 @@ const String _scriptFetchShimTemplate = r'''
   var _origInsert = Node.prototype.insertBefore;
   var HANDLER = '__HANDLER_NAME__';
 
-  var BLOCKED = ['javascript:', 'data:', 'blob:', 'file:'];
-  function isSafeUrl(url) {
+  function isFetchableUrl(url) {
     if (typeof url !== 'string' || url.length === 0) return false;
     var lower = url.toLowerCase();
-    for (var i = 0; i < BLOCKED.length; i++) {
-      if (lower.indexOf(BLOCKED[i]) === 0) return false;
-    }
-    return lower.indexOf('://') > 0;
+    return lower.indexOf('http://') === 0 || lower.indexOf('https://') === 0;
   }
 
   function intercept(scriptEl) {
     var url = scriptEl.src;
-    if (!isSafeUrl(url)) return null;
+    if (!isFetchableUrl(url)) return null;
     var onload = scriptEl.onload;
     var onerror = scriptEl.onerror;
     _call(HANDLER, url).then(function(ok) {
@@ -812,26 +812,25 @@ class WebViewFactory {
           controller.addJavaScriptHandler(handlerName: fetchHandlerName, callback: (args) async {
             if (args.isEmpty || args[0] is! String) return false;
             final url = args[0] as String;
-            // Validate URL: must parse successfully, scheme must not be dangerous
-            final Uri uri;
-            try {
-              uri = Uri.parse(url);
-            } catch (_) {
-              LogService.instance.log('UserScript', 'Rejected invalid URL: $url');
+            final status = classifyScriptFetchUrl(url);
+            if (status == ScriptFetchUrlStatus.blocked) {
+              LogService.instance.log('UserScript', 'Blocked script fetch: $url');
               return false;
             }
-            const blockedSchemes = {'javascript', 'data', 'blob', 'file'};
-            if (blockedSchemes.contains(uri.scheme.toLowerCase())) {
-              LogService.instance.log('UserScript', 'Rejected blocked scheme: ${uri.scheme}');
-              return false;
-            }
-            if (uri.scheme.isEmpty || uri.host.isEmpty) {
-              LogService.instance.log('UserScript', 'Rejected URL with empty scheme/host: $url');
-              return false;
+            if (status == ScriptFetchUrlStatus.requiresConfirmation) {
+              if (config.onConfirmScriptFetch == null) {
+                LogService.instance.log('UserScript', 'Blocked non-whitelisted URL (no confirmation handler): $url');
+                return false;
+              }
+              final approved = await config.onConfirmScriptFetch!(url);
+              if (!approved) {
+                LogService.instance.log('UserScript', 'User denied script fetch: $url');
+                return false;
+              }
             }
             LogService.instance.log('UserScript', 'Fetching external script: $url');
             try {
-              final response = await http.get(uri);
+              final response = await http.get(Uri.parse(url));
               if (response.statusCode == 200) {
                 if (response.body.length > _maxScriptFetchBytes) {
                   LogService.instance.log('UserScript', 'Rejected: response too large (${response.body.length} bytes, max $_maxScriptFetchBytes)');
