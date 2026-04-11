@@ -537,6 +537,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onSave: (scripts) {
                       widget.webViewModel.userScripts = scripts;
                     },
+                    onRun: widget.webViewModel.controller != null
+                        ? (source) => widget.webViewModel.controller!.evaluateJavascript(source)
+                        : null,
                   ),
                 ),
               );

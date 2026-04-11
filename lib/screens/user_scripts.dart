@@ -3,14 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:webspace/settings/user_script.dart';
 
 /// Screen for managing per-site user scripts.
+///
+/// Edits apply to the model immediately via [onSave]. The parent Settings
+/// screen handles webview reload when "Save Settings" is tapped.
 class UserScriptsScreen extends StatefulWidget {
   final List<UserScriptConfig> userScripts;
   final void Function(List<UserScriptConfig>) onSave;
+  /// Execute a script source on the current webview immediately.
+  final Future<void> Function(String source)? onRun;
 
   const UserScriptsScreen({
     super.key,
     required this.userScripts,
     required this.onSave,
+    this.onRun,
   });
 
   @override
@@ -19,12 +25,11 @@ class UserScriptsScreen extends StatefulWidget {
 
 class _UserScriptsScreenState extends State<UserScriptsScreen> {
   late List<UserScriptConfig> _scripts;
-  bool _saved = false;
 
   @override
   void initState() {
     super.initState();
-    // Deep copy so edits don't mutate the original until saved
+    // Deep copy so list operations are clean
     _scripts = widget.userScripts
         .map((s) => UserScriptConfig(
               name: s.name,
@@ -35,19 +40,8 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
         .toList();
   }
 
-  bool get _hasChanges {
-    if (_scripts.length != widget.userScripts.length) return true;
-    for (int i = 0; i < _scripts.length; i++) {
-      final a = _scripts[i];
-      final b = widget.userScripts[i];
-      if (a.name != b.name ||
-          a.source != b.source ||
-          a.injectionTime != b.injectionTime ||
-          a.enabled != b.enabled) {
-        return true;
-      }
-    }
-    return false;
+  void _sync() {
+    widget.onSave(_scripts);
   }
 
   void _addScript() async {
@@ -57,6 +51,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     );
     if (result != null) {
       setState(() => _scripts.add(result));
+      _sync();
     }
   }
 
@@ -69,120 +64,100 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     );
     if (result != null) {
       setState(() => _scripts[index] = result);
+      _sync();
     }
   }
 
   void _deleteScript(int index) {
     setState(() => _scripts.removeAt(index));
+    _sync();
   }
 
-  void _save() {
-    widget.onSave(_scripts);
-    _saved = true;
-    Navigator.pop(context);
-  }
-
-  Future<bool> _confirmDiscard() async {
-    if (_saved || !_hasChanges) return true;
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unsaved changes'),
-        content: const Text(
-          'You have unsaved script changes. Discard them?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Discard'),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
+  void _runScript(UserScriptConfig script) async {
+    if (widget.onRun == null || script.source.isEmpty) return;
+    await widget.onRun!(script.source);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ran "${script.name}"')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final discard = await _confirmDiscard();
-        if (discard && context.mounted) {
-          Navigator.pop(context);
-        }
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('User Scripts'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _save,
-              tooltip: 'Save',
-            ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _addScript,
-          child: const Icon(Icons.add),
-        ),
-        body: _scripts.isEmpty
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: Text(
-                    'No user scripts.\nTap + to add a script.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              )
-            : ReorderableListView.builder(
-                itemCount: _scripts.length,
-                onReorder: (oldIndex, newIndex) {
-                  setState(() {
-                    if (newIndex > oldIndex) newIndex--;
-                    final item = _scripts.removeAt(oldIndex);
-                    _scripts.insert(newIndex, item);
-                  });
-                },
-                itemBuilder: (context, index) {
-                  final script = _scripts[index];
-                  return Dismissible(
-                    key: ValueKey('${script.name}_$index'),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      color: Colors.red,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 16),
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
-                    onDismissed: (_) => _deleteScript(index),
-                    child: ListTile(
-                      title: Text(script.name),
-                      subtitle: Text(
-                        script.injectionTime == UserScriptInjectionTime.atDocumentStart
-                            ? 'Runs at document start'
-                            : 'Runs at document end',
-                      ),
-                      trailing: Switch(
-                        value: script.enabled,
-                        onChanged: (value) {
-                          setState(() => script.enabled = value);
-                        },
-                      ),
-                      onTap: () => _editScript(index),
-                    ),
-                  );
-                },
-              ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('User Scripts'),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addScript,
+        child: const Icon(Icons.add),
+      ),
+      body: _scripts.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text(
+                  'No user scripts.\nTap + to add a script.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          : ReorderableListView.builder(
+              itemCount: _scripts.length,
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) newIndex--;
+                  final item = _scripts.removeAt(oldIndex);
+                  _scripts.insert(newIndex, item);
+                });
+                _sync();
+              },
+              itemBuilder: (context, index) {
+                final script = _scripts[index];
+                return Dismissible(
+                  key: ValueKey('${script.name}_$index'),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 16),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (_) => _deleteScript(index),
+                  child: ListTile(
+                    title: Text(script.name),
+                    subtitle: Text(
+                      script.injectionTime == UserScriptInjectionTime.atDocumentStart
+                          ? 'Runs at document start'
+                          : 'Runs at document end',
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.onRun != null)
+                          IconButton(
+                            icon: const Icon(Icons.play_arrow, size: 20),
+                            tooltip: 'Run now',
+                            onPressed: script.source.isEmpty
+                                ? null
+                                : () => _runScript(script),
+                          ),
+                        Switch(
+                          value: script.enabled,
+                          onChanged: (value) {
+                            setState(() => script.enabled = value);
+                            _sync();
+                          },
+                        ),
+                      ],
+                    ),
+                    onTap: () => _editScript(index),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
@@ -219,7 +194,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
     super.dispose();
   }
 
-  void _save() {
+  void _confirm() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -247,8 +222,8 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.check),
-            onPressed: _save,
-            tooltip: 'Save',
+            onPressed: _confirm,
+            tooltip: 'Done',
           ),
         ],
       ),
