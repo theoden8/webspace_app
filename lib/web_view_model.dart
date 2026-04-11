@@ -381,6 +381,16 @@ class WebViewModel {
           controller?.reload();
         },
       ) : null;
+      // Track last user gesture on same-domain navigation, so we can
+      // propagate it to cross-domain redirects (e.g., search engine
+      // redirect links like DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
+      DateTime? lastSameDomainGestureTime;
+      // Guard against re-entrant cross-domain redirect handling from
+      // onUrlChanged (called by both onUpdateVisitedHistory and onLoadStop).
+      bool redirectHandled = false;
+      // The URL before the most recent same-domain navigation, used to
+      // navigate back when a cross-domain redirect is detected.
+      String? previousSameDomainUrl;
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -411,12 +421,30 @@ class WebViewModel {
             LogService.instance.log('WebView', 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url from=$initialNormalized to=$requestNormalized hasGesture=$hasGesture');
 
             if (requestNormalized == initialNormalized) {
+              if (hasGesture) {
+                lastSameDomainGestureTime = DateTime.now();
+              }
               LogService.instance.log('WebView', '  -> ALLOW (same domain)');
               return true; // Allow - same logical domain
             }
 
+            // For cross-domain navigations without gesture, check if this
+            // is a redirect from a recent user-clicked same-domain URL
+            // (e.g., search engine redirect: DDG /l/?uddg=..., Google /url?q=...).
+            // Propagate the gesture so the redirect opens a nested webview
+            // instead of being silently blocked.
+            bool effectiveHasGesture = hasGesture;
+            if (!hasGesture && lastSameDomainGestureTime != null) {
+              final elapsed = DateTime.now().difference(lastSameDomainGestureTime!);
+              if (elapsed.inSeconds < 10) {
+                effectiveHasGesture = true;
+                LogService.instance.log('WebView', '  -> Gesture propagated from same-domain click ${elapsed.inMilliseconds}ms ago');
+              }
+              lastSameDomainGestureTime = null; // Consume — only propagate once
+            }
+
             // Block script-initiated cross-domain navigations (Google One Tap, Stripe, etc.)
-            if (blockAutoRedirects && !hasGesture) {
+            if (blockAutoRedirects && !effectiveHasGesture) {
               LogService.instance.log('WebView', '  -> CANCEL (auto-redirect blocked, no user gesture)');
               return false;
             }
@@ -435,6 +463,31 @@ class WebViewModel {
             return false; // Cancel
           },
           onUrlChanged: (url) async {
+            // Detect cross-domain redirects that bypassed shouldOverrideUrlLoading
+            // (e.g., server-side 302 from search engine redirect pages like
+            // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
+            final urlDomain = getNormalizedDomain(url);
+            final initDomain = getNormalizedDomain(initUrl);
+            if (urlDomain != initDomain
+                && !WebViewFactory.isCaptchaChallenge(url)
+                && !redirectHandled) {
+              redirectHandled = true;
+              LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
+              // Navigate back to the last same-domain page (e.g., search results)
+              if (controller != null) {
+                controller!.loadUrl(previousSameDomainUrl ?? initUrl);
+              }
+              // Open in nested webview if this site is active
+              if (isActive == null || isActive()) {
+                launchUrlFunc(url, homeTitle: name, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
+              }
+              return;
+            }
+            if (urlDomain == initDomain) {
+              redirectHandled = false;
+              previousSameDomainUrl = currentUrl;
+            }
+
             currentUrl = url;
             // Trigger UI rebuild so URL bar updates
             if (stateSetterF != null) {
