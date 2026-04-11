@@ -556,11 +556,25 @@ const String _scriptFetchShimTemplate = r'''
 (function() {
   if (window.__wsFetchShimInstalled) return;
   window.__wsFetchShimInstalled = true;
-  var _call = window.flutter_inappwebview.callHandler.bind(window.flutter_inappwebview);
   var _origAppend = Node.prototype.appendChild;
   var _origInsert = Node.prototype.insertBefore;
   var SCRIPT_HANDLER = '__SCRIPT_HANDLER_NAME__';
   var FETCH_HANDLER = '__FETCH_HANDLER_NAME__';
+
+  // Lazily capture the bridge reference. At DOCUMENT_START the
+  // flutter_inappwebview bridge may not be injected yet. By the time
+  // user scripts actually call appendChild or __wsFetch (after the
+  // library <script> loads), the bridge will be available.
+  var _call = null;
+  function call() {
+    if (!_call) {
+      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        _call = window.flutter_inappwebview.callHandler.bind(window.flutter_inappwebview);
+      }
+    }
+    if (!_call) return null;
+    return _call.apply(null, arguments);
+  }
 
   function isFetchableUrl(url) {
     if (typeof url !== 'string' || url.length === 0) return false;
@@ -571,9 +585,11 @@ const String _scriptFetchShimTemplate = r'''
   function intercept(scriptEl) {
     var url = scriptEl.src;
     if (!isFetchableUrl(url)) return null;
+    var result = call(SCRIPT_HANDLER, url);
+    if (!result) return null;
     var onload = scriptEl.onload;
     var onerror = scriptEl.onerror;
-    _call(SCRIPT_HANDLER, url).then(function(ok) {
+    result.then(function(ok) {
       if (ok) { if (onload) try { onload.call(scriptEl); } catch(e) {} }
       else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) {} }
     }).catch(function(e) {
@@ -604,11 +620,15 @@ const String _scriptFetchShimTemplate = r'''
     if (!isFetchableUrl(urlStr)) {
       return Promise.reject(new Error('__wsFetch: only http/https URLs supported'));
     }
-    return _call(FETCH_HANDLER, urlStr).then(function(result) {
-      if (result && result.body !== undefined) {
-        return new Response(result.body, {
-          status: result.status || 200,
-          headers: result.contentType ? { 'Content-Type': result.contentType } : {},
+    var result = call(FETCH_HANDLER, urlStr);
+    if (!result) {
+      return Promise.reject(new Error('__wsFetch: bridge not available'));
+    }
+    return result.then(function(r) {
+      if (r && r.body !== undefined) {
+        return new Response(r.body, {
+          status: r.status || 200,
+          headers: r.contentType ? { 'Content-Type': r.contentType } : {},
         });
       }
       return new Response('', { status: 500 });
