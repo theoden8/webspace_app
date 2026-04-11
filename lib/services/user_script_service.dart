@@ -76,7 +76,7 @@ const String _shimTemplate = r'''
     // If already loaded, just fire onload without re-fetching.
     if (_loadedUrls[url]) {
       var onload = scriptEl.onload;
-      if (onload) setTimeout(function() { try { onload.call(scriptEl); } catch(e) {} }, 0);
+      if (onload) setTimeout(function() { try { onload.call(scriptEl); } catch(e) { console.error('__ws: dedup onload error:', e); } }, 0);
       return scriptEl;
     }
     var result = call(SCRIPT_HANDLER, url);
@@ -100,9 +100,9 @@ const String _shimTemplate = r'''
         } else {
           console.log('__ws: script loaded, DarkReader=' + typeof window.DarkReader);
         }
-        if (onload) try { onload.call(scriptEl); } catch(e) {}
+        if (onload) try { onload.call(scriptEl); } catch(e) { console.error('__ws: onload error:', e); }
       }
-      else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) {} }
+      else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) { console.error('__ws: onerror error:', e); } }
     }).catch(function(e) {
       if (onerror) try { onerror.call(scriptEl, e); } catch(e2) {}
     });
