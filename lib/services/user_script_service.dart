@@ -118,6 +118,21 @@ const String _shimTemplate = r'''
       return new Response('', { status: 500 });
     });
   };
+
+  // Patch window.fetch to fall back to __wsFetch on CORS errors.
+  // This makes libraries like Dark Reader work transparently without
+  // needing setFetchMethod — cross-origin stylesheet fetches that fail
+  // due to CORS are automatically retried via the Dart HTTP client.
+  var _origFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    return _origFetch(input, init).catch(function(err) {
+      var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+      if (isFetchableUrl(url)) {
+        return window.__wsFetch(url);
+      }
+      throw err;
+    });
+  };
 })();
 ''';
 
