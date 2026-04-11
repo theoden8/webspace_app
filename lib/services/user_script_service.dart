@@ -136,15 +136,17 @@ const String _shimTemplate = r'''
   };
 
   // Patch window.fetch to fall back to __wsFetch on CORS errors.
-  // This makes libraries like Dark Reader work transparently without
-  // needing setFetchMethod — cross-origin stylesheet fetches that fail
-  // due to CORS are automatically retried via the Dart HTTP client.
+  // Only catches TypeError (which browsers throw for CORS and network
+  // failures), not application errors like 404. This avoids breaking
+  // video/binary fetches that fail for non-CORS reasons.
   var _origFetch = window.fetch.bind(window);
   window.fetch = function(input, init) {
     return _origFetch(input, init).catch(function(err) {
-      var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-      if (isFetchableUrl(url)) {
-        return window.__wsFetch(url);
+      if (err instanceof TypeError) {
+        var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+        if (isFetchableUrl(url)) {
+          return window.__wsFetch(url);
+        }
       }
       throw err;
     });
@@ -321,9 +323,16 @@ class UserScriptService {
     });
   }
 
+  /// Whether this is the first page load. initialUserScripts handle the first
+  /// load at the native level; re-injection is only needed for subsequent
+  /// navigations where initialUserScripts don't re-run.
+  bool _firstLoadDone = false;
+
   /// Re-inject the shim and atDocumentStart user scripts. Call from onLoadStart.
   Future<void> reinjectOnLoadStart(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
+    // Skip first load — initialUserScripts already handled it.
+    if (!_firstLoadDone) return;
     if (shimScript != null) {
       await _safeEval(controller, shimScript!);
     }
@@ -340,6 +349,11 @@ class UserScriptService {
   /// Re-inject atDocumentEnd user scripts. Call from onLoadStop.
   Future<void> reinjectOnLoadStop(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
+    // Skip first load — initialUserScripts already handled it.
+    if (!_firstLoadDone) {
+      _firstLoadDone = true;
+      return;
+    }
     for (final script in _scripts) {
       final src = script.fullSource;
       if (!script.enabled || src.isEmpty) continue;
