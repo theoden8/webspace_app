@@ -164,29 +164,6 @@ const String _shimTemplate = r'''
       throw err;
     });
   };
-
-  // Auto-configure DarkReader.setFetchMethod when the library is loaded
-  // via evaluateJavascript (cached urlSource). The intercept handler only
-  // fires for <script src> loads; this property trap catches direct injection.
-  var _drValue = window.DarkReader;
-  var _drConfigured = false;
-  try {
-    Object.defineProperty(window, 'DarkReader', {
-      get: function() { return _drValue; },
-      set: function(val) {
-        _drValue = val;
-        if (!_drConfigured && val && val.setFetchMethod && window.__wsFetch) {
-          try {
-            val.setFetchMethod(window.__wsFetch);
-            _drConfigured = true;
-            console.log('__ws: auto-configured DarkReader.setFetchMethod');
-          } catch(e) { console.error('__ws: setFetchMethod error:', e); }
-        }
-      },
-      configurable: true,
-      enumerable: true,
-    });
-  } catch(e) {}
 })();
 ''';
 
@@ -276,7 +253,7 @@ class UserScriptService {
     // User scripts
     LogService.instance.log('UserScript', 'createWebView: ${_scripts.length} user scripts configured');
     for (final script in _scripts) {
-      final src = script.fullSource;
+      final src = _buildSource(script);
       if (!script.enabled || src.isEmpty) {
         LogService.instance.log('UserScript', 'Skipping "${script.name}" (enabled=${script.enabled}, empty=${src.isEmpty})');
         continue;
@@ -368,13 +345,27 @@ class UserScriptService {
     });
   }
 
-  /// Auto-configure DarkReader.setFetchMethod after user scripts are injected.
-  /// Idempotent: safe to call even if the shim's property trap already ran.
-  static const _darkReaderFetchConfig = r'''
+  /// Auto-configure libraries that expose setFetchMethod (e.g. Dark Reader).
+  /// Injected between urlSource (library code) and source (user code) so it
+  /// runs after the library is fully loaded but before the user calls enable().
+  static const _libraryPostInit = r'''
 if (window.DarkReader && window.DarkReader.setFetchMethod && window.__wsFetch) {
   try { window.DarkReader.setFetchMethod(window.__wsFetch); } catch(e) {}
 }
 ''';
+
+  /// Build injectable source for a user script. When the script has both
+  /// urlSource (cached library) and source (user code), inserts library
+  /// post-init configuration between them so setFetchMethod is called
+  /// after the library defines its API but before the user calls enable().
+  static String _buildSource(UserScriptConfig script) {
+    final urlSrc = script.urlSource;
+    final userSrc = script.source;
+    if (urlSrc != null && urlSrc.isNotEmpty && userSrc.isNotEmpty) {
+      return '$urlSrc\n$_libraryPostInit\n$userSrc';
+    }
+    return script.fullSource;
+  }
 
   /// Re-inject the shim and atDocumentStart user scripts. Call from onLoadStart.
   Future<void> reinjectOnLoadStart(inapp.InAppWebViewController controller) async {
@@ -383,28 +374,26 @@ if (window.DarkReader && window.DarkReader.setFetchMethod && window.__wsFetch) {
       await _safeEval(controller, shimScript!);
     }
     for (final script in _scripts) {
-      final src = script.fullSource;
+      final src = _buildSource(script);
       if (!script.enabled || src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
         LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${src.length} chars)');
         await _safeEval(controller, src);
       }
     }
-    await _safeEval(controller, _darkReaderFetchConfig);
   }
 
   /// Re-inject atDocumentEnd user scripts. Call from onLoadStop.
   Future<void> reinjectOnLoadStop(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
     for (final script in _scripts) {
-      final src = script.fullSource;
+      final src = _buildSource(script);
       if (!script.enabled || src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
         LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${src.length} chars)');
         await _safeEval(controller, src);
       }
     }
-    await _safeEval(controller, _darkReaderFetchConfig);
   }
 
   /// Re-run user scripts' custom source (not the URL library) on SPA
