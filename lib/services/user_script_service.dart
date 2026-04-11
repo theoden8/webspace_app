@@ -27,29 +27,8 @@ const String _shimTemplate = r'''
   window.__wsFetchShimInstalled = true;
   var _origAppend = Node.prototype.appendChild;
   var _origInsert = Node.prototype.insertBefore;
-  var _origCreate = document.createElement.bind(document);
   var SCRIPT_HANDLER = '__SCRIPT_HANDLER_NAME__';
   var FETCH_HANDLER = '__FETCH_HANDLER_NAME__';
-
-  // Extract CSP nonce from existing page elements. Pages with
-  // style-src CSP (like LinkedIn) block <style> elements without a
-  // valid nonce. Libraries like Dark Reader create styles via
-  // createElement('style') — we auto-apply the nonce so CSP allows them.
-  var _nonce = '';
-  function findNonce() {
-    if (_nonce) return _nonce;
-    var el = document.querySelector('style[nonce]') || document.querySelector('script[nonce]');
-    if (el) _nonce = el.nonce || el.getAttribute('nonce') || '';
-    return _nonce;
-  }
-  document.createElement = function(tag, opts) {
-    var el = _origCreate(tag, opts);
-    if (tag.toLowerCase() === 'style') {
-      var n = findNonce();
-      if (n) el.setAttribute('nonce', n);
-    }
-    return el;
-  };
 
   // Lazily capture the bridge reference. At DOCUMENT_START the
   // flutter_inappwebview bridge may not be injected yet. By the time
@@ -185,6 +164,29 @@ const String _shimTemplate = r'''
       throw err;
     });
   };
+
+  // Auto-configure DarkReader.setFetchMethod when the library is loaded
+  // via evaluateJavascript (cached urlSource). The intercept handler only
+  // fires for <script src> loads; this property trap catches direct injection.
+  var _drValue = window.DarkReader;
+  var _drConfigured = false;
+  try {
+    Object.defineProperty(window, 'DarkReader', {
+      get: function() { return _drValue; },
+      set: function(val) {
+        _drValue = val;
+        if (!_drConfigured && val && val.setFetchMethod && window.__wsFetch) {
+          try {
+            val.setFetchMethod(window.__wsFetch);
+            _drConfigured = true;
+            console.log('__ws: auto-configured DarkReader.setFetchMethod');
+          } catch(e) { console.error('__ws: setFetchMethod error:', e); }
+        }
+      },
+      configurable: true,
+      enumerable: true,
+    });
+  } catch(e) {}
 })();
 ''';
 
@@ -192,8 +194,16 @@ const String _shimTemplate = r'''
 const int _maxFetchBytes = 5 * 1024 * 1024;
 
 /// Evaluate JS without triggering "unsupported type" serialization errors.
-Future<void> _safeEval(inapp.InAppWebViewController c, String source) =>
-    c.evaluateJavascript(source: '$source\n;void 0;');
+/// WebKit (macOS/iOS) errors when evaluateJavascript returns `undefined`;
+/// appending `;null;` returns a serializable value, and try-catch ensures
+/// a stale error never breaks callers.
+Future<void> _safeEval(inapp.InAppWebViewController c, String source) async {
+  try {
+    await c.evaluateJavascript(source: '$source\n;null;');
+  } catch (e) {
+    LogService.instance.log('UserScript', 'evaluateJavascript non-fatal: $e');
+  }
+}
 
 /// Manages user script injection, external dependency resolution, and
 /// CORS-bypassing fetch for webviews.
@@ -357,6 +367,14 @@ class UserScriptService {
     });
   }
 
+  /// Auto-configure DarkReader.setFetchMethod after user scripts are injected.
+  /// Idempotent: safe to call even if the shim's property trap already ran.
+  static const _darkReaderFetchConfig = r'''
+if (window.DarkReader && window.DarkReader.setFetchMethod && window.__wsFetch) {
+  try { window.DarkReader.setFetchMethod(window.__wsFetch); } catch(e) {}
+}
+''';
+
   /// Re-inject the shim and atDocumentStart user scripts. Call from onLoadStart.
   Future<void> reinjectOnLoadStart(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
@@ -371,6 +389,7 @@ class UserScriptService {
         await _safeEval(controller, src);
       }
     }
+    await _safeEval(controller, _darkReaderFetchConfig);
   }
 
   /// Re-inject atDocumentEnd user scripts. Call from onLoadStop.
@@ -384,6 +403,7 @@ class UserScriptService {
         await _safeEval(controller, src);
       }
     }
+    await _safeEval(controller, _darkReaderFetchConfig);
   }
 
   /// Re-run user scripts' custom source (not the URL library) on SPA

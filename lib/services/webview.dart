@@ -818,12 +818,16 @@ class WebViewFactory {
         if (config.contentBlockEnabled && url != null) {
           final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
           if (script != null) {
-            await controller.evaluateJavascript(source: script);
+            try {
+              await controller.evaluateJavascript(source: '$script\n;null;');
+            } catch (_) {} // WebKit "unsupported type" — JS still ran
           }
         }
         // Re-inject ClearURLs share script for in-page navigations
         if (config.clearUrlEnabled) {
-          await controller.evaluateJavascript(source: _clearUrlShareScript);
+          try {
+            await controller.evaluateJavascript(source: '$_clearUrlShareScript\n;null;');
+          } catch (_) {} // WebKit "unsupported type" — JS still ran
         }
         await userScriptService.reinjectOnLoadStart(controller);
       },
@@ -840,7 +844,9 @@ class WebViewFactory {
           if (config.contentBlockEnabled) {
             final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
             if (script != null) {
-              await controller.evaluateJavascript(source: script);
+              try {
+                await controller.evaluateJavascript(source: '$script\n;null;');
+              } catch (_) {} // WebKit "unsupported type" — JS still ran
             }
           }
           await userScriptService.reinjectOnLoadStop(controller);
