@@ -325,7 +325,9 @@ class UserScriptService {
     for (final script in _scripts) {
       if (!script.enabled || script.source.isEmpty) continue;
       LogService.instance.log('UserScript', 'SPA navigation: re-running "${script.name}" source (${script.source.length} chars)');
-      await controller.evaluateJavascript(source: script.source);
+      // Wrap in void function to suppress return value (avoids
+      // "unsupported type" errors from evaluateJavascript).
+      await controller.evaluateJavascript(source: '(function(){${script.source}})();');
     }
   }
 }

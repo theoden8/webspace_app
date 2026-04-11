@@ -667,6 +667,10 @@ class WebViewFactory {
     );
     userScripts.addAll(userScriptService.buildInitialUserScripts());
 
+    // Track last URL that triggered onLoadStart, used to distinguish
+    // SPA navigations (pushState) from real page loads in onUpdateVisitedHistory.
+    String? lastLoadStartUrl;
+
     return inapp.InAppWebView(
       key: config.key,
       initialUrlRequest: usesCachedHtml ? null : inapp.URLRequest(
@@ -808,6 +812,8 @@ class WebViewFactory {
             }
           : null,
       onLoadStart: (controller, url) async {
+        // Track that this URL has a real page load (not SPA navigation)
+        lastLoadStartUrl = url?.toString();
         // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {
           final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
@@ -858,10 +864,14 @@ class WebViewFactory {
         if (url != null) {
           config.onUrlChanged?.call(url.toString());
           // SPA navigations (pushState/replaceState) don't trigger
-          // onLoadStart/onLoadStop, so user scripts aren't re-injected.
-          // Re-run the user's custom source code (not the library) so
-          // scripts like DarkReader.enable() apply to the new content.
-          userScriptService.reinjectOnSpaNavigation(controller);
+          // onLoadStart/onLoadStop. Detect by checking if this URL had a
+          // corresponding onLoadStart. If not, it's a SPA navigation —
+          // re-run user scripts' source code (not the library).
+          final urlStr = url.toString();
+          if (urlStr != lastLoadStartUrl) {
+            userScriptService.reinjectOnSpaNavigation(controller);
+          }
+          lastLoadStartUrl = null; // Reset for next navigation
         }
       },
       onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
