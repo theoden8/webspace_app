@@ -30,6 +30,7 @@ class DevToolsScreen extends StatefulWidget {
 class _DevToolsScreenState extends State<DevToolsScreen> {
   bool _loadingCookies = false;
   String? _exportedHtml;
+  bool _isFetchingHtml = false;
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
 
   final ScrollController _consoleScrollController = ScrollController();
@@ -596,9 +597,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Future<String?> _fetchHtml() async {
+    if (_isFetchingHtml) return _exportedHtml;
     final controller = widget.webViewModel!.controller;
     if (controller == null) return null;
 
+    _isFetchingHtml = true;
     try {
       final html = await controller.getHtml();
       if (html == null || html.isEmpty) {
@@ -618,12 +621,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         );
       }
       return null;
+    } finally {
+      _isFetchingHtml = false;
     }
   }
 
   Future<void> _shareHtml() async {
     final html = _exportedHtml ?? await _fetchHtml();
-    if (html == null) return;
+    if (html == null || !mounted) return;
 
     final domain = extractDomain(widget.webViewModel!.currentUrl);
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
@@ -635,7 +640,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Future<void> _saveHtmlToFile() async {
     final html = _exportedHtml ?? await _fetchHtml();
-    if (html == null) return;
+    if (html == null || !mounted) return;
 
     try {
       final domain = extractDomain(widget.webViewModel!.currentUrl);
@@ -671,7 +676,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   void _copyHtml() async {
     final html = _exportedHtml ?? await _fetchHtml();
-    if (html == null) return;
+    if (html == null || !mounted) return;
     Clipboard.setData(ClipboardData(text: html));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
