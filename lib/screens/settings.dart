@@ -538,7 +538,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       widget.webViewModel.userScripts = scripts;
                     },
                     onRun: widget.webViewModel.controller != null
-                        ? (source) => widget.webViewModel.controller!.evaluateJavascript(source)
+                        ? (source) async {
+                            final logsBefore = widget.webViewModel.consoleLogs.length;
+                            await widget.webViewModel.controller!.evaluateJavascript(source);
+                            // Brief delay to let console messages arrive
+                            await Future.delayed(const Duration(milliseconds: 200));
+                            final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
+                            return newLogs.map((e) => e.message).join('\n');
+                          }
                         : null,
                   ),
                 ),

@@ -11,7 +11,8 @@ class UserScriptsScreen extends StatefulWidget {
   final List<UserScriptConfig> userScripts;
   final void Function(List<UserScriptConfig>) onSave;
   /// Execute a script source on the current webview immediately.
-  final Future<void> Function(String source)? onRun;
+  /// Returns console output captured during execution.
+  final Future<String> Function(String source)? onRun;
 
   const UserScriptsScreen({
     super.key,
@@ -148,8 +149,8 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
 /// Screen for creating or editing a single user script.
 class UserScriptEditScreen extends StatefulWidget {
   final UserScriptConfig? script;
-  /// Execute a script and return the result string (or error).
-  final Future<void> Function(String source)? onRun;
+  /// Execute a script and return console output captured during execution.
+  final Future<String> Function(String source)? onRun;
 
   const UserScriptEditScreen({super.key, this.script, this.onRun});
 
@@ -252,9 +253,9 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
     if (src.isEmpty) return;
     setState(() { _runOutput = 'Running...'; });
     try {
-      await widget.onRun!(src);
+      final output = await widget.onRun!(src);
       if (mounted) {
-        setState(() { _runOutput = 'Executed successfully. Check console for output.'; });
+        setState(() { _runOutput = output; });
       }
     } catch (e) {
       if (mounted) {

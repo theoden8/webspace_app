@@ -10,6 +10,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/user_script.dart';
 
@@ -530,6 +531,47 @@ const String _clearUrlShareScript = r'''
 })();
 ''';
 
+/// JavaScript shim that intercepts <script src="..."> DOM insertions.
+/// When user scripts create script elements with external sources, the browser
+/// would block them via CSP. This shim catches those insertions, sends the URL
+/// to Dart for fetching, and the content is injected natively via
+/// evaluateJavascript (which bypasses CSP).
+///
+/// Security: the callHandler reference and handler name are captured in a
+/// closure at DOCUMENT_START before page code runs, so page scripts cannot
+/// tamper with or call the handler directly.
+const String _scriptFetchShim = r'''
+(function() {
+  if (window.__wsFetchShimInstalled) return;
+  window.__wsFetchShimInstalled = true;
+  var _call = window.flutter_inappwebview.callHandler.bind(window.flutter_inappwebview);
+  var _origAppend = Node.prototype.appendChild;
+  var _origInsert = Node.prototype.insertBefore;
+
+  function intercept(scriptEl) {
+    var url = scriptEl.src;
+    var onload = scriptEl.onload;
+    var onerror = scriptEl.onerror;
+    _call('__wsFetchScript', url).then(function(ok) {
+      if (ok) { if (onload) try { onload.call(scriptEl); } catch(e) {} }
+      else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) {} }
+    }).catch(function(e) {
+      if (onerror) try { onerror.call(scriptEl, e); } catch(e2) {}
+    });
+    return scriptEl;
+  }
+
+  Node.prototype.appendChild = function(child) {
+    if (child instanceof HTMLScriptElement && child.src) return intercept(child);
+    return _origAppend.call(this, child);
+  };
+  Node.prototype.insertBefore = function(child, ref) {
+    if (child instanceof HTMLScriptElement && child.src) return intercept(child);
+    return _origInsert.call(this, child, ref);
+  };
+})();
+''';
+
 /// Factory for creating webviews
 class WebViewFactory {
   /// Determine if a navigation was triggered by a user gesture.
@@ -654,6 +696,17 @@ class WebViewFactory {
       ));
     }
 
+    // Inject script fetch shim before user scripts so external dependencies
+    // (e.g., CDN libraries) are fetched at the Dart level, bypassing CSP.
+    final hasUserScripts = config.userScripts.any((s) => s.enabled && s.fullSource.isNotEmpty);
+    if (hasUserScripts) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'script_fetch_shim',
+        source: _scriptFetchShim,
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
     // Inject per-site user scripts
     LogService.instance.log('UserScript', 'createWebView: ${config.userScripts.length} user scripts configured');
     for (final script in config.userScripts) {
@@ -723,6 +776,28 @@ class WebViewFactory {
               return ClearUrlService.instance.cleanUrl(args[0] as String);
             }
             return args.isNotEmpty ? args[0] : '';
+          });
+        }
+        // Register script fetch handler for user script external dependencies.
+        // When user scripts create <script src="..."> elements, the shim
+        // intercepts them and calls this handler to fetch + inject natively.
+        if (hasUserScripts) {
+          controller.addJavaScriptHandler(handlerName: '__wsFetchScript', callback: (args) async {
+            if (args.isEmpty || args[0] is! String) return false;
+            final url = args[0] as String;
+            LogService.instance.log('UserScript', 'Fetching external script: $url');
+            try {
+              final response = await http.get(Uri.parse(url));
+              if (response.statusCode == 200) {
+                LogService.instance.log('UserScript', 'Injecting fetched script (${response.body.length} bytes)');
+                await controller.evaluateJavascript(source: response.body);
+                return true;
+              }
+              LogService.instance.log('UserScript', 'Fetch failed: HTTP ${response.statusCode}', );
+            } catch (e) {
+              LogService.instance.log('UserScript', 'Fetch failed: $e');
+            }
+            return false;
           });
         }
         // If we loaded cached HTML, navigate to the real URL when online
@@ -823,6 +898,10 @@ class WebViewFactory {
         // Re-inject ClearURLs share script for in-page navigations
         if (config.clearUrlEnabled) {
           await controller.evaluateJavascript(source: _clearUrlShareScript);
+        }
+        // Re-inject script fetch shim for in-page navigations
+        if (hasUserScripts) {
+          await controller.evaluateJavascript(source: _scriptFetchShim);
         }
         // Re-inject user scripts (atDocumentStart) for in-page navigations
         for (final script in config.userScripts) {
