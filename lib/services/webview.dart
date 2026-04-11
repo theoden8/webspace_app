@@ -816,6 +816,13 @@ class WebViewFactory {
         if (config.clearUrlEnabled) {
           await controller.evaluateJavascript(source: _clearUrlShareScript);
         }
+        // Re-inject user scripts (atDocumentStart) for in-page navigations
+        for (final script in config.userScripts) {
+          if (!script.enabled || script.source.isEmpty) continue;
+          if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
+            await controller.evaluateJavascript(source: script.source);
+          }
+        }
       },
       onLoadStop: (controller, url) async {
         // End pull-to-refresh animation
@@ -831,6 +838,13 @@ class WebViewFactory {
             final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
             if (script != null) {
               await controller.evaluateJavascript(source: script);
+            }
+          }
+          // Re-inject user scripts (atDocumentEnd) for in-page navigations
+          for (final script in config.userScripts) {
+            if (!script.enabled || script.source.isEmpty) continue;
+            if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
+              await controller.evaluateJavascript(source: script.source);
             }
           }
           // Cache HTML for offline viewing

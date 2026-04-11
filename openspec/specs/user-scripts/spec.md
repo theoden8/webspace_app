@@ -141,9 +141,15 @@ Scripts are added to the `initialUserScripts` list in `WebViewFactory.createWebV
 - Mapped to `inapp.UserScriptInjectionTime.AT_DOCUMENT_START` or `AT_DOCUMENT_END`
 - Empty or disabled scripts are skipped
 
+`initialUserScripts` only run on the first page load of the webview widget. For subsequent navigations (in-page navigation, `loadUrl` calls), scripts are re-injected:
+- `atDocumentStart` scripts: re-injected in `onLoadStart`
+- `atDocumentEnd` scripts: re-injected in `onLoadStop`
+
+This matches the re-injection pattern used by content blocker CSS and ClearURLs.
+
 ### UI
 
-- `UserScriptsScreen`: List of scripts with reorder, swipe-to-delete, enable/disable toggle
+- `UserScriptsScreen`: List of scripts with reorder, swipe-to-delete, enable/disable toggle. Navigating back without saving shows an unsaved changes confirmation dialog.
 - `UserScriptEditScreen`: Form with name, injection time dropdown, enabled switch, monospace source editor
 - Accessed from per-site settings via "User Scripts" list tile
 
