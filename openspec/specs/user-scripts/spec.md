@@ -147,10 +147,29 @@ Scripts are added to the `initialUserScripts` list in `WebViewFactory.createWebV
 
 This matches the re-injection pattern used by content blocker CSS and ClearURLs.
 
+### External Dependency Resolution
+
+User scripts that load external libraries via `document.createElement('script')` with a `src` attribute would normally be blocked by the page's Content Security Policy (CSP). A JavaScript shim intercepts these DOM insertions and resolves them at the Dart level:
+
+1. Shim is injected at `AT_DOCUMENT_START` before user scripts, patching `appendChild` and `insertBefore`
+2. When a `<script src="...">` element is appended, the shim sends the URL to a Dart handler
+3. Dart fetches the URL via HTTP (outside the browser, bypassing CSP)
+4. Dart injects the fetched content via `evaluateJavascript` (native level, bypasses CSP)
+5. The script element's `onload` callback is fired
+
+Security measures:
+- Handler name is randomized per webview instance (page code cannot guess it)
+- `callHandler` reference is captured at `DOCUMENT_START` before page code can tamper
+- Blocked URL schemes: `javascript:`, `data:`, `blob:`, `file://`
+- Response size limit: 5 MB
+- URL must have a valid scheme and host
+
+Scripts can also specify an optional `url` field for explicit CDN URL fetching with cached `urlSource`. At injection time, `fullSource = urlSource + source`.
+
 ### UI
 
-- `UserScriptsScreen`: List of scripts with reorder, swipe-to-delete, enable/disable toggle. Navigating back without saving shows an unsaved changes confirmation dialog.
-- `UserScriptEditScreen`: Form with name, injection time dropdown, enabled switch, monospace source editor
+- `UserScriptsScreen`: List of scripts with reorder, swipe-to-delete, enable/disable toggle. Edits sync to the model immediately.
+- `UserScriptEditScreen`: Form with name, optional script URL with download button, injection time dropdown, enabled switch, monospace source editor, and play button with inline console output
 - Accessed from per-site settings via "User Scripts" list tile
 
 ---

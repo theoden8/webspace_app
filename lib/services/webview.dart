@@ -537,22 +537,37 @@ const String _clearUrlShareScript = r'''
 /// to Dart for fetching, and the content is injected natively via
 /// evaluateJavascript (which bypasses CSP).
 ///
-/// Security: the callHandler reference and handler name are captured in a
-/// closure at DOCUMENT_START before page code runs, so page scripts cannot
-/// tamper with or call the handler directly.
-const String _scriptFetchShim = r'''
+/// Security:
+/// - Handler name is randomized per webview instance (placeholder replaced at
+///   runtime) so page code cannot guess or call it.
+/// - callHandler reference is captured at DOCUMENT_START before page code runs.
+/// - Only http:// and https:// URLs are intercepted; javascript:, data:, blob:,
+///   file:// etc. fall through to normal (CSP-governed) behavior.
+const String _scriptFetchShimTemplate = r'''
 (function() {
   if (window.__wsFetchShimInstalled) return;
   window.__wsFetchShimInstalled = true;
   var _call = window.flutter_inappwebview.callHandler.bind(window.flutter_inappwebview);
   var _origAppend = Node.prototype.appendChild;
   var _origInsert = Node.prototype.insertBefore;
+  var HANDLER = '__HANDLER_NAME__';
+
+  var BLOCKED = ['javascript:', 'data:', 'blob:', 'file:'];
+  function isSafeUrl(url) {
+    if (typeof url !== 'string' || url.length === 0) return false;
+    var lower = url.toLowerCase();
+    for (var i = 0; i < BLOCKED.length; i++) {
+      if (lower.indexOf(BLOCKED[i]) === 0) return false;
+    }
+    return lower.indexOf('://') > 0;
+  }
 
   function intercept(scriptEl) {
     var url = scriptEl.src;
+    if (!isSafeUrl(url)) return null;
     var onload = scriptEl.onload;
     var onerror = scriptEl.onerror;
-    _call('__wsFetchScript', url).then(function(ok) {
+    _call(HANDLER, url).then(function(ok) {
       if (ok) { if (onload) try { onload.call(scriptEl); } catch(e) {} }
       else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) {} }
     }).catch(function(e) {
@@ -562,15 +577,24 @@ const String _scriptFetchShim = r'''
   }
 
   Node.prototype.appendChild = function(child) {
-    if (child instanceof HTMLScriptElement && child.src) return intercept(child);
+    if (child instanceof HTMLScriptElement && child.src) {
+      var result = intercept(child);
+      if (result) return result;
+    }
     return _origAppend.call(this, child);
   };
   Node.prototype.insertBefore = function(child, ref) {
-    if (child instanceof HTMLScriptElement && child.src) return intercept(child);
+    if (child instanceof HTMLScriptElement && child.src) {
+      var result = intercept(child);
+      if (result) return result;
+    }
     return _origInsert.call(this, child, ref);
   };
 })();
 ''';
+
+/// Max size for fetched scripts (5 MB).
+const int _maxScriptFetchBytes = 5 * 1024 * 1024;
 
 /// Factory for creating webviews
 class WebViewFactory {
@@ -699,10 +723,13 @@ class WebViewFactory {
     // Inject script fetch shim before user scripts so external dependencies
     // (e.g., CDN libraries) are fetched at the Dart level, bypassing CSP.
     final hasUserScripts = config.userScripts.any((s) => s.enabled && s.fullSource.isNotEmpty);
+    // Random handler name per webview instance so page code cannot guess it.
+    final fetchHandlerName = '__ws_${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
+    final scriptFetchShim = _scriptFetchShimTemplate.replaceAll('__HANDLER_NAME__', fetchHandlerName);
     if (hasUserScripts) {
       userScripts.add(inapp.UserScript(
         groupName: 'script_fetch_shim',
-        source: _scriptFetchShim,
+        source: scriptFetchShim,
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       ));
     }
@@ -782,18 +809,39 @@ class WebViewFactory {
         // When user scripts create <script src="..."> elements, the shim
         // intercepts them and calls this handler to fetch + inject natively.
         if (hasUserScripts) {
-          controller.addJavaScriptHandler(handlerName: '__wsFetchScript', callback: (args) async {
+          controller.addJavaScriptHandler(handlerName: fetchHandlerName, callback: (args) async {
             if (args.isEmpty || args[0] is! String) return false;
             final url = args[0] as String;
+            // Validate URL: must parse successfully, scheme must not be dangerous
+            final Uri uri;
+            try {
+              uri = Uri.parse(url);
+            } catch (_) {
+              LogService.instance.log('UserScript', 'Rejected invalid URL: $url');
+              return false;
+            }
+            const blockedSchemes = {'javascript', 'data', 'blob', 'file'};
+            if (blockedSchemes.contains(uri.scheme.toLowerCase())) {
+              LogService.instance.log('UserScript', 'Rejected blocked scheme: ${uri.scheme}');
+              return false;
+            }
+            if (uri.scheme.isEmpty || uri.host.isEmpty) {
+              LogService.instance.log('UserScript', 'Rejected URL with empty scheme/host: $url');
+              return false;
+            }
             LogService.instance.log('UserScript', 'Fetching external script: $url');
             try {
-              final response = await http.get(Uri.parse(url));
+              final response = await http.get(uri);
               if (response.statusCode == 200) {
+                if (response.body.length > _maxScriptFetchBytes) {
+                  LogService.instance.log('UserScript', 'Rejected: response too large (${response.body.length} bytes, max $_maxScriptFetchBytes)');
+                  return false;
+                }
                 LogService.instance.log('UserScript', 'Injecting fetched script (${response.body.length} bytes)');
                 await controller.evaluateJavascript(source: response.body);
                 return true;
               }
-              LogService.instance.log('UserScript', 'Fetch failed: HTTP ${response.statusCode}', );
+              LogService.instance.log('UserScript', 'Fetch failed: HTTP ${response.statusCode}');
             } catch (e) {
               LogService.instance.log('UserScript', 'Fetch failed: $e');
             }
@@ -901,7 +949,7 @@ class WebViewFactory {
         }
         // Re-inject script fetch shim for in-page navigations
         if (hasUserScripts) {
-          await controller.evaluateJavascript(source: _scriptFetchShim);
+          await controller.evaluateJavascript(source: scriptFetchShim);
         }
         // Re-inject user scripts (atDocumentStart) for in-page navigations
         for (final script in config.userScripts) {
