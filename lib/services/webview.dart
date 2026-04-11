@@ -10,6 +10,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/user_script.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
@@ -654,8 +655,14 @@ class WebViewFactory {
     }
 
     // Inject per-site user scripts
+    LogService.instance.log('UserScript', 'createWebView: ${config.userScripts.length} user scripts configured');
     for (final script in config.userScripts) {
-      if (!script.enabled || script.source.isEmpty) continue;
+      if (!script.enabled || script.source.isEmpty) {
+        LogService.instance.log('UserScript', 'Skipping "${script.name}" (enabled=${script.enabled}, empty=${script.source.isEmpty})');
+        continue;
+      }
+      final time = script.injectionTime == UserScriptInjectionTime.atDocumentStart ? 'DOCUMENT_START' : 'DOCUMENT_END';
+      LogService.instance.log('UserScript', 'Adding to initialUserScripts: "${script.name}" at $time (${script.source.length} chars)');
       userScripts.add(inapp.UserScript(
         groupName: 'user_scripts',
         source: script.source,
@@ -820,6 +827,7 @@ class WebViewFactory {
         for (final script in config.userScripts) {
           if (!script.enabled || script.source.isEmpty) continue;
           if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
+            LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${script.source.length} chars)');
             await controller.evaluateJavascript(source: script.source);
           }
         }
@@ -844,6 +852,7 @@ class WebViewFactory {
           for (final script in config.userScripts) {
             if (!script.enabled || script.source.isEmpty) continue;
             if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
+              LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${script.source.length} chars)');
               await controller.evaluateJavascript(source: script.source);
             }
           }
