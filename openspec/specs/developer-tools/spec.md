@@ -5,7 +5,7 @@
 
 ## Purpose
 
-Provide in-app debugging tools for inspecting site behavior: viewing JS console output, inspecting cookies with security flags, exporting page HTML, and accessing app-level logs for GitHub issue reporting.
+Provide in-app debugging tools for inspecting site behavior: viewing JS console output, inspecting cookies with security flags, sharing/exporting page HTML, viewing active user scripts, and accessing app-level logs for GitHub issue reporting.
 
 ## Problem Statement
 
@@ -67,27 +67,34 @@ The app SHALL display cookies for the current site with security flag details.
 
 ---
 
-### Requirement: DEVTOOLS-003 - HTML Export
+### Requirement: DEVTOOLS-003 - Share HTML
 
-The app SHALL allow exporting the current page's HTML source.
+The app SHALL allow sharing, saving, or copying the current page's HTML source via an AppBar action button.
 
-#### Scenario: Export HTML to file
+#### Scenario: Share HTML via OS share sheet
 
 **Given** a site is loaded
-**When** the user taps "Export HTML" in the Export tab
+**When** the user taps the share icon in the AppBar and selects "Share HTML"
 **Then** the page HTML is retrieved via `controller.getHtml()`
-**And** a file save dialog appears with filename `{domain}_{timestamp}.html`
+**And** the OS share sheet opens with the HTML content
+
+#### Scenario: Save HTML to file
+
+**Given** a site is loaded
+**When** the user taps the share icon and selects "Save to file"
+**Then** a file save dialog appears with filename `{domain}_{timestamp}.html`
 
 #### Scenario: Copy HTML to clipboard
 
-**Given** HTML has been loaded in the Export tab
-**When** the user taps "Copy to Clipboard"
+**Given** a site is loaded
+**When** the user taps the share icon and selects "Copy to clipboard"
 **Then** the full HTML is copied to clipboard
 
-#### Scenario: Preview HTML
+#### Scenario: Concurrent fetch guard
 
-**Given** HTML has been loaded
-**Then** the first 200 lines are shown in monospace SelectableText
+**Given** an HTML fetch is already in progress
+**When** another share/save/copy action is triggered
+**Then** the second action reuses the cached HTML rather than starting a concurrent fetch
 
 ---
 
@@ -158,6 +165,32 @@ The app SHALL use a centralized LogService singleton (extending ChangeNotifier) 
 
 ---
 
+### Requirement: DEVTOOLS-006 - Scripts Viewer
+
+The app SHALL show active user scripts for the current site via an AppBar action button that opens a bottom sheet.
+
+#### Scenario: View scripts
+
+**Given** a site is loaded with user scripts configured
+**When** the user taps the code icon in the AppBar
+**Then** a draggable bottom sheet opens showing script count and a list of scripts
+**And** each script shows its name, enabled/disabled status, and injection time
+
+#### Scenario: Expand and copy script source
+
+**Given** the scripts bottom sheet is open
+**When** the user taps a script entry
+**Then** the script source is shown in monospace text
+**And** a copy button allows copying the source to clipboard
+
+#### Scenario: No scripts configured
+
+**Given** a site has no user scripts
+**When** the user taps the code icon
+**Then** the bottom sheet shows "No user scripts configured"
+
+---
+
 ## Implementation Details
 
 ### Files
@@ -165,7 +198,7 @@ The app SHALL use a centralized LogService singleton (extending ChangeNotifier) 
 | File | Role |
 |------|------|
 | `lib/services/log_service.dart` | LogService singleton, LogEntry, LogLevel enum |
-| `lib/screens/dev_tools.dart` | DevToolsScreen with 4 tabs (Console, Cookies, Export, App Logs) |
+| `lib/screens/dev_tools.dart` | DevToolsScreen with 3 tabs (Console, Cookies, App Logs) and AppBar actions (Scripts, Share HTML, Search) |
 
 ### Data Models
 
@@ -202,6 +235,7 @@ class ConsoleLogEntry {
 2. Three-dot menu -> Developer Tools
 3. **Console tab**: verify messages appear color-coded with timestamps
 4. **Cookies tab**: verify cookies listed with security chips; delete a cookie and confirm removal
-5. **Export tab**: tap "Export HTML", verify file save dialog and preview
-6. **App Logs tab**: verify app log entries appear; use filter chips; tap "Copy" and paste
-7. Go back, open App Settings -> App Logs: verify it works without a site loaded
+5. **Share HTML** (AppBar share icon): tap and verify bottom sheet with Share/Save/Copy options; test each option
+6. **Scripts** (AppBar code icon): tap and verify bottom sheet shows user scripts (or "no scripts" message); expand a script and copy its source
+7. **App Logs tab**: verify app log entries appear; use filter chips; tap "Copy" and paste
+8. Go back, open App Settings -> App Logs: verify it works without a site loaded (share and scripts icons should not appear)

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
+import 'package:share_plus/share_plus.dart';
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/webview.dart';
@@ -29,7 +30,7 @@ class DevToolsScreen extends StatefulWidget {
 class _DevToolsScreenState extends State<DevToolsScreen> {
   bool _loadingCookies = false;
   String? _exportedHtml;
-  bool _loadingHtml = false;
+  bool _isFetchingHtml = false;
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
 
   final ScrollController _consoleScrollController = ScrollController();
@@ -42,7 +43,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   bool get _hasSite => widget.webViewModel != null;
 
-  int get _tabCount => _hasSite ? 5 : 1;
+  int get _tabCount => _hasSite ? 3 : 1;
 
   @override
   void initState() {
@@ -79,10 +80,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           const Tab(icon: Icon(Icons.terminal, size: 18), text: 'Console'),
         if (_hasSite)
           const Tab(icon: Icon(Icons.cookie_outlined, size: 18), text: 'Cookies'),
-        if (_hasSite)
-          const Tab(icon: Icon(Icons.code, size: 18), text: 'Scripts'),
-        if (_hasSite)
-          const Tab(icon: Icon(Icons.download, size: 18), text: 'Export'),
         const Tab(icon: Icon(Icons.list_alt, size: 18), text: 'Logs'),
       ];
 
@@ -111,6 +108,18 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         appBar: AppBar(
           title: const Text('Developer Tools'),
           actions: [
+            if (_hasSite)
+              IconButton(
+                icon: const Icon(Icons.code, size: 20),
+                tooltip: 'Scripts',
+                onPressed: _showScriptsSheet,
+              ),
+            if (_hasSite)
+              IconButton(
+                icon: const Icon(Icons.share, size: 20),
+                tooltip: 'Share HTML',
+                onPressed: _showShareSheet,
+              ),
             IconButton(
               icon: Icon(_isSearchVisible ? Icons.search_off : Icons.search),
               tooltip: 'Search',
@@ -160,8 +169,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 children: [
                   if (_hasSite) _buildConsoleTab(),
                   if (_hasSite) _buildCookiesTab(),
-                  if (_hasSite) _buildScriptsTab(),
-                  if (_hasSite) _buildExportTab(),
                   _buildAppLogsTab(),
                 ],
               ),
@@ -424,139 +431,177 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     return _buildSecurityChip(label, color);
   }
 
-  // ── Scripts Tab ──
+  // ── Scripts Bottom Sheet ──
 
-  Widget _buildScriptsTab() {
-    final allScripts = widget.webViewModel!.userScripts;
-    if (allScripts.isEmpty) {
-      return const Center(child: Text('No user scripts configured'));
-    }
-    final scripts = _searchQuery.isEmpty
-        ? allScripts
-        : allScripts
-            .where((s) => _matchesSearch(s.name) || _matchesSearch(s.source))
-            .toList();
-    if (scripts.isEmpty) {
-      return const Center(child: Text('No matches'));
-    }
-    return ListView.builder(
-      itemCount: scripts.length,
-      itemBuilder: (context, index) {
-        final script = scripts[index];
-        return ExpansionTile(
-          leading: Icon(
-            script.enabled ? Icons.code : Icons.code_off,
-            color: script.enabled ? Colors.green : Colors.grey,
-            size: 20,
-          ),
-          title: Text(script.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
-          subtitle: Text(
-            script.injectionTime == UserScriptInjectionTime.atDocumentStart
-                ? 'document start'
-                : 'document end',
-            style: const TextStyle(fontSize: 11),
-          ),
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12.0),
-              margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Stack(
+  void _showScriptsSheet() {
+    final scripts = widget.webViewModel!.userScripts;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.3,
+          maxChildSize: 0.85,
+          expand: false,
+          builder: (context, scrollController) {
+            if (scripts.isEmpty) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  SelectableText(
-                    script.source.isEmpty ? '// (empty script)' : script.source,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                  ),
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: IconButton(
-                      icon: const Icon(Icons.copy, size: 16),
-                      tooltip: 'Copy source',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: script.source));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Copied "${script.name}"')),
-                        );
-                      },
-                      visualDensity: VisualDensity.compact,
-                    ),
+                  _buildSheetHandle(),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text('No user scripts configured',
+                        style: Theme.of(context).textTheme.bodyLarge),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
+              );
+            }
+            return Column(
+              children: [
+                _buildSheetHandle(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                  child: Row(
+                    children: [
+                      Text('Scripts', style: Theme.of(context).textTheme.titleMedium),
+                      const Spacer(),
+                      Text('${scripts.length}',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: scripts.length,
+                    itemBuilder: (context, index) {
+                      final script = scripts[index];
+                      return ExpansionTile(
+                        leading: Icon(
+                          script.enabled ? Icons.code : Icons.code_off,
+                          color: script.enabled ? Colors.green : Colors.grey,
+                          size: 20,
+                        ),
+                        title: Text(script.name,
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+                        subtitle: Text(
+                          script.injectionTime == UserScriptInjectionTime.atDocumentStart
+                              ? 'document start'
+                              : 'document end',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12.0),
+                            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Stack(
+                              children: [
+                                SelectableText(
+                                  script.source.isEmpty ? '// (empty script)' : script.source,
+                                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.copy, size: 16),
+                                    tooltip: 'Copy source',
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: script.source));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Copied "${script.name}"')),
+                                      );
+                                    },
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  // ── Export Tab ──
+  // ── Share HTML Bottom Sheet ──
 
-  Widget _buildExportTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+  void _showShareSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _loadingHtml ? null : _exportHtml,
-                  icon: const Icon(Icons.save),
-                  label: const Text('Export HTML'),
-                ),
+              _buildSheetHandle(),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Share HTML'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _shareHtml();
+                },
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _exportedHtml != null ? _copyHtml : null,
-                  icon: const Icon(Icons.copy),
-                  label: const Text('Copy to Clipboard'),
-                ),
+              ListTile(
+                leading: const Icon(Icons.save),
+                title: const Text('Save to file'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _saveHtmlToFile();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.copy),
+                title: const Text('Copy to clipboard'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _copyHtml();
+                },
               ),
             ],
           ),
-          if (_loadingHtml)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          if (_exportedHtml != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              'Preview (first 200 lines):',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8.0),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                _getPreview(_exportedHtml!, 200),
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-              ),
-            ),
-          ],
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSheetHandle() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        width: 32,
+        height: 4,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.onSurfaceVariant.withAlpha(102),
+          borderRadius: BorderRadius.circular(2),
+        ),
       ),
     );
   }
 
-  Future<void> _exportHtml() async {
+  Future<String?> _fetchHtml() async {
+    if (_isFetchingHtml) return _exportedHtml;
     final controller = widget.webViewModel!.controller;
-    if (controller == null) return;
+    if (controller == null) return null;
 
-    setState(() => _loadingHtml = true);
+    _isFetchingHtml = true;
     try {
       final html = await controller.getHtml();
       if (html == null || html.isEmpty) {
@@ -565,16 +610,39 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             const SnackBar(content: Text('No HTML content available')),
           );
         }
-        setState(() => _loadingHtml = false);
-        return;
+        return null;
       }
+      _exportedHtml = html;
+      return html;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to get HTML: $e')),
+        );
+      }
+      return null;
+    } finally {
+      _isFetchingHtml = false;
+    }
+  }
 
-      setState(() {
-        _exportedHtml = html;
-        _loadingHtml = false;
-      });
+  Future<void> _shareHtml() async {
+    final html = _exportedHtml ?? await _fetchHtml();
+    if (html == null || !mounted) return;
 
-      // Save to file
+    final domain = extractDomain(widget.webViewModel!.currentUrl);
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+    SharePlus.instance.share(ShareParams(
+      text: html,
+      title: '${domain}_$timestamp.html',
+    ));
+  }
+
+  Future<void> _saveHtmlToFile() async {
+    final html = _exportedHtml ?? await _fetchHtml();
+    if (html == null || !mounted) return;
+
+    try {
       final domain = extractDomain(widget.webViewModel!.currentUrl);
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final fileName = '${domain}_$timestamp.html';
@@ -582,7 +650,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
       final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
       final outputPath = await FilePicker.platform.saveFile(
-        dialogTitle: 'Export HTML',
+        dialogTitle: 'Save HTML',
         fileName: fileName,
         bytes: isMobile ? bytes : null,
       );
@@ -594,31 +662,27 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
       if (mounted && outputPath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('HTML exported')),
+          const SnackBar(content: Text('HTML saved')),
         );
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _loadingHtml = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e')),
+          SnackBar(content: Text('Save failed: $e')),
         );
       }
     }
   }
 
-  void _copyHtml() {
-    if (_exportedHtml == null) return;
-    Clipboard.setData(ClipboardData(text: _exportedHtml!));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('HTML copied to clipboard')),
-    );
-  }
-
-  String _getPreview(String text, int maxLines) {
-    final lines = text.split('\n');
-    if (lines.length <= maxLines) return text;
-    return lines.take(maxLines).join('\n');
+  void _copyHtml() async {
+    final html = _exportedHtml ?? await _fetchHtml();
+    if (html == null || !mounted) return;
+    Clipboard.setData(ClipboardData(text: html));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('HTML copied to clipboard')),
+      );
+    }
   }
 
   // ── App Logs Tab ──
