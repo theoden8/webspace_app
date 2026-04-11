@@ -122,9 +122,11 @@ const String _shimTemplate = r'''
     }
     var result = call(FETCH_HANDLER, urlStr);
     if (!result) {
+      console.log('__wsFetch: bridge not available for ' + urlStr.substring(0, 80));
       return Promise.reject(new Error('__wsFetch: bridge not available'));
     }
     return result.then(function(r) {
+      console.log('__wsFetch: ' + urlStr.substring(0, 60) + ' -> status=' + (r && r.status) + ' body=' + (r && r.body ? r.body.length + 'b' : 'none'));
       if (r && r.body !== undefined) {
         return new Response(r.body, {
           status: r.status || 200,
