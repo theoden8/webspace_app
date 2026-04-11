@@ -263,11 +263,12 @@ class UserScriptService {
     final result = <inapp.UserScript>[];
     if (!hasScripts) return result;
 
-    // Shim first (at DOCUMENT_START, before user scripts)
+    // Shim first (at DOCUMENT_START, before user scripts).
+    // Append ";null;" so WebKit doesn't error on undefined return value.
     if (shimScript != null) {
       result.add(inapp.UserScript(
         groupName: 'script_fetch_shim',
-        source: shimScript!,
+        source: '${shimScript!}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       ));
     }
@@ -284,7 +285,7 @@ class UserScriptService {
       LogService.instance.log('UserScript', 'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})');
       result.add(inapp.UserScript(
         groupName: 'user_scripts',
-        source: src,
+        source: '$src\n;null;',
         injectionTime: script.injectionTime == UserScriptInjectionTime.atDocumentStart
             ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
             : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,

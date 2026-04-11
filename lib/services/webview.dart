@@ -335,7 +335,11 @@ class _WebViewController implements WebViewController {
   Future<String?> getHtml() => _c.getHtml();
 
   @override
-  Future<void> evaluateJavascript(String source) => _c.evaluateJavascript(source: source);
+  Future<void> evaluateJavascript(String source) async {
+    try {
+      await _c.evaluateJavascript(source: '$source\n;null;');
+    } catch (_) {} // WebKit "unsupported type" — JS still ran
+  }
 
   @override
   Future<void> findAllAsync({required String find}) => _c.findAllAsync(find: find);
@@ -644,7 +648,7 @@ class WebViewFactory {
       final earlyScript = ContentBlockerService.instance.getEarlyCssScript(config.initialUrl);
       if (earlyScript != null) {
         userScripts.add(inapp.UserScript(
-          source: earlyScript,
+          source: '$earlyScript\n;null;',
           injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         ));
       }
@@ -655,7 +659,7 @@ class WebViewFactory {
     if (config.clearUrlEnabled) {
       userScripts.add(inapp.UserScript(
         groupName: 'clearurl_share',
-        source: _clearUrlShareScript,
+        source: '$_clearUrlShareScript\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       ));
     }
