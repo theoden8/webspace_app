@@ -535,18 +535,23 @@ const String _clearUrlShareScript = r'''
 })();
 ''';
 
-/// JavaScript shim that intercepts <script src="..."> DOM insertions.
+/// JavaScript shim that intercepts <script src="..."> DOM insertions and
+/// provides a CORS-bypassing fetch function for user scripts.
+///
 /// When user scripts create script elements with external sources, the browser
 /// would block them via CSP. This shim catches those insertions, sends the URL
 /// to Dart for fetching, and the content is injected natively via
 /// evaluateJavascript (which bypasses CSP).
 ///
+/// Also exposes `window.__wsFetch(url)` which returns a `Response` object,
+/// useful for libraries like Dark Reader that need `setFetchMethod()`.
+///
 /// Security:
-/// - Handler name is randomized per webview instance (placeholder replaced at
-///   runtime) so page code cannot guess or call it.
+/// - Handler names are randomized per webview instance (placeholders replaced
+///   at runtime) so page code cannot guess or call them.
 /// - callHandler reference is captured at DOCUMENT_START before page code runs.
-/// - Only http:// and https:// URLs are intercepted; javascript:, data:, blob:,
-///   file:// etc. fall through to normal (CSP-governed) behavior.
+/// - Only http:// and https:// URLs are intercepted; other schemes fall through
+///   to normal (CSP-governed) behavior.
 const String _scriptFetchShimTemplate = r'''
 (function() {
   if (window.__wsFetchShimInstalled) return;
@@ -554,7 +559,8 @@ const String _scriptFetchShimTemplate = r'''
   var _call = window.flutter_inappwebview.callHandler.bind(window.flutter_inappwebview);
   var _origAppend = Node.prototype.appendChild;
   var _origInsert = Node.prototype.insertBefore;
-  var HANDLER = '__HANDLER_NAME__';
+  var SCRIPT_HANDLER = '__SCRIPT_HANDLER_NAME__';
+  var FETCH_HANDLER = '__FETCH_HANDLER_NAME__';
 
   function isFetchableUrl(url) {
     if (typeof url !== 'string' || url.length === 0) return false;
@@ -567,7 +573,7 @@ const String _scriptFetchShimTemplate = r'''
     if (!isFetchableUrl(url)) return null;
     var onload = scriptEl.onload;
     var onerror = scriptEl.onerror;
-    _call(HANDLER, url).then(function(ok) {
+    _call(SCRIPT_HANDLER, url).then(function(ok) {
       if (ok) { if (onload) try { onload.call(scriptEl); } catch(e) {} }
       else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) {} }
     }).catch(function(e) {
@@ -589,6 +595,24 @@ const String _scriptFetchShimTemplate = r'''
       if (result) return result;
     }
     return _origInsert.call(this, child, ref);
+  };
+
+  // CORS-bypassing fetch for user scripts. Returns a standard Response object.
+  // Usage: DarkReader.setFetchMethod(window.__wsFetch);
+  window.__wsFetch = function(url) {
+    var urlStr = typeof url === 'string' ? url : url.toString();
+    if (!isFetchableUrl(urlStr)) {
+      return Promise.reject(new Error('__wsFetch: only http/https URLs supported'));
+    }
+    return _call(FETCH_HANDLER, urlStr).then(function(result) {
+      if (result && result.body !== undefined) {
+        return new Response(result.body, {
+          status: result.status || 200,
+          headers: result.contentType ? { 'Content-Type': result.contentType } : {},
+        });
+      }
+      return new Response('', { status: 500 });
+    });
   };
 })();
 ''';
@@ -724,8 +748,12 @@ class WebViewFactory {
     // (e.g., CDN libraries) are fetched at the Dart level, bypassing CSP.
     final hasUserScripts = config.userScripts.any((s) => s.enabled && s.fullSource.isNotEmpty);
     // Random handler name per webview instance so page code cannot guess it.
-    final fetchHandlerName = '__ws_${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
-    final scriptFetchShim = _scriptFetchShimTemplate.replaceAll('__HANDLER_NAME__', fetchHandlerName);
+    final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    final scriptHandlerName = '__ws_s_$ts';
+    final fetchHandlerName = '__ws_f_$ts';
+    final scriptFetchShim = _scriptFetchShimTemplate
+        .replaceAll('__SCRIPT_HANDLER_NAME__', scriptHandlerName)
+        .replaceAll('__FETCH_HANDLER_NAME__', fetchHandlerName);
     if (hasUserScripts) {
       userScripts.add(inapp.UserScript(
         groupName: 'script_fetch_shim',
@@ -809,7 +837,8 @@ class WebViewFactory {
         // When user scripts create <script src="..."> elements, the shim
         // intercepts them and calls this handler to fetch + inject natively.
         if (hasUserScripts) {
-          controller.addJavaScriptHandler(handlerName: fetchHandlerName, callback: (args) async {
+          // Script handler: fetches URL and injects content as JS via evaluateJavascript.
+          controller.addJavaScriptHandler(handlerName: scriptHandlerName, callback: (args) async {
             if (args.isEmpty || args[0] is! String) return false;
             final url = args[0] as String;
             final status = classifyScriptFetchUrl(url);
@@ -845,6 +874,37 @@ class WebViewFactory {
               LogService.instance.log('UserScript', 'Fetch failed: $e');
             }
             return false;
+          });
+          // Resource fetch handler: fetches URL and returns body as text.
+          // Used by window.__wsFetch() for CORS-bypassing fetch (e.g., Dark Reader
+          // needs to read cross-origin stylesheets via setFetchMethod).
+          controller.addJavaScriptHandler(handlerName: fetchHandlerName, callback: (args) async {
+            if (args.isEmpty || args[0] is! String) return {'status': 400};
+            final url = args[0] as String;
+            final status = classifyScriptFetchUrl(url);
+            if (status == ScriptFetchUrlStatus.blocked) {
+              LogService.instance.log('UserScript', 'Blocked resource fetch: $url');
+              return {'status': 403};
+            }
+            // Resource fetches (stylesheets, etc.) from the same site don't
+            // need confirmation — they're the site's own resources that CORS
+            // blocks only because of missing headers.
+            try {
+              final response = await http.get(Uri.parse(url));
+              if (response.body.length > _maxScriptFetchBytes) {
+                LogService.instance.log('UserScript', 'Resource too large: ${response.body.length} bytes');
+                return {'status': 413};
+              }
+              final contentType = response.headers['content-type'] ?? '';
+              return {
+                'status': response.statusCode,
+                'body': response.body,
+                'contentType': contentType,
+              };
+            } catch (e) {
+              LogService.instance.log('UserScript', 'Resource fetch failed: $e');
+              return {'status': 500};
+            }
           });
         }
         // If we loaded cached HTML, navigate to the real URL when online
