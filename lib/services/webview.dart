@@ -576,15 +576,30 @@ const String _scriptFetchShimTemplate = r'''
     return _call.apply(null, arguments);
   }
 
+  var WHITELIST = __WHITELIST_JSON__;
+
   function isFetchableUrl(url) {
     if (typeof url !== 'string' || url.length === 0) return false;
     var lower = url.toLowerCase();
     return lower.indexOf('http://') === 0 || lower.indexOf('https://') === 0;
   }
 
+  function isWhitelistedUrl(url) {
+    if (!isFetchableUrl(url)) return false;
+    try {
+      var host = new URL(url).hostname.toLowerCase();
+      for (var i = 0; i < WHITELIST.length; i++) {
+        if (host === WHITELIST[i] || host.endsWith('.' + WHITELIST[i])) return true;
+      }
+    } catch(e) {}
+    return false;
+  }
+
   function intercept(scriptEl) {
     var url = scriptEl.src;
-    if (!isFetchableUrl(url)) return null;
+    // Only intercept whitelisted CDN URLs. Site scripts (e.g.,
+    // platform.linkedin.com) fall through to normal DOM behavior.
+    if (!isWhitelistedUrl(url)) return null;
     var result = call(SCRIPT_HANDLER, url);
     if (!result) return null;
     var onload = scriptEl.onload;
@@ -771,9 +786,11 @@ class WebViewFactory {
     final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
     final scriptHandlerName = '__ws_s_$ts';
     final fetchHandlerName = '__ws_f_$ts';
+    final whitelistJson = '[${scriptFetchWhitelist.map((d) => '"$d"').join(',')}]';
     final scriptFetchShim = _scriptFetchShimTemplate
         .replaceAll('__SCRIPT_HANDLER_NAME__', scriptHandlerName)
-        .replaceAll('__FETCH_HANDLER_NAME__', fetchHandlerName);
+        .replaceAll('__FETCH_HANDLER_NAME__', fetchHandlerName)
+        .replaceAll('__WHITELIST_JSON__', whitelistJson);
     if (hasUserScripts) {
       userScripts.add(inapp.UserScript(
         groupName: 'script_fetch_shim',
