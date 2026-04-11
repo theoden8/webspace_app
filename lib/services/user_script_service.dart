@@ -13,7 +13,8 @@ import 'package:webspace/settings/user_script.dart';
 /// evaluateJavascript (which bypasses CSP).
 ///
 /// Also exposes `window.__wsFetch(url)` which returns a `Response` object,
-/// useful for libraries like Dark Reader that need `setFetchMethod()`.
+/// useful for libraries that need a CORS-bypassing fetch (e.g. to read
+/// cross-origin stylesheets).
 ///
 /// Security:
 /// - Handler names are randomized per webview instance (placeholders replaced
@@ -86,20 +87,6 @@ const String _shimTemplate = r'''
     result.then(function(ok) {
       if (ok) {
         _loadedUrls[url] = true;
-        // Auto-configure libraries that need a custom fetch method.
-        // Dark Reader checks setFetchMethod before trying fetch() and
-        // throws if not set — it never calls window.fetch on its own.
-        if (window.DarkReader && window.DarkReader.setFetchMethod) {
-          console.log('__ws: DarkReader detected, __wsFetch=' + typeof window.__wsFetch);
-          if (window.__wsFetch) {
-            try {
-              window.DarkReader.setFetchMethod(window.__wsFetch);
-              console.log('__ws: setFetchMethod configured');
-            } catch(e) { console.error('__ws: setFetchMethod error:', e); }
-          }
-        } else {
-          console.log('__ws: script loaded, DarkReader=' + typeof window.DarkReader);
-        }
         if (onload) try { onload.call(scriptEl); } catch(e) { console.error('__ws: onload error:', e); }
       }
       else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) { console.error('__ws: onerror error:', e); } }
@@ -125,7 +112,7 @@ const String _shimTemplate = r'''
   };
 
   // CORS-bypassing fetch for user scripts. Returns a standard Response object.
-  // Usage: DarkReader.setFetchMethod(window.__wsFetch);
+  // Usage: myLibrary.setFetchMethod(window.__wsFetch);
   window.__wsFetch = function(url) {
     var urlStr = typeof url === 'string' ? url : url.toString();
     if (!isFetchableUrl(urlStr)) {
@@ -316,8 +303,8 @@ class UserScriptService {
     });
 
     // Resource fetch handler: fetches URL and returns body as text.
-    // Used by window.__wsFetch() for CORS-bypassing fetch (e.g., Dark Reader
-    // needs to read cross-origin stylesheets via setFetchMethod).
+    // Used by window.__wsFetch() for CORS-bypassing fetch (e.g., reading
+    // cross-origin stylesheets).
     controller.addJavaScriptHandler(handlerName: _fetchHandlerName, callback: (args) async {
       if (args.isEmpty || args[0] is! String) return {'status': 400};
       final url = args[0] as String;
@@ -345,25 +332,9 @@ class UserScriptService {
     });
   }
 
-  /// Auto-configure libraries that expose setFetchMethod (e.g. Dark Reader).
-  /// Injected between urlSource (library code) and source (user code) so it
-  /// runs after the library is fully loaded but before the user calls enable().
-  static const _libraryPostInit = r'''
-if (window.DarkReader && window.DarkReader.setFetchMethod && window.__wsFetch) {
-  try { window.DarkReader.setFetchMethod(window.__wsFetch); } catch(e) {}
-}
-''';
-
-  /// Build injectable source for a user script. When the script has both
-  /// urlSource (cached library) and source (user code), inserts library
-  /// post-init configuration between them so setFetchMethod is called
-  /// after the library defines its API but before the user calls enable().
+  /// Build injectable source for a user script.
+  /// Returns the full source (urlSource + source concatenation).
   static String _buildSource(UserScriptConfig script) {
-    final urlSrc = script.urlSource;
-    final userSrc = script.source;
-    if (urlSrc != null && urlSrc.isNotEmpty && userSrc.isNotEmpty) {
-      return '$urlSrc\n$_libraryPostInit\n$userSrc';
-    }
     return script.fullSource;
   }
 
@@ -400,8 +371,8 @@ if (window.DarkReader && window.DarkReader.setFetchMethod && window.__wsFetch) {
   /// navigations. Called from onUpdateVisitedHistory when the URL changes
   /// without a full page load.
   ///
-  /// NOTE: Currently a no-op. Libraries like Dark Reader use MutationObserver
-  /// internally to handle SPA content changes, and our window.fetch CORS patch
+  /// NOTE: Currently a no-op. Libraries that use MutationObserver internally
+  /// handle SPA content changes on their own, and our window.fetch CORS patch
   /// ensures cross-origin resources are accessible. Re-running scripts would
   /// re-fetch libraries and reset state, making things worse.
   Future<void> reinjectOnSpaNavigation(inapp.InAppWebViewController controller) async {
