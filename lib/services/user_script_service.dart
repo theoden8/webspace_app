@@ -64,17 +64,28 @@ const String _shimTemplate = r'''
     return false;
   }
 
+  // Track URLs already fetched + injected to avoid double-loading
+  // when initialUserScripts and onLoadStop both run the same script.
+  var _loadedUrls = {};
+
   function intercept(scriptEl) {
     var url = scriptEl.src;
     // Only intercept whitelisted CDN URLs. Site scripts (e.g.,
     // platform.linkedin.com) fall through to normal DOM behavior.
     if (!isWhitelistedUrl(url)) return null;
+    // If already loaded, just fire onload without re-fetching.
+    if (_loadedUrls[url]) {
+      var onload = scriptEl.onload;
+      if (onload) setTimeout(function() { try { onload.call(scriptEl); } catch(e) {} }, 0);
+      return scriptEl;
+    }
     var result = call(SCRIPT_HANDLER, url);
     if (!result) return null;
     var onload = scriptEl.onload;
     var onerror = scriptEl.onerror;
     result.then(function(ok) {
       if (ok) {
+        _loadedUrls[url] = true;
         // Auto-configure libraries that need a custom fetch method.
         // Dark Reader checks setFetchMethod before trying fetch() and
         // throws if not set — it never calls window.fetch on its own.
@@ -325,16 +336,9 @@ class UserScriptService {
     });
   }
 
-  /// Whether this is the first page load. initialUserScripts handle the first
-  /// load at the native level; re-injection is only needed for subsequent
-  /// navigations where initialUserScripts don't re-run.
-  bool _firstLoadDone = false;
-
   /// Re-inject the shim and atDocumentStart user scripts. Call from onLoadStart.
   Future<void> reinjectOnLoadStart(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
-    // Skip first load — initialUserScripts already handled it.
-    if (!_firstLoadDone) return;
     if (shimScript != null) {
       await _safeEval(controller, shimScript!);
     }
@@ -351,11 +355,6 @@ class UserScriptService {
   /// Re-inject atDocumentEnd user scripts. Call from onLoadStop.
   Future<void> reinjectOnLoadStop(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
-    // Skip first load — initialUserScripts already handled it.
-    if (!_firstLoadDone) {
-      _firstLoadDone = true;
-      return;
-    }
     for (final script in _scripts) {
       final src = script.fullSource;
       if (!script.enabled || src.isEmpty) continue;
