@@ -74,7 +74,15 @@ const String _shimTemplate = r'''
     var onload = scriptEl.onload;
     var onerror = scriptEl.onerror;
     result.then(function(ok) {
-      if (ok) { if (onload) try { onload.call(scriptEl); } catch(e) {} }
+      if (ok) {
+        // Auto-configure libraries that need a custom fetch method.
+        // Dark Reader checks setFetchMethod before trying fetch() and
+        // throws if not set — it never calls window.fetch on its own.
+        if (window.DarkReader && window.DarkReader.setFetchMethod) {
+          try { window.DarkReader.setFetchMethod(window.__wsFetch); } catch(e) {}
+        }
+        if (onload) try { onload.call(scriptEl); } catch(e) {}
+      }
       else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) {} }
     }).catch(function(e) {
       if (onerror) try { onerror.call(scriptEl, e); } catch(e2) {}
