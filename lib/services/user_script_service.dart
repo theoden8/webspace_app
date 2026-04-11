@@ -336,17 +336,13 @@ class UserScriptService {
 
   /// Re-run user scripts' custom source (not the URL library) on SPA
   /// navigations. Called from onUpdateVisitedHistory when the URL changes
-  /// without a full page load. The library (urlSource) is already loaded
-  /// in the page context, so only the user's own code needs to re-run
-  /// (e.g., `DarkReader.enable()` after a SPA route change).
+  /// without a full page load.
+  ///
+  /// NOTE: Currently a no-op. Libraries like Dark Reader use MutationObserver
+  /// internally to handle SPA content changes, and our window.fetch CORS patch
+  /// ensures cross-origin resources are accessible. Re-running scripts would
+  /// re-fetch libraries and reset state, making things worse.
   Future<void> reinjectOnSpaNavigation(inapp.InAppWebViewController controller) async {
-    if (!hasScripts) return;
-    for (final script in _scripts) {
-      if (!script.enabled || script.source.isEmpty) continue;
-      LogService.instance.log('UserScript', 'SPA navigation: re-running "${script.name}" source (${script.source.length} chars)');
-      // Wrap in void function to suppress return value (avoids
-      // "unsupported type" errors from evaluateJavascript).
-      await _safeEval(controller, '(function(){${script.source}})();');
-    }
+    // Intentionally empty — let library MutationObservers handle SPA changes.
   }
 }
