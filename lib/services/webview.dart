@@ -657,15 +657,16 @@ class WebViewFactory {
     // Inject per-site user scripts
     LogService.instance.log('UserScript', 'createWebView: ${config.userScripts.length} user scripts configured');
     for (final script in config.userScripts) {
-      if (!script.enabled || script.source.isEmpty) {
-        LogService.instance.log('UserScript', 'Skipping "${script.name}" (enabled=${script.enabled}, empty=${script.source.isEmpty})');
+      final src = script.fullSource;
+      if (!script.enabled || src.isEmpty) {
+        LogService.instance.log('UserScript', 'Skipping "${script.name}" (enabled=${script.enabled}, empty=${src.isEmpty})');
         continue;
       }
       final time = script.injectionTime == UserScriptInjectionTime.atDocumentStart ? 'DOCUMENT_START' : 'DOCUMENT_END';
-      LogService.instance.log('UserScript', 'Adding to initialUserScripts: "${script.name}" at $time (${script.source.length} chars)');
+      LogService.instance.log('UserScript', 'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})');
       userScripts.add(inapp.UserScript(
         groupName: 'user_scripts',
-        source: script.source,
+        source: src,
         injectionTime: script.injectionTime == UserScriptInjectionTime.atDocumentStart
             ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
             : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
@@ -825,10 +826,11 @@ class WebViewFactory {
         }
         // Re-inject user scripts (atDocumentStart) for in-page navigations
         for (final script in config.userScripts) {
-          if (!script.enabled || script.source.isEmpty) continue;
+          final src = script.fullSource;
+          if (!script.enabled || src.isEmpty) continue;
           if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
-            LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${script.source.length} chars)');
-            await controller.evaluateJavascript(source: script.source);
+            LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${src.length} chars)');
+            await controller.evaluateJavascript(source: src);
           }
         }
       },
@@ -850,10 +852,11 @@ class WebViewFactory {
           }
           // Re-inject user scripts (atDocumentEnd) for in-page navigations
           for (final script in config.userScripts) {
-            if (!script.enabled || script.source.isEmpty) continue;
+            final src = script.fullSource;
+            if (!script.enabled || src.isEmpty) continue;
             if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
-              LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${script.source.length} chars)');
-              await controller.evaluateJavascript(source: script.source);
+              LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${src.length} chars)');
+              await controller.evaluateJavascript(source: src);
             }
           }
           // Cache HTML for offline viewing

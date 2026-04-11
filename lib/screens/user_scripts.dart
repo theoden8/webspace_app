@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:webspace/settings/user_script.dart';
 
@@ -47,7 +48,9 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   void _addScript() async {
     final result = await Navigator.push<UserScriptConfig>(
       context,
-      MaterialPageRoute(builder: (_) => const UserScriptEditScreen()),
+      MaterialPageRoute(
+        builder: (_) => UserScriptEditScreen(onRun: widget.onRun),
+      ),
     );
     if (result != null) {
       setState(() => _scripts.add(result));
@@ -59,7 +62,10 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     final result = await Navigator.push<UserScriptConfig>(
       context,
       MaterialPageRoute(
-        builder: (_) => UserScriptEditScreen(script: _scripts[index]),
+        builder: (_) => UserScriptEditScreen(
+          script: _scripts[index],
+          onRun: widget.onRun,
+        ),
       ),
     );
     if (result != null) {
@@ -71,16 +77,6 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   void _deleteScript(int index) {
     setState(() => _scripts.removeAt(index));
     _sync();
-  }
-
-  void _runScript(UserScriptConfig script) async {
-    if (widget.onRun == null || script.source.isEmpty) return;
-    await widget.onRun!(script.source);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ran "${script.name}"')),
-      );
-    }
   }
 
   @override
@@ -133,25 +129,12 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                           ? 'Runs at document start'
                           : 'Runs at document end',
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (widget.onRun != null)
-                          IconButton(
-                            icon: const Icon(Icons.play_arrow, size: 20),
-                            tooltip: 'Run now',
-                            onPressed: script.source.isEmpty
-                                ? null
-                                : () => _runScript(script),
-                          ),
-                        Switch(
-                          value: script.enabled,
-                          onChanged: (value) {
-                            setState(() => script.enabled = value);
-                            _sync();
-                          },
-                        ),
-                      ],
+                    trailing: Switch(
+                      value: script.enabled,
+                      onChanged: (value) {
+                        setState(() => script.enabled = value);
+                        _sync();
+                      },
                     ),
                     onTap: () => _editScript(index),
                   ),
@@ -165,8 +148,10 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
 /// Screen for creating or editing a single user script.
 class UserScriptEditScreen extends StatefulWidget {
   final UserScriptConfig? script;
+  /// Execute a script and return the result string (or error).
+  final Future<void> Function(String source)? onRun;
 
-  const UserScriptEditScreen({super.key, this.script});
+  const UserScriptEditScreen({super.key, this.script, this.onRun});
 
   @override
   State<UserScriptEditScreen> createState() => _UserScriptEditScreenState();
@@ -175,26 +160,33 @@ class UserScriptEditScreen extends StatefulWidget {
 class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
   late TextEditingController _nameController;
   late TextEditingController _sourceController;
+  late TextEditingController _urlController;
   late UserScriptInjectionTime _injectionTime;
   late bool _enabled;
+  String? _urlSource;
+  bool _downloading = false;
+  String? _runOutput;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.script?.name ?? '');
     _sourceController = TextEditingController(text: widget.script?.source ?? '');
+    _urlController = TextEditingController(text: widget.script?.url ?? '');
     _injectionTime = widget.script?.injectionTime ?? UserScriptInjectionTime.atDocumentEnd;
     _enabled = widget.script?.enabled ?? true;
+    _urlSource = widget.script?.urlSource;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _sourceController.dispose();
+    _urlController.dispose();
     super.dispose();
   }
 
-  void _confirm() {
+  void _save() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -202,15 +194,73 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
       );
       return;
     }
+    final url = _urlController.text.trim();
     Navigator.pop(
       context,
       UserScriptConfig(
         name: name,
         source: _sourceController.text,
+        url: url.isEmpty ? null : url,
+        urlSource: _urlSource,
         injectionTime: _injectionTime,
         enabled: _enabled,
       ),
     );
+  }
+
+  Future<void> _downloadUrl() async {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) return;
+    setState(() { _downloading = true; });
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        setState(() {
+          _urlSource = response.body;
+          _downloading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Downloaded ${response.body.length} bytes')),
+          );
+        }
+      } else {
+        setState(() { _downloading = false; });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Download failed: HTTP ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() { _downloading = false; });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Download failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _runScript() async {
+    if (widget.onRun == null) return;
+    final src = UserScriptConfig(
+      name: '',
+      source: _sourceController.text,
+      urlSource: _urlSource,
+    ).fullSource;
+    if (src.isEmpty) return;
+    setState(() { _runOutput = 'Running...'; });
+    try {
+      await widget.onRun!(src);
+      if (mounted) {
+        setState(() { _runOutput = 'Executed successfully. Check console for output.'; });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() { _runOutput = 'Error: $e'; });
+      }
+    }
   }
 
   @override
@@ -220,10 +270,16 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Script' : 'New Script'),
         actions: [
+          if (widget.onRun != null)
+            IconButton(
+              icon: const Icon(Icons.play_arrow),
+              onPressed: _runScript,
+              tooltip: 'Run',
+            ),
           IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: _confirm,
-            tooltip: 'Done',
+            icon: const Icon(Icons.save),
+            onPressed: _save,
+            tooltip: 'Save',
           ),
         ],
       ),
@@ -237,6 +293,36 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
               border: OutlineInputBorder(),
             ),
           ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _urlController,
+            decoration: InputDecoration(
+              labelText: 'Script URL (optional)',
+              hintText: 'https://cdn.jsdelivr.net/npm/darkreader/darkreader.min.js',
+              border: const OutlineInputBorder(),
+              suffixIcon: _downloading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      icon: Icon(_urlSource != null ? Icons.sync : Icons.download),
+                      tooltip: _urlSource != null ? 'Re-download' : 'Download',
+                      onPressed: _urlController.text.trim().isEmpty ? null : _downloadUrl,
+                    ),
+            ),
+          ),
+          if (_urlSource != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Cached: ${_urlSource!.length} bytes',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ),
           const SizedBox(height: 16),
           DropdownButtonFormField<UserScriptInjectionTime>(
             value: _injectionTime,
@@ -268,15 +354,30 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
           const SizedBox(height: 8),
           TextField(
             controller: _sourceController,
-            decoration: const InputDecoration(
-              labelText: 'JavaScript Source',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: _urlSource != null ? 'JavaScript Source (runs after URL script)' : 'JavaScript Source',
+              border: const OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
             maxLines: 15,
             minLines: 8,
             style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
           ),
+          if (_runOutput != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SelectableText(
+                _runOutput!,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ),
+          ],
         ],
       ),
     );
