@@ -139,6 +139,10 @@ const String _shimTemplate = r'''
 /// Max size for fetched resources (5 MB).
 const int _maxFetchBytes = 5 * 1024 * 1024;
 
+/// Evaluate JS without triggering "unsupported type" serialization errors.
+Future<void> _safeEval(inapp.InAppWebViewController c, String source) =>
+    c.evaluateJavascript(source: '$source\n;void 0;');
+
 /// Manages user script injection, external dependency resolution, and
 /// CORS-bypassing fetch for webviews.
 class UserScriptService {
@@ -261,7 +265,7 @@ class UserScriptService {
             return false;
           }
           LogService.instance.log('UserScript', 'Injecting fetched script (${response.body.length} bytes)');
-          await controller.evaluateJavascript(source: response.body);
+          await _safeEval(controller, response.body);
           return true;
         }
         LogService.instance.log('UserScript', 'Fetch failed: HTTP ${response.statusCode}');
@@ -305,14 +309,14 @@ class UserScriptService {
   Future<void> reinjectOnLoadStart(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
     if (shimScript != null) {
-      await controller.evaluateJavascript(source: shimScript!);
+      await _safeEval(controller, shimScript!);
     }
     for (final script in _scripts) {
       final src = script.fullSource;
       if (!script.enabled || src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
         LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${src.length} chars)');
-        await controller.evaluateJavascript(source: src);
+        await _safeEval(controller, src);
       }
     }
   }
@@ -325,7 +329,7 @@ class UserScriptService {
       if (!script.enabled || src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
         LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${src.length} chars)');
-        await controller.evaluateJavascript(source: src);
+        await _safeEval(controller, src);
       }
     }
   }
@@ -342,7 +346,7 @@ class UserScriptService {
       LogService.instance.log('UserScript', 'SPA navigation: re-running "${script.name}" source (${script.source.length} chars)');
       // Wrap in void function to suppress return value (avoids
       // "unsupported type" errors from evaluateJavascript).
-      await controller.evaluateJavascript(source: '(function(){${script.source}})();');
+      await _safeEval(controller, '(function(){${script.source}})();');
     }
   }
 }
