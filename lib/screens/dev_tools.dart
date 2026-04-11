@@ -45,6 +45,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
+  /// Snapshot of blocked cookies on entry, to detect changes on exit.
+  late final Set<BlockedCookie> _initialBlockedCookies;
+
   bool get _hasSite => widget.webViewModel != null;
 
   int get _tabCount => _hasSite ? 3 : 1;
@@ -52,6 +55,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   @override
   void initState() {
     super.initState();
+    _initialBlockedCookies = _hasSite
+        ? Set<BlockedCookie>.of(widget.webViewModel!.blockedCookies)
+        : <BlockedCookie>{};
     LogService.instance.addListener(_onLogUpdate);
     if (_hasSite) {
       widget.webViewModel!.onConsoleLogChanged = _onConsoleUpdate;
@@ -63,12 +69,24 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     LogService.instance.removeListener(_onLogUpdate);
     if (_hasSite) {
       widget.webViewModel!.onConsoleLogChanged = null;
+      // If blocked cookies changed while DevTools was open, reload the page
+      // so the webview re-fetches cookies with the new rules applied.
+      final current = widget.webViewModel!.blockedCookies;
+      if (!_setEquals(current, _initialBlockedCookies)) {
+        widget.webViewModel!.controller?.reload();
+      }
     }
     _consoleScrollController.dispose();
     _logScrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  /// Value-equality check for two sets (avoid importing collection).
+  static bool _setEquals<T>(Set<T> a, Set<T> b) {
+    if (a.length != b.length) return false;
+    return a.every(b.contains);
   }
 
   void _onConsoleUpdate() {
