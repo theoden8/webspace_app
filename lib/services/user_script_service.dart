@@ -314,4 +314,18 @@ class UserScriptService {
       }
     }
   }
+
+  /// Re-run user scripts' custom source (not the URL library) on SPA
+  /// navigations. Called from onUpdateVisitedHistory when the URL changes
+  /// without a full page load. The library (urlSource) is already loaded
+  /// in the page context, so only the user's own code needs to re-run
+  /// (e.g., `DarkReader.enable()` after a SPA route change).
+  Future<void> reinjectOnSpaNavigation(inapp.InAppWebViewController controller) async {
+    if (!hasScripts) return;
+    for (final script in _scripts) {
+      if (!script.enabled || script.source.isEmpty) continue;
+      LogService.instance.log('UserScript', 'SPA navigation: re-running "${script.name}" source (${script.source.length} chars)');
+      await controller.evaluateJavascript(source: script.source);
+    }
+  }
 }

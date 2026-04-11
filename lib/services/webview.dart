@@ -857,6 +857,11 @@ class WebViewFactory {
         // gesture), so this ensures the URL bar stays in sync.
         if (url != null) {
           config.onUrlChanged?.call(url.toString());
+          // SPA navigations (pushState/replaceState) don't trigger
+          // onLoadStart/onLoadStop, so user scripts aren't re-injected.
+          // Re-run the user's custom source code (not the library) so
+          // scripts like DarkReader.enable() apply to the new content.
+          userScriptService.reinjectOnSpaNavigation(controller);
         }
       },
       onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
