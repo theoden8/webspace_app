@@ -197,4 +197,4 @@ Import/Export options SHALL only appear when on the webspaces list screen.
 
 ### Modified
 - `lib/main.dart` - Menu items and handlers
-- `pubspec.yaml` - Added `file_picker: ^8.0.0`
+- `pubspec.yaml` - Added `file_picker: ^11.0.2`

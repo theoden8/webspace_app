@@ -90,23 +90,28 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 
 | Spec | Description |
 |------|-------------|
-| per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage |
-| lazy-webview-loading | On-demand webview creation, IndexedStack placeholders |
-| cookie-secure-storage | Encrypted cookie persistence with flutter_secure_storage |
-| nested-url-blocking | Cross-domain navigation control: nested InAppBrowser, gesture-based auto-redirect blocking |
-| webspaces | Site organization into named collections |
-| proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
-| settings-backup | JSON import/export of all settings |
-| icon-fetching | Progressive favicon loading with fallbacks |
+| captcha-support | CAPTCHA detection and handling |
 | clearurls | ClearURLs tracking parameter removal with per-site toggle |
+| configurable-suggested-sites | Configurable suggested sites list with empty default for fdroid flavor |
 | content-blocker | ABP filter list content blocking (domain, CSS cosmetic, text-based hiding) |
+| cookie-secure-storage | Encrypted cookie persistence with flutter_secure_storage |
+| developer-tools | In-app dev tools: JS console, cookie inspector, HTML export, app logs |
 | dns-blocklist | Hagezi DNS blocklist domain blocking with severity levels and per-site toggle |
 | home-shortcut | Android home screen shortcut for sites via pinned shortcuts API |
-| developer-tools | In-app dev tools: JS console, cookie inspector, HTML export, app logs |
+| icon-fetching | Progressive favicon loading with fallbacks |
+| lazy-webview-loading | On-demand webview creation, IndexedStack placeholders |
 | localcdn | LocalCDN - cache CDN resources locally to prevent CDN tracking (Android) |
-| user-scripts | Per-site custom JavaScript injection with injection timing control |
-| configurable-suggested-sites | Configurable suggested sites list with empty default for fdroid flavor |
 | navigation | Back gesture, home button, drawer swipe, pull-to-refresh, platform quirks, race condition guards |
+| nested-url-blocking | Cross-domain navigation control: nested InAppBrowser, gesture-based auto-redirect blocking |
+| per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage |
+| platform-support | Platform abstraction layer for iOS, Android, macOS |
+| proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
+| screenshots | Automated screenshot generation via integration tests |
+| settings-backup | JSON import/export of all settings |
+| site-editing | Edit site URLs and custom names |
+| user-scripts | Per-site custom JavaScript injection with injection timing control |
+| webspaces | Site organization into named collections |
+| webview-hints | Webview theme and display hints |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
 
