@@ -18,6 +18,10 @@ class UserScriptsScreen extends StatefulWidget {
   /// context menu offers "Make Global". The callback receives the script
   /// to add to global scripts; the caller is responsible for persisting it.
   final void Function(UserScriptConfig script)? onMakeGlobal;
+  /// Global scripts displayed alongside site scripts (editable).
+  final List<UserScriptConfig> globalUserScripts;
+  /// Callback when global scripts change (edit/toggle).
+  final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
 
   const UserScriptsScreen({
     super.key,
@@ -26,6 +30,8 @@ class UserScriptsScreen extends StatefulWidget {
     required this.onSave,
     this.onRun,
     this.onMakeGlobal,
+    this.globalUserScripts = const [],
+    this.onGlobalUserScriptsChanged,
   });
 
   @override
@@ -34,12 +40,19 @@ class UserScriptsScreen extends StatefulWidget {
 
 class _UserScriptsScreenState extends State<UserScriptsScreen> {
   late List<UserScriptConfig> _scripts;
+  late List<UserScriptConfig> _globalScripts;
+
+  bool get _hasGlobal => _globalScripts.isNotEmpty;
 
   @override
   void initState() {
     super.initState();
-    // Deep copy so list operations are clean
-    _scripts = widget.userScripts
+    _scripts = _deepCopy(widget.userScripts);
+    _globalScripts = _deepCopy(widget.globalUserScripts);
+  }
+
+  static List<UserScriptConfig> _deepCopy(List<UserScriptConfig> scripts) {
+    return scripts
         .map((s) => UserScriptConfig(
               name: s.name,
               source: s.source,
@@ -51,8 +64,12 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
         .toList();
   }
 
-  void _sync() {
+  void _syncSite() {
     widget.onSave(_scripts);
+  }
+
+  void _syncGlobal() {
+    widget.onGlobalUserScriptsChanged?.call(_globalScripts);
   }
 
   void _addScript() async {
@@ -64,7 +81,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     );
     if (result != null) {
       setState(() => _scripts.add(result));
-      _sync();
+      _syncSite();
     }
   }
 
@@ -80,13 +97,13 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     );
     if (result != null) {
       setState(() => _scripts[index] = result);
-      _sync();
+      _syncSite();
     }
   }
 
   void _deleteScript(int index) {
     setState(() => _scripts.removeAt(index));
-    _sync();
+    _syncSite();
   }
 
   Future<void> _makeGlobal(int index) async {
@@ -112,24 +129,155 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
       ),
     );
     if (confirmed == true && mounted) {
-      // Deep copy for global list
-      final copy = UserScriptConfig(
-        name: script.name,
-        source: script.source,
-        url: script.url,
-        urlSource: script.urlSource,
-        injectionTime: script.injectionTime,
-        enabled: script.enabled,
-      );
-      widget.onMakeGlobal!(copy);
-      setState(() => _scripts.removeAt(index));
-      _sync();
+      setState(() {
+        _globalScripts.add(_scripts.removeAt(index));
+      });
+      _syncSite();
+      _syncGlobal();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('"${script.name}" moved to global scripts')),
         );
       }
     }
+  }
+
+  void _editGlobalScript(int index) async {
+    final result = await Navigator.push<UserScriptConfig>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserScriptEditScreen(
+          script: _globalScripts[index],
+          onRun: widget.onRun,
+        ),
+      ),
+    );
+    if (result != null) {
+      setState(() => _globalScripts[index] = result);
+      _syncGlobal();
+    }
+  }
+
+  Widget _buildBody() {
+    final allEmpty = _scripts.isEmpty && _globalScripts.isEmpty;
+    if (allEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text(
+            'No user scripts.\nTap + to add a script.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    return ListView(
+      children: [
+        // Global scripts section
+        for (var i = 0; i < _globalScripts.length; i++)
+          _buildGlobalTile(i),
+        if (_hasGlobal && _scripts.isNotEmpty)
+          const Divider(height: 1),
+        // Site scripts section (reorderable)
+        if (_scripts.isNotEmpty)
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _scripts.length,
+            onReorder: (oldIndex, newIndex) {
+              setState(() {
+                if (newIndex > oldIndex) newIndex--;
+                final item = _scripts.removeAt(oldIndex);
+                _scripts.insert(newIndex, item);
+              });
+              _syncSite();
+            },
+            buildDefaultDragHandles: false,
+            itemBuilder: (context, index) {
+              final script = _scripts[index];
+              return Dismissible(
+                key: ValueKey('site_${script.name}_$index'),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 16),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                onDismissed: (_) => _deleteScript(index),
+                child: ListTile(
+                  leading: ReorderableDragStartListener(
+                    index: index,
+                    child: const Icon(Icons.drag_handle),
+                  ),
+                  title: Text(script.name),
+                  subtitle: Text(
+                    script.injectionTime == UserScriptInjectionTime.atDocumentStart
+                        ? 'Runs at document start'
+                        : 'Runs at document end',
+                  ),
+                  trailing: Switch(
+                    value: script.enabled,
+                    onChanged: (value) {
+                      setState(() => script.enabled = value);
+                      _syncSite();
+                    },
+                  ),
+                  onTap: () => _editScript(index),
+                  onLongPress: widget.onMakeGlobal != null || widget.onGlobalUserScriptsChanged != null
+                      ? () => _makeGlobal(index)
+                      : null,
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildGlobalTile(int index) {
+    final script = _globalScripts[index];
+    return ListTile(
+      leading: Icon(Icons.public, size: 20, color: Theme.of(context).colorScheme.primary),
+      title: Row(
+        children: [
+          Expanded(child: Text(script.name)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'Global',
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        script.injectionTime == UserScriptInjectionTime.atDocumentStart
+            ? 'Runs at document start'
+            : 'Runs at document end',
+      ),
+      trailing: Switch(
+        value: script.enabled,
+        onChanged: widget.onGlobalUserScriptsChanged != null
+            ? (value) {
+                setState(() => script.enabled = value);
+                _syncGlobal();
+              }
+            : null,
+      ),
+      onTap: widget.onGlobalUserScriptsChanged != null
+          ? () => _editGlobalScript(index)
+          : null,
+    );
   }
 
   @override
@@ -142,66 +290,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
         onPressed: _addScript,
         child: const Icon(Icons.add),
       ),
-      body: _scripts.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Text(
-                  'No user scripts.\nTap + to add a script.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            )
-          : ReorderableListView.builder(
-              itemCount: _scripts.length,
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (newIndex > oldIndex) newIndex--;
-                  final item = _scripts.removeAt(oldIndex);
-                  _scripts.insert(newIndex, item);
-                });
-                _sync();
-              },
-              itemBuilder: (context, index) {
-                final script = _scripts[index];
-                return Dismissible(
-                  key: ValueKey('${script.name}_$index'),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 16),
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (_) => _deleteScript(index),
-                  child: ListTile(
-                    leading: ReorderableDragStartListener(
-                      index: index,
-                      child: const Icon(Icons.drag_handle),
-                    ),
-                    title: Text(script.name),
-                    subtitle: Text(
-                      script.injectionTime == UserScriptInjectionTime.atDocumentStart
-                          ? 'Runs at document start'
-                          : 'Runs at document end',
-                    ),
-                    trailing: Switch(
-                      value: script.enabled,
-                      onChanged: (value) {
-                        setState(() => script.enabled = value);
-                        _sync();
-                      },
-                    ),
-                    onTap: () => _editScript(index),
-                    onLongPress: widget.onMakeGlobal != null
-                        ? () => _makeGlobal(index)
-                        : null,
-                  ),
-                );
-              },
-              buildDefaultDragHandles: false,
-            ),
+      body: _buildBody(),
     );
   }
 }

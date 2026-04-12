@@ -423,12 +423,25 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               widget.onShowTabStripChanged(value);
             },
           ),
+
+          const Divider(height: 32),
+
+          // User Scripts Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'User Scripts',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           ListTile(
             leading: const Icon(Icons.code),
-            title: const Text('User Scripts'),
+            title: const Text('Manage Scripts'),
             subtitle: Text(
               widget.globalUserScripts.isEmpty
-                  ? 'None'
+                  ? 'No global scripts'
                   : '${widget.globalUserScripts.where((s) => s.enabled).length} active (all sites)',
             ),
             trailing: const Icon(Icons.chevron_right),
