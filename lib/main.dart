@@ -3054,16 +3054,29 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Widget build(BuildContext context) {
     final bool webviewIsVisible = _currentIndex != null && _currentIndex! < _webViewModels.length;
     return PopScope(
-      // Allow pop only when no webview is visible (webspace list screen)
-      canPop: !webviewIsVisible,
+      // On Android, always intercept back so we can implement the two-step
+      // exit pattern (back → open drawer → back → exit app).
+      // On other platforms, allow pop only when no webview is visible.
+      canPop: Platform.isAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _isBackHandling) return;
         _isBackHandling = true;
         try {
           final scaffoldState = _scaffoldKey.currentState;
           if (scaffoldState != null && scaffoldState.isDrawerOpen) {
-            LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
-            Navigator.pop(context);
+            if (Platform.isAndroid) {
+              LogService.instance.log('Navigation', 'Back gesture: drawer open, exiting app');
+              SystemNavigator.pop();
+            } else {
+              LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
+              Navigator.pop(context);
+            }
+            return;
+          }
+          // Android homepage (no webview visible): open drawer as exit warning
+          if (Platform.isAndroid && !webviewIsVisible) {
+            LogService.instance.log('Navigation', 'Back gesture: homepage, opening drawer as exit hint');
+            scaffoldState?.openDrawer();
             return;
           }
           // Webview is visible - try to go back in its history.

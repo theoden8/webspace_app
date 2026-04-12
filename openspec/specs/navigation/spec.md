@@ -51,15 +51,29 @@ The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL
 **When** the user triggers the system back gesture
 **Then** the drawer opens
 
-#### Scenario: Drawer is already open
+#### Scenario: Drawer is already open (Android)
 
-**Given** the drawer is open
+**Given** the drawer is open on Android
+**When** the user triggers the system back gesture
+**Then** the app exits (via `SystemNavigator.pop()`)
+
+**Rationale:** On Android, the drawer serves as a visual "you're about to leave" cue. The first back gesture opens the drawer; the second exits. This two-step pattern prevents accidental exits in a multi-site browser where reloading webviews is costly, without resorting to an annoying "press back again to exit" toast.
+
+#### Scenario: Drawer is already open (non-Android)
+
+**Given** the drawer is open on iOS/macOS
 **When** the user triggers the system back gesture
 **Then** the drawer closes
 
-#### Scenario: No webview visible (webspace list)
+#### Scenario: No webview visible — Android
 
-**Given** the webspace list screen is visible (no webview selected)
+**Given** the webspace list screen is visible (no webview selected) on Android
+**When** the user triggers the system back gesture
+**Then** the drawer opens (as an exit warning)
+
+#### Scenario: No webview visible — non-Android
+
+**Given** the webspace list screen is visible (no webview selected) on iOS/macOS
 **When** the user triggers the system back gesture
 **Then** the system pop behavior proceeds normally (app may exit)
 
@@ -252,7 +266,11 @@ System back gesture received
   ├─ didPop? ──────────────────── return (system handled it)
   ├─ _isBackHandling? ─────────── return (drop concurrent)
   │
-  ├─ Drawer open? ─────────────── close drawer
+  ├─ Drawer open?
+  │   ├─ Android? ─────────────── exit app (SystemNavigator.pop)
+  │   └─ Other? ───────────────── close drawer
+  │
+  ├─ Android && no webview? ───── open drawer (exit warning)
   │
   ├─ No controller? ───────────── open drawer
   │
@@ -307,7 +325,7 @@ Home button pressed
 - `_isHomeUrl()` — static helper: compares URLs ignoring trailing slash normalization
 - `_updateCanGoBack()` — async check of `controller.canGoBack()` with version guard and synchronous home-URL fast-path (RACE-005)
 - `_goHome()` — synchronous: dispose webview, reset URL, invalidate version
-- `PopScope` widget — wraps Scaffold, handles system back gesture with URL comparison
+- `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (two-step exit), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison
 - `drawerEdgeDragWidth` — conditional drawer edge swipe based on platform and `_canGoBack`
 - Back button `IconButton` (portrait ~line 1685, landscape ~line 2047)
 - Home button `IconButton` (portrait ~line 1701, landscape ~line 2063)
@@ -347,6 +365,18 @@ Home button pressed
 3. Press system back (Android) or trigger PopScope (iOS)
 4. Verify each press navigates back one page
 5. When at the initial URL, verify back opens the drawer
+
+### Manual Test: Android Two-Step Exit (Webview)
+
+1. (Android) Add a site and navigate to its initial URL
+2. Press system back — verify the drawer opens
+3. Press system back again — verify the app exits/minimizes
+
+### Manual Test: Android Two-Step Exit (Homepage)
+
+1. (Android) Go to the webspace list (no webview selected)
+2. Press system back — verify the drawer opens
+3. Press system back again — verify the app exits/minimizes
 
 ### Manual Test: Home Button Clears History
 
