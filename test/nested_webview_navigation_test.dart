@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/webview.dart';
 
 /// Test harness that simulates shouldOverrideUrlLoading behavior.
 /// This tests the domain comparison logic without requiring actual webviews.
@@ -10,10 +11,15 @@ class NavigationTestHarness {
   /// Records of launchUrl calls: (url, homeTitle)
   final List<({String url, String? homeTitle})> launchUrlCalls = [];
 
-  void addSite(String url, {String? name}) {
+  /// Per-site gesture propagation state (mirrors the local variables
+  /// in WebViewModel.getWebView's closure).
+  final Map<int, DateTime?> _lastSameDomainGestureTime = {};
+
+  void addSite(String url, {String? name, bool blockAutoRedirects = true}) {
     sites.add(WebViewModel(
       initUrl: url,
       name: name ?? 'Site ${sites.length + 1}',
+      blockAutoRedirects: blockAutoRedirects,
     ));
   }
 
@@ -21,7 +27,7 @@ class NavigationTestHarness {
   /// This replicates the exact logic from WebViewModel.getWebView's
   /// shouldOverrideUrlLoading callback.
   /// Returns true if navigation was allowed, false if blocked (opened nested)
-  bool simulateNavigation(int siteIndex, String targetUrl) {
+  bool simulateNavigation(int siteIndex, String targetUrl, {bool hasGesture = true}) {
     final site = sites[siteIndex];
 
     // Replicate the exact logic from WebViewModel.getWebView
@@ -29,12 +35,44 @@ class NavigationTestHarness {
     final initialNormalized = getNormalizedDomain(site.initUrl);
 
     if (requestNormalized == initialNormalized) {
+      if (hasGesture) {
+        _lastSameDomainGestureTime[siteIndex] = DateTime.now();
+      }
       return true; // Allow - same logical domain
+    }
+
+    // Gesture propagation for cross-domain redirects
+    bool effectiveHasGesture = hasGesture;
+    final lastGesture = _lastSameDomainGestureTime[siteIndex];
+    if (!hasGesture && lastGesture != null) {
+      final elapsed = DateTime.now().difference(lastGesture);
+      if (elapsed.inSeconds < 10) {
+        effectiveHasGesture = true;
+      }
+      _lastSameDomainGestureTime[siteIndex] = null; // Consume
+    }
+
+    if (site.blockAutoRedirects && !effectiveHasGesture) {
+      return false; // Cancel - blocked (no nested webview opened)
     }
 
     // Would block and call launchUrl with site's name as homeTitle
     launchUrlCalls.add((url: targetUrl, homeTitle: site.name));
     return false; // Cancel - open in nested webview
+  }
+
+  /// Simulates the onUrlChanged cross-domain redirect detection.
+  /// Returns true if a cross-domain redirect was detected and handled.
+  bool simulateUrlChanged(int siteIndex, String newUrl) {
+    final site = sites[siteIndex];
+    final urlDomain = getNormalizedDomain(newUrl);
+    final initDomain = getNormalizedDomain(site.initUrl);
+
+    if (urlDomain != initDomain && !WebViewFactory.isCaptchaChallenge(newUrl)) {
+      launchUrlCalls.add((url: newUrl, homeTitle: site.name));
+      return true; // Cross-domain redirect detected
+    }
+    return false;
   }
 
   void clearLaunchUrlCalls() {
@@ -349,6 +387,174 @@ void main() {
       // Each widget captured the correct initUrl
       expect(capturedInitUrls[0], equals('https://github.com'));
       expect(capturedInitUrls[1], equals('https://gitlab.com'));
+    });
+  });
+
+  group('Search Engine Redirect - Gesture Propagation', () {
+    late NavigationTestHarness harness;
+
+    setUp(() {
+      harness = NavigationTestHarness();
+    });
+
+    test('DuckDuckGo redirect: same-domain click propagates gesture to cross-domain redirect', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      // Step 1: User clicks a search result — DDG navigates to its redirect URL
+      // (same domain, has gesture)
+      final allowed = harness.simulateNavigation(
+        0, 'https://duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.amazon.de',
+        hasGesture: true,
+      );
+      expect(allowed, isTrue, reason: 'Same-domain redirect URL should be allowed');
+
+      // Step 2: Server-side redirect fires shouldOverrideUrlLoading again
+      // with the cross-domain target URL (no gesture — it is a redirect)
+      final redirectResult = harness.simulateNavigation(
+        0, 'https://www.amazon.de/',
+        hasGesture: false,
+      );
+      expect(redirectResult, isFalse, reason: 'Cross-domain redirect should be blocked');
+      expect(harness.launchUrlCalls.length, equals(1),
+        reason: 'Nested webview should open for the redirect target');
+      expect(harness.launchUrlCalls.last.url, equals('https://www.amazon.de/'));
+    });
+
+    test('Google redirect: same-domain click propagates gesture', () {
+      harness.addSite('https://www.google.com', name: 'Google');
+
+      // User clicks search result → google.com/url?q=... (same domain)
+      harness.simulateNavigation(
+        0, 'https://www.google.com/url?q=https%3A%2F%2Fexample.org',
+        hasGesture: true,
+      );
+
+      // Redirect to example.org (cross-domain, no gesture)
+      final result = harness.simulateNavigation(
+        0, 'https://example.org/',
+        hasGesture: false,
+      );
+      expect(result, isFalse);
+      expect(harness.launchUrlCalls.last.url, equals('https://example.org/'));
+    });
+
+    test('gesture is consumed after one use — second redirect is blocked', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      // User clicks a link (same-domain, gesture recorded)
+      harness.simulateNavigation(
+        0, 'https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com',
+        hasGesture: true,
+      );
+
+      // First cross-domain redirect — gesture consumed, nested webview opens
+      harness.simulateNavigation(
+        0, 'https://example.com/',
+        hasGesture: false,
+      );
+      expect(harness.launchUrlCalls.length, equals(1));
+
+      harness.clearLaunchUrlCalls();
+
+      // Second cross-domain navigation without gesture — should be blocked
+      // (gesture already consumed, no nested webview)
+      final result = harness.simulateNavigation(
+        0, 'https://evil-tracker.com/',
+        hasGesture: false,
+      );
+      expect(result, isFalse);
+      expect(harness.launchUrlCalls, isEmpty,
+        reason: 'Auto-redirect should be silently blocked (no gesture, consumed)');
+    });
+
+    test('script-initiated cross-domain without prior gesture is blocked', () {
+      harness.addSite('https://example.com', name: 'Example');
+
+      // Script-initiated cross-domain navigation (e.g., Google One Tap)
+      // No prior same-domain gesture
+      final result = harness.simulateNavigation(
+        0, 'https://accounts.google.com/gsi',
+        hasGesture: false,
+      );
+      expect(result, isFalse);
+      expect(harness.launchUrlCalls, isEmpty,
+        reason: 'Auto-redirect should be silently blocked');
+    });
+
+    test('direct cross-domain click still opens nested webview', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      // User clicks a direct cross-domain link (has gesture)
+      final result = harness.simulateNavigation(
+        0, 'https://www.amazon.de/',
+        hasGesture: true,
+      );
+      expect(result, isFalse);
+      expect(harness.launchUrlCalls.length, equals(1));
+      expect(harness.launchUrlCalls.last.url, equals('https://www.amazon.de/'));
+    });
+
+    test('blockAutoRedirects=false allows all cross-domain navigations', () {
+      harness.addSite('https://example.com', name: 'Example',
+        blockAutoRedirects: false);
+
+      // Cross-domain without gesture — should open nested (not blocked)
+      final result = harness.simulateNavigation(
+        0, 'https://other.com/',
+        hasGesture: false,
+      );
+      expect(result, isFalse);
+      expect(harness.launchUrlCalls.length, equals(1),
+        reason: 'With blockAutoRedirects=false, cross-domain should open nested');
+    });
+  });
+
+  group('Cross-Domain Redirect Detection in onUrlChanged', () {
+    late NavigationTestHarness harness;
+
+    setUp(() {
+      harness = NavigationTestHarness();
+    });
+
+    test('detects cross-domain URL that bypassed shouldOverrideUrlLoading', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      // Simulate: server-side 302 redirect landed on amazon.de
+      // without shouldOverrideUrlLoading firing
+      final detected = harness.simulateUrlChanged(0, 'https://www.amazon.de/');
+      expect(detected, isTrue);
+      expect(harness.launchUrlCalls.length, equals(1));
+      expect(harness.launchUrlCalls.last.url, equals('https://www.amazon.de/'));
+    });
+
+    test('same-domain URL change is not flagged', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      final detected = harness.simulateUrlChanged(
+        0, 'https://duckduckgo.com/?q=test',
+      );
+      expect(detected, isFalse);
+      expect(harness.launchUrlCalls, isEmpty);
+    });
+
+    test('captcha challenge URL is not flagged', () {
+      harness.addSite('https://example.com', name: 'Example');
+
+      final detected = harness.simulateUrlChanged(
+        0, 'https://challenges.cloudflare.com/some-challenge',
+      );
+      expect(detected, isFalse);
+      expect(harness.launchUrlCalls, isEmpty);
+    });
+
+    test('subdomain of same site is not flagged', () {
+      harness.addSite('https://github.com', name: 'GitHub');
+
+      final detected = harness.simulateUrlChanged(
+        0, 'https://gist.github.com/user/123',
+      );
+      expect(detected, isFalse);
+      expect(harness.launchUrlCalls, isEmpty);
     });
   });
 
