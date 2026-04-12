@@ -386,11 +386,15 @@ class UserScriptService {
   /// navigations. Called from onUpdateVisitedHistory when the URL changes
   /// without a full page load.
   ///
-  /// NOTE: Currently a no-op. Libraries that use MutationObserver internally
-  /// handle SPA content changes on their own, and our window.fetch CORS patch
-  /// ensures cross-origin resources are accessible. Re-running scripts would
-  /// re-fetch libraries and reset state, making things worse.
+  /// On SPA navigations the JS context persists, so the library (urlSource)
+  /// is still loaded. We only re-run the user's [source] code to re-trigger
+  /// initialization (e.g. DarkReader.enable() re-analyzes new content).
   Future<void> reinjectOnSpaNavigation(inapp.InAppWebViewController controller) async {
-    // Intentionally empty — let library MutationObservers handle SPA changes.
+    if (!hasScripts) return;
+    for (final script in _scripts) {
+      if (!script.enabled || script.source.isEmpty) continue;
+      LogService.instance.log('UserScript', 'SPA nav: re-running "${script.name}" source (${script.source.length} chars)');
+      await _safeEval(controller, script.source);
+    }
   }
 }
