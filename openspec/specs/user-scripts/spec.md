@@ -105,7 +105,7 @@ The `;null;` suffix is appended to all injected scripts because WebKit (macOS/iO
 
 ### Requirement: US-003 - Script Management UI
 
-Users SHALL be able to add, edit, delete, reorder, and toggle scripts from per-site settings.
+Users SHALL be able to add, edit, delete, reorder, and toggle scripts from per-site settings. Global scripts SHALL also be visible and editable from the per-site screen.
 
 #### Scenario: Add a new script
 
@@ -136,6 +136,18 @@ Users SHALL be able to add, edit, delete, reorder, and toggle scripts from per-s
 **Given** a site with multiple user scripts
 **When** the user drags a script via the drag handle (leading icon)
 **Then** the script order changes. Drag handles are explicit (`buildDefaultDragHandles: false`) to avoid collision with the trailing toggle switch.
+
+#### Scenario: View global scripts in per-site screen
+
+**Given** global scripts are configured
+**When** the user opens User Scripts from any site's settings
+**Then** global scripts appear at the top with a "Global" badge and globe icon, followed by site-specific scripts below a divider. Global scripts are editable (toggle, tap to edit) and changes save to the global list.
+
+#### Scenario: Promote site script to global
+
+**Given** the user opens User Scripts from site settings
+**When** they long-press a site-specific script
+**Then** a confirmation dialog offers to move it to global scripts. On confirmation, the script is moved from the site list to the global list.
 
 ### Requirement: US-004 - Backward Compatibility
 
@@ -293,10 +305,10 @@ At injection time: `fullSource = urlSource + '\n' + source`
 
 ### UI
 
-- `UserScriptsScreen`: List of scripts with explicit drag handles (leading), swipe-to-delete, enable/disable toggle (trailing). Edits sync to the model immediately. Accepts a custom `title` parameter. Long-press on a per-site script offers "Make Global" (with confirmation).
+- `UserScriptsScreen`: Combined list showing global scripts (with "Global" badge, globe icon) at the top and site scripts below. Site scripts have drag handles, swipe-to-delete, and long-press to promote to global. Both global and site scripts support toggle and tap-to-edit. Edits sync immediately to the appropriate list.
 - `UserScriptEditScreen`: Form with name, optional script URL (auto-downloads on save), injection time dropdown, enabled switch, monospace source editor, and play button with inline console output
-- Per-site settings: "User Scripts" tile — manages scripts for that site only
-- App settings: "User Scripts" tile (under Interface) — manages global scripts that run on all sites
+- Per-site settings: "User Scripts" tile — shows both global and site scripts
+- App settings: "User Scripts" section — manages global scripts that run on all sites
 
 ---
 
@@ -312,7 +324,7 @@ At injection time: `fullSource = urlSource + '\n' + source`
 - `lib/web_view_model.dart` — Added `userScripts` field, serialization, global scripts merge in `getWebView`/`getController`
 - `lib/services/webview.dart` — Added `userScripts` to WebViewConfig, injection in createWebView, SPA detection
 - `lib/screens/settings.dart` — "User Scripts" tile for per-site scripts, with Make Global support
-- `lib/screens/app_settings.dart` — "User Scripts" tile for global scripts under Interface
+- `lib/screens/app_settings.dart` — "User Scripts" section for global scripts
 - `lib/main.dart` — Global user scripts state, persistence, backup/restore integration
 - `lib/services/settings_backup.dart` — Added `globalUserScripts` to SettingsBackup model
 
@@ -329,7 +341,7 @@ fvm flutter test test/user_script_test.dart
 
 #### Basic script injection
 1. Open a site's settings
-2. Tap "Site Scripts"
+2. Tap "User Scripts"
 3. Add a script: name "Test", source `document.title = "Modified";`, injection time "At document end"
 4. Save and hit "Save Settings" to reload the site
 5. Verify the page title shows "Modified"
@@ -337,7 +349,7 @@ fvm flutter test test/user_script_test.dart
 7. Force-close and reopen the app — verify scripts persist
 
 #### CDN library loading (Dark Reader example)
-1. Open a site's settings > Site Scripts (or Global Scripts)
+1. Open a site's settings > User Scripts (or App Settings > User Scripts for global)
 2. Add a script: name "Dark Reader"
 3. Set URL to `https://cdn.jsdelivr.net/npm/darkreader@4/darkreader.min.js`
 4. Set injection time to "At document start"
