@@ -14,6 +14,10 @@ class UserScriptsScreen extends StatefulWidget {
   /// Execute a script source on the current webview immediately.
   /// Returns console output captured during execution.
   final Future<String> Function(String source)? onRun;
+  /// Callback to promote a script to global. When set, a long-press
+  /// context menu offers "Make Global". The callback receives the script
+  /// to add to global scripts; the caller is responsible for persisting it.
+  final void Function(UserScriptConfig script)? onMakeGlobal;
 
   const UserScriptsScreen({
     super.key,
@@ -21,6 +25,7 @@ class UserScriptsScreen extends StatefulWidget {
     required this.userScripts,
     required this.onSave,
     this.onRun,
+    this.onMakeGlobal,
   });
 
   @override
@@ -82,6 +87,49 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   void _deleteScript(int index) {
     setState(() => _scripts.removeAt(index));
     _sync();
+  }
+
+  Future<void> _makeGlobal(int index) async {
+    final script = _scripts[index];
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Make Global'),
+        content: Text(
+          'Copy "${script.name}" to global scripts?\n\n'
+          'It will run on all sites. The site copy will be removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Make Global'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      // Deep copy for global list
+      final copy = UserScriptConfig(
+        name: script.name,
+        source: script.source,
+        url: script.url,
+        urlSource: script.urlSource,
+        injectionTime: script.injectionTime,
+        enabled: script.enabled,
+      );
+      widget.onMakeGlobal!(copy);
+      setState(() => _scripts.removeAt(index));
+      _sync();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${script.name}" moved to global scripts')),
+        );
+      }
+    }
   }
 
   @override
@@ -146,6 +194,9 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                       },
                     ),
                     onTap: () => _editScript(index),
+                    onLongPress: widget.onMakeGlobal != null
+                        ? () => _makeGlobal(index)
+                        : null,
                   ),
                 );
               },

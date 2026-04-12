@@ -545,6 +545,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onSave: (scripts) {
                       widget.webViewModel.userScripts = scripts;
                     },
+                    onMakeGlobal: widget.onGlobalUserScriptsChanged != null
+                        ? (script) {
+                            final globalScripts = List<UserScriptConfig>.from(widget.globalUserScripts);
+                            globalScripts.add(script);
+                            widget.onGlobalUserScriptsChanged!(globalScripts);
+                          }
+                        : null,
                     onRun: widget.webViewModel.controller != null
                         ? (source) async {
                             final logsBefore = widget.webViewModel.consoleLogs.length;
