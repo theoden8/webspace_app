@@ -36,6 +36,8 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
         .map((s) => UserScriptConfig(
               name: s.name,
               source: s.source,
+              url: s.url,
+              urlSource: s.urlSource,
               injectionTime: s.injectionTime,
               enabled: s.enabled,
             ))
