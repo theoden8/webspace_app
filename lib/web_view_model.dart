@@ -216,6 +216,29 @@ String getNormalizedDomain(String url) {
   return secondLevel;
 }
 
+/// A cookie blocked by name + domain, per-site.
+/// When a cookie matches, it is deleted from the webview after each page load
+/// and skipped during cookie restore.
+class BlockedCookie {
+  final String name;
+  final String domain;
+
+  const BlockedCookie({required this.name, required this.domain});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BlockedCookie && name == other.name && domain == other.domain;
+
+  @override
+  int get hashCode => Object.hash(name, domain);
+
+  Map<String, dynamic> toJson() => {'name': name, 'domain': domain};
+
+  factory BlockedCookie.fromJson(Map<String, dynamic> json) =>
+      BlockedCookie(name: json['name'] as String, domain: json['domain'] as String);
+}
+
 class WebViewModel {
   final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
@@ -237,6 +260,7 @@ class WebViewModel {
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   List<UserScriptConfig> userScripts; // Per-site user scripts
+  Set<BlockedCookie> blockedCookies; // Per-site blocked cookies (name + domain)
 
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
@@ -265,12 +289,24 @@ class WebViewModel {
     this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
     List<UserScriptConfig>? userScripts,
+    Set<BlockedCookie>? blockedCookies,
     this.stateSetterF,
   })  : userScripts = userScripts ?? [],
+        blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
+
+  /// Check if a cookie is blocked by name + domain for this site.
+  bool isCookieBlocked(String name, String? domain) {
+    if (blockedCookies.isEmpty) return false;
+    return blockedCookies.any((b) =>
+        b.name == name &&
+        (domain != null && (b.domain == domain ||
+            domain.endsWith('.${b.domain}') ||
+            b.domain.endsWith('.$domain'))));
+  }
 
   void removeThirdPartyCookies(WebViewController controller) async {
     String script = '''
@@ -519,7 +555,22 @@ class WebViewModel {
             await saveFunc();
           },
           onCookiesChanged: (newCookies) async {
-            cookies = newCookies;
+            // Remove blocked cookies from the webview cookie jar
+            if (blockedCookies.isNotEmpty) {
+              final blocked = newCookies.where((c) => isCookieBlocked(c.name, c.domain)).toList();
+              final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
+              for (final c in blocked) {
+                await cookieManager.deleteCookie(
+                  url: url,
+                  name: c.name,
+                  domain: c.domain,
+                  path: c.path ?? '/',
+                );
+              }
+              cookies = newCookies.where((c) => !isCookieBlocked(c.name, c.domain)).toList();
+            } else {
+              cookies = newCookies;
+            }
             if (!thirdPartyCookiesEnabled && controller != null) {
               removeThirdPartyCookies(controller!);
             }
@@ -649,6 +700,8 @@ class WebViewModel {
         'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
+        if (blockedCookies.isNotEmpty)
+          'blockedCookies': blockedCookies.map((b) => b.toJson()).toList(),
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -674,6 +727,9 @@ class WebViewModel {
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),
+      blockedCookies: (json['blockedCookies'] as List<dynamic>?)
+          ?.map((e) => BlockedCookie.fromJson(e as Map<String, dynamic>))
+          .toSet(),
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }

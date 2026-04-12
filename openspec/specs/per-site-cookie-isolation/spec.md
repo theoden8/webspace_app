@@ -178,6 +178,19 @@ Uses `getNormalizedDomain()` for nested webview URL blocking only:
 
 **Important:** Domain aliases affect ONLY nested webview navigation, NOT cookie isolation. Two sites on `gmail.com` and `google.com` have separate cookie stores (different second-level domains).
 
+### Per-Site Cookie Blocking
+
+Each `WebViewModel` has a `Set<BlockedCookie> blockedCookies` field. A `BlockedCookie` is a pair of `(name, domain)` with value-based equality.
+
+**Enforcement points:**
+1. `onCookiesChanged` callback: after fetching cookies from the webview on page load, blocked cookies are filtered out and deleted from CookieManager
+2. `_restoreCookiesForSite()`: blocked cookies are skipped when restoring cookies to CookieManager
+3. Serialization: `blockedCookies` is included in `toJson()` / `fromJson()` (omitted when empty for backward compatibility)
+
+**Domain matching:** Supports exact match and subdomain matching. A rule for `example.com` also blocks cookies from `sub.example.com`.
+
+**UI:** The cookie inspector in DevTools shows a "Block" button on each cookie and a "Blocked" section listing blocked rules with "Unblock" buttons.
+
 ### Site ID Generation
 
 Each WebViewModel has a unique `siteId` field:
@@ -288,6 +301,48 @@ The system SHALL clean up all cookie-related data when a site is deleted.
 **When** the user adds a new site for `linkedin.com`
 **Then** the new site has no pre-existing cookies
 **And** the user must log in again
+
+---
+
+### Requirement: ISO-011 - Per-Site Cookie Blocking
+
+The system SHALL allow blocking specific cookies by name + domain on a per-site basis. Blocked cookies are deleted from the webview cookie jar after each page load and skipped during cookie restoration.
+
+#### Scenario: Block a cookie from the cookie inspector
+
+**Given** Site A has cookies including `_ga` on `.google.com`
+**When** the user opens Developer Tools -> Cookies tab and taps "Block" on `_ga`
+**Then** a `BlockedCookie(name: "_ga", domain: ".google.com")` is added to Site A's `blockedCookies` set
+**And** the cookie is immediately deleted from the webview
+**And** the block rule is persisted via site serialization
+
+#### Scenario: Blocked cookie re-set by website is removed
+
+**Given** Site A has `_ga` on `.google.com` blocked
+**When** a page load completes and the website sets `_ga` again
+**Then** `onCookiesChanged` filters out `_ga` and deletes it from CookieManager
+**And** the cookie does not appear in `model.cookies`
+
+#### Scenario: Blocked cookie skipped during restore
+
+**Given** Site A has `_ga` blocked and stored cookies include `_ga`
+**When** Site A is activated and `_restoreCookiesForSite()` runs
+**Then** `_ga` is NOT set in CookieManager
+**And** other non-blocked cookies are restored normally
+
+#### Scenario: Unblock a cookie
+
+**Given** Site A has `_ga` blocked
+**When** the user opens the Blocked section in the Cookies tab and taps "Unblock"
+**Then** the `BlockedCookie` is removed from `blockedCookies`
+**And** the cookie can be set again on next page load
+
+#### Scenario: Legacy data without blockedCookies
+
+**Given** a site was serialized before the cookie blocking feature existed
+**When** the site is deserialized
+**Then** `blockedCookies` defaults to an empty set
+**And** no cookies are blocked
 
 ---
 

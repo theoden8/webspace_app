@@ -65,6 +65,22 @@ The app SHALL display cookies for the current site with security flag details.
 **When** the user taps "Copy as JSON"
 **Then** all cookies are copied to clipboard as formatted JSON
 
+#### Scenario: Block a cookie
+
+**Given** the Cookies tab shows cookies
+**When** the user expands a cookie and taps "Block"
+**Then** a `BlockedCookie(name, domain)` rule is added to the site's `blockedCookies`
+**And** the cookie is immediately deleted from CookieManager
+**And** the block rule is persisted
+**And** the cookie will be removed on every subsequent page load
+
+#### Scenario: Unblock a cookie
+
+**Given** the Blocked section at the top of the Cookies tab lists blocked rules
+**When** the user taps "Unblock" on a rule
+**Then** the `BlockedCookie` is removed from the set
+**And** the website can set the cookie again on next page load
+
 ---
 
 ### Requirement: DEVTOOLS-003 - Share HTML
