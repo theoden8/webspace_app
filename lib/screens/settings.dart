@@ -187,6 +187,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return null;
   }
 
+  String _userScriptsSubtitle() {
+    final siteCount = widget.webViewModel.userScripts.where((s) => s.enabled).length;
+    final globalCount = widget.globalUserScripts.where((s) => s.enabled).length;
+    final parts = <String>[];
+    if (siteCount > 0) parts.add('$siteCount site');
+    if (globalCount > 0) parts.add('$globalCount global');
+    return parts.isEmpty ? 'None' : '${parts.join(', ')} active';
+  }
+
   Future<void> _saveSettings() async {
     // Only validate and update proxy settings on supported platforms
     if (PlatformInfo.isProxySupported) {
@@ -530,9 +539,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             title: const Text('User Scripts'),
             subtitle: Text(
-              widget.webViewModel.userScripts.isEmpty
-                  ? 'None'
-                  : '${widget.webViewModel.userScripts.where((s) => s.enabled).length} active',
+              _userScriptsSubtitle(),
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {

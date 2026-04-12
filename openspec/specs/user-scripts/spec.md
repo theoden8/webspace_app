@@ -42,7 +42,7 @@ The app SHALL support global user scripts that run on all sites.
 #### Scenario: Add a global user script
 
 **Given** no global scripts configured
-**When** the user adds a global script via Settings > Global Scripts
+**When** the user adds a global script via App Settings > User Scripts
 **Then** the script is stored in app-level state and persisted to SharedPreferences under `'globalUserScripts'`
 
 #### Scenario: Global scripts run on all sites
@@ -293,9 +293,10 @@ At injection time: `fullSource = urlSource + '\n' + source`
 
 ### UI
 
-- `UserScriptsScreen`: List of scripts with explicit drag handles (leading), swipe-to-delete, enable/disable toggle (trailing). Edits sync to the model immediately. Accepts a custom `title` parameter for distinguishing "Site Scripts" vs "Global Scripts".
+- `UserScriptsScreen`: List of scripts with explicit drag handles (leading), swipe-to-delete, enable/disable toggle (trailing). Edits sync to the model immediately. Accepts a custom `title` parameter. Long-press on a per-site script offers "Make Global" (with confirmation).
 - `UserScriptEditScreen`: Form with name, optional script URL (auto-downloads on save), injection time dropdown, enabled switch, monospace source editor, and play button with inline console output
-- Settings screen shows two tiles: "Site Scripts" (per-site) and "Global Scripts" (shared across all sites)
+- Per-site settings: "User Scripts" tile — manages scripts for that site only
+- App settings: "User Scripts" tile (under Interface) — manages global scripts that run on all sites
 
 ---
 
@@ -310,7 +311,8 @@ At injection time: `fullSource = urlSource + '\n' + source`
 ### Modified
 - `lib/web_view_model.dart` — Added `userScripts` field, serialization, global scripts merge in `getWebView`/`getController`
 - `lib/services/webview.dart` — Added `userScripts` to WebViewConfig, injection in createWebView, SPA detection
-- `lib/screens/settings.dart` — Added "Site Scripts" and "Global Scripts" navigation tiles
+- `lib/screens/settings.dart` — "User Scripts" tile for per-site scripts, with Make Global support
+- `lib/screens/app_settings.dart` — "User Scripts" tile for global scripts under Interface
 - `lib/main.dart` — Global user scripts state, persistence, backup/restore integration
 - `lib/services/settings_backup.dart` — Added `globalUserScripts` to SettingsBackup model
 
@@ -349,8 +351,15 @@ fvm flutter test test/user_script_test.dart
 8. Navigate within the SPA — dark mode should re-apply on URL changes
 
 #### Global scripts
-1. Open any site's settings > "Global Scripts"
+1. Open App Settings (gear icon) > "User Scripts"
 2. Add a script (e.g. Dark Reader as above)
-3. Save and hit "Save Settings"
+3. Save — navigate back and reload a site
 4. Switch to a different site — the global script should also run there
 5. Force-close and reopen — global scripts should persist
+
+#### Promote site script to global
+1. Open a site's settings > "User Scripts"
+2. Long-press on a script
+3. Confirm "Make Global" dialog
+4. The script moves to global scripts and is removed from the site
+5. Open App Settings > "User Scripts" to verify it's there
