@@ -22,6 +22,7 @@ class SettingsBackup {
   final int? currentIndex;
   final DateTime exportedAt;
   final List<Map<String, dynamic>>? suggestedSites;
+  final List<Map<String, dynamic>>? globalUserScripts;
 
   SettingsBackup({
     required this.version,
@@ -33,6 +34,7 @@ class SettingsBackup {
     this.currentIndex,
     required this.exportedAt,
     this.suggestedSites,
+    this.globalUserScripts,
   });
 
   Map<String, dynamic> toJson() => {
@@ -45,6 +47,7 @@ class SettingsBackup {
         'currentIndex': currentIndex,
         'exportedAt': exportedAt.toIso8601String(),
         if (suggestedSites != null) 'suggestedSites': suggestedSites,
+        if (globalUserScripts != null) 'globalUserScripts': globalUserScripts,
       };
 
   factory SettingsBackup.fromJson(Map<String, dynamic> json) {
@@ -66,6 +69,9 @@ class SettingsBackup {
       suggestedSites: (json['suggestedSites'] as List<dynamic>?)
           ?.map((e) => e as Map<String, dynamic>)
           .toList(),
+      globalUserScripts: (json['globalUserScripts'] as List<dynamic>?)
+          ?.map((e) => e as Map<String, dynamic>)
+          .toList(),
     );
   }
 }
@@ -83,6 +89,7 @@ class SettingsBackupService {
     String? selectedWebspaceId,
     int? currentIndex,
     List<Map<String, dynamic>>? suggestedSites,
+    List<Map<String, dynamic>>? globalUserScripts,
   }) {
     // Convert sites to JSON, including only non-secure cookies
     final sitesJson = webViewModels.map((model) {
@@ -111,6 +118,7 @@ class SettingsBackupService {
       currentIndex: currentIndex,
       exportedAt: DateTime.now(),
       suggestedSites: suggestedSites,
+      globalUserScripts: globalUserScripts,
     );
   }
 
@@ -129,6 +137,7 @@ class SettingsBackupService {
     String? selectedWebspaceId,
     int? currentIndex,
     List<Map<String, dynamic>>? suggestedSites,
+    List<Map<String, dynamic>>? globalUserScripts,
   }) async {
     try {
       final backup = createBackup(
@@ -139,6 +148,7 @@ class SettingsBackupService {
         selectedWebspaceId: selectedWebspaceId,
         currentIndex: currentIndex,
         suggestedSites: suggestedSites,
+        globalUserScripts: globalUserScripts,
       );
 
       final jsonString = exportToJson(backup);

@@ -10,6 +10,8 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 // Accent color definitions for display
@@ -31,6 +33,8 @@ class AppSettingsScreen extends StatefulWidget {
   final VoidCallback onImportSettings;
   final bool showTabStrip;
   final ValueChanged<bool> onShowTabStripChanged;
+  final List<UserScriptConfig> globalUserScripts;
+  final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
 
   const AppSettingsScreen({
     super.key,
@@ -40,6 +44,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onImportSettings,
     required this.showTabStrip,
     required this.onShowTabStripChanged,
+    this.globalUserScripts = const [],
+    this.onGlobalUserScriptsChanged,
   });
 
   @override
@@ -415,6 +421,43 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 _showTabStrip = value;
               });
               widget.onShowTabStripChanged(value);
+            },
+          ),
+
+          const Divider(height: 32),
+
+          // User Scripts Section
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'User Scripts',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.code),
+            title: const Text('Manage Scripts'),
+            subtitle: Text(
+              widget.globalUserScripts.isEmpty
+                  ? 'No global scripts'
+                  : '${widget.globalUserScripts.where((s) => s.enabled).length} active (all sites)',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserScriptsScreen(
+                    title: 'User Scripts',
+                    userScripts: widget.globalUserScripts,
+                    onSave: (scripts) {
+                      widget.onGlobalUserScriptsChanged?.call(scripts);
+                    },
+                  ),
+                ),
+              );
             },
           ),
 

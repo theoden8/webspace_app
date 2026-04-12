@@ -1,0 +1,401 @@
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:http/http.dart' as http;
+
+import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/user_script.dart';
+
+/// JavaScript shim that intercepts <script src="..."> DOM insertions and
+/// provides a CORS-bypassing fetch function for user scripts.
+///
+/// When user scripts create script elements with external sources, the browser
+/// would block them via CSP. This shim catches those insertions, sends the URL
+/// to Dart for fetching, and the content is injected natively via
+/// evaluateJavascript (which bypasses CSP).
+///
+/// Also exposes `window.__wsFetch(url)` which returns a `Response` object,
+/// useful for libraries that need a CORS-bypassing fetch (e.g. to read
+/// cross-origin stylesheets).
+///
+/// Security:
+/// - Handler names are randomized per webview instance (placeholders replaced
+///   at runtime) so page code cannot guess or call them.
+/// - callHandler reference is captured lazily on first use.
+/// - Only whitelisted CDN URLs are intercepted for script loading; other URLs
+///   fall through to normal (CSP-governed) DOM behavior.
+const String _shimTemplate = r'''
+(function() {
+  if (window.__wsFetchShimInstalled) return;
+  window.__wsFetchShimInstalled = true;
+  var _origAppend = Node.prototype.appendChild;
+  var _origInsert = Node.prototype.insertBefore;
+  var SCRIPT_HANDLER = '__SCRIPT_HANDLER_NAME__';
+  var FETCH_HANDLER = '__FETCH_HANDLER_NAME__';
+
+  // Lazily capture the bridge reference. At DOCUMENT_START the
+  // flutter_inappwebview bridge may not be injected yet. By the time
+  // user scripts actually call appendChild or __wsFetch (after the
+  // library <script> loads), the bridge will be available.
+  var _call = null;
+  function call() {
+    if (!_call) {
+      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        _call = window.flutter_inappwebview.callHandler.bind(window.flutter_inappwebview);
+      }
+    }
+    if (!_call) return null;
+    return _call.apply(null, arguments);
+  }
+
+  var WHITELIST = __WHITELIST_JSON__;
+
+  function isFetchableUrl(url) {
+    if (typeof url !== 'string' || url.length === 0) return false;
+    var lower = url.toLowerCase();
+    return lower.indexOf('http://') === 0 || lower.indexOf('https://') === 0;
+  }
+
+  function isWhitelistedUrl(url) {
+    if (!isFetchableUrl(url)) return false;
+    try {
+      var host = new URL(url).hostname.toLowerCase();
+      for (var i = 0; i < WHITELIST.length; i++) {
+        if (host === WHITELIST[i] || host.endsWith('.' + WHITELIST[i])) return true;
+      }
+    } catch(e) {}
+    return false;
+  }
+
+  // Track URLs already fetched + injected to avoid double-loading
+  // when initialUserScripts and onLoadStop both run the same script.
+  var _loadedUrls = {};
+
+  function intercept(scriptEl) {
+    var url = scriptEl.src;
+    // Only intercept whitelisted CDN URLs. Site scripts (e.g.,
+    // platform.linkedin.com) fall through to normal DOM behavior.
+    if (!isWhitelistedUrl(url)) return null;
+    // If already loaded, just fire onload without re-fetching.
+    if (_loadedUrls[url]) {
+      var onload = scriptEl.onload;
+      if (onload) setTimeout(function() { try { onload.call(scriptEl); } catch(e) { console.error('__ws: dedup onload error:', e); } }, 0);
+      return scriptEl;
+    }
+    var result = call(SCRIPT_HANDLER, url);
+    if (!result) return null;
+    var onload = scriptEl.onload;
+    var onerror = scriptEl.onerror;
+    result.then(function(ok) {
+      if (ok) {
+        _loadedUrls[url] = true;
+        if (onload) try { onload.call(scriptEl); } catch(e) { console.error('__ws: onload error:', e); }
+      }
+      else { if (onerror) try { onerror.call(scriptEl, new Error('fetch failed')); } catch(e) { console.error('__ws: onerror error:', e); } }
+    }).catch(function(e) {
+      if (onerror) try { onerror.call(scriptEl, e); } catch(e2) {}
+    });
+    return scriptEl;
+  }
+
+  Node.prototype.appendChild = function(child) {
+    if (child instanceof HTMLScriptElement && child.src) {
+      var result = intercept(child);
+      if (result) return result;
+    }
+    return _origAppend.call(this, child);
+  };
+  Node.prototype.insertBefore = function(child, ref) {
+    if (child instanceof HTMLScriptElement && child.src) {
+      var result = intercept(child);
+      if (result) return result;
+    }
+    return _origInsert.call(this, child, ref);
+  };
+
+  // CORS-bypassing fetch for user scripts. Returns a standard Response object.
+  // Usage: myLibrary.setFetchMethod(window.__wsFetch);
+  window.__wsFetch = function(url) {
+    var urlStr = typeof url === 'string' ? url : url.toString();
+    if (!isFetchableUrl(urlStr)) {
+      return Promise.reject(new Error('__wsFetch: only http/https URLs supported'));
+    }
+    var result = call(FETCH_HANDLER, urlStr);
+    if (!result) {
+      console.log('__wsFetch: bridge not available for ' + urlStr.substring(0, 80));
+      return Promise.reject(new Error('__wsFetch: bridge not available'));
+    }
+    return result.then(function(r) {
+      console.log('__wsFetch: ' + urlStr.substring(0, 60) + ' -> status=' + (r && r.status) + ' body=' + (r && r.body ? r.body.length + 'b' : 'none'));
+      if (r && r.body !== undefined) {
+        return new Response(r.body, {
+          status: r.status || 200,
+          headers: r.contentType ? { 'Content-Type': r.contentType } : {},
+        });
+      }
+      return new Response('', { status: 500 });
+    });
+  };
+
+  // Patch window.fetch to fall back to __wsFetch on CORS errors.
+  // Only catches TypeError (which browsers throw for CORS and network
+  // failures), not application errors like 404. This avoids breaking
+  // video/binary fetches that fail for non-CORS reasons.
+  var _origFetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    return _origFetch(input, init).catch(function(err) {
+      if (err instanceof TypeError) {
+        var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+        if (isFetchableUrl(url)) {
+          return window.__wsFetch(url);
+        }
+      }
+      throw err;
+    });
+  };
+})();
+''';
+
+/// Max size for fetched resources (5 MB).
+const int _maxFetchBytes = 5 * 1024 * 1024;
+
+/// Evaluate JS without triggering "unsupported type" serialization errors.
+/// WebKit (macOS/iOS) errors when evaluateJavascript returns `undefined`;
+/// appending `;null;` returns a serializable value, and try-catch ensures
+/// a stale error never breaks callers.
+Future<void> _safeEval(inapp.InAppWebViewController c, String source) async {
+  try {
+    await c.evaluateJavascript(source: '$source\n;null;');
+  } catch (e) {
+    LogService.instance.log('UserScript', 'evaluateJavascript non-fatal: $e');
+  }
+}
+
+/// Manages user script injection, external dependency resolution, and
+/// CORS-bypassing fetch for webviews.
+class UserScriptService {
+  /// Prepared shim JS with handler names baked in, or null if no user scripts.
+  final String? shimScript;
+  final String _scriptHandlerName;
+  final String _fetchHandlerName;
+  final bool hasScripts;
+  final List<UserScriptConfig> _scripts;
+  final Future<bool> Function(String url)? _onConfirmScriptFetch;
+
+  UserScriptService._({
+    required this.shimScript,
+    required String scriptHandlerName,
+    required String fetchHandlerName,
+    required this.hasScripts,
+    required List<UserScriptConfig> scripts,
+    required Future<bool> Function(String url)? onConfirmScriptFetch,
+  })  : _scriptHandlerName = scriptHandlerName,
+        _fetchHandlerName = fetchHandlerName,
+        _scripts = scripts,
+        _onConfirmScriptFetch = onConfirmScriptFetch;
+
+  /// Create a service instance for the given user scripts.
+  factory UserScriptService({
+    required List<UserScriptConfig> scripts,
+    Future<bool> Function(String url)? onConfirmScriptFetch,
+  }) {
+    final hasScripts = scripts.any((s) => s.enabled && s.fullSource.isNotEmpty);
+    final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    final scriptHandlerName = '__ws_s_$ts';
+    final fetchHandlerName = '__ws_f_$ts';
+
+    String? shimScript;
+    if (hasScripts) {
+      final whitelistJson = '[${scriptFetchWhitelist.map((d) => '"$d"').join(',')}]';
+      shimScript = _shimTemplate
+          .replaceAll('__SCRIPT_HANDLER_NAME__', scriptHandlerName)
+          .replaceAll('__FETCH_HANDLER_NAME__', fetchHandlerName)
+          .replaceAll('__WHITELIST_JSON__', whitelistJson);
+    }
+
+    return UserScriptService._(
+      shimScript: shimScript,
+      scriptHandlerName: scriptHandlerName,
+      fetchHandlerName: fetchHandlerName,
+      hasScripts: hasScripts,
+      scripts: scripts,
+      onConfirmScriptFetch: onConfirmScriptFetch,
+    );
+  }
+
+  /// Build the list of [inapp.UserScript]s to pass to initialUserScripts.
+  /// Includes the shim (at DOCUMENT_START) followed by user scripts.
+  List<inapp.UserScript> buildInitialUserScripts() {
+    final result = <inapp.UserScript>[];
+    if (!hasScripts) return result;
+
+    // Shim first (at DOCUMENT_START, before user scripts).
+    // Append ";null;" so WebKit doesn't error on undefined return value.
+    if (shimScript != null) {
+      result.add(inapp.UserScript(
+        groupName: 'script_fetch_shim',
+        source: '${shimScript!}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
+    // User scripts
+    LogService.instance.log('UserScript', 'createWebView: ${_scripts.length} user scripts configured');
+    for (final script in _scripts) {
+      final src = _buildSource(script);
+      if (!script.enabled || src.isEmpty) {
+        LogService.instance.log('UserScript', 'Skipping "${script.name}" (enabled=${script.enabled}, empty=${src.isEmpty})');
+        continue;
+      }
+      final time = script.injectionTime == UserScriptInjectionTime.atDocumentStart ? 'DOCUMENT_START' : 'DOCUMENT_END';
+      LogService.instance.log('UserScript', 'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})');
+      result.add(inapp.UserScript(
+        groupName: 'user_scripts',
+        source: '$src\n;null;',
+        injectionTime: script.injectionTime == UserScriptInjectionTime.atDocumentStart
+            ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
+            : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
+      ));
+    }
+    return result;
+  }
+
+  /// Register JS handlers on the controller for script fetching and
+  /// CORS-bypassing resource fetching.
+  void registerHandlers(inapp.InAppWebViewController controller) {
+    if (!hasScripts) return;
+
+    // Script handler: fetches URL and injects content as JS via evaluateJavascript.
+    controller.addJavaScriptHandler(handlerName: _scriptHandlerName, callback: (args) async {
+      if (args.isEmpty || args[0] is! String) return false;
+      final url = args[0] as String;
+      final status = classifyScriptFetchUrl(url);
+      if (status == ScriptFetchUrlStatus.blocked) {
+        LogService.instance.log('UserScript', 'Blocked script fetch: $url');
+        return false;
+      }
+      if (status == ScriptFetchUrlStatus.requiresConfirmation) {
+        if (_onConfirmScriptFetch == null) {
+          LogService.instance.log('UserScript', 'Blocked non-whitelisted URL (no confirmation handler): $url');
+          return false;
+        }
+        final approved = await _onConfirmScriptFetch!(url);
+        if (!approved) {
+          LogService.instance.log('UserScript', 'User denied script fetch: $url');
+          return false;
+        }
+      }
+      LogService.instance.log('UserScript', 'Fetching external script: $url');
+      try {
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          if (response.body.length > _maxFetchBytes) {
+            LogService.instance.log('UserScript', 'Rejected: response too large (${response.body.length} bytes, max $_maxFetchBytes)');
+            return false;
+          }
+          LogService.instance.log('UserScript', 'Injecting fetched script (${response.body.length} bytes)');
+          await _safeEval(controller, response.body);
+          return true;
+        }
+        LogService.instance.log('UserScript', 'Fetch failed: HTTP ${response.statusCode}');
+      } catch (e) {
+        LogService.instance.log('UserScript', 'Fetch failed: $e');
+      }
+      return false;
+    });
+
+    // Resource fetch handler: fetches URL and returns body as text.
+    // Used by window.__wsFetch() for CORS-bypassing fetch (e.g., reading
+    // cross-origin stylesheets).
+    controller.addJavaScriptHandler(handlerName: _fetchHandlerName, callback: (args) async {
+      if (args.isEmpty || args[0] is! String) return {'status': 400};
+      final url = args[0] as String;
+      final status = classifyScriptFetchUrl(url);
+      if (status == ScriptFetchUrlStatus.blocked) {
+        LogService.instance.log('UserScript', 'Blocked resource fetch: $url');
+        return {'status': 403};
+      }
+      try {
+        final response = await http.get(Uri.parse(url));
+        if (response.body.length > _maxFetchBytes) {
+          LogService.instance.log('UserScript', 'Resource too large: ${response.body.length} bytes');
+          return {'status': 413};
+        }
+        final contentType = response.headers['content-type'] ?? '';
+        return {
+          'status': response.statusCode,
+          'body': response.body,
+          'contentType': contentType,
+        };
+      } catch (e) {
+        LogService.instance.log('UserScript', 'Resource fetch failed: $e');
+        return {'status': 500};
+      }
+    });
+  }
+
+  /// Build injectable source for a user script.
+  /// Returns the full source (urlSource + source concatenation).
+  static String _buildSource(UserScriptConfig script) {
+    return script.fullSource;
+  }
+
+  /// Re-inject the shim and atDocumentStart user scripts. Call from onLoadStart.
+  ///
+  /// Scripts with [urlSource] (cached library) are skipped — they are already
+  /// handled by [initialUserScripts] (WKUserScript / native injection) which
+  /// persists across navigations. Re-injecting large libraries via
+  /// evaluateJavascript at onLoadStart races with the JS context setup and
+  /// causes ReferenceErrors.
+  Future<void> reinjectOnLoadStart(inapp.InAppWebViewController controller) async {
+    if (!hasScripts) return;
+    if (shimScript != null) {
+      await _safeEval(controller, shimScript!);
+    }
+    for (final script in _scripts) {
+      if (!script.enabled) continue;
+      // Scripts with urlSource are injected via initialUserScripts (native
+      // mechanism). Re-injecting here races with WKUserScript timing.
+      if (script.urlSource != null && script.urlSource!.isNotEmpty) continue;
+      final src = _buildSource(script);
+      if (src.isEmpty) continue;
+      if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
+        LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${src.length} chars)');
+        await _safeEval(controller, src);
+      }
+    }
+  }
+
+  /// Re-inject atDocumentEnd user scripts. Call from onLoadStop.
+  ///
+  /// Scripts with [urlSource] are skipped — same rationale as
+  /// [reinjectOnLoadStart].
+  Future<void> reinjectOnLoadStop(inapp.InAppWebViewController controller) async {
+    if (!hasScripts) return;
+    for (final script in _scripts) {
+      if (!script.enabled) continue;
+      if (script.urlSource != null && script.urlSource!.isNotEmpty) continue;
+      final src = _buildSource(script);
+      if (src.isEmpty) continue;
+      if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
+        LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${src.length} chars)');
+        await _safeEval(controller, src);
+      }
+    }
+  }
+
+  /// Re-run user scripts' custom source (not the URL library) on SPA
+  /// navigations. Called from onUpdateVisitedHistory when the URL changes
+  /// without a full page load.
+  ///
+  /// On SPA navigations the JS context persists, so the library (urlSource)
+  /// is still loaded. We only re-run the user's [source] code to re-trigger
+  /// initialization (e.g. re-running a library's enable() call).
+  Future<void> reinjectOnSpaNavigation(inapp.InAppWebViewController controller) async {
+    if (!hasScripts) return;
+    for (final script in _scripts) {
+      if (!script.enabled || script.source.isEmpty) continue;
+      LogService.instance.log('UserScript', 'SPA nav: re-running "${script.name}" source (${script.source.length} chars)');
+      final safeName = script.name.replaceAll('"', '\\"');
+      await _safeEval(controller, 'console.log("__ws: SPA re-inject: $safeName");\n${script.source}');
+    }
+  }
+}

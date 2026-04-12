@@ -10,6 +10,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 // Supported languages for webview
@@ -72,12 +73,18 @@ class SettingsScreen extends StatefulWidget {
   final VoidCallback? onSettingsSaved;
   /// Callback to clear cookies for this site
   final VoidCallback? onClearCookies;
+  /// Global user scripts shared across all sites
+  final List<UserScriptConfig> globalUserScripts;
+  /// Callback when global user scripts are changed
+  final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
 
   SettingsScreen({
     required this.webViewModel,
     this.onProxySettingsChanged,
     this.onSettingsSaved,
     this.onClearCookies,
+    this.globalUserScripts = const [],
+    this.onGlobalUserScriptsChanged,
   });
 
   @override
@@ -178,6 +185,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     
     return null;
+  }
+
+  String _userScriptsSubtitle() {
+    final siteCount = widget.webViewModel.userScripts.where((s) => s.enabled).length;
+    final globalCount = widget.globalUserScripts.where((s) => s.enabled).length;
+    final parts = <String>[];
+    if (siteCount > 0) parts.add('$siteCount site');
+    if (globalCount > 0) parts.add('$globalCount global');
+    return parts.isEmpty ? 'None' : '${parts.join(', ')} active';
   }
 
   Future<void> _saveSettings() async {
@@ -523,9 +539,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             title: const Text('User Scripts'),
             subtitle: Text(
-              widget.webViewModel.userScripts.isEmpty
-                  ? 'None'
-                  : '${widget.webViewModel.userScripts.where((s) => s.enabled).length} active',
+              _userScriptsSubtitle(),
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
@@ -533,10 +547,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => UserScriptsScreen(
+                    title: 'User Scripts',
                     userScripts: widget.webViewModel.userScripts,
                     onSave: (scripts) {
                       widget.webViewModel.userScripts = scripts;
                     },
+                    globalUserScripts: widget.globalUserScripts,
+                    onGlobalUserScriptsChanged: widget.onGlobalUserScriptsChanged,
+                    onRun: widget.webViewModel.controller != null
+                        ? (source) async {
+                            final logsBefore = widget.webViewModel.consoleLogs.length;
+                            await widget.webViewModel.controller!.evaluateJavascript(source);
+                            // Brief delay to let console messages arrive
+                            await Future.delayed(const Duration(milliseconds: 200));
+                            final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
+                            return newLogs.map((e) => e.message).join('\n');
+                          }
+                        : null,
                   ),
                 ),
               );

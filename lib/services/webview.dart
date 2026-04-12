@@ -10,6 +10,8 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/user_script.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
@@ -230,6 +232,9 @@ class WebViewConfig {
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
   /// Per-site user scripts to inject into the webview.
   final List<UserScriptConfig> userScripts;
+  /// Callback to confirm fetching a script from a non-whitelisted URL.
+  /// Returns true if the user approves, false to block.
+  final Future<bool> Function(String url)? onConfirmScriptFetch;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
 
@@ -254,6 +259,7 @@ class WebViewConfig {
     this.initialHtml,
     this.onConsoleMessage,
     this.userScripts = const [],
+    this.onConfirmScriptFetch,
     this.pullToRefreshController,
   });
 }
@@ -329,7 +335,11 @@ class _WebViewController implements WebViewController {
   Future<String?> getHtml() => _c.getHtml();
 
   @override
-  Future<void> evaluateJavascript(String source) => _c.evaluateJavascript(source: source);
+  Future<void> evaluateJavascript(String source) async {
+    try {
+      await _c.evaluateJavascript(source: '$source\n;null;');
+    } catch (_) {} // WebKit "unsupported type" — JS still ran
+  }
 
   @override
   Future<void> findAllAsync({required String find}) => _c.findAllAsync(find: find);
@@ -529,6 +539,7 @@ const String _clearUrlShareScript = r'''
 })();
 ''';
 
+
 /// Factory for creating webviews
 class WebViewFactory {
   /// Determine if a navigation was triggered by a user gesture.
@@ -637,7 +648,7 @@ class WebViewFactory {
       final earlyScript = ContentBlockerService.instance.getEarlyCssScript(config.initialUrl);
       if (earlyScript != null) {
         userScripts.add(inapp.UserScript(
-          source: earlyScript,
+          source: '$earlyScript\n;null;',
           injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         ));
       }
@@ -648,22 +659,21 @@ class WebViewFactory {
     if (config.clearUrlEnabled) {
       userScripts.add(inapp.UserScript(
         groupName: 'clearurl_share',
-        source: _clearUrlShareScript,
+        source: '$_clearUrlShareScript\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       ));
     }
 
-    // Inject per-site user scripts
-    for (final script in config.userScripts) {
-      if (!script.enabled || script.source.isEmpty) continue;
-      userScripts.add(inapp.UserScript(
-        groupName: 'user_scripts',
-        source: script.source,
-        injectionTime: script.injectionTime == UserScriptInjectionTime.atDocumentStart
-            ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
-            : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
-      ));
-    }
+    // User script injection: shim for external dependency resolution + scripts
+    final userScriptService = UserScriptService(
+      scripts: config.userScripts,
+      onConfirmScriptFetch: config.onConfirmScriptFetch,
+    );
+    userScripts.addAll(userScriptService.buildInitialUserScripts());
+
+    // Track last URL that triggered onLoadStart, used to distinguish
+    // SPA navigations (pushState) from real page loads in onUpdateVisitedHistory.
+    String? lastLoadStartUrl;
 
     return inapp.InAppWebView(
       key: config.key,
@@ -717,6 +727,7 @@ class WebViewFactory {
             return args.isNotEmpty ? args[0] : '';
           });
         }
+        userScriptService.registerHandlers(controller);
         // If we loaded cached HTML, navigate to the real URL when online
         if (usesCachedHtml) {
           final online = await ConnectivityService.instance.isOnline();
@@ -805,17 +816,24 @@ class WebViewFactory {
             }
           : null,
       onLoadStart: (controller, url) async {
+        // Track that this URL has a real page load (not SPA navigation)
+        lastLoadStartUrl = url?.toString();
         // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {
           final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
           if (script != null) {
-            await controller.evaluateJavascript(source: script);
+            try {
+              await controller.evaluateJavascript(source: '$script\n;null;');
+            } catch (_) {} // WebKit "unsupported type" — JS still ran
           }
         }
         // Re-inject ClearURLs share script for in-page navigations
         if (config.clearUrlEnabled) {
-          await controller.evaluateJavascript(source: _clearUrlShareScript);
+          try {
+            await controller.evaluateJavascript(source: '$_clearUrlShareScript\n;null;');
+          } catch (_) {} // WebKit "unsupported type" — JS still ran
         }
+        await userScriptService.reinjectOnLoadStart(controller);
       },
       onLoadStop: (controller, url) async {
         // End pull-to-refresh animation
@@ -830,9 +848,12 @@ class WebViewFactory {
           if (config.contentBlockEnabled) {
             final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
             if (script != null) {
-              await controller.evaluateJavascript(source: script);
+              try {
+                await controller.evaluateJavascript(source: '$script\n;null;');
+              } catch (_) {} // WebKit "unsupported type" — JS still ran
             }
           }
+          await userScriptService.reinjectOnLoadStop(controller);
           // Cache HTML for offline viewing
           if (config.onHtmlLoaded != null) {
             try {
@@ -852,6 +873,15 @@ class WebViewFactory {
         // gesture), so this ensures the URL bar stays in sync.
         if (url != null) {
           config.onUrlChanged?.call(url.toString());
+          // SPA navigations (pushState/replaceState) don't trigger
+          // onLoadStart/onLoadStop. Detect by checking if this URL had a
+          // corresponding onLoadStart. If not, it's a SPA navigation —
+          // re-run user scripts' source code (not the library).
+          final urlStr = url.toString();
+          if (urlStr != lastLoadStartUrl) {
+            userScriptService.reinjectOnSpaNavigation(controller);
+          }
+          lastLoadStartUrl = null; // Reset for next navigation
         }
       },
       onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
