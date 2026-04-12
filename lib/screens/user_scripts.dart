@@ -167,7 +167,9 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
   late UserScriptInjectionTime _injectionTime;
   late bool _enabled;
   String? _urlSource;
+  String? _originalUrl;
   bool _downloading = false;
+  bool _saving = false;
   String? _runOutput;
 
   @override
@@ -179,6 +181,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
     _injectionTime = widget.script?.injectionTime ?? UserScriptInjectionTime.atDocumentEnd;
     _enabled = widget.script?.enabled ?? true;
     _urlSource = widget.script?.urlSource;
+    _originalUrl = widget.script?.url;
   }
 
   @override
@@ -189,7 +192,17 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_saving) return;
+    _saving = true;
+    try {
+      await _saveInner();
+    } finally {
+      _saving = false;
+    }
+  }
+
+  Future<void> _saveInner() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -198,6 +211,33 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
       return;
     }
     final url = _urlController.text.trim();
+    // Auto-download URL source if URL is set and either not yet cached or URL changed.
+    if (url.isNotEmpty && (_urlSource == null || url != _originalUrl)) {
+      setState(() { _downloading = true; });
+      try {
+        final response = await http.get(Uri.parse(url));
+        if (!mounted) return;
+        if (response.statusCode == 200) {
+          _urlSource = response.body;
+        } else {
+          setState(() { _downloading = false; });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('URL download failed: HTTP ${response.statusCode}')),
+          );
+          return;
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() { _downloading = false; });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('URL download failed: $e')),
+        );
+        return;
+      }
+    }
+    // Clear urlSource if URL was removed.
+    if (url.isEmpty) _urlSource = null;
+    if (!mounted) return;
     Navigator.pop(
       context,
       UserScriptConfig(
@@ -209,40 +249,6 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
         enabled: _enabled,
       ),
     );
-  }
-
-  Future<void> _downloadUrl() async {
-    final url = _urlController.text.trim();
-    if (url.isEmpty) return;
-    setState(() { _downloading = true; });
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        setState(() {
-          _urlSource = response.body;
-          _downloading = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Downloaded ${response.body.length} bytes')),
-          );
-        }
-      } else {
-        setState(() { _downloading = false; });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Download failed: HTTP ${response.statusCode}')),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() { _downloading = false; });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Download failed: $e')),
-        );
-      }
-    }
   }
 
   Future<void> _runScript() async {
@@ -311,18 +317,15 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     )
-                  : IconButton(
-                      icon: Icon(_urlSource != null ? Icons.sync : Icons.download),
-                      tooltip: _urlSource != null ? 'Re-download' : 'Download',
-                      onPressed: _urlController.text.trim().isEmpty ? null : _downloadUrl,
-                    ),
+                  : null,
             ),
           ),
           if (_urlSource != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Cached: ${_urlSource!.length} bytes',
+                'Cached: ${_urlSource!.length} bytes'
+                    '${_urlController.text.trim() != _originalUrl ? ' (will re-download on save)' : ''}',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ),
