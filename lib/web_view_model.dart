@@ -368,6 +368,7 @@ class WebViewModel {
     String? initialHtml,
     bool Function()? isActive,
     Future<bool> Function(String url)? onConfirmScriptFetch,
+    List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
@@ -405,7 +406,7 @@ class WebViewModel {
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
-          userScripts: userScripts,
+          userScripts: [...globalUserScripts, ...userScripts],
           onConfirmScriptFetch: onConfirmScriptFetch,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
@@ -558,11 +559,12 @@ class WebViewModel {
   WebViewController? getController(
     Function(String url, {String? homeTitle, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language}) launchUrlFunc,
     CookieManager cookieManager,
-    Function saveFunc,
-  ) {
+    Function saveFunc, {
+    List<UserScriptConfig> globalUserScripts = const [],
+  }) {
     if (webview == null) {
       // Create webview with current language setting
-      webview = getWebView(launchUrlFunc, cookieManager, saveFunc, language: language);
+      webview = getWebView(launchUrlFunc, cookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts);
     }
     if (controller != null) {
       setController();

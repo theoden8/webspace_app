@@ -41,6 +41,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/user_script.dart';
 import 'package:share_plus/share_plus.dart';
 
 // Accent color enum
@@ -648,6 +649,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Configurable suggested sites
   List<SiteSuggestion> _suggestedSites = [];
 
+  // Global user scripts (shared across all sites)
+  List<UserScriptConfig> _globalUserScripts = [];
+
   // Guards lifecycle pause/resume against rapid state transitions.
   // Without this, a quick inactive→resumed sequence could let the resume
   // platform call complete before the pause call, leaving the webview stuck.
@@ -747,6 +751,23 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showTabStrip', _showTabStrip);
+  }
+
+  Future<void> _saveGlobalUserScripts() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final json = _globalUserScripts.map((s) => jsonEncode(s.toJson())).toList();
+    await prefs.setStringList('globalUserScripts', json);
+  }
+
+  Future<void> _loadGlobalUserScripts() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final json = prefs.getStringList('globalUserScripts');
+    if (json != null) {
+      _globalUserScripts = json
+          .map((s) => UserScriptConfig.fromJson(jsonDecode(s) as Map<String, dynamic>))
+          .toList();
+    }
   }
 
   Future<void> _saveWebspaces() async {
@@ -1082,6 +1103,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
+    await _loadGlobalUserScripts();
     await _loadWebViewModels();
     _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
 
@@ -1366,6 +1388,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       suggestedSites: _suggestedSites
           .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
           .toList(),
+      globalUserScripts: _globalUserScripts.map((s) => s.toJson()).toList(),
     );
   }
 
@@ -1474,6 +1497,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
 
+    // Restore global user scripts if present in backup
+    if (backup.globalUserScripts != null) {
+      _globalUserScripts = backup.globalUserScripts!
+          .map((e) => UserScriptConfig.fromJson(e))
+          .toList();
+    }
+    await _saveGlobalUserScripts();
+
     // Restore suggested sites if present in backup
     if (backup.suggestedSites != null) {
       _suggestedSites = backup.suggestedSites!
@@ -1510,7 +1541,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if(_currentIndex == null) {
       return null;
     }
-    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels);
+    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
   }
 
   /// Compare a current URL against a site's initUrl, ignoring trailing slashes.
@@ -1819,6 +1850,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     MaterialPageRoute(
                       builder: (context) => SettingsScreen(
                         webViewModel: _webViewModels[_currentIndex!],
+                        globalUserScripts: _globalUserScripts,
+                        onGlobalUserScriptsChanged: (scripts) {
+                          _globalUserScripts = scripts;
+                          _saveGlobalUserScripts();
+                        },
                         onClearCookies: () {
                           _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
                           _saveWebViewModels();
@@ -2041,7 +2077,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           UrlBar(
             currentUrl: model.currentUrl,
             onUrlSubmitted: (url) async {
-              final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels);
+              final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
               if (controller != null) {
                 await controller.loadUrl(url, language: model.language);
                 if (!mounted) return;
@@ -2181,6 +2217,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               MaterialPageRoute(
                 builder: (context) => SettingsScreen(
                   webViewModel: _webViewModels[_currentIndex!],
+                  globalUserScripts: _globalUserScripts,
+                  onGlobalUserScriptsChanged: (scripts) {
+                    _globalUserScripts = scripts;
+                    _saveGlobalUserScripts();
+                  },
                   onClearCookies: () {
                     _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
                     _saveWebViewModels();
@@ -2953,6 +2994,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                             _saveWebViewModels,
                             onWindowRequested: _showPopupWindow,
                             language: webViewModel.language,
+                            globalUserScripts: _globalUserScripts,
                             onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
                               HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
                             },

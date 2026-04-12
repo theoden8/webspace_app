@@ -8,6 +8,7 @@ import 'package:webspace/settings/user_script.dart';
 /// Edits apply to the model immediately via [onSave]. The parent Settings
 /// screen handles webview reload when "Save Settings" is tapped.
 class UserScriptsScreen extends StatefulWidget {
+  final String title;
   final List<UserScriptConfig> userScripts;
   final void Function(List<UserScriptConfig>) onSave;
   /// Execute a script source on the current webview immediately.
@@ -16,6 +17,7 @@ class UserScriptsScreen extends StatefulWidget {
 
   const UserScriptsScreen({
     super.key,
+    this.title = 'User Scripts',
     required this.userScripts,
     required this.onSave,
     this.onRun,
@@ -86,7 +88,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Scripts'),
+        title: Text(widget.title),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addScript,
@@ -126,6 +128,10 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                   ),
                   onDismissed: (_) => _deleteScript(index),
                   child: ListTile(
+                    leading: ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_handle),
+                    ),
                     title: Text(script.name),
                     subtitle: Text(
                       script.injectionTime == UserScriptInjectionTime.atDocumentStart
@@ -143,6 +149,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                   ),
                 );
               },
+              buildDefaultDragHandles: false,
             ),
     );
   }

@@ -10,6 +10,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 // Supported languages for webview
@@ -72,12 +73,18 @@ class SettingsScreen extends StatefulWidget {
   final VoidCallback? onSettingsSaved;
   /// Callback to clear cookies for this site
   final VoidCallback? onClearCookies;
+  /// Global user scripts shared across all sites
+  final List<UserScriptConfig> globalUserScripts;
+  /// Callback when global user scripts are changed
+  final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
 
   SettingsScreen({
     required this.webViewModel,
     this.onProxySettingsChanged,
     this.onSettingsSaved,
     this.onClearCookies,
+    this.globalUserScripts = const [],
+    this.onGlobalUserScriptsChanged,
   });
 
   @override
@@ -521,7 +528,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : null,
           ),
           ListTile(
-            title: const Text('User Scripts'),
+            title: const Text('Site Scripts'),
             subtitle: Text(
               widget.webViewModel.userScripts.isEmpty
                   ? 'None'
@@ -533,6 +540,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => UserScriptsScreen(
+                    title: 'Site Scripts',
                     userScripts: widget.webViewModel.userScripts,
                     onSave: (scripts) {
                       widget.webViewModel.userScripts = scripts;
@@ -542,6 +550,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             final logsBefore = widget.webViewModel.consoleLogs.length;
                             await widget.webViewModel.controller!.evaluateJavascript(source);
                             // Brief delay to let console messages arrive
+                            await Future.delayed(const Duration(milliseconds: 200));
+                            final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
+                            return newLogs.map((e) => e.message).join('\n');
+                          }
+                        : null,
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            title: const Text('Global Scripts'),
+            subtitle: Text(
+              widget.globalUserScripts.isEmpty
+                  ? 'None'
+                  : '${widget.globalUserScripts.where((s) => s.enabled).length} active',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserScriptsScreen(
+                    title: 'Global Scripts',
+                    userScripts: widget.globalUserScripts,
+                    onSave: (scripts) {
+                      widget.onGlobalUserScriptsChanged?.call(scripts);
+                    },
+                    onRun: widget.webViewModel.controller != null
+                        ? (source) async {
+                            final logsBefore = widget.webViewModel.consoleLogs.length;
+                            await widget.webViewModel.controller!.evaluateJavascript(source);
                             await Future.delayed(const Duration(milliseconds: 200));
                             final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
                             return newLogs.map((e) => e.message).join('\n');
