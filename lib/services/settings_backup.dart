@@ -162,7 +162,7 @@ class SettingsBackupService {
       // On desktop (macOS/Linux/Windows): bytes not supported, write manually
       final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
 
-      final outputPath = await FilePicker.platform.saveFile(
+      final outputPath = await FilePicker.saveFile(
         dialogTitle: 'Save Settings Backup',
         fileName: defaultFileName,
         bytes: isMobile ? bytes : null,
@@ -210,7 +210,7 @@ class SettingsBackupService {
   /// Pick a file and import settings
   static Future<SettingsBackup?> pickAndImport(BuildContext context) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
         allowMultiple: false,

@@ -736,7 +736,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       final bytes = utf8.encode(html);
 
       final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
-      final outputPath = await FilePicker.platform.saveFile(
+      final outputPath = await FilePicker.saveFile(
         dialogTitle: 'Save HTML',
         fileName: fileName,
         bytes: isMobile ? bytes : null,
@@ -897,7 +897,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final fileName = 'webspace_logs_$timestamp.txt';
 
     final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
-    final outputPath = await FilePicker.platform.saveFile(
+    final outputPath = await FilePicker.saveFile(
       dialogTitle: 'Export Logs',
       fileName: fileName,
       bytes: isMobile ? bytes : null,

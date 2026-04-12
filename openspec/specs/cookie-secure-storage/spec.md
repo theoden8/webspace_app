@@ -181,4 +181,4 @@ aOptions: AndroidOptions(encryptedSharedPreferences: true)
 
 ### Modified
 - `lib/main.dart` - Integration with secure storage
-- `pubspec.yaml` - Added `flutter_secure_storage: ^9.2.2`
+- `pubspec.yaml` - Added `flutter_secure_storage: ^10.0.0`

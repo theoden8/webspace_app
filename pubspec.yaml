@@ -48,9 +48,9 @@ dependencies:
   url_launcher: ^6.1.10
   uuid: ^4.5.1
   image: ^4.3.0  # Required by third_party/favicon
-  file_picker: ^8.0.0
-  flutter_secure_storage: ^9.2.2
-  package_info_plus: ^8.0.0
+  file_picker: ^11.0.2
+  flutter_secure_storage: ^10.0.0
+  package_info_plus: ^9.0.1
   flutter_cache_manager: ^3.3.0
   path_provider: ^2.1.0
   encrypt: ^5.0.3
@@ -62,7 +62,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
 
 flutter:
