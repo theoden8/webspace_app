@@ -388,7 +388,7 @@ class UserScriptService {
   ///
   /// On SPA navigations the JS context persists, so the library (urlSource)
   /// is still loaded. We only re-run the user's [source] code to re-trigger
-  /// initialization (e.g. DarkReader.enable() re-analyzes new content).
+  /// initialization (e.g. re-running a library's enable() call).
   Future<void> reinjectOnSpaNavigation(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
     for (final script in _scripts) {

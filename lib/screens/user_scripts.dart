@@ -314,7 +314,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
             controller: _urlController,
             decoration: InputDecoration(
               labelText: 'Script URL (optional)',
-              hintText: 'https://cdn.jsdelivr.net/npm/darkreader/darkreader.min.js',
+              hintText: 'https://cdn.jsdelivr.net/npm/package/lib.min.js',
               border: const OutlineInputBorder(),
               suffixIcon: _downloading
                   ? const Padding(
