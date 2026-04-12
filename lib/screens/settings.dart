@@ -105,6 +105,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _contentBlockEnabled;
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
+  late bool _fullscreenMode;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -151,6 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _contentBlockEnabled = widget.webViewModel.contentBlockEnabled;
     _localCdnEnabled = widget.webViewModel.localCdnEnabled;
     _blockAutoRedirects = widget.webViewModel.blockAutoRedirects;
+    _fullscreenMode = widget.webViewModel.fullscreenMode;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -254,6 +256,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
+      widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
@@ -612,6 +615,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               setState(() {
                 _blockAutoRedirects = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                const Flexible(child: Text('Full screen mode')),
+                const HintButton(
+                  title: 'Full Screen Mode',
+                  description:
+                      'Automatically enters full screen when this site is selected. '
+                      'Hides the app bar, tab strip, and system UI for an immersive experience. '
+                      'Tap the edge of the screen or use the back gesture to exit full screen.',
+                ),
+              ],
+            ),
+            subtitle: const Text('Auto-enter full screen for this site'),
+            value: _fullscreenMode,
+            onChanged: (bool value) {
+              setState(() {
+                _fullscreenMode = value;
               });
             },
           ),
