@@ -422,5 +422,74 @@ void main() {
       expect(script.urlSource, isNull);
       expect(script.fullSource, 'alert(1)');
     });
+
+    test('fullSource returns empty when both urlSource and source are empty', () {
+      final script = UserScriptConfig(name: 'empty', source: '');
+      expect(script.fullSource, '');
+    });
+
+    test('fullSource returns empty urlSource only when source is empty', () {
+      final script = UserScriptConfig(name: 'test', source: '', urlSource: '');
+      expect(script.fullSource, '');
+    });
+
+    test('url excluded from JSON when null', () {
+      final script = UserScriptConfig(name: 'test', source: 'x');
+      final json = script.toJson();
+      expect(json.containsKey('url'), isFalse);
+      expect(json.containsKey('urlSource'), isFalse);
+    });
+
+    test('url included in JSON when set', () {
+      final script = UserScriptConfig(
+        name: 'test',
+        source: 'x',
+        url: 'https://cdn.example.com/lib.js',
+        urlSource: '/* lib */',
+      );
+      final json = script.toJson();
+      expect(json['url'], 'https://cdn.example.com/lib.js');
+      expect(json['urlSource'], '/* lib */');
+    });
+
+    test('toJson includes all fields for complete roundtrip', () {
+      final original = UserScriptConfig(
+        name: 'Complete',
+        source: 'init();',
+        url: 'https://cdn.jsdelivr.net/npm/lib.js',
+        urlSource: 'function lib() {}',
+        injectionTime: UserScriptInjectionTime.atDocumentStart,
+        enabled: false,
+      );
+      final json = original.toJson();
+      final restored = UserScriptConfig.fromJson(json);
+      expect(restored.name, original.name);
+      expect(restored.source, original.source);
+      expect(restored.url, original.url);
+      expect(restored.urlSource, original.urlSource);
+      expect(restored.injectionTime, original.injectionTime);
+      expect(restored.enabled, original.enabled);
+      expect(restored.fullSource, original.fullSource);
+    });
+  });
+
+  group('SettingsBackup global user scripts', () {
+    test('global scripts serialize and deserialize', () {
+      final scripts = [
+        UserScriptConfig(
+          name: 'Global Script',
+          source: 'console.log("global");',
+          injectionTime: UserScriptInjectionTime.atDocumentStart,
+        ),
+      ];
+      final jsonList = scripts.map((s) => s.toJson()).toList();
+      final restored = jsonList
+          .map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
+          .toList();
+      expect(restored, hasLength(1));
+      expect(restored[0].name, 'Global Script');
+      expect(restored[0].source, 'console.log("global");');
+      expect(restored[0].injectionTime, UserScriptInjectionTime.atDocumentStart);
+    });
   });
 }
