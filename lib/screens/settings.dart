@@ -528,7 +528,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : null,
           ),
           ListTile(
-            title: const Text('Site Scripts'),
+            title: const Text('User Scripts'),
             subtitle: Text(
               widget.webViewModel.userScripts.isEmpty
                   ? 'None'
@@ -540,7 +540,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => UserScriptsScreen(
-                    title: 'Site Scripts',
+                    title: 'User Scripts',
                     userScripts: widget.webViewModel.userScripts,
                     onSave: (scripts) {
                       widget.webViewModel.userScripts = scripts;
@@ -557,38 +557,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             final logsBefore = widget.webViewModel.consoleLogs.length;
                             await widget.webViewModel.controller!.evaluateJavascript(source);
                             // Brief delay to let console messages arrive
-                            await Future.delayed(const Duration(milliseconds: 200));
-                            final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
-                            return newLogs.map((e) => e.message).join('\n');
-                          }
-                        : null,
-                  ),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            title: const Text('Global Scripts'),
-            subtitle: Text(
-              widget.globalUserScripts.isEmpty
-                  ? 'None'
-                  : '${widget.globalUserScripts.where((s) => s.enabled).length} active',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => UserScriptsScreen(
-                    title: 'Global Scripts',
-                    userScripts: widget.globalUserScripts,
-                    onSave: (scripts) {
-                      widget.onGlobalUserScriptsChanged?.call(scripts);
-                    },
-                    onRun: widget.webViewModel.controller != null
-                        ? (source) async {
-                            final logsBefore = widget.webViewModel.consoleLogs.length;
-                            await widget.webViewModel.controller!.evaluateJavascript(source);
                             await Future.delayed(const Duration(milliseconds: 200));
                             final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
                             return newLogs.map((e) => e.message).join('\n');

@@ -1724,6 +1724,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       });
                       _saveShowTabStrip();
                     },
+                    globalUserScripts: _globalUserScripts,
+                    onGlobalUserScriptsChanged: (scripts) {
+                      _globalUserScripts = scripts;
+                      _saveGlobalUserScripts();
+                    },
                   ),
                 ),
               );
