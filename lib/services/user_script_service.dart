@@ -339,14 +339,24 @@ class UserScriptService {
   }
 
   /// Re-inject the shim and atDocumentStart user scripts. Call from onLoadStart.
+  ///
+  /// Scripts with [urlSource] (cached library) are skipped — they are already
+  /// handled by [initialUserScripts] (WKUserScript / native injection) which
+  /// persists across navigations. Re-injecting large libraries via
+  /// evaluateJavascript at onLoadStart races with the JS context setup and
+  /// causes ReferenceErrors.
   Future<void> reinjectOnLoadStart(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
     if (shimScript != null) {
       await _safeEval(controller, shimScript!);
     }
     for (final script in _scripts) {
+      if (!script.enabled) continue;
+      // Scripts with urlSource are injected via initialUserScripts (native
+      // mechanism). Re-injecting here races with WKUserScript timing.
+      if (script.urlSource != null && script.urlSource!.isNotEmpty) continue;
       final src = _buildSource(script);
-      if (!script.enabled || src.isEmpty) continue;
+      if (src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
         LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${src.length} chars)');
         await _safeEval(controller, src);
@@ -355,11 +365,16 @@ class UserScriptService {
   }
 
   /// Re-inject atDocumentEnd user scripts. Call from onLoadStop.
+  ///
+  /// Scripts with [urlSource] are skipped — same rationale as
+  /// [reinjectOnLoadStart].
   Future<void> reinjectOnLoadStop(inapp.InAppWebViewController controller) async {
     if (!hasScripts) return;
     for (final script in _scripts) {
+      if (!script.enabled) continue;
+      if (script.urlSource != null && script.urlSource!.isNotEmpty) continue;
       final src = _buildSource(script);
-      if (!script.enabled || src.isEmpty) continue;
+      if (src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
         LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${src.length} chars)');
         await _safeEval(controller, src);
