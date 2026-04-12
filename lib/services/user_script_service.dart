@@ -394,7 +394,8 @@ class UserScriptService {
     for (final script in _scripts) {
       if (!script.enabled || script.source.isEmpty) continue;
       LogService.instance.log('UserScript', 'SPA nav: re-running "${script.name}" source (${script.source.length} chars)');
-      await _safeEval(controller, script.source);
+      final safeName = script.name.replaceAll('"', '\\"');
+      await _safeEval(controller, 'console.log("__ws: SPA re-inject: $safeName");\n${script.source}');
     }
   }
 }
