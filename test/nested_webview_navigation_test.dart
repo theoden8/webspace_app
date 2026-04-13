@@ -68,13 +68,15 @@ class NavigationTestHarness {
   }
 
   /// Simulates the onUrlChanged cross-domain redirect detection.
-  /// Returns true if a cross-domain redirect was detected and handled.
+  /// Returns true if a cross-domain redirect was detected and handled
+  /// (i.e. a nested webview would be opened). Returns false if the
+  /// redirect was silently blocked or no redirect was detected.
   bool simulateUrlChanged(int siteIndex, String newUrl) {
     final site = sites[siteIndex];
 
-    // Skip data: and blob: URIs (inline content, no domain)
+    // Skip non-HTTP(S) URIs (inline content / browser internals, no domain)
     final scheme = Uri.tryParse(newUrl)?.scheme ?? '';
-    if (scheme == 'data' || scheme == 'blob') {
+    if (scheme == 'data' || scheme == 'blob' || scheme == 'about') {
       return false;
     }
 
@@ -82,8 +84,23 @@ class NavigationTestHarness {
     final initDomain = getNormalizedDomain(site.initUrl);
 
     if (urlDomain != initDomain && !WebViewFactory.isCaptchaChallenge(newUrl)) {
+      // Check gesture propagation (mirrors onUrlChanged logic)
+      bool hasRecentGesture = false;
+      final lastGesture = _lastSameDomainGestureTime[siteIndex];
+      if (lastGesture != null) {
+        final elapsed = DateTime.now().difference(lastGesture);
+        if (elapsed.inSeconds < 10) {
+          hasRecentGesture = true;
+        }
+        _lastSameDomainGestureTime[siteIndex] = null; // Consume
+      }
+
+      if (site.blockAutoRedirects && !hasRecentGesture) {
+        return false; // Silently blocked — no nested webview
+      }
+
       launchUrlCalls.add((url: newUrl, homeTitle: site.name));
-      return true; // Cross-domain redirect detected
+      return true; // Cross-domain redirect → nested webview opened
     }
     return false;
   }
@@ -529,11 +546,32 @@ void main() {
       harness = NavigationTestHarness();
     });
 
-    test('detects cross-domain URL that bypassed shouldOverrideUrlLoading', () {
+    test('cross-domain redirect without gesture is silently blocked when blockAutoRedirects=true', () {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
-      // Simulate: server-side 302 redirect landed on amazon.de
-      // without shouldOverrideUrlLoading firing
+      // No prior gesture — should be silently blocked (no nested webview)
+      final detected = harness.simulateUrlChanged(0, 'https://www.amazon.de/');
+      expect(detected, isFalse);
+      expect(harness.launchUrlCalls, isEmpty);
+    });
+
+    test('cross-domain redirect without gesture opens nested when blockAutoRedirects=false', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG',
+        blockAutoRedirects: false);
+
+      final detected = harness.simulateUrlChanged(0, 'https://www.amazon.de/');
+      expect(detected, isTrue);
+      expect(harness.launchUrlCalls.length, equals(1));
+      expect(harness.launchUrlCalls.last.url, equals('https://www.amazon.de/'));
+    });
+
+    test('cross-domain redirect with recent gesture opens nested even with blockAutoRedirects=true', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      // User clicks a same-domain link first (records gesture)
+      harness.simulateNavigation(0, 'https://duckduckgo.com/?q=test', hasGesture: true);
+
+      // Server-side 302 redirect to cross-domain — gesture should propagate
       final detected = harness.simulateUrlChanged(0, 'https://www.amazon.de/');
       expect(detected, isTrue);
       expect(harness.launchUrlCalls.length, equals(1));
@@ -586,6 +624,14 @@ void main() {
       final detected = harness.simulateUrlChanged(
         0, 'blob:https://example.com/abc-123',
       );
+      expect(detected, isFalse);
+      expect(harness.launchUrlCalls, isEmpty);
+    });
+
+    test('about:blank is not flagged as cross-domain redirect', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      final detected = harness.simulateUrlChanged(0, 'about:blank');
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
     });

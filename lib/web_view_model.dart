@@ -514,10 +514,10 @@ class WebViewModel {
             // (e.g., server-side 302 from search engine redirect pages like
             // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
 
-            // Skip data: and blob: URIs — they are inline content, not
-            // cross-domain navigations (e.g. DuckDuckGo uses data: URIs).
+            // Skip non-HTTP(S) URIs — these are inline content or browser
+            // internals, not cross-domain navigations.
             final urlScheme = Uri.tryParse(url)?.scheme ?? '';
-            if (urlScheme == 'data' || urlScheme == 'blob') {
+            if (urlScheme == 'data' || urlScheme == 'blob' || urlScheme == 'about') {
               return;
             }
 
@@ -527,11 +527,29 @@ class WebViewModel {
                 && !WebViewFactory.isCaptchaChallenge(url)
                 && !redirectHandled) {
               redirectHandled = true;
-              LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
-              // Navigate back to the last same-domain page (e.g., search results)
+
+              // Check gesture propagation (same logic as shouldOverrideUrlLoading)
+              bool hasRecentGesture = false;
+              if (lastSameDomainGestureTime != null) {
+                final elapsed = DateTime.now().difference(lastSameDomainGestureTime!);
+                if (elapsed.inSeconds < 10) {
+                  hasRecentGesture = true;
+                }
+                lastSameDomainGestureTime = null; // Consume
+              }
+
+              // Navigate back to the last same-domain page
               if (controller != null) {
                 controller!.loadUrl(previousSameDomainUrl ?? initUrl);
               }
+
+              if (blockAutoRedirects && !hasRecentGesture) {
+                // Silently block — no nested webview
+                LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)');
+                return;
+              }
+
+              LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
               // Open in nested webview if this site is active
               if (isActive == null || isActive()) {
                 launchUrlFunc(url, homeTitle: name, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
