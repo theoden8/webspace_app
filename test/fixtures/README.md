@@ -67,6 +67,20 @@ This directory contains HTML test files for automated testing of WebSpace featur
   4. All three modes work: Light → Dark → System
 - **Note**: This is for manual testing. For automated tests, see `test/theme_test.dart`
 
+## Notification Tests
+
+### `notification_test.html`
+- **Feature**: Web push notification API testing
+- **Purpose**: Manual verification of Notification API bridge, permission handling, and background delivery
+- **Tests**:
+  - NOTIF-001: `Notification.requestPermission()` grant/deny based on per-site toggle
+  - NOTIF-002: `new Notification()` constructor → native notification display
+  - NOTIF-003: Notification tap navigates back to originating site
+  - NOTIF-005: Background-active delayed notifications (5s, 10s, 15s)
+  - Edge cases: rapid fire, empty body, long text, denied permission
+- **Usage**: Import this file via "Import HTML file" on the Add Site screen, then use the buttons to exercise each notification requirement. Enable/disable the per-site notification toggle and background-active toggle to test different scenarios.
+- **Note**: This is for manual testing. The fixture logs all events with timestamps in an on-page log panel.
+
 ## General Test Page
 
 ### `test_page.html`

@@ -144,3 +144,51 @@ On Android 13+, the system SHALL request the `POST_NOTIFICATIONS` runtime permis
 **When** a site attempts to show a notification
 **Then** the system requests the `POST_NOTIFICATIONS` runtime permission
 **And** notifications are displayed only if the permission is granted
+
+## Manual Test Procedure
+
+Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it via "Import HTML file" on the Add Site screen.
+
+### Test: Permission grant/deny (NOTIF-001, NOTIF-004)
+1. Import `notification_test.html` as a site
+2. Open site settings, ensure `notificationsEnabled` is OFF
+3. Tap "Request Permission" in the fixture
+4. **Expected**: Permission result is `denied`, logged in the on-page log
+5. Enable `notificationsEnabled` in site settings
+6. Tap "Request Permission" again
+7. **Expected**: Permission result is `granted`
+
+### Test: Notification display (NOTIF-002)
+1. With permission granted, tap "Send Basic Notification"
+2. **Expected**: A native notification appears with title "Test Notification"
+3. Tap "Send Notification with Icon"
+4. **Expected**: Native notification appears with a Google favicon icon
+5. Tap "Send Notification with All Options"
+6. **Expected**: Native notification appears with title, body, icon, and tag
+
+### Test: Tap navigation (NOTIF-003)
+1. Tap "Send Notification (then tap it)"
+2. Switch to a different site in the app
+3. Tap the notification in the system tray
+4. **Expected**: App switches back to the notification fixture site
+
+### Test: Background delivery (NOTIF-005, NOTIF-006)
+1. Enable `backgroundActive` for the fixture site
+2. Tap "Send Delayed Notifications (5s, 10s, 15s)"
+3. Immediately put the app in background
+4. **Expected**: 3 native notifications arrive over 15 seconds
+5. On Android: a persistent foreground service notification should appear
+
+### Test: Edge cases
+1. Tap "Send 5 Rapid Notifications" — all 5 should appear as native notifications
+2. Tap "Send Empty Notification" — should display with title only, no body
+3. Tap "Send Notification with Long Text" — text should be truncated or scrollable
+4. Disable `notificationsEnabled`, tap "Send Without Permission" — no notification should display
+
+### Test: Cookie isolation interaction
+1. Import `notification_test.html` as Site A
+2. Add a real site (e.g., `github.com`) as Site B
+3. Enable `backgroundActive` and `notificationsEnabled` on Site A
+4. Tap "Send Delayed Notifications" on Site A, then switch to Site B
+5. **Expected**: Notifications still arrive (file:// domain doesn't conflict with github.com)
+6. The on-page log records successful sends (check when switching back to Site A)
