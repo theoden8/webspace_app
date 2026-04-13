@@ -94,6 +94,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | clearurls | ClearURLs tracking parameter removal with per-site toggle |
 | configurable-suggested-sites | Configurable suggested sites list with empty default for fdroid flavor |
 | content-blocker | ABP filter list content blocking (domain, CSS cosmetic, text-based hiding) |
+| file-import-sites | Import local HTML files as sites, rendered via HtmlCacheService |
 | cookie-secure-storage | Encrypted cookie persistence with flutter_secure_storage |
 | developer-tools | In-app dev tools: JS console, cookie inspector, HTML export, app logs |
 | dns-blocklist | Hagezi DNS blocklist domain blocking with severity levels and per-site toggle |

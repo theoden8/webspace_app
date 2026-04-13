@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -372,6 +373,53 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     }
   }
 
+  Future<void> _importHtmlFile() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['html', 'htm'],
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      String htmlContent;
+
+      if (file.bytes != null) {
+        htmlContent = String.fromCharCodes(file.bytes!);
+      } else if (file.path != null) {
+        htmlContent = await File(file.path!).readAsString();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not read the selected file')),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      // Use filename (without extension) as the site name
+      final fileName = file.name;
+      final nameWithoutExt = fileName.replaceAll(RegExp(r'\.(html?|htm)$', caseSensitive: false), '');
+
+      Navigator.pop(context, {
+        'url': 'file://$fileName',
+        'name': nameWithoutExt,
+        'incognito': _incognito,
+        'htmlContent': htmlContent,
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import failed: $e')),
+        );
+      }
+    }
+  }
+
   void _removeSuggestion(int index) {
     setState(() {
       _suggestions.removeAt(index);
@@ -611,16 +659,30 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         ),
                       ),
                       SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          String url = _urlController.text.trim();
-                          // If no protocol specified, default to https
-                          if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                            url = 'https://$url';
-                          }
-                          Navigator.pop(context, {'url': url, 'name': '', 'incognito': _incognito});
-                        },
-                        child: Text('Add Site'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                String url = _urlController.text.trim();
+                                // If no protocol specified, default to https
+                                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                                  url = 'https://$url';
+                                }
+                                Navigator.pop(context, {'url': url, 'name': '', 'incognito': _incognito});
+                              },
+                              child: Text('Add Site'),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _importHtmlFile,
+                              icon: Icon(Icons.file_open),
+                              label: Text('Import file'),
+                            ),
+                          ),
+                        ],
                       ),
                       SizedBox(height: 8),
                       Text(

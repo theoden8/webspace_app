@@ -2426,10 +2426,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final url = result['url'] as String;
     final customName = result['name'] as String;
     final incognito = result['incognito'] as bool? ?? false;
+    final htmlContent = result['htmlContent'] as String?;
 
-    // Try to fetch page title if custom name not provided
+    // Try to fetch page title if custom name not provided (skip for local files)
     String? pageTitle;
-    if (customName.isEmpty) {
+    if (customName.isEmpty && htmlContent == null) {
       pageTitle = await getPageTitle(url);
       if (!mounted) return;
     }
@@ -2445,6 +2446,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     } else if (pageTitle != null && pageTitle.isNotEmpty) {
       model.name = pageTitle;
       model.pageTitle = pageTitle;
+    }
+
+    // For imported HTML files, store the content in HtmlCacheService
+    // so the webview loads it via initialHtml on creation
+    if (htmlContent != null && !incognito) {
+      await HtmlCacheService.instance.saveHtml(model.siteId, htmlContent, url);
     }
 
     setState(() {
