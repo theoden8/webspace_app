@@ -1643,6 +1643,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     setState(() {
       _canGoBack = false;
     });
+    // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
+    if (model.fullscreenMode) {
+      _enterFullscreen();
+    }
     _saveWebViewModels();
   }
 
@@ -1681,9 +1685,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     return AppBar(
       title: _currentIndex != null && _currentIndex! < _webViewModels.length
           ? GestureDetector(
-              onTap: () {
-                _editSite(_currentIndex!);
-              },
+              onDoubleTap: _toggleFullscreen,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1695,8 +1697,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       softWrap: false,
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.edit, size: 18),
                 ],
               ),
             )
@@ -1937,6 +1937,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               : null;
                           final urlToLoad = model?.currentUrl;
                           final languageToUse = model?.language;
+
+                          // Apply fullscreen setting immediately
+                          if (model != null && model.fullscreenMode) {
+                            _enterFullscreen();
+                          } else {
+                            _exitFullscreen();
+                          }
 
                           setState(() {});
 
@@ -2320,6 +2327,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         : null;
                     final urlToLoad = model?.currentUrl;
                     final languageToUse = model?.language;
+
+                    // Apply fullscreen setting immediately
+                    if (model != null && model.fullscreenMode) {
+                      _enterFullscreen();
+                    } else {
+                      _exitFullscreen();
+                    }
 
                     setState(() {});
 

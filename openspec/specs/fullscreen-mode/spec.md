@@ -19,16 +19,24 @@ Users who use WebSpace as a web-app launcher want a full app experience without 
 
 ## Requirements
 
-### Requirement: FS-001 - Toggle Full Screen from Menu
+### Requirement: FS-001 - Toggle Full Screen
 
-The system SHALL allow users to enter full screen mode from the overflow menu.
+The system SHALL allow users to enter full screen mode from the overflow menu or by double-tapping the app bar title.
 
-#### Scenario: Enter full screen from app bar menu
+#### Scenario: Enter full screen from menu
 
 **Given** the user has a site loaded
 **When** the user opens the overflow menu (app bar or tab strip) and taps "Full Screen"
 **Then** the app bar, tab strip, URL bar, find toolbar, and system UI are hidden
 **And** the webview fills the entire screen
+
+#### Scenario: Toggle full screen by double-tapping title
+
+**Given** the user has a site loaded
+**When** the user double-taps the site name in the app bar
+**Then** the app enters full screen mode
+**When** the user exits full screen and double-taps the title again
+**Then** the app enters full screen mode again
 
 ---
 
@@ -73,6 +81,14 @@ The system SHALL support a per-site setting to automatically enter full screen w
 **When** the user enables the "Full screen mode" toggle
 **And** saves settings
 **Then** the `fullscreenMode` field is persisted for that site
+**And** full screen mode is entered immediately
+
+#### Scenario: Pressing Home on auto-fullscreen site
+
+**Given** site "MyApp" has "Full screen mode" enabled
+**And** the user is viewing "MyApp"
+**When** the user presses the Home button (which disposes and recreates the webview)
+**Then** full screen mode remains active
 
 ---
 
