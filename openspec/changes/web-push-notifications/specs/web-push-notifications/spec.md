@@ -33,18 +33,38 @@ The system SHALL intercept `new Notification()` constructor calls from web pages
 
 ### Requirement: NOTIF-003 - Notification Tap Navigation
 
-The system SHALL navigate to the originating site when the user taps a notification.
+The system SHALL navigate to the originating site when the user taps a notification. This routes through `_setCurrentIndex`, which applies the standard domain-conflict detection and cookie isolation cycle.
 
-#### Scenario: User taps a notification
+#### Scenario: User taps a notification for a loaded site
 
 **Given** a native notification was created by Site A
+**And** Site A is still loaded in `_loadedIndices`
 **When** the user taps the notification
 **Then** the app opens (or comes to foreground)
+**And** `_setCurrentIndex` is called with Site A's index
 **And** Site A becomes the active site
+
+#### Scenario: User taps a notification that triggers domain conflict
+
+**Given** a native notification was created by Site A (`github.com/personal`)
+**And** Site B (`github.com/work`) is currently loaded
+**When** the user taps the notification
+**Then** `_setCurrentIndex` runs domain-conflict detection
+**And** Site B is unloaded (cookies captured, webview disposed, CookieManager cleared)
+**And** Site A's cookies are restored and its webview is created
+**And** Cookies for remaining background-active sites on other domains are also restored
+
+#### Scenario: User taps a notification for a site that was unloaded
+
+**Given** a native notification was created by Site A
+**And** Site A was since unloaded (e.g., due to a domain conflict)
+**When** the user taps the notification
+**Then** `_setCurrentIndex` creates Site A's webview fresh
+**And** Site A's cookies are restored from secure storage
 
 ### Requirement: NOTIF-004 - Per-Site Notification Toggle
 
-The system SHALL provide a per-site toggle to control whether the site is allowed to show notifications.
+The system SHALL provide a per-site toggle to control whether the site is allowed to show notifications. Defaults to off (opt-in).
 
 #### Scenario: User enables notifications for a site
 
@@ -62,7 +82,7 @@ The system SHALL provide a per-site toggle to control whether the site is allowe
 
 ### Requirement: NOTIF-005 - Per-Site Background Active Toggle
 
-The system SHALL provide a per-site toggle to keep selected webviews running when the app enters the background.
+The system SHALL provide a per-site toggle to keep selected webviews running when the app enters the background. The `backgroundActive` flag does NOT override cookie isolation — same-domain mutual exclusion still applies.
 
 #### Scenario: App enters background with background-active site
 
@@ -77,6 +97,23 @@ The system SHALL provide a per-site toggle to keep selected webviews running whe
 **Given** no sites have `backgroundActive` set to `true`
 **When** the app enters the background
 **Then** all webviews are paused (existing behavior)
+
+#### Scenario: Background-active site is unloaded by domain conflict
+
+**Given** Site A (`github.com/personal`) has `backgroundActive` set to `true`
+**And** Site A is loaded and running in background
+**When** Site B (`github.com/work`) is selected by the user
+**Then** Site A is unloaded (cookies captured, webview disposed) per ISO-001
+**And** Site A can no longer deliver notifications until re-loaded
+
+#### Scenario: Two background-active sites on same domain
+
+**Given** Site A (`github.com/personal`) has `backgroundActive` set to `true`
+**And** Site B (`github.com/work`) has `backgroundActive` set to `true`
+**When** both sites attempt to auto-load on startup
+**Then** only one is loaded (the first encountered)
+**And** the other remains as a placeholder due to domain conflict
+**And** a warning is logged
 
 ### Requirement: NOTIF-006 - Android Foreground Service
 
