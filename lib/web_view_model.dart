@@ -453,6 +453,14 @@ class WebViewModel {
               return true;
             }
 
+            // Allow data: and blob: URIs - these are inline content with no
+            // real domain (e.g. DuckDuckGo uses data: URIs internally).
+            final scheme = Uri.tryParse(url)?.scheme ?? '';
+            if (scheme == 'data' || scheme == 'blob') {
+              LogService.instance.log('WebView', 'shouldOverrideUrlLoading: ALLOW $url (inline $scheme: URI)');
+              return true;
+            }
+
             // Use normalized domain comparison (handles aliases like mail.google.com -> gmail.com)
             final requestNormalized = getNormalizedDomain(url);
             final initialNormalized = getNormalizedDomain(initUrl);
@@ -505,6 +513,14 @@ class WebViewModel {
             // Detect cross-domain redirects that bypassed shouldOverrideUrlLoading
             // (e.g., server-side 302 from search engine redirect pages like
             // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
+
+            // Skip data: and blob: URIs — they are inline content, not
+            // cross-domain navigations (e.g. DuckDuckGo uses data: URIs).
+            final urlScheme = Uri.tryParse(url)?.scheme ?? '';
+            if (urlScheme == 'data' || urlScheme == 'blob') {
+              return;
+            }
+
             final urlDomain = getNormalizedDomain(url);
             final initDomain = getNormalizedDomain(initUrl);
             if (urlDomain != initDomain
