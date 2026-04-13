@@ -23,6 +23,7 @@ void main() {
       expect(model.dnsBlockEnabled, isTrue);
       expect(model.contentBlockEnabled, isTrue);
       expect(model.localCdnEnabled, isTrue);
+      expect(model.fullscreenMode, isFalse);
     });
 
     test('should serialize to JSON correctly', () {
@@ -47,6 +48,7 @@ void main() {
       expect(json['dnsBlockEnabled'], equals(true));
       expect(json['contentBlockEnabled'], equals(true));
       expect(json['localCdnEnabled'], equals(true));
+      expect(json['fullscreenMode'], equals(false));
       expect(json['cookies'], isList);
       expect(json['proxySettings'], isMap);
     });
@@ -101,6 +103,7 @@ void main() {
       expect(restored.dnsBlockEnabled, equals(original.dnsBlockEnabled));
       expect(restored.contentBlockEnabled, equals(original.contentBlockEnabled));
       expect(restored.localCdnEnabled, equals(original.localCdnEnabled));
+      expect(restored.fullscreenMode, equals(original.fullscreenMode));
     });
 
     test('clearUrlEnabled defaults to true when missing from JSON', () {
@@ -213,6 +216,34 @@ void main() {
 
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.localCdnEnabled, isFalse);
+    });
+
+    test('fullscreenMode defaults to false when missing from JSON', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.fullscreenMode, isFalse);
+    });
+
+    test('fullscreenMode true is preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        fullscreenMode: true,
+      );
+
+      final json = model.toJson();
+      expect(json['fullscreenMode'], equals(true));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.fullscreenMode, isTrue);
     });
   });
 

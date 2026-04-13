@@ -630,6 +630,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   bool _isBackHandling = false;
   bool _isFindVisible = false;
+  bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
   bool _showUrlBar = false;
   bool _showTabStrip = false;
   bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
@@ -691,6 +692,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
       await _webViewModels[_currentIndex!].resumeWebView();
+    }
+    // Re-apply fullscreen system UI mode after resume
+    if (_isFullscreen) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     }
   }
 
@@ -801,6 +806,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       _currentIndex = index;
       _canGoBack = false;
+      _exitFullscreen();
       return;
     }
 
@@ -856,6 +862,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Resume the newly active webview
     await _webViewModels[index].resumeWebView();
     _updateCanGoBack();
+
+    // Auto-enter fullscreen if the site has fullscreenMode enabled
+    if (target.fullscreenMode) {
+      _enterFullscreen();
+    } else {
+      _exitFullscreen();
+    }
 
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
   }
@@ -1163,6 +1176,30 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     setState(() {
       _isFindVisible = !_isFindVisible;
     });
+  }
+
+  void _enterFullscreen() {
+    if (_isFullscreen) return;
+    setState(() {
+      _isFullscreen = true;
+    });
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  void _exitFullscreen() {
+    if (!_isFullscreen) return;
+    setState(() {
+      _isFullscreen = false;
+    });
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
+  void _toggleFullscreen() {
+    if (_isFullscreen) {
+      _exitFullscreen();
+    } else {
+      _enterFullscreen();
+    }
   }
 
   // Webspace management methods
@@ -1606,6 +1643,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     setState(() {
       _canGoBack = false;
     });
+    // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
+    if (model.fullscreenMode) {
+      _enterFullscreen();
+    }
     _saveWebViewModels();
   }
 
@@ -1644,9 +1685,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     return AppBar(
       title: _currentIndex != null && _currentIndex! < _webViewModels.length
           ? GestureDetector(
-              onTap: () {
-                _editSite(_currentIndex!);
-              },
+              onDoubleTap: _toggleFullscreen,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1658,8 +1697,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       softWrap: false,
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.edit, size: 18),
                 ],
               ),
             )
@@ -1813,6 +1850,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   ),
                 ),
                 PopupMenuItem<String>(
+                  value: "fullscreen",
+                  child: Row(
+                    children: [
+                      Icon(Icons.fullscreen),
+                      SizedBox(width: 8),
+                      Text("Full Screen"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
                   value: "settings",
                   child: Row(
                     children: [
@@ -1849,6 +1896,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               switch(value) {
                 case 'search':
                   _toggleFind();
+                break;
+                case 'fullscreen':
+                  _enterFullscreen();
                 break;
                 case 'settings':
                   await Navigator.push(
@@ -1887,6 +1937,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               : null;
                           final urlToLoad = model?.currentUrl;
                           final languageToUse = model?.language;
+
+                          // Apply fullscreen setting immediately
+                          if (model != null && model.fullscreenMode) {
+                            _enterFullscreen();
+                          } else {
+                            _exitFullscreen();
+                          }
 
                           setState(() {});
 
@@ -1951,6 +2008,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// Build the tab strip shown in bottomNavigationBar.
   /// This stays at the screen bottom and doesn't need to be above the keyboard.
   Widget? _buildTabStrip() {
+    if (_isFullscreen) return null;
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       return null;
     }
@@ -2056,6 +2114,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// Build the URL bar and find toolbar, placed in the body so that
   /// resizeToAvoidBottomInset keeps them above the keyboard.
   Widget? _buildInputBar() {
+    if (_isFullscreen) return null;
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       return null;
     }
@@ -2181,6 +2240,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             ),
           ),
           PopupMenuItem<String>(
+            value: "fullscreen",
+            child: Row(
+              children: [
+                Icon(Icons.fullscreen),
+                SizedBox(width: 8),
+                Text("Full Screen"),
+              ],
+            ),
+          ),
+          PopupMenuItem<String>(
             value: "settings",
             child: Row(
               children: [
@@ -2217,6 +2286,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         switch(value) {
           case 'search':
             _toggleFind();
+          break;
+          case 'fullscreen':
+            _enterFullscreen();
           break;
           case 'settings':
             await Navigator.push(
@@ -2255,6 +2327,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         : null;
                     final urlToLoad = model?.currentUrl;
                     final languageToUse = model?.language;
+
+                    // Apply fullscreen setting immediately
+                    if (model != null && model.fullscreenMode) {
+                      _enterFullscreen();
+                    } else {
+                      _exitFullscreen();
+                    }
 
                     setState(() {});
 
@@ -2956,8 +3035,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         && _showTabStrip
         && filteredIndices.isNotEmpty;
     return SafeArea(
-      top: false, // AppBar handles top inset
-      bottom: !hasTabStrip && inputBar == null,
+      top: false, // AppBar handles top inset; in fullscreen there's no AppBar either
+      bottom: _isFullscreen ? false : (!hasTabStrip && inputBar == null),
       // Use Stack + Offstage so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing
@@ -3037,6 +3116,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       }).toList(),
                     ),
                   ),
+                // Fullscreen exit zone: a thin touch target at the top edge
+                if (_isFullscreen)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 24,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: _exitFullscreen,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -3060,6 +3151,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       canPop: Platform.isAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _isBackHandling) return;
+        // Exit fullscreen on back gesture before any other back handling
+        if (_isFullscreen) {
+          _exitFullscreen();
+          return;
+        }
         _isBackHandling = true;
         try {
           final scaffoldState = _scaffoldKey.currentState;
@@ -3127,7 +3223,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       drawerEdgeDragWidth: webviewIsVisible
           ? (Platform.isIOS && !_canGoBack ? null : 0)
           : null,
-      appBar: _buildAppBar(),
+      appBar: _isFullscreen ? null : _buildAppBar(),
       drawer: Drawer(
         child: Column(
           children: [

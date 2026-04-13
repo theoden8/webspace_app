@@ -259,6 +259,7 @@ class WebViewModel {
   bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
+  bool fullscreenMode; // Auto-enter fullscreen when this site is selected
   List<UserScriptConfig> userScripts; // Per-site user scripts
   Set<BlockedCookie> blockedCookies; // Per-site blocked cookies (name + domain)
 
@@ -288,6 +289,7 @@ class WebViewModel {
     this.contentBlockEnabled = true,
     this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
+    this.fullscreenMode = false,
     List<UserScriptConfig>? userScripts,
     Set<BlockedCookie>? blockedCookies,
     this.stateSetterF,
@@ -733,6 +735,7 @@ class WebViewModel {
         'contentBlockEnabled': contentBlockEnabled,
         'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
+        'fullscreenMode': fullscreenMode,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (blockedCookies.isNotEmpty)
           'blockedCookies': blockedCookies.map((b) => b.toJson()).toList(),
@@ -758,6 +761,7 @@ class WebViewModel {
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,
       localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
+      fullscreenMode: json['fullscreenMode'] ?? false,
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),
