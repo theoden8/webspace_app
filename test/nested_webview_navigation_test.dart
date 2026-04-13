@@ -30,6 +30,12 @@ class NavigationTestHarness {
   bool simulateNavigation(int siteIndex, String targetUrl, {bool hasGesture = true}) {
     final site = sites[siteIndex];
 
+    // Allow data: and blob: URIs (inline content, no domain)
+    final scheme = Uri.tryParse(targetUrl)?.scheme ?? '';
+    if (scheme == 'data' || scheme == 'blob') {
+      return true;
+    }
+
     // Replicate the exact logic from WebViewModel.getWebView
     final requestNormalized = getNormalizedDomain(targetUrl);
     final initialNormalized = getNormalizedDomain(site.initUrl);
@@ -65,6 +71,13 @@ class NavigationTestHarness {
   /// Returns true if a cross-domain redirect was detected and handled.
   bool simulateUrlChanged(int siteIndex, String newUrl) {
     final site = sites[siteIndex];
+
+    // Skip data: and blob: URIs (inline content, no domain)
+    final scheme = Uri.tryParse(newUrl)?.scheme ?? '';
+    if (scheme == 'data' || scheme == 'blob') {
+      return false;
+    }
+
     final urlDomain = getNormalizedDomain(newUrl);
     final initDomain = getNormalizedDomain(site.initUrl);
 
@@ -555,6 +568,70 @@ void main() {
       );
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
+    });
+
+    test('data: URI is not flagged as cross-domain redirect', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      final detected = harness.simulateUrlChanged(
+        0, 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
+      );
+      expect(detected, isFalse);
+      expect(harness.launchUrlCalls, isEmpty);
+    });
+
+    test('blob: URI is not flagged as cross-domain redirect', () {
+      harness.addSite('https://example.com', name: 'Example');
+
+      final detected = harness.simulateUrlChanged(
+        0, 'blob:https://example.com/abc-123',
+      );
+      expect(detected, isFalse);
+      expect(harness.launchUrlCalls, isEmpty);
+    });
+  });
+
+  group('Inline URI Schemes (data:, blob:) in shouldOverrideUrlLoading', () {
+    late NavigationTestHarness harness;
+
+    setUp(() {
+      harness = NavigationTestHarness();
+    });
+
+    test('data: URI is allowed without opening nested webview', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      final result = harness.simulateNavigation(
+        0, 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
+      );
+      expect(result, isTrue,
+        reason: 'data: URI should be allowed as same-page inline content');
+      expect(harness.launchUrlCalls, isEmpty,
+        reason: 'data: URI should not open a nested webview');
+    });
+
+    test('blob: URI is allowed without opening nested webview', () {
+      harness.addSite('https://example.com', name: 'Example');
+
+      final result = harness.simulateNavigation(
+        0, 'blob:https://example.com/550e8400-e29b-41d4-a716-446655440000',
+      );
+      expect(result, isTrue,
+        reason: 'blob: URI should be allowed as same-origin inline content');
+      expect(harness.launchUrlCalls, isEmpty,
+        reason: 'blob: URI should not open a nested webview');
+    });
+
+    test('data: URI is allowed even with blockAutoRedirects enabled', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG',
+        blockAutoRedirects: true);
+
+      final result = harness.simulateNavigation(
+        0, 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
+        hasGesture: false,
+      );
+      expect(result, isTrue,
+        reason: 'data: URI should bypass cross-domain checks entirely');
     });
   });
 
