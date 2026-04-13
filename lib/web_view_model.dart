@@ -527,11 +527,29 @@ class WebViewModel {
                 && !WebViewFactory.isCaptchaChallenge(url)
                 && !redirectHandled) {
               redirectHandled = true;
-              LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
-              // Navigate back to the last same-domain page (e.g., search results)
+
+              // Check gesture propagation (same logic as shouldOverrideUrlLoading)
+              bool hasRecentGesture = false;
+              if (lastSameDomainGestureTime != null) {
+                final elapsed = DateTime.now().difference(lastSameDomainGestureTime!);
+                if (elapsed.inSeconds < 10) {
+                  hasRecentGesture = true;
+                }
+                lastSameDomainGestureTime = null; // Consume
+              }
+
+              // Navigate back to the last same-domain page
               if (controller != null) {
                 controller!.loadUrl(previousSameDomainUrl ?? initUrl);
               }
+
+              if (blockAutoRedirects && !hasRecentGesture) {
+                // Silently block — no nested webview
+                LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)');
+                return;
+              }
+
+              LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
               // Open in nested webview if this site is active
               if (isActive == null || isActive()) {
                 launchUrlFunc(url, homeTitle: name, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
