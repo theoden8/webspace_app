@@ -72,9 +72,9 @@ class NavigationTestHarness {
   bool simulateUrlChanged(int siteIndex, String newUrl) {
     final site = sites[siteIndex];
 
-    // Skip data: and blob: URIs (inline content, no domain)
+    // Skip non-HTTP(S) URIs (inline content / browser internals, no domain)
     final scheme = Uri.tryParse(newUrl)?.scheme ?? '';
-    if (scheme == 'data' || scheme == 'blob') {
+    if (scheme == 'data' || scheme == 'blob' || scheme == 'about') {
       return false;
     }
 
@@ -586,6 +586,14 @@ void main() {
       final detected = harness.simulateUrlChanged(
         0, 'blob:https://example.com/abc-123',
       );
+      expect(detected, isFalse);
+      expect(harness.launchUrlCalls, isEmpty);
+    });
+
+    test('about:blank is not flagged as cross-domain redirect', () {
+      harness.addSite('https://duckduckgo.com', name: 'DDG');
+
+      final detected = harness.simulateUrlChanged(0, 'about:blank');
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
     });

@@ -514,10 +514,10 @@ class WebViewModel {
             // (e.g., server-side 302 from search engine redirect pages like
             // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
 
-            // Skip data: and blob: URIs — they are inline content, not
-            // cross-domain navigations (e.g. DuckDuckGo uses data: URIs).
+            // Skip non-HTTP(S) URIs — these are inline content or browser
+            // internals, not cross-domain navigations.
             final urlScheme = Uri.tryParse(url)?.scheme ?? '';
-            if (urlScheme == 'data' || urlScheme == 'blob') {
+            if (urlScheme == 'data' || urlScheme == 'blob' || urlScheme == 'about') {
               return;
             }
 
