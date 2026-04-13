@@ -165,9 +165,40 @@ void main() {
     test('isBlocked checks domain and parent domains', () {
       final service = ContentBlockerService.instance;
       service.reset();
-      // Manually test isBlocked by checking service behavior
-      // (actual domain set is populated by _rebuildRules which needs file I/O)
+      service.setBlockedDomains({'tracker.net', 'ads.example.com'});
+
+      expect(service.isBlocked('https://tracker.net/path'), isTrue);
+      expect(service.isBlocked('https://sub.tracker.net/path'), isTrue);
+      expect(service.isBlocked('https://ads.example.com/script.js'), isTrue);
       expect(service.isBlocked('https://example.com'), isFalse);
+      expect(service.isBlocked('https://mytracker.net'), isFalse);
+    });
+
+    test('isBlocked respects exception domains', () {
+      final service = ContentBlockerService.instance;
+      service.reset();
+      service.setBlockedDomains({'tracker.net', 'ads.example.com'});
+      service.setExceptionDomains({'cdn.tracker.net'});
+
+      // tracker.net is blocked
+      expect(service.isBlocked('https://tracker.net/path'), isTrue);
+      // cdn.tracker.net is excepted — should NOT be blocked
+      expect(service.isBlocked('https://cdn.tracker.net/resource.js'), isFalse);
+      // sub.cdn.tracker.net is also excepted (parent domain walk-up)
+      expect(service.isBlocked('https://sub.cdn.tracker.net/resource.js'), isFalse);
+      // other subdomain still blocked
+      expect(service.isBlocked('https://other.tracker.net/path'), isTrue);
+    });
+
+    test('isBlocked with exception on exact blocked domain', () {
+      final service = ContentBlockerService.instance;
+      service.reset();
+      service.setBlockedDomains({'example.com'});
+      service.setExceptionDomains({'example.com'});
+
+      // Exception overrides block for exact match
+      expect(service.isBlocked('https://example.com'), isFalse);
+      expect(service.isBlocked('https://sub.example.com'), isFalse);
     });
 
     test('getCosmeticScript returns null when no selectors', () {

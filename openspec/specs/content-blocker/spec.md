@@ -70,17 +70,47 @@ The system SHALL parse filter lists in ABP/EasyList syntax, extracting three typ
 **When** the list is parsed
 **Then** `div:has(.ad-label)` is added as a cosmetic selector (`:has()` is standard CSS)
 
+#### Scenario: Parse exception rules
+
+**Given** a filter list containing `@@||cdn.example.com^`
+**When** the list is parsed
+**Then** `cdn.example.com` is added to the exception domains set
+
+#### Scenario: Skip complex exception rules
+
+**Given** a filter list containing `@@||example.com/path$script`
+**When** the list is parsed
+**Then** the rule is skipped (only simple domain-anchored exceptions are supported)
+
+#### Scenario: Convert :has-text() in cosmetic rules to text hide rules
+
+**Given** a filter list containing `##.container:has-text(Sponsored)`
+**When** the list is parsed
+**Then** a text hide rule is created with selector `.container` and pattern `Sponsored`
+
+#### Scenario: Convert :contains() in cosmetic rules to text hide rules
+
+**Given** a filter list containing `example.com##div.post:contains(Advertisement)`
+**When** the list is parsed
+**Then** a text hide rule is created with selector `div.post` and pattern `Advertisement` scoped to `example.com`
+
+#### Scenario: Rewrite :-abp-has() to standard CSS :has()
+
+**Given** a filter list containing `##div:-abp-has(.ad-label)`
+**When** the list is parsed
+**Then** `div:has(.ad-label)` is added as a cosmetic selector (rewritten to standard CSS)
+
 #### Scenario: Skip unsupported rule types
 
-**Given** a filter list containing rules with `#$#` (snippets), `##^` (HTML filters), `$redirect`, `$csp`, `$removeparam`, `@@` (exceptions), or regex patterns
+**Given** a filter list containing rules with `#$#` (snippets), `##^` (HTML filters), `$redirect`, `$csp`, `$removeparam`, or regex patterns
 **When** the list is parsed
 **Then** these rules are silently skipped
 
-#### Scenario: Skip ABP-only extended CSS
+#### Scenario: Skip unsupported extended CSS pseudo-classes
 
-**Given** a filter list containing selectors with `:-abp-has()`, `:has-text()`, `:contains()`, `:matches-path()`, or `:matches-attr()`
+**Given** a filter list containing selectors with `:matches-path()`, `:matches-attr()`, `:min-text-length()`, or `:watch-attr()`
 **When** the list is parsed
-**Then** these selectors are skipped (not standard CSS, would fail in querySelectorAll)
+**Then** these selectors are skipped (not supported)
 
 #### Scenario: Case-insensitive domain matching
 
@@ -153,7 +183,7 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 ### Requirement: CB-003 - Domain Blocking
 
-The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups.
+The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups. Exception domains (`@@||domain^`) override blocked domains.
 
 #### Scenario: Exact domain match
 
@@ -172,6 +202,27 @@ The system SHALL block navigation to domains matched by `||domain^` rules using 
 **Given** `tracker.net` is in the blocked domains set
 **When** the webview navigates to `https://mytracker.net/path`
 **Then** navigation is allowed (`mytracker.net` is not a subdomain of `tracker.net`)
+
+#### Scenario: Exception domain overrides block
+
+**Given** `tracker.net` is in the blocked domains set
+**And** `cdn.tracker.net` is in the exception domains set
+**When** the webview navigates to `https://cdn.tracker.net/resource.js`
+**Then** navigation is allowed (exception overrides block)
+
+#### Scenario: Exception domain with subdomain walk-up
+
+**Given** `tracker.net` is in the blocked domains set
+**And** `cdn.tracker.net` is in the exception domains set
+**When** the webview navigates to `https://sub.cdn.tracker.net/resource.js`
+**Then** navigation is allowed (parent domain walk-up finds exception)
+
+#### Scenario: Exception does not affect unrelated subdomains
+
+**Given** `tracker.net` is in the blocked domains set
+**And** `cdn.tracker.net` is in the exception domains set
+**When** the webview navigates to `https://other.tracker.net/path`
+**Then** navigation is cancelled (exception only covers cdn.tracker.net)
 
 #### Scenario: Hook ordering
 
@@ -340,6 +391,7 @@ Our custom implementation avoids these issues:
 ```dart
 class AbpParseResult {
   final Set<String> blockedDomains;                    // ||domain^ rules
+  final Set<String> exceptionDomains;                  // @@||domain^ rules
   final Map<String, List<String>> cosmeticSelectors;   // ## rules (key '' = global)
   final Map<String, List<TextHideRule>> textHideRules; // #?# rules with :-abp-contains
 }
@@ -358,16 +410,20 @@ Rule type support:
 |--------|---------|-------|
 | `\|\|domain^` | Converted to blocked domain | Simple domain-only patterns |
 | `\|\|domain^$options` | Converted (options ignored) | Domain extracted, options skipped |
+| `@@\|\|domain^` | Converted to exception domain | Overrides blocked domains |
 | `##selector` | Converted to cosmetic selector | Including standard CSS `:has()` |
 | `domain##selector` | Converted with domain scope | Multiple domains via `d1,d2##sel` |
+| `##sel:-abp-has(X)` | Rewritten to `sel:has(X)` | Standard CSS `:has()` |
+| `##sel:has-text(text)` | Converted to TextHideRule | Text-based element hiding |
+| `##sel:contains(text)` | Converted to TextHideRule | Alias for `:has-text()` |
 | `#?#sel:-abp-contains(text)` | Converted to TextHideRule | Extracts selector + text patterns |
 | `#?#sel:-abp-contains(/a\|b/)` | Converted to TextHideRule | Regex-style patterns split on `\|` |
 | `#$#` snippet filters | Skipped | Would require ABP snippet runtime |
 | `##^` HTML filters | Skipped | Non-standard |
-| `@@` exception rules | Skipped | Not implemented |
+| `@@\|\|domain/path` | Skipped | Only simple domain exceptions supported |
 | `$redirect`, `$csp`, `$removeparam` | Skipped | Advanced modifiers |
 | `/regex/` patterns | Skipped | Resource-level regex |
-| `:-abp-has()`, `:has-text()` etc. | Skipped in `##` | ABP-only pseudo-classes |
+| `:matches-path()`, `:matches-attr()` | Skipped in `##` | Unsupported pseudo-classes |
 
 ### ContentBlockerService Singleton
 
@@ -377,12 +433,13 @@ static ContentBlockerService get instance => _instance ??= ContentBlockerService
 ```
 
 Key methods:
-- `isBlocked(url)` — O(1) domain lookup with parent domain walk-up
+- `isBlocked(url)` — O(1) domain lookup with parent domain walk-up; exception domains checked first
 - `getEarlyCssScript(pageUrl)` — Returns JS that injects a `<style>` tag (for DOCUMENT_START)
 - `getCosmeticScript(pageUrl)` — Returns full JS with MutationObserver + text hiding (for onLoadStop)
 
 Aggregated state:
 - `_blockedDomains: Set<String>` — union of all enabled lists' blocked domains
+- `_exceptionDomains: Set<String>` — union of all enabled lists' exception domains (override blocks)
 - `_cosmeticSelectors: Map<String, List<String>>` — union of all enabled lists' CSS selectors
 - `_textHideRules: Map<String, List<TextHideRule>>` — union of all enabled lists' text rules
 
@@ -499,12 +556,17 @@ ABP filter parser tests cover:
 - Comment and header line skipping
 - Simple domain block rule conversion (`||domain^`)
 - Domain rule without trailing `^`
-- Exception rule skipping (`@@`)
+- Simple exception rule conversion (`@@||domain^`)
+- Complex exception rule skipping (`@@||domain/path`)
+- Exception domain case-insensitivity
 - Global cosmetic filter conversion (`##.selector`)
 - Domain-specific cosmetic filter conversion (`domain##.selector`)
 - Multi-domain cosmetic filter
 - Standard CSS `:has()` selectors (allowed — native CSS)
-- ABP-only `:has-text()` selectors (skipped)
+- `:has-text()` in `##` rules converted to text hide rules
+- `:contains()` in `##` rules converted to text hide rules
+- `:-abp-has()` rewritten to standard `:has()` in cosmetic rules
+- Domain-specific `:-abp-has()` rewriting
 - `#?#` rules with `:-abp-contains()` to text hide rules
 - `#?#` rules without text matching (skipped)
 - `#$#` snippet rules (skipped)
@@ -512,7 +574,7 @@ ABP filter parser tests cover:
 - Complex path rules (skipped — not domain-only)
 - `$redirect`, `$csp`, `$removeparam` rules (skipped)
 - Regex patterns (skipped)
-- Mixed rule parsing
+- Mixed rule parsing (domains, exceptions, cosmetic, :-abp-has, :has-text)
 - Real EasyList-style rules
 - Case-insensitive domain blocking
 - Selector aggregation from multiple rules
@@ -527,6 +589,8 @@ Content blocker service tests cover:
 - totalRuleCount across enabled lists
 - Unmodifiable list getter
 - isBlocked with domain hierarchy walk-up
+- isBlocked respects exception domains (subdomain exception, unrelated subdomains still blocked)
+- isBlocked with exception on exact blocked domain
 - getCosmeticScript returns null when no selectors
 
 ### Manual Testing
