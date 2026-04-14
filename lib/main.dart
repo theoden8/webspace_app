@@ -1184,6 +1184,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _isFullscreen = true;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // On iOS there is no back gesture on the root route, so show a
+    // brief hint explaining how to exit fullscreen.
+    if (Platform.isIOS) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tap the top of the screen to exit full screen'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _exitFullscreen() {
@@ -3123,16 +3134,33 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       }).toList(),
                     ),
                   ),
-                // Fullscreen exit zone: a thin touch target at the top edge
+                // Fullscreen exit zone: touch target at the top edge.
+                // On iOS there is no system back button and the root route
+                // has no swipe-back gesture, so this zone is the primary
+                // exit path — use the HIG minimum of 44px and show a
+                // visible handle so users can discover it.
                 if (_isFullscreen)
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: 24,
+                    height: Platform.isIOS ? 44 : 24,
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: _exitFullscreen,
+                      child: Platform.isIOS
+                          ? Center(
+                              child: Container(
+                                margin: const EdgeInsets.only(top: 8),
+                                width: 36,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(2.5),
+                                ),
+                              ),
+                            )
+                          : null,
                     ),
                   ),
               ],
