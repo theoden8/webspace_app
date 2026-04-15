@@ -54,16 +54,16 @@ The system SHALL provide multiple ways to exit full screen mode.
 #### Scenario: Exit via top edge tap
 
 **Given** the user is in full screen mode
-**When** the user taps the top edge of the screen (44px on iOS, 24px on other platforms)
+**When** the user taps the top edge of the screen (notch safe area + 44px on iOS, 24px on other platforms)
 **Then** full screen mode is exited
 
 #### Scenario: iOS fullscreen hint
 
 **Given** the user enters full screen mode on iOS
 **Then** a brief SnackBar is shown: "Tap the top of the screen to exit full screen"
-**And** a visible translucent handle is displayed at the top center of the screen
+**And** a visible translucent handle is displayed below the notch/Dynamic Island area
 
-**Rationale:** On iOS, the back gesture (swipe from left edge) does not work on the root route, so the top edge tap is the only exit path. The larger 44px zone (Apple HIG minimum touch target), visible handle, and SnackBar hint ensure discoverability.
+**Rationale:** On iOS, the back gesture (swipe from left edge) does not work on the root route, so the top edge tap is the only exit path. The zone spans the notch safe area plus 44px of tappable space below it (using `MediaQuery.padding.top`), and the visible handle is positioned beneath the notch to avoid being hidden by the camera cutout.
 
 ---
 
@@ -142,7 +142,7 @@ The system SHALL exit full screen when navigating to the webspaces list.
 - **App bar**: Hidden when `_isFullscreen` is true (`appBar: _isFullscreen ? null : _buildAppBar()`)
 - **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen`
 - **Input bar**: `_buildInputBar()` returns null when `_isFullscreen`
-- **Exit zone**: GestureDetector at top edge when fullscreen (44px on iOS with visible handle, 24px on other platforms)
+- **Exit zone**: GestureDetector at top edge when fullscreen (notch safe area + 44px on iOS with visible handle below notch, 24px on other platforms)
 - **iOS hint**: SnackBar shown on entering fullscreen on iOS to explain exit method
 - **Menu items**: "Full Screen" added to both app bar and tab strip popup menus
 

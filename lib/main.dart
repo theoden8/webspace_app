@@ -3137,32 +3137,40 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 // Fullscreen exit zone: touch target at the top edge.
                 // On iOS there is no system back button and the root route
                 // has no swipe-back gesture, so this zone is the primary
-                // exit path — use the HIG minimum of 44px and show a
-                // visible handle so users can discover it.
+                // exit path.  The zone spans the notch/Dynamic Island safe
+                // area plus 44px of tappable space below it, and a visible
+                // handle is drawn beneath the notch so users can discover it.
                 if (_isFullscreen)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: Platform.isIOS ? 44 : 24,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: _exitFullscreen,
-                      child: Platform.isIOS
-                          ? Center(
-                              child: Container(
-                                margin: const EdgeInsets.only(top: 8),
-                                width: 36,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(2.5),
+                  Builder(builder: (context) {
+                    final topPadding = MediaQuery.of(context).padding.top;
+                    final zoneHeight = Platform.isIOS
+                        ? topPadding + 44
+                        : 24.0;
+                    return Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: zoneHeight,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: _exitFullscreen,
+                        child: Platform.isIOS
+                            ? Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  width: 36,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(2.5),
+                                  ),
                                 ),
-                              ),
-                            )
-                          : null,
-                    ),
-                  ),
+                              )
+                            : null,
+                      ),
+                    );
+                  }),
               ],
             ),
           ),
