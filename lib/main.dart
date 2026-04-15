@@ -1184,6 +1184,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _isFullscreen = true;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tap the top of the screen to exit full screen'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _exitFullscreen() {
@@ -3123,18 +3130,36 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       }).toList(),
                     ),
                   ),
-                // Fullscreen exit zone: a thin touch target at the top edge
+                // Fullscreen exit zone: touch target at the top edge with a
+                // visible handle just below the status bar / notch area.
+                // The back button/gesture keeps its normal behavior (web
+                // history back, open drawer, etc.) even while in fullscreen.
                 if (_isFullscreen)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 24,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: _exitFullscreen,
-                    ),
-                  ),
+                  Builder(builder: (context) {
+                    final topPadding = MediaQuery.of(context).padding.top;
+                    return Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: topPadding + 20,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: _exitFullscreen,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 5),
+                            width: 36,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(2.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
               ],
             ),
           ),
@@ -3158,11 +3183,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       canPop: Platform.isAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _isBackHandling) return;
-        // Exit fullscreen on back gesture before any other back handling
-        if (_isFullscreen) {
-          _exitFullscreen();
-          return;
-        }
         _isBackHandling = true;
         try {
           final scaffoldState = _scaffoldKey.currentState;
