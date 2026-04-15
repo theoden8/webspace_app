@@ -42,28 +42,28 @@ The system SHALL allow users to enter full screen mode from the overflow menu or
 
 ### Requirement: FS-002 - Exit Full Screen
 
-The system SHALL provide multiple ways to exit full screen mode.
-
-#### Scenario: Exit via back gesture
-
-**Given** the user is in full screen mode
-**When** the user performs a back gesture (swipe or button)
-**Then** full screen mode is exited
-**And** the app bar, tab strip, and system UI are restored
+The system SHALL allow the user to exit full screen by tapping the top edge of the screen. The back gesture/button SHALL retain its normal behavior (web history back, open drawer, etc.) even while in full screen.
 
 #### Scenario: Exit via top edge tap
 
 **Given** the user is in full screen mode
-**When** the user taps the top edge of the screen (notch safe area + 44px on iOS, 24px on other platforms)
+**When** the user taps the top edge of the screen (status bar / notch safe area + 20px)
 **Then** full screen mode is exited
 
-#### Scenario: iOS fullscreen hint
+#### Scenario: Back gesture in full screen
 
-**Given** the user enters full screen mode on iOS
+**Given** the user is in full screen mode
+**When** the user performs a back gesture (swipe or button)
+**Then** the back gesture behaves normally (web history back, open drawer, etc.)
+**And** full screen mode remains active
+
+#### Scenario: Fullscreen hint
+
+**Given** the user enters full screen mode
 **Then** a brief SnackBar is shown: "Tap the top of the screen to exit full screen"
-**And** a visible translucent handle is displayed below the notch/Dynamic Island area
+**And** a visible translucent handle is displayed just below the status bar / notch area
 
-**Rationale:** On iOS, the back gesture (swipe from left edge) does not work on the root route, so the top edge tap is the only exit path. The zone spans the notch safe area plus 44px of tappable space below it (using `MediaQuery.padding.top`), and the visible handle is positioned beneath the notch to avoid being hidden by the camera cutout.
+**Rationale:** The exit zone spans `MediaQuery.padding.top + 20px` with a visible handle positioned just below the notch/status bar. The back gesture is not consumed by fullscreen so users can navigate normally while immersed.
 
 ---
 
@@ -142,8 +142,8 @@ The system SHALL exit full screen when navigating to the webspaces list.
 - **App bar**: Hidden when `_isFullscreen` is true (`appBar: _isFullscreen ? null : _buildAppBar()`)
 - **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen`
 - **Input bar**: `_buildInputBar()` returns null when `_isFullscreen`
-- **Exit zone**: GestureDetector at top edge when fullscreen (notch safe area + 44px on iOS with visible handle below notch, 24px on other platforms)
-- **iOS hint**: SnackBar shown on entering fullscreen on iOS to explain exit method
+- **Exit zone**: GestureDetector at top edge when fullscreen (`MediaQuery.padding.top + 20px`) with visible translucent handle just below the notch/status bar
+- **Fullscreen hint**: SnackBar shown on entering fullscreen to explain exit method
 - **Menu items**: "Full Screen" added to both app bar and tab strip popup menus
 
 ### System UI
@@ -161,8 +161,7 @@ In `_setCurrentIndex()`:
 
 ### Back Gesture
 
-In `onPopInvokedWithResult`:
-- If `_isFullscreen`, exits fullscreen and returns (no further back handling)
+The back gesture/button is NOT consumed by fullscreen — it retains its normal behavior (web history back, open drawer, etc.) even while in full screen.
 
 ### Settings Backup
 
