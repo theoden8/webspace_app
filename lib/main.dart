@@ -3137,14 +3137,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 // Fullscreen exit zone: touch target at the top edge.
                 // On iOS there is no system back button and the root route
                 // has no swipe-back gesture, so this zone is the primary
-                // exit path.  The zone spans the notch/Dynamic Island safe
-                // area plus 44px of tappable space below it, and a visible
-                // handle is drawn beneath the notch so users can discover it.
+                // exit path.  A visible handle sits just below the status
+                // bar / notch area so users can discover it.
                 if (_isFullscreen)
                   Builder(builder: (context) {
                     final topPadding = MediaQuery.of(context).padding.top;
                     final zoneHeight = Platform.isIOS
-                        ? topPadding + 44
+                        ? topPadding + 20
                         : 24.0;
                     return Positioned(
                       top: 0,
@@ -3158,7 +3157,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                             ? Align(
                                 alignment: Alignment.bottomCenter,
                                 child: Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
+                                  margin: const EdgeInsets.only(bottom: 5),
                                   width: 36,
                                   height: 5,
                                   decoration: BoxDecoration(
