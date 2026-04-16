@@ -45,6 +45,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
+  final TextEditingController _evalController = TextEditingController();
+  final FocusNode _evalFocusNode = FocusNode();
+  final List<String> _evalHistory = [];
+  int _evalHistoryIndex = -1;
+  bool _isEvaluating = false;
+
   /// Snapshot of blocked cookies on entry, to detect changes on exit.
   late final Set<BlockedCookie> _initialBlockedCookies;
 
@@ -80,6 +86,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     _logScrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _evalController.dispose();
+    _evalFocusNode.dispose();
     super.dispose();
   }
 
@@ -223,6 +231,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   },
                 ),
         ),
+        _buildEvalInput(),
       ],
     );
   }
@@ -263,26 +272,184 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Widget _buildConsoleEntry(ConsoleLogEntry entry) {
     Color color;
-    switch (entry.level) {
-      case ConsoleMessageLevel.WARNING:
-        color = Colors.amber;
-        break;
-      case ConsoleMessageLevel.ERROR:
-        color = Colors.red;
-        break;
-      default:
-        color = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white;
+    if (entry.isEvalInput) {
+      color = Theme.of(context).colorScheme.primary;
+    } else {
+      switch (entry.level) {
+        case ConsoleMessageLevel.WARNING:
+          color = Colors.amber;
+          break;
+        case ConsoleMessageLevel.ERROR:
+          color = Colors.red;
+          break;
+        default:
+          color = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white;
+      }
     }
+    final text = entry.isEvalInput
+        ? '> ${entry.message}'
+        : '[${_formatTimeMs(entry.timestamp)}] ${entry.message}';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
       child: SelectableText(
-        '[${_formatTimeMs(entry.timestamp)}] ${entry.message}',
+        text,
         style: TextStyle(
           fontFamily: 'monospace',
           fontSize: 12,
           color: color,
+          fontWeight: entry.isEvalInput ? FontWeight.bold : FontWeight.normal,
         ),
       ),
+    );
+  }
+
+  // ── Console Eval ──
+
+  Widget _buildEvalInput() {
+    final hasController = widget.webViewModel?.controller != null;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+      ),
+      padding: const EdgeInsets.only(left: 8.0, right: 4.0, top: 4.0, bottom: 4.0),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Text('>', style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: hasController
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).disabledColor,
+            )),
+            const SizedBox(width: 6),
+            Expanded(
+              child: TextField(
+                controller: _evalController,
+                focusNode: _evalFocusNode,
+                enabled: hasController && !_isEvaluating,
+                autocorrect: false,
+                enableSuggestions: false,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                decoration: const InputDecoration(
+                  hintText: 'Evaluate JavaScript...',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                  border: InputBorder.none,
+                ),
+                onSubmitted: hasController ? (_) => _evaluateJs() : null,
+                textInputAction: TextInputAction.send,
+              ),
+            ),
+            if (_evalHistory.isNotEmpty) ...[
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_up, size: 18),
+                  padding: EdgeInsets.zero,
+                  tooltip: 'Previous command',
+                  onPressed: hasController ? _historyUp : null,
+                ),
+              ),
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+                  padding: EdgeInsets.zero,
+                  tooltip: 'Next command',
+                  onPressed: hasController ? _historyDown : null,
+                ),
+              ),
+            ],
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: IconButton(
+                icon: _isEvaluating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_arrow, size: 20),
+                tooltip: 'Run',
+                onPressed: hasController && !_isEvaluating ? _evaluateJs : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _evaluateJs() async {
+    final source = _evalController.text.trim();
+    if (source.isEmpty) return;
+
+    final controller = widget.webViewModel?.controller;
+    if (controller == null) return;
+
+    if (_isEvaluating) return;
+    setState(() => _isEvaluating = true);
+
+    try {
+      if (_evalHistory.isEmpty || _evalHistory.last != source) {
+        _evalHistory.add(source);
+      }
+      _evalHistoryIndex = -1;
+
+      widget.webViewModel!.consoleLogs.add(ConsoleLogEntry(
+        timestamp: DateTime.now(),
+        message: source,
+        level: ConsoleMessageLevel.LOG,
+        isEvalInput: true,
+      ));
+      widget.webViewModel!.onConsoleLogChanged?.call();
+
+      final js = _buildEvalJs(source);
+      await controller.evaluateJavascript(js);
+
+      _evalController.clear();
+    } finally {
+      if (mounted) {
+        setState(() => _isEvaluating = false);
+      }
+    }
+  }
+
+  String _buildEvalJs(String source) {
+    final jsonStr = jsonEncode(source);
+    return 'try{var __r=eval($jsonStr);if(__r!==undefined){if(typeof __r==="object"&&__r!==null){try{console.log(JSON.stringify(__r,null,2))}catch(e){console.log(String(__r))}}else{console.log(String(__r))}}}catch(__e){console.error((__e&&__e.message)?__e.message:String(__e))}';
+  }
+
+  void _historyUp() {
+    if (_evalHistory.isEmpty) return;
+    if (_evalHistoryIndex == -1) {
+      _evalHistoryIndex = _evalHistory.length - 1;
+    } else if (_evalHistoryIndex > 0) {
+      _evalHistoryIndex--;
+    }
+    _evalController.text = _evalHistory[_evalHistoryIndex];
+    _evalController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _evalController.text.length),
+    );
+  }
+
+  void _historyDown() {
+    if (_evalHistory.isEmpty || _evalHistoryIndex == -1) return;
+    if (_evalHistoryIndex < _evalHistory.length - 1) {
+      _evalHistoryIndex++;
+      _evalController.text = _evalHistory[_evalHistoryIndex];
+    } else {
+      _evalHistoryIndex = -1;
+      _evalController.clear();
+    }
+    _evalController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _evalController.text.length),
     );
   }
 
