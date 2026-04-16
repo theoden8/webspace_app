@@ -699,7 +699,7 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        useShouldInterceptRequest: Platform.isAndroid && (config.dnsBlockEnabled || config.localCdnEnabled),
+        useShouldInterceptRequest: Platform.isAndroid && (DnsBlockService.instance.hasBlocklist || config.localCdnEnabled),
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -812,14 +812,13 @@ class WebViewFactory {
           ? (controller, request) async {
               final url = request.url.toString();
 
-              // DNS blocklist check for sub-resource requests
-              if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist) {
+              // DNS blocklist: record + block sub-resource requests
+              if (DnsBlockService.instance.hasBlocklist) {
                 final blocked = DnsBlockService.instance.isBlocked(url);
                 if (config.siteId != null) {
                   DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
                 }
-                if (blocked) {
-                  // Return empty response to block the request
+                if (blocked && config.dnsBlockEnabled) {
                   return inapp.WebResourceResponse(
                     contentType: 'text/plain',
                     contentEncoding: 'utf-8',
@@ -851,14 +850,6 @@ class WebViewFactory {
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
-        // Record the main-frame navigation for DNS stats (catches initial
-        // page loads that bypass shouldOverrideUrlLoading).
-        if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist
-            && config.siteId != null && url != null) {
-          final urlStr = url.toString();
-          final blocked = DnsBlockService.instance.isBlocked(urlStr);
-          DnsBlockService.instance.recordRequest(config.siteId!, urlStr, blocked);
-        }
         // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {
           final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
