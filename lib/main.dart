@@ -1148,6 +1148,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   Future<void> launchUrl(String url, {
     String? homeTitle,
+    required String? siteId,
     required bool incognito,
     required bool thirdPartyCookiesEnabled,
     required bool clearUrlEnabled,
@@ -1161,6 +1162,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         builder: (context) => InAppWebViewScreen(
           url: url,
           homeTitle: homeTitle,
+          siteId: siteId,
           incognito: incognito,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           clearUrlEnabled: clearUrlEnabled,
