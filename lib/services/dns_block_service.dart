@@ -114,31 +114,30 @@ class DnsBlockService {
   List<inapp.ContentBlocker>? _contentBlockerRules;
 
   /// Generate ContentBlocker rules from the blocked domains.
-  /// Each rule uses a urlFilter regex matching one domain and its subdomains.
-  /// Runs in Java natively — no Dart roundtrip per request.
+  /// Uses a single rule with all domains in ifDomain — matched by the
+  /// native engine against request URL hosts with simple string comparison.
   List<inapp.ContentBlocker> getContentBlockerRules() {
     if (_contentBlockerRules != null) return _contentBlockerRules!;
     if (_blockedDomains.isEmpty) return const [];
 
     final sw = Stopwatch()..start();
-    final rules = <inapp.ContentBlocker>[];
-
-    for (final domain in _blockedDomains) {
-      final escaped = domain.replaceAll('.', '\\\\.');
-      rules.add(inapp.ContentBlocker(
+    final domains = _blockedDomains.map((d) => '*$d').toList();
+    final rules = [
+      inapp.ContentBlocker(
         trigger: inapp.ContentBlockerTrigger(
-          urlFilter: '.*$escaped',
+          urlFilter: '.*',
+          ifDomain: domains,
           loadType: [inapp.ContentBlockerTriggerLoadType.THIRD_PARTY],
         ),
         action: inapp.ContentBlockerAction(
           type: inapp.ContentBlockerActionType.BLOCK,
         ),
-      ));
-    }
+      ),
+    ];
 
     sw.stop();
     LogService.instance.log('DnsBlock',
-        'Generated ${rules.length} content blocker rules in ${sw.elapsedMilliseconds}ms',
+        'Generated content blocker rule with ${domains.length} domains in ${sw.elapsedMilliseconds}ms',
         level: LogLevel.info);
     _contentBlockerRules = rules;
     return rules;
