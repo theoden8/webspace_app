@@ -699,7 +699,7 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        useShouldInterceptRequest: config.localCdnEnabled && Platform.isAndroid,
+        useShouldInterceptRequest: Platform.isAndroid && (config.dnsBlockEnabled || config.localCdnEnabled),
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
