@@ -204,11 +204,58 @@ App Settings SHALL display when the blocklist was last downloaded, along with th
 
 ---
 
-### Requirement: DNS-008 - Hook Ordering
+### Requirement: DNS-008 - Request Interception Hooks
 
-The DNS block check SHALL be inserted in `shouldOverrideUrlLoading` AFTER the captcha challenge allowlist and BEFORE ClearURLs processing.
+DNS blocking and recording uses multiple hooks to cover different request types. Each hook has different platform support and capabilities.
 
-#### Scenario: Hook ordering
+#### Hook: shouldOverrideUrlLoading (all platforms)
+
+Fires for navigation-level requests (link clicks, page loads, redirects). Inserted AFTER the captcha challenge allowlist and BEFORE ClearURLs processing. Records all navigations (allowed + blocked). Blocks navigations to blocklisted domains.
+
+**Catches:** Link clicks, typed URLs, redirects, `window.location` changes
+**Does NOT catch:** Sub-resources (`<script>`, `<img>`, `<link>`, CSS, fonts)
+
+#### Hook: shouldInterceptRequest (Android only)
+
+Native Android WebView hook that fires for every network request including sub-resources. Used for blocking sub-resources on Android. May not fire for cached resources depending on Android WebView version.
+
+**Catches:** All network requests (main document + sub-resources)
+**Does NOT catch:** Cached resources (on some WebView versions), requests on iOS/macOS
+
+#### Hook: shouldInterceptFetchRequest (all platforms, JS injection)
+
+Intercepts JavaScript `fetch()` API calls. Records and blocks fetch requests to blocklisted domains.
+
+**Catches:** `fetch()` calls (analytics, API requests, dynamic content loading)
+**Does NOT catch:** `XMLHttpRequest`, static resources, `navigator.sendBeacon()`
+
+#### Hook: shouldInterceptAjaxRequest (all platforms, JS injection)
+
+Intercepts `XMLHttpRequest` calls. Records and blocks XHR requests to blocklisted domains.
+
+**Catches:** `XMLHttpRequest` calls (legacy analytics, AJAX requests)
+**Does NOT catch:** `fetch()`, static resources, `navigator.sendBeacon()`
+
+#### Hook: PerformanceObserver JS injection (all platforms)
+
+Injected at `DOCUMENT_START`, observes the Resource Timing API to record all loaded resources after they complete. Cannot block — recording only. Deduplicates via a `seen` map. Also retroactively reports resources loaded before the observer started via `performance.getEntriesByType()`.
+
+**Catches:** All completed resources: `<script>`, `<img>`, `<link>`, CSS, fonts, `fetch()`, `XMLHttpRequest`, `navigator.sendBeacon()`
+**Does NOT catch:** WebSocket connections, resources inside cross-origin iframes (separate JS context), requests blocked before they complete
+
+#### Summary: Platform coverage
+
+| Request type | Android block | Android record | iOS/macOS block | iOS/macOS record |
+|---|---|---|---|---|
+| Navigation (links, redirects) | shouldOverrideUrlLoading | shouldOverrideUrlLoading | shouldOverrideUrlLoading | shouldOverrideUrlLoading |
+| Static sub-resources (`<script>`, `<img>`, `<link>`) | shouldInterceptRequest | PerformanceObserver | No | PerformanceObserver |
+| `fetch()` API | shouldInterceptFetchRequest | shouldInterceptFetchRequest + PerformanceObserver | shouldInterceptFetchRequest | shouldInterceptFetchRequest + PerformanceObserver |
+| `XMLHttpRequest` | shouldInterceptAjaxRequest | shouldInterceptAjaxRequest + PerformanceObserver | shouldInterceptAjaxRequest | shouldInterceptAjaxRequest + PerformanceObserver |
+| `navigator.sendBeacon()` | No | PerformanceObserver | No | PerformanceObserver |
+| WebSocket | No | No | No | No |
+| Cross-origin iframe resources | No | No | No | No |
+
+#### Scenario: Hook ordering in shouldOverrideUrlLoading
 
 **Given** a URL matches a captcha challenge domain
 **When** `shouldOverrideUrlLoading` is called
@@ -267,14 +314,26 @@ Existing sites without `dnsBlockEnabled` in their stored JSON SHALL default to `
 
 ### Requirement: DNS-012 - Per-Site DNS Statistics
 
-The system SHALL track allowed and blocked DNS request counts per site at runtime, with a log of recent queries.
+The system SHALL track allowed and blocked DNS request counts per site at runtime, with a log of recent queries. Recording happens regardless of whether the per-site DNS blocking toggle is on or off — stats always record when a blocklist is loaded.
 
 #### Scenario: Record DNS requests
 
-**Given** DNS blocking is enabled for a site
-**When** the webview navigates to any URL
-**Then** the request is recorded as allowed or blocked in per-site stats
+**Given** a DNS blocklist is loaded
+**When** the webview loads resources (navigations, scripts, images, fetch/XHR)
+**Then** each request is recorded as allowed or blocked in per-site stats via multiple hooks (see DNS-008)
 **And** the domain, timestamp, and block status are stored in a log (capped at 500 entries)
+
+#### Scenario: Stats recorded even when blocking is off
+
+**Given** a DNS blocklist is loaded
+**And** DNS blocking is disabled for a site
+**When** the webview loads resources
+**Then** requests are still recorded (with blocked=true for domains on the list, even though they were not actually blocked)
+
+#### Scenario: Duplicate recording
+
+**Given** the same URL is intercepted by multiple hooks (e.g., PerformanceObserver and shouldInterceptFetchRequest)
+**Then** duplicate entries may appear in the log — this is expected and reflects the actual request pipeline
 
 #### Scenario: Stats not persisted
 
@@ -290,21 +349,20 @@ The system SHALL track allowed and blocked DNS request counts per site at runtim
 
 ---
 
-### Requirement: DNS-013 - Live Blocked-Domains Banner
+### Requirement: DNS-013 - Live DNS Activity Banner
 
-A collapsible banner SHALL appear at the top of the webview showing live DNS blocking activity for the active site.
+A collapsible banner SHALL appear at the top of the webview showing live DNS activity for the active site. The banner uses subtle grey styling (not alarming red) and can be toggled off in App Settings.
 
-#### Scenario: Banner visible when blocks occur
+#### Scenario: Banner visible when queries recorded
 
-**Given** DNS blocking is enabled for a site
-**And** at least one request has been blocked
+**Given** a DNS blocklist is loaded
+**And** at least one DNS query has been recorded for the site
 **When** the user views the site
-**Then** a compact banner at the top shows blocked and allowed counts
+**Then** a compact grey banner at the top shows blocked and allowed counts
 
-#### Scenario: Banner hidden when no blocks
+#### Scenario: Banner hidden when no queries
 
-**Given** DNS blocking is enabled for a site
-**And** no requests have been blocked
+**Given** no DNS queries have been recorded for the site
 **When** the user views the site
 **Then** no banner is shown
 
@@ -314,10 +372,17 @@ A collapsible banner SHALL appear at the top of the webview showing live DNS blo
 **When** the user taps it
 **Then** it expands to show the 5 most recently blocked domains (unique, monospace)
 
-#### Scenario: Banner hidden when DNS blocking disabled
+#### Scenario: Toggle banner off in App Settings
 
-**Given** DNS blocking is disabled for a site
-**When** the user views the site
+**Given** the user opens App Settings
+**When** the user disables the "DNS Block Banner" toggle
+**Then** the banner is hidden for all sites
+**And** the setting persists across app restarts
+
+#### Scenario: Banner hidden when no blocklist
+
+**Given** no DNS blocklist has been downloaded
+**When** the user views any site
 **Then** no banner is shown
 
 ---
@@ -448,27 +513,42 @@ class DnsStats {
 
 A listener pattern (`addDnsLogListener`/`removeDnsLogListener`) notifies UI widgets of new log entries for live updates.
 
-### Hook Point in WebView
+### Multi-Hook Request Interception
 
-DNS blocking is inserted in `shouldOverrideUrlLoading` in `WebViewFactory.createWebView()`. Each request is recorded for statistics:
+DNS blocking and recording uses five complementary hooks in `WebViewFactory.createWebView()`:
 
+**1. shouldOverrideUrlLoading** (all platforms) — navigation blocking + recording:
 ```dart
-shouldOverrideUrlLoading: (controller, navigationAction) async {
-  final url = navigationAction.request.url.toString();
-  if (_shouldBlockUrl(url)) return CANCEL;
-  if (_isCaptchaChallenge(url)) return ALLOW;
-  // DNS blocklist check + statistics recording
-  if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist) {
-    final blocked = DnsBlockService.instance.isBlocked(url);
-    if (config.siteId != null) {
-      DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-    }
-    if (blocked) return CANCEL;
-  }
-  // ClearURLs processing
-  // ... per-site navigation callback
+if (DnsBlockService.instance.hasBlocklist) {
+  final blocked = DnsBlockService.instance.isBlocked(url);
+  DnsBlockService.instance.recordRequest(siteId, url, blocked);
+  if (blocked && config.dnsBlockEnabled) return CANCEL;
 }
 ```
+
+**2. shouldInterceptRequest** (Android only) — sub-resource blocking:
+```dart
+if (DnsBlockService.instance.isBlocked(url)) {
+  DnsBlockService.instance.recordRequest(siteId, url, true);
+  return WebResourceResponse(statusCode: 403, data: empty);
+}
+```
+
+**3. shouldInterceptFetchRequest** (all platforms) — fetch() blocking + recording:
+```dart
+final blocked = DnsBlockService.instance.isBlocked(url);
+DnsBlockService.instance.recordRequest(siteId, url, blocked);
+if (blocked) fetchRequest.action = ABORT;
+```
+
+**4. shouldInterceptAjaxRequest** (all platforms) — XHR blocking + recording:
+Same pattern as fetch, with `ajaxRequest.action = ABORT`.
+
+**5. PerformanceObserver JS injection** (all platforms) — record-only fallback:
+Injected at `DOCUMENT_START`, observes Resource Timing API entries and calls
+back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`. Catches all
+completed resources including those missed by native hooks (e.g., cached
+resources, `navigator.sendBeacon()`).
 
 ### Storage
 
