@@ -109,6 +109,9 @@ class DnsBlockService {
   /// Number of domains in the current blocklist.
   int get domainCount => _blockedDomains.length;
 
+  /// The raw blocked domains set (for sending to native handler).
+  Set<String> get blockedDomains => _blockedDomains;
+
   /// Get DNS stats for a specific site. Creates on first access.
   DnsStats statsForSite(String siteId) {
     return _siteStats.putIfAbsent(siteId, () => DnsStats());

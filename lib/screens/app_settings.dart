@@ -8,6 +8,7 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_block_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -133,6 +134,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
       if (success) {
         await _loadBlocklistState();
+        await DnsBlockNative.sendDomains(DnsBlockService.instance.blockedDomains);
+        await DnsBlockNative.attachToWebViews();
         final domainCount = DnsBlockService.instance.domainCount;
         final message = level == 0
             ? 'DNS blocklist disabled'

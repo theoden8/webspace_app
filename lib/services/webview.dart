@@ -8,6 +8,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_block_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/log_service.dart';
@@ -800,6 +801,12 @@ class WebViewFactory {
             ));
             wrappedController.loadUrl(config.initialUrl, language: config.language);
           }
+        }
+        // Attach native DNS block handler after view is in hierarchy
+        if (DnsBlockService.instance.hasBlocklist && config.dnsBlockEnabled) {
+          Future.delayed(const Duration(milliseconds: 100), () {
+            DnsBlockNative.attachToWebViews();
+          });
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {

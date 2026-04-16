@@ -35,6 +35,7 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_block_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
@@ -429,6 +430,12 @@ void main() async {
   // Initialize DNS block service (loads cached blocklist from disk)
   await DnsBlockService.instance.initialize();
 
+  // Initialize native DNS block handler for sub-resource blocking (Android)
+  DnsBlockNative.initialize();
+  if (DnsBlockService.instance.hasBlocklist) {
+    await DnsBlockNative.sendDomains(DnsBlockService.instance.blockedDomains);
+  }
+
   // Initialize content blocker service (loads cached filter lists from disk)
   await ContentBlockerService.instance.initialize();
 
@@ -820,6 +827,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     final target = _webViewModels[index];
 
+    DnsBlockNative.activeSiteId = target.siteId;
     LogService.instance.log('CookieIsolation', 'Switching to site $index: "${target.name}" (siteId: ${target.siteId})');
     LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
     LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');
