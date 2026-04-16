@@ -39,12 +39,12 @@ class _DnsBlockBannerState extends State<DnsBlockBanner> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.dnsBlockEnabled || !DnsBlockService.instance.hasBlocklist) {
+    if (!DnsBlockService.instance.hasBlocklist) {
       return const SizedBox.shrink();
     }
 
     final stats = DnsBlockService.instance.statsForSite(widget.siteId);
-    if (stats.blocked == 0) {
+    if (stats.total == 0) {
       return const SizedBox.shrink();
     }
 
