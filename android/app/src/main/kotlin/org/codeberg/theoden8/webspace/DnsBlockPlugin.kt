@@ -1,7 +1,6 @@
 package org.codeberg.theoden8.webspace
 
 import android.app.Activity
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceResponse
@@ -34,7 +33,8 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
                     }
                 }
                 "attachToWebViews" -> {
-                    val count = attachToAllWebViews()
+                    val siteId = call.argument<String>("siteId")
+                    val count = attachToAllWebViews(siteId)
                     result.success(count)
                 }
                 else -> result.notImplemented()
@@ -42,23 +42,32 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
         }
     }
 
-    private fun reportBlocked(host: String) {
+    private fun reportBlocked(siteId: String, host: String) {
         handler.post {
-            channel.invokeMethod("onDnsBlocked", host)
+            channel.invokeMethod("onDnsBlocked", mapOf("siteId" to siteId, "host" to host))
         }
     }
 
-    private fun attachToAllWebViews(): Int {
+    private fun attachToAllWebViews(newSiteId: String?): Int {
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
         findInAppWebViews(rootView, webViews)
         for (webView in webViews) {
-            if (webView.contentBlockerHandler !is FastDnsBlockerHandler) {
-                webView.contentBlockerHandler = FastDnsBlockerHandler(blockedDomains, ::reportBlocked)
+            val isNew = webView.contentBlockerHandler !is FastDnsBlockerHandler
+            if (isNew && newSiteId != null) {
+                siteIdMap[webView] = newSiteId
+            }
+            if (isNew) {
+                val siteId = siteIdMap[webView] ?: "unknown"
+                webView.contentBlockerHandler = FastDnsBlockerHandler(blockedDomains) { host ->
+                    reportBlocked(siteId, host)
+                }
             }
         }
         return webViews.size
     }
+
+    private val siteIdMap = HashMap<InAppWebView, String>()
 
     private fun findInAppWebViews(view: View, results: MutableList<InAppWebView>) {
         if (view is InAppWebView) {
@@ -100,9 +109,7 @@ class FastDnsBlockerHandler(
         }
         if (host.isEmpty()) return null
 
-        val blocked = isBlockedDomain(host)
-        Log.d("DnsBlock", "[Native] $host ${if (blocked) "BLOCKED" else "allowed"}")
-        if (blocked) {
+        if (isBlockedDomain(host)) {
             onBlocked(host)
             return WebResourceResponse("text/plain", "utf-8", null)
         }

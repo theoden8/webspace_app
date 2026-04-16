@@ -827,7 +827,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     final target = _webViewModels[index];
 
-    DnsBlockNative.activeSiteId = target.siteId;
     LogService.instance.log('CookieIsolation', 'Switching to site $index: "${target.name}" (siteId: ${target.siteId})');
     LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
     LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');

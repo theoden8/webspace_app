@@ -9,15 +9,16 @@ class DnsBlockNative {
 
   static bool get isSupported => Platform.isAndroid;
 
-  /// Current site ID for attributing blocked requests. Set by the app when switching sites.
-  static String? activeSiteId;
-
   static void initialize() {
     if (!isSupported) return;
     _channel.setMethodCallHandler((call) async {
-      if (call.method == 'onDnsBlocked' && activeSiteId != null) {
-        final host = call.arguments as String;
-        DnsBlockService.instance.recordRequest(activeSiteId!, 'https://$host/', true);
+      if (call.method == 'onDnsBlocked') {
+        final args = call.arguments as Map;
+        final siteId = args['siteId'] as String?;
+        final host = args['host'] as String?;
+        if (siteId != null && host != null) {
+          DnsBlockService.instance.recordRequest(siteId, 'https://$host/', true);
+        }
       }
     });
   }
@@ -34,11 +35,13 @@ class DnsBlockNative {
     }
   }
 
-  static Future<int> attachToWebViews() async {
+  static Future<int> attachToWebViews({String? siteId}) async {
     if (!isSupported) return 0;
     try {
-      final count = await _channel.invokeMethod('attachToWebViews');
-      LogService.instance.log('DnsBlock', 'Attached native DNS handler to $count webviews');
+      final count = await _channel.invokeMethod('attachToWebViews', {
+        if (siteId != null) 'siteId': siteId,
+      });
+      LogService.instance.log('DnsBlock', 'Attached native DNS handler to $count webviews (siteId: $siteId)');
       return count as int;
     } catch (e) {
       LogService.instance.log('DnsBlock', 'Failed to attach native handler: $e', level: LogLevel.error);

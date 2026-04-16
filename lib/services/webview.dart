@@ -803,7 +803,7 @@ class WebViewFactory {
         }
         // Attach native DNS block handler once view is in hierarchy
         if (DnsBlockService.instance.hasBlocklist) {
-          Future.microtask(() => DnsBlockNative.attachToWebViews());
+          Future.microtask(() => DnsBlockNative.attachToWebViews(siteId: config.siteId));
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
