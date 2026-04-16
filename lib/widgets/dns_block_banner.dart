@@ -60,10 +60,10 @@ class _DnsBlockBannerState extends State<DnsBlockBanner> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bgColor = isDark
-        ? Colors.red.shade900.withAlpha(180)
-        : Colors.red.shade50;
-    final textColor = isDark ? Colors.red.shade100 : Colors.red.shade800;
-    final subtleColor = isDark ? Colors.red.shade200 : Colors.red.shade600;
+        ? Colors.grey.shade900.withAlpha(200)
+        : Colors.grey.shade100;
+    final textColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
+    final subtleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
 
     return GestureDetector(
       onTap: () => setState(() => _expanded = !_expanded),
@@ -78,7 +78,7 @@ class _DnsBlockBannerState extends State<DnsBlockBanner> {
             color: bgColor,
             border: Border(
               bottom: BorderSide(
-                color: isDark ? Colors.red.shade700 : Colors.red.shade200,
+                color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                 width: 0.5,
               ),
             ),

@@ -634,6 +634,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
   bool _showUrlBar = false;
   bool _showTabStrip = false;
+  bool _showDnsBanner = true;
   bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
   int _canGoBackVersion = 0; // Guards _updateCanGoBack against stale async results
 
@@ -757,6 +758,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showTabStrip', _showTabStrip);
+  }
+
+  Future<void> _saveShowDnsBanner() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('showDnsBanner', _showDnsBanner);
   }
 
   Future<void> _saveGlobalUserScripts() async {
@@ -1115,6 +1122,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
+      _showDnsBanner = prefs.getBool('showDnsBanner') ?? true;
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
@@ -1771,6 +1779,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         _showTabStrip = value;
                       });
                       _saveShowTabStrip();
+                    },
+                    showDnsBanner: _showDnsBanner,
+                    onShowDnsBannerChanged: (value) {
+                      setState(() {
+                        _showDnsBanner = value;
+                      });
+                      _saveShowDnsBanner();
                     },
                     globalUserScripts: _globalUserScripts,
                     onGlobalUserScriptsChanged: (scripts) {
@@ -3094,10 +3109,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           key: ValueKey(webViewModel.siteId),
                           child: Column(
                             children: [
-                              DnsBlockBanner(
-                                siteId: webViewModel.siteId,
-                                dnsBlockEnabled: webViewModel.dnsBlockEnabled,
-                              ),
+                              if (_showDnsBanner)
+                                DnsBlockBanner(
+                                  siteId: webViewModel.siteId,
+                                  dnsBlockEnabled: webViewModel.dnsBlockEnabled,
+                                ),
                               Expanded(
                                 child: webViewModel.getWebView(
                                   launchUrl,

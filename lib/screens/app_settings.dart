@@ -33,6 +33,8 @@ class AppSettingsScreen extends StatefulWidget {
   final VoidCallback onImportSettings;
   final bool showTabStrip;
   final ValueChanged<bool> onShowTabStripChanged;
+  final bool showDnsBanner;
+  final ValueChanged<bool> onShowDnsBannerChanged;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
 
@@ -44,6 +46,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onImportSettings,
     required this.showTabStrip,
     required this.onShowTabStripChanged,
+    required this.showDnsBanner,
+    required this.onShowDnsBannerChanged,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
   });
@@ -56,6 +60,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     with SingleTickerProviderStateMixin {
   late AppThemeSettings _settings;
   late bool _showTabStrip;
+  late bool _showDnsBanner;
   bool _isDownloadingRules = false;
   DateTime? _rulesLastUpdated;
 
@@ -82,6 +87,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     super.initState();
     _settings = widget.currentSettings;
     _showTabStrip = widget.showTabStrip;
+    _showDnsBanner = widget.showDnsBanner;
     _spinController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -421,6 +427,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 _showTabStrip = value;
               });
               widget.onShowTabStripChanged(value);
+            },
+          ),
+          SwitchListTile(
+            title: const Text('DNS Block Banner'),
+            subtitle: const Text('Show live DNS blocking stats at the top of each site'),
+            value: _showDnsBanner,
+            onChanged: (value) {
+              setState(() {
+                _showDnsBanner = value;
+              });
+              widget.onShowDnsBannerChanged(value);
             },
           ),
 
