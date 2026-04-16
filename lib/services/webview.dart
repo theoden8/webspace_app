@@ -750,7 +750,9 @@ class WebViewFactory {
         // DNS blocklist check
         if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist) {
           final blocked = DnsBlockService.instance.isBlocked(url);
-          if (config.siteId != null) {
+          // On Android, sub-resource recording happens in shouldInterceptRequest.
+          // Only record navigation-level requests here on non-Android platforms.
+          if (config.siteId != null && !Platform.isAndroid) {
             DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
           }
           if (blocked) {
@@ -808,20 +810,44 @@ class WebViewFactory {
 
         return false;
       },
-      shouldInterceptRequest: config.localCdnEnabled && Platform.isAndroid
+      shouldInterceptRequest: Platform.isAndroid
           ? (controller, request) async {
               final url = request.url.toString();
-              final service = LocalCdnService.instance;
-              if (!service.isCdnUrl(url)) return null;
 
-              final data = await service.getOrFetchResource(url);
-              if (data == null) return null;
+              // DNS blocklist check for sub-resource requests
+              if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist) {
+                final blocked = DnsBlockService.instance.isBlocked(url);
+                if (config.siteId != null) {
+                  DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+                }
+                if (blocked) {
+                  // Return empty response to block the request
+                  return inapp.WebResourceResponse(
+                    contentType: 'text/plain',
+                    contentEncoding: 'utf-8',
+                    data: Uint8List(0),
+                    statusCode: 403,
+                    reasonPhrase: 'Blocked by DNS blocklist',
+                  );
+                }
+              }
 
-              return inapp.WebResourceResponse(
-                contentType: service.getContentType(url),
-                contentEncoding: 'utf-8',
-                data: data,
-              );
+              // LocalCDN: serve CDN resources from local cache
+              if (config.localCdnEnabled) {
+                final service = LocalCdnService.instance;
+                if (service.isCdnUrl(url)) {
+                  final data = await service.getOrFetchResource(url);
+                  if (data != null) {
+                    return inapp.WebResourceResponse(
+                      contentType: service.getContentType(url),
+                      contentEncoding: 'utf-8',
+                      data: data,
+                    );
+                  }
+                }
+              }
+
+              return null;
             }
           : null,
       onLoadStart: (controller, url) async {
