@@ -744,7 +744,7 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        useShouldInterceptRequest: Platform.isAndroid,
+        useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled && LocalCdnService.instance.hasCache,
         useShouldInterceptAjaxRequest: DnsBlockService.instance.hasBlocklist,
         useShouldInterceptFetchRequest: DnsBlockService.instance.hasBlocklist,
         useOnLoadResource: false,
