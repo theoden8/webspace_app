@@ -785,7 +785,6 @@ class WebViewFactory {
               final url = args[0] as String;
               final blocked = DnsBlockService.instance.isBlocked(url);
               DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-              LogService.instance.log('DnsBlock', '[PerfObserver] $url (${blocked ? "BLOCKED" : "allowed"})');
             }
             return null;
           });
@@ -802,11 +801,9 @@ class WebViewFactory {
             wrappedController.loadUrl(config.initialUrl, language: config.language);
           }
         }
-        // Attach native DNS block handler after view is in hierarchy
-        if (DnsBlockService.instance.hasBlocklist && config.dnsBlockEnabled) {
-          Future.delayed(const Duration(milliseconds: 100), () {
-            DnsBlockNative.attachToWebViews();
-          });
+        // Attach native DNS block handler once view is in hierarchy
+        if (DnsBlockService.instance.hasBlocklist) {
+          Future.microtask(() => DnsBlockNative.attachToWebViews());
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
@@ -876,7 +873,6 @@ class WebViewFactory {
       shouldInterceptRequest: Platform.isAndroid
           ? (controller, request) async {
               final url = request.url.toString();
-              LogService.instance.log('DnsBlock', '[InterceptReq] $url');
 
               // Record every sub-resource request for DNS stats
               if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
@@ -915,7 +911,6 @@ class WebViewFactory {
       shouldInterceptAjaxRequest: DnsBlockService.instance.hasBlocklist
           ? (controller, ajaxRequest) async {
               final url = ajaxRequest.url?.toString();
-              if (url != null) LogService.instance.log('DnsBlock', '[AjaxReq] $url');
               if (url != null && config.siteId != null) {
                 final blocked = DnsBlockService.instance.isBlocked(url);
                 DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
@@ -931,7 +926,6 @@ class WebViewFactory {
       shouldInterceptFetchRequest: DnsBlockService.instance.hasBlocklist
           ? (controller, fetchRequest) async {
               final url = fetchRequest.url?.toString();
-              if (url != null) LogService.instance.log('DnsBlock', '[FetchReq] $url');
               if (url != null && config.siteId != null) {
                 final blocked = DnsBlockService.instance.isBlocked(url);
                 DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
@@ -947,6 +941,13 @@ class WebViewFactory {
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
+        // Record the page navigation for DNS stats so the banner shows immediately
+        if (config.siteId != null && DnsBlockService.instance.hasBlocklist
+            && url != null && url.toString().startsWith('http')) {
+          final urlStr = url.toString();
+          DnsBlockService.instance.recordRequest(config.siteId!, urlStr,
+              DnsBlockService.instance.isBlocked(urlStr));
+        }
         // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {
           final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
