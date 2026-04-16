@@ -6,6 +6,52 @@ import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// A single DNS query log entry (allowed or blocked).
+class DnsLogEntry {
+  final DateTime timestamp;
+  final String domain;
+  final bool blocked;
+
+  const DnsLogEntry({
+    required this.timestamp,
+    required this.domain,
+    required this.blocked,
+  });
+}
+
+/// Per-site DNS request statistics.
+class DnsStats {
+  int allowed = 0;
+  int blocked = 0;
+  final List<DnsLogEntry> log = [];
+  static const int _maxLogEntries = 500;
+
+  int get total => allowed + blocked;
+  double get blockRate => total > 0 ? blocked / total * 100 : 0;
+
+  void record(String domain, bool wasBlocked) {
+    if (wasBlocked) {
+      blocked++;
+    } else {
+      allowed++;
+    }
+    log.add(DnsLogEntry(
+      timestamp: DateTime.now(),
+      domain: domain,
+      blocked: wasBlocked,
+    ));
+    if (log.length > _maxLogEntries) {
+      log.removeAt(0);
+    }
+  }
+
+  void clear() {
+    allowed = 0;
+    blocked = 0;
+    log.clear();
+  }
+}
+
 /// Level names for DNS blocklist severity levels (0-5).
 const List<String> dnsBlockLevelNames = [
   'Off',
@@ -48,6 +94,12 @@ class DnsBlockService {
   Set<String> _blockedDomains = {};
   int _level = 0;
 
+  /// Per-site DNS statistics, keyed by siteId.
+  final Map<String, DnsStats> _siteStats = {};
+
+  /// Listeners notified when a DNS request is logged (for live UI updates).
+  final List<VoidCallback> _dnsLogListeners = [];
+
   /// Whether a blocklist is loaded and active.
   bool get hasBlocklist => _blockedDomains.isNotEmpty;
 
@@ -56,6 +108,41 @@ class DnsBlockService {
 
   /// Number of domains in the current blocklist.
   int get domainCount => _blockedDomains.length;
+
+  /// Get DNS stats for a specific site. Creates on first access.
+  DnsStats statsForSite(String siteId) {
+    return _siteStats.putIfAbsent(siteId, () => DnsStats());
+  }
+
+  /// Record a DNS request (allowed or blocked) for a site.
+  void recordRequest(String siteId, String url, bool wasBlocked) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.host.isEmpty) return;
+    statsForSite(siteId).record(uri.host, wasBlocked);
+    _notifyDnsLogListeners();
+  }
+
+  /// Clear stats for a specific site.
+  void clearStatsForSite(String siteId) {
+    _siteStats[siteId]?.clear();
+    _notifyDnsLogListeners();
+  }
+
+  /// Add a listener for DNS log changes (live UI updates).
+  void addDnsLogListener(VoidCallback listener) {
+    _dnsLogListeners.add(listener);
+  }
+
+  /// Remove a DNS log listener.
+  void removeDnsLogListener(VoidCallback listener) {
+    _dnsLogListeners.remove(listener);
+  }
+
+  void _notifyDnsLogListeners() {
+    for (final listener in _dnsLogListeners) {
+      listener();
+    }
+  }
 
   /// Initialize the service by loading the cached domain file from disk (no network).
   /// Call in main() at app startup.

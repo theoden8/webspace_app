@@ -24,6 +24,7 @@ import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
+import 'package:webspace/widgets/dns_block_banner.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
@@ -3089,42 +3090,52 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
                         return SizedBox.expand(
                           key: ValueKey(webViewModel.siteId),
-                          child: webViewModel.getWebView(
-                            launchUrl,
-                            _cookieManager,
-                            _saveWebViewModels,
-                            onWindowRequested: _showPopupWindow,
-                            language: webViewModel.language,
-                            globalUserScripts: _globalUserScripts,
-                            onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
-                              HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
-                            },
-                            initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
-                            isActive: () => _currentIndex == index,
-                            onConfirmScriptFetch: (url) async {
-                              if (!mounted) return false;
-                              final result = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Load external script?'),
-                                  content: Text(
-                                    'A user script wants to load:\n\n$url\n\n'
-                                    'This URL is not on the trusted CDN list. Allow?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
-                                      child: const Text('Deny'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Allow'),
-                                    ),
-                                  ],
+                          child: Column(
+                            children: [
+                              DnsBlockBanner(
+                                siteId: webViewModel.siteId,
+                                dnsBlockEnabled: webViewModel.dnsBlockEnabled,
+                              ),
+                              Expanded(
+                                child: webViewModel.getWebView(
+                                  launchUrl,
+                                  _cookieManager,
+                                  _saveWebViewModels,
+                                  onWindowRequested: _showPopupWindow,
+                                  language: webViewModel.language,
+                                  globalUserScripts: _globalUserScripts,
+                                  onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
+                                    HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
+                                  },
+                                  initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
+                                  isActive: () => _currentIndex == index,
+                                  onConfirmScriptFetch: (url) async {
+                                    if (!mounted) return false;
+                                    final result = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Load external script?'),
+                                        content: Text(
+                                          'A user script wants to load:\n\n$url\n\n'
+                                          'This URL is not on the trusted CDN list. Allow?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, false),
+                                            child: const Text('Deny'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('Allow'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    return result ?? false;
+                                  },
                                 ),
-                              );
-                              return result ?? false;
-                            },
+                              ),
+                            ],
                           ),
                         );
                       }).toList(),

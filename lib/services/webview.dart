@@ -199,6 +199,8 @@ class WebViewConfig {
   /// Unique key to force widget recreation when settings change.
   /// When this key changes, Flutter will create a new widget state.
   final Key? key;
+  /// Site ID for per-site DNS statistics tracking.
+  final String? siteId;
   final String initialUrl;
   final bool javascriptEnabled;
   final String? userAgent;
@@ -240,6 +242,7 @@ class WebViewConfig {
 
   WebViewConfig({
     this.key,
+    this.siteId,
     required this.initialUrl,
     this.javascriptEnabled = true,
     this.userAgent,
@@ -745,8 +748,14 @@ class WebViewFactory {
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
         // DNS blocklist check
-        if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
-          return inapp.NavigationActionPolicy.CANCEL;
+        if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist) {
+          final blocked = DnsBlockService.instance.isBlocked(url);
+          if (config.siteId != null) {
+            DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+          }
+          if (blocked) {
+            return inapp.NavigationActionPolicy.CANCEL;
+          }
         }
         // Content blocker domain check
         if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
