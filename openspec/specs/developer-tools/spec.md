@@ -31,8 +31,9 @@ The app SHALL capture JS console messages (log, warn, error) from webviews and d
 **Given** the Console tab has messages
 **When** the user taps "Clear"
 **Then** all console messages are removed
-**When** the user taps "Copy All"
-**Then** all messages are copied to clipboard as formatted text
+**When** the user taps "Copy"
+**Then** only the currently visible (filtered) messages are copied to clipboard as formatted text
+**And** the snackbar shows the count of copied entries
 
 ---
 
@@ -63,7 +64,8 @@ The app SHALL display cookies for the current site with security flag details.
 **When** the user taps "Refresh"
 **Then** cookies are re-fetched from CookieManager
 **When** the user taps "Copy as JSON"
-**Then** all cookies are copied to clipboard as formatted JSON
+**Then** only the currently visible (filtered) cookies are copied to clipboard as formatted JSON
+**And** the snackbar shows the count of copied cookies
 
 #### Scenario: Block a cookie
 
@@ -145,9 +147,10 @@ The app SHALL maintain a ring buffer of app-level log entries accessible from bo
 
 **Given** the App Logs tab has entries
 **When** the user taps "Export"
-**Then** logs are saved as a .txt file via file picker
+**Then** all logs are saved as a .txt file via file picker (ignoring filters)
 **When** the user taps "Copy"
-**Then** logs are copied to clipboard for pasting into GitHub issues
+**Then** only the currently visible (filtered by level chips and search query) log entries are copied to clipboard
+**And** the snackbar shows the count of copied entries
 
 #### Scenario: Access from App Settings
 
@@ -253,5 +256,6 @@ class ConsoleLogEntry {
 4. **Cookies tab**: verify cookies listed with security chips; delete a cookie and confirm removal
 5. **Share HTML** (AppBar share icon): tap and verify bottom sheet with Share/Save/Copy options; test each option
 6. **Scripts** (AppBar code icon): tap and verify bottom sheet shows user scripts (or "no scripts" message); expand a script and copy its source
-7. **App Logs tab**: verify app log entries appear; use filter chips; tap "Copy" and paste
-8. Go back, open App Settings -> App Logs: verify it works without a site loaded (share and scripts icons should not appear)
+7. **App Logs tab**: verify app log entries appear; use filter chips; tap "Copy" and paste — verify only filtered entries are copied
+8. **Filtered copy**: on each tab, enter a search query, tap Copy, and verify clipboard contains only the matching entries (not all)
+9. Go back, open App Settings -> App Logs: verify it works without a site loaded (share and scripts icons should not appear)
