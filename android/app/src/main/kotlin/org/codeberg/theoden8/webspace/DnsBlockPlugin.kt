@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace
 
 import android.app.Activity
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceResponse
@@ -99,7 +100,9 @@ class FastDnsBlockerHandler(
         }
         if (host.isEmpty()) return null
 
-        if (isBlockedDomain(host)) {
+        val blocked = isBlockedDomain(host)
+        Log.d("DnsBlock", "[Native] $host ${if (blocked) "BLOCKED" else "allowed"}")
+        if (blocked) {
             onBlocked(host)
             return WebResourceResponse("text/plain", "utf-8", null)
         }

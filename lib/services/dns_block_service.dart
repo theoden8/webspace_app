@@ -24,15 +24,12 @@ class DnsStats {
   int allowed = 0;
   int blocked = 0;
   final List<DnsLogEntry> log = [];
-  final Set<String> _seen = {};
   static const int _maxLogEntries = 500;
 
   int get total => allowed + blocked;
   double get blockRate => total > 0 ? blocked / total * 100 : 0;
 
   void record(String domain, bool wasBlocked) {
-    final key = '${wasBlocked ? 'B' : 'A'}:$domain';
-    if (!_seen.add(key)) return;
     if (wasBlocked) {
       blocked++;
     } else {
@@ -52,7 +49,6 @@ class DnsStats {
     allowed = 0;
     blocked = 0;
     log.clear();
-    _seen.clear();
   }
 }
 
