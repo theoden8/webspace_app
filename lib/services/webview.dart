@@ -750,9 +750,7 @@ class WebViewFactory {
         // DNS blocklist check
         if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist) {
           final blocked = DnsBlockService.instance.isBlocked(url);
-          // On Android, sub-resource recording happens in shouldInterceptRequest.
-          // Only record navigation-level requests here on non-Android platforms.
-          if (config.siteId != null && !Platform.isAndroid) {
+          if (config.siteId != null) {
             DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
           }
           if (blocked) {
@@ -853,6 +851,14 @@ class WebViewFactory {
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
+        // Record the main-frame navigation for DNS stats (catches initial
+        // page loads that bypass shouldOverrideUrlLoading).
+        if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist
+            && config.siteId != null && url != null) {
+          final urlStr = url.toString();
+          final blocked = DnsBlockService.instance.isBlocked(urlStr);
+          DnsBlockService.instance.recordRequest(config.siteId!, urlStr, blocked);
+        }
         // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {
           final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
