@@ -206,7 +206,7 @@ App Settings SHALL display when the blocklist was last downloaded, along with th
 
 ### Requirement: DNS-008 - Request Interception Hooks
 
-DNS blocking and recording uses multiple hooks to cover different request types. Each hook has different platform support and capabilities.
+The system SHALL use multiple interception hooks to block and record DNS requests across different request types and platforms. Each hook has different platform support and capabilities.
 
 #### Hook: shouldOverrideUrlLoading (all platforms)
 
