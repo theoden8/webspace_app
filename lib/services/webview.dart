@@ -699,8 +699,8 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        useShouldInterceptRequest: Platform.isAndroid && (config.dnsBlockEnabled || config.localCdnEnabled),
-        useOnLoadResource: config.siteId != null && DnsBlockService.instance.hasBlocklist,
+        useShouldInterceptRequest: Platform.isAndroid,
+        useOnLoadResource: false,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -810,15 +810,19 @@ class WebViewFactory {
           ? (controller, request) async {
               final url = request.url.toString();
 
-              // DNS blocklist: block sub-resource requests
-              if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
-                return inapp.WebResourceResponse(
-                  contentType: 'text/plain',
-                  contentEncoding: 'utf-8',
-                  data: Uint8List(0),
-                  statusCode: 403,
-                  reasonPhrase: 'Blocked by DNS blocklist',
-                );
+              // Record every sub-resource request for DNS stats
+              if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+                final blocked = DnsBlockService.instance.isBlocked(url);
+                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+                if (blocked && config.dnsBlockEnabled) {
+                  return inapp.WebResourceResponse(
+                    contentType: 'text/plain',
+                    contentEncoding: 'utf-8',
+                    data: Uint8List(0),
+                    statusCode: 403,
+                    reasonPhrase: 'Blocked by DNS blocklist',
+                  );
+                }
               }
 
               // LocalCDN: serve CDN resources from local cache
@@ -837,15 +841,6 @@ class WebViewFactory {
               }
 
               return null;
-            }
-          : null,
-      onLoadResource: (config.siteId != null && DnsBlockService.instance.hasBlocklist)
-          ? (controller, resource) {
-              final url = resource.url?.toString();
-              if (url != null && url.startsWith('http')) {
-                final blocked = DnsBlockService.instance.isBlocked(url);
-                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-              }
             }
           : null,
       onLoadStart: (controller, url) async {
