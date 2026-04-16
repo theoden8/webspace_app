@@ -210,7 +210,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         : allLogs.where((e) => _matchesSearch(e.message)).toList();
     return Column(
       children: [
-        _buildConsoleActions(),
+        _buildConsoleActions(logs),
         Expanded(
           child: logs.isEmpty
               ? Center(child: Text(_searchQuery.isEmpty ? 'No console messages' : 'No matches'))
@@ -227,7 +227,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  Widget _buildConsoleActions() {
+  Widget _buildConsoleActions(List<ConsoleLogEntry> logs) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       child: Row(
@@ -242,17 +242,19 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             label: const Text('Clear'),
           ),
           TextButton.icon(
-            onPressed: () {
-              final text = widget.webViewModel!.consoleLogs
-                  .map((e) => '[${_formatTime(e.timestamp)}] [${_consoleLevelName(e.level)}] ${e.message}')
-                  .join('\n');
-              Clipboard.setData(ClipboardData(text: text));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Console logs copied')),
-              );
-            },
+            onPressed: logs.isEmpty
+                ? null
+                : () {
+                    final text = logs
+                        .map((e) => '[${_formatTime(e.timestamp)}] [${_consoleLevelName(e.level)}] ${e.message}')
+                        .join('\n');
+                    Clipboard.setData(ClipboardData(text: text));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Copied ${logs.length} console log${logs.length == 1 ? '' : 's'}')),
+                    );
+                  },
             icon: const Icon(Icons.copy, size: 18),
-            label: const Text('Copy All'),
+            label: const Text('Copy'),
           ),
         ],
       ),
@@ -302,7 +304,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         : blocked.where((b) => _matchesSearch(b.name) || _matchesSearch(b.domain)).toList();
     return Column(
       children: [
-        _buildCookieActions(allCookies),
+        _buildCookieActions(cookies),
         Expanded(
           child: _loadingCookies
               ? const Center(child: CircularProgressIndicator())
@@ -350,7 +352,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 Clipboard.setData(
                     ClipboardData(text: const JsonEncoder.withIndent('  ').convert(json)));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cookies copied as JSON')),
+                  SnackBar(content: Text('Copied ${cookies.length} cookie${cookies.length == 1 ? '' : 's'} as JSON')),
                 );
               },
               icon: const Icon(Icons.copy, size: 18),
@@ -787,7 +789,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
     return Column(
       children: [
-        _buildLogActions(),
+        _buildLogActions(filtered),
         _buildLogFilters(),
         Expanded(
           child: filtered.isEmpty
@@ -805,7 +807,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  Widget _buildLogActions() {
+  Widget _buildLogActions(List<LogEntry> filtered) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       child: Row(
@@ -816,12 +818,17 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             label: const Text('Export'),
           ),
           TextButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: LogService.instance.export()));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logs copied to clipboard')),
-              );
-            },
+            onPressed: filtered.isEmpty
+                ? null
+                : () {
+                    final text = filtered
+                        .map((e) => '[${_formatTime(e.timestamp)}] [${e.tag}/${e.level.name}] ${e.message}')
+                        .join('\n');
+                    Clipboard.setData(ClipboardData(text: text));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Copied ${filtered.length} log entr${filtered.length == 1 ? 'y' : 'ies'}')),
+                    );
+                  },
             icon: const Icon(Icons.copy, size: 18),
             label: const Text('Copy'),
           ),
