@@ -729,6 +729,8 @@ class WebViewFactory {
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
         useShouldInterceptRequest: Platform.isAndroid,
+        useShouldInterceptAjaxRequest: DnsBlockService.instance.hasBlocklist,
+        useShouldInterceptFetchRequest: DnsBlockService.instance.hasBlocklist,
         useOnLoadResource: false,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
@@ -886,6 +888,36 @@ class WebViewFactory {
               }
 
               return null;
+            }
+          : null,
+      shouldInterceptAjaxRequest: DnsBlockService.instance.hasBlocklist
+          ? (controller, ajaxRequest) async {
+              final url = ajaxRequest.url?.toString();
+              if (url != null && config.siteId != null) {
+                final blocked = DnsBlockService.instance.isBlocked(url);
+                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+                if (blocked && config.dnsBlockEnabled) {
+                  ajaxRequest.action = inapp.AjaxRequestAction.ABORT;
+                  return ajaxRequest;
+                }
+              }
+              ajaxRequest.action = inapp.AjaxRequestAction.PROCEED;
+              return ajaxRequest;
+            }
+          : null,
+      shouldInterceptFetchRequest: DnsBlockService.instance.hasBlocklist
+          ? (controller, fetchRequest) async {
+              final url = fetchRequest.url?.toString();
+              if (url != null && config.siteId != null) {
+                final blocked = DnsBlockService.instance.isBlocked(url);
+                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+                if (blocked && config.dnsBlockEnabled) {
+                  fetchRequest.action = inapp.FetchRequestAction.ABORT;
+                  return fetchRequest;
+                }
+              }
+              fetchRequest.action = inapp.FetchRequestAction.PROCEED;
+              return fetchRequest;
             }
           : null,
       onLoadStart: (controller, url) async {
