@@ -42,9 +42,26 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
         }
     }
 
+    private val pendingBlocked = mutableListOf<Map<String, String>>()
+    private var flushScheduled = false
+
     private fun reportBlocked(siteId: String, host: String) {
-        handler.post {
-            channel.invokeMethod("onDnsBlocked", mapOf("siteId" to siteId, "host" to host))
+        synchronized(pendingBlocked) {
+            pendingBlocked.add(mapOf("siteId" to siteId, "host" to host))
+            if (!flushScheduled) {
+                flushScheduled = true
+                handler.postDelayed({
+                    val batch: List<Map<String, String>>
+                    synchronized(pendingBlocked) {
+                        batch = pendingBlocked.toList()
+                        pendingBlocked.clear()
+                        flushScheduled = false
+                    }
+                    if (batch.isNotEmpty()) {
+                        channel.invokeMethod("onDnsBlockedBatch", batch)
+                    }
+                }, 200)
+            }
         }
     }
 

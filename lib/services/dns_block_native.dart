@@ -12,13 +12,15 @@ class DnsBlockNative {
   static void initialize() {
     if (!isSupported) return;
     _channel.setMethodCallHandler((call) async {
-      if (call.method == 'onDnsBlocked') {
-        final args = Map<String, dynamic>.from(call.arguments as Map);
-        final siteId = args['siteId'] as String?;
-        final host = args['host'] as String?;
-        if (siteId != null && host != null) {
-          LogService.instance.log('DnsBlock', '[NativeBlocked] $host (site: $siteId)');
-          DnsBlockService.instance.recordRequest(siteId, 'https://$host/', true);
+      if (call.method == 'onDnsBlockedBatch') {
+        final batch = (call.arguments as List).cast<Map>();
+        for (final entry in batch) {
+          final args = Map<String, dynamic>.from(entry);
+          final siteId = args['siteId'] as String?;
+          final host = args['host'] as String?;
+          if (siteId != null && host != null) {
+            DnsBlockService.instance.recordRequest(siteId, 'https://$host/', true);
+          }
         }
       }
     });

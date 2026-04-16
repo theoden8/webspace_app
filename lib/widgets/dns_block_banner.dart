@@ -34,7 +34,10 @@ class _DnsBlockBannerState extends State<DnsBlockBanner> {
   }
 
   void _onUpdate() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      WidgetsBinding.instance.scheduleFrame();
+    }
   }
 
   @override
