@@ -710,8 +710,9 @@ class WebViewFactory {
       ));
     }
 
-    // iOS DNS sub-resource blocking: intercepts fetch/XHR/src setters and
-    // checks each URL via Dart roundtrip (Android uses native FastDnsBlockerHandler).
+    // iOS DNS sub-resource blocking: JS interceptor with Bloom-filter
+    // prefilter. Bloom filter check is pure JS (microseconds). Only
+    // ~0.1% of allowed URLs trigger a Dart roundtrip for confirmation.
     if (!Platform.isAndroid
         && config.siteId != null
         && config.dnsBlockEnabled
@@ -720,6 +721,42 @@ class WebViewFactory {
         groupName: 'dns_js_blocker',
         source: '''
 (function() {
+  var bloomReady = false;
+  var bloomBits = null;
+  var bloomBitCount = 0;
+  var bloomK = 0;
+
+  // FNV-1a 32-bit hash, matching Dart implementation
+  function fnv1a(s, seed) {
+    var h = seed >>> 0;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h >>> 0;
+  }
+
+  function bloomContains(s) {
+    if (!bloomReady) return true; // safe default while loading: ask Dart
+    var h1 = fnv1a(s, 0x811C9DC5);
+    var h2 = fnv1a(s, 0xCBF29CE4);
+    for (var i = 0; i < bloomK; i++) {
+      var pos = ((h1 + i * h2) >>> 0) % bloomBitCount;
+      if ((bloomBits[pos >> 3] & (1 << (pos & 7))) === 0) return false;
+    }
+    return true;
+  }
+
+  // Hierarchy walk-up: check host, then each parent suffix
+  function maybeBlocked(host) {
+    if (bloomContains(host)) return true;
+    var parts = host.split('.');
+    for (var i = 1; i < parts.length - 1; i++) {
+      if (bloomContains(parts.slice(i).join('.'))) return true;
+    }
+    return false;
+  }
+
   function check(url) {
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
       return Promise.resolve(false);
@@ -727,8 +764,34 @@ class WebViewFactory {
     if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
       return Promise.resolve(false);
     }
+    var host;
+    try { host = new URL(url).hostname; } catch (e) { return Promise.resolve(false); }
+    // Bloom prefilter: if definitely not in set, allow without roundtrip
+    if (!maybeBlocked(host)) {
+      // Still record the allowed request fire-and-forget
+      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+      return Promise.resolve(false);
+    }
+    // Possibly blocked — confirm via Dart (handles false positives + records)
     return window.flutter_inappwebview.callHandler('dnsCheck', url);
   }
+
+  // Fetch Bloom filter from Dart once at startup
+  function loadBloom() {
+    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+      setTimeout(loadBloom, 50);
+      return;
+    }
+    window.flutter_inappwebview.callHandler('getDnsBloom').then(function(map) {
+      if (!map) return;
+      var bytes = map.bits;
+      bloomBits = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      bloomBitCount = map.bitCount;
+      bloomK = map.k;
+      bloomReady = true;
+    });
+  }
+  loadBloom();
 
   // fetch
   var origFetch = window.fetch;
@@ -911,6 +974,10 @@ class WebViewFactory {
               final blocked = DnsBlockService.instance.isBlocked(url);
               DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
               return blocked;
+            });
+            // One-shot bloom filter delivery to JS for fast prefiltering
+            controller.addJavaScriptHandler(handlerName: 'getDnsBloom', callback: (args) {
+              return DnsBlockService.instance.getBloomFilter().toMap();
             });
           }
         }

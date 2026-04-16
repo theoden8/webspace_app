@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -111,6 +112,22 @@ class DnsBlockService {
 
   /// The raw blocked domains set (for sending to native handler).
   Set<String> get blockedDomains => _blockedDomains;
+
+  /// Cached Bloom filter for fast JS-side membership checks.
+  BloomFilter? _bloomFilter;
+
+  /// Get (and cache) a Bloom filter built from all blocked domains plus
+  /// their hierarchical suffixes. Used for iOS JS-side prefiltering.
+  BloomFilter getBloomFilter() {
+    if (_bloomFilter != null) return _bloomFilter!;
+    final sw = Stopwatch()..start();
+    _bloomFilter = BloomFilter.build(_blockedDomains, fpRate: 0.001);
+    sw.stop();
+    LogService.instance.log('DnsBlock',
+        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_blockedDomains.length} domains in ${sw.elapsedMilliseconds}ms',
+        level: LogLevel.info);
+    return _bloomFilter!;
+  }
 
   /// Get DNS stats for a specific site. Creates on first access.
   DnsStats statsForSite(String siteId) {
@@ -278,6 +295,7 @@ class DnsBlockService {
       domains.add(trimmed);
     }
     _blockedDomains = domains;
+    _bloomFilter = null;
   }
 
   Future<File> _getCacheFile() async {

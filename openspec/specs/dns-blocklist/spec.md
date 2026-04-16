@@ -255,9 +255,16 @@ Instead, iOS uses a JavaScript interceptor injected at `DOCUMENT_START`:
   elements (e.g., `<img src="tracker.com">` in initial HTML), clears the src
   attribute and removes the element if blocked
 
-Each URL check is a `callHandler('dnsCheck', url)` roundtrip to Dart, which does
-O(1) HashSet lookup in `DnsBlockService.isBlocked()`. Dart also records the
-request for stats.
+To minimize Dart roundtrips, a Bloom filter built from the blocked domains is
+sent to JS once at startup (~1 MB for 588K domains, 0.1% false positive rate).
+The JS interceptor checks each URL host against the Bloom filter first:
+
+- Bloom says "definitely not" → allow without roundtrip (record only, fire-and-forget)
+- Bloom says "possibly yes" → roundtrip to Dart `dnsCheck` handler for confirmation
+
+Roughly 99.9% of allowed URLs skip the Dart roundtrip entirely. Only blocked
+URLs and ~0.1% of allowed URLs (false positives) hit Dart. Dart does the
+proper O(1) HashSet lookup with hierarchy walk-up and records the request.
 
 **Catches:** `fetch()`, `XMLHttpRequest`, dynamically created resource elements,
 property-set src/href, elements inserted into DOM after script runs.
