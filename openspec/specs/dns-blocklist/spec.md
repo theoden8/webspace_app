@@ -237,14 +237,45 @@ Injected at `DOCUMENT_START` with `buffered: true`, observes the Resource Timing
 
 Records the page URL when a navigation starts. Ensures the banner shows immediately even for cached HTML loads that bypass shouldOverrideUrlLoading.
 
+#### Blocking: iOS JS Interceptor
+
+iOS/macOS cannot intercept sub-resources natively. WKWebView runs its network
+stack in a separate process and exposes no equivalent to Android's
+`shouldInterceptRequest`. The only native option is `WKContentRuleList`, but it
+has a ~150K rule limit and compilation takes tens of seconds, while even the
+smallest Hagezi blocklist ("Light") is 146K domains.
+
+Instead, iOS uses a JavaScript interceptor injected at `DOCUMENT_START`:
+
+- Overrides `window.fetch` — async check via `dnsCheck` handler, reject if blocked
+- Overrides `XMLHttpRequest.prototype.open`/`send` — abort if blocked
+- Patches `src`/`href` setters on `HTMLImageElement`, `HTMLScriptElement`,
+  `HTMLLinkElement`, `HTMLIFrameElement` — defers the assignment pending the check
+- `MutationObserver` on `document.documentElement` — catches statically-parsed
+  elements (e.g., `<img src="tracker.com">` in initial HTML), clears the src
+  attribute and removes the element if blocked
+
+Each URL check is a `callHandler('dnsCheck', url)` roundtrip to Dart, which does
+O(1) HashSet lookup in `DnsBlockService.isBlocked()`. Dart also records the
+request for stats.
+
+**Catches:** `fetch()`, `XMLHttpRequest`, dynamically created resource elements,
+property-set src/href, elements inserted into DOM after script runs.
+
+**Does NOT catch:** Resources loaded before the interceptor runs (rare at
+DOCUMENT_START), static elements whose load completes before MutationObserver
+fires (the initial request may go out but response is discarded when src is
+cleared — some privacy leak), WebSocket, cross-origin iframe contents,
+`navigator.sendBeacon()` (can be added).
+
 #### Summary: Platform coverage
 
 | Request type | Android block | Android record | iOS/macOS block | iOS/macOS record |
 |---|---|---|---|---|
 | Navigation (links, redirects) | shouldOverrideUrlLoading | shouldOverrideUrlLoading + onLoadStart | shouldOverrideUrlLoading | shouldOverrideUrlLoading + onLoadStart |
-| Static sub-resources (`<script>`, `<img>`, `<link>`) | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
-| `fetch()` API | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
-| `XMLHttpRequest` | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
+| Static sub-resources (`<script>`, `<img>`, `<link>`) | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (MutationObserver + src setter) | JS interceptor + PerformanceObserver |
+| `fetch()` API | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (fetch override) | JS interceptor + PerformanceObserver |
+| `XMLHttpRequest` | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (XHR override) | JS interceptor + PerformanceObserver |
 | `navigator.sendBeacon()` | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
 | WebSocket | No | No | No | No |
 | Cross-origin iframe resources | No | No | No | No |

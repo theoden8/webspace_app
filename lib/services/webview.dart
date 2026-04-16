@@ -710,6 +710,121 @@ class WebViewFactory {
       ));
     }
 
+    // iOS DNS sub-resource blocking: intercepts fetch/XHR/src setters and
+    // checks each URL via Dart roundtrip (Android uses native FastDnsBlockerHandler).
+    if (!Platform.isAndroid
+        && config.siteId != null
+        && config.dnsBlockEnabled
+        && DnsBlockService.instance.hasBlocklist) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'dns_js_blocker',
+        source: '''
+(function() {
+  function check(url) {
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+      return Promise.resolve(false);
+    }
+    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+      return Promise.resolve(false);
+    }
+    return window.flutter_inappwebview.callHandler('dnsCheck', url);
+  }
+
+  // fetch
+  var origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function(input, init) {
+      var url = typeof input === 'string' ? input : (input && input.url);
+      return check(url).then(function(blocked) {
+        if (blocked) return Promise.reject(new TypeError('Blocked by DNS blocklist: ' + url));
+        return origFetch.call(this, input, init);
+      }.bind(this));
+    };
+  }
+
+  // XMLHttpRequest
+  var origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this.__dnsBlockUrl = url;
+    return origOpen.apply(this, arguments);
+  };
+  var origSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function(body) {
+    var self = this;
+    var args = arguments;
+    check(self.__dnsBlockUrl).then(function(blocked) {
+      if (blocked) { try { self.abort(); } catch(e) {} return; }
+      origSend.apply(self, args);
+    });
+  };
+
+  // Property setters for src/href on resource elements
+  function patchSetter(proto, attr) {
+    var desc = Object.getOwnPropertyDescriptor(proto, attr);
+    if (!desc || !desc.set) return;
+    var origSet = desc.set;
+    Object.defineProperty(proto, attr, {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get: desc.get,
+      set: function(value) {
+        var el = this;
+        check(value).then(function(blocked) {
+          if (!blocked) origSet.call(el, value);
+        });
+      }
+    });
+  }
+  patchSetter(HTMLImageElement.prototype, 'src');
+  patchSetter(HTMLScriptElement.prototype, 'src');
+  patchSetter(HTMLLinkElement.prototype, 'href');
+  patchSetter(HTMLIFrameElement.prototype, 'src');
+
+  // MutationObserver for statically-parsed HTML elements
+  function checkElement(el) {
+    var attr = null;
+    if (el.tagName === 'IMG' || el.tagName === 'SCRIPT' || el.tagName === 'IFRAME') attr = 'src';
+    else if (el.tagName === 'LINK') attr = 'href';
+    if (attr) {
+      var url = el.getAttribute(attr);
+      if (url && url.indexOf('http') === 0) {
+        check(url).then(function(blocked) {
+          if (blocked) {
+            el.removeAttribute(attr);
+            if (el.parentNode) el.parentNode.removeChild(el);
+          }
+        });
+      }
+    }
+  }
+  var mo = new MutationObserver(function(mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var added = mutations[i].addedNodes;
+      for (var j = 0; j < added.length; j++) {
+        var node = added[j];
+        if (node.nodeType !== 1) continue;
+        checkElement(node);
+        if (node.querySelectorAll) {
+          var els = node.querySelectorAll('img, script, link, iframe');
+          for (var k = 0; k < els.length; k++) checkElement(els[k]);
+        }
+      }
+    }
+  });
+  function startObserving() {
+    if (document.documentElement) {
+      mo.observe(document.documentElement, {childList: true, subtree: true});
+    } else {
+      setTimeout(startObserving, 10);
+    }
+  }
+  startObserving();
+})();
+;null;''',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
     // User script injection: shim for external dependency resolution + scripts
     final userScriptService = UserScriptService(
       scripts: config.userScripts,
@@ -748,9 +863,6 @@ class WebViewFactory {
         useShouldInterceptAjaxRequest: false,
         useShouldInterceptFetchRequest: false,
         useOnLoadResource: false,
-        contentBlockers: (!Platform.isAndroid && config.dnsBlockEnabled)
-            ? DnsBlockService.instance.getIosContentBlockerRules()
-            : null,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -791,6 +903,16 @@ class WebViewFactory {
             }
             return null;
           });
+          // iOS sub-resource blocking: per-URL check from JS interceptor
+          if (!Platform.isAndroid && config.dnsBlockEnabled) {
+            controller.addJavaScriptHandler(handlerName: 'dnsCheck', callback: (args) {
+              if (args.isEmpty || args[0] is! String) return false;
+              final url = args[0] as String;
+              final blocked = DnsBlockService.instance.isBlocked(url);
+              DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+              return blocked;
+            });
+          }
         }
         userScriptService.registerHandlers(controller);
         // If we loaded cached HTML, navigate to the real URL when online

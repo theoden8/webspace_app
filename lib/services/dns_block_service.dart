@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -112,57 +111,6 @@ class DnsBlockService {
 
   /// The raw blocked domains set (for sending to native handler).
   Set<String> get blockedDomains => _blockedDomains;
-
-  /// Cached iOS content blocker rules.
-  List<inapp.ContentBlocker>? _iosContentBlockerRules;
-
-  /// WKContentRuleList has a hard limit of 150K rules and compilation slows
-  /// dramatically past ~10K rules. Total regex length affects compile time.
-  /// We cap at maxDomains and batch to produce <= maxRules.
-  static const int _iosMaxDomains = 50000;
-  static const int _iosMaxRules = 1000;
-
-  /// Generate ContentBlocker rules for iOS WKContentRuleList.
-  /// WKContentRuleList has strict regex syntax (no grouping parens, limited features).
-  /// Each rule uses a simple alternation of escaped domain names.
-  List<inapp.ContentBlocker> getIosContentBlockerRules() {
-    if (_iosContentBlockerRules != null) return _iosContentBlockerRules!;
-    if (_blockedDomains.isEmpty) return const [];
-
-    final sw = Stopwatch()..start();
-    final rules = <inapp.ContentBlocker>[];
-    var domainList = _blockedDomains.toList();
-    if (domainList.length > _iosMaxDomains) {
-      LogService.instance.log('DnsBlock',
-          'iOS: capping blocklist from ${domainList.length} to $_iosMaxDomains domains (WKContentRuleList limit)',
-          level: LogLevel.warning);
-      domainList = domainList.sublist(0, _iosMaxDomains);
-    }
-    final batchSize = (domainList.length / _iosMaxRules).ceil().clamp(1, 1000);
-
-    for (int i = 0; i < domainList.length; i += batchSize) {
-      final end = (i + batchSize < domainList.length) ? i + batchSize : domainList.length;
-      final batch = domainList.sublist(i, end);
-      // Simple alternation without grouping parens; WKContentRuleList supports |
-      final pattern = batch.map((d) => d.replaceAll('.', '\\.')).join('|');
-      rules.add(inapp.ContentBlocker(
-        trigger: inapp.ContentBlockerTrigger(
-          urlFilter: pattern,
-          loadType: [inapp.ContentBlockerTriggerLoadType.THIRD_PARTY],
-        ),
-        action: inapp.ContentBlockerAction(
-          type: inapp.ContentBlockerActionType.BLOCK,
-        ),
-      ));
-    }
-
-    sw.stop();
-    LogService.instance.log('DnsBlock',
-        'Generated ${rules.length} iOS content blocker rules (batch=$batchSize) from ${domainList.length} domains in ${sw.elapsedMilliseconds}ms',
-        level: LogLevel.info);
-    _iosContentBlockerRules = rules;
-    return rules;
-  }
 
   /// Get DNS stats for a specific site. Creates on first access.
   DnsStats statsForSite(String siteId) {
@@ -330,7 +278,6 @@ class DnsBlockService {
       domains.add(trimmed);
     }
     _blockedDomains = domains;
-    _iosContentBlockerRules = null;
   }
 
   Future<File> _getCacheFile() async {
