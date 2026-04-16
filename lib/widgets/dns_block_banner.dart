@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
@@ -20,24 +22,26 @@ class DnsBlockBanner extends StatefulWidget {
 
 class _DnsBlockBannerState extends State<DnsBlockBanner> {
   bool _expanded = false;
+  Timer? _refreshTimer;
+  int _lastTotal = 0;
 
   @override
   void initState() {
     super.initState();
-    DnsBlockService.instance.addDnsLogListener(_onUpdate);
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final stats = DnsBlockService.instance.statsForSite(widget.siteId);
+      if (stats.total != _lastTotal) {
+        _lastTotal = stats.total;
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
-    DnsBlockService.instance.removeDnsLogListener(_onUpdate);
+    _refreshTimer?.cancel();
     super.dispose();
-  }
-
-  void _onUpdate() {
-    if (mounted) {
-      setState(() {});
-      WidgetsBinding.instance.scheduleFrame();
-    }
   }
 
   @override
