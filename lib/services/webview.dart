@@ -699,7 +699,8 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        useShouldInterceptRequest: Platform.isAndroid && (DnsBlockService.instance.hasBlocklist || config.localCdnEnabled),
+        useShouldInterceptRequest: Platform.isAndroid && (config.dnsBlockEnabled || config.localCdnEnabled),
+        useOnLoadResource: config.siteId != null && DnsBlockService.instance.hasBlocklist,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -748,14 +749,11 @@ class WebViewFactory {
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
         // DNS blocklist check
-        if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist) {
-          final blocked = DnsBlockService.instance.isBlocked(url);
+        if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
           if (config.siteId != null) {
-            DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+            DnsBlockService.instance.recordRequest(config.siteId!, url, true);
           }
-          if (blocked) {
-            return inapp.NavigationActionPolicy.CANCEL;
-          }
+          return inapp.NavigationActionPolicy.CANCEL;
         }
         // Content blocker domain check
         if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
@@ -812,21 +810,15 @@ class WebViewFactory {
           ? (controller, request) async {
               final url = request.url.toString();
 
-              // DNS blocklist: record + block sub-resource requests
-              if (DnsBlockService.instance.hasBlocklist) {
-                final blocked = DnsBlockService.instance.isBlocked(url);
-                if (config.siteId != null) {
-                  DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-                }
-                if (blocked && config.dnsBlockEnabled) {
-                  return inapp.WebResourceResponse(
-                    contentType: 'text/plain',
-                    contentEncoding: 'utf-8',
-                    data: Uint8List(0),
-                    statusCode: 403,
-                    reasonPhrase: 'Blocked by DNS blocklist',
-                  );
-                }
+              // DNS blocklist: block sub-resource requests
+              if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
+                return inapp.WebResourceResponse(
+                  contentType: 'text/plain',
+                  contentEncoding: 'utf-8',
+                  data: Uint8List(0),
+                  statusCode: 403,
+                  reasonPhrase: 'Blocked by DNS blocklist',
+                );
               }
 
               // LocalCDN: serve CDN resources from local cache
@@ -845,6 +837,15 @@ class WebViewFactory {
               }
 
               return null;
+            }
+          : null,
+      onLoadResource: (config.siteId != null && DnsBlockService.instance.hasBlocklist)
+          ? (controller, resource) {
+              final url = resource.url?.toString();
+              if (url != null && url.startsWith('http')) {
+                final blocked = DnsBlockService.instance.isBlocked(url);
+                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+              }
             }
           : null,
       onLoadStart: (controller, url) async {
