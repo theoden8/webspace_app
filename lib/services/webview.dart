@@ -667,6 +667,33 @@ class WebViewFactory {
       ));
     }
 
+    // DNS stats: inject PerformanceObserver to report loaded resource URLs
+    if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'dns_resource_observer',
+        source: '''
+(function() {
+  var seen = {};
+  function report(url) {
+    if (!url || seen[url] || !url.startsWith('http')) return;
+    seen[url] = 1;
+    try { window.flutter_inappwebview.callHandler('dnsResourceLoaded', url); } catch(e) {}
+  }
+  var po = new PerformanceObserver(function(list) {
+    list.getEntries().forEach(function(e) { report(e.name); });
+  });
+  po.observe({entryTypes: ['resource', 'navigation']});
+  // Report already-loaded resources
+  if (performance.getEntriesByType) {
+    performance.getEntriesByType('resource').forEach(function(e) { report(e.name); });
+    performance.getEntriesByType('navigation').forEach(function(e) { report(e.name); });
+  }
+})();
+;null;''',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
     // User script injection: shim for external dependency resolution + scripts
     final userScriptService = UserScriptService(
       scripts: config.userScripts,
@@ -677,6 +704,8 @@ class WebViewFactory {
     // Track last URL that triggered onLoadStart, used to distinguish
     // SPA navigations (pushState) from real page loads in onUpdateVisitedHistory.
     String? lastLoadStartUrl;
+
+    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
 
     return inapp.InAppWebView(
       key: config.key,
@@ -731,6 +760,17 @@ class WebViewFactory {
             return args.isNotEmpty ? args[0] : '';
           });
         }
+        // DNS stats: register handler for resource observer JS
+        if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+          controller.addJavaScriptHandler(handlerName: 'dnsResourceLoaded', callback: (args) {
+            if (args.isNotEmpty && args[0] is String) {
+              final url = args[0] as String;
+              final blocked = DnsBlockService.instance.isBlocked(url);
+              DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+            }
+            return null;
+          });
+        }
         userScriptService.registerHandlers(controller);
         // If we loaded cached HTML, navigate to the real URL when online
         if (usesCachedHtml) {
@@ -748,12 +788,16 @@ class WebViewFactory {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
-        // DNS blocklist check
-        if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
+        // DNS blocklist check + record navigation for stats
+        if (DnsBlockService.instance.hasBlocklist) {
+          final blocked = DnsBlockService.instance.isBlocked(url);
           if (config.siteId != null) {
-            DnsBlockService.instance.recordRequest(config.siteId!, url, true);
+            DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
           }
-          return inapp.NavigationActionPolicy.CANCEL;
+          if (blocked && config.dnsBlockEnabled) {
+            LogService.instance.log('DnsBlock', 'Blocked navigation: $url');
+            return inapp.NavigationActionPolicy.CANCEL;
+          }
         }
         // Content blocker domain check
         if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
@@ -815,6 +859,7 @@ class WebViewFactory {
                 final blocked = DnsBlockService.instance.isBlocked(url);
                 DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
                 if (blocked && config.dnsBlockEnabled) {
+                  LogService.instance.log('DnsBlock', 'Blocked sub-resource: $url (site: ${config.siteId})');
                   return inapp.WebResourceResponse(
                     contentType: 'text/plain',
                     contentEncoding: 'utf-8',
