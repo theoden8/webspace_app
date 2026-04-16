@@ -13,11 +13,13 @@ class ConsoleLogEntry {
   final DateTime timestamp;
   final String message;
   final ConsoleMessageLevel level;
+  final bool isEvalInput;
 
   ConsoleLogEntry({
     required this.timestamp,
     required this.message,
     required this.level,
+    this.isEvalInput = false,
   });
 }
 

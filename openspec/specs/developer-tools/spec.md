@@ -210,6 +210,41 @@ The app SHALL show active user scripts for the current site via an AppBar action
 
 ---
 
+### Requirement: DEVTOOLS-007 - Console Eval
+
+The app SHALL provide a JavaScript evaluation input in the Console tab, allowing users to execute arbitrary JS in the context of the current page and see results inline, like a standard browser console.
+
+#### Scenario: Evaluate a JavaScript expression
+
+**Given** a site is loaded and the Console tab is open
+**When** the user types a JS expression (e.g. `document.title`) in the eval input and taps Run or presses Enter
+**Then** the input is shown in the console log as `> document.title` in bold primary color
+**And** the expression is evaluated via direct code injection (CSP-safe, no `eval()`)
+**And** the result is output via `console.log()` (or `console.error()` on exception)
+**And** the result appears in the console log below the input
+
+#### Scenario: Error handling
+
+**Given** the eval input contains invalid JavaScript
+**When** the user submits it
+**Then** the error message is shown as a red console error entry
+
+#### Scenario: Command history
+
+**Given** the user has previously evaluated one or more commands
+**When** the user taps the up arrow button
+**Then** the previous command is loaded into the input field
+**When** the user taps the down arrow button
+**Then** the next command is loaded, or the input is cleared at the end of history
+
+#### Scenario: Eval disabled without controller
+
+**Given** the webview controller is not available (site not loaded)
+**When** the Console tab is shown
+**Then** the eval input is disabled and the prompt is dimmed
+
+---
+
 ## Implementation Details
 
 ### Files
