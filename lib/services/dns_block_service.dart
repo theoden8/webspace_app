@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -108,6 +109,40 @@ class DnsBlockService {
 
   /// Number of domains in the current blocklist.
   int get domainCount => _blockedDomains.length;
+
+  /// Cached content blocker rules for native webview engine blocking.
+  List<inapp.ContentBlocker>? _contentBlockerRules;
+
+  /// Generate ContentBlocker rules from the blocked domains.
+  /// Each rule uses a urlFilter regex matching one domain and its subdomains.
+  /// Runs in Java natively — no Dart roundtrip per request.
+  List<inapp.ContentBlocker> getContentBlockerRules() {
+    if (_contentBlockerRules != null) return _contentBlockerRules!;
+    if (_blockedDomains.isEmpty) return const [];
+
+    final sw = Stopwatch()..start();
+    final rules = <inapp.ContentBlocker>[];
+
+    for (final domain in _blockedDomains) {
+      final escaped = domain.replaceAll('.', '\\\\.');
+      rules.add(inapp.ContentBlocker(
+        trigger: inapp.ContentBlockerTrigger(
+          urlFilter: '.*$escaped',
+          loadType: [inapp.ContentBlockerTriggerLoadType.THIRD_PARTY],
+        ),
+        action: inapp.ContentBlockerAction(
+          type: inapp.ContentBlockerActionType.BLOCK,
+        ),
+      ));
+    }
+
+    sw.stop();
+    LogService.instance.log('DnsBlock',
+        'Generated ${rules.length} content blocker rules in ${sw.elapsedMilliseconds}ms',
+        level: LogLevel.info);
+    _contentBlockerRules = rules;
+    return rules;
+  }
 
   /// Get DNS stats for a specific site. Creates on first access.
   DnsStats statsForSite(String siteId) {
@@ -275,6 +310,7 @@ class DnsBlockService {
       domains.add(trimmed);
     }
     _blockedDomains = domains;
+    _contentBlockerRules = null;
   }
 
   Future<File> _getCacheFile() async {
