@@ -674,20 +674,39 @@ class WebViewFactory {
         source: '''
 (function() {
   var seen = {};
+  var pending = [];
+  function send(url) {
+    if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+    } else {
+      pending.push(url);
+    }
+  }
   function report(url) {
     if (!url || seen[url] || !url.startsWith('http')) return;
     seen[url] = 1;
-    try { window.flutter_inappwebview.callHandler('dnsResourceLoaded', url); } catch(e) {}
+    send(url);
   }
   var po = new PerformanceObserver(function(list) {
     list.getEntries().forEach(function(e) { report(e.name); });
   });
   po.observe({entryTypes: ['resource', 'navigation']});
-  // Report already-loaded resources
-  if (performance.getEntriesByType) {
-    performance.getEntriesByType('resource').forEach(function(e) { report(e.name); });
-    performance.getEntriesByType('navigation').forEach(function(e) { report(e.name); });
+  // Flush pending + retroactive entries once bridge is ready
+  function flush() {
+    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+      setTimeout(flush, 50);
+      return;
+    }
+    pending.forEach(function(url) {
+      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+    });
+    pending = [];
+    if (performance.getEntriesByType) {
+      performance.getEntriesByType('resource').forEach(function(e) { report(e.name); });
+      performance.getEntriesByType('navigation').forEach(function(e) { report(e.name); });
+    }
   }
+  flush();
 })();
 ;null;''',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
@@ -769,6 +788,7 @@ class WebViewFactory {
               final url = args[0] as String;
               final blocked = DnsBlockService.instance.isBlocked(url);
               DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+              LogService.instance.log('DnsBlock', '[PerfObserver] $url (${blocked ? "BLOCKED" : "allowed"})');
             }
             return null;
           });
@@ -791,13 +811,11 @@ class WebViewFactory {
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
         // DNS blocklist check + record navigation for stats
-        if (DnsBlockService.instance.hasBlocklist) {
+        if (DnsBlockService.instance.hasBlocklist && config.siteId != null) {
+          LogService.instance.log('DnsBlock', '[Navigation] $url');
           final blocked = DnsBlockService.instance.isBlocked(url);
-          if (config.siteId != null) {
-            DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-          }
+          DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
           if (blocked && config.dnsBlockEnabled) {
-            LogService.instance.log('DnsBlock', 'Blocked navigation: $url');
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
@@ -855,6 +873,7 @@ class WebViewFactory {
       shouldInterceptRequest: Platform.isAndroid
           ? (controller, request) async {
               final url = request.url.toString();
+              LogService.instance.log('DnsBlock', '[InterceptReq] $url');
 
               // Record every sub-resource request for DNS stats
               if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
@@ -893,6 +912,7 @@ class WebViewFactory {
       shouldInterceptAjaxRequest: DnsBlockService.instance.hasBlocklist
           ? (controller, ajaxRequest) async {
               final url = ajaxRequest.url?.toString();
+              if (url != null) LogService.instance.log('DnsBlock', '[AjaxReq] $url');
               if (url != null && config.siteId != null) {
                 final blocked = DnsBlockService.instance.isBlocked(url);
                 DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
@@ -908,6 +928,7 @@ class WebViewFactory {
       shouldInterceptFetchRequest: DnsBlockService.instance.hasBlocklist
           ? (controller, fetchRequest) async {
               final url = fetchRequest.url?.toString();
+              if (url != null) LogService.instance.log('DnsBlock', '[FetchReq] $url');
               if (url != null && config.siteId != null) {
                 final blocked = DnsBlockService.instance.isBlocked(url);
                 DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
