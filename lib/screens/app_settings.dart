@@ -433,8 +433,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             },
           ),
           SwitchListTile(
-            title: const Text('DNS Stats Bar'),
-            subtitle: const Text('Show live DNS request stats at the top of each site'),
+            title: const Text('Stats Bar'),
+            subtitle: const Text('Show live request stats at the top of each site'),
             value: _showDnsBanner,
             onChanged: (value) {
               setState(() {
