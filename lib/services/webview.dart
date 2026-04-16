@@ -743,13 +743,10 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled,
+        useShouldInterceptRequest: Platform.isAndroid,
         useShouldInterceptAjaxRequest: DnsBlockService.instance.hasBlocklist,
         useShouldInterceptFetchRequest: DnsBlockService.instance.hasBlocklist,
         useOnLoadResource: false,
-        contentBlockers: config.dnsBlockEnabled
-            ? DnsBlockService.instance.getContentBlockerRules()
-            : [],
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -869,20 +866,42 @@ class WebViewFactory {
 
         return false;
       },
-      shouldInterceptRequest: (Platform.isAndroid && config.localCdnEnabled)
+      shouldInterceptRequest: Platform.isAndroid
           ? (controller, request) async {
               final url = request.url.toString();
-              final service = LocalCdnService.instance;
-              if (service.isCdnUrl(url)) {
-                final data = await service.getOrFetchResource(url);
-                if (data != null) {
+              LogService.instance.log('DnsBlock', '[InterceptReq] $url');
+
+              // Record every sub-resource request for DNS stats
+              if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+                final blocked = DnsBlockService.instance.isBlocked(url);
+                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+                if (blocked && config.dnsBlockEnabled) {
+                  LogService.instance.log('DnsBlock', 'Blocked sub-resource: $url (site: ${config.siteId})');
                   return inapp.WebResourceResponse(
-                    contentType: service.getContentType(url),
+                    contentType: 'text/plain',
                     contentEncoding: 'utf-8',
-                    data: data,
+                    data: Uint8List(0),
+                    statusCode: 403,
+                    reasonPhrase: 'Blocked by DNS blocklist',
                   );
                 }
               }
+
+              // LocalCDN: serve CDN resources from local cache
+              if (config.localCdnEnabled) {
+                final service = LocalCdnService.instance;
+                if (service.isCdnUrl(url)) {
+                  final data = await service.getOrFetchResource(url);
+                  if (data != null) {
+                    return inapp.WebResourceResponse(
+                      contentType: service.getContentType(url),
+                      contentEncoding: 'utf-8',
+                      data: data,
+                    );
+                  }
+                }
+              }
+
               return null;
             }
           : null,
