@@ -410,8 +410,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       ));
       widget.webViewModel!.onConsoleLogChanged?.call();
 
-      final js = _buildEvalJs(source);
-      await controller.evaluateJavascript(js);
+      // Directly embed code (no eval/Function) to respect CSP.
+      // Phase 1: set sentinel. Phase 2: try as expression.
+      // Phase 3: if expression had a parse error, try as statements.
+      await controller.evaluateJavascript('window.__wsEvalOk=false');
+      await controller.evaluateJavascript(_buildExprJs(source));
+      await controller.evaluateJavascript(_buildStmtJs(source));
 
       _evalController.clear();
     } finally {
@@ -421,9 +425,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
   }
 
-  String _buildEvalJs(String source) {
-    final jsonStr = jsonEncode(source);
-    return 'try{var __r=eval($jsonStr);if(__r!==undefined){if(typeof __r==="object"&&__r!==null){try{console.log(JSON.stringify(__r,null,2))}catch(e){console.log(String(__r))}}else{console.log(String(__r))}}}catch(__e){console.error((__e&&__e.message)?__e.message:String(__e))}';
+  String _buildExprJs(String source) {
+    return '(function(){try{var __r=(\n$source\n);if(__r!==undefined){if(typeof __r==="object"&&__r!==null){try{console.log(JSON.stringify(__r,null,2))}catch(e){console.log(String(__r))}}else{console.log(String(__r))}}window.__wsEvalOk=true}catch(__e){console.error((__e&&__e.message)?__e.message:String(__e));window.__wsEvalOk=true}})()';
+  }
+
+  String _buildStmtJs(String source) {
+    return 'if(!window.__wsEvalOk){try{\n$source\n}catch(__e){console.error((__e&&__e.message)?__e.message:String(__e))}delete window.__wsEvalOk}else{delete window.__wsEvalOk}';
   }
 
   void _historyUp() {

@@ -219,7 +219,7 @@ The app SHALL provide a JavaScript evaluation input in the Console tab, allowing
 **Given** a site is loaded and the Console tab is open
 **When** the user types a JS expression (e.g. `document.title`) in the eval input and taps Run or presses Enter
 **Then** the input is shown in the console log as `> document.title` in bold primary color
-**And** the expression is evaluated via `eval()` in the page context
+**And** the expression is evaluated via direct code injection (CSP-safe, no `eval()`)
 **And** the result is output via `console.log()` (or `console.error()` on exception)
 **And** the result appears in the console log below the input
 
