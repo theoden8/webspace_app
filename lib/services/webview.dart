@@ -690,8 +690,8 @@ class WebViewFactory {
   var po = new PerformanceObserver(function(list) {
     list.getEntries().forEach(function(e) { report(e.name); });
   });
-  po.observe({entryTypes: ['resource', 'navigation']});
-  // Flush pending + retroactive entries once bridge is ready
+  po.observe({type: 'resource', buffered: true});
+  po.observe({type: 'navigation', buffered: true});
   function flush() {
     if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
       setTimeout(flush, 50);
@@ -701,10 +701,6 @@ class WebViewFactory {
       window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
     });
     pending = [];
-    if (performance.getEntriesByType) {
-      performance.getEntriesByType('resource').forEach(function(e) { report(e.name); });
-      performance.getEntriesByType('navigation').forEach(function(e) { report(e.name); });
-    }
   }
   flush();
 })();
