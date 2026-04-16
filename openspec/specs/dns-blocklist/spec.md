@@ -206,52 +206,46 @@ App Settings SHALL display when the blocklist was last downloaded, along with th
 
 ### Requirement: DNS-008 - Request Interception Hooks
 
-The system SHALL use multiple interception hooks to block and record DNS requests across different request types and platforms. Each hook has different platform support and capabilities.
+The system SHALL use multiple interception hooks to block and record DNS requests across different request types and platforms.
 
-#### Hook: shouldOverrideUrlLoading (all platforms)
+#### Blocking: Native FastDnsBlockerHandler (Android)
+
+On Android, sub-resource blocking runs entirely in Java via a custom `FastDnsBlockerHandler` that subclasses `ContentBlockerHandler`. The handler is injected into each `InAppWebView` by replacing the `contentBlockerHandler` public field. It uses an O(1) `HashSet<String>` lookup with domain hierarchy walk-up — no Dart roundtrip, no regex matching.
+
+The blocked domains are sent to Java once at startup via MethodChannel. Each handler is created with a `siteId` so blocked requests are attributed to the correct site.
+
+**Important constraint:** flutter_inappwebview's `shouldInterceptRequest` Dart callback uses a synchronous blocking platform channel. If `useShouldInterceptRequest` is true, the Dart roundtrip runs first and returns early, **skipping** `contentBlockerHandler` entirely. Therefore `useShouldInterceptRequest` MUST be false (or only enabled when LocalCDN has cached resources).
+
+**Catches:** All sub-resource requests (`<script>`, `<img>`, `<link>`, CSS, fonts, fetch, XHR)
+**Does NOT catch:** Navigations (handled by shouldOverrideUrlLoading), iOS/macOS requests
+
+#### Blocking: shouldOverrideUrlLoading (all platforms)
 
 Fires for navigation-level requests (link clicks, page loads, redirects). Inserted AFTER the captcha challenge allowlist and BEFORE ClearURLs processing. Records all navigations (allowed + blocked). Blocks navigations to blocklisted domains.
 
 **Catches:** Link clicks, typed URLs, redirects, `window.location` changes
-**Does NOT catch:** Sub-resources (`<script>`, `<img>`, `<link>`, CSS, fonts)
+**Does NOT catch:** Sub-resources
 
-#### Hook: shouldInterceptRequest (Android only)
+#### Recording: PerformanceObserver JS injection (all platforms)
 
-Native Android WebView hook that fires for every network request including sub-resources. Used for blocking sub-resources on Android. May not fire for cached resources depending on Android WebView version.
+Injected at `DOCUMENT_START` with `buffered: true`, observes the Resource Timing API to record all loaded resources. Reports URLs back to Dart via `addJavaScriptHandler`. Cannot block — recording only. Deduplicates via a `seen` map in JS.
 
-**Catches:** All network requests (main document + sub-resources)
-**Does NOT catch:** Cached resources (on some WebView versions), requests on iOS/macOS
+**Catches:** All completed resources including blocked ones (browser creates a performance entry even for 403 responses)
+**Does NOT catch:** WebSocket connections, resources inside cross-origin iframes
 
-#### Hook: shouldInterceptFetchRequest (all platforms, JS injection)
+#### Recording: onLoadStart (all platforms)
 
-Intercepts JavaScript `fetch()` API calls. Records and blocks fetch requests to blocklisted domains.
-
-**Catches:** `fetch()` calls (analytics, API requests, dynamic content loading)
-**Does NOT catch:** `XMLHttpRequest`, static resources, `navigator.sendBeacon()`
-
-#### Hook: shouldInterceptAjaxRequest (all platforms, JS injection)
-
-Intercepts `XMLHttpRequest` calls. Records and blocks XHR requests to blocklisted domains.
-
-**Catches:** `XMLHttpRequest` calls (legacy analytics, AJAX requests)
-**Does NOT catch:** `fetch()`, static resources, `navigator.sendBeacon()`
-
-#### Hook: PerformanceObserver JS injection (all platforms)
-
-Injected at `DOCUMENT_START`, observes the Resource Timing API to record all loaded resources after they complete. Cannot block — recording only. Deduplicates via a `seen` map. Also retroactively reports resources loaded before the observer started via `performance.getEntriesByType()`.
-
-**Catches:** All completed resources: `<script>`, `<img>`, `<link>`, CSS, fonts, `fetch()`, `XMLHttpRequest`, `navigator.sendBeacon()`
-**Does NOT catch:** WebSocket connections, resources inside cross-origin iframes (separate JS context), requests blocked before they complete
+Records the page URL when a navigation starts. Ensures the banner shows immediately even for cached HTML loads that bypass shouldOverrideUrlLoading.
 
 #### Summary: Platform coverage
 
 | Request type | Android block | Android record | iOS/macOS block | iOS/macOS record |
 |---|---|---|---|---|
-| Navigation (links, redirects) | shouldOverrideUrlLoading | shouldOverrideUrlLoading | shouldOverrideUrlLoading | shouldOverrideUrlLoading |
-| Static sub-resources (`<script>`, `<img>`, `<link>`) | shouldInterceptRequest | PerformanceObserver | No | PerformanceObserver |
-| `fetch()` API | shouldInterceptFetchRequest | shouldInterceptFetchRequest + PerformanceObserver | shouldInterceptFetchRequest | shouldInterceptFetchRequest + PerformanceObserver |
-| `XMLHttpRequest` | shouldInterceptAjaxRequest | shouldInterceptAjaxRequest + PerformanceObserver | shouldInterceptAjaxRequest | shouldInterceptAjaxRequest + PerformanceObserver |
-| `navigator.sendBeacon()` | No | PerformanceObserver | No | PerformanceObserver |
+| Navigation (links, redirects) | shouldOverrideUrlLoading | shouldOverrideUrlLoading + onLoadStart | shouldOverrideUrlLoading | shouldOverrideUrlLoading + onLoadStart |
+| Static sub-resources (`<script>`, `<img>`, `<link>`) | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
+| `fetch()` API | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
+| `XMLHttpRequest` | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
+| `navigator.sendBeacon()` | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
 | WebSocket | No | No | No | No |
 | Cross-origin iframe resources | No | No | No | No |
 
@@ -513,42 +507,61 @@ class DnsStats {
 
 A listener pattern (`addDnsLogListener`/`removeDnsLogListener`) notifies UI widgets of new log entries for live updates.
 
-### Multi-Hook Request Interception
+### Native Android Sub-Resource Blocking
 
-DNS blocking and recording uses five complementary hooks in `WebViewFactory.createWebView()`:
+flutter_inappwebview's `shouldInterceptRequest` Dart callback uses a synchronous
+blocking platform channel that serializes concurrent sub-resource loads — only ~1
+request gets through to Dart. This makes Dart-side sub-resource blocking impossible.
 
-**1. shouldOverrideUrlLoading** (all platforms) — navigation blocking + recording:
+The solution is `FastDnsBlockerHandler` (`DnsBlockPlugin.kt`), a Kotlin class that
+subclasses `ContentBlockerHandler` and runs entirely in Java:
+
+```kotlin
+class FastDnsBlockerHandler(
+    private val blockedDomains: HashSet<String>,
+    private val onBlocked: (String) -> Unit
+) : ContentBlockerHandler() {
+    init {
+        // Dummy rule so Java guard `ruleList.size() > 0` passes
+        ruleList.add(ContentBlocker(trigger, action))
+    }
+    override fun checkUrl(webView, request): WebResourceResponse? {
+        val host = URI(request.url).host
+        if (isBlockedDomain(host)) {  // O(1) HashSet + hierarchy walk-up
+            onBlocked(host)
+            return WebResourceResponse("text/plain", "utf-8", null)
+        }
+        return null
+    }
+}
+```
+
+The `DnsBlockPlugin` manages the lifecycle:
+1. `setBlockedDomains` — receives domain list from Dart, stores in Java `HashSet`
+2. `attachToWebViews(siteId)` — traverses view hierarchy, finds `InAppWebView`
+   instances, replaces `contentBlockerHandler` field with `FastDnsBlockerHandler`
+3. `onDnsBlocked(siteId, host)` — reports blocked domains back to Dart via
+   MethodChannel for DNS stats (each handler has its own siteId)
+
+**Critical constraint:** `useShouldInterceptRequest` must be `false` (or only
+enabled for LocalCDN). When true, the Dart callback runs and returns early,
+skipping `contentBlockerHandler.checkUrl()` entirely.
+
+### Recording Hooks
+
+**shouldOverrideUrlLoading** (all platforms) — navigation blocking + recording:
 ```dart
 if (DnsBlockService.instance.hasBlocklist) {
-  final blocked = DnsBlockService.instance.isBlocked(url);
   DnsBlockService.instance.recordRequest(siteId, url, blocked);
   if (blocked && config.dnsBlockEnabled) return CANCEL;
 }
 ```
 
-**2. shouldInterceptRequest** (Android only) — sub-resource blocking:
-```dart
-if (DnsBlockService.instance.isBlocked(url)) {
-  DnsBlockService.instance.recordRequest(siteId, url, true);
-  return WebResourceResponse(statusCode: 403, data: empty);
-}
-```
+**onLoadStart** (all platforms) — records page URL for immediate banner display.
 
-**3. shouldInterceptFetchRequest** (all platforms) — fetch() blocking + recording:
-```dart
-final blocked = DnsBlockService.instance.isBlocked(url);
-DnsBlockService.instance.recordRequest(siteId, url, blocked);
-if (blocked) fetchRequest.action = ABORT;
-```
-
-**4. shouldInterceptAjaxRequest** (all platforms) — XHR blocking + recording:
-Same pattern as fetch, with `ajaxRequest.action = ABORT`.
-
-**5. PerformanceObserver JS injection** (all platforms) — record-only fallback:
-Injected at `DOCUMENT_START`, observes Resource Timing API entries and calls
-back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`. Catches all
-completed resources including those missed by native hooks (e.g., cached
-resources, `navigator.sendBeacon()`).
+**PerformanceObserver JS** (all platforms) — injected at `DOCUMENT_START` with
+`buffered: true`, records all completed resources via Resource Timing API.
+Reports back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`.
 
 ### Storage
 
@@ -570,22 +583,22 @@ resources, `navigator.sendBeacon()`).
 
 ### Created
 - `lib/services/dns_block_service.dart` — Singleton service: download, cache, parse, lookup, per-site stats
-- `lib/widgets/dns_block_banner.dart` — Live blocked-domains banner widget for webview overlay
+- `lib/services/dns_block_native.dart` — Dart-side interface for native Android DNS blocker
+- `lib/widgets/dns_block_banner.dart` — Live DNS activity banner widget for webview overlay
+- `android/app/src/main/kotlin/.../DnsBlockPlugin.kt` — Native Android plugin: FastDnsBlockerHandler (Java HashSet), DnsBlockPlugin (MethodChannel + view traversal)
 - `test/dns_block_service_test.dart` — 12 unit tests for domain matching logic
 - `test/dns_block_benchmark_test.dart` — Performance benchmark (522K domains parse + lookup)
 - `openspec/specs/dns-blocklist/spec.md` — This specification
 
 ### Modified
 - `lib/web_view_model.dart` — Added `dnsBlockEnabled` field, serialization, pass to WebViewConfig with `siteId`
-- `lib/services/webview.dart` — Added `dnsBlockEnabled` and `siteId` to WebViewConfig, DNS block hook with stats recording
-- `lib/screens/settings.dart` — Per-site DNS Blocklist toggle (SwitchListTile) with stats summary chips
+- `lib/services/webview.dart` — WebViewConfig with siteId, PerformanceObserver injection, native handler attach
+- `lib/screens/settings.dart` — Per-site DNS Blocklist toggle with stats summary chips
 - `lib/screens/dev_tools.dart` — DNS tab with query log, stats cards, filters, copy/clear actions
-- `lib/screens/app_settings.dart` — Privacy section with slider, download button, spinning icon, domain count
-- `lib/main.dart` — DnsBlockService initialization, GPL-3.0 license registration, DnsBlockBanner in webview stack
+- `lib/screens/app_settings.dart` — Privacy section with slider, download, DNS Block Banner toggle, native domain sync
+- `lib/main.dart` — DnsBlockService + DnsBlockNative initialization, DnsBlockBanner in webview stack
+- `android/app/src/main/kotlin/.../MainActivity.kt` — DnsBlockPlugin registration
 - `test/web_view_model_test.dart` — Tests for dnsBlockEnabled serialization and defaults
-- `README.md` — Feature bullet point, Tech Stack credit
-- `fastlane/metadata/android/en-US/full_description.txt` — Feature mention
-- `fastlane/metadata/android/en-US/changelogs/8.txt` — Changelog entry
 
 ---
 
