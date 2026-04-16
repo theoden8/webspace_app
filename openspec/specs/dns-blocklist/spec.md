@@ -265,6 +265,119 @@ Existing sites without `dnsBlockEnabled` in their stored JSON SHALL default to `
 
 ---
 
+### Requirement: DNS-012 - Per-Site DNS Statistics
+
+The system SHALL track allowed and blocked DNS request counts per site at runtime, with a log of recent queries.
+
+#### Scenario: Record DNS requests
+
+**Given** DNS blocking is enabled for a site
+**When** the webview navigates to any URL
+**Then** the request is recorded as allowed or blocked in per-site stats
+**And** the domain, timestamp, and block status are stored in a log (capped at 500 entries)
+
+#### Scenario: Stats not persisted
+
+**Given** DNS stats have been recorded for a site
+**When** the app is restarted
+**Then** the stats are reset (runtime-only, not persisted to storage)
+
+#### Scenario: Clear stats
+
+**Given** DNS stats have been recorded for a site
+**When** the user taps "Clear" in the DNS tab of Developer Tools
+**Then** all stats and log entries for that site are reset to zero
+
+---
+
+### Requirement: DNS-013 - Live Blocked-Domains Banner
+
+A collapsible banner SHALL appear at the top of the webview showing live DNS blocking activity for the active site.
+
+#### Scenario: Banner visible when blocks occur
+
+**Given** DNS blocking is enabled for a site
+**And** at least one request has been blocked
+**When** the user views the site
+**Then** a compact banner at the top shows blocked and allowed counts
+
+#### Scenario: Banner hidden when no blocks
+
+**Given** DNS blocking is enabled for a site
+**And** no requests have been blocked
+**When** the user views the site
+**Then** no banner is shown
+
+#### Scenario: Expand banner
+
+**Given** the DNS banner is visible
+**When** the user taps it
+**Then** it expands to show the 5 most recently blocked domains (unique, monospace)
+
+#### Scenario: Banner hidden when DNS blocking disabled
+
+**Given** DNS blocking is disabled for a site
+**When** the user views the site
+**Then** no banner is shown
+
+---
+
+### Requirement: DNS-014 - DNS Query Log in Developer Tools
+
+Developer Tools SHALL include a DNS tab with a Pi-hole-style query log showing all recorded DNS requests.
+
+#### Scenario: DNS tab in Developer Tools
+
+**Given** a DNS blocklist is configured
+**And** the user opens Developer Tools for a site
+**Then** a "DNS" tab with a shield icon is shown
+
+#### Scenario: Stats cards
+
+**Given** DNS requests have been recorded for a site
+**When** the user views the DNS tab
+**Then** four stat cards are shown: Total, Allowed, Blocked, Block %
+
+#### Scenario: Filter by status
+
+**Given** the DNS query log contains both allowed and blocked entries
+**When** the user selects the "Blocked" filter chip
+**Then** only blocked entries are shown
+**And** the "Blocked" chip shows the count
+
+#### Scenario: Search queries
+
+**Given** the DNS query log contains entries
+**When** the user types a domain in the search field
+**Then** only entries matching the search are shown
+
+#### Scenario: Copy log
+
+**Given** DNS entries are recorded
+**When** the user taps "Copy"
+**Then** the full log is copied to the clipboard in `[timestamp] BLOCKED/ALLOWED domain` format
+
+---
+
+### Requirement: DNS-015 - DNS Stats in Site Settings
+
+The per-site settings screen SHALL display a compact DNS stats summary below the DNS Blocklist toggle.
+
+#### Scenario: Stats visible
+
+**Given** DNS blocking is active
+**And** DNS requests have been recorded for the current site
+**When** the user opens site settings
+**Then** a row of stat chips shows total, allowed, blocked counts, and block rate percentage
+
+#### Scenario: Stats hidden when no requests
+
+**Given** no DNS requests have been recorded for the current site
+**When** the user opens site settings
+**Then** no stats row is shown
+
+---
+
 ## Implementation Details
 
 ### DnsBlockService Singleton
@@ -319,18 +432,38 @@ Three mirrors are tried in order with 15-second timeouts:
 2. `https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/`
 3. `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/`
 
+### Per-Site DNS Statistics
+
+`DnsBlockService` tracks per-site statistics via `DnsStats` objects keyed by `siteId`:
+
+```dart
+class DnsStats {
+  int allowed = 0;
+  int blocked = 0;
+  final List<DnsLogEntry> log = [];  // Capped at 500 entries
+  int get total => allowed + blocked;
+  double get blockRate => total > 0 ? blocked / total * 100 : 0;
+}
+```
+
+A listener pattern (`addDnsLogListener`/`removeDnsLogListener`) notifies UI widgets of new log entries for live updates.
+
 ### Hook Point in WebView
 
-DNS blocking is inserted in `shouldOverrideUrlLoading` in `WebViewFactory.createWebView()`:
+DNS blocking is inserted in `shouldOverrideUrlLoading` in `WebViewFactory.createWebView()`. Each request is recorded for statistics:
 
 ```dart
 shouldOverrideUrlLoading: (controller, navigationAction) async {
   final url = navigationAction.request.url.toString();
   if (_shouldBlockUrl(url)) return CANCEL;
   if (_isCaptchaChallenge(url)) return ALLOW;
-  // DNS blocklist check
-  if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
-    return CANCEL;
+  // DNS blocklist check + statistics recording
+  if (config.dnsBlockEnabled && DnsBlockService.instance.hasBlocklist) {
+    final blocked = DnsBlockService.instance.isBlocked(url);
+    if (config.siteId != null) {
+      DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+    }
+    if (blocked) return CANCEL;
   }
   // ClearURLs processing
   // ... per-site navigation callback
@@ -356,17 +489,19 @@ shouldOverrideUrlLoading: (controller, navigationAction) async {
 ## Files
 
 ### Created
-- `lib/services/dns_block_service.dart` — Singleton service: download, cache, parse, lookup
+- `lib/services/dns_block_service.dart` — Singleton service: download, cache, parse, lookup, per-site stats
+- `lib/widgets/dns_block_banner.dart` — Live blocked-domains banner widget for webview overlay
 - `test/dns_block_service_test.dart` — 12 unit tests for domain matching logic
 - `test/dns_block_benchmark_test.dart` — Performance benchmark (522K domains parse + lookup)
 - `openspec/specs/dns-blocklist/spec.md` — This specification
 
 ### Modified
-- `lib/web_view_model.dart` — Added `dnsBlockEnabled` field, serialization, pass to WebViewConfig
-- `lib/services/webview.dart` — Added `dnsBlockEnabled` to WebViewConfig, DNS block hook in shouldOverrideUrlLoading
-- `lib/screens/settings.dart` — Per-site DNS Blocklist toggle (SwitchListTile)
+- `lib/web_view_model.dart` — Added `dnsBlockEnabled` field, serialization, pass to WebViewConfig with `siteId`
+- `lib/services/webview.dart` — Added `dnsBlockEnabled` and `siteId` to WebViewConfig, DNS block hook with stats recording
+- `lib/screens/settings.dart` — Per-site DNS Blocklist toggle (SwitchListTile) with stats summary chips
+- `lib/screens/dev_tools.dart` — DNS tab with query log, stats cards, filters, copy/clear actions
 - `lib/screens/app_settings.dart` — Privacy section with slider, download button, spinning icon, domain count
-- `lib/main.dart` — DnsBlockService initialization, GPL-3.0 license registration
+- `lib/main.dart` — DnsBlockService initialization, GPL-3.0 license registration, DnsBlockBanner in webview stack
 - `test/web_view_model_test.dart` — Tests for dnsBlockEnabled serialization and defaults
 - `README.md` — Feature bullet point, Tech Stack credit
 - `fastlane/metadata/android/en-US/full_description.txt` — Feature mention
@@ -418,3 +553,17 @@ Benchmark tests cover:
 8. Set slider to Off (0), tap download, verify "DNS blocklist disabled" SnackBar
 9. Navigate to the previously blocked domain, verify it loads normally
 10. Check Licenses page shows "Hagezi DNS Blocklists (domain data)" with GPL-3.0
+
+#### DNS Transparency Testing
+
+11. With DNS blocking enabled, browse a website that loads third-party trackers
+12. Verify the DNS banner appears at the top showing blocked and allowed counts
+13. Tap the banner to expand it, verify recently blocked domains are shown
+14. Open Developer Tools, switch to the DNS tab
+15. Verify stats cards show Total, Allowed, Blocked, Block % with correct values
+16. Use filter chips to show only blocked or only allowed entries
+17. Search for a specific domain in the query log
+18. Tap "Copy" and verify the log is copied to clipboard
+19. Tap "Clear" and verify stats and log are reset
+20. Open site Settings, verify DNS stats row appears below the DNS toggle
+21. Disable DNS blocking for the site, verify the banner disappears
