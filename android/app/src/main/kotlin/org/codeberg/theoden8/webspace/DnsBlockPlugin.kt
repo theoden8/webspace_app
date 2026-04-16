@@ -4,7 +4,10 @@ import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceResponse
+import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlocker
+import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlockerAction
 import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlockerHandler
+import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlockerTrigger
 import com.pichillilorenzo.flutter_inappwebview_android.types.WebResourceRequestExt
 import com.pichillilorenzo.flutter_inappwebview_android.webview.in_app_webview.InAppWebView
 import io.flutter.embedding.engine.FlutterEngine
@@ -76,6 +79,13 @@ class FastDnsBlockerHandler(
     private val blockedDomains: HashSet<String>,
     private val onBlocked: (String) -> Unit
 ) : ContentBlockerHandler() {
+
+    init {
+        // Dummy rule so the Java guard `ruleList.size() > 0` passes
+        val trigger = ContentBlockerTrigger(".*", null, null, null, null, null, null, null)
+        val action = ContentBlockerAction.fromMap(mapOf("type" to "block"))
+        ruleList.add(ContentBlocker(trigger, action))
+    }
 
     override fun checkUrl(
         webView: InAppWebView,

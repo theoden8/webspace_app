@@ -745,8 +745,8 @@ class WebViewFactory {
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
         useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled && LocalCdnService.instance.hasCache,
-        useShouldInterceptAjaxRequest: DnsBlockService.instance.hasBlocklist,
-        useShouldInterceptFetchRequest: DnsBlockService.instance.hasBlocklist,
+        useShouldInterceptAjaxRequest: false,
+        useShouldInterceptFetchRequest: false,
         useOnLoadResource: false,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
@@ -908,36 +908,8 @@ class WebViewFactory {
               return null;
             }
           : null,
-      shouldInterceptAjaxRequest: DnsBlockService.instance.hasBlocklist
-          ? (controller, ajaxRequest) async {
-              final url = ajaxRequest.url?.toString();
-              if (url != null && config.siteId != null) {
-                final blocked = DnsBlockService.instance.isBlocked(url);
-                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-                if (blocked && config.dnsBlockEnabled) {
-                  ajaxRequest.action = inapp.AjaxRequestAction.ABORT;
-                  return ajaxRequest;
-                }
-              }
-              ajaxRequest.action = inapp.AjaxRequestAction.PROCEED;
-              return ajaxRequest;
-            }
-          : null,
-      shouldInterceptFetchRequest: DnsBlockService.instance.hasBlocklist
-          ? (controller, fetchRequest) async {
-              final url = fetchRequest.url?.toString();
-              if (url != null && config.siteId != null) {
-                final blocked = DnsBlockService.instance.isBlocked(url);
-                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-                if (blocked && config.dnsBlockEnabled) {
-                  fetchRequest.action = inapp.FetchRequestAction.ABORT;
-                  return fetchRequest;
-                }
-              }
-              fetchRequest.action = inapp.FetchRequestAction.PROCEED;
-              return fetchRequest;
-            }
-          : null,
+      // fetch/XHR interception disabled — Dart roundtrip bottlenecks page loading.
+      // Native FastDnsBlockerHandler handles sub-resource blocking in Java instead.
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
