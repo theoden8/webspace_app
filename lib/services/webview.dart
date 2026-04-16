@@ -750,7 +750,7 @@ class WebViewFactory {
         useOnLoadResource: false,
         contentBlockers: (!Platform.isAndroid && config.dnsBlockEnabled)
             ? DnsBlockService.instance.getIosContentBlockerRules()
-            : [],
+            : null,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
