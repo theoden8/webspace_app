@@ -236,7 +236,7 @@ LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest
 
 ### LCDN-014: Per-Site Replacement Counter
 
-The service SHALL track the number of CDN requests replaced from the local cache per site, and the stats banner SHALL display this count on Android.
+The service SHALL track the number of CDN requests replaced from the local cache per site as runtime-only state, so the count is available for future UIs (developer tools, diagnostics) without being surfaced in the stats banner.
 
 #### Scenario: CDN resource served from cache
 
@@ -244,23 +244,17 @@ The service SHALL track the number of CDN requests replaced from the local cache
 - **When** the native `FastSubresourceInterceptor` serves a cached CDN resource for a sub-resource request
 - **Then** the native side emits a `cdnEventsReady` signal and Dart's `WebInterceptNative` drains the events into `LocalCdnService.recordReplacement(siteId)`
 
-#### Scenario: Banner shows replacement count
-
-- **Given** at least one CDN request has been replaced for the current site on Android
-- **When** the stats banner is rendered
-- **Then** the banner shows `"N cdn(s) replaced"` alongside the DNS blocked/allowed counts
-
 #### Scenario: Counter resets on app restart
 
 - **Given** the app is terminated and relaunched
 - **When** per-site replacement counts are queried
 - **Then** all counts start from zero (runtime-only state)
 
-#### Scenario: No CDN replacements
+#### Scenario: Stats banner does not display the CDN count
 
-- **Given** a site where no CDN requests have been replaced
+- **Given** LocalCDN replacements have occurred on a site
 - **When** the stats banner is rendered
-- **Then** no CDN count is shown
+- **Then** only DNS blocked / allowed counts are shown — CDN replacements are intentionally not surfaced in the banner because in practice most modern sites self-host assets and the counter would consistently show `0`
 
 ## Implementation Details
 
@@ -351,7 +345,7 @@ useShouldInterceptRequest: false
 - `lib/services/webview.dart` - Added `localCdnEnabled` to `WebViewConfig`; disabled the Dart `shouldInterceptRequest` callback on Android in favour of the native interceptor
 - `lib/services/localcdn_service.dart` - Per-site replacement counter, cdnPatternStrings / cacheIndexSnapshot getters, and cache-change listeners for the native bridge
 - `lib/services/web_intercept_native.dart` - Renamed from `dns_block_native.dart`; now pushes CDN patterns + cache index to native and drains CDN replacement events
-- `lib/widgets/stats_banner.dart` - Stats banner also shows LocalCDN replacement count on Android
+- `lib/widgets/stats_banner.dart` - Stats banner is DNS-only; LocalCDN replacements are tracked in memory but not surfaced here
 - `lib/screens/settings.dart` - Per-site LocalCDN toggle
 - `lib/screens/app_settings.dart` - LocalCDN download button, progress indicator, cache stats, clear cache
 - `lib/main.dart` - LocalCDN service initialization + initial sync of patterns/index to native

@@ -1,24 +1,19 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/localcdn_service.dart';
 
 /// A compact banner displayed at the top of the webview showing live DNS
-/// blocking activity and (on Android) LocalCDN replacements per site.
-/// Taps expand/collapse the banner. Automatically hides when there's no
-/// activity to report.
+/// blocking activity per site. Taps expand/collapse the banner. Automatically
+/// hides when there's no activity to report.
 class StatsBanner extends StatefulWidget {
   final String siteId;
   final bool dnsBlockEnabled;
-  final bool localCdnEnabled;
 
   const StatsBanner({
     super.key,
     required this.siteId,
     required this.dnsBlockEnabled,
-    this.localCdnEnabled = true,
   });
 
   @override
@@ -29,7 +24,6 @@ class _StatsBannerState extends State<StatsBanner> {
   bool _expanded = false;
   Timer? _refreshTimer;
   int _lastTotal = 0;
-  int _lastCdnReplacements = 0;
 
   @override
   void initState() {
@@ -37,10 +31,8 @@ class _StatsBannerState extends State<StatsBanner> {
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final stats = DnsBlockService.instance.statsForSite(widget.siteId);
-      final cdn = LocalCdnService.instance.replacementsForSite(widget.siteId);
-      if (stats.total != _lastTotal || cdn != _lastCdnReplacements) {
+      if (stats.total != _lastTotal) {
         _lastTotal = stats.total;
-        _lastCdnReplacements = cdn;
         setState(() {});
       }
     });
@@ -54,21 +46,12 @@ class _StatsBannerState extends State<StatsBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final hasBlocklist = DnsBlockService.instance.hasBlocklist;
-    final stats = DnsBlockService.instance.statsForSite(widget.siteId);
-    final cdnReplacements =
-        LocalCdnService.instance.replacementsForSite(widget.siteId);
-    // Show the LocalCDN section on Android whenever LocalCDN is enabled for
-    // this site and the cache has resources available — that way the user
-    // sees "0 cdns replaced" as confirmation the feature is watching, and
-    // the counter ticks up from there.
-    final localCdnActive = Platform.isAndroid &&
-        widget.localCdnEnabled &&
-        LocalCdnService.instance.hasCache;
-    final showCdnCount = localCdnActive || cdnReplacements > 0;
+    if (!DnsBlockService.instance.hasBlocklist) {
+      return const SizedBox.shrink();
+    }
 
-    // Nothing to show if there's no DNS activity and LocalCDN isn't active.
-    if ((!hasBlocklist || stats.total == 0) && !showCdnCount) {
+    final stats = DnsBlockService.instance.statsForSite(widget.siteId);
+    if (stats.total == 0) {
       return const SizedBox.shrink();
     }
 
@@ -88,7 +71,6 @@ class _StatsBannerState extends State<StatsBanner> {
         : Colors.grey.shade100;
     final textColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
     final subtleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
-    final showDnsCounts = hasBlocklist && stats.total > 0;
 
     return GestureDetector(
       onTap: () => setState(() => _expanded = !_expanded),
@@ -114,45 +96,29 @@ class _StatsBannerState extends State<StatsBanner> {
             children: [
               Row(
                 children: [
-                  if (showDnsCounts) ...[
-                    Icon(Icons.shield, size: 14, color: textColor),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${stats.blocked} blocked',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
+                  Icon(Icons.shield, size: 14, color: textColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${stats.blocked} blocked',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${stats.allowed} allowed',
-                      style: TextStyle(fontSize: 11, color: subtleColor),
-                    ),
-                  ],
-                  if (showCdnCount) ...[
-                    if (showDnsCounts) const SizedBox(width: 12),
-                    Icon(Icons.cloud_off, size: 14, color: textColor),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$cdnReplacements cdn',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: textColor,
-                      ),
-                    ),
-                  ],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${stats.allowed} allowed',
+                    style: TextStyle(fontSize: 11, color: subtleColor),
+                  ),
                   const Spacer(),
-                  if (recentBlocked.isNotEmpty)
-                    Icon(
-                      _expanded
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      size: 16,
-                      color: subtleColor,
-                    ),
+                  Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    size: 16,
+                    color: subtleColor,
+                  ),
                 ],
               ),
               if (_expanded) ...[
