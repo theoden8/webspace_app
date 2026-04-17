@@ -1133,11 +1133,17 @@ class WebViewFactory {
                     if (config.siteId != null) {
                       service.recordReplacement(config.siteId!);
                     }
+                    LogService.instance.log('LocalCDN',
+                        'Replaced: $url (site: ${config.siteId})');
                     return inapp.WebResourceResponse(
                       contentType: service.getContentType(url),
                       contentEncoding: 'utf-8',
                       data: data,
                     );
+                  } else {
+                    LogService.instance.log('LocalCDN',
+                        'CDN URL not served (fetch failed): $url',
+                        level: LogLevel.warning);
                   }
                 }
               }
