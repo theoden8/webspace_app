@@ -24,7 +24,12 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     // DNS blocklist (mutated in place; FastSubresourceInterceptor holds a reference)
-    private val blockedDomains = HashSet<String>()
+    private val dnsBlockedDomains = HashSet<String>()
+
+    // ABP blocklist built from enabled filter lists' `||domain^` rules.
+    // Kept separate from DNS so each block event can be attributed to the
+    // list that matched it (see FastSubresourceInterceptor.checkUrl).
+    private val abpBlockedDomains = HashSet<String>()
 
     // LocalCDN: regex patterns matching CDN URLs. Each pattern must expose
     // groups 1/2/3 = library/version/file (matching the Dart _cdnPatterns table).
@@ -32,9 +37,12 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     // LocalCDN: cacheKey ("lib/ver/file") -> absolute file path on disk.
     private val cdnCacheIndex = mutableMapOf<String, String>()
 
-    // Per-site pending DNS events. Java is the source of truth; Dart pulls on demand.
-    private val pendingDnsEvents = ConcurrentHashMap<String, MutableList<Map<String, Any>>>()
-    private val dnsSignalPending = ConcurrentHashMap<String, AtomicBoolean>()
+    // Per-site pending block events (DNS + ABP + allowed). Java is the
+    // source of truth; Dart pulls on demand. Each event carries a
+    // "source" string identifying which blocklist matched ("dns", "abp")
+    // or null/absent for allowed requests.
+    private val pendingBlockEvents = ConcurrentHashMap<String, MutableList<Map<String, Any>>>()
+    private val blockSignalPending = ConcurrentHashMap<String, AtomicBoolean>()
 
     // Per-site pending LocalCDN replacement events. Events carry the cache key
     // that was served; Dart turns each into a recordReplacement(siteId) call.
@@ -44,12 +52,22 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     init {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
-                "setBlockedDomains" -> {
+                "setDnsBlockedDomains" -> {
                     val domains = call.argument<List<String>>("domains")
                     if (domains != null) {
-                        blockedDomains.clear()
-                        blockedDomains.addAll(domains)
-                        result.success(blockedDomains.size)
+                        dnsBlockedDomains.clear()
+                        dnsBlockedDomains.addAll(domains)
+                        result.success(dnsBlockedDomains.size)
+                    } else {
+                        result.error("INVALID_ARGS", "domains list required", null)
+                    }
+                }
+                "setAbpBlockedDomains" -> {
+                    val domains = call.argument<List<String>>("domains")
+                    if (domains != null) {
+                        abpBlockedDomains.clear()
+                        abpBlockedDomains.addAll(domains)
+                        result.success(abpBlockedDomains.size)
                     } else {
                         result.error("INVALID_ARGS", "domains list required", null)
                     }
@@ -90,12 +108,12 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     val count = attachToAllWebViews(siteId)
                     result.success(count)
                 }
-                "fetchDnsEvents" -> {
+                "fetchBlockEvents" -> {
                     val siteId = call.argument<String>("siteId")
                     if (siteId == null) {
                         result.error("INVALID_ARGS", "siteId required", null)
                     } else {
-                        result.success(drainEvents(pendingDnsEvents, siteId))
+                        result.success(drainEvents(pendingBlockEvents, siteId))
                     }
                 }
                 "fetchCdnEvents" -> {
@@ -123,19 +141,24 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
     }
 
-    /// Records a DNS event (allowed or blocked) and signals Dart once per
-    /// batch. If Dart is already processing an earlier signal for this
-    /// site, subsequent events just accumulate — no duplicate signals.
-    private fun recordDnsEvent(siteId: String, host: String, blocked: Boolean) {
-        val list = pendingDnsEvents.computeIfAbsent(siteId) {
+    /// Records a block event (allowed or blocked, source-tagged) and
+    /// signals Dart once per batch. If Dart is already processing an
+    /// earlier signal for this site, subsequent events just accumulate —
+    /// no duplicate signals.
+    private fun recordBlockEvent(siteId: String, host: String, blocked: Boolean, source: String?) {
+        val list = pendingBlockEvents.computeIfAbsent(siteId) {
             Collections.synchronizedList(mutableListOf())
         }
-        list.add(mapOf("host" to host, "blocked" to blocked))
+        val event = HashMap<String, Any>(3)
+        event["host"] = host
+        event["blocked"] = blocked
+        if (source != null) event["source"] = source
+        list.add(event)
 
-        val signaled = dnsSignalPending.computeIfAbsent(siteId) { AtomicBoolean(false) }
+        val signaled = blockSignalPending.computeIfAbsent(siteId) { AtomicBoolean(false) }
         if (signaled.compareAndSet(false, true)) {
             mainHandler.post {
-                channel.invokeMethod("dnsEventsReady", siteId, object : MethodChannel.Result {
+                channel.invokeMethod("blockEventsReady", siteId, object : MethodChannel.Result {
                     override fun success(result: Any?) { signaled.set(false) }
                     override fun error(code: String, message: String?, details: Any?) { signaled.set(false) }
                     override fun notImplemented() { signaled.set(false) }
@@ -184,16 +207,20 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
             if (isNew) {
                 val siteId = siteIdMap[webView] ?: "unknown"
                 webView.contentBlockerHandler = FastSubresourceInterceptor(
-                    blockedDomains = blockedDomains,
+                    dnsBlockedDomains = dnsBlockedDomains,
+                    abpBlockedDomains = abpBlockedDomains,
                     cdnPatterns = cdnPatterns,
                     cdnCacheIndex = cdnCacheIndex,
-                    onDnsChecked = { host, blocked -> recordDnsEvent(siteId, host, blocked) },
+                    onBlockChecked = { host, blocked, source ->
+                        recordBlockEvent(siteId, host, blocked, source)
+                    },
                     onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) },
                     onLog = { tag, message -> log(tag, message) }
                 )
                 log("WebIntercept",
-                    "Attached interceptor: siteId=$siteId domains=${blockedDomains.size} " +
-                    "cdnPatterns=${cdnPatterns.size} cdnCache=${cdnCacheIndex.size}")
+                    "Attached interceptor: siteId=$siteId dns=${dnsBlockedDomains.size} " +
+                    "abp=${abpBlockedDomains.size} cdnPatterns=${cdnPatterns.size} " +
+                    "cdnCache=${cdnCacheIndex.size}")
             }
         }
         return webViews.size
@@ -217,16 +244,21 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     }
 }
 
-/// Native ContentBlockerHandler that handles both DNS blocking and LocalCDN
-/// replacement for sub-resource requests. Runs on the WebView thread (no
-/// main-thread roundtrip), which is why it actually fires for sub-resources
-/// where Dart-side shouldInterceptRequest only catches the main document
-/// navigation on modern Chromium WebView.
+/// Native ContentBlockerHandler that handles DNS + ABP domain blocking
+/// and LocalCDN replacement for sub-resource requests. Runs on the
+/// WebView thread (no main-thread roundtrip), which is why it actually
+/// fires for sub-resources where Dart-side shouldInterceptRequest only
+/// catches the main document navigation on modern Chromium WebView.
+///
+/// DNS is checked before ABP so that requests which appear in both lists
+/// are attributed to DNS (the user-facing blocklist with the tighter
+/// severity settings). Stats downstream can be disentangled by source.
 class FastSubresourceInterceptor(
-    private val blockedDomains: HashSet<String>,
+    private val dnsBlockedDomains: HashSet<String>,
+    private val abpBlockedDomains: HashSet<String>,
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
-    private val onDnsChecked: (String, Boolean) -> Unit,
+    private val onBlockChecked: (String, Boolean, String?) -> Unit,
     private val onCdnReplaced: (String, String) -> Unit,
     private val onLog: (String, String) -> Unit = { _, _ -> }
 ) : ContentBlockerHandler() {
@@ -260,11 +292,19 @@ class FastSubresourceInterceptor(
             onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
         }
 
-        // 1. DNS blocking + stats recording
-        val blocked = isBlockedDomain(host)
-        onDnsChecked(host, blocked)
-        if (blocked) {
-            return WebResourceResponse("text/plain", "utf-8", null)
+        // 1. Domain blocking (DNS first, then ABP) with source attribution
+        when {
+            isInSet(host, dnsBlockedDomains) -> {
+                onBlockChecked(host, true, "dns")
+                return WebResourceResponse("text/plain", "utf-8", null)
+            }
+            isInSet(host, abpBlockedDomains) -> {
+                onBlockChecked(host, true, "abp")
+                return WebResourceResponse("text/plain", "utf-8", null)
+            }
+            else -> {
+                onBlockChecked(host, false, null)
+            }
         }
 
         // 2. LocalCDN: try to serve from the pre-downloaded cache
@@ -313,11 +353,12 @@ class FastSubresourceInterceptor(
         return null
     }
 
-    private fun isBlockedDomain(host: String): Boolean {
-        if (blockedDomains.contains(host)) return true
+    private fun isInSet(host: String, set: HashSet<String>): Boolean {
+        if (set.isEmpty()) return false
+        if (set.contains(host)) return true
         val parts = host.split(".")
         for (i in 1 until parts.size - 1) {
-            if (blockedDomains.contains(parts.subList(i, parts.size).joinToString("."))) {
+            if (set.contains(parts.subList(i, parts.size).joinToString("."))) {
                 return true
             }
         }

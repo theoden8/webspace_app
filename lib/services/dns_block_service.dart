@@ -5,36 +5,62 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/bloom_filter.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// A single DNS query log entry (allowed or blocked).
+/// Which blocklist attributed a block decision. Allowed requests have no
+/// source. Stats preserve this so the UI can show a merged count while
+/// still disentangling DNS vs ABP hits when needed.
+enum BlockSource { dns, abp }
+
+/// A single request log entry (allowed or blocked).
 class DnsLogEntry {
   final DateTime timestamp;
   final String domain;
   final bool blocked;
+  final BlockSource? source;
 
   const DnsLogEntry({
     required this.timestamp,
     required this.domain,
     required this.blocked,
+    this.source,
   });
 }
 
-/// Per-site DNS request statistics.
+/// Per-site block request statistics (DNS + ABP combined).
+///
+/// `blocked`/`allowed` are merged totals; `blockedByDns`/`blockedByAbp` let
+/// callers break it down without iterating the log.
 class DnsStats {
   int allowed = 0;
   int blocked = 0;
+  int blockedByDns = 0;
+  int blockedByAbp = 0;
   final List<DnsLogEntry> log = [];
   static const int _maxLogEntries = 500;
 
   int get total => allowed + blocked;
   double get blockRate => total > 0 ? blocked / total * 100 : 0;
 
-  void record(String domain, bool wasBlocked) {
+  void record(String domain, bool wasBlocked, {BlockSource? source}) {
     if (wasBlocked) {
       blocked++;
+      switch (source) {
+        case BlockSource.dns:
+          blockedByDns++;
+          break;
+        case BlockSource.abp:
+          blockedByAbp++;
+          break;
+        case null:
+          // Unsourced block — count toward the total only. Callers should
+          // always pass a source for blocked requests; this branch exists
+          // so the counters stay consistent if they don't.
+          break;
+      }
     } else {
       allowed++;
     }
@@ -42,6 +68,7 @@ class DnsStats {
       timestamp: DateTime.now(),
       domain: domain,
       blocked: wasBlocked,
+      source: wasBlocked ? source : null,
     ));
     if (log.length > _maxLogEntries) {
       log.removeAt(0);
@@ -51,6 +78,8 @@ class DnsStats {
   void clear() {
     allowed = 0;
     blocked = 0;
+    blockedByDns = 0;
+    blockedByAbp = 0;
     log.clear();
   }
 }
@@ -115,8 +144,41 @@ class DnsBlockService {
   /// The raw blocked domains set (for sending to native handler).
   Set<String> get blockedDomains => _blockedDomains;
 
-  /// Cached Bloom filter for fast JS-side membership checks.
+  /// Cached Bloom filter built from DNS domains only.
   BloomFilter? _bloomFilter;
+
+  /// Cached Bloom filter built from DNS ∪ ABP blocked domains. Used by the
+  /// iOS/macOS JS sub-resource interceptor as a "maybe blocked" prefilter;
+  /// the authoritative DNS-vs-ABP decision happens in Dart on hit.
+  BloomFilter? _mergedBloomFilter;
+
+  /// Listeners invoked whenever the DNS blocklist changes (download, level
+  /// change, clear). main.dart re-pushes to the native interceptor from
+  /// here so individual call sites don't each have to remember to sync.
+  final List<VoidCallback> _blocklistChangedListeners = [];
+
+  void addBlocklistChangedListener(VoidCallback listener) {
+    _blocklistChangedListeners.add(listener);
+  }
+
+  void removeBlocklistChangedListener(VoidCallback listener) {
+    _blocklistChangedListeners.remove(listener);
+  }
+
+  void _notifyBlocklistChanged() {
+    // Invalidate the merged Bloom since the DNS half changed. The
+    // ContentBlockerService change path invalidates it too.
+    _mergedBloomFilter = null;
+    for (final listener in List<VoidCallback>.from(_blocklistChangedListeners)) {
+      listener();
+    }
+  }
+
+  /// Invalidate the merged Bloom so the next getter rebuilds it. Called by
+  /// ContentBlockerService when its rules change.
+  void invalidateMergedBloom() {
+    _mergedBloomFilter = null;
+  }
 
   /// Global per-domain resolver cache: host -> blocked_bool.
   /// Shared across all sites since the same tracker/CDN domains appear
@@ -185,8 +247,9 @@ class DnsBlockService {
     } catch (_) {}
   }
 
-  /// Get (and cache) a Bloom filter built from all blocked domains plus
-  /// their hierarchical suffixes. Used for iOS JS-side prefiltering.
+  /// Get (and cache) a Bloom filter built from all DNS-blocked domains.
+  /// Kept for callers that want the DNS-only set; the webview JS
+  /// interceptor uses [getMergedBlockBloom] instead.
   BloomFilter getBloomFilter() {
     if (_bloomFilter != null) return _bloomFilter!;
     final sw = Stopwatch()..start();
@@ -198,18 +261,49 @@ class DnsBlockService {
     return _bloomFilter!;
   }
 
+  /// Get (and cache) a Bloom filter built from DNS ∪ ABP blocked domains.
+  /// Used as the JS-side prefilter for sub-resource interception. On a hit
+  /// the JS interceptor asks Dart for the authoritative decision, which
+  /// tags the stat entry with the right [BlockSource].
+  BloomFilter getMergedBlockBloom() {
+    if (_mergedBloomFilter != null) return _mergedBloomFilter!;
+    final abp = ContentBlockerService.instance.blockedDomains;
+    final sw = Stopwatch()..start();
+    if (_blockedDomains.isEmpty && abp.isEmpty) {
+      _mergedBloomFilter = BloomFilter.build(const <String>{}, fpRate: 0.05);
+    } else if (abp.isEmpty) {
+      _mergedBloomFilter = getBloomFilter();
+    } else {
+      final merged = <String>{..._blockedDomains, ...abp};
+      _mergedBloomFilter = BloomFilter.build(merged, fpRate: 0.05);
+    }
+    sw.stop();
+    LogService.instance.log(
+        'BlockBloom',
+        'Built merged bloom: ${_mergedBloomFilter!.sizeInBytes} bytes, k=${_mergedBloomFilter!.k}, '
+        'from ${_blockedDomains.length} DNS + ${abp.length} ABP domains in ${sw.elapsedMilliseconds}ms',
+        level: LogLevel.info);
+    return _mergedBloomFilter!;
+  }
+
   /// Get DNS stats for a specific site. Creates on first access.
   DnsStats statsForSite(String siteId) {
     return _siteStats.putIfAbsent(siteId, () => DnsStats());
   }
 
-  /// Record a DNS request (allowed or blocked) for a site.
+  /// Record a request (allowed or blocked) for a site. [source] identifies
+  /// which blocklist attributed the block (`dns` vs `abp`); null for
+  /// allowed requests.
+  ///
   /// Also updates the global per-domain cache so other webviews skip
-  /// re-checking the same host.
-  void recordRequest(String siteId, String url, bool wasBlocked) {
+  /// re-checking the same host. The domain cache only persists the
+  /// blocked-or-not bit — the DNS vs ABP distinction is recovered on the
+  /// next request because both services can answer independently.
+  void recordRequest(String siteId, String url, bool wasBlocked,
+      {BlockSource? source}) {
     final uri = Uri.tryParse(url);
     if (uri == null || uri.host.isEmpty) return;
-    statsForSite(siteId).record(uri.host, wasBlocked);
+    statsForSite(siteId).record(uri.host, wasBlocked, source: source);
     recordDomainDecision(uri.host, wasBlocked);
     _notifyDnsLogListeners();
   }
@@ -266,6 +360,7 @@ class DnsBlockService {
     if (level == 0) {
       _blockedDomains = {};
       _level = 0;
+      _bloomFilter = null;
       try {
         final file = await _getCacheFile();
         if (await file.exists()) {
@@ -278,6 +373,7 @@ class DnsBlockService {
         LogService.instance.log('DnsBlock', 'Error clearing blocklist: $e', level: LogLevel.error);
       }
       await _clearDomainCache();
+      _notifyBlocklistChanged();
       return true;
     }
 
@@ -378,6 +474,7 @@ class DnsBlockService {
     if (domains.isNotEmpty) {
       getBloomFilter();
     }
+    _notifyBlocklistChanged();
   }
 
   Future<File> _getCacheFile() async {

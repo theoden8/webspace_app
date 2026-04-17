@@ -134,7 +134,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
       if (success) {
         await _loadBlocklistState();
-        await WebInterceptNative.sendDomains(DnsBlockService.instance.blockedDomains);
+        // DnsBlockService fires a change listener that re-pushes domains
+        // to the native interceptor; we only need to (re)attach webviews.
         await WebInterceptNative.attachToWebViews();
         final domainCount = DnsBlockService.instance.domainCount;
         final message = level == 0

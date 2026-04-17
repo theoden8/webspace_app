@@ -430,17 +430,38 @@ void main() async {
   // Initialize DNS block service (loads cached blocklist from disk)
   await DnsBlockService.instance.initialize();
 
-  // Initialize native interceptor bridge for sub-resource DNS blocking and
-  // LocalCDN serving (Android). The Dart shouldInterceptRequest callback
-  // only fires for main-document navigations on modern Chromium WebView, so
-  // everything per-subresource has to go through the native path.
+  // Initialize native interceptor bridge for sub-resource DNS + ABP
+  // blocking and LocalCDN serving (Android). The Dart shouldInterceptRequest
+  // callback only fires for main-document navigations on modern Chromium
+  // WebView, so everything per-subresource has to go through the native
+  // path.
   WebInterceptNative.initialize();
   if (DnsBlockService.instance.hasBlocklist) {
-    await WebInterceptNative.sendDomains(DnsBlockService.instance.blockedDomains);
+    await WebInterceptNative.sendDnsDomains(
+        DnsBlockService.instance.blockedDomains);
   }
 
   // Initialize content blocker service (loads cached filter lists from disk)
   await ContentBlockerService.instance.initialize();
+
+  // Seed the native interceptor with ABP domains once ContentBlocker has
+  // parsed its cached lists.
+  if (ContentBlockerService.instance.blockedDomains.isNotEmpty) {
+    await WebInterceptNative.sendAbpDomains(
+        ContentBlockerService.instance.blockedDomains);
+  }
+
+  // Keep native + JS Bloom in sync whenever either blocklist changes.
+  // Individual download / toggle call sites don't need to know about the
+  // interceptor — they just mutate the service, the listener re-pushes.
+  DnsBlockService.instance.addBlocklistChangedListener(() {
+    WebInterceptNative.sendDnsDomains(DnsBlockService.instance.blockedDomains);
+  });
+  ContentBlockerService.instance.addRulesChangedListener(() {
+    DnsBlockService.instance.invalidateMergedBloom();
+    WebInterceptNative.sendAbpDomains(
+        ContentBlockerService.instance.blockedDomains);
+  });
 
   // Initialize LocalCDN service (loads cache index from disk)
   await LocalCdnService.instance.initialize();

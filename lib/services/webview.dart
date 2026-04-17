@@ -667,19 +667,25 @@ class WebViewFactory {
       ));
     }
 
-    // DNS stats: inject PerformanceObserver to report loaded resource URLs.
+    // Block stats: inject PerformanceObserver to report loaded resource
+    // URLs so allowed requests show up in the per-site log on iOS/macOS.
     // On Android, the native FastSubresourceInterceptor reports events
     // directly, so skip PerformanceObserver to avoid double-counting.
-    if (!Platform.isAndroid && config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+    final hasDnsRules = DnsBlockService.instance.hasBlocklist;
+    final hasAbpRules =
+        ContentBlockerService.instance.blockedDomains.isNotEmpty;
+    if (!Platform.isAndroid &&
+        config.siteId != null &&
+        (hasDnsRules || hasAbpRules)) {
       userScripts.add(inapp.UserScript(
-        groupName: 'dns_resource_observer',
+        groupName: 'block_resource_observer',
         source: '''
 (function() {
   var seen = {};
   var pending = [];
   function send(url) {
     if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
-      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+      window.flutter_inappwebview.callHandler('blockResourceLoaded', url);
     } else {
       pending.push(url);
     }
@@ -700,7 +706,7 @@ class WebViewFactory {
       return;
     }
     pending.forEach(function(url) {
-      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+      window.flutter_inappwebview.callHandler('blockResourceLoaded', url);
     });
     pending = [];
   }
@@ -711,15 +717,16 @@ class WebViewFactory {
       ));
     }
 
-    // iOS DNS sub-resource blocking: JS interceptor with Bloom-filter
-    // prefilter. Bloom filter check is pure JS (microseconds). Only
-    // ~0.1% of allowed URLs trigger a Dart roundtrip for confirmation.
+    // iOS sub-resource blocking: JS interceptor with merged DNS+ABP
+    // Bloom-filter prefilter. Bloom check is pure JS (microseconds).
+    // Only ~0.1% of allowed URLs trigger a Dart roundtrip; Dart's
+    // blockCheck handler decides DNS vs ABP and records the source.
     if (!Platform.isAndroid
         && config.siteId != null
-        && config.dnsBlockEnabled
-        && DnsBlockService.instance.hasBlocklist) {
+        && ((config.dnsBlockEnabled && hasDnsRules) ||
+            (config.contentBlockEnabled && hasAbpRules))) {
       userScripts.add(inapp.UserScript(
-        groupName: 'dns_js_blocker',
+        groupName: 'block_js_interceptor',
         source: '''
 (function() {
   var bloomReady = false;
@@ -792,23 +799,25 @@ class WebViewFactory {
     // Bloom prefilter: if definitely not in set, allow without roundtrip
     if (!maybeBlocked(host)) {
       cacheResult(host, false);
-      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+      window.flutter_inappwebview.callHandler('blockResourceLoaded', url);
       return Promise.resolve(false);
     }
-    // Possibly blocked — confirm via Dart, then cache result
-    return window.flutter_inappwebview.callHandler('dnsCheck', url).then(function(blocked) {
+    // Possibly blocked — confirm via Dart, then cache result. Dart
+    // decides DNS vs ABP and records the source in per-site stats.
+    return window.flutter_inappwebview.callHandler('blockCheck', url).then(function(blocked) {
       cacheResult(host, blocked);
       return blocked;
     });
   }
 
-  // Fetch Bloom filter + persisted per-site cache from Dart at startup
+  // Fetch merged DNS+ABP Bloom filter + persisted per-site cache from
+  // Dart at startup.
   function loadBloom() {
     if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
       setTimeout(loadBloom, 50);
       return;
     }
-    window.flutter_inappwebview.callHandler('getDnsBloom').then(function(map) {
+    window.flutter_inappwebview.callHandler('getBlockBloom').then(function(map) {
       if (!map) return;
       var bytes = map.bits;
       bloomBits = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -996,28 +1005,58 @@ class WebViewFactory {
             return args.isNotEmpty ? args[0] : '';
           });
         }
-        // DNS stats: register handler for resource observer JS
-        if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
-          controller.addJavaScriptHandler(handlerName: 'dnsResourceLoaded', callback: (args) {
+        // Block stats: register handler for resource observer JS. Runs
+        // whenever either blocklist is active so allowed requests are
+        // tallied even if DNS is off but ABP is on (or vice versa).
+        final hasAnyBlocklistDomains =
+            DnsBlockService.instance.hasBlocklist ||
+                ContentBlockerService.instance.blockedDomains.isNotEmpty;
+        if (config.siteId != null && hasAnyBlocklistDomains) {
+          controller.addJavaScriptHandler(handlerName: 'blockResourceLoaded', callback: (args) {
             if (args.isNotEmpty && args[0] is String) {
               final url = args[0] as String;
-              final blocked = DnsBlockService.instance.isBlocked(url);
-              DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+              final dnsBlocked = config.dnsBlockEnabled &&
+                  DnsBlockService.instance.isBlocked(url);
+              final abpBlocked = !dnsBlocked &&
+                  config.contentBlockEnabled &&
+                  ContentBlockerService.instance.isBlocked(url);
+              final blocked = dnsBlocked || abpBlocked;
+              final source = dnsBlocked
+                  ? BlockSource.dns
+                  : (abpBlocked ? BlockSource.abp : null);
+              DnsBlockService.instance
+                  .recordRequest(config.siteId!, url, blocked, source: source);
             }
             return null;
           });
-          // iOS sub-resource blocking: per-URL check from JS interceptor
-          if (!Platform.isAndroid && config.dnsBlockEnabled) {
-            controller.addJavaScriptHandler(handlerName: 'dnsCheck', callback: (args) {
+          // iOS sub-resource blocking: per-URL check from JS interceptor.
+          // Merged Bloom prefilter runs in JS; Dart resolves DNS vs ABP.
+          if (!Platform.isAndroid) {
+            controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
               if (args.isEmpty || args[0] is! String) return false;
               final url = args[0] as String;
-              final blocked = DnsBlockService.instance.isBlocked(url);
-              DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-              return blocked;
+              if (config.dnsBlockEnabled &&
+                  DnsBlockService.instance.isBlocked(url)) {
+                DnsBlockService.instance.recordRequest(
+                    config.siteId!, url, true,
+                    source: BlockSource.dns);
+                return true;
+              }
+              if (config.contentBlockEnabled &&
+                  ContentBlockerService.instance.isBlocked(url)) {
+                DnsBlockService.instance.recordRequest(
+                    config.siteId!, url, true,
+                    source: BlockSource.abp);
+                return true;
+              }
+              DnsBlockService.instance
+                  .recordRequest(config.siteId!, url, false);
+              return false;
             });
-            // One-shot bloom filter + global domain cache delivery to JS
-            controller.addJavaScriptHandler(handlerName: 'getDnsBloom', callback: (args) {
-              final map = Map<String, dynamic>.from(DnsBlockService.instance.getBloomFilter().toMap());
+            // One-shot merged Bloom filter + global domain cache delivery to JS
+            controller.addJavaScriptHandler(handlerName: 'getBlockBloom', callback: (args) {
+              final map = Map<String, dynamic>.from(
+                  DnsBlockService.instance.getMergedBlockBloom().toMap());
               map['cache'] = DnsBlockService.instance.getDomainCache();
               return map;
             });
@@ -1052,13 +1091,19 @@ class WebViewFactory {
         if (DnsBlockService.instance.hasBlocklist && config.siteId != null) {
           LogService.instance.log('DnsBlock', '[Navigation] $url');
           final blocked = DnsBlockService.instance.isBlocked(url);
-          DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+          DnsBlockService.instance.recordRequest(config.siteId!, url, blocked,
+              source: blocked ? BlockSource.dns : null);
           if (blocked && config.dnsBlockEnabled) {
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
-        // Content blocker domain check
+        // Content blocker domain check (main-doc navigation; sub-resources
+        // are caught by the native / JS interceptor).
         if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
+          if (config.siteId != null) {
+            DnsBlockService.instance.recordRequest(config.siteId!, url, true,
+                source: BlockSource.abp);
+          }
           return inapp.NavigationActionPolicy.CANCEL;
         }
         // ClearURLs: strip tracking parameters from URLs
@@ -1115,12 +1160,24 @@ class WebViewFactory {
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
-        // Record the page navigation for DNS stats so the banner shows immediately
-        if (config.siteId != null && DnsBlockService.instance.hasBlocklist
-            && url != null && url.toString().startsWith('http')) {
+        // Record the page navigation for the block stats banner so it
+        // appears immediately. Tag the source (DNS or ABP) so the log
+        // keeps the attribution even for main-doc loads.
+        if (config.siteId != null &&
+            (DnsBlockService.instance.hasBlocklist ||
+                ContentBlockerService.instance.blockedDomains.isNotEmpty) &&
+            url != null &&
+            url.toString().startsWith('http')) {
           final urlStr = url.toString();
-          DnsBlockService.instance.recordRequest(config.siteId!, urlStr,
-              DnsBlockService.instance.isBlocked(urlStr));
+          final dnsBlocked = DnsBlockService.instance.isBlocked(urlStr);
+          final abpBlocked = !dnsBlocked &&
+              ContentBlockerService.instance.isBlocked(urlStr);
+          final blocked = dnsBlocked || abpBlocked;
+          final source = dnsBlocked
+              ? BlockSource.dns
+              : (abpBlocked ? BlockSource.abp : null);
+          DnsBlockService.instance
+              .recordRequest(config.siteId!, urlStr, blocked, source: source);
         }
         // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {

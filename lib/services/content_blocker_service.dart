@@ -114,6 +114,30 @@ class ContentBlockerService {
   /// Whether any rules are loaded.
   bool get hasRules => _blockedDomains.isNotEmpty || _cosmeticSelectors.isNotEmpty || _textHideRules.isNotEmpty;
 
+  /// Aggregated ABP blocked domains across all enabled lists. Shared with
+  /// the sub-resource interceptor (native Android + iOS JS Bloom) so ABP
+  /// network blocking extends beyond main-document navigations.
+  Set<String> get blockedDomains => _blockedDomains;
+
+  /// Listeners invoked when the aggregated rule set changes (download,
+  /// toggle, remove, re-init). main.dart uses this to re-push domains to
+  /// the native interceptor and invalidate the merged JS Bloom.
+  final List<VoidCallback> _rulesChangedListeners = [];
+
+  void addRulesChangedListener(VoidCallback listener) {
+    _rulesChangedListeners.add(listener);
+  }
+
+  void removeRulesChangedListener(VoidCallback listener) {
+    _rulesChangedListeners.remove(listener);
+  }
+
+  void _notifyRulesChanged() {
+    for (final listener in List<VoidCallback>.from(_rulesChangedListeners)) {
+      listener();
+    }
+  }
+
   /// Check if a URL's domain (or any parent domain) is blocked.
   bool isBlocked(String url) {
     if (_blockedDomains.isEmpty) return false;
@@ -429,6 +453,7 @@ class ContentBlockerService {
     _blockedDomains = allDomains;
     _cosmeticSelectors = allSelectors;
     _textHideRules = allTextRules;
+    _notifyRulesChanged();
   }
 
   Future<void> _saveLists() async {

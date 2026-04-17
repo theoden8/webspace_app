@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
-/// A compact banner displayed at the top of the webview showing live DNS
-/// blocking activity per site. Taps expand/collapse the banner. Automatically
-/// hides when there's no activity to report.
+/// A compact banner displayed at the top of the webview showing live
+/// block activity per site (DNS + ABP merged). Taps expand/collapse the
+/// banner. Automatically hides when there's no activity to report.
 class StatsBanner extends StatefulWidget {
   final String siteId;
   final bool dnsBlockEnabled;
@@ -46,7 +47,9 @@ class _StatsBannerState extends State<StatsBanner> {
 
   @override
   Widget build(BuildContext context) {
-    if (!DnsBlockService.instance.hasBlocklist) {
+    final hasAnyBlocklist = DnsBlockService.instance.hasBlocklist ||
+        ContentBlockerService.instance.blockedDomains.isNotEmpty;
+    if (!hasAnyBlocklist) {
       return const SizedBox.shrink();
     }
 

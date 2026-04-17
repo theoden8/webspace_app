@@ -7,10 +7,10 @@ import 'package:webspace/services/log_service.dart';
 
 /// Dart-side bridge to the native Android interceptor that runs as part of
 /// flutter_inappwebview's ContentBlockerHandler path. The native handler
-/// blocks DNS-listed domains and serves pre-downloaded LocalCDN resources
-/// for sub-resource requests — the Dart shouldInterceptRequest callback
-/// only fires for the main document on modern Chromium WebView, so any
-/// sub-resource interception has to happen natively.
+/// blocks DNS + ABP-listed domains and serves pre-downloaded LocalCDN
+/// resources for sub-resource requests — the Dart shouldInterceptRequest
+/// callback only fires for the main document on modern Chromium WebView,
+/// so any sub-resource interception has to happen natively.
 class WebInterceptNative {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/web_intercept');
@@ -21,8 +21,8 @@ class WebInterceptNative {
     if (!isSupported) return;
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
-        case 'dnsEventsReady':
-          await _drainDnsEvents(call.arguments as String?);
+        case 'blockEventsReady':
+          await _drainBlockEvents(call.arguments as String?);
           break;
         case 'cdnEventsReady':
           await _drainCdnEvents(call.arguments as String?);
@@ -39,20 +39,25 @@ class WebInterceptNative {
     });
   }
 
-  static Future<void> _drainDnsEvents(String? siteId) async {
+  static Future<void> _drainBlockEvents(String? siteId) async {
     if (siteId == null) return;
     try {
       final list =
-          await _channel.invokeMethod('fetchDnsEvents', {'siteId': siteId});
+          await _channel.invokeMethod('fetchBlockEvents', {'siteId': siteId});
       if (list is! List) return;
       for (final entry in list) {
         if (entry is Map) {
           final host = entry['host'] as String?;
           final blocked = entry['blocked'] as bool?;
-          if (host != null && blocked != null) {
-            DnsBlockService.instance
-                .recordRequest(siteId, 'https://$host/', blocked);
-          }
+          if (host == null || blocked == null) continue;
+          final sourceStr = entry['source'] as String?;
+          final source = switch (sourceStr) {
+            'dns' => BlockSource.dns,
+            'abp' => BlockSource.abp,
+            _ => null,
+          };
+          DnsBlockService.instance
+              .recordRequest(siteId, 'https://$host/', blocked, source: source);
         }
       }
     } catch (_) {}
@@ -70,19 +75,40 @@ class WebInterceptNative {
     } catch (_) {}
   }
 
-  // ========== DNS ==========
+  // ========== Domain blocklists ==========
 
-  static Future<void> sendDomains(Set<String> domains) async {
+  /// Push the DNS blocklist domains to the native interceptor.
+  static Future<void> sendDnsDomains(Set<String> domains) async {
     if (!isSupported) return;
     try {
-      final count = await _channel.invokeMethod('setBlockedDomains', {
+      final count = await _channel.invokeMethod('setDnsBlockedDomains', {
         'domains': domains.toList(),
       });
       LogService.instance.log(
-          'DnsBlock', 'Sent $count domains to native handler',
+          'DnsBlock', 'Sent $count DNS domains to native handler',
           level: LogLevel.info);
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Failed to send domains to native: $e',
+      LogService.instance.log('DnsBlock',
+          'Failed to send DNS domains to native: $e',
+          level: LogLevel.error);
+    }
+  }
+
+  /// Push the ABP blocklist domains (aggregated from enabled filter
+  /// lists' `||domain^` rules) to the native interceptor. Hits are
+  /// attributed to ABP in the per-site block log.
+  static Future<void> sendAbpDomains(Set<String> domains) async {
+    if (!isSupported) return;
+    try {
+      final count = await _channel.invokeMethod('setAbpBlockedDomains', {
+        'domains': domains.toList(),
+      });
+      LogService.instance.log(
+          'ContentBlocker', 'Sent $count ABP domains to native handler',
+          level: LogLevel.info);
+    } catch (e) {
+      LogService.instance.log('ContentBlocker',
+          'Failed to send ABP domains to native: $e',
           level: LogLevel.error);
     }
   }
