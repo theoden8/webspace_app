@@ -1032,6 +1032,8 @@ class WebViewFactory {
         // If we loaded cached HTML, navigate to the real URL when online
         if (usesCachedHtml) {
           final online = await ConnectivityService.instance.isOnline();
+          LogService.instance.log('LocalCDN',
+              'Cached HTML path: online=$online, will ${online ? "loadUrl(${config.initialUrl})" : "stay on cached data: URL"}');
           if (online) {
             // Reset cache mode to default before loading live URL
             await controller.setSettings(settings: inapp.InAppWebViewSettings(
