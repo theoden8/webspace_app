@@ -13,11 +13,19 @@ import com.pichillilorenzo.flutter_inappwebview_android.webview.in_app_webview.I
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.net.URI
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngine) {
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
     private val blockedDomains = HashSet<String>()
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    // Per-site pending events. Java is the source of truth; Dart pulls on demand.
+    private val pendingBlocked = ConcurrentHashMap<String, MutableList<String>>()
+    // Whether a signal is in flight for this siteId (prevents signal spam).
+    private val signalPending = ConcurrentHashMap<String, AtomicBoolean>()
 
     init {
         channel.setMethodCallHandler { call, result ->
@@ -37,30 +45,46 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
                     val count = attachToAllWebViews(siteId)
                     result.success(count)
                 }
+                "fetchBlocked" -> {
+                    val siteId = call.argument<String>("siteId")
+                    if (siteId == null) {
+                        result.error("INVALID_ARGS", "siteId required", null)
+                    } else {
+                        val list = pendingBlocked[siteId]
+                        if (list == null) {
+                            result.success(emptyList<String>())
+                        } else {
+                            val snapshot: List<String>
+                            synchronized(list) {
+                                snapshot = ArrayList(list)
+                                list.clear()
+                            }
+                            result.success(snapshot)
+                        }
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
     }
 
-    private val pendingBlocked = mutableListOf<Map<String, String>>()
-    private var flushScheduled = false
+    /// Records a blocked event for this site and signals Dart once per batch.
+    /// If Dart is already processing an earlier signal for this site,
+    /// subsequent blocks just accumulate — no duplicate signals.
+    private fun recordBlocked(siteId: String, host: String) {
+        val list = pendingBlocked.computeIfAbsent(siteId) {
+            Collections.synchronizedList(mutableListOf())
+        }
+        list.add(host)
 
-    private fun reportBlocked(siteId: String, host: String) {
-        synchronized(pendingBlocked) {
-            pendingBlocked.add(mapOf("siteId" to siteId, "host" to host))
-            if (!flushScheduled) {
-                flushScheduled = true
-                handler.postDelayed({
-                    val batch: List<Map<String, String>>
-                    synchronized(pendingBlocked) {
-                        batch = pendingBlocked.toList()
-                        pendingBlocked.clear()
-                        flushScheduled = false
-                    }
-                    if (batch.isNotEmpty()) {
-                        channel.invokeMethod("onDnsBlockedBatch", batch)
-                    }
-                }, 200)
+        val signaled = signalPending.computeIfAbsent(siteId) { AtomicBoolean(false) }
+        if (signaled.compareAndSet(false, true)) {
+            mainHandler.post {
+                channel.invokeMethod("dnsBlockedReady", siteId, object : MethodChannel.Result {
+                    override fun success(result: Any?) { signaled.set(false) }
+                    override fun error(code: String, message: String?, details: Any?) { signaled.set(false) }
+                    override fun notImplemented() { signaled.set(false) }
+                })
             }
         }
     }
@@ -77,7 +101,7 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
             if (isNew) {
                 val siteId = siteIdMap[webView] ?: "unknown"
                 webView.contentBlockerHandler = FastDnsBlockerHandler(blockedDomains) { host ->
-                    reportBlocked(siteId, host)
+                    recordBlocked(siteId, host)
                 }
             }
         }

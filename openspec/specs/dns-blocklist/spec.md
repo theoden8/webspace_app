@@ -596,8 +596,13 @@ The `DnsBlockPlugin` manages the lifecycle:
 1. `setBlockedDomains` — receives domain list from Dart, stores in Java `HashSet`
 2. `attachToWebViews(siteId)` — traverses view hierarchy, finds `InAppWebView`
    instances, replaces `contentBlockerHandler` field with `FastDnsBlockerHandler`
-3. `onDnsBlocked(siteId, host)` — reports blocked domains back to Dart via
-   MethodChannel for DNS stats (each handler has its own siteId)
+3. **Pull-based event delivery** — Java accumulates blocked events in a
+   per-site list. On first block, signals Dart via `dnsBlockedReady(siteId)`
+   (siteId-only payload, no data). If more blocks arrive while the signal is
+   in flight, they silently append to the list — no duplicate signals. Dart
+   responds to the signal by calling `fetchBlocked(siteId)`, which atomically
+   drains the list and returns it. This coalesces bursts of blocked events
+   into a single MethodChannel roundtrip, regardless of how many fire.
 
 **Critical constraint:** `useShouldInterceptRequest` must be `false` (or only
 enabled for LocalCDN). When true, the Dart callback runs and returns early,

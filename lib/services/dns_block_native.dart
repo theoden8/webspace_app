@@ -12,16 +12,21 @@ class DnsBlockNative {
   static void initialize() {
     if (!isSupported) return;
     _channel.setMethodCallHandler((call) async {
-      if (call.method == 'onDnsBlockedBatch') {
-        final batch = (call.arguments as List).cast<Map>();
-        for (final entry in batch) {
-          final args = Map<String, dynamic>.from(entry);
-          final siteId = args['siteId'] as String?;
-          final host = args['host'] as String?;
-          if (siteId != null && host != null) {
-            DnsBlockService.instance.recordRequest(siteId, 'https://$host/', true);
+      if (call.method == 'dnsBlockedReady') {
+        // Java signals that new blocked events are available for this site.
+        // We pull the list (Java clears it atomically).
+        final siteId = call.arguments as String?;
+        if (siteId == null) return;
+        try {
+          final list = await _channel.invokeMethod('fetchBlocked', {'siteId': siteId});
+          if (list is List) {
+            for (final host in list) {
+              if (host is String) {
+                DnsBlockService.instance.recordRequest(siteId, 'https://$host/', true);
+              }
+            }
           }
-        }
+        } catch (_) {}
       }
     });
   }
