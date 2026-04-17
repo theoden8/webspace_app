@@ -1126,6 +1126,9 @@ class WebViewFactory {
                 if (service.isCdnUrl(url)) {
                   final data = await service.getOrFetchResource(url);
                   if (data != null) {
+                    if (config.siteId != null) {
+                      service.recordReplacement(config.siteId!);
+                    }
                     return inapp.WebResourceResponse(
                       contentType: service.getContentType(url),
                       contentEncoding: 'utf-8',

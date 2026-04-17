@@ -294,6 +294,23 @@ class LocalCdnService {
   String? _cacheDir;
   bool _initialized = false;
 
+  /// Per-site counter of CDN requests replaced from the local cache.
+  /// Runtime-only (not persisted); resets when the app restarts.
+  final Map<String, int> _replacementsPerSite = {};
+
+  /// Record that a CDN request was replaced with a local copy for [siteId].
+  void recordReplacement(String siteId) {
+    _replacementsPerSite[siteId] = (_replacementsPerSite[siteId] ?? 0) + 1;
+  }
+
+  /// Number of CDN requests replaced from cache for a given site.
+  int replacementsForSite(String siteId) => _replacementsPerSite[siteId] ?? 0;
+
+  /// Clear the replacement counter for a specific site.
+  void clearReplacementsForSite(String siteId) {
+    _replacementsPerSite.remove(siteId);
+  }
+
   /// Whether the service has been initialized.
   bool get isInitialized => _initialized;
 

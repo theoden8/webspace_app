@@ -234,6 +234,34 @@ LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest
 | `fetch('cdn...')` | Not intercepted | Not intercepted |
 | `XMLHttpRequest` to CDN | Not intercepted | Not intercepted |
 
+### LCDN-014: Per-Site Replacement Counter
+
+The service SHALL track the number of CDN requests replaced from the local cache per site, and the stats banner SHALL display this count on Android.
+
+#### Scenario: CDN resource served from cache
+
+- **Given** a site with `localCdnEnabled` is loaded on Android
+- **When** `shouldInterceptRequest` serves a cached CDN resource
+- **Then** `LocalCdnService.recordReplacement(siteId)` increments the per-site counter
+
+#### Scenario: Banner shows replacement count
+
+- **Given** at least one CDN request has been replaced for the current site on Android
+- **When** the stats banner is rendered
+- **Then** the banner shows `"N cdn(s) replaced"` alongside the DNS blocked/allowed counts
+
+#### Scenario: Counter resets on app restart
+
+- **Given** the app is terminated and relaunched
+- **When** per-site replacement counts are queried
+- **Then** all counts start from zero (runtime-only state)
+
+#### Scenario: No CDN replacements
+
+- **Given** a site where no CDN requests have been replaced
+- **When** the stats banner is rendered
+- **Then** no CDN count is shown
+
 ## Implementation Details
 
 ### CDN Providers Supported
@@ -322,7 +350,9 @@ useShouldInterceptRequest: Platform.isAndroid
 
 ### Modified
 - `lib/web_view_model.dart` - Added `localCdnEnabled` field with serialization
-- `lib/services/webview.dart` - Added `localCdnEnabled` to `WebViewConfig`, `shouldInterceptRequest` callback
+- `lib/services/webview.dart` - Added `localCdnEnabled` to `WebViewConfig`, `shouldInterceptRequest` callback, replacement recording
+- `lib/services/localcdn_service.dart` - Per-site replacement counter (`recordReplacement`, `replacementsForSite`)
+- `lib/widgets/dns_block_banner.dart` - Stats banner also shows LocalCDN replacement count on Android
 - `lib/screens/settings.dart` - Per-site LocalCDN toggle
 - `lib/screens/app_settings.dart` - LocalCDN download button, progress indicator, cache stats, clear cache
 - `lib/main.dart` - LocalCDN service initialization
