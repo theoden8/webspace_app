@@ -8,8 +8,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/dns_block_native.dart';
-import 'package:webspace/services/localcdn_service.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/user_script_service.dart';
@@ -669,8 +668,8 @@ class WebViewFactory {
     }
 
     // DNS stats: inject PerformanceObserver to report loaded resource URLs.
-    // On Android, the native FastDnsBlockerHandler reports events directly,
-    // so skip PerformanceObserver to avoid double-counting.
+    // On Android, the native FastSubresourceInterceptor reports events
+    // directly, so skip PerformanceObserver to avoid double-counting.
     if (!Platform.isAndroid && config.siteId != null && DnsBlockService.instance.hasBlocklist) {
       userScripts.add(inapp.UserScript(
         groupName: 'dns_resource_observer',
@@ -958,11 +957,12 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        // Register the Dart interceptor whenever LocalCDN is enabled on Android.
-        // Gating on hasCache prevented on-demand CDN downloads (and the
-        // per-site replacement counter) from ever firing for users who
-        // hadn't pre-downloaded the popular-resources bundle.
-        useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled,
+        // Keep the Dart shouldInterceptRequest callback disabled on Android:
+        // the native FastSubresourceInterceptor handles DNS blocking and
+        // LocalCDN replacement for every sub-resource, whereas the Dart
+        // callback only fires for main-document navigations on modern
+        // Chromium WebView.
+        useShouldInterceptRequest: false,
         useShouldInterceptAjaxRequest: false,
         useShouldInterceptFetchRequest: false,
         useOnLoadResource: false,
@@ -1035,9 +1035,13 @@ class WebViewFactory {
             wrappedController.loadUrl(config.initialUrl, language: config.language);
           }
         }
-        // Attach native DNS block handler once view is in hierarchy
-        if (DnsBlockService.instance.hasBlocklist) {
-          Future.microtask(() => DnsBlockNative.attachToWebViews(siteId: config.siteId));
+        // Attach native interceptor (DNS blocking + LocalCDN serving) once
+        // the view is in the hierarchy. Always attach on Android — the
+        // handler no-ops cheaply when neither blocklist nor CDN cache are
+        // populated, and the references are shared with the plugin so
+        // subsequent updates are picked up without re-attaching.
+        if (Platform.isAndroid) {
+          Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
@@ -1104,49 +1108,10 @@ class WebViewFactory {
 
         return false;
       },
-      shouldInterceptRequest: Platform.isAndroid
-          ? (controller, request) async {
-              final url = request.url.toString();
-
-              // Record every sub-resource request for DNS stats
-              if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
-                final blocked = DnsBlockService.instance.isBlocked(url);
-                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
-                if (blocked && config.dnsBlockEnabled) {
-                  LogService.instance.log('DnsBlock', 'Blocked sub-resource: $url (site: ${config.siteId})');
-                  return inapp.WebResourceResponse(
-                    contentType: 'text/plain',
-                    contentEncoding: 'utf-8',
-                    data: Uint8List(0),
-                    statusCode: 403,
-                    reasonPhrase: 'Blocked by DNS blocklist',
-                  );
-                }
-              }
-
-              // LocalCDN: serve CDN resources from local cache
-              if (config.localCdnEnabled) {
-                final service = LocalCdnService.instance;
-                if (service.isCdnUrl(url)) {
-                  final data = await service.getOrFetchResource(url);
-                  if (data != null) {
-                    if (config.siteId != null) {
-                      service.recordReplacement(config.siteId!);
-                    }
-                    return inapp.WebResourceResponse(
-                      contentType: service.getContentType(url),
-                      contentEncoding: 'utf-8',
-                      data: data,
-                    );
-                  }
-                }
-              }
-
-              return null;
-            }
-          : null,
-      // fetch/XHR interception disabled — Dart roundtrip bottlenecks page loading.
-      // Native FastDnsBlockerHandler handles sub-resource blocking in Java instead.
+      // Dart shouldInterceptRequest is intentionally unset — see the
+      // useShouldInterceptRequest comment above. Sub-resource DNS blocking
+      // and LocalCDN replacement are both handled by the native
+      // FastSubresourceInterceptor attached via WebInterceptNative.
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();

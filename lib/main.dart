@@ -35,7 +35,7 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/dns_block_native.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
@@ -430,10 +430,13 @@ void main() async {
   // Initialize DNS block service (loads cached blocklist from disk)
   await DnsBlockService.instance.initialize();
 
-  // Initialize native DNS block handler for sub-resource blocking (Android)
-  DnsBlockNative.initialize();
+  // Initialize native interceptor bridge for sub-resource DNS blocking and
+  // LocalCDN serving (Android). The Dart shouldInterceptRequest callback
+  // only fires for main-document navigations on modern Chromium WebView, so
+  // everything per-subresource has to go through the native path.
+  WebInterceptNative.initialize();
   if (DnsBlockService.instance.hasBlocklist) {
-    await DnsBlockNative.sendDomains(DnsBlockService.instance.blockedDomains);
+    await WebInterceptNative.sendDomains(DnsBlockService.instance.blockedDomains);
   }
 
   // Initialize content blocker service (loads cached filter lists from disk)
@@ -441,6 +444,17 @@ void main() async {
 
   // Initialize LocalCDN service (loads cache index from disk)
   await LocalCdnService.instance.initialize();
+
+  // Seed the native interceptor with CDN patterns + the current cache
+  // index, and keep its copy in sync whenever the cache changes.
+  await WebInterceptNative.sendCdnPatterns(
+      LocalCdnService.instance.cdnPatternStrings);
+  await WebInterceptNative.sendCdnCacheIndex(
+      LocalCdnService.instance.cacheIndexSnapshot);
+  LocalCdnService.instance.addCacheChangeListener(() {
+    WebInterceptNative.sendCdnCacheIndex(
+        LocalCdnService.instance.cacheIndexSnapshot);
+  });
 
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {

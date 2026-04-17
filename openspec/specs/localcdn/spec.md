@@ -227,10 +227,10 @@ LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest
 
 | Request type | Android | iOS/macOS |
 |---|---|---|
-| `<script src="cdn...">` | Intercepted via shouldInterceptRequest | Not intercepted |
-| `<link href="cdn...">` | Intercepted via shouldInterceptRequest | Not intercepted |
-| `<img src="cdn...">` | Intercepted via shouldInterceptRequest | Not intercepted |
-| CSS `@font-face url(cdn...)` | Intercepted via shouldInterceptRequest | Not intercepted |
+| `<script src="cdn...">` | Intercepted natively via FastSubresourceInterceptor | Not intercepted |
+| `<link href="cdn...">` | Intercepted natively via FastSubresourceInterceptor | Not intercepted |
+| `<img src="cdn...">` | Intercepted natively via FastSubresourceInterceptor | Not intercepted |
+| CSS `@font-face url(cdn...)` | Intercepted natively via FastSubresourceInterceptor | Not intercepted |
 | `fetch('cdn...')` | Not intercepted | Not intercepted |
 | `XMLHttpRequest` to CDN | Not intercepted | Not intercepted |
 
@@ -241,8 +241,8 @@ The service SHALL track the number of CDN requests replaced from the local cache
 #### Scenario: CDN resource served from cache
 
 - **Given** a site with `localCdnEnabled` is loaded on Android
-- **When** `shouldInterceptRequest` serves a cached CDN resource
-- **Then** `LocalCdnService.recordReplacement(siteId)` increments the per-site counter
+- **When** the native `FastSubresourceInterceptor` serves a cached CDN resource for a sub-resource request
+- **Then** the native side emits a `cdnEventsReady` signal and Dart's `WebInterceptNative` drains the events into `LocalCdnService.recordReplacement(siteId)`
 
 #### Scenario: Banner shows replacement count
 
@@ -311,21 +311,19 @@ A curated list of ~80 popular resources is built into the service, covering:
 
 ### Hook Ordering
 
-LocalCDN runs inside the `shouldInterceptRequest` callback on Android, AFTER DNS blocklist checking. If a CDN URL is on the DNS blocklist, DNS blocking takes priority and the request is blocked before LocalCDN can serve it.
+LocalCDN runs inside the native `FastSubresourceInterceptor.checkUrl` on Android, AFTER DNS blocklist checking. If a CDN URL is on the DNS blocklist, DNS blocking takes priority and the request is blocked before LocalCDN can serve it. Dart-side `shouldInterceptRequest` is intentionally disabled (`useShouldInterceptRequest: false`): on modern Chromium WebView that Dart callback only fires for the main-document navigation and never for sub-resources, so all per-sub-resource logic lives in the native handler.
 
-```dart
-shouldInterceptRequest: (controller, request) async {
-  // 1. DNS blocklist check + recording (runs first)
-  // 2. LocalCDN check (runs second)
-  if (config.localCdnEnabled && service.isCdnUrl(url)) {
-    final data = await service.getOrFetchResource(url);
-    if (data != null) return WebResourceResponse(data: data);
-  }
-  return null; // pass through
-}
+```kotlin
+// FastSubresourceInterceptor.checkUrl (Kotlin):
+// 1. DNS blocklist check + recording (runs first)
+// 2. LocalCDN: if URL matches a CDN pattern and the cache key is in the
+//    native cacheIndex, serve the file via WebResourceResponse(fileStream)
+//    and emit a replacement event back to Dart.
 ```
 
-Note: `shouldInterceptRequest` is Android-only and fires for static sub-resources only. It is NOT called for `fetch()` or `XMLHttpRequest` — those go through separate JS-injected hooks (`shouldInterceptFetchRequest`, `shouldInterceptAjaxRequest`) which do not include LocalCDN interception.
+The cache index and CDN regex patterns are pushed from Dart to the native plugin via the `web_intercept` MethodChannel (`setCdnPatterns`, `setCdnCacheIndex`) on app start and re-pushed whenever the Dart-side cache changes (download, clear). Replacement events are batched natively and drained by Dart on the `cdnEventsReady` signal, which increments `LocalCdnService._replacementsPerSite[siteId]`.
+
+Note: the native handler only serves pre-downloaded resources; on-demand fetching from cdnjs is still handled in Dart (and only fires if the Dart callback is ever re-enabled). It is NOT called for `fetch()` or `XMLHttpRequest` CDN requests — those never reach the `ContentBlockerHandler`.
 
 ### Data Model
 
@@ -336,8 +334,8 @@ bool localCdnEnabled; // default: true
 // WebViewConfig field
 final bool localCdnEnabled; // default: true
 
-// InAppWebViewSettings — always enabled on Android for DNS blocking
-useShouldInterceptRequest: Platform.isAndroid
+// InAppWebViewSettings — native interceptor runs via contentBlockerHandler
+useShouldInterceptRequest: false
 ```
 
 ## Files
@@ -350,12 +348,14 @@ useShouldInterceptRequest: Platform.isAndroid
 
 ### Modified
 - `lib/web_view_model.dart` - Added `localCdnEnabled` field with serialization
-- `lib/services/webview.dart` - Added `localCdnEnabled` to `WebViewConfig`, `shouldInterceptRequest` callback, replacement recording
-- `lib/services/localcdn_service.dart` - Per-site replacement counter (`recordReplacement`, `replacementsForSite`)
+- `lib/services/webview.dart` - Added `localCdnEnabled` to `WebViewConfig`; disabled the Dart `shouldInterceptRequest` callback on Android in favour of the native interceptor
+- `lib/services/localcdn_service.dart` - Per-site replacement counter, cdnPatternStrings / cacheIndexSnapshot getters, and cache-change listeners for the native bridge
+- `lib/services/web_intercept_native.dart` - Renamed from `dns_block_native.dart`; now pushes CDN patterns + cache index to native and drains CDN replacement events
 - `lib/widgets/dns_block_banner.dart` - Stats banner also shows LocalCDN replacement count on Android
 - `lib/screens/settings.dart` - Per-site LocalCDN toggle
 - `lib/screens/app_settings.dart` - LocalCDN download button, progress indicator, cache stats, clear cache
-- `lib/main.dart` - LocalCDN service initialization
+- `lib/main.dart` - LocalCDN service initialization + initial sync of patterns/index to native
+- `android/app/src/main/kotlin/.../WebInterceptPlugin.kt` - Renamed from `DnsBlockPlugin.kt`; `FastSubresourceInterceptor` now also matches CDN URLs and serves from the shared cache directory
 - `test/web_view_model_test.dart` - Tests for `localCdnEnabled` field
 - `README.md` - Added LocalCDN to features list
 - `CLAUDE.md` - Added LocalCDN to spec table

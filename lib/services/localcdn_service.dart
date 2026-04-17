@@ -311,6 +311,34 @@ class LocalCdnService {
     _replacementsPerSite.remove(siteId);
   }
 
+  /// The CDN URL regex patterns as strings, suitable for passing to the
+  /// native Android interceptor. Each pattern exposes groups 1/2/3 =
+  /// (library, version, file) just like [_CdnPattern].
+  List<String> get cdnPatternStrings =>
+      _cdnPatterns.map((p) => p.pattern.pattern).toList(growable: false);
+
+  /// Snapshot of the cache index (cacheKey -> absolute file path on disk)
+  /// for the native interceptor to serve replacements directly.
+  Map<String, String> get cacheIndexSnapshot => Map<String, String>.from(_cache);
+
+  /// Listeners notified whenever the cache index changes (add/remove/clear).
+  /// Used by the native interceptor bridge to keep its copy in sync.
+  final List<VoidCallback> _cacheChangeListeners = [];
+
+  void addCacheChangeListener(VoidCallback listener) {
+    _cacheChangeListeners.add(listener);
+  }
+
+  void removeCacheChangeListener(VoidCallback listener) {
+    _cacheChangeListeners.remove(listener);
+  }
+
+  void _notifyCacheChanged() {
+    for (final listener in List<VoidCallback>.from(_cacheChangeListeners)) {
+      listener();
+    }
+  }
+
   /// Whether the service has been initialized.
   bool get isInitialized => _initialized;
 
@@ -562,10 +590,13 @@ class LocalCdnService {
     }
   }
 
-  /// Save cache index to SharedPreferences.
+  /// Save cache index to SharedPreferences and notify listeners. Every
+  /// mutation to [_cache] should go through this so the native interceptor
+  /// bridge can keep its copy in sync.
   Future<void> _saveCacheIndex() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('localcdn_cache_index', jsonEncode(_cache));
+    _notifyCacheChanged();
   }
 
   /// Format cache size as human-readable string.
