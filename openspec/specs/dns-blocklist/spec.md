@@ -255,16 +255,34 @@ Instead, iOS uses a JavaScript interceptor injected at `DOCUMENT_START`:
   elements (e.g., `<img src="tracker.com">` in initial HTML), clears the src
   attribute and removes the element if blocked
 
-To minimize Dart roundtrips, a Bloom filter built from the blocked domains is
-sent to JS once at startup (~1 MB for 588K domains, 0.1% false positive rate).
-The JS interceptor checks each URL host against the Bloom filter first:
+To minimize Dart roundtrips, the iOS interceptor uses three tiers:
 
-- Bloom says "definitely not" → allow without roundtrip (record only, fire-and-forget)
-- Bloom says "possibly yes" → roundtrip to Dart `dnsCheck` handler for confirmation
+**1. Per-site domain cache (JS Map)** — instant lookup:
+Each webview maintains `allowedCache` and `blockedCache` maps keyed by host.
+Capped at 500 entries with FIFO eviction. On page load (`onLoadStop`), Dart
+snapshots the cache via JS `__dnsCacheSnapshot()` and persists it in
+SharedPreferences under `dns_per_site_cache` keyed by siteId. On webview
+creation, the persisted cache is sent alongside the Bloom filter and hydrated
+in JS. Result: revisited sites skip the Bloom filter check AND the Dart
+roundtrip for known domains. Cache is cleared when the blocklist changes
+(stale entries could be incorrect).
 
-Roughly 99.9% of allowed URLs skip the Dart roundtrip entirely. Only blocked
-URLs and ~0.1% of allowed URLs (false positives) hit Dart. Dart does the
-proper O(1) HashSet lookup with hierarchy walk-up and records the request.
+**2. Bloom filter (JS byte array)** — microsecond lookup:
+Built from the blocked domains (~430 KB for 588K domains at 5% false positive
+rate). Sent to JS once on webview creation. Uses FNV-1a hash with
+Kirsch-Mitzenmacher double-hashing for k hash functions. JS implementation
+byte-compatible with Dart `BloomFilter` class.
+
+- Bloom says "definitely not" → allow without roundtrip, record via `dnsResourceLoaded`, add to JS cache
+- Bloom says "possibly yes" → roundtrip to Dart `dnsCheck` handler for confirmation, add result to JS cache
+
+**3. Dart authoritative check** — handles false positives + blocks:
+Only ~5% of first-time allowed URLs + all blocked URLs hit Dart. Dart does
+the proper O(1) HashSet lookup with hierarchy walk-up and records the request.
+
+On a typical page with 50 unique domains: ~47 pass the Bloom filter instantly,
+~3 trigger Dart roundtrips (bloom false positives, cached after). Second page
+load on same site: 0 roundtrips (all cached, persisted to disk).
 
 **Catches:** `fetch()`, `XMLHttpRequest`, dynamically created resource elements,
 property-set src/href, elements inserted into DOM after script runs.

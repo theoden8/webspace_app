@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -116,6 +117,73 @@ class DnsBlockService {
   /// Cached Bloom filter for fast JS-side membership checks.
   BloomFilter? _bloomFilter;
 
+  /// Per-site resolver cache: siteId -> {host: blocked_bool}.
+  /// Loaded from disk on init, saved on updates.
+  final Map<String, Map<String, bool>> _perSiteCache = {};
+
+  static const _perSiteCacheKey = 'dns_per_site_cache';
+  static const _maxCacheEntriesPerSite = 500;
+
+  /// Get the persisted JS cache for a site (empty map if none).
+  Map<String, bool> getCacheForSite(String siteId) {
+    return _perSiteCache[siteId] ?? const {};
+  }
+
+  /// Replace the cache for a site with an updated version from JS.
+  /// Called on onLoadStop to persist what the webview has learned.
+  Future<void> setCacheForSite(String siteId, Map<String, bool> cache) async {
+    // Trim to limit
+    if (cache.length > _maxCacheEntriesPerSite) {
+      final trimmed = <String, bool>{};
+      int i = 0;
+      for (final e in cache.entries) {
+        if (i++ >= _maxCacheEntriesPerSite) break;
+        trimmed[e.key] = e.value;
+      }
+      cache = trimmed;
+    }
+    _perSiteCache[siteId] = cache;
+    await _persistPerSiteCache();
+  }
+
+  Future<void> _persistPerSiteCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_perSiteCacheKey, jsonEncode(_perSiteCache));
+    } catch (e) {
+      LogService.instance.log('DnsBlock', 'Failed to persist per-site cache: $e', level: LogLevel.error);
+    }
+  }
+
+  Future<void> _loadPerSiteCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_perSiteCacheKey);
+      if (raw == null) return;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      for (final entry in data.entries) {
+        final siteCache = <String, bool>{};
+        final inner = entry.value as Map<String, dynamic>;
+        for (final e in inner.entries) {
+          siteCache[e.key] = e.value as bool;
+        }
+        _perSiteCache[entry.key] = siteCache;
+      }
+    } catch (e) {
+      LogService.instance.log('DnsBlock', 'Failed to load per-site cache: $e', level: LogLevel.error);
+    }
+  }
+
+  /// Clear all per-site caches. Called when the blocklist changes since
+  /// old cached decisions may no longer be valid.
+  Future<void> _clearPerSiteCache() async {
+    _perSiteCache.clear();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_perSiteCacheKey);
+    } catch (_) {}
+  }
+
   /// Get (and cache) a Bloom filter built from all blocked domains plus
   /// their hierarchical suffixes. Used for iOS JS-side prefiltering.
   BloomFilter getBloomFilter() {
@@ -179,6 +247,7 @@ class DnsBlockService {
           LogService.instance.log('DnsBlock', 'Loaded ${_blockedDomains.length} domains from cache (level $_level)', level: LogLevel.info);
         }
       }
+      await _loadPerSiteCache();
     } catch (e) {
       LogService.instance.log('DnsBlock', 'Error loading cached blocklist: $e', level: LogLevel.error);
     }
@@ -204,6 +273,7 @@ class DnsBlockService {
       } catch (e) {
         LogService.instance.log('DnsBlock', 'Error clearing blocklist: $e', level: LogLevel.error);
       }
+      await _clearPerSiteCache();
       return true;
     }
 
@@ -236,6 +306,9 @@ class DnsBlockService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_levelKey, level);
         await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
+
+        // Blocklist changed - invalidate per-site caches
+        await _clearPerSiteCache();
 
         LogService.instance.log('DnsBlock', 'Downloaded ${_blockedDomains.length} domains (level $level)', level: LogLevel.info);
 

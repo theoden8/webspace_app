@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -757,7 +758,8 @@ class WebViewFactory {
     return false;
   }
 
-  // Per-site domain result cache (LRU-ish: evict oldest when full)
+  // Per-site domain result cache (LRU-ish: evict oldest when full).
+  // Restored from Dart persistence on startup, sent back on page load.
   var allowedCache = {};
   var blockedCache = {};
   var cacheKeys = [];
@@ -773,6 +775,14 @@ class WebViewFactory {
       delete blockedCache[old];
     }
   }
+
+  // Expose a snapshot for Dart to persist
+  window.__dnsCacheSnapshot = function() {
+    var snap = {};
+    for (var h in allowedCache) snap[h] = false;
+    for (var h in blockedCache) snap[h] = true;
+    return snap;
+  };
 
   function check(url) {
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
@@ -799,7 +809,7 @@ class WebViewFactory {
     });
   }
 
-  // Fetch Bloom filter from Dart once at startup
+  // Fetch Bloom filter + persisted per-site cache from Dart at startup
   function loadBloom() {
     if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
       setTimeout(loadBloom, 50);
@@ -811,6 +821,15 @@ class WebViewFactory {
       bloomBits = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
       bloomBitCount = map.bitCount;
       bloomK = map.k;
+      // Restore persisted per-site cache
+      var persisted = map.cache;
+      if (persisted) {
+        for (var h in persisted) {
+          if (persisted[h]) blockedCache[h] = 1;
+          else allowedCache[h] = 1;
+          cacheKeys.push(h);
+        }
+      }
       bloomReady = true;
     });
   }
@@ -998,9 +1017,11 @@ class WebViewFactory {
               DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
               return blocked;
             });
-            // One-shot bloom filter delivery to JS for fast prefiltering
+            // One-shot bloom filter + persisted cache delivery to JS
             controller.addJavaScriptHandler(handlerName: 'getDnsBloom', callback: (args) {
-              return DnsBlockService.instance.getBloomFilter().toMap();
+              final map = Map<String, dynamic>.from(DnsBlockService.instance.getBloomFilter().toMap());
+              map['cache'] = DnsBlockService.instance.getCacheForSite(config.siteId!);
+              return map;
             });
           }
         }
@@ -1171,6 +1192,22 @@ class WebViewFactory {
             }
           }
           await userScriptService.reinjectOnLoadStop(controller);
+          // Persist the JS DNS cache for this site (iOS only)
+          if (!Platform.isAndroid
+              && config.siteId != null
+              && config.dnsBlockEnabled
+              && DnsBlockService.instance.hasBlocklist) {
+            try {
+              final result = await controller.evaluateJavascript(
+                source: 'JSON.stringify(window.__dnsCacheSnapshot ? window.__dnsCacheSnapshot() : {})',
+              );
+              if (result is String) {
+                final decoded = jsonDecode(result) as Map<String, dynamic>;
+                final cache = decoded.map((k, v) => MapEntry(k, v as bool));
+                await DnsBlockService.instance.setCacheForSite(config.siteId!, cache);
+              }
+            } catch (_) {}
+          }
           // Cache HTML for offline viewing
           if (config.onHtmlLoaded != null) {
             try {
