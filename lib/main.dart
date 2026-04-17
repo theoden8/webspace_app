@@ -45,6 +45,7 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:webspace/widgets/root_messenger.dart';
 
 // Accent color enum
 enum AccentColor {
@@ -639,6 +640,7 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
     final Color accentColor = _accentColorToColor(_themeSettings.accentColor);
     return MaterialApp(
       title: 'WebSpace',
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: ThemeData(
         colorScheme: _buildAccentColorScheme(accentColor, Brightness.light),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),

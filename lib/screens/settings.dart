@@ -12,6 +12,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/root_messenger.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -310,18 +311,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Update current URL to ensure reload
       widget.webViewModel.currentUrl = currentUrl;
 
-      // Notify parent to rebuild (this will recreate the webview)
-      widget.onSettingsSaved?.call();
+      // Pop first so the Settings route leaves the tree before the parent
+      // rebuilds. Notifying the parent inline would mark the Navigator dirty
+      // while it is locked during the pop, tripping the '!_debugLocked'
+      // assertion in NavigatorState.build.
+      Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(content: Text('Settings saved and webview reloaded')),
       );
 
-      Navigator.pop(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onSettingsSaved?.call();
+      });
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
+      rootScaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(content: Text('Error saving settings: $e')),
       );
     }
