@@ -83,11 +83,27 @@ The system SHALL detect whether SVG icons are colored or monochrome.
 **When** color detection runs
 **Then** the SVG is marked as monochrome (quality 50)
 
+#### Scenario: Reject CSS visibility-switching SVG
+
+**Given** an SVG contains a `<style>` block with `display: none` (e.g. theme-aware
+icons that toggle between `#light-icon` and `#dark-icon` groups via CSS or
+`@media (prefers-color-scheme: dark)`)
+**When** color detection runs
+**Then** the SVG is treated as low quality (not colored)
+**And** a bitmap icon is preferred instead
+
+This guards against flutter_svg's limited CSS support: `display: none` from
+`<style>` blocks is not honored, so every `<g>` group renders and hidden
+background rects can obscure the visible icon. duck.ai's favicon.svg is a
+concrete example — without this guard, the icon appears as a near-empty
+white rounded square.
+
 ---
 
 ### Requirement: ICON-005 - SVG Dark Mode Support
 
-SVG icons with CSS media queries SHALL render correctly based on app theme.
+SVG icons with CSS media queries SHALL render correctly based on app theme
+when flutter_svg supports the CSS features used.
 
 #### Scenario: Render SVG in dark mode
 
@@ -95,6 +111,17 @@ SVG icons with CSS media queries SHALL render correctly based on app theme.
 **And** the app is in dark mode
 **When** the SVG is rendered
 **Then** the dark mode styles are applied
+
+#### Scenario: Reject SVGs relying on CSS visibility toggles
+
+**Given** an SVG uses `<style>` with `display: none` to hide the inactive
+theme variant (rather than conditional styling of a single rendered tree)
+**When** icon selection runs
+**Then** the SVG is rejected by ICON-004's color detection
+**And** a bitmap icon from the same site is selected instead
+
+This avoids rendering all theme variants simultaneously, which flutter_svg
+would otherwise do.
 
 ---
 
