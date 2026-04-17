@@ -14,8 +14,10 @@ class BloomFilter {
   BloomFilter._(this.bits, this.bitCount, this.k);
 
   /// Build a Bloom filter sized for items with target false positive [fpRate].
-  /// Default 0.001 (0.1%) gives ~1MB for 588K items, ~10 hash functions.
-  factory BloomFilter.build(Iterable<String> items, {double fpRate = 0.001}) {
+  /// Default 0.05 (5%) gives ~430KB for 588K items, ~4 hash functions.
+  /// Higher FPR is acceptable when paired with per-site domain caching
+  /// (each domain is checked via Dart at most once, then cached in JS).
+  factory BloomFilter.build(Iterable<String> items, {double fpRate = 0.05}) {
     final n = items.length;
     if (n == 0) {
       return BloomFilter._(Uint8List(8), 64, 1);

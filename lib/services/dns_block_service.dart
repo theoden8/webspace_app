@@ -121,7 +121,7 @@ class DnsBlockService {
   BloomFilter getBloomFilter() {
     if (_bloomFilter != null) return _bloomFilter!;
     final sw = Stopwatch()..start();
-    _bloomFilter = BloomFilter.build(_blockedDomains, fpRate: 0.001);
+    _bloomFilter = BloomFilter.build(_blockedDomains, fpRate: 0.05);
     sw.stop();
     LogService.instance.log('DnsBlock',
         'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_blockedDomains.length} domains in ${sw.elapsedMilliseconds}ms',

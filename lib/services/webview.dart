@@ -757,6 +757,23 @@ class WebViewFactory {
     return false;
   }
 
+  // Per-site domain result cache (LRU-ish: evict oldest when full)
+  var allowedCache = {};
+  var blockedCache = {};
+  var cacheKeys = [];
+  var MAX_CACHE = 500;
+
+  function cacheResult(host, blocked) {
+    if (blocked) { blockedCache[host] = 1; }
+    else { allowedCache[host] = 1; }
+    cacheKeys.push(host);
+    if (cacheKeys.length > MAX_CACHE) {
+      var old = cacheKeys.shift();
+      delete allowedCache[old];
+      delete blockedCache[old];
+    }
+  }
+
   function check(url) {
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
       return Promise.resolve(false);
@@ -766,14 +783,20 @@ class WebViewFactory {
     }
     var host;
     try { host = new URL(url).hostname; } catch (e) { return Promise.resolve(false); }
+    // Check per-site cache first (instant)
+    if (allowedCache[host]) return Promise.resolve(false);
+    if (blockedCache[host]) return Promise.resolve(true);
     // Bloom prefilter: if definitely not in set, allow without roundtrip
     if (!maybeBlocked(host)) {
-      // Still record the allowed request fire-and-forget
+      cacheResult(host, false);
       window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
       return Promise.resolve(false);
     }
-    // Possibly blocked — confirm via Dart (handles false positives + records)
-    return window.flutter_inappwebview.callHandler('dnsCheck', url);
+    // Possibly blocked — confirm via Dart, then cache result
+    return window.flutter_inappwebview.callHandler('dnsCheck', url).then(function(blocked) {
+      cacheResult(host, blocked);
+      return blocked;
+    });
   }
 
   // Fetch Bloom filter from Dart once at startup

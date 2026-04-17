@@ -31,8 +31,8 @@ void main() {
       }
     });
 
-    test('false positive rate stays close to target (0.1%)', () {
-      // Build with 10K items at default 0.1% FPR
+    test('false positive rate stays close to target (5%)', () {
+      // Build with 10K items at default 5% FPR
       final added = List.generate(10000, (i) => 'added$i.example.com');
       final bf = BloomFilter.build(added);
 
@@ -43,9 +43,9 @@ void main() {
         if (bf.contains('probe$i.notpresent.test')) falsePositives++;
       }
       final actualFpr = falsePositives / probeCount;
-      // Allow some variance: target 0.001 (0.1%), assert < 0.5% as a safety margin
-      expect(actualFpr, lessThan(0.005),
-          reason: 'False positive rate $actualFpr exceeds tolerance (target 0.001)');
+      // Allow some variance: target 0.05 (5%), assert < 10%
+      expect(actualFpr, lessThan(0.10),
+          reason: 'False positive rate $actualFpr exceeds tolerance (target 0.05)');
     });
 
     test('toMap returns bits, bitCount, k', () {
