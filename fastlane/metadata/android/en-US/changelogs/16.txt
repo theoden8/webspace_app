@@ -1,19 +1,14 @@
 ✨ New Features:
-• Full screen mode with per-site auto-fullscreen setting
+• Full screen mode with per-site auto-fullscreen
 • Import local HTML files as sites
 • Per-site cookie blocking by name and domain
-• DNS blocking transparency: live banner, query log, per-site settings
-• JavaScript console eval in Developer Tools
-• Search/filter in Developer Tools
+• DNS blocking live banner and query log
+• JS console in Developer Tools
 
 🔧 Improvements:
-• Native sub-resource interceptor for DNS, LocalCDN, and ABP domain blocking
+• Native sub-resource interceptor for DNS, LocalCDN, and ABP
 • Two-step back-to-exit on Android
-• Long-press to delete user scripts
-• Improved fullscreen exit discoverability on iOS
 
 🐛 Bug Fixes:
-• Fix user scripts not executing after settings save
-• Fix cross-domain navigation from search engines opening in same webview
-• Fix duck.ai favicon rendering as empty white square
-• Fix Navigator assertion when saving site settings
+• Fix user scripts not running after settings save
+• Fix cross-domain navigation opening in wrong webview
