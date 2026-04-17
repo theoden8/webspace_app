@@ -136,7 +136,11 @@ Future<bool> _verifyIconUrl(String iconUrl) async {
   }
 }
 
-// Helper: Check if SVG is monochrome (returns true if it's a colored SVG)
+// Helper: Check if SVG is monochrome (returns true if it's a colored SVG).
+// Also returns false for SVGs that rely on CSS-based visibility switching
+// (e.g. theme-aware icons with `<style>` blocks toggling `display: none`),
+// since flutter_svg's limited CSS support renders all groups simultaneously
+// and those SVGs end up with overlay rectangles obscuring the actual icon.
 Future<bool> _isSvgColored(String svgUrl) async {
   try {
     final response = await http.get(Uri.parse(svgUrl)).timeout(
@@ -145,6 +149,20 @@ Future<bool> _isSvgColored(String svgUrl) async {
     if (response.statusCode != 200) return false;
 
     final svgContent = response.body.toLowerCase();
+
+    // Detect CSS-driven visibility toggles in <style> blocks. flutter_svg
+    // does not honor `display: none` from style sheets, so both variants
+    // render and a hidden background rect can cover the visible icon (e.g.
+    // duck.ai's favicon.svg with light/dark icon swap).
+    final styleBlockPattern = RegExp(r'<style[^>]*>(.*?)</style>', dotAll: true);
+    for (var styleMatch in styleBlockPattern.allMatches(svgContent)) {
+      final styleContent = styleMatch.group(1) ?? '';
+      if (RegExp(r'display\s*:\s*none').hasMatch(styleContent)) {
+        LogService.instance.log('Icon',
+            'SVG uses CSS visibility switching, treating as low quality: $svgUrl');
+        return false;
+      }
+    }
 
     // Check for hex colors in attributes (fill="..." stroke="...")
     final attrColorPattern = RegExp(
