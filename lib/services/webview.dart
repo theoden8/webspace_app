@@ -970,7 +970,7 @@ class WebViewFactory {
         useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled,
         useShouldInterceptAjaxRequest: false,
         useShouldInterceptFetchRequest: false,
-        useOnLoadResource: false,
+        useOnLoadResource: true,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -1174,6 +1174,15 @@ class WebViewFactory {
           : null,
       // fetch/XHR interception disabled — Dart roundtrip bottlenecks page loading.
       // Native FastDnsBlockerHandler handles sub-resource blocking in Java instead.
+      onLoadResource: Platform.isAndroid && config.localCdnEnabled
+          ? (controller, resource) async {
+              final url = resource.url.toString();
+              if (!url.startsWith('http')) return;
+              final isCdn = LocalCdnService.instance.isCdnUrl(url);
+              LogService.instance.log('LocalCDN',
+                  'onLoadResource (site ${config.siteId}, cdnMatch=$isCdn): $url');
+            }
+          : null,
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
