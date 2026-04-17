@@ -208,9 +208,9 @@ App Settings SHALL display when the blocklist was last downloaded, along with th
 
 The system SHALL use multiple interception hooks to block and record DNS requests across different request types and platforms.
 
-#### Blocking: Native FastDnsBlockerHandler (Android)
+#### Blocking: Native FastSubresourceInterceptor (Android)
 
-On Android, sub-resource blocking runs entirely in Java via a custom `FastDnsBlockerHandler` that subclasses `ContentBlockerHandler`. The handler is injected into each `InAppWebView` by replacing the `contentBlockerHandler` public field. It uses an O(1) `HashSet<String>` lookup with domain hierarchy walk-up — no Dart roundtrip, no regex matching.
+On Android, sub-resource blocking runs entirely in Java via a custom `FastSubresourceInterceptor` that subclasses `ContentBlockerHandler`. The handler is injected into each `InAppWebView` by replacing the `contentBlockerHandler` public field. It uses an O(1) `HashSet<String>` lookup with domain hierarchy walk-up — no Dart roundtrip, no regex matching.
 
 The blocked domains are sent to Java once at startup via MethodChannel. Each handler is created with a `siteId` so blocked requests are attributed to the correct site.
 
@@ -304,10 +304,10 @@ cleared — some privacy leak), WebSocket, cross-origin iframe contents,
 | Request type | Android block | Android record | iOS/macOS block | iOS/macOS record |
 |---|---|---|---|---|
 | Navigation (links, redirects) | shouldOverrideUrlLoading | shouldOverrideUrlLoading + onLoadStart | shouldOverrideUrlLoading | shouldOverrideUrlLoading + onLoadStart |
-| Static sub-resources (`<script>`, `<img>`, `<link>`) | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (MutationObserver + src setter) | JS interceptor + PerformanceObserver |
-| `fetch()` API | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (fetch override) | JS interceptor + PerformanceObserver |
-| `XMLHttpRequest` | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (XHR override) | JS interceptor + PerformanceObserver |
-| `navigator.sendBeacon()` | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
+| Static sub-resources (`<script>`, `<img>`, `<link>`) | FastSubresourceInterceptor (Java) | PerformanceObserver | JS interceptor (MutationObserver + src setter) | JS interceptor + PerformanceObserver |
+| `fetch()` API | FastSubresourceInterceptor (Java) | PerformanceObserver | JS interceptor (fetch override) | JS interceptor + PerformanceObserver |
+| `XMLHttpRequest` | FastSubresourceInterceptor (Java) | PerformanceObserver | JS interceptor (XHR override) | JS interceptor + PerformanceObserver |
+| `navigator.sendBeacon()` | FastSubresourceInterceptor (Java) | PerformanceObserver | No | PerformanceObserver |
 | WebSocket | No | No | No | No |
 | Cross-origin iframe resources | No | No | No | No |
 
@@ -554,7 +554,7 @@ one is in flight.
 
 #### Scenario: Both allowed and blocked events captured
 
-**Given** `FastDnsBlockerHandler.checkUrl()` is called for a sub-resource
+**Given** `FastSubresourceInterceptor.checkUrl()` is called for a sub-resource
 **When** the check completes (either allowed or blocked)
 **Then** Java records `{host, blocked}` in the per-site events list
 **And** the page receives a 403 empty response if blocked, or proceeds normally if allowed
@@ -666,11 +666,11 @@ flutter_inappwebview's `shouldInterceptRequest` Dart callback uses a synchronous
 blocking platform channel that serializes concurrent sub-resource loads — only ~1
 request gets through to Dart. This makes Dart-side sub-resource blocking impossible.
 
-The solution is `FastDnsBlockerHandler` (`DnsBlockPlugin.kt`), a Kotlin class that
+The solution is `FastSubresourceInterceptor` (`WebInterceptPlugin.kt`), a Kotlin class that
 subclasses `ContentBlockerHandler` and runs entirely in Java:
 
 ```kotlin
-class FastDnsBlockerHandler(
+class FastSubresourceInterceptor(
     private val blockedDomains: HashSet<String>,
     private val onBlocked: (String) -> Unit
 ) : ContentBlockerHandler() {
@@ -689,10 +689,10 @@ class FastDnsBlockerHandler(
 }
 ```
 
-The `DnsBlockPlugin` manages the lifecycle:
+The `WebInterceptPlugin` manages the lifecycle:
 1. `setBlockedDomains` — receives domain list from Dart, stores in Java `HashSet`
 2. `attachToWebViews(siteId)` — traverses view hierarchy, finds `InAppWebView`
-   instances, replaces `contentBlockerHandler` field with `FastDnsBlockerHandler`
+   instances, replaces `contentBlockerHandler` field with `FastSubresourceInterceptor`
 3. **Pull-based event delivery** — Java accumulates blocked events in a
    per-site list. On first block, signals Dart via `dnsBlockedReady(siteId)`
    (siteId-only payload, no data). If more blocks arrive while the signal is
@@ -741,9 +741,9 @@ Reports back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`.
 
 ### Created
 - `lib/services/dns_block_service.dart` — Singleton service: download, cache, parse, lookup, per-site stats
-- `lib/services/dns_block_native.dart` — Dart-side interface for native Android DNS blocker
-- `lib/widgets/dns_block_banner.dart` — Live DNS activity banner widget for webview overlay
-- `android/app/src/main/kotlin/.../DnsBlockPlugin.kt` — Native Android plugin: FastDnsBlockerHandler (Java HashSet), DnsBlockPlugin (MethodChannel + view traversal)
+- `lib/services/web_intercept_native.dart` — Dart-side interface for native Android DNS blocker
+- `lib/widgets/stats_banner.dart` — Live DNS activity banner widget for webview overlay
+- `android/app/src/main/kotlin/.../WebInterceptPlugin.kt` — Native Android plugin: FastSubresourceInterceptor (Java HashSet), WebInterceptPlugin (MethodChannel + view traversal)
 - `test/dns_block_service_test.dart` — 12 unit tests for domain matching logic
 - `test/dns_block_benchmark_test.dart` — Performance benchmark (522K domains parse + lookup)
 - `openspec/specs/dns-blocklist/spec.md` — This specification
@@ -754,8 +754,8 @@ Reports back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`.
 - `lib/screens/settings.dart` — Per-site DNS Blocklist toggle with stats summary chips
 - `lib/screens/dev_tools.dart` — DNS tab with query log, stats cards, filters, copy/clear actions
 - `lib/screens/app_settings.dart` — Privacy section with slider, download, DNS Block Banner toggle, native domain sync
-- `lib/main.dart` — DnsBlockService + DnsBlockNative initialization, DnsBlockBanner in webview stack
-- `android/app/src/main/kotlin/.../MainActivity.kt` — DnsBlockPlugin registration
+- `lib/main.dart` — DnsBlockService + WebInterceptNative initialization, StatsBanner in webview stack
+- `android/app/src/main/kotlin/.../MainActivity.kt` — WebInterceptPlugin registration
 - `test/web_view_model_test.dart` — Tests for dnsBlockEnabled serialization and defaults
 
 ---

@@ -14,7 +14,7 @@ import java.net.URL
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
-    private var dnsBlockPlugin: DnsBlockPlugin? = null
+    private var webInterceptPlugin: WebInterceptPlugin? = null
 
     override fun getFlutterShellArgs(): FlutterShellArgs {
         val args = FlutterShellArgs.fromIntent(intent)
@@ -30,7 +30,7 @@ class MainActivity: FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        dnsBlockPlugin = DnsBlockPlugin(this, flutterEngine)
+        webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pinShortcut" -> {

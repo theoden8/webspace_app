@@ -4,23 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
 /// A compact banner displayed at the top of the webview showing live DNS
-/// blocking activity. Shows recently blocked domains and per-site stats.
-/// Taps expand/collapse the banner. Automatically hides when no blocks occur.
-class DnsBlockBanner extends StatefulWidget {
+/// blocking activity per site. Taps expand/collapse the banner. Automatically
+/// hides when there's no activity to report.
+class StatsBanner extends StatefulWidget {
   final String siteId;
   final bool dnsBlockEnabled;
 
-  const DnsBlockBanner({
+  const StatsBanner({
     super.key,
     required this.siteId,
     required this.dnsBlockEnabled,
   });
 
   @override
-  State<DnsBlockBanner> createState() => _DnsBlockBannerState();
+  State<StatsBanner> createState() => _StatsBannerState();
 }
 
-class _DnsBlockBannerState extends State<DnsBlockBanner> {
+class _StatsBannerState extends State<StatsBanner> {
   bool _expanded = false;
   Timer? _refreshTimer;
   int _lastTotal = 0;

@@ -24,7 +24,7 @@ import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
-import 'package:webspace/widgets/dns_block_banner.dart';
+import 'package:webspace/widgets/stats_banner.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
@@ -35,7 +35,7 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/dns_block_native.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
@@ -430,10 +430,13 @@ void main() async {
   // Initialize DNS block service (loads cached blocklist from disk)
   await DnsBlockService.instance.initialize();
 
-  // Initialize native DNS block handler for sub-resource blocking (Android)
-  DnsBlockNative.initialize();
+  // Initialize native interceptor bridge for sub-resource DNS blocking and
+  // LocalCDN serving (Android). The Dart shouldInterceptRequest callback
+  // only fires for main-document navigations on modern Chromium WebView, so
+  // everything per-subresource has to go through the native path.
+  WebInterceptNative.initialize();
   if (DnsBlockService.instance.hasBlocklist) {
-    await DnsBlockNative.sendDomains(DnsBlockService.instance.blockedDomains);
+    await WebInterceptNative.sendDomains(DnsBlockService.instance.blockedDomains);
   }
 
   // Initialize content blocker service (loads cached filter lists from disk)
@@ -441,6 +444,17 @@ void main() async {
 
   // Initialize LocalCDN service (loads cache index from disk)
   await LocalCdnService.instance.initialize();
+
+  // Seed the native interceptor with CDN patterns + the current cache
+  // index, and keep its copy in sync whenever the cache changes.
+  await WebInterceptNative.sendCdnPatterns(
+      LocalCdnService.instance.cdnPatternStrings);
+  await WebInterceptNative.sendCdnCacheIndex(
+      LocalCdnService.instance.cacheIndexSnapshot);
+  LocalCdnService.instance.addCacheChangeListener(() {
+    WebInterceptNative.sendCdnCacheIndex(
+        LocalCdnService.instance.cacheIndexSnapshot);
+  });
 
   // Register custom licenses
   LicenseRegistry.addLicense(() async* {
@@ -641,7 +655,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
   bool _showUrlBar = false;
   bool _showTabStrip = false;
-  bool _showDnsBanner = true;
+  bool _showStatsBanner = true;
   bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
   int _canGoBackVersion = 0; // Guards _updateCanGoBack against stale async results
 
@@ -767,10 +781,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await prefs.setBool('showTabStrip', _showTabStrip);
   }
 
-  Future<void> _saveShowDnsBanner() async {
+  Future<void> _saveShowStatsBanner() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('showDnsBanner', _showDnsBanner);
+    await prefs.setBool('showStatsBanner', _showStatsBanner);
   }
 
   Future<void> _saveGlobalUserScripts() async {
@@ -1129,7 +1143,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
-      _showDnsBanner = prefs.getBool('showDnsBanner') ?? true;
+      _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
@@ -1787,12 +1801,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       });
                       _saveShowTabStrip();
                     },
-                    showDnsBanner: _showDnsBanner,
-                    onShowDnsBannerChanged: (value) {
+                    showStatsBanner: _showStatsBanner,
+                    onShowStatsBannerChanged: (value) {
                       setState(() {
-                        _showDnsBanner = value;
+                        _showStatsBanner = value;
                       });
-                      _saveShowDnsBanner();
+                      _saveShowStatsBanner();
                     },
                     globalUserScripts: _globalUserScripts,
                     onGlobalUserScriptsChanged: (scripts) {
@@ -3116,8 +3130,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           key: ValueKey(webViewModel.siteId),
                           child: Column(
                             children: [
-                              if (_showDnsBanner)
-                                DnsBlockBanner(
+                              if (_showStatsBanner)
+                                StatsBanner(
                                   siteId: webViewModel.siteId,
                                   dnsBlockEnabled: webViewModel.dnsBlockEnabled,
                                 ),
