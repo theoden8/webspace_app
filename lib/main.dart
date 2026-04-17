@@ -827,6 +827,26 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
+  /// Migrate pre-opt-in data: older builds ran every enabled global script
+  /// on every site. After switching to per-site opt-in, sites that haven't
+  /// declared [WebViewModel.enabledGlobalScriptIds] would silently lose
+  /// their global scripts. For each site with an empty opt-in set, opt it
+  /// into all currently-defined globals once. A marker key prevents this
+  /// running again after the user starts curating per-site opt-ins.
+  Future<void> _migrateGlobalScriptOptIn() async {
+    if (_globalUserScripts.isEmpty || _webViewModels.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('globalUserScriptsOptInMigrated') == true) return;
+    final allIds = _globalUserScripts.map((s) => s.id).toSet();
+    for (final model in _webViewModels) {
+      if (model.enabledGlobalScriptIds.isEmpty) {
+        model.enabledGlobalScriptIds = {...allIds};
+      }
+    }
+    await prefs.setBool('globalUserScriptsOptInMigrated', true);
+    await _saveWebViewModels();
+  }
+
   Future<void> _saveWebspaces() async {
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -1172,6 +1192,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _loadWebspaces();
     await _loadGlobalUserScripts();
     await _loadWebViewModels();
+    await _migrateGlobalScriptOptIn();
     _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
 
     // Always start at home screen on launch - only restore index if launched via shortcut
