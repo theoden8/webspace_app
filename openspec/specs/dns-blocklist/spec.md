@@ -204,11 +204,114 @@ App Settings SHALL display when the blocklist was last downloaded, along with th
 
 ---
 
-### Requirement: DNS-008 - Hook Ordering
+### Requirement: DNS-008 - Request Interception Hooks
 
-The DNS block check SHALL be inserted in `shouldOverrideUrlLoading` AFTER the captcha challenge allowlist and BEFORE ClearURLs processing.
+The system SHALL use multiple interception hooks to block and record DNS requests across different request types and platforms.
 
-#### Scenario: Hook ordering
+#### Blocking: Native FastDnsBlockerHandler (Android)
+
+On Android, sub-resource blocking runs entirely in Java via a custom `FastDnsBlockerHandler` that subclasses `ContentBlockerHandler`. The handler is injected into each `InAppWebView` by replacing the `contentBlockerHandler` public field. It uses an O(1) `HashSet<String>` lookup with domain hierarchy walk-up — no Dart roundtrip, no regex matching.
+
+The blocked domains are sent to Java once at startup via MethodChannel. Each handler is created with a `siteId` so blocked requests are attributed to the correct site.
+
+**Important constraint:** flutter_inappwebview's `shouldInterceptRequest` Dart callback uses a synchronous blocking platform channel. If `useShouldInterceptRequest` is true, the Dart roundtrip runs first and returns early, **skipping** `contentBlockerHandler` entirely. Therefore `useShouldInterceptRequest` MUST be false (or only enabled when LocalCDN has cached resources).
+
+**Catches:** All sub-resource requests (`<script>`, `<img>`, `<link>`, CSS, fonts, fetch, XHR)
+**Does NOT catch:** Navigations (handled by shouldOverrideUrlLoading), iOS/macOS requests
+
+#### Blocking: shouldOverrideUrlLoading (all platforms)
+
+Fires for navigation-level requests (link clicks, page loads, redirects). Inserted AFTER the captcha challenge allowlist and BEFORE ClearURLs processing. Records all navigations (allowed + blocked). Blocks navigations to blocklisted domains.
+
+**Catches:** Link clicks, typed URLs, redirects, `window.location` changes
+**Does NOT catch:** Sub-resources
+
+#### Recording: PerformanceObserver JS injection (all platforms)
+
+Injected at `DOCUMENT_START` with `buffered: true`, observes the Resource Timing API to record all loaded resources. Reports URLs back to Dart via `addJavaScriptHandler`. Cannot block — recording only. Deduplicates via a `seen` map in JS.
+
+**Catches:** All completed resources including blocked ones (browser creates a performance entry even for 403 responses)
+**Does NOT catch:** WebSocket connections, resources inside cross-origin iframes
+
+#### Recording: onLoadStart (all platforms)
+
+Records the page URL when a navigation starts. Ensures the banner shows immediately even for cached HTML loads that bypass shouldOverrideUrlLoading.
+
+#### Blocking: iOS JS Interceptor
+
+iOS/macOS cannot intercept sub-resources natively. WKWebView runs its network
+stack in a separate process and exposes no equivalent to Android's
+`shouldInterceptRequest`. The only native option is `WKContentRuleList`, but it
+has a ~150K rule limit and compilation takes tens of seconds, while even the
+smallest Hagezi blocklist ("Light") is 146K domains.
+
+Instead, iOS uses a JavaScript interceptor injected at `DOCUMENT_START`:
+
+- Overrides `window.fetch` — async check via `dnsCheck` handler, reject if blocked
+- Overrides `XMLHttpRequest.prototype.open`/`send` — abort if blocked
+- Patches `src`/`href` setters on `HTMLImageElement`, `HTMLScriptElement`,
+  `HTMLLinkElement`, `HTMLIFrameElement` — defers the assignment pending the check
+- `MutationObserver` on `document.documentElement` — catches statically-parsed
+  elements (e.g., `<img src="tracker.com">` in initial HTML), clears the src
+  attribute and removes the element if blocked
+
+To minimize Dart roundtrips, the iOS interceptor uses three tiers:
+
+**1. Global domain cache** — instant lookup:
+Dart maintains a single `_domainCache: Map<String, bool>` keyed by host (NOT
+per-site — trackers and CDNs are shared across sites, so one site learning
+about `googleapis.com` benefits all sites). Updated transparently via
+`recordRequest` whenever any webview reports a DNS decision (via native
+handler, JS `dnsCheck`, or JS `dnsResourceLoaded`). Persisted in
+SharedPreferences under `dns_domain_cache`, write-debounced to 2 seconds.
+Capped at 5000 entries with FIFO eviction. Invalidated (cleared) when the
+blocklist changes, since cached decisions may become stale.
+
+On the JS side (iOS), each webview also maintains `allowedCache` /
+`blockedCache` for instant in-webview lookup without MethodChannel calls.
+Hydrated on webview creation from the Dart global cache via the
+`getDnsBloom` handler (which returns `{bits, bitCount, k, cache}`).
+Capped at 500 entries with FIFO eviction.
+
+**2. Bloom filter (JS byte array)** — microsecond lookup:
+Built from the blocked domains (~430 KB for 588K domains at 5% false positive
+rate). Sent to JS once on webview creation. Uses FNV-1a hash with
+Kirsch-Mitzenmacher double-hashing for k hash functions. JS implementation
+byte-compatible with Dart `BloomFilter` class.
+
+- Bloom says "definitely not" → allow without roundtrip, record via `dnsResourceLoaded`, add to JS cache
+- Bloom says "possibly yes" → roundtrip to Dart `dnsCheck` handler for confirmation, add result to JS cache
+
+**3. Dart authoritative check** — handles false positives + blocks:
+Only ~5% of first-time allowed URLs + all blocked URLs hit Dart. Dart does
+the proper O(1) HashSet lookup with hierarchy walk-up and records the request.
+
+On a typical page with 50 unique domains: ~47 pass the Bloom filter instantly,
+~3 trigger Dart roundtrips (bloom false positives, cached after). Second page
+load on same site: 0 roundtrips (all cached, persisted to disk).
+
+**Catches:** `fetch()`, `XMLHttpRequest`, dynamically created resource elements,
+property-set src/href, elements inserted into DOM after script runs.
+
+**Does NOT catch:** Resources loaded before the interceptor runs (rare at
+DOCUMENT_START), static elements whose load completes before MutationObserver
+fires (the initial request may go out but response is discarded when src is
+cleared — some privacy leak), WebSocket, cross-origin iframe contents,
+`navigator.sendBeacon()` (can be added).
+
+#### Summary: Platform coverage
+
+| Request type | Android block | Android record | iOS/macOS block | iOS/macOS record |
+|---|---|---|---|---|
+| Navigation (links, redirects) | shouldOverrideUrlLoading | shouldOverrideUrlLoading + onLoadStart | shouldOverrideUrlLoading | shouldOverrideUrlLoading + onLoadStart |
+| Static sub-resources (`<script>`, `<img>`, `<link>`) | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (MutationObserver + src setter) | JS interceptor + PerformanceObserver |
+| `fetch()` API | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (fetch override) | JS interceptor + PerformanceObserver |
+| `XMLHttpRequest` | FastDnsBlockerHandler (Java) | PerformanceObserver | JS interceptor (XHR override) | JS interceptor + PerformanceObserver |
+| `navigator.sendBeacon()` | FastDnsBlockerHandler (Java) | PerformanceObserver | No | PerformanceObserver |
+| WebSocket | No | No | No | No |
+| Cross-origin iframe resources | No | No | No | No |
+
+#### Scenario: Hook ordering in shouldOverrideUrlLoading
 
 **Given** a URL matches a captcha challenge domain
 **When** `shouldOverrideUrlLoading` is called
@@ -262,6 +365,228 @@ Existing sites without `dnsBlockEnabled` in their stored JSON SHALL default to `
 **Given** a user upgrades from a version without DNS blocking
 **When** their sites are loaded from SharedPreferences
 **Then** all sites have `dnsBlockEnabled: true`
+
+---
+
+### Requirement: DNS-012 - Per-Site DNS Statistics
+
+The system SHALL track allowed and blocked DNS request counts per site at runtime, with a log of recent queries. Recording happens regardless of whether the per-site DNS blocking toggle is on or off — stats always record when a blocklist is loaded.
+
+#### Scenario: Record DNS requests
+
+**Given** a DNS blocklist is loaded
+**When** the webview loads resources (navigations, scripts, images, fetch/XHR)
+**Then** each request is recorded as allowed or blocked in per-site stats via multiple hooks (see DNS-008)
+**And** the domain, timestamp, and block status are stored in a log (capped at 500 entries)
+
+#### Scenario: Stats recorded even when blocking is off
+
+**Given** a DNS blocklist is loaded
+**And** DNS blocking is disabled for a site
+**When** the webview loads resources
+**Then** requests are still recorded (with blocked=true for domains on the list, even though they were not actually blocked)
+
+#### Scenario: Duplicate recording
+
+**Given** the same URL is intercepted by multiple hooks (e.g., PerformanceObserver and shouldInterceptFetchRequest)
+**Then** duplicate entries may appear in the log — this is expected and reflects the actual request pipeline
+
+#### Scenario: Stats not persisted
+
+**Given** DNS stats have been recorded for a site
+**When** the app is restarted
+**Then** the stats are reset (runtime-only, not persisted to storage)
+
+#### Scenario: Clear stats
+
+**Given** DNS stats have been recorded for a site
+**When** the user taps "Clear" in the DNS tab of Developer Tools
+**Then** all stats and log entries for that site are reset to zero
+
+---
+
+### Requirement: DNS-013 - Live DNS Activity Banner
+
+A collapsible banner SHALL appear at the top of the webview showing live DNS activity for the active site. The banner uses subtle grey styling (not alarming red) and can be toggled off in App Settings.
+
+#### Scenario: Banner visible when queries recorded
+
+**Given** a DNS blocklist is loaded
+**And** at least one DNS query has been recorded for the site
+**When** the user views the site
+**Then** a compact grey banner at the top shows blocked and allowed counts
+
+#### Scenario: Banner hidden when no queries
+
+**Given** no DNS queries have been recorded for the site
+**When** the user views the site
+**Then** no banner is shown
+
+#### Scenario: Expand banner
+
+**Given** the DNS banner is visible
+**When** the user taps it
+**Then** it expands to show the 5 most recently blocked domains (unique, monospace)
+
+#### Scenario: Toggle banner off in App Settings
+
+**Given** the user opens App Settings
+**When** the user disables the "DNS Block Banner" toggle
+**Then** the banner is hidden for all sites
+**And** the setting persists across app restarts
+
+#### Scenario: Banner hidden when no blocklist
+
+**Given** no DNS blocklist has been downloaded
+**When** the user views any site
+**Then** no banner is shown
+
+---
+
+### Requirement: DNS-014 - DNS Query Log in Developer Tools
+
+Developer Tools SHALL include a DNS tab with a Pi-hole-style query log showing all recorded DNS requests.
+
+#### Scenario: DNS tab in Developer Tools
+
+**Given** a DNS blocklist is configured
+**And** the user opens Developer Tools for a site
+**Then** a "DNS" tab with a shield icon is shown
+
+#### Scenario: Stats cards
+
+**Given** DNS requests have been recorded for a site
+**When** the user views the DNS tab
+**Then** four stat cards are shown: Total, Allowed, Blocked, Block %
+
+#### Scenario: Filter by status
+
+**Given** the DNS query log contains both allowed and blocked entries
+**When** the user selects the "Blocked" filter chip
+**Then** only blocked entries are shown
+**And** the "Blocked" chip shows the count
+
+#### Scenario: Search queries
+
+**Given** the DNS query log contains entries
+**When** the user types a domain in the search field
+**Then** only entries matching the search are shown
+
+#### Scenario: Copy log
+
+**Given** DNS entries are recorded
+**When** the user taps "Copy"
+**Then** the full log is copied to the clipboard in `[timestamp] BLOCKED/ALLOWED domain` format
+
+---
+
+### Requirement: DNS-015 - DNS Stats in Site Settings
+
+The per-site settings screen SHALL display a compact DNS stats summary below the DNS Blocklist toggle.
+
+#### Scenario: Stats visible
+
+**Given** DNS blocking is active
+**And** DNS requests have been recorded for the current site
+**When** the user opens site settings
+**Then** a row of stat chips shows total, allowed, blocked counts, and block rate percentage
+
+#### Scenario: Stats hidden when no requests
+
+**Given** no DNS requests have been recorded for the current site
+**When** the user opens site settings
+**Then** no stats row is shown
+
+---
+
+### Requirement: DNS-016 - Global Domain Decision Cache
+
+The system SHALL maintain a single global cache of blocked/allowed decisions
+keyed by host, shared across all sites and persisted across app restarts.
+Trackers and CDN domains appear on many sites — one site's learning benefits
+all sites. The cache SHALL be invalidated when the blocklist changes.
+
+#### Scenario: Cached decision reused across sites
+
+**Given** site A's webview has previously checked `cdn.example.com` and
+Dart recorded it as allowed
+**When** site B's webview later encounters `cdn.example.com`
+**Then** the decision is served from the global cache without re-checking
+**And** no Dart roundtrip or Bloom filter check is needed on the JS side
+
+#### Scenario: Cache survives app restart
+
+**Given** the global domain cache contains decisions
+**When** the app is restarted
+**Then** the cache is loaded from SharedPreferences (`dns_domain_cache`)
+**And** is available to new webviews on creation
+
+#### Scenario: Cache invalidated on blocklist update
+
+**Given** the user downloads a new blocklist level
+**When** the download completes
+**Then** the global domain cache is cleared
+**And** SharedPreferences key `dns_domain_cache` is removed
+**Because** previously cached decisions may be invalidated by the new list
+
+#### Scenario: Cache size capped
+
+**Given** the cache has grown to 5000 entries
+**When** a new entry is added
+**Then** the oldest (first-inserted) entry is evicted (FIFO)
+
+#### Scenario: Persistence is write-debounced
+
+**Given** many DNS decisions occur in rapid succession
+**When** `recordRequest` is called repeatedly
+**Then** SharedPreferences is written once after a 2-second idle window
+**And** individual writes do not block the recording path
+
+---
+
+### Requirement: DNS-017 - Android Pull-Based Event Delivery
+
+The Android native DNS handler SHALL deliver DNS events (both blocked and
+allowed) to Dart using a signal-then-pull pattern: Java accumulates events
+in per-site lists, signals Dart when new events arrive, and Dart pulls the
+batched list in a single call. Duplicate signals SHALL be suppressed while
+one is in flight.
+
+#### Scenario: Both allowed and blocked events captured
+
+**Given** `FastDnsBlockerHandler.checkUrl()` is called for a sub-resource
+**When** the check completes (either allowed or blocked)
+**Then** Java records `{host, blocked}` in the per-site events list
+**And** the page receives a 403 empty response if blocked, or proceeds normally if allowed
+
+#### Scenario: Single event signals Dart
+
+**Given** the events list for a site is empty
+**When** the first event is recorded (allowed or blocked)
+**Then** Dart receives a `dnsEventsReady` method call with the siteId only
+(no event data in the signal payload)
+
+#### Scenario: Burst of events coalesced
+
+**Given** 100 sub-resources are checked within 10ms
+**When** the first event fires the signal
+**Then** subsequent events append to the per-site list without firing new signals
+**And** Dart's single `fetchEvents` call retrieves all 100 events atomically
+(each as `{host, blocked}`)
+
+#### Scenario: Signal repeats after completion
+
+**Given** Dart has completed a `fetchEvents` call and cleared the list
+**When** a new event occurs
+**Then** a new `dnsEventsReady` signal is sent
+
+#### Scenario: Stats update without PerformanceObserver lag
+
+**Given** a page makes 50 sub-resource requests
+**When** the page loads on Android
+**Then** allowed and blocked counts in the stats banner update in near real-time
+(via the native event pipeline)
+**And** do NOT depend on the PerformanceObserver completion timing
 
 ---
 
@@ -319,23 +644,82 @@ Three mirrors are tried in order with 15-second timeouts:
 2. `https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/`
 3. `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/`
 
-### Hook Point in WebView
+### Per-Site DNS Statistics
 
-DNS blocking is inserted in `shouldOverrideUrlLoading` in `WebViewFactory.createWebView()`:
+`DnsBlockService` tracks per-site statistics via `DnsStats` objects keyed by `siteId`:
 
 ```dart
-shouldOverrideUrlLoading: (controller, navigationAction) async {
-  final url = navigationAction.request.url.toString();
-  if (_shouldBlockUrl(url)) return CANCEL;
-  if (_isCaptchaChallenge(url)) return ALLOW;
-  // DNS blocklist check
-  if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
-    return CANCEL;
-  }
-  // ClearURLs processing
-  // ... per-site navigation callback
+class DnsStats {
+  int allowed = 0;
+  int blocked = 0;
+  final List<DnsLogEntry> log = [];  // Capped at 500 entries
+  int get total => allowed + blocked;
+  double get blockRate => total > 0 ? blocked / total * 100 : 0;
 }
 ```
+
+A listener pattern (`addDnsLogListener`/`removeDnsLogListener`) notifies UI widgets of new log entries for live updates.
+
+### Native Android Sub-Resource Blocking
+
+flutter_inappwebview's `shouldInterceptRequest` Dart callback uses a synchronous
+blocking platform channel that serializes concurrent sub-resource loads — only ~1
+request gets through to Dart. This makes Dart-side sub-resource blocking impossible.
+
+The solution is `FastDnsBlockerHandler` (`DnsBlockPlugin.kt`), a Kotlin class that
+subclasses `ContentBlockerHandler` and runs entirely in Java:
+
+```kotlin
+class FastDnsBlockerHandler(
+    private val blockedDomains: HashSet<String>,
+    private val onBlocked: (String) -> Unit
+) : ContentBlockerHandler() {
+    init {
+        // Dummy rule so Java guard `ruleList.size() > 0` passes
+        ruleList.add(ContentBlocker(trigger, action))
+    }
+    override fun checkUrl(webView, request): WebResourceResponse? {
+        val host = URI(request.url).host
+        if (isBlockedDomain(host)) {  // O(1) HashSet + hierarchy walk-up
+            onBlocked(host)
+            return WebResourceResponse("text/plain", "utf-8", null)
+        }
+        return null
+    }
+}
+```
+
+The `DnsBlockPlugin` manages the lifecycle:
+1. `setBlockedDomains` — receives domain list from Dart, stores in Java `HashSet`
+2. `attachToWebViews(siteId)` — traverses view hierarchy, finds `InAppWebView`
+   instances, replaces `contentBlockerHandler` field with `FastDnsBlockerHandler`
+3. **Pull-based event delivery** — Java accumulates blocked events in a
+   per-site list. On first block, signals Dart via `dnsBlockedReady(siteId)`
+   (siteId-only payload, no data). If more blocks arrive while the signal is
+   in flight, they silently append to the list — no duplicate signals. Dart
+   responds to the signal by calling `fetchBlocked(siteId)`, which atomically
+   drains the list and returns it. This coalesces bursts of blocked events
+   into a single MethodChannel roundtrip, regardless of how many fire.
+
+**Critical constraint:** `useShouldInterceptRequest` must be `false` (or only
+enabled for LocalCDN). When true, the Dart callback runs and returns early,
+skipping `contentBlockerHandler.checkUrl()` entirely.
+
+### Recording Hooks
+
+**shouldOverrideUrlLoading** (all platforms) — navigation blocking + recording:
+```dart
+if (DnsBlockService.instance.hasBlocklist) {
+  DnsBlockService.instance.recordRequest(siteId, url, blocked);
+  if (blocked && config.dnsBlockEnabled) return CANCEL;
+}
+```
+
+**onLoadStart** (all platforms) — records page URL for immediate banner display.
+
+**PerformanceObserver JS** (all platforms) — injected at `DOCUMENT_START` with
+`buffered: true`, records all completed resources via Resource Timing API.
+Reports back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`.
 
 ### Storage
 
@@ -356,21 +740,23 @@ shouldOverrideUrlLoading: (controller, navigationAction) async {
 ## Files
 
 ### Created
-- `lib/services/dns_block_service.dart` — Singleton service: download, cache, parse, lookup
+- `lib/services/dns_block_service.dart` — Singleton service: download, cache, parse, lookup, per-site stats
+- `lib/services/dns_block_native.dart` — Dart-side interface for native Android DNS blocker
+- `lib/widgets/dns_block_banner.dart` — Live DNS activity banner widget for webview overlay
+- `android/app/src/main/kotlin/.../DnsBlockPlugin.kt` — Native Android plugin: FastDnsBlockerHandler (Java HashSet), DnsBlockPlugin (MethodChannel + view traversal)
 - `test/dns_block_service_test.dart` — 12 unit tests for domain matching logic
 - `test/dns_block_benchmark_test.dart` — Performance benchmark (522K domains parse + lookup)
 - `openspec/specs/dns-blocklist/spec.md` — This specification
 
 ### Modified
-- `lib/web_view_model.dart` — Added `dnsBlockEnabled` field, serialization, pass to WebViewConfig
-- `lib/services/webview.dart` — Added `dnsBlockEnabled` to WebViewConfig, DNS block hook in shouldOverrideUrlLoading
-- `lib/screens/settings.dart` — Per-site DNS Blocklist toggle (SwitchListTile)
-- `lib/screens/app_settings.dart` — Privacy section with slider, download button, spinning icon, domain count
-- `lib/main.dart` — DnsBlockService initialization, GPL-3.0 license registration
+- `lib/web_view_model.dart` — Added `dnsBlockEnabled` field, serialization, pass to WebViewConfig with `siteId`
+- `lib/services/webview.dart` — WebViewConfig with siteId, PerformanceObserver injection, native handler attach
+- `lib/screens/settings.dart` — Per-site DNS Blocklist toggle with stats summary chips
+- `lib/screens/dev_tools.dart` — DNS tab with query log, stats cards, filters, copy/clear actions
+- `lib/screens/app_settings.dart` — Privacy section with slider, download, DNS Block Banner toggle, native domain sync
+- `lib/main.dart` — DnsBlockService + DnsBlockNative initialization, DnsBlockBanner in webview stack
+- `android/app/src/main/kotlin/.../MainActivity.kt` — DnsBlockPlugin registration
 - `test/web_view_model_test.dart` — Tests for dnsBlockEnabled serialization and defaults
-- `README.md` — Feature bullet point, Tech Stack credit
-- `fastlane/metadata/android/en-US/full_description.txt` — Feature mention
-- `fastlane/metadata/android/en-US/changelogs/8.txt` — Changelog entry
 
 ---
 
@@ -418,3 +804,17 @@ Benchmark tests cover:
 8. Set slider to Off (0), tap download, verify "DNS blocklist disabled" SnackBar
 9. Navigate to the previously blocked domain, verify it loads normally
 10. Check Licenses page shows "Hagezi DNS Blocklists (domain data)" with GPL-3.0
+
+#### DNS Transparency Testing
+
+11. With DNS blocking enabled, browse a website that loads third-party trackers
+12. Verify the DNS banner appears at the top showing blocked and allowed counts
+13. Tap the banner to expand it, verify recently blocked domains are shown
+14. Open Developer Tools, switch to the DNS tab
+15. Verify stats cards show Total, Allowed, Blocked, Block % with correct values
+16. Use filter chips to show only blocked or only allowed entries
+17. Search for a specific domain in the query log
+18. Tap "Copy" and verify the log is copied to clipboard
+19. Tap "Clear" and verify stats and log are reset
+20. Open site Settings, verify DNS stats row appears below the DNS toggle
+21. Disable DNS blocking for the site, verify the banner disappears

@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/user_script.dart';
 
 typedef VoidAsyncCallback = Future<void> Function();
@@ -56,7 +57,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   bool get _hasSite => widget.webViewModel != null;
 
-  int get _tabCount => _hasSite ? 3 : 1;
+  bool get _hasDnsBlocklist => DnsBlockService.instance.hasBlocklist;
+  int get _tabCount => _hasSite ? (_hasDnsBlocklist ? 4 : 3) : 1;
+
+  /// Filter for DNS log: null = all, true = blocked only, false = allowed only.
+  bool? _dnsFilter;
+  final ScrollController _dnsScrollController = ScrollController();
 
   @override
   void initState() {
@@ -65,6 +71,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         ? Set<BlockedCookie>.of(widget.webViewModel!.blockedCookies)
         : <BlockedCookie>{};
     LogService.instance.addListener(_onLogUpdate);
+    DnsBlockService.instance.addDnsLogListener(_onDnsLogUpdate);
     if (_hasSite) {
       widget.webViewModel!.onConsoleLogChanged = _onConsoleUpdate;
     }
@@ -73,6 +80,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   @override
   void dispose() {
     LogService.instance.removeListener(_onLogUpdate);
+    DnsBlockService.instance.removeDnsLogListener(_onDnsLogUpdate);
     if (_hasSite) {
       widget.webViewModel!.onConsoleLogChanged = null;
       // If blocked cookies changed while DevTools was open, reload the page
@@ -84,6 +92,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     _consoleScrollController.dispose();
     _logScrollController.dispose();
+    _dnsScrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _evalController.dispose();
@@ -105,11 +114,17 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (mounted) setState(() {});
   }
 
+  void _onDnsLogUpdate() {
+    if (mounted) setState(() {});
+  }
+
   List<Tab> get _tabs => [
         if (_hasSite)
           const Tab(icon: Icon(Icons.terminal, size: 18), text: 'Console'),
         if (_hasSite)
           const Tab(icon: Icon(Icons.cookie_outlined, size: 18), text: 'Cookies'),
+        if (_hasSite && _hasDnsBlocklist)
+          const Tab(icon: Icon(Icons.shield_outlined, size: 18), text: 'DNS'),
         const Tab(icon: Icon(Icons.list_alt, size: 18), text: 'Logs'),
       ];
 
@@ -199,6 +214,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 children: [
                   if (_hasSite) _buildConsoleTab(),
                   if (_hasSite) _buildCookiesTab(),
+                  if (_hasSite && _hasDnsBlocklist) _buildDnsTab(),
                   _buildAppLogsTab(),
                 ],
               ),
@@ -946,6 +962,176 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         const SnackBar(content: Text('HTML copied to clipboard')),
       );
     }
+  }
+
+  // ── DNS Tab ──
+
+  Widget _buildDnsTab() {
+    final stats = DnsBlockService.instance.statsForSite(widget.webViewModel!.siteId);
+    final allEntries = stats.log;
+    List<DnsLogEntry> entries = _dnsFilter == null
+        ? allEntries
+        : allEntries.where((e) => e.blocked == _dnsFilter).toList();
+    if (_searchQuery.isNotEmpty) {
+      entries = entries.where((e) => _matchesSearch(e.domain)).toList();
+    }
+
+    return Column(
+      children: [
+        _buildDnsStats(stats),
+        _buildDnsFilters(stats),
+        _buildDnsActions(stats),
+        Expanded(
+          child: entries.isEmpty
+              ? Center(child: Text(_searchQuery.isEmpty ? 'No DNS queries recorded' : 'No matches'))
+              : ListView.builder(
+                  controller: _dnsScrollController,
+                  reverse: _searchQuery.isEmpty,
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = entries[entries.length - 1 - index];
+                    return _buildDnsEntry(entry);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDnsStats(DnsStats stats) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Row(
+        children: [
+          _buildDnsStatCard('Total', stats.total.toString(), Colors.blue),
+          const SizedBox(width: 8),
+          _buildDnsStatCard('Allowed', stats.allowed.toString(), Colors.green),
+          const SizedBox(width: 8),
+          _buildDnsStatCard('Blocked', stats.blocked.toString(), Colors.red),
+          const SizedBox(width: 8),
+          _buildDnsStatCard('Block %', '${stats.blockRate.toStringAsFixed(1)}%',
+              stats.blockRate > 0 ? Colors.orange : Colors.grey),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDnsStatCard(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withAlpha(20),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withAlpha(60)),
+        ),
+        child: Column(
+          children: [
+            Text(value,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            const SizedBox(height: 2),
+            Text(label,
+                style: TextStyle(fontSize: 10, color: color.withAlpha(180))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDnsFilters(DnsStats stats) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          FilterChip(
+            label: const Text('All', style: TextStyle(fontSize: 12)),
+            selected: _dnsFilter == null,
+            onSelected: (_) => setState(() => _dnsFilter = null),
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            label: Text('Allowed (${stats.allowed})',
+                style: const TextStyle(fontSize: 12)),
+            selected: _dnsFilter == false,
+            onSelected: (_) =>
+                setState(() => _dnsFilter = _dnsFilter == false ? null : false),
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 6),
+          FilterChip(
+            label: Text('Blocked (${stats.blocked})',
+                style: const TextStyle(fontSize: 12)),
+            selected: _dnsFilter == true,
+            onSelected: (_) =>
+                setState(() => _dnsFilter = _dnsFilter == true ? null : true),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDnsActions(DnsStats stats) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          TextButton.icon(
+            onPressed: () {
+              DnsBlockService.instance.clearStatsForSite(widget.webViewModel!.siteId);
+            },
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('Clear'),
+          ),
+          TextButton.icon(
+            onPressed: stats.log.isEmpty
+                ? null
+                : () {
+                    final text = stats.log
+                        .map((e) =>
+                            '[${_formatTimeMs(e.timestamp)}] ${e.blocked ? 'BLOCKED' : 'ALLOWED'} ${e.domain}')
+                        .join('\n');
+                    Clipboard.setData(ClipboardData(text: text));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('DNS log copied')),
+                    );
+                  },
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copy'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDnsEntry(DnsLogEntry entry) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
+      child: Row(
+        children: [
+          Icon(
+            entry.blocked ? Icons.block : Icons.check_circle_outline,
+            size: 14,
+            color: entry.blocked ? Colors.red : Colors.green,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SelectableText(
+              '[${_formatTimeMs(entry.timestamp)}] ${entry.domain}',
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: entry.blocked
+                    ? Colors.red
+                    : Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ── App Logs Tab ──

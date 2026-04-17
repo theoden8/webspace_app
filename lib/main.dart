@@ -24,6 +24,7 @@ import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
+import 'package:webspace/widgets/dns_block_banner.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
@@ -34,6 +35,7 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_block_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
@@ -428,6 +430,12 @@ void main() async {
   // Initialize DNS block service (loads cached blocklist from disk)
   await DnsBlockService.instance.initialize();
 
+  // Initialize native DNS block handler for sub-resource blocking (Android)
+  DnsBlockNative.initialize();
+  if (DnsBlockService.instance.hasBlocklist) {
+    await DnsBlockNative.sendDomains(DnsBlockService.instance.blockedDomains);
+  }
+
   // Initialize content blocker service (loads cached filter lists from disk)
   await ContentBlockerService.instance.initialize();
 
@@ -633,6 +641,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
   bool _showUrlBar = false;
   bool _showTabStrip = false;
+  bool _showDnsBanner = true;
   bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
   int _canGoBackVersion = 0; // Guards _updateCanGoBack against stale async results
 
@@ -756,6 +765,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showTabStrip', _showTabStrip);
+  }
+
+  Future<void> _saveShowDnsBanner() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('showDnsBanner', _showDnsBanner);
   }
 
   Future<void> _saveGlobalUserScripts() async {
@@ -1114,6 +1129,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
+      _showDnsBanner = prefs.getBool('showDnsBanner') ?? true;
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
@@ -1147,6 +1163,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   Future<void> launchUrl(String url, {
     String? homeTitle,
+    required String? siteId,
     required bool incognito,
     required bool thirdPartyCookiesEnabled,
     required bool clearUrlEnabled,
@@ -1160,6 +1177,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         builder: (context) => InAppWebViewScreen(
           url: url,
           homeTitle: homeTitle,
+          siteId: siteId,
           incognito: incognito,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           clearUrlEnabled: clearUrlEnabled,
@@ -1768,6 +1786,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         _showTabStrip = value;
                       });
                       _saveShowTabStrip();
+                    },
+                    showDnsBanner: _showDnsBanner,
+                    onShowDnsBannerChanged: (value) {
+                      setState(() {
+                        _showDnsBanner = value;
+                      });
+                      _saveShowDnsBanner();
                     },
                     globalUserScripts: _globalUserScripts,
                     onGlobalUserScriptsChanged: (scripts) {
@@ -3089,42 +3114,53 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
                         return SizedBox.expand(
                           key: ValueKey(webViewModel.siteId),
-                          child: webViewModel.getWebView(
-                            launchUrl,
-                            _cookieManager,
-                            _saveWebViewModels,
-                            onWindowRequested: _showPopupWindow,
-                            language: webViewModel.language,
-                            globalUserScripts: _globalUserScripts,
-                            onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
-                              HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
-                            },
-                            initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
-                            isActive: () => _currentIndex == index,
-                            onConfirmScriptFetch: (url) async {
-                              if (!mounted) return false;
-                              final result = await showDialog<bool>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Load external script?'),
-                                  content: Text(
-                                    'A user script wants to load:\n\n$url\n\n'
-                                    'This URL is not on the trusted CDN list. Allow?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
-                                      child: const Text('Deny'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text('Allow'),
-                                    ),
-                                  ],
+                          child: Column(
+                            children: [
+                              if (_showDnsBanner)
+                                DnsBlockBanner(
+                                  siteId: webViewModel.siteId,
+                                  dnsBlockEnabled: webViewModel.dnsBlockEnabled,
                                 ),
-                              );
-                              return result ?? false;
-                            },
+                              Expanded(
+                                child: webViewModel.getWebView(
+                                  launchUrl,
+                                  _cookieManager,
+                                  _saveWebViewModels,
+                                  onWindowRequested: _showPopupWindow,
+                                  language: webViewModel.language,
+                                  globalUserScripts: _globalUserScripts,
+                                  onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
+                                    HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
+                                  },
+                                  initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
+                                  isActive: () => _currentIndex == index,
+                                  onConfirmScriptFetch: (url) async {
+                                    if (!mounted) return false;
+                                    final result = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Load external script?'),
+                                        content: Text(
+                                          'A user script wants to load:\n\n$url\n\n'
+                                          'This URL is not on the trusted CDN list. Allow?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, false),
+                                            child: const Text('Deny'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('Allow'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    return result ?? false;
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       }).toList(),

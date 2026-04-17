@@ -13,6 +13,7 @@ import 'package:webspace/widgets/url_bar.dart';
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
+  final String? siteId;
   final bool incognito;
   final bool thirdPartyCookiesEnabled;
   final bool clearUrlEnabled;
@@ -24,6 +25,7 @@ class InAppWebViewScreen extends StatefulWidget {
   InAppWebViewScreen({
     required this.url,
     this.homeTitle,
+    this.siteId,
     required this.incognito,
     required this.thirdPartyCookiesEnabled,
     required this.clearUrlEnabled,
@@ -255,6 +257,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
           Expanded(
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                siteId: widget.siteId,
                 initialUrl: widget.url,
                 incognito: widget.incognito,
                 thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,

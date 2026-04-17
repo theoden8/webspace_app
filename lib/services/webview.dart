@@ -8,6 +8,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/dns_block_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/log_service.dart';
@@ -199,6 +200,8 @@ class WebViewConfig {
   /// Unique key to force widget recreation when settings change.
   /// When this key changes, Flutter will create a new widget state.
   final Key? key;
+  /// Site ID for per-site DNS statistics tracking.
+  final String? siteId;
   final String initialUrl;
   final bool javascriptEnabled;
   final String? userAgent;
@@ -240,6 +243,7 @@ class WebViewConfig {
 
   WebViewConfig({
     this.key,
+    this.siteId,
     required this.initialUrl,
     this.javascriptEnabled = true,
     this.userAgent,
@@ -664,6 +668,262 @@ class WebViewFactory {
       ));
     }
 
+    // DNS stats: inject PerformanceObserver to report loaded resource URLs.
+    // On Android, the native FastDnsBlockerHandler reports events directly,
+    // so skip PerformanceObserver to avoid double-counting.
+    if (!Platform.isAndroid && config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'dns_resource_observer',
+        source: '''
+(function() {
+  var seen = {};
+  var pending = [];
+  function send(url) {
+    if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+    } else {
+      pending.push(url);
+    }
+  }
+  function report(url) {
+    if (!url || seen[url] || !url.startsWith('http')) return;
+    seen[url] = 1;
+    send(url);
+  }
+  var po = new PerformanceObserver(function(list) {
+    list.getEntries().forEach(function(e) { report(e.name); });
+  });
+  po.observe({type: 'resource', buffered: true});
+  po.observe({type: 'navigation', buffered: true});
+  function flush() {
+    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+      setTimeout(flush, 50);
+      return;
+    }
+    pending.forEach(function(url) {
+      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+    });
+    pending = [];
+  }
+  flush();
+})();
+;null;''',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
+    // iOS DNS sub-resource blocking: JS interceptor with Bloom-filter
+    // prefilter. Bloom filter check is pure JS (microseconds). Only
+    // ~0.1% of allowed URLs trigger a Dart roundtrip for confirmation.
+    if (!Platform.isAndroid
+        && config.siteId != null
+        && config.dnsBlockEnabled
+        && DnsBlockService.instance.hasBlocklist) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'dns_js_blocker',
+        source: '''
+(function() {
+  var bloomReady = false;
+  var bloomBits = null;
+  var bloomBitCount = 0;
+  var bloomK = 0;
+
+  // FNV-1a 32-bit hash, matching Dart implementation
+  function fnv1a(s, seed) {
+    var h = seed >>> 0;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h >>> 0;
+  }
+
+  function bloomContains(s) {
+    if (!bloomReady) return true; // safe default while loading: ask Dart
+    var h1 = fnv1a(s, 0x811C9DC5);
+    var h2 = fnv1a(s, 0xCBF29CE4);
+    for (var i = 0; i < bloomK; i++) {
+      var pos = ((h1 + i * h2) >>> 0) % bloomBitCount;
+      if ((bloomBits[pos >> 3] & (1 << (pos & 7))) === 0) return false;
+    }
+    return true;
+  }
+
+  // Hierarchy walk-up: check host, then each parent suffix
+  function maybeBlocked(host) {
+    if (bloomContains(host)) return true;
+    var parts = host.split('.');
+    for (var i = 1; i < parts.length - 1; i++) {
+      if (bloomContains(parts.slice(i).join('.'))) return true;
+    }
+    return false;
+  }
+
+  // Per-site domain result cache (LRU-ish: evict oldest when full).
+  // Restored from Dart persistence on startup, sent back on page load.
+  var allowedCache = {};
+  var blockedCache = {};
+  var cacheKeys = [];
+  var MAX_CACHE = 500;
+
+  function cacheResult(host, blocked) {
+    if (blocked) { blockedCache[host] = 1; }
+    else { allowedCache[host] = 1; }
+    cacheKeys.push(host);
+    if (cacheKeys.length > MAX_CACHE) {
+      var old = cacheKeys.shift();
+      delete allowedCache[old];
+      delete blockedCache[old];
+    }
+  }
+
+
+  function check(url) {
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+      return Promise.resolve(false);
+    }
+    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+      return Promise.resolve(false);
+    }
+    var host;
+    try { host = new URL(url).hostname; } catch (e) { return Promise.resolve(false); }
+    // Check per-site cache first (instant)
+    if (allowedCache[host]) return Promise.resolve(false);
+    if (blockedCache[host]) return Promise.resolve(true);
+    // Bloom prefilter: if definitely not in set, allow without roundtrip
+    if (!maybeBlocked(host)) {
+      cacheResult(host, false);
+      window.flutter_inappwebview.callHandler('dnsResourceLoaded', url);
+      return Promise.resolve(false);
+    }
+    // Possibly blocked — confirm via Dart, then cache result
+    return window.flutter_inappwebview.callHandler('dnsCheck', url).then(function(blocked) {
+      cacheResult(host, blocked);
+      return blocked;
+    });
+  }
+
+  // Fetch Bloom filter + persisted per-site cache from Dart at startup
+  function loadBloom() {
+    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+      setTimeout(loadBloom, 50);
+      return;
+    }
+    window.flutter_inappwebview.callHandler('getDnsBloom').then(function(map) {
+      if (!map) return;
+      var bytes = map.bits;
+      bloomBits = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      bloomBitCount = map.bitCount;
+      bloomK = map.k;
+      // Restore persisted per-site cache
+      var persisted = map.cache;
+      if (persisted) {
+        for (var h in persisted) {
+          if (persisted[h]) blockedCache[h] = 1;
+          else allowedCache[h] = 1;
+          cacheKeys.push(h);
+        }
+      }
+      bloomReady = true;
+    });
+  }
+  loadBloom();
+
+  // fetch
+  var origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function(input, init) {
+      var url = typeof input === 'string' ? input : (input && input.url);
+      return check(url).then(function(blocked) {
+        if (blocked) return Promise.reject(new TypeError('Blocked by DNS blocklist: ' + url));
+        return origFetch.call(this, input, init);
+      }.bind(this));
+    };
+  }
+
+  // XMLHttpRequest
+  var origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this.__dnsBlockUrl = url;
+    return origOpen.apply(this, arguments);
+  };
+  var origSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function(body) {
+    var self = this;
+    var args = arguments;
+    check(self.__dnsBlockUrl).then(function(blocked) {
+      if (blocked) { try { self.abort(); } catch(e) {} return; }
+      origSend.apply(self, args);
+    });
+  };
+
+  // Property setters for src/href on resource elements
+  function patchSetter(proto, attr) {
+    var desc = Object.getOwnPropertyDescriptor(proto, attr);
+    if (!desc || !desc.set) return;
+    var origSet = desc.set;
+    Object.defineProperty(proto, attr, {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get: desc.get,
+      set: function(value) {
+        var el = this;
+        check(value).then(function(blocked) {
+          if (!blocked) origSet.call(el, value);
+        });
+      }
+    });
+  }
+  patchSetter(HTMLImageElement.prototype, 'src');
+  patchSetter(HTMLScriptElement.prototype, 'src');
+  patchSetter(HTMLLinkElement.prototype, 'href');
+  patchSetter(HTMLIFrameElement.prototype, 'src');
+
+  // MutationObserver for statically-parsed HTML elements
+  function checkElement(el) {
+    var attr = null;
+    if (el.tagName === 'IMG' || el.tagName === 'SCRIPT' || el.tagName === 'IFRAME') attr = 'src';
+    else if (el.tagName === 'LINK') attr = 'href';
+    if (attr) {
+      var url = el.getAttribute(attr);
+      if (url && url.indexOf('http') === 0) {
+        check(url).then(function(blocked) {
+          if (blocked) {
+            el.removeAttribute(attr);
+            if (el.parentNode) el.parentNode.removeChild(el);
+          }
+        });
+      }
+    }
+  }
+  var mo = new MutationObserver(function(mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var added = mutations[i].addedNodes;
+      for (var j = 0; j < added.length; j++) {
+        var node = added[j];
+        if (node.nodeType !== 1) continue;
+        checkElement(node);
+        if (node.querySelectorAll) {
+          var els = node.querySelectorAll('img, script, link, iframe');
+          for (var k = 0; k < els.length; k++) checkElement(els[k]);
+        }
+      }
+    }
+  });
+  function startObserving() {
+    if (document.documentElement) {
+      mo.observe(document.documentElement, {childList: true, subtree: true});
+    } else {
+      setTimeout(startObserving, 10);
+    }
+  }
+  startObserving();
+})();
+;null;''',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
     // User script injection: shim for external dependency resolution + scripts
     final userScriptService = UserScriptService(
       scripts: config.userScripts,
@@ -674,6 +934,8 @@ class WebViewFactory {
     // Track last URL that triggered onLoadStart, used to distinguish
     // SPA navigations (pushState) from real page loads in onUpdateVisitedHistory.
     String? lastLoadStartUrl;
+
+    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
 
     return inapp.InAppWebView(
       key: config.key,
@@ -696,7 +958,10 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        useShouldInterceptRequest: config.localCdnEnabled && Platform.isAndroid,
+        useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled && LocalCdnService.instance.hasCache,
+        useShouldInterceptAjaxRequest: false,
+        useShouldInterceptFetchRequest: false,
+        useOnLoadResource: false,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -727,6 +992,33 @@ class WebViewFactory {
             return args.isNotEmpty ? args[0] : '';
           });
         }
+        // DNS stats: register handler for resource observer JS
+        if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+          controller.addJavaScriptHandler(handlerName: 'dnsResourceLoaded', callback: (args) {
+            if (args.isNotEmpty && args[0] is String) {
+              final url = args[0] as String;
+              final blocked = DnsBlockService.instance.isBlocked(url);
+              DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+            }
+            return null;
+          });
+          // iOS sub-resource blocking: per-URL check from JS interceptor
+          if (!Platform.isAndroid && config.dnsBlockEnabled) {
+            controller.addJavaScriptHandler(handlerName: 'dnsCheck', callback: (args) {
+              if (args.isEmpty || args[0] is! String) return false;
+              final url = args[0] as String;
+              final blocked = DnsBlockService.instance.isBlocked(url);
+              DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+              return blocked;
+            });
+            // One-shot bloom filter + global domain cache delivery to JS
+            controller.addJavaScriptHandler(handlerName: 'getDnsBloom', callback: (args) {
+              final map = Map<String, dynamic>.from(DnsBlockService.instance.getBloomFilter().toMap());
+              map['cache'] = DnsBlockService.instance.getDomainCache();
+              return map;
+            });
+          }
+        }
         userScriptService.registerHandlers(controller);
         // If we loaded cached HTML, navigate to the real URL when online
         if (usesCachedHtml) {
@@ -739,14 +1031,23 @@ class WebViewFactory {
             wrappedController.loadUrl(config.initialUrl, language: config.language);
           }
         }
+        // Attach native DNS block handler once view is in hierarchy
+        if (DnsBlockService.instance.hasBlocklist) {
+          Future.microtask(() => DnsBlockNative.attachToWebViews(siteId: config.siteId));
+        }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
-        // DNS blocklist check
-        if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) {
-          return inapp.NavigationActionPolicy.CANCEL;
+        // DNS blocklist check + record navigation for stats
+        if (DnsBlockService.instance.hasBlocklist && config.siteId != null) {
+          LogService.instance.log('DnsBlock', '[Navigation] $url');
+          final blocked = DnsBlockService.instance.isBlocked(url);
+          DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+          if (blocked && config.dnsBlockEnabled) {
+            return inapp.NavigationActionPolicy.CANCEL;
+          }
         }
         // Content blocker domain check
         if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
@@ -799,25 +1100,56 @@ class WebViewFactory {
 
         return false;
       },
-      shouldInterceptRequest: config.localCdnEnabled && Platform.isAndroid
+      shouldInterceptRequest: Platform.isAndroid
           ? (controller, request) async {
               final url = request.url.toString();
-              final service = LocalCdnService.instance;
-              if (!service.isCdnUrl(url)) return null;
 
-              final data = await service.getOrFetchResource(url);
-              if (data == null) return null;
+              // Record every sub-resource request for DNS stats
+              if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+                final blocked = DnsBlockService.instance.isBlocked(url);
+                DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
+                if (blocked && config.dnsBlockEnabled) {
+                  LogService.instance.log('DnsBlock', 'Blocked sub-resource: $url (site: ${config.siteId})');
+                  return inapp.WebResourceResponse(
+                    contentType: 'text/plain',
+                    contentEncoding: 'utf-8',
+                    data: Uint8List(0),
+                    statusCode: 403,
+                    reasonPhrase: 'Blocked by DNS blocklist',
+                  );
+                }
+              }
 
-              return inapp.WebResourceResponse(
-                contentType: service.getContentType(url),
-                contentEncoding: 'utf-8',
-                data: data,
-              );
+              // LocalCDN: serve CDN resources from local cache
+              if (config.localCdnEnabled) {
+                final service = LocalCdnService.instance;
+                if (service.isCdnUrl(url)) {
+                  final data = await service.getOrFetchResource(url);
+                  if (data != null) {
+                    return inapp.WebResourceResponse(
+                      contentType: service.getContentType(url),
+                      contentEncoding: 'utf-8',
+                      data: data,
+                    );
+                  }
+                }
+              }
+
+              return null;
             }
           : null,
+      // fetch/XHR interception disabled — Dart roundtrip bottlenecks page loading.
+      // Native FastDnsBlockerHandler handles sub-resource blocking in Java instead.
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
+        // Record the page navigation for DNS stats so the banner shows immediately
+        if (config.siteId != null && DnsBlockService.instance.hasBlocklist
+            && url != null && url.toString().startsWith('http')) {
+          final urlStr = url.toString();
+          DnsBlockService.instance.recordRequest(config.siteId!, urlStr,
+              DnsBlockService.instance.isBlocked(urlStr));
+        }
         // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
         if (config.contentBlockEnabled && url != null) {
           final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());

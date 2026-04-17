@@ -66,7 +66,7 @@ Downloaded rules SHALL be cached on disk and loaded at app startup without netwo
 
 ### Requirement: CURL-003 - Query Parameter Stripping
 
-The system SHALL strip query parameters matching provider rules from URLs during navigation.
+The system SHALL strip query parameters matching provider rules from URLs during navigation. Cleaning is applied ONLY to navigation-level requests via `shouldOverrideUrlLoading` — sub-resource requests (`<script>`, `<img>`, `<link>`), `fetch()`, and `XMLHttpRequest` are NOT cleaned, as stripping query parameters from API endpoints or resource URLs would risk breaking site functionality.
 
 #### Scenario: Strip utm parameters
 
@@ -288,13 +288,15 @@ For each provider whose `urlPattern` matches the URL:
 
 ### Hook Point in WebView
 
-ClearURL cleaning is inserted in `shouldOverrideUrlLoading` in `WebViewFactory.createWebView()`, after the blocked URL check and captcha allowlist, but before the per-site domain navigation callback:
+ClearURL cleaning is inserted in `shouldOverrideUrlLoading` in `WebViewFactory.createWebView()`, after the DNS blocklist check and captcha allowlist, but before the per-site domain navigation callback:
 
 ```dart
 shouldOverrideUrlLoading: (controller, navigationAction) async {
   final url = navigationAction.request.url.toString();
   if (_shouldBlockUrl(url)) return CANCEL;
   if (_isCaptchaChallenge(url)) return ALLOW;
+  // DNS blocklist check ...
+  // Content blocker check ...
   // ClearURLs processing
   if (config.clearUrlEnabled && ClearUrlService.instance.hasRules) {
     final cleanedUrl = ClearUrlService.instance.cleanUrl(url);
@@ -309,6 +311,17 @@ shouldOverrideUrlLoading: (controller, navigationAction) async {
 ```
 
 No redirect loops occur because `cleanUrl()` is idempotent — a cleaned URL produces the same output when cleaned again.
+
+#### Scope: What ClearURLs does and does NOT clean
+
+| Request type | Cleaned? | Reason |
+|---|---|---|
+| Navigation (link clicks, typed URLs, redirects) | Yes | Primary use case — user-facing URLs |
+| Shared/copied URLs (clipboard, Web Share API) | Yes | Via injected JS (`_clearUrlShareScript`) |
+| Sub-resources (`<script>`, `<img>`, `<link>`) | No | Stripping params would break resource loading |
+| `fetch()` API calls | No | API endpoints need their query parameters |
+| `XMLHttpRequest` calls | No | Same as fetch — would break API calls |
+| `navigator.sendBeacon()` | No | Analytics beacons — params are the payload |
 
 ### Clipboard/Share URL Cleaning
 

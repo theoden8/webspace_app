@@ -1,10 +1,59 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// A single DNS query log entry (allowed or blocked).
+class DnsLogEntry {
+  final DateTime timestamp;
+  final String domain;
+  final bool blocked;
+
+  const DnsLogEntry({
+    required this.timestamp,
+    required this.domain,
+    required this.blocked,
+  });
+}
+
+/// Per-site DNS request statistics.
+class DnsStats {
+  int allowed = 0;
+  int blocked = 0;
+  final List<DnsLogEntry> log = [];
+  static const int _maxLogEntries = 500;
+
+  int get total => allowed + blocked;
+  double get blockRate => total > 0 ? blocked / total * 100 : 0;
+
+  void record(String domain, bool wasBlocked) {
+    if (wasBlocked) {
+      blocked++;
+    } else {
+      allowed++;
+    }
+    log.add(DnsLogEntry(
+      timestamp: DateTime.now(),
+      domain: domain,
+      blocked: wasBlocked,
+    ));
+    if (log.length > _maxLogEntries) {
+      log.removeAt(0);
+    }
+  }
+
+  void clear() {
+    allowed = 0;
+    blocked = 0;
+    log.clear();
+  }
+}
 
 /// Level names for DNS blocklist severity levels (0-5).
 const List<String> dnsBlockLevelNames = [
@@ -48,6 +97,12 @@ class DnsBlockService {
   Set<String> _blockedDomains = {};
   int _level = 0;
 
+  /// Per-site DNS statistics, keyed by siteId.
+  final Map<String, DnsStats> _siteStats = {};
+
+  /// Listeners notified when a DNS request is logged (for live UI updates).
+  final List<VoidCallback> _dnsLogListeners = [];
+
   /// Whether a blocklist is loaded and active.
   bool get hasBlocklist => _blockedDomains.isNotEmpty;
 
@@ -56,6 +111,130 @@ class DnsBlockService {
 
   /// Number of domains in the current blocklist.
   int get domainCount => _blockedDomains.length;
+
+  /// The raw blocked domains set (for sending to native handler).
+  Set<String> get blockedDomains => _blockedDomains;
+
+  /// Cached Bloom filter for fast JS-side membership checks.
+  BloomFilter? _bloomFilter;
+
+  /// Global per-domain resolver cache: host -> blocked_bool.
+  /// Shared across all sites since the same tracker/CDN domains appear
+  /// everywhere. Loaded from disk on init, invalidated on blocklist update.
+  final Map<String, bool> _domainCache = {};
+
+  static const _domainCacheKey = 'dns_domain_cache';
+  static const _maxDomainCacheEntries = 5000;
+
+  /// Get the current domain cache (for hydrating new webviews).
+  Map<String, bool> getDomainCache() => _domainCache;
+
+  /// Record a confirmed decision for a host. Persists asynchronously.
+  void recordDomainDecision(String host, bool blocked) {
+    if (host.isEmpty) return;
+    final prev = _domainCache[host];
+    if (prev == blocked) return; // no change, no write
+    _domainCache[host] = blocked;
+    if (_domainCache.length > _maxDomainCacheEntries) {
+      // FIFO trim by deleting the first inserted key
+      final first = _domainCache.keys.first;
+      _domainCache.remove(first);
+    }
+    _schedulePersistDomainCache();
+  }
+
+  Timer? _persistTimer;
+
+  void _schedulePersistDomainCache() {
+    _persistTimer?.cancel();
+    _persistTimer = Timer(const Duration(seconds: 2), _persistDomainCache);
+  }
+
+  Future<void> _persistDomainCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_domainCacheKey, jsonEncode(_domainCache));
+    } catch (e) {
+      LogService.instance.log('DnsBlock', 'Failed to persist domain cache: $e', level: LogLevel.error);
+    }
+  }
+
+  Future<void> _loadDomainCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_domainCacheKey);
+      if (raw == null) return;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      _domainCache.clear();
+      for (final e in data.entries) {
+        _domainCache[e.key] = e.value as bool;
+      }
+    } catch (e) {
+      LogService.instance.log('DnsBlock', 'Failed to load domain cache: $e', level: LogLevel.error);
+    }
+  }
+
+  /// Clear the global domain cache. Called when the blocklist changes
+  /// since cached decisions may no longer be valid.
+  Future<void> _clearDomainCache() async {
+    _domainCache.clear();
+    _persistTimer?.cancel();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_domainCacheKey);
+    } catch (_) {}
+  }
+
+  /// Get (and cache) a Bloom filter built from all blocked domains plus
+  /// their hierarchical suffixes. Used for iOS JS-side prefiltering.
+  BloomFilter getBloomFilter() {
+    if (_bloomFilter != null) return _bloomFilter!;
+    final sw = Stopwatch()..start();
+    _bloomFilter = BloomFilter.build(_blockedDomains, fpRate: 0.05);
+    sw.stop();
+    LogService.instance.log('DnsBlock',
+        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_blockedDomains.length} domains in ${sw.elapsedMilliseconds}ms',
+        level: LogLevel.info);
+    return _bloomFilter!;
+  }
+
+  /// Get DNS stats for a specific site. Creates on first access.
+  DnsStats statsForSite(String siteId) {
+    return _siteStats.putIfAbsent(siteId, () => DnsStats());
+  }
+
+  /// Record a DNS request (allowed or blocked) for a site.
+  /// Also updates the global per-domain cache so other webviews skip
+  /// re-checking the same host.
+  void recordRequest(String siteId, String url, bool wasBlocked) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.host.isEmpty) return;
+    statsForSite(siteId).record(uri.host, wasBlocked);
+    recordDomainDecision(uri.host, wasBlocked);
+    _notifyDnsLogListeners();
+  }
+
+  /// Clear stats for a specific site.
+  void clearStatsForSite(String siteId) {
+    _siteStats[siteId]?.clear();
+    _notifyDnsLogListeners();
+  }
+
+  /// Add a listener for DNS log changes (live UI updates).
+  void addDnsLogListener(VoidCallback listener) {
+    _dnsLogListeners.add(listener);
+  }
+
+  /// Remove a DNS log listener.
+  void removeDnsLogListener(VoidCallback listener) {
+    _dnsLogListeners.remove(listener);
+  }
+
+  void _notifyDnsLogListeners() {
+    for (final listener in _dnsLogListeners) {
+      listener();
+    }
+  }
 
   /// Initialize the service by loading the cached domain file from disk (no network).
   /// Call in main() at app startup.
@@ -72,6 +251,7 @@ class DnsBlockService {
           LogService.instance.log('DnsBlock', 'Loaded ${_blockedDomains.length} domains from cache (level $_level)', level: LogLevel.info);
         }
       }
+      await _loadDomainCache();
     } catch (e) {
       LogService.instance.log('DnsBlock', 'Error loading cached blocklist: $e', level: LogLevel.error);
     }
@@ -97,6 +277,7 @@ class DnsBlockService {
       } catch (e) {
         LogService.instance.log('DnsBlock', 'Error clearing blocklist: $e', level: LogLevel.error);
       }
+      await _clearDomainCache();
       return true;
     }
 
@@ -129,6 +310,9 @@ class DnsBlockService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_levelKey, level);
         await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
+
+        // Blocklist changed - invalidate per-site caches
+        await _clearDomainCache();
 
         LogService.instance.log('DnsBlock', 'Downloaded ${_blockedDomains.length} domains (level $level)', level: LogLevel.info);
 
@@ -188,6 +372,12 @@ class DnsBlockService {
       domains.add(trimmed);
     }
     _blockedDomains = domains;
+    // Rebuild bloom filter eagerly so the first webview page load doesn't
+    // pay the ~500ms build cost synchronously.
+    _bloomFilter = null;
+    if (domains.isNotEmpty) {
+      getBloomFilter();
+    }
   }
 
   Future<File> _getCacheFile() async {

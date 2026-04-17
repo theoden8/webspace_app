@@ -201,21 +201,38 @@ The cache index SHALL be persisted via SharedPreferences and the resource files 
 - **When** the app is restarted
 - **Then** the cache index is loaded from SharedPreferences and cached resources are available immediately
 
-### LCDN-013: Platform Support
+### LCDN-013: Platform Support and Interception Scope
 
-LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest`. On iOS/macOS, the feature SHALL degrade gracefully.
+LocalCDN resource interception SHALL work on Android via `shouldInterceptRequest`. On iOS/macOS, the feature SHALL degrade gracefully. LocalCDN does NOT intercept `fetch()` or `XMLHttpRequest` CDN requests — in practice this is a non-issue because CDN resources are almost always loaded via static HTML tags (`<script>`, `<link>`), not JS-initiated requests.
 
-#### Scenario: Android
+#### Scenario: Android — static resources
 
 - **Given** the app is running on Android
-- **When** `localCdnEnabled` is true
-- **Then** `useShouldInterceptRequest` is enabled and CDN requests are intercepted
+- **When** a page loads `<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js">`
+- **Then** `shouldInterceptRequest` intercepts the request and serves the cached copy
+
+#### Scenario: Android — fetch/XHR CDN requests (not intercepted)
+
+- **Given** the app is running on Android
+- **When** JavaScript calls `fetch('https://cdn.jsdelivr.net/npm/some-lib@1.0/file.js')`
+- **Then** the request passes through to the CDN normally (LocalCDN does not intercept fetch/XHR)
 
 #### Scenario: iOS/macOS
 
 - **Given** the app is running on iOS or macOS
 - **When** `localCdnEnabled` is true
-- **Then** the toggle is available but CDN requests pass through normally (no interception)
+- **Then** the toggle is available but all CDN requests pass through normally (`shouldInterceptRequest` is Android-only)
+
+#### Summary: What LocalCDN intercepts
+
+| Request type | Android | iOS/macOS |
+|---|---|---|
+| `<script src="cdn...">` | Intercepted via shouldInterceptRequest | Not intercepted |
+| `<link href="cdn...">` | Intercepted via shouldInterceptRequest | Not intercepted |
+| `<img src="cdn...">` | Intercepted via shouldInterceptRequest | Not intercepted |
+| CSS `@font-face url(cdn...)` | Intercepted via shouldInterceptRequest | Not intercepted |
+| `fetch('cdn...')` | Not intercepted | Not intercepted |
+| `XMLHttpRequest` to CDN | Not intercepted | Not intercepted |
 
 ## Implementation Details
 
@@ -266,7 +283,21 @@ A curated list of ~80 popular resources is built into the service, covering:
 
 ### Hook Ordering
 
-The `shouldInterceptRequest` callback is independent from `shouldOverrideUrlLoading` (which handles navigation). It intercepts subresource loading (scripts, stylesheets, fonts, etc.).
+LocalCDN runs inside the `shouldInterceptRequest` callback on Android, AFTER DNS blocklist checking. If a CDN URL is on the DNS blocklist, DNS blocking takes priority and the request is blocked before LocalCDN can serve it.
+
+```dart
+shouldInterceptRequest: (controller, request) async {
+  // 1. DNS blocklist check + recording (runs first)
+  // 2. LocalCDN check (runs second)
+  if (config.localCdnEnabled && service.isCdnUrl(url)) {
+    final data = await service.getOrFetchResource(url);
+    if (data != null) return WebResourceResponse(data: data);
+  }
+  return null; // pass through
+}
+```
+
+Note: `shouldInterceptRequest` is Android-only and fires for static sub-resources only. It is NOT called for `fetch()` or `XMLHttpRequest` — those go through separate JS-injected hooks (`shouldInterceptFetchRequest`, `shouldInterceptAjaxRequest`) which do not include LocalCDN interception.
 
 ### Data Model
 
@@ -277,8 +308,8 @@ bool localCdnEnabled; // default: true
 // WebViewConfig field
 final bool localCdnEnabled; // default: true
 
-// InAppWebViewSettings
-useShouldInterceptRequest: config.localCdnEnabled && Platform.isAndroid
+// InAppWebViewSettings — always enabled on Android for DNS blocking
+useShouldInterceptRequest: Platform.isAndroid
 ```
 
 ## Files

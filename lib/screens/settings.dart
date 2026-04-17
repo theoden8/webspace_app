@@ -198,6 +198,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return parts.isEmpty ? 'None' : '${parts.join(', ')} active';
   }
 
+  Widget _buildDnsStatsCard() {
+    final stats = DnsBlockService.instance.statsForSite(widget.webViewModel.siteId);
+    if (stats.total == 0) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          _buildDnsStatChip('${stats.total}', 'total', Colors.blue),
+          const SizedBox(width: 6),
+          _buildDnsStatChip('${stats.allowed}', 'allowed', Colors.green),
+          const SizedBox(width: 6),
+          _buildDnsStatChip('${stats.blocked}', 'blocked', Colors.red),
+          const SizedBox(width: 6),
+          _buildDnsStatChip('${stats.blockRate.toStringAsFixed(1)}%', 'blocked', Colors.orange),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDnsStatChip(String value, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withAlpha(20),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withAlpha(50)),
+        ),
+        child: Column(
+          children: [
+            Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: TextStyle(fontSize: 9, color: color.withAlpha(180))),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveSettings() async {
     // Only validate and update proxy settings on supported platforms
     if (PlatformInfo.isProxySupported) {
@@ -512,6 +552,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }
                 : null,
           ),
+          if (DnsBlockService.instance.hasBlocklist) _buildDnsStatsCard(),
           SwitchListTile(
             title: Row(
               children: [
