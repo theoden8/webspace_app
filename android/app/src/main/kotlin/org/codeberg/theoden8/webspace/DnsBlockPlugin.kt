@@ -23,7 +23,8 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     // Per-site pending events. Java is the source of truth; Dart pulls on demand.
-    private val pendingBlocked = ConcurrentHashMap<String, MutableList<String>>()
+    // Each event is {"host": String, "blocked": Boolean}.
+    private val pendingEvents = ConcurrentHashMap<String, MutableList<Map<String, Any>>>()
     // Whether a signal is in flight for this siteId (prevents signal spam).
     private val signalPending = ConcurrentHashMap<String, AtomicBoolean>()
 
@@ -45,16 +46,16 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
                     val count = attachToAllWebViews(siteId)
                     result.success(count)
                 }
-                "fetchBlocked" -> {
+                "fetchEvents" -> {
                     val siteId = call.argument<String>("siteId")
                     if (siteId == null) {
                         result.error("INVALID_ARGS", "siteId required", null)
                     } else {
-                        val list = pendingBlocked[siteId]
+                        val list = pendingEvents[siteId]
                         if (list == null) {
-                            result.success(emptyList<String>())
+                            result.success(emptyList<Map<String, Any>>())
                         } else {
-                            val snapshot: List<String>
+                            val snapshot: List<Map<String, Any>>
                             synchronized(list) {
                                 snapshot = ArrayList(list)
                                 list.clear()
@@ -68,19 +69,19 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
         }
     }
 
-    /// Records a blocked event for this site and signals Dart once per batch.
-    /// If Dart is already processing an earlier signal for this site,
-    /// subsequent blocks just accumulate — no duplicate signals.
-    private fun recordBlocked(siteId: String, host: String) {
-        val list = pendingBlocked.computeIfAbsent(siteId) {
+    /// Records a DNS event (allowed or blocked) for this site and signals
+    /// Dart once per batch. If Dart is already processing an earlier signal
+    /// for this site, subsequent events just accumulate — no duplicate signals.
+    private fun recordEvent(siteId: String, host: String, blocked: Boolean) {
+        val list = pendingEvents.computeIfAbsent(siteId) {
             Collections.synchronizedList(mutableListOf())
         }
-        list.add(host)
+        list.add(mapOf("host" to host, "blocked" to blocked))
 
         val signaled = signalPending.computeIfAbsent(siteId) { AtomicBoolean(false) }
         if (signaled.compareAndSet(false, true)) {
             mainHandler.post {
-                channel.invokeMethod("dnsBlockedReady", siteId, object : MethodChannel.Result {
+                channel.invokeMethod("dnsEventsReady", siteId, object : MethodChannel.Result {
                     override fun success(result: Any?) { signaled.set(false) }
                     override fun error(code: String, message: String?, details: Any?) { signaled.set(false) }
                     override fun notImplemented() { signaled.set(false) }
@@ -100,8 +101,8 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
             }
             if (isNew) {
                 val siteId = siteIdMap[webView] ?: "unknown"
-                webView.contentBlockerHandler = FastDnsBlockerHandler(blockedDomains) { host ->
-                    recordBlocked(siteId, host)
+                webView.contentBlockerHandler = FastDnsBlockerHandler(blockedDomains) { host, blocked ->
+                    recordEvent(siteId, host, blocked)
                 }
             }
         }
@@ -128,7 +129,7 @@ class DnsBlockPlugin(private val activity: Activity, flutterEngine: FlutterEngin
 
 class FastDnsBlockerHandler(
     private val blockedDomains: HashSet<String>,
-    private val onBlocked: (String) -> Unit
+    private val onChecked: (String, Boolean) -> Unit
 ) : ContentBlockerHandler() {
 
     init {
@@ -150,8 +151,9 @@ class FastDnsBlockerHandler(
         }
         if (host.isEmpty()) return null
 
-        if (isBlockedDomain(host)) {
-            onBlocked(host)
+        val blocked = isBlockedDomain(host)
+        onChecked(host, blocked)
+        if (blocked) {
             return WebResourceResponse("text/plain", "utf-8", null)
         }
         return null

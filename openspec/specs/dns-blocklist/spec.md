@@ -546,30 +546,47 @@ Dart recorded it as allowed
 
 ### Requirement: DNS-017 - Android Pull-Based Event Delivery
 
-The Android native DNS handler SHALL deliver blocked events to Dart using a
-signal-then-pull pattern: Java accumulates events in per-site lists, signals
-Dart when new events arrive, and Dart pulls the batched list in a single call.
-Duplicate signals SHALL be suppressed while one is in flight.
+The Android native DNS handler SHALL deliver DNS events (both blocked and
+allowed) to Dart using a signal-then-pull pattern: Java accumulates events
+in per-site lists, signals Dart when new events arrive, and Dart pulls the
+batched list in a single call. Duplicate signals SHALL be suppressed while
+one is in flight.
 
-#### Scenario: Single block signals Dart
+#### Scenario: Both allowed and blocked events captured
 
-**Given** a sub-resource request is blocked by `FastDnsBlockerHandler`
-**When** the block is recorded
-**Then** Dart receives a `dnsBlockedReady` method call with the siteId only
+**Given** `FastDnsBlockerHandler.checkUrl()` is called for a sub-resource
+**When** the check completes (either allowed or blocked)
+**Then** Java records `{host, blocked}` in the per-site events list
+**And** the page receives a 403 empty response if blocked, or proceeds normally if allowed
+
+#### Scenario: Single event signals Dart
+
+**Given** the events list for a site is empty
+**When** the first event is recorded (allowed or blocked)
+**Then** Dart receives a `dnsEventsReady` method call with the siteId only
 (no event data in the signal payload)
 
-#### Scenario: Burst of blocks coalesced
+#### Scenario: Burst of events coalesced
 
-**Given** 100 sub-resources are blocked within 10ms
-**When** the first block fires the signal
-**Then** subsequent blocks append to the per-site list without firing new signals
-**And** Dart's single `fetchBlocked` call retrieves all 100 events atomically
+**Given** 100 sub-resources are checked within 10ms
+**When** the first event fires the signal
+**Then** subsequent events append to the per-site list without firing new signals
+**And** Dart's single `fetchEvents` call retrieves all 100 events atomically
+(each as `{host, blocked}`)
 
 #### Scenario: Signal repeats after completion
 
-**Given** Dart has completed a `fetchBlocked` call and cleared the list
-**When** a new block occurs
-**Then** a new `dnsBlockedReady` signal is sent
+**Given** Dart has completed a `fetchEvents` call and cleared the list
+**When** a new event occurs
+**Then** a new `dnsEventsReady` signal is sent
+
+#### Scenario: Stats update without PerformanceObserver lag
+
+**Given** a page makes 50 sub-resource requests
+**When** the page loads on Android
+**Then** allowed and blocked counts in the stats banner update in near real-time
+(via the native event pipeline)
+**And** do NOT depend on the PerformanceObserver completion timing
 
 ---
 
