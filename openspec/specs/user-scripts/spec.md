@@ -89,15 +89,15 @@ Scripts SHALL be injected at the correct time through multiple mechanisms to han
 
 2. **`reinjectOnLoadStart` / `reinjectOnLoadStop`**: Re-injects simple scripts (without `urlSource`) via `evaluateJavascript` as a safety net. Scripts with `urlSource` are **skipped** to avoid racing with the native WKUserScript mechanism, which would cause ReferenceErrors.
 
-3. **`reinjectOnSpaNavigation`**: On SPA navigations (URL changes without full page load, detected via `onUpdateVisitedHistory`), re-runs only the user's `source` code (not the library from `urlSource`). The JS context persists on SPA navigations, so the library is still loaded — only the user's initialization code (e.g. `DarkReader.enable()`) needs to re-run.
+3. **`reinjectOnSpaNavigation`**: On SPA navigations (URL changes without full page load, detected via `onUpdateVisitedHistory`), re-runs only the user's `source` code (not the library from `urlSource`). The JS context persists on SPA navigations, so the library is still loaded — only the user's initialization code (e.g. `MyLib.init()`) needs to re-run.
 
 #### Execution order within a single injection
 
 When a script has both `urlSource` (cached library) and `source` (user code):
 ```
 [shim: __wsFetch, appendChild/insertBefore intercept, fetch CORS fallback]
-[urlSource: library code]       ← defines library API (e.g. window.DarkReader)
-[source: user initialization]   ← calls library API (e.g. DarkReader.enable())
+[urlSource: library code]       ← defines library API (e.g. window.MyLib)
+[source: user initialization]   ← calls library API (e.g. MyLib.init())
 ;null;                          ← prevents WebKit "unsupported type" error
 ```
 
@@ -250,7 +250,7 @@ Scripts are added to the `initialUserScripts` list in `WebViewFactory.createWebV
 A shim is injected at `AT_DOCUMENT_START` before user scripts. It provides:
 
 1. **`appendChild`/`insertBefore` interception**: Catches `<script src="...">` DOM insertions for whitelisted CDN URLs and fetches them at the Dart level (bypassing CSP).
-2. **`window.__wsFetch(url)`**: CORS-bypassing fetch that returns a standard `Response` object. User scripts can use this for libraries that need custom fetch methods (e.g. `DarkReader.setFetchMethod(window.__wsFetch)`).
+2. **`window.__wsFetch(url)`**: CORS-bypassing fetch that returns a standard `Response` object. User scripts can use this for libraries that need custom fetch methods (e.g. `MyLib.setFetchMethod(window.__wsFetch)`).
 3. **`window.fetch` CORS fallback**: Patches `window.fetch` to fall back to `__wsFetch` on TypeError (CORS/network failures).
 4. **Deduplication**: Tracks loaded URLs to avoid double-loading when both `initialUserScripts` and re-injection run.
 
@@ -366,23 +366,22 @@ fvm flutter test test/user_script_test.dart
 6. Disable the script and reload — title should revert to normal
 7. Force-close and reopen the app — verify scripts persist
 
-#### CDN library loading (Dark Reader example)
+#### CDN library loading
 1. Open a site's settings > User Scripts (or App Settings > User Scripts for global)
-2. Add a script: name "Dark Reader"
-3. Set URL to `https://cdn.jsdelivr.net/npm/darkreader@4/darkreader.min.js`
+2. Add a script: name "Lodash"
+3. Set URL to `https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js`
 4. Set injection time to "At document start"
 5. Set source to:
    ```js
-   DarkReader.setFetchMethod(window.__wsFetch);
-   DarkReader.enable({ brightness: 100, contrast: 90 });
+   document.title = 'lodash ' + _.VERSION;
    ```
 6. Save — URL should auto-download (check "Cached: XXXXX bytes" indicator)
-7. Hit "Save Settings" — site should reload with dark mode
-8. Navigate within the SPA — dark mode should re-apply on URL changes
+7. Hit "Save Settings" — site should reload with the page title set to `lodash <version>`
+8. Navigate within the SPA — the library should remain loaded on URL changes
 
 #### Global scripts
 1. Open App Settings (gear icon) > "User Scripts"
-2. Add a script (e.g. Dark Reader as above)
+2. Add a script (e.g. the CDN library script from above)
 3. Save — navigate back and reload a site
 4. Switch to a different site — the global script should also run there
 5. Force-close and reopen — global scripts should persist
