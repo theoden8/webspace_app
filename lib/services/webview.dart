@@ -936,6 +936,10 @@ class WebViewFactory {
     String? lastLoadStartUrl;
 
     LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
+    final useInterceptor = Platform.isAndroid && config.localCdnEnabled;
+    LogService.instance.log('LocalCDN',
+        'Creating webview: siteId=${config.siteId} localCdnEnabled=${config.localCdnEnabled} hasCache=${LocalCdnService.instance.hasCache} useInterceptor=$useInterceptor');
+    bool loggedFirstIntercept = false;
 
     return inapp.InAppWebView(
       key: config.key,
@@ -1107,6 +1111,12 @@ class WebViewFactory {
       shouldInterceptRequest: Platform.isAndroid
           ? (controller, request) async {
               final url = request.url.toString();
+
+              if (!loggedFirstIntercept) {
+                loggedFirstIntercept = true;
+                LogService.instance.log('LocalCDN',
+                    'Dart shouldInterceptRequest is firing (first call) for site ${config.siteId}, url=$url');
+              }
 
               // Record every sub-resource request for DNS stats
               if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
