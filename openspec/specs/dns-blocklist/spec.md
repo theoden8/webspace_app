@@ -499,6 +499,80 @@ The per-site settings screen SHALL display a compact DNS stats summary below the
 
 ---
 
+### Requirement: DNS-016 - Global Domain Decision Cache
+
+The system SHALL maintain a single global cache of blocked/allowed decisions
+keyed by host, shared across all sites and persisted across app restarts.
+Trackers and CDN domains appear on many sites — one site's learning benefits
+all sites. The cache SHALL be invalidated when the blocklist changes.
+
+#### Scenario: Cached decision reused across sites
+
+**Given** site A's webview has previously checked `cdn.example.com` and
+Dart recorded it as allowed
+**When** site B's webview later encounters `cdn.example.com`
+**Then** the decision is served from the global cache without re-checking
+**And** no Dart roundtrip or Bloom filter check is needed on the JS side
+
+#### Scenario: Cache survives app restart
+
+**Given** the global domain cache contains decisions
+**When** the app is restarted
+**Then** the cache is loaded from SharedPreferences (`dns_domain_cache`)
+**And** is available to new webviews on creation
+
+#### Scenario: Cache invalidated on blocklist update
+
+**Given** the user downloads a new blocklist level
+**When** the download completes
+**Then** the global domain cache is cleared
+**And** SharedPreferences key `dns_domain_cache` is removed
+**Because** previously cached decisions may be invalidated by the new list
+
+#### Scenario: Cache size capped
+
+**Given** the cache has grown to 5000 entries
+**When** a new entry is added
+**Then** the oldest (first-inserted) entry is evicted (FIFO)
+
+#### Scenario: Persistence is write-debounced
+
+**Given** many DNS decisions occur in rapid succession
+**When** `recordRequest` is called repeatedly
+**Then** SharedPreferences is written once after a 2-second idle window
+**And** individual writes do not block the recording path
+
+---
+
+### Requirement: DNS-017 - Android Pull-Based Event Delivery
+
+The Android native DNS handler SHALL deliver blocked events to Dart using a
+signal-then-pull pattern: Java accumulates events in per-site lists, signals
+Dart when new events arrive, and Dart pulls the batched list in a single call.
+Duplicate signals SHALL be suppressed while one is in flight.
+
+#### Scenario: Single block signals Dart
+
+**Given** a sub-resource request is blocked by `FastDnsBlockerHandler`
+**When** the block is recorded
+**Then** Dart receives a `dnsBlockedReady` method call with the siteId only
+(no event data in the signal payload)
+
+#### Scenario: Burst of blocks coalesced
+
+**Given** 100 sub-resources are blocked within 10ms
+**When** the first block fires the signal
+**Then** subsequent blocks append to the per-site list without firing new signals
+**And** Dart's single `fetchBlocked` call retrieves all 100 events atomically
+
+#### Scenario: Signal repeats after completion
+
+**Given** Dart has completed a `fetchBlocked` call and cleared the list
+**When** a new block occurs
+**Then** a new `dnsBlockedReady` signal is sent
+
+---
+
 ## Implementation Details
 
 ### DnsBlockService Singleton
