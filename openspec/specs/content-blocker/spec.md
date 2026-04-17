@@ -18,11 +18,12 @@ A custom implementation is needed that parses ABP filter syntax directly and app
 
 ## Solution
 
-Three-layer content blocking:
+Four-layer content blocking:
 
-1. **Domain blocking** — O(1) hash set lookup in `shouldOverrideUrlLoading` for `||domain^` rules
-2. **CSS cosmetic filtering** — `<style>` tag injection via `UserScript` at `DOCUMENT_START` for `##selector` rules, with `MutationObserver` for dynamic content
-3. **Text-based hiding** — JavaScript DOM walking for `#?#` rules with `:-abp-contains()` patterns (e.g., hiding posts containing "Promoted" or "Sponsored")
+1. **Main-document domain blocking** — O(1) hash set lookup in `shouldOverrideUrlLoading` for `||domain^` rules
+2. **Sub-resource domain blocking** — ABP's `||domain^` set is pushed into the shared sub-resource interceptor alongside the DNS blocklist. Android uses the native `FastSubresourceInterceptor`; iOS/macOS use a JS interceptor backed by a Bloom-filter prefilter. Hits are attributed per source so per-site stats can show a merged "blocked" count while keeping DNS vs ABP separable.
+3. **CSS cosmetic filtering** — `<style>` tag injection via `UserScript` at `DOCUMENT_START` for `##selector` rules, with `MutationObserver` for dynamic content
+4. **Text-based hiding** — JavaScript DOM walking for `#?#` rules with `:-abp-contains()` patterns (e.g., hiding posts containing "Promoted" or "Sponsored")
 
 Filter lists are downloaded on-demand, cached to disk, and parsed in a background isolate.
 
@@ -153,7 +154,7 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 ### Requirement: CB-003 - Domain Blocking
 
-The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups.
+The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups, for both main-document navigations and sub-resource requests.
 
 #### Scenario: Exact domain match
 
@@ -177,6 +178,39 @@ The system SHALL block navigation to domains matched by `||domain^` rules using 
 
 **Given** a URL in shouldOverrideUrlLoading
 **Then** the content blocker check runs after captcha allowlist and DNS blocklist, before ClearURLs processing
+
+#### Scenario: Sub-resource domain blocking (Android)
+
+**Given** `ads.example.com` is in the ABP blocked domains set
+**And** an enabled filter list contains `||ads.example.com^`
+**When** a page on another origin issues an `<img src="https://ads.example.com/banner.png">` sub-resource request
+**Then** the native `FastSubresourceInterceptor` cancels the request before it reaches the network
+**And** the per-site block log records the event with source `abp`
+
+#### Scenario: Sub-resource domain blocking (iOS/macOS)
+
+**Given** the ABP blocklist contains `tracker.example.com`
+**And** the merged DNS+ABP Bloom filter has been delivered to the webview's JS interceptor
+**When** the page issues a `fetch('https://tracker.example.com/beacon')` call
+**Then** the Bloom prefilter identifies the host as "possibly blocked"
+**And** the Dart `blockCheck` handler confirms the block via `ContentBlockerService.isBlocked`
+**And** the request is rejected with `TypeError: Blocked by DNS blocklist`
+**And** the per-site block log records the event with source `abp`
+
+#### Scenario: Source attribution when domain appears in both lists
+
+**Given** `doubleclick.net` is in both the DNS blocklist and the ABP blocklist
+**When** a sub-resource request to `doubleclick.net` is blocked
+**Then** the interceptor attributes the hit to `dns` (DNS is checked first)
+**And** the ABP block counter is not incremented for that request
+
+#### Scenario: Per-source counters preserved in stats
+
+**Given** a page load produces 10 DNS-blocked sub-resources and 3 ABP-blocked sub-resources
+**Then** `DnsStats.blocked` equals 13 (merged)
+**And** `DnsStats.blockedByDns` equals 10
+**And** `DnsStats.blockedByAbp` equals 3
+**And** the stats banner displays `13 blocked`
 
 ---
 
@@ -301,7 +335,33 @@ The EasyList filter lists SHALL be credited under CC BY-SA 3.0 in the app's lice
 
 ---
 
-### Requirement: CB-008 - Backward Compatibility
+### Requirement: CB-008 - Native Interceptor Synchronization
+
+Whenever the aggregated ABP rule set changes (download, toggle, remove, add custom list), the system SHALL re-push the current `ContentBlockerService.blockedDomains` set to the native Android interceptor and invalidate the merged DNS+ABP JS Bloom filter.
+
+#### Scenario: Rules change fires listener
+
+**Given** a caller has subscribed via `ContentBlockerService.addRulesChangedListener`
+**When** any of `downloadList`, `downloadAllLists`, `toggleList`, `removeList`, `addCustomList`, or `initialize` completes
+**Then** `_rebuildRules` runs and invokes the listener after the aggregated sets are updated
+
+#### Scenario: Main wiring pushes to native and invalidates Bloom
+
+**Given** app startup has registered `ContentBlockerService.addRulesChangedListener`
+**When** the listener fires
+**Then** `WebInterceptNative.sendAbpDomains` is called with the current blocked-domains set (Android only; no-op on other platforms)
+**And** `DnsBlockService.invalidateMergedBloom` clears the cached Bloom so the next webview creation rebuilds it
+
+#### Scenario: Initial sync on startup
+
+**Given** cached filter lists include 50,000 blocked domains at startup
+**When** `ContentBlockerService.initialize` completes
+**Then** main.dart explicitly calls `WebInterceptNative.sendAbpDomains` once
+**And** the listener is registered afterwards so subsequent changes re-sync automatically
+
+---
+
+### Requirement: CB-009 - Backward Compatibility
 
 Existing sites without `contentBlockEnabled` in their stored JSON SHALL default to `true` on deserialization.
 
@@ -426,21 +486,32 @@ Two-phase injection:
 
 ### Hook Point in WebView
 
-Domain blocking in `shouldOverrideUrlLoading`:
+Main-document domain blocking in `shouldOverrideUrlLoading`:
 
 ```dart
 shouldOverrideUrlLoading: (controller, navigationAction) async {
   final url = navigationAction.request.url.toString();
   if (_shouldBlockUrl(url)) return CANCEL;
   if (isCaptchaChallenge(url)) return ALLOW;
+  // DNS check records stats with source: BlockSource.dns on hit
   if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) return CANCEL;
-  // Content blocker domain check
+  // Content blocker domain check — records stats with source: BlockSource.abp on hit
   if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
     return CANCEL;
   }
   // ClearURLs processing...
 }
 ```
+
+### Sub-resource Domain Blocking Integration
+
+ABP's `||domain^` rules extend beyond main-document navigation into every sub-resource request, by feeding the same aggregated set to the shared sub-resource interceptor used by the DNS blocklist.
+
+**Android (native):** `WebInterceptPlugin.kt` maintains two parallel hash sets, `dnsBlockedDomains` and `abpBlockedDomains`. `FastSubresourceInterceptor.checkUrl` tries DNS first (with hierarchy walk-up), then ABP. On match it calls `onBlockChecked(host, true, "dns"|"abp")`, which the Dart bridge drains via `fetchBlockEvents` and records on `DnsBlockService` with the right `BlockSource`.
+
+**iOS/macOS (JS):** A single merged Bloom filter built from DNS ∪ ABP blocked domains is shipped to the JS interceptor via the `getBlockBloom` handler. The JS layer wraps `fetch`, `XMLHttpRequest`, and property setters on `img/script/link/iframe`; a Bloom match triggers the `blockCheck` roundtrip, which in Dart resolves DNS vs ABP (respecting the per-site `dnsBlockEnabled` and `contentBlockEnabled` toggles) and records the decision.
+
+Both paths feed the same `DnsBlockService.DnsStats` structure so the stats banner and dev-tools DNS tab show a single merged "blocked" count while `blockedByDns` / `blockedByAbp` remain separately countable. When one filter list ships a domain that also appears in the DNS blocklist, the DNS side wins attribution (it's checked first).
 
 ### Storage
 
@@ -469,11 +540,16 @@ shouldOverrideUrlLoading: (controller, navigationAction) async {
 
 ### Modified
 - `lib/web_view_model.dart` — Added `contentBlockEnabled` field, serialization, pass to WebViewConfig
-- `lib/services/webview.dart` — Added `contentBlockEnabled` to WebViewConfig, domain block hook, UserScript CSS injection at DOCUMENT_START, cosmetic script injection at onLoadStop
+- `lib/services/webview.dart` — Added `contentBlockEnabled` to WebViewConfig, domain block hook, UserScript CSS injection at DOCUMENT_START, cosmetic script injection at onLoadStop, merged DNS+ABP JS Bloom interceptor, source-tagged stat recording
+- `lib/services/content_blocker_service.dart` — Public `blockedDomains` getter, `addRulesChangedListener`/`removeRulesChangedListener` for native + JS Bloom sync
+- `lib/services/dns_block_service.dart` — `BlockSource` enum, source field on `DnsLogEntry`, `blockedByDns`/`blockedByAbp` counters, `getMergedBlockBloom` for DNS ∪ ABP, blocklist-changed listeners
+- `lib/services/web_intercept_native.dart` — `sendDnsDomains` + `sendAbpDomains` split, source-tagged block events drained via `fetchBlockEvents`
+- `android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebInterceptPlugin.kt` — Split DNS/ABP domain sets, source-tagged block events, renamed method channel handlers to `setDnsBlockedDomains` / `setAbpBlockedDomains` / `fetchBlockEvents` / `blockEventsReady`
+- `lib/widgets/stats_banner.dart` — Shows banner when either DNS or ABP has populated domain sets
 - `lib/screens/settings.dart` — Per-site Content Blocker toggle (SwitchListTile)
 - `lib/screens/app_settings.dart` — Content Blocker section with list management UI, download/toggle/remove, custom list dialog
 - `lib/screens/inappbrowser.dart` — Propagate `contentBlockEnabled` to nested webview
-- `lib/main.dart` — ContentBlockerService initialization, CC BY-SA 3.0 license registration
+- `lib/main.dart` — ContentBlockerService initialization, change-listener wiring for native + Bloom sync, CC BY-SA 3.0 license registration
 - `test/web_view_model_test.dart` — Tests for contentBlockEnabled serialization and defaults
 - `README.md` — Feature bullet point, Tech Stack credit with license info
 - `fastlane/metadata/android/en-US/changelogs/9.txt` — Changelog entry

@@ -245,9 +245,14 @@ stack in a separate process and exposes no equivalent to Android's
 has a ~150K rule limit and compilation takes tens of seconds, while even the
 smallest Hagezi blocklist ("Light") is 146K domains.
 
-Instead, iOS uses a JavaScript interceptor injected at `DOCUMENT_START`:
+Instead, iOS uses a JavaScript interceptor injected at `DOCUMENT_START`.
+The interceptor is shared with the ABP content blocker: the Bloom filter
+shipped to JS is built from DNS ∪ ABP blocked domains, and the Dart
+`blockCheck` handler decides DNS vs ABP on each positive hit, recording
+the decision with the matching [BlockSource] so per-site stats stay
+disentangleable.
 
-- Overrides `window.fetch` — async check via `dnsCheck` handler, reject if blocked
+- Overrides `window.fetch` — async check via `blockCheck` handler, reject if blocked
 - Overrides `XMLHttpRequest.prototype.open`/`send` — abort if blocked
 - Patches `src`/`href` setters on `HTMLImageElement`, `HTMLScriptElement`,
   `HTMLLinkElement`, `HTMLIFrameElement` — defers the assignment pending the check
@@ -261,8 +266,8 @@ To minimize Dart roundtrips, the iOS interceptor uses three tiers:
 Dart maintains a single `_domainCache: Map<String, bool>` keyed by host (NOT
 per-site — trackers and CDNs are shared across sites, so one site learning
 about `googleapis.com` benefits all sites). Updated transparently via
-`recordRequest` whenever any webview reports a DNS decision (via native
-handler, JS `dnsCheck`, or JS `dnsResourceLoaded`). Persisted in
+`recordRequest` whenever any webview reports a block decision (via native
+handler, JS `blockCheck`, or JS `blockResourceLoaded`). Persisted in
 SharedPreferences under `dns_domain_cache`, write-debounced to 2 seconds.
 Capped at 5000 entries with FIFO eviction. Invalidated (cleared) when the
 blocklist changes, since cached decisions may become stale.
@@ -270,17 +275,19 @@ blocklist changes, since cached decisions may become stale.
 On the JS side (iOS), each webview also maintains `allowedCache` /
 `blockedCache` for instant in-webview lookup without MethodChannel calls.
 Hydrated on webview creation from the Dart global cache via the
-`getDnsBloom` handler (which returns `{bits, bitCount, k, cache}`).
+`getBlockBloom` handler (which returns `{bits, bitCount, k, cache}`).
 Capped at 500 entries with FIFO eviction.
 
 **2. Bloom filter (JS byte array)** — microsecond lookup:
-Built from the blocked domains (~430 KB for 588K domains at 5% false positive
-rate). Sent to JS once on webview creation. Uses FNV-1a hash with
-Kirsch-Mitzenmacher double-hashing for k hash functions. JS implementation
-byte-compatible with Dart `BloomFilter` class.
+Built from the merged DNS ∪ ABP blocked domains (~430 KB for 588K domains
+at 5% false positive rate). Sent to JS once on webview creation via
+`getBlockBloom`. Uses FNV-1a hash with Kirsch-Mitzenmacher double-hashing
+for k hash functions. JS implementation byte-compatible with Dart
+`BloomFilter` class. Rebuilt lazily; invalidated whenever either the DNS
+blocklist or the aggregated ABP rule set changes.
 
-- Bloom says "definitely not" → allow without roundtrip, record via `dnsResourceLoaded`, add to JS cache
-- Bloom says "possibly yes" → roundtrip to Dart `dnsCheck` handler for confirmation, add result to JS cache
+- Bloom says "definitely not" → allow without roundtrip, record via `blockResourceLoaded`, add to JS cache
+- Bloom says "possibly yes" → roundtrip to Dart `blockCheck` handler for confirmation, add result to JS cache
 
 **3. Dart authoritative check** — handles false positives + blocks:
 Only ~5% of first-time allowed URLs + all blocked URLs hit Dart. Dart does
@@ -563,7 +570,7 @@ one is in flight.
 
 **Given** the events list for a site is empty
 **When** the first event is recorded (allowed or blocked)
-**Then** Dart receives a `dnsEventsReady` method call with the siteId only
+**Then** Dart receives a `blockEventsReady` method call with the siteId only
 (no event data in the signal payload)
 
 #### Scenario: Burst of events coalesced
@@ -578,7 +585,7 @@ one is in flight.
 
 **Given** Dart has completed a `fetchEvents` call and cleared the list
 **When** a new event occurs
-**Then** a new `dnsEventsReady` signal is sent
+**Then** a new `blockEventsReady` signal is sent
 
 #### Scenario: Stats update without PerformanceObserver lag
 
@@ -690,7 +697,7 @@ class FastSubresourceInterceptor(
 ```
 
 The `WebInterceptPlugin` manages the lifecycle:
-1. `setBlockedDomains` — receives domain list from Dart, stores in Java `HashSet`
+1. `setDnsBlockedDomains` / `setAbpBlockedDomains` — receives per-source domain lists from Dart, stores in two Java `HashSet`s kept separate so events can be attributed
 2. `attachToWebViews(siteId)` — traverses view hierarchy, finds `InAppWebView`
    instances, replaces `contentBlockerHandler` field with `FastSubresourceInterceptor`
 3. **Pull-based event delivery** — Java accumulates blocked events in a
@@ -717,9 +724,9 @@ if (DnsBlockService.instance.hasBlocklist) {
 
 **onLoadStart** (all platforms) — records page URL for immediate banner display.
 
-**PerformanceObserver JS** (all platforms) — injected at `DOCUMENT_START` with
+**PerformanceObserver JS** (iOS/macOS) — injected at `DOCUMENT_START` with
 `buffered: true`, records all completed resources via Resource Timing API.
-Reports back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`.
+Reports back to Dart via `addJavaScriptHandler('blockResourceLoaded')`.
 
 ### Storage
 
