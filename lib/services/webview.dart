@@ -940,6 +940,7 @@ class WebViewFactory {
     LogService.instance.log('LocalCDN',
         'Creating webview: siteId=${config.siteId} localCdnEnabled=${config.localCdnEnabled} hasCache=${LocalCdnService.instance.hasCache} useInterceptor=$useInterceptor');
     bool loggedFirstIntercept = false;
+    int interceptCount = 0;
 
     return inapp.InAppWebView(
       key: config.key,
@@ -1112,10 +1113,18 @@ class WebViewFactory {
           ? (controller, request) async {
               final url = request.url.toString();
 
+              interceptCount++;
               if (!loggedFirstIntercept) {
                 loggedFirstIntercept = true;
                 LogService.instance.log('LocalCDN',
                     'Dart shouldInterceptRequest is firing (first call) for site ${config.siteId}, url=$url');
+              }
+              // Log the first 25 intercepts per site, plus samples afterwards,
+              // so you can see what the interceptor is actually seeing.
+              if (interceptCount <= 25 || interceptCount % 50 == 0) {
+                final isCdn = LocalCdnService.instance.isCdnUrl(url);
+                LogService.instance.log('LocalCDN',
+                    'Intercept #$interceptCount (site ${config.siteId}, cdnMatch=$isCdn): $url');
               }
 
               // Record every sub-resource request for DNS stats
