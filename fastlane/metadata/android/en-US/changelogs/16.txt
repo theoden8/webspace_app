@@ -1,14 +1,14 @@
-✨ New Features:
-• Full screen mode with per-site auto-fullscreen
+✨ Features:
+• Full screen mode (per-site)
 • Import local HTML files as sites
-• Per-site cookie blocking by name and domain
-• DNS blocking live banner and query log
+• Per-site cookie blocking
+• DNS block log and per-site toggle
 • JS console in Developer Tools
 
 🔧 Improvements:
-• Native sub-resource interceptor for DNS, LocalCDN, and ABP
+• Faster native blocking for DNS, LocalCDN, and ABP
 • Two-step back-to-exit on Android
 
-🐛 Bug Fixes:
-• Fix user scripts not running after settings save
-• Fix cross-domain navigation opening in wrong webview
+🐛 Fixes:
+• User scripts not running after settings save
+• Search engine links not opening in nested webview
