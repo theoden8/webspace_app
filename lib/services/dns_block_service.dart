@@ -368,7 +368,12 @@ class DnsBlockService {
       domains.add(trimmed);
     }
     _blockedDomains = domains;
+    // Rebuild bloom filter eagerly so the first webview page load doesn't
+    // pay the ~500ms build cost synchronously.
     _bloomFilter = null;
+    if (domains.isNotEmpty) {
+      getBloomFilter();
+    }
   }
 
   Future<File> _getCacheFile() async {
