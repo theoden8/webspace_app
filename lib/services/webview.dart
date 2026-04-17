@@ -936,11 +936,6 @@ class WebViewFactory {
     String? lastLoadStartUrl;
 
     LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
-    final useInterceptor = Platform.isAndroid && config.localCdnEnabled;
-    LogService.instance.log('LocalCDN',
-        'Creating webview: siteId=${config.siteId} localCdnEnabled=${config.localCdnEnabled} hasCache=${LocalCdnService.instance.hasCache} useInterceptor=$useInterceptor');
-    bool loggedFirstIntercept = false;
-    int interceptCount = 0;
 
     return inapp.InAppWebView(
       key: config.key,
@@ -970,7 +965,7 @@ class WebViewFactory {
         useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled,
         useShouldInterceptAjaxRequest: false,
         useShouldInterceptFetchRequest: false,
-        useOnLoadResource: true,
+        useOnLoadResource: false,
         supportMultipleWindows: true,
         // Required for Cloudflare Turnstile and other challenge systems
         domStorageEnabled: true,
@@ -1032,8 +1027,6 @@ class WebViewFactory {
         // If we loaded cached HTML, navigate to the real URL when online
         if (usesCachedHtml) {
           final online = await ConnectivityService.instance.isOnline();
-          LogService.instance.log('LocalCDN',
-              'Cached HTML path: online=$online, will ${online ? "loadUrl(${config.initialUrl})" : "stay on cached data: URL"}');
           if (online) {
             // Reset cache mode to default before loading live URL
             await controller.setSettings(settings: inapp.InAppWebViewSettings(
@@ -1115,20 +1108,6 @@ class WebViewFactory {
           ? (controller, request) async {
               final url = request.url.toString();
 
-              interceptCount++;
-              if (!loggedFirstIntercept) {
-                loggedFirstIntercept = true;
-                LogService.instance.log('LocalCDN',
-                    'Dart shouldInterceptRequest is firing (first call) for site ${config.siteId}, url=$url');
-              }
-              // Log the first 25 intercepts per site, plus samples afterwards,
-              // so you can see what the interceptor is actually seeing.
-              if (interceptCount <= 25 || interceptCount % 50 == 0) {
-                final isCdn = LocalCdnService.instance.isCdnUrl(url);
-                LogService.instance.log('LocalCDN',
-                    'Intercept #$interceptCount (site ${config.siteId}, cdnMatch=$isCdn): $url');
-              }
-
               // Record every sub-resource request for DNS stats
               if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
                 final blocked = DnsBlockService.instance.isBlocked(url);
@@ -1154,17 +1133,11 @@ class WebViewFactory {
                     if (config.siteId != null) {
                       service.recordReplacement(config.siteId!);
                     }
-                    LogService.instance.log('LocalCDN',
-                        'Replaced: $url (site: ${config.siteId})');
                     return inapp.WebResourceResponse(
                       contentType: service.getContentType(url),
                       contentEncoding: 'utf-8',
                       data: data,
                     );
-                  } else {
-                    LogService.instance.log('LocalCDN',
-                        'CDN URL not served (fetch failed): $url',
-                        level: LogLevel.warning);
                   }
                 }
               }
@@ -1174,15 +1147,6 @@ class WebViewFactory {
           : null,
       // fetch/XHR interception disabled — Dart roundtrip bottlenecks page loading.
       // Native FastDnsBlockerHandler handles sub-resource blocking in Java instead.
-      onLoadResource: Platform.isAndroid && config.localCdnEnabled
-          ? (controller, resource) async {
-              final url = resource.url.toString();
-              if (!url.startsWith('http')) return;
-              final isCdn = LocalCdnService.instance.isCdnUrl(url);
-              LogService.instance.log('LocalCDN',
-                  'onLoadResource (site ${config.siteId}, cdnMatch=$isCdn): $url');
-            }
-          : null,
       onLoadStart: (controller, url) async {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();

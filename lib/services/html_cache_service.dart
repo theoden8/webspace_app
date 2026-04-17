@@ -69,7 +69,7 @@ class HtmlCacheService {
       _iv = encrypt.IV(Uint8List.fromList(keyBytes.sublist(0, 16)));
       _encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
 
-      LogService.instance.log('HtmlCache', 'Encryption initialized', level: LogLevel.info);
+      LogService.instance.log('HtmlCache', 'Encryption initialized');
     } catch (e) {
       LogService.instance.log('HtmlCache', 'Error initializing encryption: $e', level: LogLevel.error);
     }
@@ -130,7 +130,7 @@ class HtmlCacheService {
           }
         }
       }
-      LogService.instance.log('HtmlCache', 'Pre-loaded ${_memoryCache.length} cached pages', level: LogLevel.info);
+      LogService.instance.log('HtmlCache', 'Pre-loaded ${_memoryCache.length} cached pages');
     } catch (e) {
       LogService.instance.log('HtmlCache', 'Error pre-loading cache: $e', level: LogLevel.error);
     }
@@ -194,7 +194,7 @@ class HtmlCacheService {
       // Update memory cache
       _memoryCache[siteId] = html;
 
-      LogService.instance.log('HtmlCache', 'Saved ${html.length} bytes for site $siteId (encrypted)', level: LogLevel.info);
+      LogService.instance.log('HtmlCache', 'Saved ${html.length} bytes for site $siteId (encrypted)');
     } catch (e) {
       LogService.instance.log('HtmlCache', 'Error saving HTML for $siteId: $e', level: LogLevel.error);
     }
@@ -219,7 +219,7 @@ class HtmlCacheService {
       final url = decrypted.substring(0, newlineIndex);
       final html = decrypted.substring(newlineIndex + 1);
 
-      LogService.instance.log('HtmlCache', 'Loaded ${html.length} bytes for site $siteId (decrypted)', level: LogLevel.info);
+      LogService.instance.log('HtmlCache', 'Loaded ${html.length} bytes for site $siteId (decrypted)');
 
       return (url, html);
     } catch (e) {
