@@ -165,7 +165,7 @@ void main() {
     // Whitelisted CDN domains
     test('should whitelist cdn.jsdelivr.net', () {
       expect(
-        classifyScriptFetchUrl('https://cdn.jsdelivr.net/npm/darkreader/darkreader.min.js'),
+        classifyScriptFetchUrl('https://cdn.jsdelivr.net/npm/lodash/lodash.min.js'),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
@@ -221,7 +221,7 @@ void main() {
 
     test('should whitelist http:// (not just https://)', () {
       expect(
-        classifyScriptFetchUrl('http://cdn.jsdelivr.net/npm/darkreader/darkreader.min.js'),
+        classifyScriptFetchUrl('http://cdn.jsdelivr.net/npm/lodash/lodash.min.js'),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
@@ -336,14 +336,14 @@ void main() {
     // Case insensitivity
     test('should handle uppercase schemes', () {
       expect(
-        classifyScriptFetchUrl('HTTPS://cdn.jsdelivr.net/npm/darkreader.js'),
+        classifyScriptFetchUrl('HTTPS://cdn.jsdelivr.net/npm/lodash.js'),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
 
     test('should handle mixed case host', () {
       expect(
-        classifyScriptFetchUrl('https://CDN.JSDELIVR.NET/npm/darkreader.js'),
+        classifyScriptFetchUrl('https://CDN.JSDELIVR.NET/npm/lodash.js'),
         ScriptFetchUrlStatus.whitelisted,
       );
     });
@@ -391,18 +391,18 @@ void main() {
     test('fullSource concatenates urlSource and source', () {
       final script = UserScriptConfig(
         name: 'test',
-        source: 'DarkReader.enable();',
-        urlSource: '/* darkreader lib */',
+        source: 'MyLib.init();',
+        urlSource: '/* cdn lib */',
       );
-      expect(script.fullSource, '/* darkreader lib */\nDarkReader.enable();');
+      expect(script.fullSource, '/* cdn lib */\nMyLib.init();');
     });
 
     // Serialization of new fields
     test('url and urlSource roundtrip through JSON', () {
       final original = UserScriptConfig(
-        name: 'DR',
-        source: 'DarkReader.enable();',
-        url: 'https://cdn.jsdelivr.net/npm/darkreader/darkreader.min.js',
+        name: 'Lib',
+        source: 'MyLib.init();',
+        url: 'https://cdn.jsdelivr.net/npm/lodash/lodash.min.js',
         urlSource: '/* cached */',
       );
       final restored = UserScriptConfig.fromJson(original.toJson());
