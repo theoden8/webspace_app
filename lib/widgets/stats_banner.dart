@@ -136,7 +136,7 @@ class _StatsBannerState extends State<StatsBanner> {
                     Icon(Icons.cloud_off, size: 14, color: textColor),
                     const SizedBox(width: 6),
                     Text(
-                      '$cdnReplacements cdn${cdnReplacements == 1 ? '' : 's'} replaced',
+                      '$cdnReplacements cdn',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,

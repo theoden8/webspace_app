@@ -784,10 +784,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _saveShowStatsBanner() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Legacy prefs key kept for backward-compat — the banner now covers
-    // DNS + LocalCDN ("Stats Bar" in the UI), but migrating the key would
-    // reset the user's existing toggle state.
-    await prefs.setBool('showDnsBanner', _showStatsBanner);
+    await prefs.setBool('showStatsBanner', _showStatsBanner);
   }
 
   Future<void> _saveGlobalUserScripts() async {
@@ -1146,7 +1143,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
-      _showStatsBanner = prefs.getBool('showDnsBanner') ?? true;
+      _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
