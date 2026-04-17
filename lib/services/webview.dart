@@ -958,7 +958,11 @@ class WebViewFactory {
         incognito: config.incognito,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
-        useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled && LocalCdnService.instance.hasCache,
+        // Register the Dart interceptor whenever LocalCDN is enabled on Android.
+        // Gating on hasCache prevented on-demand CDN downloads (and the
+        // per-site replacement counter) from ever firing for users who
+        // hadn't pre-downloaded the popular-resources bundle.
+        useShouldInterceptRequest: Platform.isAndroid && config.localCdnEnabled,
         useShouldInterceptAjaxRequest: false,
         useShouldInterceptFetchRequest: false,
         useOnLoadResource: false,

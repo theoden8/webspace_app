@@ -227,6 +227,45 @@ void main() {
     });
   });
 
+  group('Per-site replacement counter', () {
+    test('returns 0 for a site with no replacements', () {
+      expect(service.replacementsForSite('fresh-site'), equals(0));
+    });
+
+    test('recordReplacement increments the per-site counter', () {
+      const siteId = 'site-a';
+      service.clearReplacementsForSite(siteId);
+      service.recordReplacement(siteId);
+      service.recordReplacement(siteId);
+      service.recordReplacement(siteId);
+      expect(service.replacementsForSite(siteId), equals(3));
+      service.clearReplacementsForSite(siteId);
+    });
+
+    test('counters are isolated per site', () {
+      const a = 'site-a2';
+      const b = 'site-b2';
+      service.clearReplacementsForSite(a);
+      service.clearReplacementsForSite(b);
+      service.recordReplacement(a);
+      service.recordReplacement(a);
+      service.recordReplacement(b);
+      expect(service.replacementsForSite(a), equals(2));
+      expect(service.replacementsForSite(b), equals(1));
+      service.clearReplacementsForSite(a);
+      service.clearReplacementsForSite(b);
+    });
+
+    test('clearReplacementsForSite resets a site to 0', () {
+      const siteId = 'site-c';
+      service.recordReplacement(siteId);
+      service.recordReplacement(siteId);
+      expect(service.replacementsForSite(siteId), equals(2));
+      service.clearReplacementsForSite(siteId);
+      expect(service.replacementsForSite(siteId), equals(0));
+    });
+  });
+
   group('formatSize', () {
     test('formats bytes', () {
       expect(LocalCdnService.formatSize(0), equals('0 B'));
