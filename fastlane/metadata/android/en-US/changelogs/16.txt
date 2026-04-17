@@ -1,9 +1,7 @@
 ✨ Features:
 • Full screen mode (per-site)
-• Import local HTML files as sites
 • Per-site cookie blocking
-• DNS block log and per-site toggle
-• JS console in Developer Tools
+• Local HTML file import, JS console, DNS block log
 
 🔧 Improvements:
 • Faster native blocking for DNS, LocalCDN, and ABP
