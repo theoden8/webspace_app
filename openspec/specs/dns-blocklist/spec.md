@@ -742,7 +742,7 @@ Reports back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`.
 ### Created
 - `lib/services/dns_block_service.dart` — Singleton service: download, cache, parse, lookup, per-site stats
 - `lib/services/web_intercept_native.dart` — Dart-side interface for native Android DNS blocker
-- `lib/widgets/dns_block_banner.dart` — Live DNS activity banner widget for webview overlay
+- `lib/widgets/stats_banner.dart` — Live DNS activity banner widget for webview overlay
 - `android/app/src/main/kotlin/.../WebInterceptPlugin.kt` — Native Android plugin: FastSubresourceInterceptor (Java HashSet), WebInterceptPlugin (MethodChannel + view traversal)
 - `test/dns_block_service_test.dart` — 12 unit tests for domain matching logic
 - `test/dns_block_benchmark_test.dart` — Performance benchmark (522K domains parse + lookup)
@@ -754,7 +754,7 @@ Reports back to Dart via `addJavaScriptHandler('dnsResourceLoaded')`.
 - `lib/screens/settings.dart` — Per-site DNS Blocklist toggle with stats summary chips
 - `lib/screens/dev_tools.dart` — DNS tab with query log, stats cards, filters, copy/clear actions
 - `lib/screens/app_settings.dart` — Privacy section with slider, download, DNS Block Banner toggle, native domain sync
-- `lib/main.dart` — DnsBlockService + WebInterceptNative initialization, DnsBlockBanner in webview stack
+- `lib/main.dart` — DnsBlockService + WebInterceptNative initialization, StatsBanner in webview stack
 - `android/app/src/main/kotlin/.../MainActivity.kt` — WebInterceptPlugin registration
 - `test/web_view_model_test.dart` — Tests for dnsBlockEnabled serialization and defaults
 

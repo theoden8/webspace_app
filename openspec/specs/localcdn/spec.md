@@ -351,7 +351,7 @@ useShouldInterceptRequest: false
 - `lib/services/webview.dart` - Added `localCdnEnabled` to `WebViewConfig`; disabled the Dart `shouldInterceptRequest` callback on Android in favour of the native interceptor
 - `lib/services/localcdn_service.dart` - Per-site replacement counter, cdnPatternStrings / cacheIndexSnapshot getters, and cache-change listeners for the native bridge
 - `lib/services/web_intercept_native.dart` - Renamed from `dns_block_native.dart`; now pushes CDN patterns + cache index to native and drains CDN replacement events
-- `lib/widgets/dns_block_banner.dart` - Stats banner also shows LocalCDN replacement count on Android
+- `lib/widgets/stats_banner.dart` - Stats banner also shows LocalCDN replacement count on Android
 - `lib/screens/settings.dart` - Per-site LocalCDN toggle
 - `lib/screens/app_settings.dart` - LocalCDN download button, progress indicator, cache stats, clear cache
 - `lib/main.dart` - LocalCDN service initialization + initial sync of patterns/index to native

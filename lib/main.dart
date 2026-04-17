@@ -24,7 +24,7 @@ import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
-import 'package:webspace/widgets/dns_block_banner.dart';
+import 'package:webspace/widgets/stats_banner.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
@@ -655,7 +655,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
   bool _showUrlBar = false;
   bool _showTabStrip = false;
-  bool _showDnsBanner = true;
+  bool _showStatsBanner = true;
   bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
   int _canGoBackVersion = 0; // Guards _updateCanGoBack against stale async results
 
@@ -781,10 +781,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await prefs.setBool('showTabStrip', _showTabStrip);
   }
 
-  Future<void> _saveShowDnsBanner() async {
+  Future<void> _saveShowStatsBanner() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('showDnsBanner', _showDnsBanner);
+    // Legacy prefs key kept for backward-compat — the banner now covers
+    // DNS + LocalCDN ("Stats Bar" in the UI), but migrating the key would
+    // reset the user's existing toggle state.
+    await prefs.setBool('showDnsBanner', _showStatsBanner);
   }
 
   Future<void> _saveGlobalUserScripts() async {
@@ -1143,7 +1146,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
-      _showDnsBanner = prefs.getBool('showDnsBanner') ?? true;
+      _showStatsBanner = prefs.getBool('showDnsBanner') ?? true;
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
@@ -1801,12 +1804,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       });
                       _saveShowTabStrip();
                     },
-                    showDnsBanner: _showDnsBanner,
-                    onShowDnsBannerChanged: (value) {
+                    showStatsBanner: _showStatsBanner,
+                    onShowStatsBannerChanged: (value) {
                       setState(() {
-                        _showDnsBanner = value;
+                        _showStatsBanner = value;
                       });
-                      _saveShowDnsBanner();
+                      _saveShowStatsBanner();
                     },
                     globalUserScripts: _globalUserScripts,
                     onGlobalUserScriptsChanged: (scripts) {
@@ -3130,8 +3133,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           key: ValueKey(webViewModel.siteId),
                           child: Column(
                             children: [
-                              if (_showDnsBanner)
-                                DnsBlockBanner(
+                              if (_showStatsBanner)
+                                StatsBanner(
                                   siteId: webViewModel.siteId,
                                   dnsBlockEnabled: webViewModel.dnsBlockEnabled,
                                   localCdnEnabled: webViewModel.localCdnEnabled,

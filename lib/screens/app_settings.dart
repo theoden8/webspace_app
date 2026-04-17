@@ -34,8 +34,8 @@ class AppSettingsScreen extends StatefulWidget {
   final VoidCallback onImportSettings;
   final bool showTabStrip;
   final ValueChanged<bool> onShowTabStripChanged;
-  final bool showDnsBanner;
-  final ValueChanged<bool> onShowDnsBannerChanged;
+  final bool showStatsBanner;
+  final ValueChanged<bool> onShowStatsBannerChanged;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
 
@@ -47,8 +47,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onImportSettings,
     required this.showTabStrip,
     required this.onShowTabStripChanged,
-    required this.showDnsBanner,
-    required this.onShowDnsBannerChanged,
+    required this.showStatsBanner,
+    required this.onShowStatsBannerChanged,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
   });
@@ -61,7 +61,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     with SingleTickerProviderStateMixin {
   late AppThemeSettings _settings;
   late bool _showTabStrip;
-  late bool _showDnsBanner;
+  late bool _showStatsBanner;
   bool _isDownloadingRules = false;
   DateTime? _rulesLastUpdated;
 
@@ -88,7 +88,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     super.initState();
     _settings = widget.currentSettings;
     _showTabStrip = widget.showTabStrip;
-    _showDnsBanner = widget.showDnsBanner;
+    _showStatsBanner = widget.showStatsBanner;
     _spinController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -435,12 +435,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           SwitchListTile(
             title: const Text('Stats Bar'),
             subtitle: const Text('Show live request stats at the top of each site'),
-            value: _showDnsBanner,
+            value: _showStatsBanner,
             onChanged: (value) {
               setState(() {
-                _showDnsBanner = value;
+                _showStatsBanner = value;
               });
-              widget.onShowDnsBannerChanged(value);
+              widget.onShowStatsBannerChanged(value);
             },
           ),
 

@@ -9,12 +9,12 @@ import 'package:webspace/services/localcdn_service.dart';
 /// blocking activity and (on Android) LocalCDN replacements per site.
 /// Taps expand/collapse the banner. Automatically hides when there's no
 /// activity to report.
-class DnsBlockBanner extends StatefulWidget {
+class StatsBanner extends StatefulWidget {
   final String siteId;
   final bool dnsBlockEnabled;
   final bool localCdnEnabled;
 
-  const DnsBlockBanner({
+  const StatsBanner({
     super.key,
     required this.siteId,
     required this.dnsBlockEnabled,
@@ -22,10 +22,10 @@ class DnsBlockBanner extends StatefulWidget {
   });
 
   @override
-  State<DnsBlockBanner> createState() => _DnsBlockBannerState();
+  State<StatsBanner> createState() => _StatsBannerState();
 }
 
-class _DnsBlockBannerState extends State<DnsBlockBanner> {
+class _StatsBannerState extends State<StatsBanner> {
   bool _expanded = false;
   Timer? _refreshTimer;
   int _lastTotal = 0;
