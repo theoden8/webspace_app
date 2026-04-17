@@ -1,5 +1,4 @@
 import 'dart:collection';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -776,13 +775,6 @@ class WebViewFactory {
     }
   }
 
-  // Expose a snapshot for Dart to persist
-  window.__dnsCacheSnapshot = function() {
-    var snap = {};
-    for (var h in allowedCache) snap[h] = false;
-    for (var h in blockedCache) snap[h] = true;
-    return snap;
-  };
 
   function check(url) {
     if (!url || typeof url !== 'string' || !url.startsWith('http')) {
@@ -1017,10 +1009,10 @@ class WebViewFactory {
               DnsBlockService.instance.recordRequest(config.siteId!, url, blocked);
               return blocked;
             });
-            // One-shot bloom filter + persisted cache delivery to JS
+            // One-shot bloom filter + global domain cache delivery to JS
             controller.addJavaScriptHandler(handlerName: 'getDnsBloom', callback: (args) {
               final map = Map<String, dynamic>.from(DnsBlockService.instance.getBloomFilter().toMap());
-              map['cache'] = DnsBlockService.instance.getCacheForSite(config.siteId!);
+              map['cache'] = DnsBlockService.instance.getDomainCache();
               return map;
             });
           }
@@ -1192,22 +1184,6 @@ class WebViewFactory {
             }
           }
           await userScriptService.reinjectOnLoadStop(controller);
-          // Persist the JS DNS cache for this site (iOS only)
-          if (!Platform.isAndroid
-              && config.siteId != null
-              && config.dnsBlockEnabled
-              && DnsBlockService.instance.hasBlocklist) {
-            try {
-              final result = await controller.evaluateJavascript(
-                source: 'JSON.stringify(window.__dnsCacheSnapshot ? window.__dnsCacheSnapshot() : {})',
-              );
-              if (result is String) {
-                final decoded = jsonDecode(result) as Map<String, dynamic>;
-                final cache = decoded.map((k, v) => MapEntry(k, v as bool));
-                await DnsBlockService.instance.setCacheForSite(config.siteId!, cache);
-              }
-            } catch (_) {}
-          }
           // Cache HTML for offline viewing
           if (config.onHtmlLoaded != null) {
             try {

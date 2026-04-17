@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -117,70 +118,70 @@ class DnsBlockService {
   /// Cached Bloom filter for fast JS-side membership checks.
   BloomFilter? _bloomFilter;
 
-  /// Per-site resolver cache: siteId -> {host: blocked_bool}.
-  /// Loaded from disk on init, saved on updates.
-  final Map<String, Map<String, bool>> _perSiteCache = {};
+  /// Global per-domain resolver cache: host -> blocked_bool.
+  /// Shared across all sites since the same tracker/CDN domains appear
+  /// everywhere. Loaded from disk on init, invalidated on blocklist update.
+  final Map<String, bool> _domainCache = {};
 
-  static const _perSiteCacheKey = 'dns_per_site_cache';
-  static const _maxCacheEntriesPerSite = 500;
+  static const _domainCacheKey = 'dns_domain_cache';
+  static const _maxDomainCacheEntries = 5000;
 
-  /// Get the persisted JS cache for a site (empty map if none).
-  Map<String, bool> getCacheForSite(String siteId) {
-    return _perSiteCache[siteId] ?? const {};
-  }
+  /// Get the current domain cache (for hydrating new webviews).
+  Map<String, bool> getDomainCache() => _domainCache;
 
-  /// Replace the cache for a site with an updated version from JS.
-  /// Called on onLoadStop to persist what the webview has learned.
-  Future<void> setCacheForSite(String siteId, Map<String, bool> cache) async {
-    // Trim to limit
-    if (cache.length > _maxCacheEntriesPerSite) {
-      final trimmed = <String, bool>{};
-      int i = 0;
-      for (final e in cache.entries) {
-        if (i++ >= _maxCacheEntriesPerSite) break;
-        trimmed[e.key] = e.value;
-      }
-      cache = trimmed;
+  /// Record a confirmed decision for a host. Persists asynchronously.
+  void recordDomainDecision(String host, bool blocked) {
+    if (host.isEmpty) return;
+    final prev = _domainCache[host];
+    if (prev == blocked) return; // no change, no write
+    _domainCache[host] = blocked;
+    if (_domainCache.length > _maxDomainCacheEntries) {
+      // FIFO trim by deleting the first inserted key
+      final first = _domainCache.keys.first;
+      _domainCache.remove(first);
     }
-    _perSiteCache[siteId] = cache;
-    await _persistPerSiteCache();
+    _schedulePersistDomainCache();
   }
 
-  Future<void> _persistPerSiteCache() async {
+  Timer? _persistTimer;
+
+  void _schedulePersistDomainCache() {
+    _persistTimer?.cancel();
+    _persistTimer = Timer(const Duration(seconds: 2), _persistDomainCache);
+  }
+
+  Future<void> _persistDomainCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_perSiteCacheKey, jsonEncode(_perSiteCache));
+      await prefs.setString(_domainCacheKey, jsonEncode(_domainCache));
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Failed to persist per-site cache: $e', level: LogLevel.error);
+      LogService.instance.log('DnsBlock', 'Failed to persist domain cache: $e', level: LogLevel.error);
     }
   }
 
-  Future<void> _loadPerSiteCache() async {
+  Future<void> _loadDomainCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_perSiteCacheKey);
+      final raw = prefs.getString(_domainCacheKey);
       if (raw == null) return;
       final data = jsonDecode(raw) as Map<String, dynamic>;
-      for (final entry in data.entries) {
-        final siteCache = <String, bool>{};
-        final inner = entry.value as Map<String, dynamic>;
-        for (final e in inner.entries) {
-          siteCache[e.key] = e.value as bool;
-        }
-        _perSiteCache[entry.key] = siteCache;
+      _domainCache.clear();
+      for (final e in data.entries) {
+        _domainCache[e.key] = e.value as bool;
       }
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Failed to load per-site cache: $e', level: LogLevel.error);
+      LogService.instance.log('DnsBlock', 'Failed to load domain cache: $e', level: LogLevel.error);
     }
   }
 
-  /// Clear all per-site caches. Called when the blocklist changes since
-  /// old cached decisions may no longer be valid.
-  Future<void> _clearPerSiteCache() async {
-    _perSiteCache.clear();
+  /// Clear the global domain cache. Called when the blocklist changes
+  /// since cached decisions may no longer be valid.
+  Future<void> _clearDomainCache() async {
+    _domainCache.clear();
+    _persistTimer?.cancel();
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_perSiteCacheKey);
+      await prefs.remove(_domainCacheKey);
     } catch (_) {}
   }
 
@@ -203,10 +204,13 @@ class DnsBlockService {
   }
 
   /// Record a DNS request (allowed or blocked) for a site.
+  /// Also updates the global per-domain cache so other webviews skip
+  /// re-checking the same host.
   void recordRequest(String siteId, String url, bool wasBlocked) {
     final uri = Uri.tryParse(url);
     if (uri == null || uri.host.isEmpty) return;
     statsForSite(siteId).record(uri.host, wasBlocked);
+    recordDomainDecision(uri.host, wasBlocked);
     _notifyDnsLogListeners();
   }
 
@@ -247,7 +251,7 @@ class DnsBlockService {
           LogService.instance.log('DnsBlock', 'Loaded ${_blockedDomains.length} domains from cache (level $_level)', level: LogLevel.info);
         }
       }
-      await _loadPerSiteCache();
+      await _loadDomainCache();
     } catch (e) {
       LogService.instance.log('DnsBlock', 'Error loading cached blocklist: $e', level: LogLevel.error);
     }
@@ -273,7 +277,7 @@ class DnsBlockService {
       } catch (e) {
         LogService.instance.log('DnsBlock', 'Error clearing blocklist: $e', level: LogLevel.error);
       }
-      await _clearPerSiteCache();
+      await _clearDomainCache();
       return true;
     }
 
@@ -308,7 +312,7 @@ class DnsBlockService {
         await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
 
         // Blocklist changed - invalidate per-site caches
-        await _clearPerSiteCache();
+        await _clearDomainCache();
 
         LogService.instance.log('DnsBlock', 'Downloaded ${_blockedDomains.length} domains (level $level)', level: LogLevel.info);
 

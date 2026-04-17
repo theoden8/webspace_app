@@ -257,15 +257,21 @@ Instead, iOS uses a JavaScript interceptor injected at `DOCUMENT_START`:
 
 To minimize Dart roundtrips, the iOS interceptor uses three tiers:
 
-**1. Per-site domain cache (JS Map)** — instant lookup:
-Each webview maintains `allowedCache` and `blockedCache` maps keyed by host.
-Capped at 500 entries with FIFO eviction. On page load (`onLoadStop`), Dart
-snapshots the cache via JS `__dnsCacheSnapshot()` and persists it in
-SharedPreferences under `dns_per_site_cache` keyed by siteId. On webview
-creation, the persisted cache is sent alongside the Bloom filter and hydrated
-in JS. Result: revisited sites skip the Bloom filter check AND the Dart
-roundtrip for known domains. Cache is cleared when the blocklist changes
-(stale entries could be incorrect).
+**1. Global domain cache** — instant lookup:
+Dart maintains a single `_domainCache: Map<String, bool>` keyed by host (NOT
+per-site — trackers and CDNs are shared across sites, so one site learning
+about `googleapis.com` benefits all sites). Updated transparently via
+`recordRequest` whenever any webview reports a DNS decision (via native
+handler, JS `dnsCheck`, or JS `dnsResourceLoaded`). Persisted in
+SharedPreferences under `dns_domain_cache`, write-debounced to 2 seconds.
+Capped at 5000 entries with FIFO eviction. Invalidated (cleared) when the
+blocklist changes, since cached decisions may become stale.
+
+On the JS side (iOS), each webview also maintains `allowedCache` /
+`blockedCache` for instant in-webview lookup without MethodChannel calls.
+Hydrated on webview creation from the Dart global cache via the
+`getDnsBloom` handler (which returns `{bits, bitCount, k, cache}`).
+Capped at 500 entries with FIFO eviction.
 
 **2. Bloom filter (JS byte array)** — microsecond lookup:
 Built from the blocked domains (~430 KB for 588K domains at 5% false positive
