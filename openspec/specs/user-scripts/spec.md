@@ -119,11 +119,29 @@ Users SHALL be able to add, edit, delete, reorder, and toggle scripts from per-s
 **When** the user taps a script in the list
 **Then** the script editor opens pre-filled with the script's current values
 
-#### Scenario: Delete a script
+#### Scenario: Delete a site script via swipe
 
 **Given** a site with user scripts
 **When** the user swipes a script to dismiss
-**Then** the script is removed from the list
+**Then** a confirmation dialog appears asking "Delete \"<name>\"?" with Cancel/Delete actions. On confirm, the script is removed from the list; on cancel, the script remains.
+
+#### Scenario: Delete a site script via long-press
+
+**Given** a site with user scripts
+**When** the user long-presses a site script
+**Then** a bottom sheet appears with "Delete" and (when global scripts are supported) "Make Global" actions. Tapping "Delete" shows a confirmation dialog; on confirm, the script is removed.
+
+#### Scenario: Delete a global script from the per-site screen
+
+**Given** global scripts are configured and the user has opened User Scripts from site settings
+**When** the user long-presses a global script tile
+**Then** a bottom sheet appears with a "Delete" action. Tapping "Delete" shows a confirmation dialog warning "It will stop running on all sites."; on confirm, the global script is removed from the global list and stops running on all sites.
+
+#### Scenario: Cancel delete confirmation
+
+**Given** the delete confirmation dialog is shown
+**When** the user taps Cancel or dismisses the dialog
+**Then** the script is NOT deleted and remains in its list
 
 #### Scenario: Toggle a script
 
@@ -146,7 +164,7 @@ Users SHALL be able to add, edit, delete, reorder, and toggle scripts from per-s
 #### Scenario: Promote site script to global
 
 **Given** the user opens User Scripts from site settings
-**When** they long-press a site-specific script
+**When** they long-press a site-specific script and select "Make Global" from the bottom sheet
 **Then** a confirmation dialog offers to move it to global scripts. On confirmation, the script is moved from the site list to the global list.
 
 ### Requirement: US-004 - Backward Compatibility
@@ -305,7 +323,7 @@ At injection time: `fullSource = urlSource + '\n' + source`
 
 ### UI
 
-- `UserScriptsScreen`: Combined list showing global scripts (with "Global" badge, globe icon) at the top and site scripts below. Site scripts have drag handles, swipe-to-delete, and long-press to promote to global. Both global and site scripts support toggle and tap-to-edit. Edits sync immediately to the appropriate list.
+- `UserScriptsScreen`: Combined list showing global scripts (with "Global" badge, globe icon) at the top and site scripts below. Site scripts have drag handles, swipe-to-delete (with confirmation), and long-press for a bottom-sheet action menu (Delete / Make Global). Global scripts support long-press to show a bottom-sheet menu with a Delete action. All destructive actions require a confirmation dialog. Both global and site scripts support toggle and tap-to-edit. Edits sync immediately to the appropriate list.
 - `UserScriptEditScreen`: Form with name, optional script URL (auto-downloads on save), injection time dropdown, enabled switch, monospace source editor, and play button with inline console output
 - Per-site settings: "User Scripts" tile — shows both global and site scripts
 - App settings: "User Scripts" section — manages global scripts that run on all sites
@@ -371,7 +389,17 @@ fvm flutter test test/user_script_test.dart
 
 #### Promote site script to global
 1. Open a site's settings > "User Scripts"
-2. Long-press on a script
-3. Confirm "Make Global" dialog
-4. The script moves to global scripts and is removed from the site
-5. Open App Settings > "User Scripts" to verify it's there
+2. Long-press on a site script
+3. Tap "Make Global" in the bottom sheet
+4. Confirm the "Make Global" dialog
+5. The script moves to global scripts and is removed from the site
+6. Open App Settings > "User Scripts" to verify it's there
+
+#### Delete scripts with confirmation
+1. Open a site's settings > "User Scripts"
+2. Long-press a site script — a bottom sheet shows "Delete" and "Make Global"
+3. Tap "Delete" — a confirmation dialog appears. Tap Cancel; verify the script remains.
+4. Repeat and confirm Delete; verify the script is removed.
+5. Swipe a site script from right to left — the same confirmation dialog appears. Cancel and verify the script remains; swipe again and confirm, verify it's removed.
+6. With global scripts configured, long-press a global script (globe icon) in the per-site screen — a bottom sheet shows "Delete". Confirm delete and verify the global script is removed (stops running on all sites).
+7. In App Settings > "User Scripts", swipe a global script and confirm deletion; verify it's removed.
