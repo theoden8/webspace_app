@@ -106,6 +106,96 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     _syncSite();
   }
 
+  void _deleteGlobalScript(int index) {
+    setState(() => _globalScripts.removeAt(index));
+    _syncGlobal();
+  }
+
+  Future<bool> _confirmDelete(UserScriptConfig script, {required bool isGlobal}) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Script'),
+        content: Text(
+          isGlobal
+              ? 'Delete global script "${script.name}"?\n\nIt will stop running on all sites.'
+              : 'Delete "${script.name}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _showSiteScriptActions(int index) async {
+    final script = _scripts[index];
+    final canMakeGlobal = widget.onMakeGlobal != null || widget.onGlobalUserScriptsChanged != null;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete'),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+            if (canMakeGlobal)
+              ListTile(
+                leading: const Icon(Icons.public),
+                title: const Text('Make Global'),
+                subtitle: const Text('Run on all sites'),
+                onTap: () => Navigator.pop(ctx, 'global'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'delete') {
+      if (await _confirmDelete(script, isGlobal: false) && mounted) {
+        _deleteScript(index);
+      }
+    } else if (action == 'global') {
+      await _makeGlobal(index);
+    }
+  }
+
+  Future<void> _showGlobalScriptActions(int index) async {
+    final script = _globalScripts[index];
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete'),
+              subtitle: const Text('Remove from all sites'),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action != 'delete') return;
+    if (await _confirmDelete(script, isGlobal: true) && mounted) {
+      _deleteGlobalScript(index);
+    }
+  }
+
   Future<void> _makeGlobal(int index) async {
     final script = _scripts[index];
     final confirmed = await showDialog<bool>(
@@ -206,6 +296,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                   padding: const EdgeInsets.only(right: 16),
                   child: const Icon(Icons.delete, color: Colors.white),
                 ),
+                confirmDismiss: (_) => _confirmDelete(script, isGlobal: false),
                 onDismissed: (_) => _deleteScript(index),
                 child: ListTile(
                   leading: ReorderableDragStartListener(
@@ -226,9 +317,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                     },
                   ),
                   onTap: () => _editScript(index),
-                  onLongPress: widget.onMakeGlobal != null || widget.onGlobalUserScriptsChanged != null
-                      ? () => _makeGlobal(index)
-                      : null,
+                  onLongPress: () => _showSiteScriptActions(index),
                 ),
               );
             },
@@ -276,6 +365,9 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
       ),
       onTap: widget.onGlobalUserScriptsChanged != null
           ? () => _editGlobalScript(index)
+          : null,
+      onLongPress: widget.onGlobalUserScriptsChanged != null
+          ? () => _showGlobalScriptActions(index)
           : null,
     );
   }
