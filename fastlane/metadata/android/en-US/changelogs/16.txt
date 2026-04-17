@@ -1,12 +1,8 @@
-✨ Features:
-• Full screen mode (per-site)
-• Per-site cookie blocking
-• Local HTML file import, JS console, DNS block log
+✨ New Features:
+• Native sub-resource blocking for DNS, LocalCDN, and ABP
+• DNS block status banner with query log
+• User scripts: long-press delete and post-save execution fix
+• Plus: full screen mode, per-site cookie blocking, HTML file import, JS console, two-step back-to-exit
 
-🔧 Improvements:
-• Faster native blocking for DNS, LocalCDN, and ABP
-• Two-step back-to-exit on Android
-
-🐛 Fixes:
-• User scripts not running after settings save
+🐛 Bug Fixes:
 • Search engine links not opening in nested webview
