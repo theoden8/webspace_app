@@ -668,8 +668,10 @@ class WebViewFactory {
       ));
     }
 
-    // DNS stats: inject PerformanceObserver to report loaded resource URLs
-    if (config.siteId != null && DnsBlockService.instance.hasBlocklist) {
+    // DNS stats: inject PerformanceObserver to report loaded resource URLs.
+    // On Android, the native FastDnsBlockerHandler reports events directly,
+    // so skip PerformanceObserver to avoid double-counting.
+    if (!Platform.isAndroid && config.siteId != null && DnsBlockService.instance.hasBlocklist) {
       userScripts.add(inapp.UserScript(
         groupName: 'dns_resource_observer',
         source: '''
