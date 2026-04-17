@@ -3134,6 +3134,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                 DnsBlockBanner(
                                   siteId: webViewModel.siteId,
                                   dnsBlockEnabled: webViewModel.dnsBlockEnabled,
+                                  localCdnEnabled: webViewModel.localCdnEnabled,
                                 ),
                               Expanded(
                                 child: webViewModel.getWebView(

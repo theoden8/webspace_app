@@ -12,11 +12,13 @@ import 'package:webspace/services/localcdn_service.dart';
 class DnsBlockBanner extends StatefulWidget {
   final String siteId;
   final bool dnsBlockEnabled;
+  final bool localCdnEnabled;
 
   const DnsBlockBanner({
     super.key,
     required this.siteId,
     required this.dnsBlockEnabled,
+    this.localCdnEnabled = true,
   });
 
   @override
@@ -56,9 +58,16 @@ class _DnsBlockBannerState extends State<DnsBlockBanner> {
     final stats = DnsBlockService.instance.statsForSite(widget.siteId);
     final cdnReplacements =
         LocalCdnService.instance.replacementsForSite(widget.siteId);
-    final showCdnCount = Platform.isAndroid && cdnReplacements > 0;
+    // Show the LocalCDN section on Android whenever LocalCDN is enabled for
+    // this site and the cache has resources available — that way the user
+    // sees "0 cdns replaced" as confirmation the feature is watching, and
+    // the counter ticks up from there.
+    final localCdnActive = Platform.isAndroid &&
+        widget.localCdnEnabled &&
+        LocalCdnService.instance.hasCache;
+    final showCdnCount = localCdnActive || cdnReplacements > 0;
 
-    // Nothing to show if there's no DNS activity and no CDN replacements.
+    // Nothing to show if there's no DNS activity and LocalCDN isn't active.
     if ((!hasBlocklist || stats.total == 0) && !showCdnCount) {
       return const SizedBox.shrink();
     }

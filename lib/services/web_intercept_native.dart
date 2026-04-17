@@ -27,6 +27,14 @@ class WebInterceptNative {
         case 'cdnEventsReady':
           await _drainCdnEvents(call.arguments as String?);
           break;
+        case 'log':
+          final args = call.arguments;
+          if (args is Map) {
+            final tag = (args['tag'] as String?) ?? 'WebIntercept';
+            final message = (args['message'] as String?) ?? '';
+            LogService.instance.log(tag, message);
+          }
+          break;
       }
     });
   }

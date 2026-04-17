@@ -164,6 +164,14 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
     }
 
+    /// Forward a log line to Dart's LogService so the user can see what
+    /// the native interceptor is doing without plugging into logcat.
+    fun log(tag: String, message: String) {
+        mainHandler.post {
+            channel.invokeMethod("log", mapOf("tag" to tag, "message" to message), null)
+        }
+    }
+
     private fun attachToAllWebViews(newSiteId: String?): Int {
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
@@ -180,8 +188,12 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     cdnPatterns = cdnPatterns,
                     cdnCacheIndex = cdnCacheIndex,
                     onDnsChecked = { host, blocked -> recordDnsEvent(siteId, host, blocked) },
-                    onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) }
+                    onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) },
+                    onLog = { tag, message -> log(tag, message) }
                 )
+                log("WebIntercept",
+                    "Attached interceptor: siteId=$siteId domains=${blockedDomains.size} " +
+                    "cdnPatterns=${cdnPatterns.size} cdnCache=${cdnCacheIndex.size}")
             }
         }
         return webViews.size
@@ -215,8 +227,12 @@ class FastSubresourceInterceptor(
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
     private val onDnsChecked: (String, Boolean) -> Unit,
-    private val onCdnReplaced: (String, String) -> Unit
+    private val onCdnReplaced: (String, String) -> Unit,
+    private val onLog: (String, String) -> Unit = { _, _ -> }
 ) : ContentBlockerHandler() {
+
+    private var checkCount = 0
+    private var loggedNoCache = false
 
     init {
         // Dummy rule so the Java guard `ruleList.size() > 0` passes
@@ -237,6 +253,13 @@ class FastSubresourceInterceptor(
         }
         if (host.isEmpty()) return null
 
+        checkCount++
+        // Log the first handful of sub-resource intercepts so you can
+        // confirm the native path is firing at all, plus periodic samples.
+        if (checkCount <= 10 || checkCount % 100 == 0) {
+            onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
+        }
+
         // 1. DNS blocking + stats recording
         val blocked = isBlockedDomain(host)
         onDnsChecked(host, blocked)
@@ -248,6 +271,10 @@ class FastSubresourceInterceptor(
         if (cdnPatterns.isNotEmpty() && cdnCacheIndex.isNotEmpty()) {
             val response = tryServeCdn(url)
             if (response != null) return response
+        } else if (!loggedNoCache) {
+            loggedNoCache = true
+            onLog("WebIntercept",
+                "LocalCDN inert: patterns=${cdnPatterns.size} cache=${cdnCacheIndex.size}")
         }
 
         return null
@@ -263,14 +290,23 @@ class FastSubresourceInterceptor(
             val file = match.groupValues[3]
             if (lib.isEmpty() || ver.isEmpty() || file.isEmpty()) continue
             val cacheKey = "$lib/$ver/$file"
-            val filePath = synchronized(cdnCacheIndex) { cdnCacheIndex[cacheKey] } ?: continue
+            val filePath = synchronized(cdnCacheIndex) { cdnCacheIndex[cacheKey] }
+            if (filePath == null) {
+                onLog("WebIntercept", "CDN match but no cache entry: key=$cacheKey url=$url")
+                continue
+            }
             val f = File(filePath)
-            if (!f.exists()) continue
+            if (!f.exists()) {
+                onLog("WebIntercept", "CDN match but file missing: key=$cacheKey path=$filePath")
+                continue
+            }
             return try {
                 val stream = FileInputStream(f)
                 onCdnReplaced(cacheKey, url)
+                onLog("LocalCDN", "Replaced: $url -> $cacheKey")
                 WebResourceResponse(contentTypeFor(file), "utf-8", stream)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                onLog("WebIntercept", "CDN serve failed: key=$cacheKey err=${e.message}")
                 null
             }
         }
