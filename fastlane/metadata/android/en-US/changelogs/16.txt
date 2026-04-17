@@ -1,0 +1,8 @@
+✨ New Features:
+• Native sub-resource blocking for DNS, LocalCDN, and ABP
+• DNS block status banner with query log
+• User scripts: long-press delete and post-save execution fix
+• Plus: full screen mode, per-site cookie blocking, HTML file import, JS console, two-step back-to-exit
+
+🐛 Bug Fixes:
+• Search engine links not opening in nested webview
