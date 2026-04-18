@@ -78,6 +78,10 @@ class SettingsScreen extends StatefulWidget {
   final List<UserScriptConfig> globalUserScripts;
   /// Callback when global user scripts are changed
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
+  /// Fired when the user toggles / edits / adds / deletes / opts in to a
+  /// user script. Parent should dispose this site's webview so the next
+  /// render recreates it with the updated [initialUserScripts].
+  final VoidCallback? onScriptsChanged;
 
   SettingsScreen({
     required this.webViewModel,
@@ -86,6 +90,7 @@ class SettingsScreen extends StatefulWidget {
     this.onClearCookies,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
+    this.onScriptsChanged,
   });
 
   @override
@@ -609,16 +614,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onEnabledGlobalScriptIdsChanged: (ids) {
                       widget.webViewModel.enabledGlobalScriptIds = ids;
                     },
-                    onRun: widget.webViewModel.controller != null
-                        ? (source) async {
-                            final logsBefore = widget.webViewModel.consoleLogs.length;
-                            await widget.webViewModel.controller!.evaluateJavascript(source);
-                            // Brief delay to let console messages arrive
-                            await Future.delayed(const Duration(milliseconds: 200));
-                            final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
-                            return newLogs.map((e) => e.message).join('\n');
-                          }
-                        : null,
+                    onWebViewReset: widget.onScriptsChanged,
+                    // Re-reads the controller each call: changing the
+                    // script list disposes and recreates the webview, so
+                    // a closure capturing the controller at construction
+                    // time would NPE.
+                    onRun: (source) async {
+                      final controller = widget.webViewModel.controller;
+                      if (controller == null) {
+                        return '(webview not ready — wait for page to finish loading)';
+                      }
+                      final logsBefore = widget.webViewModel.consoleLogs.length;
+                      await controller.evaluateJavascript(source);
+                      // Brief delay to let console messages arrive
+                      await Future.delayed(const Duration(milliseconds: 200));
+                      final newLogs = widget.webViewModel.consoleLogs.skip(logsBefore);
+                      return newLogs.map((e) => e.message).join('\n');
+                    },
                   ),
                 ),
               );

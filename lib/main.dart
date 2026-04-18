@@ -847,6 +847,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _saveWebViewModels();
   }
 
+  /// Dispose the current site's webview so the next render recreates it
+  /// with fresh [initialUserScripts]. Used after the user edits the
+  /// script list — toggling `enabled` on a script does nothing at runtime
+  /// because the native WKUserScript / Android UserScript objects are
+  /// baked at webview creation time.
+  void _resetCurrentSiteWebView() {
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
+    setState(() {
+      _webViewModels[_currentIndex!].disposeWebView();
+    });
+  }
+
+  /// Dispose every loaded webview. Used after global user script edits,
+  /// which can affect any site that has opted in.
+  void _resetAllWebViews() {
+    setState(() {
+      for (final model in _webViewModels) {
+        model.disposeWebView();
+      }
+    });
+  }
+
   Future<void> _saveWebspaces() async {
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -1856,6 +1878,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     onGlobalUserScriptsChanged: (scripts) {
                       _globalUserScripts = scripts;
                       _saveGlobalUserScripts();
+                      _resetAllWebViews();
                     },
                   ),
                 ),
@@ -2000,7 +2023,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         onGlobalUserScriptsChanged: (scripts) {
                           _globalUserScripts = scripts;
                           _saveGlobalUserScripts();
+                          _resetAllWebViews();
                         },
+                        onScriptsChanged: _resetCurrentSiteWebView,
                         onClearCookies: () {
                           _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
                           _saveWebViewModels();
@@ -2390,7 +2415,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   onGlobalUserScriptsChanged: (scripts) {
                     _globalUserScripts = scripts;
                     _saveGlobalUserScripts();
+                    _resetAllWebViews();
                   },
+                  onScriptsChanged: _resetCurrentSiteWebView,
                   onClearCookies: () {
                     _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
                     _saveWebViewModels();
