@@ -47,6 +47,12 @@ class UserScriptsScreen extends StatefulWidget {
   /// have no master switch — per-site opt-in is the only enable control).
   /// Add / edit / delete all operate on the global library.
   final bool isGlobalLibrary;
+  /// Fired whenever the user scripts, globals, or per-site opt-in set
+  /// changes. Parents use this to dispose the affected webview(s) so
+  /// [initialUserScripts] (baked at creation time) are re-applied on the
+  /// next render. Without this, list toggle / opt-in changes silently no-op
+  /// until the webview is recreated for some other reason.
+  final VoidCallback? onWebViewReset;
 
   const UserScriptsScreen({
     super.key,
@@ -60,6 +66,7 @@ class UserScriptsScreen extends StatefulWidget {
     this.enabledGlobalScriptIds,
     this.onEnabledGlobalScriptIdsChanged,
     this.isGlobalLibrary = false,
+    this.onWebViewReset,
   });
 
   @override
@@ -98,14 +105,17 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
 
   void _syncSite() {
     widget.onSave(_scripts);
+    widget.onWebViewReset?.call();
   }
 
   void _syncGlobal() {
     widget.onGlobalUserScriptsChanged?.call(_globalScripts);
+    widget.onWebViewReset?.call();
   }
 
   void _syncEnabledGlobalIds() {
     widget.onEnabledGlobalScriptIdsChanged?.call(_enabledGlobalIds);
+    widget.onWebViewReset?.call();
   }
 
   void _addScript() async {
@@ -486,6 +496,8 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
   late TextEditingController _sourceController;
   late TextEditingController _urlController;
   late UserScriptInjectionTime _injectionTime;
+  // Preserved across edits; the script list has the user-facing enable
+  // toggle, so the editor never exposes it.
   late bool _enabled;
   String? _urlSource;
   String? _originalUrl;
@@ -676,13 +688,6 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
             },
           ),
           const SizedBox(height: 16),
-          SwitchListTile(
-            title: const Text('Enabled'),
-            value: _enabled,
-            onChanged: (value) => setState(() => _enabled = value),
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 8),
           TextField(
             controller: _sourceController,
             decoration: InputDecoration(
