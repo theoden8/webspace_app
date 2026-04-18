@@ -2108,6 +2108,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           webViewModel: _webViewModels[_currentIndex!],
                           cookieManager: _cookieManager,
                           onSave: _saveWebViewModels,
+                          globalUserScripts: _globalUserScripts,
                         ),
                       ),
                     );
@@ -2500,6 +2501,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     webViewModel: _webViewModels[_currentIndex!],
                     cookieManager: _cookieManager,
                     onSave: _saveWebViewModels,
+                    globalUserScripts: _globalUserScripts,
                   ),
                 ),
               );
