@@ -192,7 +192,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   String _userScriptsSubtitle() {
     final siteCount = widget.webViewModel.userScripts.where((s) => s.enabled).length;
-    final globalCount = widget.globalUserScripts.where((s) => s.enabled).length;
+    final enabledIds = widget.webViewModel.enabledGlobalScriptIds;
+    final globalCount = widget.globalUserScripts
+        .where((s) => enabledIds.contains(s.id))
+        .length;
     final parts = <String>[];
     if (siteCount > 0) parts.add('$siteCount site');
     if (globalCount > 0) parts.add('$globalCount global');
@@ -602,6 +605,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     },
                     globalUserScripts: widget.globalUserScripts,
                     onGlobalUserScriptsChanged: widget.onGlobalUserScriptsChanged,
+                    enabledGlobalScriptIds: widget.webViewModel.enabledGlobalScriptIds,
+                    onEnabledGlobalScriptIdsChanged: (ids) {
+                      widget.webViewModel.enabledGlobalScriptIds = ids;
+                    },
                     onRun: widget.webViewModel.controller != null
                         ? (source) async {
                             final logsBefore = widget.webViewModel.consoleLogs.length;

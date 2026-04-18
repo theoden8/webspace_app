@@ -3,9 +3,21 @@ import 'package:http/http.dart' as http;
 
 import 'package:webspace/settings/user_script.dart';
 
-/// Screen for managing per-site user scripts.
+/// Screen for managing user scripts.
 ///
-/// Edits apply to the model immediately via [onSave]. The parent Settings
+/// Two usage modes:
+///   1. **Per-site mode** ([enabledGlobalScriptIds] non-null) — edits per-site
+///      scripts (via [onSave]) and per-site opt-in for global scripts (via
+///      [onEnabledGlobalScriptIdsChanged]). Global script toggle controls
+///      whether this site injects the global script, NOT the global master
+///      switch. Edits to a global script's content propagate to all sites
+///      via [onGlobalUserScriptsChanged].
+///   2. **App Settings mode** ([enabledGlobalScriptIds] null) — manages the
+///      global script library. The tiles shown come from [userScripts]
+///      (treated as the master list). Toggling flips the script's master
+///      [UserScriptConfig.enabled]; disabling stops the script on all sites.
+///
+/// Edits apply to the model immediately via callbacks. The parent Settings
 /// screen handles webview reload when "Save Settings" is tapped.
 class UserScriptsScreen extends StatefulWidget {
   final String title;
@@ -18,10 +30,23 @@ class UserScriptsScreen extends StatefulWidget {
   /// context menu offers "Make Global". The callback receives the script
   /// to add to global scripts; the caller is responsible for persisting it.
   final void Function(UserScriptConfig script)? onMakeGlobal;
-  /// Global scripts displayed alongside site scripts (editable).
+  /// Global scripts displayed alongside site scripts (per-site mode) or as
+  /// the primary list (App Settings mode passes them as [userScripts]).
   final List<UserScriptConfig> globalUserScripts;
-  /// Callback when global scripts change (edit/toggle).
+  /// Callback when global scripts change (edit / add / delete).
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
+  /// Per-site opt-in set for global scripts. Non-null in per-site mode;
+  /// the global tile switch toggles membership in this set. Null in
+  /// App Settings (global library) mode.
+  final Set<String>? enabledGlobalScriptIds;
+  /// Callback when the per-site opt-in set changes. Required in per-site
+  /// mode.
+  final void Function(Set<String>)? onEnabledGlobalScriptIdsChanged;
+  /// When true, the [userScripts] list IS the global library: tiles are
+  /// rendered with the "Global" badge and have no enabled toggle (globals
+  /// have no master switch — per-site opt-in is the only enable control).
+  /// Add / edit / delete all operate on the global library.
+  final bool isGlobalLibrary;
 
   const UserScriptsScreen({
     super.key,
@@ -32,6 +57,9 @@ class UserScriptsScreen extends StatefulWidget {
     this.onMakeGlobal,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
+    this.enabledGlobalScriptIds,
+    this.onEnabledGlobalScriptIdsChanged,
+    this.isGlobalLibrary = false,
   });
 
   @override
@@ -41,19 +69,23 @@ class UserScriptsScreen extends StatefulWidget {
 class _UserScriptsScreenState extends State<UserScriptsScreen> {
   late List<UserScriptConfig> _scripts;
   late List<UserScriptConfig> _globalScripts;
+  late Set<String> _enabledGlobalIds;
 
   bool get _hasGlobal => _globalScripts.isNotEmpty;
+  bool get _isPerSiteMode => widget.enabledGlobalScriptIds != null;
 
   @override
   void initState() {
     super.initState();
     _scripts = _deepCopy(widget.userScripts);
     _globalScripts = _deepCopy(widget.globalUserScripts);
+    _enabledGlobalIds = {...?widget.enabledGlobalScriptIds};
   }
 
   static List<UserScriptConfig> _deepCopy(List<UserScriptConfig> scripts) {
     return scripts
         .map((s) => UserScriptConfig(
+              id: s.id,
               name: s.name,
               source: s.source,
               url: s.url,
@@ -70,6 +102,10 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
 
   void _syncGlobal() {
     widget.onGlobalUserScriptsChanged?.call(_globalScripts);
+  }
+
+  void _syncEnabledGlobalIds() {
+    widget.onEnabledGlobalScriptIdsChanged?.call(_enabledGlobalIds);
   }
 
   void _addScript() async {
@@ -107,8 +143,13 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   }
 
   void _deleteGlobalScript(int index) {
-    setState(() => _globalScripts.removeAt(index));
+    final removed = _globalScripts[index];
+    setState(() {
+      _globalScripts.removeAt(index);
+      _enabledGlobalIds.remove(removed.id);
+    });
     _syncGlobal();
+    if (_isPerSiteMode) _syncEnabledGlobalIds();
   }
 
   Future<bool> _confirmDelete(UserScriptConfig script, {required bool isGlobal}) async {
@@ -220,10 +261,14 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     );
     if (confirmed == true && mounted) {
       setState(() {
-        _globalScripts.add(_scripts.removeAt(index));
+        final promoted = _scripts.removeAt(index);
+        _globalScripts.add(promoted);
+        // Keep the script running on this site: opt in to its global id.
+        if (_isPerSiteMode) _enabledGlobalIds.add(promoted.id);
       });
       _syncSite();
       _syncGlobal();
+      if (_isPerSiteMode) _syncEnabledGlobalIds();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('"${script.name}" moved to global scripts')),
@@ -287,6 +332,11 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
             buildDefaultDragHandles: false,
             itemBuilder: (context, index) {
               final script = _scripts[index];
+              // In global library mode the primary list IS the global
+              // scripts: render with the "Global" badge, hide the per-item
+              // enabled switch (globals have no master switch), and skip
+              // the "Make Global" long-press action.
+              final isGlobal = widget.isGlobalLibrary;
               return Dismissible(
                 key: ValueKey('site_${script.name}_$index'),
                 direction: DismissDirection.endToStart,
@@ -296,28 +346,50 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                   padding: const EdgeInsets.only(right: 16),
                   child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                confirmDismiss: (_) => _confirmDelete(script, isGlobal: false),
+                confirmDismiss: (_) => _confirmDelete(script, isGlobal: isGlobal),
                 onDismissed: (_) => _deleteScript(index),
                 child: ListTile(
                   leading: ReorderableDragStartListener(
                     index: index,
                     child: const Icon(Icons.drag_handle),
                   ),
-                  title: Text(script.name),
+                  title: isGlobal
+                      ? Row(
+                          children: [
+                            Expanded(child: Text(script.name)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Global',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(script.name),
                   subtitle: Text(
                     script.injectionTime == UserScriptInjectionTime.atDocumentStart
                         ? 'Runs at document start'
                         : 'Runs at document end',
                   ),
-                  trailing: Switch(
-                    value: script.enabled,
-                    onChanged: (value) {
-                      setState(() => script.enabled = value);
-                      _syncSite();
-                    },
-                  ),
+                  trailing: isGlobal
+                      ? null
+                      : Switch(
+                          value: script.enabled,
+                          onChanged: (value) {
+                            setState(() => script.enabled = value);
+                            _syncSite();
+                          },
+                        ),
                   onTap: () => _editScript(index),
-                  onLongPress: () => _showSiteScriptActions(index),
+                  onLongPress: isGlobal ? null : () => _showSiteScriptActions(index),
                 ),
               );
             },
@@ -328,6 +400,11 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
 
   Widget _buildGlobalTile(int index) {
     final script = _globalScripts[index];
+    final injectionLabel = script.injectionTime == UserScriptInjectionTime.atDocumentStart
+        ? 'Runs at document start'
+        : 'Runs at document end';
+    final isOptedIn = _enabledGlobalIds.contains(script.id);
+
     return ListTile(
       leading: Icon(Icons.public, size: 20, color: Theme.of(context).colorScheme.primary),
       title: Row(
@@ -349,20 +426,25 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
           ),
         ],
       ),
-      subtitle: Text(
-        script.injectionTime == UserScriptInjectionTime.atDocumentStart
-            ? 'Runs at document start'
-            : 'Runs at document end',
-      ),
-      trailing: Switch(
-        value: script.enabled,
-        onChanged: widget.onGlobalUserScriptsChanged != null
-            ? (value) {
-                setState(() => script.enabled = value);
-                _syncGlobal();
-              }
-            : null,
-      ),
+      subtitle: Text(injectionLabel),
+      // Per-site opt-in is the only enable control for global scripts.
+      // In per-site mode the switch toggles membership in this site's
+      // [enabledGlobalScriptIds] set. No toggle otherwise.
+      trailing: _isPerSiteMode
+          ? Switch(
+              value: isOptedIn,
+              onChanged: (value) {
+                setState(() {
+                  if (value) {
+                    _enabledGlobalIds.add(script.id);
+                  } else {
+                    _enabledGlobalIds.remove(script.id);
+                  }
+                });
+                _syncEnabledGlobalIds();
+              },
+            )
+          : null,
       onTap: widget.onGlobalUserScriptsChanged != null
           ? () => _editGlobalScript(index)
           : null,
@@ -480,6 +562,10 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
     Navigator.pop(
       context,
       UserScriptConfig(
+        // Preserve the original id when editing so per-site opt-in sets
+        // (enabledGlobalScriptIds) stay valid. A fresh script generates
+        // a new id automatically.
+        id: widget.script?.id,
         name: name,
         source: _sourceController.text,
         url: url.isEmpty ? null : url,

@@ -263,6 +263,10 @@ class WebViewModel {
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
   List<UserScriptConfig> userScripts; // Per-site user scripts
+  /// IDs of global user scripts opted into for this site. Global scripts
+  /// are stored once in app state (shared source/URL) and each site
+  /// independently enables which ones to inject.
+  Set<String> enabledGlobalScriptIds;
   Set<BlockedCookie> blockedCookies; // Per-site blocked cookies (name + domain)
 
   final List<ConsoleLogEntry> consoleLogs = [];
@@ -293,9 +297,11 @@ class WebViewModel {
     this.blockAutoRedirects = true,
     this.fullscreenMode = false,
     List<UserScriptConfig>? userScripts,
+    Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
     this.stateSetterF,
   })  : userScripts = userScripts ?? [],
+        enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
@@ -447,7 +453,10 @@ class WebViewModel {
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
-          userScripts: [...globalUserScripts, ...userScripts],
+          userScripts: [
+            ...globalUserScripts.where((g) => enabledGlobalScriptIds.contains(g.id)),
+            ...userScripts,
+          ],
           onConfirmScriptFetch: onConfirmScriptFetch,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
@@ -740,6 +749,8 @@ class WebViewModel {
         'blockAutoRedirects': blockAutoRedirects,
         'fullscreenMode': fullscreenMode,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
+        if (enabledGlobalScriptIds.isNotEmpty)
+          'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
         if (blockedCookies.isNotEmpty)
           'blockedCookies': blockedCookies.map((b) => b.toJson()).toList(),
       };
@@ -768,6 +779,9 @@ class WebViewModel {
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),
+      enabledGlobalScriptIds: (json['enabledGlobalScriptIds'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toSet(),
       blockedCookies: (json['blockedCookies'] as List<dynamic>?)
           ?.map((e) => BlockedCookie.fromJson(e as Map<String, dynamic>))
           .toSet(),

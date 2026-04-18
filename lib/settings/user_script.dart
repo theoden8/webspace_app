@@ -1,12 +1,20 @@
+import 'dart:math';
+
 /// Model for a user-defined script to inject into webviews.
 ///
-/// Each script has a name, source code, injection time, and enabled toggle.
-/// Optionally, a [url] can be set to fetch script source from a CDN.
-/// The fetched content is cached in [urlSource]. At injection time the
-/// full script is [urlSource] + [source], so users can load a library
-/// from URL and call its API in [source].
+/// Each script has a stable [id], a name, source code, injection time, and
+/// an [enabled] flag. Optionally, a [url] can be set to fetch script source
+/// from a CDN. The fetched content is cached in [urlSource]. At injection
+/// time the full script is [urlSource] + [source], so users can load a
+/// library from URL and call its API in [source].
 ///
-/// Scripts are stored per-site in WebViewModel and serialized to JSON.
+/// Scripts are stored either per-site in WebViewModel (site-specific
+/// scripts) or globally in app state. For **site-specific scripts**,
+/// [enabled] controls whether the script is injected on that site. For
+/// **global scripts**, [enabled] is ignored — a global script runs ONLY on
+/// sites that have explicitly opted it in via
+/// [WebViewModel.enabledGlobalScriptIds]. Global scripts have no master
+/// switch; per-site opt-in is the only enable control.
 enum UserScriptInjectionTime {
   atDocumentStart,
   atDocumentEnd,
@@ -79,7 +87,18 @@ ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
   return ScriptFetchUrlStatus.requiresConfirmation;
 }
 
+/// Generate a stable unique identifier for a user script.
+String _generateUserScriptId() {
+  final now = DateTime.now().microsecondsSinceEpoch;
+  final random = Random().nextInt(999999);
+  return 'us-${now.toRadixString(36)}-${random.toRadixString(36)}';
+}
+
 class UserScriptConfig {
+  /// Stable unique identifier. For global scripts this is used to track
+  /// which sites have opted into the script. Auto-generated if omitted;
+  /// preserved across JSON roundtrips.
+  final String id;
   String name;
   String source;
   /// Optional URL to fetch script source from (e.g., CDN-hosted library).
@@ -88,16 +107,20 @@ class UserScriptConfig {
   /// Cached content downloaded from [url].
   String? urlSource;
   UserScriptInjectionTime injectionTime;
+  /// Master switch. For global scripts this disables the script on all
+  /// sites regardless of per-site opt-in; for site scripts this simply
+  /// controls whether the script is injected.
   bool enabled;
 
   UserScriptConfig({
+    String? id,
     required this.name,
     required this.source,
     this.url,
     this.urlSource,
     this.injectionTime = UserScriptInjectionTime.atDocumentEnd,
     this.enabled = true,
-  });
+  }) : id = id ?? _generateUserScriptId();
 
   /// The full script to inject: URL source (if any) followed by user source.
   String get fullSource {
@@ -111,6 +134,7 @@ class UserScriptConfig {
   }
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'name': name,
         'source': source,
         if (url != null) 'url': url,
@@ -121,6 +145,7 @@ class UserScriptConfig {
 
   factory UserScriptConfig.fromJson(Map<String, dynamic> json) {
     return UserScriptConfig(
+      id: json['id'] as String?,
       name: json['name'] ?? 'Untitled',
       source: json['source'] ?? '',
       url: json['url'],

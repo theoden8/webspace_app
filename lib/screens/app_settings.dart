@@ -463,7 +463,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             subtitle: Text(
               widget.globalUserScripts.isEmpty
                   ? 'No global scripts'
-                  : '${widget.globalUserScripts.where((s) => s.enabled).length} active (all sites)',
+                  : '${widget.globalUserScripts.length} defined — opt in per site',
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
@@ -471,11 +471,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 context,
                 MaterialPageRoute(
                   builder: (_) => UserScriptsScreen(
-                    title: 'User Scripts',
+                    title: 'Global User Scripts',
                     userScripts: widget.globalUserScripts,
                     onSave: (scripts) {
                       widget.onGlobalUserScriptsChanged?.call(scripts);
                     },
+                    isGlobalLibrary: true,
                   ),
                 ),
               );

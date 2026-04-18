@@ -14,6 +14,35 @@ void main() {
       expect(script.source, equals('console.log("hello");'));
       expect(script.injectionTime, equals(UserScriptInjectionTime.atDocumentEnd));
       expect(script.enabled, isTrue);
+      // Each script gets an auto-generated, non-empty id.
+      expect(script.id, isNotEmpty);
+    });
+
+    test('fresh scripts get unique ids', () {
+      final a = UserScriptConfig(name: 'A', source: '1');
+      final b = UserScriptConfig(name: 'B', source: '2');
+      expect(a.id, isNot(equals(b.id)));
+    });
+
+    test('explicit id is preserved and survives JSON roundtrip', () {
+      final original = UserScriptConfig(
+        id: 'us-fixed-id',
+        name: 'Test',
+        source: 'x',
+      );
+      expect(original.id, 'us-fixed-id');
+      final restored = UserScriptConfig.fromJson(original.toJson());
+      expect(restored.id, 'us-fixed-id');
+    });
+
+    test('legacy JSON without id gets a fresh generated id', () {
+      final script = UserScriptConfig.fromJson({
+        'name': 'Legacy',
+        'source': 'x',
+        'injectionTime': 1,
+        'enabled': true,
+      });
+      expect(script.id, isNotEmpty);
     });
 
     test('should serialize to JSON', () {
@@ -158,6 +187,46 @@ void main() {
       final model = WebViewModel.fromJson(json, null);
 
       expect(model.userScripts, isEmpty);
+    });
+
+    test('enabledGlobalScriptIds defaults to empty set', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      expect(model.enabledGlobalScriptIds, isEmpty);
+    });
+
+    test('enabledGlobalScriptIds survives JSON roundtrip', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        enabledGlobalScriptIds: {'us-aaa', 'us-bbb'},
+      );
+      final restored = WebViewModel.fromJson(model.toJson(), null);
+      expect(restored.enabledGlobalScriptIds, {'us-aaa', 'us-bbb'});
+    });
+
+    test('legacy WebViewModel JSON without enabledGlobalScriptIds defaults to empty', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'name': 'Example',
+        'cookies': [],
+        'proxySettings': {'type': 0},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+        'incognito': false,
+        'clearUrlEnabled': true,
+        'dnsBlockEnabled': true,
+        'contentBlockEnabled': true,
+        'blockAutoRedirects': true,
+      };
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.enabledGlobalScriptIds, isEmpty);
+    });
+
+    test('toJson omits enabledGlobalScriptIds when empty', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      final json = model.toJson();
+      expect(json.containsKey('enabledGlobalScriptIds'), isFalse);
     });
   });
 
