@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
+import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
 import '../third_party/favicon/favicon.dart';
@@ -522,12 +524,159 @@ Future<_IconCandidate?> _tryFaviconPackage(String url) async {
   return null;
 }
 
+// Cache for high-resolution icons discovered by getHighResFaviconUrl.
+final Map<String, String?> _hdFaviconCache = {};
+
+/// Parse a "sizes" attribute like "96x96" or "192x192 128x128" into the max px.
+/// Returns 0 if unparseable or if value is "any" (vector).
+int _parseSizes(String? sizes) {
+  if (sizes == null || sizes.isEmpty) return 0;
+  int best = 0;
+  for (final part in sizes.toLowerCase().split(RegExp(r'\s+'))) {
+    if (part == 'any') continue;
+    final m = RegExp(r'^(\d+)x(\d+)$').firstMatch(part);
+    if (m != null) {
+      final w = int.tryParse(m.group(1)!) ?? 0;
+      final h = int.tryParse(m.group(2)!) ?? 0;
+      final side = w < h ? w : h;
+      if (side > best) best = side;
+    }
+  }
+  return best;
+}
+
+String _resolveUrl(Uri base, String href) {
+  var h = href.trim();
+  if (h.startsWith('//')) return '${base.scheme}:$h';
+  if (h.startsWith('http://') || h.startsWith('https://')) return h;
+  if (h.startsWith('/')) return '${base.scheme}://${base.host}${base.hasPort ? ':${base.port}' : ''}$h';
+  return base.resolve(h).toString();
+}
+
+bool _isBitmapIconUrl(String url) {
+  final lower = url.toLowerCase().split('?').first;
+  return lower.endsWith('.png') ||
+      lower.endsWith('.jpg') ||
+      lower.endsWith('.jpeg') ||
+      lower.endsWith('.webp') ||
+      lower.endsWith('.ico') ||
+      lower.endsWith('.gif');
+}
+
+/// Finds a high-resolution bitmap favicon suitable for an Android home screen
+/// shortcut (target ~192px). Scrapes the page for apple-touch-icon, sized
+/// link[rel=icon] tags, and the web app manifest. Returns the URL of the
+/// largest candidate; falls back to Google's 256px service for HTTPS hosts.
+/// SVG icons are skipped because Android ShortcutInfoCompat requires a bitmap.
+Future<String?> getHighResFaviconUrl(String siteUrl) async {
+  if (_hdFaviconCache.containsKey(siteUrl)) {
+    return _hdFaviconCache[siteUrl];
+  }
+
+  final uri = Uri.tryParse(siteUrl);
+  if (uri == null || uri.host.isEmpty) {
+    _hdFaviconCache[siteUrl] = null;
+    return null;
+  }
+
+  int bestScore = 0;
+  String? bestUrl;
+
+  void consider(String url, int score) {
+    if (!_isBitmapIconUrl(url)) return;
+    if (score > bestScore) {
+      bestScore = score;
+      bestUrl = url;
+    }
+  }
+
+  try {
+    final response = await http
+        .get(uri, headers: {'User-Agent': 'Mozilla/5.0'})
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode == 200) {
+      final doc = html_parser.parse(response.body);
+      final links = doc.querySelectorAll('link[rel]');
+      String? manifestUrl;
+      for (final link in links) {
+        final rel = (link.attributes['rel'] ?? '').toLowerCase();
+        final href = link.attributes['href'];
+        if (href == null || href.isEmpty) continue;
+        final resolved = _resolveUrl(uri, href);
+
+        if (rel == 'manifest') {
+          manifestUrl = resolved;
+          continue;
+        }
+
+        // apple-touch-icon is commonly 180x180 — the best default bitmap.
+        if (rel.contains('apple-touch-icon')) {
+          final sizedScore = _parseSizes(link.attributes['sizes']);
+          consider(resolved, sizedScore > 0 ? sizedScore : 180);
+          continue;
+        }
+
+        if (rel == 'icon' || rel == 'shortcut icon' || rel.contains('fluid-icon')) {
+          final sized = _parseSizes(link.attributes['sizes']);
+          // Prefer tags with explicit sizes; otherwise assume modest 32px.
+          consider(resolved, sized > 0 ? sized : 32);
+        }
+      }
+
+      if (manifestUrl != null) {
+        try {
+          final manifestResp = await http
+              .get(Uri.parse(manifestUrl), headers: {'User-Agent': 'Mozilla/5.0'})
+              .timeout(const Duration(seconds: 5));
+          if (manifestResp.statusCode == 200) {
+            final manifestUri = Uri.parse(manifestUrl);
+            final data = jsonDecode(manifestResp.body);
+            if (data is Map && data['icons'] is List) {
+              for (final icon in (data['icons'] as List)) {
+                if (icon is! Map) continue;
+                final src = icon['src'];
+                if (src is! String || src.isEmpty) continue;
+                final resolved = _resolveUrl(manifestUri, src);
+                final sizesRaw = icon['sizes'];
+                final score = _parseSizes(sizesRaw is String ? sizesRaw : null);
+                consider(resolved, score > 0 ? score : 64);
+              }
+            }
+          }
+        } catch (e) {
+          LogService.instance.log('Icon', 'HD: manifest fetch failed: $e');
+        }
+      }
+    }
+  } catch (e) {
+    LogService.instance.log('Icon', 'HD: page fetch failed for $siteUrl: $e');
+  }
+
+  // If the page didn't yield anything good (< 96px), fall back to Google 256.
+  if ((bestUrl == null || bestScore < 96) &&
+      uri.scheme == 'https' &&
+      !_isIpAddress(uri.host)) {
+    final domain = _applyDomainSubstitution(uri.host);
+    final google = 'https://www.google.com/s2/favicons?domain=$domain&sz=256';
+    if (await _verifyIconUrl(google) && 256 > bestScore) {
+      bestScore = 256;
+      bestUrl = google;
+    }
+  }
+
+  LogService.instance.log(
+      'Icon', 'HD favicon for $siteUrl: $bestUrl (score: $bestScore)');
+  _hdFaviconCache[siteUrl] = bestUrl;
+  return bestUrl;
+}
+
 /// Clears the favicon cache
 void clearFaviconCache() {
   _faviconCache.clear();
   _faviconQualityCache.clear();
   _verifiedUrls.clear();
   _svgContentCache.clear();
+  _hdFaviconCache.clear();
 }
 
 /// Gets current queue stats (for debugging)

@@ -1,6 +1,7 @@
 package org.codeberg.theoden8.webspace
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.content.pm.ShortcutInfoCompat
@@ -10,6 +11,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterShellArgs
 import io.flutter.plugin.common.MethodChannel
+import java.net.HttpURLConnection
 import java.net.URL
 
 class MainActivity: FlutterActivity() {
@@ -78,12 +80,10 @@ class MainActivity: FlutterActivity() {
                 }
 
                 val icon = if (iconUrl != null) {
-                    try {
-                        val stream = URL(iconUrl).openStream()
-                        val bitmap = BitmapFactory.decodeStream(stream)
-                        stream.close()
-                        if (bitmap != null) IconCompat.createWithBitmap(bitmap) else IconCompat.createWithResource(this, R.mipmap.ic_launcher)
-                    } catch (e: Exception) {
+                    val bitmap = downloadBitmap(iconUrl)
+                    if (bitmap != null) {
+                        IconCompat.createWithBitmap(upscaleIfTiny(bitmap))
+                    } else {
                         IconCompat.createWithResource(this, R.mipmap.ic_launcher)
                     }
                 } else {
@@ -111,6 +111,62 @@ class MainActivity: FlutterActivity() {
                 }
             }
         }.start()
+    }
+
+    // Download a bitmap, following up to 3 redirects and sending a browser
+    // User-Agent so sites that block default Java clients still return the
+    // icon. Returns null on any failure.
+    private fun downloadBitmap(url: String): Bitmap? {
+        var current = url
+        var redirects = 0
+        while (redirects < 3) {
+            try {
+                val conn = URL(current).openConnection() as HttpURLConnection
+                conn.instanceFollowRedirects = false
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+                conn.setRequestProperty(
+                    "User-Agent",
+                    "Mozilla/5.0 (Android) WebSpace/1.0"
+                )
+                conn.setRequestProperty("Accept", "image/*,*/*;q=0.8")
+                val code = conn.responseCode
+                if (code in 300..399) {
+                    val location = conn.getHeaderField("Location") ?: return null
+                    current = URL(URL(current), location).toString()
+                    conn.disconnect()
+                    redirects++
+                    continue
+                }
+                if (code != 200) {
+                    conn.disconnect()
+                    return null
+                }
+                conn.inputStream.use { stream ->
+                    return BitmapFactory.decodeStream(stream)
+                }
+            } catch (e: Exception) {
+                return null
+            }
+        }
+        return null
+    }
+
+    // Android's launcher expects icons roughly 108dp (~162-432 px). Favicons
+    // at 16-48 px get blurry when the launcher upscales them, so pre-scale
+    // small icons with a better filter for a crisper look.
+    private fun upscaleIfTiny(bitmap: Bitmap): Bitmap {
+        val side = minOf(bitmap.width, bitmap.height)
+        if (side >= 128) return bitmap
+        val targetSide = 192
+        val scale = targetSide.toFloat() / side
+        val newW = (bitmap.width * scale).toInt().coerceAtLeast(targetSide)
+        val newH = (bitmap.height * scale).toInt().coerceAtLeast(targetSide)
+        return try {
+            Bitmap.createScaledBitmap(bitmap, newW, newH, true)
+        } catch (e: Exception) {
+            bitmap
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

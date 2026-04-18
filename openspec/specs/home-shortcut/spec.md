@@ -54,17 +54,24 @@ The system SHALL navigate to the correct site when launched via a home screen sh
 
 ### Requirement: HS-003 - Shortcut Icon
 
-The system SHALL use the site's favicon as the shortcut icon when available, falling back to the app icon.
+The system SHALL use a high-resolution bitmap of the site's favicon as the shortcut icon when available, falling back to the app icon.
 
-#### Scenario: Site has favicon
+#### Scenario: Site exposes a high-resolution icon
 
-**Given** the site has a cached favicon URL (non-SVG)
+**Given** the site's HTML exposes an `apple-touch-icon`, a sized `link rel="icon"`, or a web app manifest with `icons`
 **When** a shortcut is created
-**Then** the shortcut icon is the site's favicon
+**Then** the shortcut icon is the largest bitmap found among those sources
+
+#### Scenario: Site has only a low-resolution favicon
+
+**Given** the site has only a small favicon (e.g. 16x16 `favicon.ico`)
+**When** a shortcut is created
+**Then** the system falls back to Google's 256px favicon service (HTTPS hosts)
+**And** otherwise uses the small favicon, scaled up for launcher display
 
 #### Scenario: Site has no favicon or SVG favicon
 
-**Given** the site has no cached favicon, or the favicon is SVG (not supported by Android shortcuts)
+**Given** the favicon discovery yields no bitmap (only SVG or nothing)
 **When** a shortcut is created
 **Then** the shortcut icon is the WebSpace app icon
 
@@ -105,6 +112,22 @@ On app start and on `onNewIntent` (app already running), check for `siteId` in t
 1. Find the site index matching the `siteId`
 2. Call `_setCurrentIndex(index)` to switch to that site
 
+### High-Resolution Favicon Discovery
+
+When the user taps "Add to Home Screen" the app calls `getHighResFaviconUrl(siteUrl)`
+in `lib/services/icon_service.dart` before pinning. It scrapes the site's HTML for:
+1. `link[rel="apple-touch-icon"]` / `apple-touch-icon-precomposed` (default score 180, or the parsed `sizes`)
+2. `link[rel="icon"]` with a parsed `sizes` attribute (e.g. `96x96`)
+3. The web app manifest (`link[rel="manifest"]`) and its `icons[].sizes`
+
+SVG icons are excluded because `ShortcutInfoCompat` requires a bitmap. If the best
+candidate is still smaller than 96 px (or absent), the service falls back to
+`https://www.google.com/s2/favicons?domain=<host>&sz=256` for HTTPS hosts.
+
+On the native side, `MainActivity.downloadBitmap` fetches the chosen URL with a
+browser User-Agent, follows up to 3 redirects, and `upscaleIfTiny` scales small
+bitmaps up to ~192 px with bilinear filtering before the launcher shows them.
+
 ### Files
 
 #### New
@@ -112,8 +135,9 @@ On app start and on `onNewIntent` (app already running), check for `siteId` in t
 - `openspec/specs/home-shortcut/spec.md` — this specification
 
 #### Modified
-- `android/app/src/main/kotlin/.../MainActivity.kt` — native shortcut creation and intent handling
-- `lib/main.dart` — menu item, shortcut action, launch intent handling
+- `android/app/src/main/kotlin/.../MainActivity.kt` — native shortcut creation, intent handling, HD bitmap download/scale
+- `lib/main.dart` — menu item, shortcut action, launch intent handling, HD favicon resolution
+- `lib/services/icon_service.dart` — `getHighResFaviconUrl` for apple-touch-icon / manifest discovery
 
 ---
 

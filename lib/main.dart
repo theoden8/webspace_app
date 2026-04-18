@@ -798,6 +798,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await prefs.setBool('showUrlBar', _showUrlBar);
   }
 
+  /// Resolve the best bitmap favicon URL to hand to the native shortcut
+  /// pinning code. Prefers a freshly-scraped high-resolution icon
+  /// (apple-touch-icon / manifest / sized rel=icon). Falls back to whatever
+  /// is in FaviconUrlCache if the HD lookup turns up nothing usable. SVGs
+  /// are skipped because Android pinned shortcuts need a bitmap.
+  Future<String?> _resolveShortcutIconUrl(String siteUrl) async {
+    try {
+      final hd = await getHighResFaviconUrl(siteUrl);
+      if (hd != null) return hd;
+    } catch (_) {
+      // fall through
+    }
+    final cached = FaviconUrlCache.get(siteUrl);
+    if (cached == null) return null;
+    if (cached.toLowerCase().endsWith('.svg')) return null;
+    return cached;
+  }
+
   Future<void> _saveShowTabStrip() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -2090,12 +2108,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 case 'addToHome':
                   if (_currentIndex != null) {
                     final model = _webViewModels[_currentIndex!];
-                    final faviconUrl = FaviconUrlCache.get(model.initUrl);
-                    final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
+                    final iconUrl = await _resolveShortcutIconUrl(model.initUrl);
                     await ShortcutService.pinShortcut(
                       siteId: model.siteId,
                       label: model.name,
-                      iconUrl: isSvg ? null : faviconUrl,
+                      iconUrl: iconUrl,
                     );
                   }
                 break;
@@ -2483,12 +2500,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           case 'addToHome':
             if (_currentIndex != null) {
               final model = _webViewModels[_currentIndex!];
-              final faviconUrl = FaviconUrlCache.get(model.initUrl);
-              final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
+              final iconUrl = await _resolveShortcutIconUrl(model.initUrl);
               await ShortcutService.pinShortcut(
                 siteId: model.siteId,
                 label: model.name,
-                iconUrl: isSvg ? null : faviconUrl,
+                iconUrl: iconUrl,
               );
             }
           break;
