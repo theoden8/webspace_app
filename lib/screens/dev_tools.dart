@@ -20,12 +20,14 @@ class DevToolsScreen extends StatefulWidget {
   final WebViewModel? webViewModel;
   final CookieManager cookieManager;
   final VoidAsyncCallback? onSave;
+  final List<UserScriptConfig> globalUserScripts;
 
   const DevToolsScreen({
     super.key,
     this.webViewModel,
     required this.cookieManager,
     this.onSave,
+    this.globalUserScripts = const [],
   });
 
   @override
@@ -713,7 +715,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Scripts Bottom Sheet ──
 
   void _showScriptsSheet() {
-    final scripts = widget.webViewModel!.userScripts;
+    final siteScripts = widget.webViewModel!.userScripts;
+    final enabledIds = widget.webViewModel!.enabledGlobalScriptIds;
+    final activeGlobals = widget.globalUserScripts
+        .where((g) => enabledIds.contains(g.id))
+        .toList();
+    final scripts = [...activeGlobals, ...siteScripts];
+    final globalCount = activeGlobals.length;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -758,14 +766,39 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                     itemCount: scripts.length,
                     itemBuilder: (context, index) {
                       final script = scripts[index];
+                      final isGlobal = index < globalCount;
+                      final active = isGlobal || script.enabled;
                       return ExpansionTile(
                         leading: Icon(
-                          script.enabled ? Icons.code : Icons.code_off,
-                          color: script.enabled ? Colors.green : Colors.grey,
+                          active ? Icons.code : Icons.code_off,
+                          color: active ? Colors.green : Colors.grey,
                           size: 20,
                         ),
-                        title: Text(script.name,
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+                        title: Row(
+                          children: [
+                            Flexible(
+                              child: Text(script.name,
+                                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+                            ),
+                            if (isGlobal) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.secondaryContainer,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'global',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         subtitle: Text(
                           script.injectionTime == UserScriptInjectionTime.atDocumentStart
                               ? 'document start'
