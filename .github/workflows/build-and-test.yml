@@ -197,11 +197,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Dart SDK, CocoaPods, ImageMagick, and Fastlane
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install CocoaPods
         run: |
-          brew install dart-sdk cocoapods imagemagick-full fastlane
-          brew link --force dart-sdk
+          brew install cocoapods
           brew link --force cocoapods
+
+      - name: Install ImageMagick and Fastlane (screenshots only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          brew install imagemagick-full fastlane
           brew link --force imagemagick-full
           brew link --force fastlane
 
@@ -233,17 +240,23 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ios/Pods
+            macos/Pods
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods/repos
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock', 'macos/Podfile.lock') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
+
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
       - name: Run tests
         run: fvm flutter test
-
-      - name: Create iOS platform if not exists
-        run: |
-          if [ ! -d "ios" ]; then
-            fvm flutter create --platforms=ios .
-          fi
 
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
