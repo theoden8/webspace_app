@@ -171,6 +171,34 @@ class HtmlCacheService {
   /// Max HTML size to cache (10MB)
   static const int _maxHtmlSize = 10 * 1024 * 1024;
 
+  /// Inline style prepended to cached HTML for dark-theme sites so the
+  /// pre-paint frame (before stylesheets and user scripts run on reload)
+  /// matches the app/webview theme instead of flashing white.
+  ///
+  /// `color-scheme: dark` hints the engine to use dark scrollbars and form
+  /// controls. The background rule is a hard override so content rendered
+  /// against `<html>`/`<body>` with no explicit background doesn't flash
+  /// default white. Real site styles still load afterward and take over.
+  static const String _darkCachePrelude =
+      '<meta name="color-scheme" content="dark">'
+      '<style id="__ws_cache_prelude">'
+      'html,body{background:#111 !important;color-scheme:dark}'
+      '</style>';
+
+  /// Prepend [_darkCachePrelude] to [html] when [dark] is true. No-op if
+  /// the prelude is already present (so re-caching on navigations within
+  /// the same site does not accumulate duplicates).
+  static String applyThemePrelude(String html, {required bool dark}) {
+    if (!dark) return html;
+    if (html.contains('id="__ws_cache_prelude"')) return html;
+    final headMatch = RegExp(r'<head(?:\s[^>]*)?>', caseSensitive: false).firstMatch(html);
+    if (headMatch != null) {
+      return html.replaceRange(headMatch.end, headMatch.end, _darkCachePrelude);
+    }
+    // No <head> tag — prepend so the prelude still reaches the parser.
+    return '$_darkCachePrelude$html';
+  }
+
   /// Save HTML content for a site (encrypted)
   Future<void> saveHtml(String siteId, String html, String url) async {
     if (_cacheDirectory == null || _encrypter == null) return;

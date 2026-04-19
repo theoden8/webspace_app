@@ -246,13 +246,14 @@ Additionally, the PopScope handler performs the same check right after a success
 **Problem:** If `_goHome()` were async, rapid taps could interleave with webview recreation.
 
 **Solution:** `_goHome()` is fully synchronous. It completes in a single microtask:
-1. Resets `currentUrl` to `initUrl`
-2. Disposes webview (`webview = null`, `controller = null`)
-3. Bumps `_canGoBackVersion`
-4. Sets `_canGoBack = false` via `setState`
-5. Saves state (fire-and-forget async, but idempotent)
+1. Drops the site's cached HTML via `HtmlCacheService.deleteCache(siteId)` so the next load starts from the live page instead of a stale snapshot (the cached frame could otherwise flash with pre-edit content or mismatched theme before user scripts re-run)
+2. Resets `currentUrl` to `initUrl`
+3. Disposes webview (`webview = null`, `controller = null`)
+4. Bumps `_canGoBackVersion`
+5. Sets `_canGoBack = false` via `setState`
+6. Saves state (fire-and-forget async, but idempotent)
 
-Double-tap is harmless: second call disposes an already-null webview.
+Double-tap is harmless: second call disposes an already-null webview. `deleteCache` on the second call is also a no-op (file already removed).
 
 ---
 

@@ -852,16 +852,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// script list — toggling `enabled` on a script does nothing at runtime
   /// because the native WKUserScript / Android UserScript objects are
   /// baked at webview creation time.
+  ///
+  /// Also drops the cached HTML: the snapshot was captured with the
+  /// previous script set applied, so showing it on next load would render
+  /// the pre-edit DOM before the new scripts re-run.
   void _resetCurrentSiteWebView() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
+    HtmlCacheService.instance.deleteCache(_webViewModels[_currentIndex!].siteId);
     setState(() {
       _webViewModels[_currentIndex!].disposeWebView();
     });
   }
 
   /// Dispose every loaded webview. Used after global user script edits,
-  /// which can affect any site that has opted in.
+  /// which can affect any site that has opted in. Caches for sites that
+  /// have any global opt-in are dropped for the same reason as
+  /// [_resetCurrentSiteWebView].
   void _resetAllWebViews() {
+    for (final model in _webViewModels) {
+      if (model.enabledGlobalScriptIds.isNotEmpty) {
+        HtmlCacheService.instance.deleteCache(model.siteId);
+      }
+    }
     setState(() {
       for (final model in _webViewModels) {
         model.disposeWebView();
@@ -1739,9 +1751,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   /// Navigate to the site's initial URL and clear navigation history.
   /// Disposes the webview so it's recreated fresh with no back history.
+  /// Drops the HTML cache so the next load starts from the live site rather
+  /// than a stale cached frame (which can flash before user scripts re-run).
   void _goHome() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
     final model = _webViewModels[_currentIndex!];
+    HtmlCacheService.instance.deleteCache(model.siteId);
     model.currentUrl = model.initUrl;
     model.disposeWebView();
     _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
@@ -3219,7 +3234,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
                                     HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
                                   },
-                                  initialHtml: webViewModel.incognito ? null : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId),
+                                  initialHtml: webViewModel.incognito
+                                      ? null
+                                      : () {
+                                          final cached = HtmlCacheService.instance.getHtmlSync(webViewModel.siteId);
+                                          if (cached == null) return null;
+                                          final isDark = webViewModel.currentTheme == WebViewTheme.dark ||
+                                              (webViewModel.currentTheme == WebViewTheme.system &&
+                                                  MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+                                          return HtmlCacheService.applyThemePrelude(cached, dark: isDark);
+                                        }(),
                                   isActive: () => _currentIndex == index,
                                   onConfirmScriptFetch: (url) async {
                                     if (!mounted) return false;

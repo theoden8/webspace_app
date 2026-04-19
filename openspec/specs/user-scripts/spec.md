@@ -157,7 +157,13 @@ Scripts SHALL be injected at the correct time through multiple mechanisms to han
 
 2. **`reinjectOnLoadStart` / `reinjectOnLoadStop`**: Re-injects simple scripts (without `urlSource`) via `evaluateJavascript` as a safety net. Scripts with `urlSource` are **skipped** to avoid racing with the native WKUserScript mechanism, which would cause ReferenceErrors.
 
-3. **`reinjectOnSpaNavigation`**: On SPA navigations (URL changes without full page load, detected via `onUpdateVisitedHistory`), re-runs only the user's `source` code (not the library from `urlSource`). The JS context persists on SPA navigations, so the library is still loaded — only the user's initialization code (e.g. `MyLib.init()`) needs to re-run.
+   Both the `initialUserScripts` path and the re-injection path wrap each script's body in a once-per-document guard:
+   ```js
+   if (!window.__wsRan_<scriptId>) { window.__wsRan_<scriptId> = true; /* script */ }
+   ```
+   The flag lives on `window`, which is fresh per document, so full page loads reset it automatically. If `initialUserScripts` already ran the script, the re-injection on `onLoadStart` / `onLoadStop` becomes a no-op — preventing duplicate side-effects (double event listeners, double DOM insertions) for scripts that aren't internally idempotent. If `initialUserScripts` did NOT fire (e.g. cached-HTML loads that skip the native injector on some platforms), the re-injection still runs.
+
+3. **`reinjectOnSpaNavigation`**: On SPA navigations (URL changes without full page load, detected via `onUpdateVisitedHistory`), re-runs only the user's `source` code (not the library from `urlSource`). The JS context persists on SPA navigations, so the library is still loaded — only the user's initialization code (e.g. `MyLib.init()`) needs to re-run. This path intentionally **bypasses** the `__wsRan_<id>` guard: the page document hasn't changed, so the flag is still set from the initial load, but the user's init code should fire again on every route change.
 
 #### Execution order within a single injection
 
@@ -170,6 +176,26 @@ When a script has both `urlSource` (cached library) and `source` (user code):
 ```
 
 The `;null;` suffix is appended to all injected scripts because WebKit (macOS/iOS) errors when `evaluateJavascript` returns `undefined`. Returning `null` (a serializable value) prevents this. All `evaluateJavascript` calls are also wrapped in try-catch at the Dart level via `_safeEval`.
+
+### Requirement: US-002c - HTML Cache Invalidation on Script Changes
+
+Cached HTML SHALL be invalidated whenever the set of scripts that would run against a site changes, because the saved snapshot was captured with the **previous** script set applied. Showing that stale frame on next load would briefly render the pre-edit DOM before the new scripts re-run.
+
+- **Per-site script edits** (`onScriptsChanged` → `_resetCurrentSiteWebView`): `HtmlCacheService.deleteCache(siteId)` for the current site before disposing its webview.
+- **Global library edits** (`onGlobalUserScriptsChanged` → `_resetAllWebViews`): `HtmlCacheService.deleteCache(model.siteId)` for every site whose `enabledGlobalScriptIds` is non-empty. Sites with no global opt-ins are unaffected by a global edit and keep their cache.
+- **Home button** (`_goHome`): deletes the current site's cache as well, so a fresh home navigation never renders a stale snapshot captured under a different script set or theme.
+
+#### Scenario: Edit a site script, navigate away, navigate back
+
+**Given** a site with a dark-mode user script enabled and a cached HTML snapshot
+**When** the user edits the script's source and saves
+**Then** the site's cached HTML is deleted. The next time the site is displayed, `initialHtml` is null and the live page loads directly — no stale pre-edit frame flashes.
+
+#### Scenario: Edit a global script, navigate to a site that opts in
+
+**Given** a global script is opted in on site A, not on site B
+**When** the user edits the global script's source in App Settings
+**Then** site A's cache is cleared; site B's cache is preserved.
 
 ### Requirement: US-003 - Script Management UI
 
