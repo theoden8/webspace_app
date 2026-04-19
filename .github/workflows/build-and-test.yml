@@ -92,7 +92,7 @@ jobs:
       - name: Build APK
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            fvm flutter build apk --release --flavor fdroid --target-platform android-arm64
+            fvm flutter build apk --release --flavor fdroid
           else
             fvm flutter build apk --release --flavor fdroid --split-per-abi
           fi
