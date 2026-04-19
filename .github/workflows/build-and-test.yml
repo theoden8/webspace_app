@@ -90,7 +90,12 @@ jobs:
         run: fvm dart run flutter_launcher_icons
 
       - name: Build APK
-        run: fvm flutter build apk --release --flavor fdroid --split-per-abi
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            fvm flutter build apk --release --flavor fdroid
+          else
+            fvm flutter build apk --release --flavor fdroid --split-per-abi
+          fi
 
       - name: Build Linux
         run: fvm flutter build linux --release
@@ -120,6 +125,30 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: android-actions/setup-android@v3
 
+      - name: AVD snapshot cache
+        id: avd-cache
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api34-x86_64-google_apis-pixel_5-v1
+
+      - name: Pre-warm AVD snapshot
+        if: github.event_name == 'workflow_dispatch' && steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disk-size: 4096M
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: echo "Generated AVD snapshot for caching."
+
       - name: Create AVD and generate screenshots
         if: github.event_name == 'workflow_dispatch'
         uses: reactivecircus/android-emulator-runner@v2
@@ -129,16 +158,17 @@ jobs:
           arch: x86_64
           profile: pixel_5
           disk-size: 4096M
+          force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           script: |
             # Wait for emulator to be fully booted
             adb wait-for-device
             adb shell input keyevent 82
-            
+
             # Create screenshots directory
             mkdir -p screenshots/android
-            
+
             # Run fastlane android screenshots using bundle
             bundle exec fastlane android screenshots
 
@@ -167,11 +197,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Dart SDK, CocoaPods, ImageMagick, and Fastlane
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install CocoaPods
         run: |
-          brew install dart-sdk cocoapods imagemagick-full fastlane
-          brew link --force dart-sdk
+          brew install cocoapods
           brew link --force cocoapods
+
+      - name: Install ImageMagick and Fastlane (screenshots only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          brew install imagemagick-full fastlane
           brew link --force imagemagick-full
           brew link --force fastlane
 
@@ -203,17 +240,23 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ios/Pods
+            macos/Pods
+            ~/Library/Caches/CocoaPods
+            ~/.cocoapods/repos
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock', 'macos/Podfile.lock') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
+
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
       - name: Run tests
         run: fvm flutter test
-
-      - name: Create iOS platform if not exists
-        run: |
-          if [ ! -d "ios" ]; then
-            fvm flutter create --platforms=ios .
-          fi
 
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
