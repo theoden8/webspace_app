@@ -28,7 +28,7 @@ The default suggested sites list SHALL depend on the build flavor.
 
 **Given** the app is built with the `fmain` or `fdebug` flavor
 **When** the user opens the "Add new site" screen for the first time
-**Then** the curated default list of suggested sites is shown (DuckDuckGo, Claude, ChatGPT, etc.)
+**Then** the curated default list of suggested sites is shown (Duck.ai, Claude, ChatGPT, etc.)
 
 ---
 
@@ -177,7 +177,7 @@ Flutter automatically sets `FLUTTER_APP_FLAVOR` when building with `--flavor`. T
 
 | Name | URL | Domain |
 |------|-----|--------|
-| DuckDuckGo | https://duckduckgo.com | duckduckgo.com |
+| Duck.ai | https://duck.ai | duck.ai |
 | Claude | https://claude.ai | claude.ai |
 | ChatGPT | https://chatgpt.com | chatgpt.com |
 | Perplexity | https://perplexity.ai | perplexity.ai |

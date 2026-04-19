@@ -26,9 +26,10 @@ void main() {
       expect(kDefaultSuggestions.length, 21);
 
       final names = kDefaultSuggestions.map((s) => s.name).toList();
-      expect(names, contains('DuckDuckGo'));
+      expect(names, contains('Duck.ai'));
       expect(names, contains('GitHub'));
       expect(names, contains('Claude'));
+      expect(names, isNot(contains('DuckDuckGo')));
     });
 
     test('all entries should have valid URLs', () {
