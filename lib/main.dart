@@ -847,18 +847,34 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _saveWebViewModels();
   }
 
+  /// Drop the cached HTML for a site — but only when we're online. When
+  /// offline the cached snapshot is the only content we can render, so
+  /// preserve it until a live reload can overwrite it (via the
+  /// `onHtmlLoaded` callback on the next successful `onLoadStop`).
+  ///
+  /// Fire-and-forget so synchronous call sites (notably `_goHome`, which is
+  /// synchronous by design per navigation spec RACE-004) stay synchronous.
+  /// The connectivity probe resolves in a few ms; the worst case is a brief
+  /// window where a freshly-rebuilt webview renders the stale snapshot, and
+  /// then the next live navigation replaces it.
+  void _deleteCacheIfOnline(String siteId) {
+    ConnectivityService.instance.isOnline().then((online) {
+      if (online) HtmlCacheService.instance.deleteCache(siteId);
+    });
+  }
+
   /// Dispose the current site's webview so the next render recreates it
   /// with fresh [initialUserScripts]. Used after the user edits the
   /// script list — toggling `enabled` on a script does nothing at runtime
   /// because the native WKUserScript / Android UserScript objects are
   /// baked at webview creation time.
   ///
-  /// Also drops the cached HTML: the snapshot was captured with the
-  /// previous script set applied, so showing it on next load would render
-  /// the pre-edit DOM before the new scripts re-run.
+  /// Also drops the cached HTML (online only): the snapshot was captured
+  /// with the previous script set applied, so showing it on next load
+  /// would render the pre-edit DOM before the new scripts re-run.
   void _resetCurrentSiteWebView() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
-    HtmlCacheService.instance.deleteCache(_webViewModels[_currentIndex!].siteId);
+    _deleteCacheIfOnline(_webViewModels[_currentIndex!].siteId);
     setState(() {
       _webViewModels[_currentIndex!].disposeWebView();
     });
@@ -866,12 +882,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   /// Dispose every loaded webview. Used after global user script edits,
   /// which can affect any site that has opted in. Caches for sites that
-  /// have any global opt-in are dropped for the same reason as
-  /// [_resetCurrentSiteWebView].
+  /// have any global opt-in are dropped (online only) for the same reason
+  /// as [_resetCurrentSiteWebView].
   void _resetAllWebViews() {
     for (final model in _webViewModels) {
       if (model.enabledGlobalScriptIds.isNotEmpty) {
-        HtmlCacheService.instance.deleteCache(model.siteId);
+        _deleteCacheIfOnline(model.siteId);
       }
     }
     setState(() {
@@ -1751,12 +1767,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   /// Navigate to the site's initial URL and clear navigation history.
   /// Disposes the webview so it's recreated fresh with no back history.
-  /// Drops the HTML cache so the next load starts from the live site rather
-  /// than a stale cached frame (which can flash before user scripts re-run).
+  /// Drops the HTML cache (online only) so the next load starts from the
+  /// live site rather than a stale cached frame. Offline: the cache is
+  /// preserved — it's the only content we can render without network.
   void _goHome() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
     final model = _webViewModels[_currentIndex!];
-    HtmlCacheService.instance.deleteCache(model.siteId);
+    _deleteCacheIfOnline(model.siteId);
     model.currentUrl = model.initUrl;
     model.disposeWebView();
     _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack

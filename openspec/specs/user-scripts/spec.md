@@ -185,6 +185,8 @@ Cached HTML SHALL be invalidated whenever the set of scripts that would run agai
 - **Global library edits** (`onGlobalUserScriptsChanged` → `_resetAllWebViews`): `HtmlCacheService.deleteCache(model.siteId)` for every site whose `enabledGlobalScriptIds` is non-empty. Sites with no global opt-ins are unaffected by a global edit and keep their cache.
 - **Home button** (`_goHome`): deletes the current site's cache as well, so a fresh home navigation never renders a stale snapshot captured under a different script set or theme.
 
+**Offline gate.** All three invalidation paths route through `_deleteCacheIfOnline(siteId)` which probes `ConnectivityService.instance.isOnline()` before deleting. When the device is offline the cache is **preserved** — a stale snapshot is strictly better than a blank webview, and the next successful `onLoadStop` (once connectivity returns) will overwrite the file via `onHtmlLoaded` with the up-to-date DOM. The probe is fire-and-forget so synchronous callers (notably `_goHome`, which is synchronous by design per navigation spec RACE-004) don't need to `await`.
+
 #### Scenario: Edit a site script, navigate away, navigate back
 
 **Given** a site with a dark-mode user script enabled and a cached HTML snapshot

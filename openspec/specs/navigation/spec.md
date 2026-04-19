@@ -246,7 +246,7 @@ Additionally, the PopScope handler performs the same check right after a success
 **Problem:** If `_goHome()` were async, rapid taps could interleave with webview recreation.
 
 **Solution:** `_goHome()` is fully synchronous. It completes in a single microtask:
-1. Drops the site's cached HTML via `HtmlCacheService.deleteCache(siteId)` so the next load starts from the live page instead of a stale snapshot (the cached frame could otherwise flash with pre-edit content or mismatched theme before user scripts re-run)
+1. Drops the site's cached HTML via `_deleteCacheIfOnline(siteId)` so the next load starts from the live page instead of a stale snapshot (the cached frame could otherwise flash with pre-edit content or mismatched theme before user scripts re-run). The helper is fire-and-forget and skips deletion when the device is offline, so offline users keep a renderable snapshot.
 2. Resets `currentUrl` to `initUrl`
 3. Disposes webview (`webview = null`, `controller = null`)
 4. Bumps `_canGoBackVersion`
