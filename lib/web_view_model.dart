@@ -454,7 +454,22 @@ class WebViewModel {
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
           userScripts: [
-            ...globalUserScripts.where((g) => enabledGlobalScriptIds.contains(g.id)),
+            // Globals have no master `enabled` toggle per spec — per-site
+            // opt-in is the only enable control. Force `enabled: true` on
+            // a copy so a stale stored flag (e.g. a disabled site script
+            // that was promoted via "Make Global") can't silently drop
+            // the script in `UserScriptService.buildInitialUserScripts`.
+            ...globalUserScripts
+                .where((g) => enabledGlobalScriptIds.contains(g.id))
+                .map((g) => UserScriptConfig(
+                      id: g.id,
+                      name: g.name,
+                      source: g.source,
+                      url: g.url,
+                      urlSource: g.urlSource,
+                      injectionTime: g.injectionTime,
+                      enabled: true,
+                    )),
             ...userScripts,
           ],
           onConfirmScriptFetch: onConfirmScriptFetch,
