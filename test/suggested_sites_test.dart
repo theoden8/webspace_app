@@ -23,12 +23,13 @@ void main() {
   group('kDefaultSuggestions', () {
     test('should contain expected sites', () {
       expect(kDefaultSuggestions, isNotEmpty);
-      expect(kDefaultSuggestions.length, 21);
+      expect(kDefaultSuggestions.length, 22);
 
       final names = kDefaultSuggestions.map((s) => s.name).toList();
       expect(names, contains('DuckDuckGo'));
       expect(names, contains('GitHub'));
       expect(names, contains('Claude'));
+      expect(names, contains('Duck.ai'));
     });
 
     test('all entries should have valid URLs', () {
