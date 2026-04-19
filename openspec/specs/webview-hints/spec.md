@@ -212,6 +212,19 @@ The theme hint is applied via JavaScript that:
 3. Maintains listeners for dynamic theme changes
 4. Updates color-scheme meta tag and CSS property
 
+### HTML Cache Theme Prelude
+
+When `HtmlCacheService` returns a cached snapshot for rendering via `initialHtml`, `HtmlCacheService.applyThemePrelude()` is applied at **load time** (not save time) based on the webview's current theme. For dark themes it prepends this to the cached HTML's `<head>`:
+
+```html
+<meta name="color-scheme" content="dark">
+<style id="__ws_cache_prelude">
+html,body{background:#111 !important;color-scheme:dark}
+</style>
+```
+
+This eliminates the white-frame flash while the cached HTML's stylesheets and user scripts re-run on the live load. The prelude is keyed on the live `WebViewModel.currentTheme` plus platform brightness (for `WebViewTheme.system`), so a theme switch takes effect on the next cache load without cache invalidation. The helper is idempotent — duplicate prelude insertion is detected via the `__ws_cache_prelude` id.
+
 ### Language Header
 
 The language hint is sent via HTTP header:

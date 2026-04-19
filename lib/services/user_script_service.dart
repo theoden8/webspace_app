@@ -249,13 +249,27 @@ class UserScriptService {
       LogService.instance.log('UserScript', 'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})');
       result.add(inapp.UserScript(
         groupName: 'user_scripts',
-        source: '$src\n;null;',
+        source: '${_guarded(script.id, src)}\n;null;',
         injectionTime: script.injectionTime == UserScriptInjectionTime.atDocumentStart
             ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
             : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
       ));
     }
     return result;
+  }
+
+  /// Wrap [source] in a once-per-document guard so the same script does not
+  /// run twice when [initialUserScripts] (native WKUserScript) and
+  /// [reinjectOnLoadStart]/[reinjectOnLoadStop] (evaluateJavascript) both
+  /// fire on a full page load.
+  ///
+  /// The flag lives on `window`, which is fresh per document, so guards
+  /// never need explicit resetting. SPA re-injection (where `window`
+  /// persists) deliberately bypasses this helper so that scripts can
+  /// re-initialize on route changes.
+  static String _guarded(String scriptId, String source) {
+    final safeId = scriptId.replaceAll(RegExp(r'[^A-Za-z0-9_]'), '_');
+    return 'if (!window.__wsRan_$safeId) { window.__wsRan_$safeId = true;\n$source\n}';
   }
 
   /// Register JS handlers on the controller for script fetching and
@@ -359,7 +373,7 @@ class UserScriptService {
       if (src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
         LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${src.length} chars)');
-        await _safeEval(controller, src);
+        await _safeEval(controller, _guarded(script.id, src));
       }
     }
   }
@@ -377,7 +391,7 @@ class UserScriptService {
       if (src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
         LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${src.length} chars)');
-        await _safeEval(controller, src);
+        await _safeEval(controller, _guarded(script.id, src));
       }
     }
   }

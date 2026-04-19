@@ -278,6 +278,11 @@ class WebViewModel {
   FindMatchesResult findMatches = FindMatchesResult();
   WebViewTheme _currentTheme = WebViewTheme.light;
 
+  /// The theme most recently applied to this webview via [setTheme]. Used
+  /// by callers (e.g. HTML cache prelude) that need to render a frame that
+  /// matches the current theme before scripts and stylesheets load.
+  WebViewTheme get currentTheme => _currentTheme;
+
   WebViewModel({
     String? siteId,
     required this.initUrl,
