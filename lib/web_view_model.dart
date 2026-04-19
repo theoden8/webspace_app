@@ -133,6 +133,16 @@ String getBaseDomain(String url) {
 /// All Google properties (gmail.com, regional domains, etc.) are treated as google.com.
 const Map<String, String> _domainAliases = {
   'gmail.com': 'google.com',
+  // YouTube is part of Google's SSO family — `accounts.youtube.com/SetSID`
+  // is a mandatory hop when signing into play.google.com, gmail, etc.,
+  // since Google syncs session cookies into the YouTube jar. Without this
+  // alias, the nested-webview guard treats the SetSID redirect as a
+  // cross-domain navigation, opens it in a nested browser, and the main
+  // webview never receives the redirect-back — the user gets stuck
+  // looking "signed out" despite completing the SSO flow.
+  'youtube.com': 'google.com',
+  'youtu.be': 'google.com',
+  'youtube-nocookie.com': 'google.com',
   // Discord
   'discordapp.com': 'discord.com',
   'discord.gg': 'discord.com',

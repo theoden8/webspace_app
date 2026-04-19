@@ -52,14 +52,79 @@ The system SHALL capture cookies before unloading a webview due to domain confli
 
 ### Requirement: ISO-003 - Cookie Restoration on Load
 
-The system SHALL restore site-specific cookies when activating a site.
+The system SHALL restore site-specific cookies when activating a site via
+a capture → nuke → restore cycle:
+
+1. **Snapshot** — call `CookieManager.getAllCookies()` (NOT URL-scoped, so
+   sibling-subdomain cookies like `accounts.google.com` are included even
+   when the loaded site is `mail.google.com`).
+2. **Attribute** — for every loaded non-incognito site (including the
+   target if it is already loaded), filter the snapshot by base-domain
+   match (`cookie.domain` equals or is a subdomain of the site's base
+   domain) and save to that site's siteId-keyed encrypted storage.
+3. **Nuke** — `CookieManager.deleteAllCookies()` to evict cookies from
+   previously-deleted sites, legacy pre-siteId sessions, and sibling
+   subdomains that would otherwise leak into the target's requests.
+4. **Restore** — load the target's cookies from storage and set them, then
+   restore every other still-loaded site's cookies (parallel-loaded sites
+   share the same native jar).
+
+All async steps SHALL check `_setCurrentIndexVersion` and early-return if a
+newer `_setCurrentIndex` invocation has started, to prevent concurrent
+cookie mutations from interleaving under rapid tab switching.
 
 #### Scenario: Restore cookies on activation
 
 **Given** Site B has previously stored cookies
 **When** Site B is activated
-**Then** Site B's cookies are loaded from secure storage
-**And** cookies are set in CookieManager before webview creation
+**Then** the native jar is snapshotted via `getAllCookies`
+**And** every loaded non-incognito site's cookies are attributed by
+  base-domain match and persisted to encrypted storage
+**And** the native CookieManager is fully cleared
+**And** Site B's cookies are loaded from secure storage and set
+**And** every other still-loaded site's cookies are restored to the jar
+
+#### Scenario: No leak from previously-deleted same-base-domain site
+
+**Given** a site on `mail.google.com` was previously deleted while signed in
+  (leaving `accounts.google.com` cookies in the native cookie jar)
+**When** the user creates a new site for `play.google.com/console` and
+  activates it
+**Then** the native CookieManager is nuked during activation
+**And** the new site loads with only its own (empty) siteId-keyed cookies
+**And** no Google account is auto-logged-in
+
+#### Scenario: Sibling-subdomain cookies preserved for still-loaded site
+
+**Given** Site A (`mail.google.com`) has navigated to `accounts.google.com`,
+  which set cookies with `Domain=accounts.google.com`
+**And** Site B (`example.com`) is also loaded
+**When** the user activates Site B
+**Then** the native jar is snapshotted via `getAllCookies` (which returns
+  cookies for ALL domains, not just those scoped to a single URL)
+**And** all of Site A's cookies — including the `accounts.google.com`-scoped
+  ones — are attributed to Site A by base-domain match and saved
+**And** after the nuke-and-restore, Site A's full cookie set is back in the
+  native jar; no session is lost
+
+#### Scenario: Re-activating an already-loaded site preserves its live session
+
+**Given** Site A is active and logged in, the user goes to the home screen
+  (`goHome`) without unloading Site A
+**When** the user re-activates Site A
+**Then** Site A's current native-jar cookies are captured to its siteId
+  storage before the nuke
+**And** after the nuke-and-restore, Site A's session is intact
+
+#### Scenario: Concurrent activation is serialized
+
+**Given** the user taps Site B, then taps Site C before Site B's activation
+  completes
+**When** Site C's activation runs
+**Then** any in-flight step of Site B's activation SHALL early-return on the
+  version mismatch
+**And** the cookie jar and encrypted storage SHALL NOT reflect interleaved
+  captures from the two activations
 
 ### Requirement: ISO-004 - CookieManager Cleanup
 
@@ -208,10 +273,40 @@ Cookies stored in `CookieSecureStorage` keyed by siteId:
 
 ### Aggressive Cookie Clearing
 
-When switching between same-domain sites, ALL cookies are cleared:
-- Uses `CookieManager.deleteAllCookies()` instead of URL-specific deletion
-- Required because services like Google set cookies on multiple domains
-- Before clearing, ALL loaded sites have their cookies captured and saved
+The native cookie jar is nuked on EVERY site activation (not just same-domain
+switches). The capture uses `CookieManager.getAllCookies()` rather than
+URL-scoped `getCookies(url)` because sibling-subdomain cookies (e.g.
+`accounts.google.com` when the site is `mail.google.com`) are NOT returned
+by a URL-scoped query and would otherwise be lost across the nuke.
+
+Attribution to a site is by base-domain match: a cookie with `domain`
+equal to the site's base domain, or ending with `.<baseDomain>`, is
+attributed to that site. Per-site cookie isolation (ISO-001) guarantees
+at most one loaded site per base domain, so attribution is unambiguous.
+
+The sequence in `_restoreCookiesForSite`:
+1. `getAllCookies()`
+2. For each loaded non-incognito site (including target if already
+   loaded): filter by base-domain, save to siteId storage.
+3. `deleteAllCookies()`
+4. Restore target's cookies from storage.
+5. Restore every other still-loaded site's cookies.
+
+Also runs at startup (before first activation). Settings import routes
+activation through the same path and MUST NOT nuke afterwards.
+
+### Orphan GC
+
+Per-siteId encrypted storage and HTML cache accumulate entries for deleted
+sites. `CookieSecureStorage.removeOrphanedCookies(activeSiteIds)` and
+`HtmlCacheService.removeOrphanedCaches(activeSiteIds)` sweep entries whose
+siteId is not in the active set. These run:
+- On app startup (in `_restoreAppState`)
+- On site deletion (in `_deleteSite`)
+- On settings import (in backup restore)
+
+The native cookie jar is GC'd by `deleteAllCookies()` at the same boundaries
+(see Aggressive Cookie Clearing above).
 
 ### UI Updates on Navigation
 
@@ -290,10 +385,28 @@ The system SHALL clean up all cookie-related data when a site is deleted.
 
 **Given** Site A (`github.com/personal`) and Site B (`github.com/work`) exist
 **When** the user deletes Site A
-**Then** cookies in the webview cookie jar are NOT deleted (Site B still needs them)
+**Then** cookies for Site A's URL(s) are deleted from the native cookie jar
+  unconditionally
 **And** Site A's cookies are removed from secure storage (by siteId)
 **And** Site A's HTML cache is deleted
-**And** Site B continues to function with its cookies intact
+**And** orphaned per-siteId entries are swept from encrypted storage and
+  HTML cache as defense in depth
+**And** Site B continues to function with its cookies intact after next
+  activation (which triggers restore from its siteId-keyed storage)
+
+#### Scenario: Deleting a site while a same-base-domain site is loaded preserves its live session
+
+**Given** Site A (`github.com/personal`) and Site B (`github.com/work`) exist
+**And** Site B is currently active/loaded with a live session in the native
+  cookie jar
+**When** the user deletes Site A
+**Then** before the URL-scoped delete, the system snapshots all native
+  cookies matching the deleted base domain via `getAllCookies()`
+**And** after the URL-scoped delete (which would otherwise wipe Site B's
+  session because `github.com/personal` and `github.com/work` share a
+  host), Site B's snapshot is restored to the native jar
+**And** Site B's live session is NOT interrupted — no reload or re-login
+  is required
 
 #### Scenario: Re-adding a deleted site starts fresh
 
@@ -343,6 +456,51 @@ The system SHALL allow blocking specific cookies by name + domain on a per-site 
 **When** the site is deserialized
 **Then** `blockedCookies` defaults to an empty set
 **And** no cookies are blocked
+
+---
+
+### Requirement: ISO-012 - Native Cookie Jar Garbage Collection
+
+The native cookie jar (iOS `WKHTTPCookieStorage`, Android `CookieManager`) is
+a process-wide shared store that persists across app launches. Because it is
+not keyed by siteId, cookies from deleted sites, sibling subdomains not
+visited by the active site, or legacy pre-siteId sessions can accumulate and
+leak into unrelated sites. The system SHALL garbage-collect the native cookie
+jar at every boundary where site cookies could leak:
+
+- **On app startup** — after loading persisted models but before activating
+  any site
+- **On site switch** — inside `_restoreCookiesForSite`, after capturing
+  cookies for other loaded sites
+- **On settings import** — `_setCurrentIndex` during import routes through
+  `_restoreCookiesForSite`, which performs the nuke-and-restore cycle; the
+  import path MUST NOT issue a subsequent `deleteAllCookies()` or it would
+  wipe the session just restored for the imported active site
+- **On site deletion** — for the deleted site's `initUrl` and `currentUrl`
+  unconditionally, followed by an orphan sweep of siteId-keyed storage; if
+  a loaded same-base-domain site exists, its session SHALL be snapshotted
+  via `getAllCookies()` before the delete and restored after
+
+#### Scenario: Startup evicts cookies from deleted-in-previous-session sites
+
+**Given** in a previous session the user had Site A (`mail.google.com`)
+  signed in, then deleted it
+**And** `WKHTTPCookieStorage` still contains `.google.com` and
+  `accounts.google.com` cookies from that session
+**When** the app launches
+**Then** orphaned siteId-keyed entries are swept from encrypted storage and
+  HTML cache
+**And** the native cookie jar is cleared before any site is activated
+**And** the first activated site restores only its own siteId-keyed cookies
+
+#### Scenario: Orphan sweep runs on site deletion
+
+**Given** the user deletes a site
+**When** the delete flow completes
+**Then** `removeOrphanedCookies` runs with the updated active siteId set
+**And** `removeOrphanedCaches` runs with the updated active siteId set
+**And** any encrypted-storage or HTML-cache entries not referenced by a
+  surviving site are removed
 
 ---
 

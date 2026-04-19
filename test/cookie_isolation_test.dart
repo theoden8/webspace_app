@@ -237,6 +237,18 @@ void main() {
       expect(getNormalizedDomain('https://account.google.com'), equals('google.com'));
     });
 
+    test('YouTube domains should map to google.com (SSO SetSID redirects)', () {
+      // Google Play Console / Gmail / etc. sign-in bounces through
+      // accounts.youtube.com/SetSID to sync the session cookie into the
+      // YouTube jar. Must be treated as same-family for navigation so
+      // the auth flow completes in the main webview.
+      expect(getNormalizedDomain('https://accounts.youtube.com'), equals('google.com'));
+      expect(getNormalizedDomain('https://accounts.youtube.com/accounts/SetSID'), equals('google.com'));
+      expect(getNormalizedDomain('https://www.youtube.com'), equals('google.com'));
+      expect(getNormalizedDomain('https://youtu.be/dQw4w9WgXcQ'), equals('google.com'));
+      expect(getNormalizedDomain('https://www.youtube-nocookie.com'), equals('google.com'));
+    });
+
     test('non-google subdomains extract to second-level', () {
       expect(getNormalizedDomain('https://api.github.com'), equals('github.com'));
       expect(getNormalizedDomain('https://gist.github.com'), equals('github.com'));

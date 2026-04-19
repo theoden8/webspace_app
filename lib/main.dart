@@ -31,6 +31,7 @@ import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
+import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -671,6 +672,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   AppThemeSettings _themeSettings = const AppThemeSettings();
   final CookieManager _cookieManager = CookieManager();
   final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
+  late final CookieIsolationEngine _cookieIsolation = CookieIsolationEngine(
+    cookieManager: _cookieManager,
+    storage: _cookieSecureStorage,
+  );
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isBackHandling = false;
@@ -995,74 +1000,26 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
   }
 
-  /// Unloads a site due to domain conflict with another site.
-  /// Captures cookies for ALL loaded sites, clears CookieManager, disposes conflicting webview.
+  /// Unloads a site due to domain conflict with another site. Delegates to
+  /// the isolation engine so the orchestration is shared with tests.
   Future<void> _unloadSiteForDomainSwitch(int index) async {
-    if (index < 0 || index >= _webViewModels.length) return;
-
-    final model = _webViewModels[index];
-
-    LogService.instance.log('CookieIsolation', 'Unloading site $index: "${model.name}" (siteId: ${model.siteId})');
-
-    // Capture cookies for ALL loaded sites before clearing
-    // This preserves cookies for sites on other domains
-    for (final loadedIndex in _loadedIndices) {
-      if (loadedIndex >= _webViewModels.length) continue;
-      final loadedModel = _webViewModels[loadedIndex];
-      if (loadedModel.incognito) continue;
-
-      await loadedModel.captureCookies(_cookieManager);
-      await _cookieSecureStorage.saveCookiesForSite(loadedModel.siteId, loadedModel.cookies);
-
-      LogService.instance.log('CookieIsolation', 'Captured ${loadedModel.cookies.length} cookies for site $loadedIndex: "${loadedModel.name}"');
-    }
-
-    // Clear ALL cookies from CookieManager
-    // We use deleteAllCookies() because sites like Google set cookies on multiple
-    // domains (.google.com, accounts.google.com, etc.) that wouldn't be captured
-    // by a single URL query.
-    await _cookieManager.deleteAllCookies();
-
-    LogService.instance.log('CookieIsolation', 'Cleared ALL cookies from CookieManager', level: LogLevel.info);
-
-    // Dispose webview for the conflicting site only
-    model.disposeWebView();
-
-    LogService.instance.log('CookieIsolation', 'Disposed webview for site $index');
-
-    // Remove from loaded indices
-    _loadedIndices.remove(index);
+    await _cookieIsolation.unloadSiteForDomainSwitch(
+      index: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+    );
   }
 
-  /// Restores cookies for a site from secure storage before loading.
+  /// Restores cookies for a site before activation. Delegates to the engine.
   Future<void> _restoreCookiesForSite(int index) async {
-    if (index < 0 || index >= _webViewModels.length) return;
-
-    final model = _webViewModels[index];
-    if (model.incognito) return; // Don't restore cookies for incognito sites
-
-    // Load persisted cookies by siteId
-    final cookies = await _cookieSecureStorage.loadCookiesForSite(model.siteId);
-    model.cookies = cookies;
-
-    LogService.instance.log('CookieIsolation', 'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})');
-
-    // Restore cookies to CookieManager, skipping blocked ones
-    final url = Uri.parse(model.initUrl);
-    for (final cookie in cookies) {
-      if (cookie.value.isEmpty) continue;
-      if (model.isCookieBlocked(cookie.name, cookie.domain)) continue;
-      await _cookieManager.setCookie(
-        url: url,
-        name: cookie.name,
-        value: cookie.value,
-        domain: cookie.domain,
-        path: cookie.path ?? '/',
-        expiresDate: cookie.expiresDate,
-        isSecure: cookie.isSecure,
-        isHttpOnly: cookie.isHttpOnly,
-      );
-    }
+    final version = _setCurrentIndexVersion;
+    await _cookieIsolation.restoreCookiesForSite(
+      index: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+      versionAtEntry: version,
+      currentVersion: () => _setCurrentIndexVersion,
+    );
   }
 
   /// Shows a popup window for handling window.open() requests from webviews.
@@ -1244,6 +1201,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _loadWebViewModels();
     await _migrateGlobalScriptOptIn();
     _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
+
+    // Startup GC: sweep orphaned per-siteId encrypted storage and HTML cache
+    // (sites deleted in previous sessions), then nuke the native cookie jar
+    // so residual cookies from deleted/legacy sites don't leak into the next
+    // activated site. `_restoreCookiesForSite` re-nukes on every switch; this
+    // extra pass covers launch before any site is activated.
+    final activeSiteIdsAtStartup = _webViewModels.map((m) => m.siteId).toSet();
+    await _cookieSecureStorage.removeOrphanedCookies(activeSiteIdsAtStartup);
+    await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIdsAtStartup);
+    await _cookieManager.deleteAllCookies();
 
     // Always start at home screen on launch - only restore index if launched via shortcut
     int? indexToRestore;
@@ -1654,6 +1621,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         backup.currentIndex! < _webViewModels.length) {
       indexToRestore = backup.currentIndex;
     }
+    // If no site is activated, _setCurrentIndex returns without routing
+    // through _restoreCookiesForSite — which means pre-import cookies from
+    // the previously-active site remain in the native jar. Nuke explicitly.
+    if (indexToRestore == null) {
+      await _cookieManager.deleteAllCookies();
+    }
     await _setCurrentIndex(indexToRestore);
     setState(() {}); // Update UI after async operation
 
@@ -1688,7 +1661,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       await suggested_sites.saveSuggestedSites(_suggestedSites);
     }
 
-    // Clean up orphaned cookies and HTML cache (for siteIds no longer in any site)
+    // Clean up orphaned cookies and HTML cache (for siteIds no longer in any site).
+    // Note: we do NOT nuke the native cookie jar here — `_setCurrentIndex` above
+    // already routed through `_restoreCookiesForSite`, which nuked and restored
+    // the imported active site's cookies. Another nuke here would wipe the
+    // session we just restored and log the user out of the imported active site.
     final activeSiteIds = _webViewModels
         .map((model) => model.siteId)
         .toSet();
@@ -2825,17 +2802,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await ShortcutService.removeShortcut(deletedModel.siteId);
     if (!mounted) return;
 
-    final deletedDomain = getBaseDomain(deletedModel.initUrl);
-    final otherSiteSameDomain = _webViewModels
-        .where((m) => m != deletedModel && getBaseDomain(m.initUrl) == deletedDomain)
-        .isNotEmpty;
-    if (!otherSiteSameDomain) {
-      await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
-      if (deletedModel.currentUrl.isNotEmpty && deletedModel.currentUrl != deletedModel.initUrl) {
-        await _cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.currentUrl));
-      }
-    }
-    await _cookieSecureStorage.saveCookiesForSite(deletedModel.siteId, []);
+    // Delegate cookie cleanup to the isolation engine: it snapshots any
+    // loaded same-base-domain site's session, clears the deleted site's
+    // native cookies, and restores the surviving session so the active
+    // webview isn't silently logged out.
+    await _cookieIsolation.preDeleteCookieCleanup(
+      deletedModel: deletedModel,
+      deletedIndex: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+    );
     await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
     if (!mounted) return;
     final currentModelIndex = _webViewModels.indexOf(deletedModel);
@@ -2862,6 +2838,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
     await _saveWebViewModels();
     await _saveWebspaces();
+
+    // Defense in depth: sweep orphaned per-siteId storage entries.
+    final activeSiteIds = _webViewModels.map((m) => m.siteId).toSet();
+    await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
+    await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
+
     if (!mounted) return;
     Navigator.pop(context);
   }
