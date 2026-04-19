@@ -5,10 +5,9 @@ import 'package:webspace/screens/add_site.dart' show SiteSuggestion;
 
 /// Default suggested sites for non-fdroid builds.
 const List<SiteSuggestion> kDefaultSuggestions = [
-  SiteSuggestion(name: 'DuckDuckGo', url: 'https://duckduckgo.com', domain: 'duckduckgo.com'),
+  SiteSuggestion(name: 'Duck.ai', url: 'https://duck.ai', domain: 'duck.ai'),
   SiteSuggestion(name: 'Claude', url: 'https://claude.ai', domain: 'claude.ai'),
   SiteSuggestion(name: 'ChatGPT', url: 'https://chatgpt.com', domain: 'chatgpt.com'),
-  SiteSuggestion(name: 'Duck.ai', url: 'https://duck.ai', domain: 'duck.ai'),
   SiteSuggestion(name: 'Perplexity', url: 'https://perplexity.ai', domain: 'perplexity.ai'),
   SiteSuggestion(name: 'Instagram', url: 'https://instagram.com', domain: 'instagram.com'),
   SiteSuggestion(name: 'Facebook', url: 'https://facebook.com', domain: 'facebook.com'),
