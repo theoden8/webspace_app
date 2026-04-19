@@ -60,10 +60,32 @@ class CookieManager {
   /// Returns every cookie in the native jar regardless of URL scoping.
   /// `getCookies(url)` only returns cookies that would be sent with a request
   /// to that URL, which misses cookies scoped to sibling subdomains (e.g.
-  /// `accounts.google.com` when querying with `mail.google.com`). Callers that
-  /// need to capture a site's complete cookie set before a nuke-and-restore
-  /// cycle should use this method and filter by domain-match themselves.
-  Future<List<Cookie>> getAllCookies() async => _manager.getAllCookies();
+  /// `accounts.google.com` when querying with `mail.google.com`).
+  ///
+  /// Platform support for the underlying `WKHTTPCookieStore.getAllCookies()`
+  /// is iOS/macOS only — Android's `CookieManager` has no "get all" endpoint.
+  /// On Android, callers MUST pass [candidateUrls] (typically every loaded
+  /// site's `initUrl` and `currentUrl`); the result is aggregated via
+  /// per-URL `getCookies`, deduplicated by `(name, domain, path)`. This is
+  /// a best-effort capture — cookies on subdomains of a candidate URL that
+  /// aren't reachable from it (e.g. `accounts.google.com` when only
+  /// `mail.google.com` has been visited) cannot be discovered on Android.
+  Future<List<Cookie>> getAllCookies({List<Uri>? candidateUrls}) async {
+    if (Platform.isIOS || Platform.isMacOS) {
+      return _manager.getAllCookies();
+    }
+    if (candidateUrls == null || candidateUrls.isEmpty) return [];
+    final seen = <String>{};
+    final out = <Cookie>[];
+    for (final url in candidateUrls) {
+      final cookies = await getCookies(url: url);
+      for (final c in cookies) {
+        final key = '${c.name}|${c.domain ?? ''}|${c.path ?? ''}';
+        if (seen.add(key)) out.add(c);
+      }
+    }
+    return out;
+  }
 
   Future<void> setCookie({
     required Uri url,
