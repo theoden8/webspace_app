@@ -18,6 +18,17 @@ class MockCookieManager {
     return _cookies[domain] ?? [];
   }
 
+  /// Returns every cookie in the store regardless of URL. Mirrors the real
+  /// `CookieManager.getAllCookies()` wrapper used by the app to avoid missing
+  /// sibling-subdomain cookies.
+  Future<List<Cookie>> getAllCookies() async {
+    final out = <Cookie>[];
+    for (final list in _cookies.values) {
+      out.addAll(list);
+    }
+    return out;
+  }
+
   Future<void> setCookie({
     required Uri url,
     required String name,
@@ -127,19 +138,15 @@ class CookieIsolationTestHarness {
   }
 
   Future<void> _unloadSiteForDomainSwitch(int index) async {
-    // Capture cookies for ALL loaded sites before clearing
-    for (final loadedIndex in loadedIndices) {
-      if (loadedIndex >= sites.length) continue;
-      final model = sites[loadedIndex];
-      if (model.incognito) continue;
-
+    // Capture cookies for the departing site only (its webview is about to
+    // be disposed). Other still-loaded sites are captured by
+    // _restoreCookiesForSite before it nukes the native jar.
+    final model = sites[index];
+    if (!model.incognito) {
       final url = Uri.parse(model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl);
       model.cookies = await cookieManager.getCookies(url: url);
       await storage.saveCookiesForSite(model.siteId, model.cookies);
     }
-
-    // Clear ALL cookies from CookieManager
-    await cookieManager.deleteAllCookies();
 
     // Remove from loaded
     loadedIndices.remove(index);
@@ -149,11 +156,31 @@ class CookieIsolationTestHarness {
     final model = sites[index];
     if (model.incognito) return;
 
-    // Load persisted cookies
+    // Step 1: snapshot all cookies.
+    final allCookies = await cookieManager.getAllCookies();
+
+    // Step 2: attribute to every loaded non-incognito site (including target
+    // if it's already loaded — re-activation after goHome) by base-domain.
+    final otherLoaded = <WebViewModel>[];
+    for (final loadedIndex in loadedIndices) {
+      if (loadedIndex >= sites.length) continue;
+      final loadedModel = sites[loadedIndex];
+      if (loadedModel.incognito) continue;
+
+      final base = getBaseDomain(loadedModel.initUrl);
+      final cookies = allCookies.where((c) => _matchesBase(c, base)).toList();
+      loadedModel.cookies = cookies;
+      await storage.saveCookiesForSite(loadedModel.siteId, cookies);
+      if (loadedIndex != index) otherLoaded.add(loadedModel);
+    }
+
+    // Step 3: nuke native cookie jar
+    await cookieManager.deleteAllCookies();
+
+    // Step 4a: restore target's cookies
     final cookies = await storage.loadCookiesForSite(model.siteId);
     model.cookies = cookies;
 
-    // Restore to CookieManager
     final url = Uri.parse(model.initUrl);
     for (final cookie in cookies) {
       if (cookie.value.isEmpty) continue;
@@ -165,23 +192,78 @@ class CookieIsolationTestHarness {
         path: cookie.path ?? '/',
       );
     }
+
+    // Step 4b: restore other loaded sites' cookies
+    for (final other in otherLoaded) {
+      final otherUrl = Uri.parse(other.initUrl);
+      for (final cookie in other.cookies) {
+        if (cookie.value.isEmpty) continue;
+        await cookieManager.setCookie(
+          url: otherUrl,
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain,
+          path: cookie.path ?? '/',
+        );
+      }
+    }
   }
 
-  /// Simulates deleting a site, mirroring the cleanup logic in main.dart
+  static bool _matchesBase(Cookie cookie, String baseDomain) {
+    var domain = (cookie.domain ?? '').trim().toLowerCase();
+    if (domain.isEmpty || baseDomain.isEmpty) return false;
+    if (domain.startsWith('.')) domain = domain.substring(1);
+    final base = baseDomain.toLowerCase();
+    return domain == base || domain.endsWith('.$base');
+  }
+
+  /// Simulates deleting a site, mirroring the cleanup logic in main.dart.
+  /// Always clears the native cookie jar for the deleted site's URL. If a
+  /// loaded same-base-domain site exists, snapshot its cookies before the
+  /// URL-scoped delete (which would otherwise wipe its live session) and
+  /// restore them after.
   Future<void> deleteSite(int index) async {
     final deletedModel = sites[index];
-    final deletedDomain = getBaseDomain(deletedModel.initUrl);
-    final otherSiteSameDomain = sites
-        .where((m) => m != deletedModel && getBaseDomain(m.initUrl) == deletedDomain)
-        .isNotEmpty;
+    final deletedBase = getBaseDomain(deletedModel.initUrl);
 
-    // Only clear the webview cookie jar if no other site shares this domain
-    if (!otherSiteSameDomain) {
-      await cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
+    final survivingSameBase = <WebViewModel>[];
+    for (final loadedIdx in loadedIndices) {
+      if (loadedIdx == index) continue;
+      if (loadedIdx >= sites.length) continue;
+      final loaded = sites[loadedIdx];
+      if (loaded.incognito) continue;
+      if (getBaseDomain(loaded.initUrl) == deletedBase) {
+        survivingSameBase.add(loaded);
+      }
+    }
+
+    List<Cookie> survivingSnapshot = const [];
+    if (survivingSameBase.isNotEmpty) {
+      final allCookies = await cookieManager.getAllCookies();
+      survivingSnapshot = allCookies.where((c) => _matchesBase(c, deletedBase)).toList();
+    }
+
+    await cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.initUrl));
+    if (deletedModel.currentUrl.isNotEmpty && deletedModel.currentUrl != deletedModel.initUrl) {
+      await cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.currentUrl));
     }
 
     // Always clear secure storage for this siteId
     await storage.saveCookiesForSite(deletedModel.siteId, []);
+
+    if (survivingSameBase.isNotEmpty && survivingSnapshot.isNotEmpty) {
+      final restoreUrl = Uri.parse(survivingSameBase.first.initUrl);
+      for (final cookie in survivingSnapshot) {
+        if (cookie.value.isEmpty) continue;
+        await cookieManager.setCookie(
+          url: restoreUrl,
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain,
+          path: cookie.path ?? '/',
+        );
+      }
+    }
 
     // Remove from sites list and loaded indices
     sites.removeAt(index);
@@ -565,7 +647,7 @@ void main() {
       expect(stored, isEmpty);
     });
 
-    test('deleting one of multiple same-domain sites preserves cookie jar', () async {
+    test('deleting one of multiple same-domain sites preserves surviving site live session', () async {
       harness.addSite('https://github.com/personal', name: 'GitHub Personal');
       harness.addSite('https://github.com/work', name: 'GitHub Work');
 
@@ -576,7 +658,7 @@ void main() {
       ]);
       await harness.storage.saveCookiesForSite(harness.sites[0].siteId, harness.sites[0].cookies);
 
-      // Switch to work account
+      // Switch to work account (unloads personal, restores work's)
       await harness.switchToSite(1);
       await harness.simulateLogin(1, [
         Cookie(name: 'session', value: 'work_session', domain: 'github.com'),
@@ -586,18 +668,21 @@ void main() {
       final personalSiteId = harness.sites[0].siteId;
       final workSiteId = harness.sites[1].siteId;
 
-      // Delete personal account (index 0)
+      // Delete personal. Work is the active loaded site with a live
+      // github.com session in the native jar. Delete must NOT wipe that.
       await harness.deleteSite(0);
 
-      // Cookie jar should NOT be cleared (work account still exists)
+      // Work's live session preserved in native jar (snapshot+restore).
       var cookies = await harness.cookieManager.getCookies(url: Uri.parse('https://github.com'));
-      expect(cookies, isNotEmpty);
+      expect(cookies.any((c) => c.value == 'work_session'), isTrue,
+          reason: 'work\'s live session must not be wiped when deleting personal');
+      expect(cookies.any((c) => c.value == 'personal_session'), isFalse);
 
-      // Personal secure storage should be cleared
+      // Personal secure storage cleared
       var personalStored = await harness.storage.loadCookiesForSite(personalSiteId);
       expect(personalStored, isEmpty);
 
-      // Work secure storage should be intact
+      // Work secure storage intact
       var workStored = await harness.storage.loadCookiesForSite(workSiteId);
       expect(workStored, hasLength(1));
       expect(workStored[0].value, equals('work_session'));

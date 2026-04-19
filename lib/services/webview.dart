@@ -57,6 +57,14 @@ class CookieManager {
   Future<List<Cookie>> getCookies({required Uri url}) async =>
       _manager.getCookies(url: inapp.WebUri(url.toString()));
 
+  /// Returns every cookie in the native jar regardless of URL scoping.
+  /// `getCookies(url)` only returns cookies that would be sent with a request
+  /// to that URL, which misses cookies scoped to sibling subdomains (e.g.
+  /// `accounts.google.com` when querying with `mail.google.com`). Callers that
+  /// need to capture a site's complete cookie set before a nuke-and-restore
+  /// cycle should use this method and filter by domain-match themselves.
+  Future<List<Cookie>> getAllCookies() async => _manager.getAllCookies();
+
   Future<void> setCookie({
     required Uri url,
     required String name,
