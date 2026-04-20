@@ -33,6 +33,8 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
+import 'package:webspace/services/site_lifecycle_engine.dart';
+import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -1442,12 +1444,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (!mounted || version != _selectWebspaceVersion) return;
 
       if (online) {
-        // Find loaded sites that were in previous webspace but not in new one
-        final indicesToUnload = _loadedIndices
-            .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
-            .toList();
+        final indicesToUnload = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
+          loadedIndices: _loadedIndices,
+          previousWebspaceIndices: previousIndices,
+          newWebspaceIndices: newIndices,
+        );
 
-        // Unload sites not in new webspace
         for (final index in indicesToUnload) {
           if (index >= 0 && index < _webViewModels.length) {
             _webViewModels[index].disposeWebView();
@@ -1485,32 +1487,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   List<int> _getFilteredSiteIndices() {
-    if (_selectedWebspaceId == null) {
-      return [];
-    }
-
-    // If "All" webspace is selected, return all site indices
-    if (_selectedWebspaceId == kAllWebspaceId) {
-      return List<int>.generate(_webViewModels.length, (index) => index);
-    }
-
-    final webspace = _webspaces.firstWhere(
-      (ws) => ws.id == _selectedWebspaceId,
-      orElse: () => Webspace(name: '', siteIndices: []),
+    return WebspaceSelectionEngine.filteredSiteIndices(
+      selectedWebspaceId: _selectedWebspaceId,
+      webspaces: _webspaces,
+      siteCount: _webViewModels.length,
     );
-    // Filter out indices that are out of bounds
-    return webspace.siteIndices
-        .where((index) => index >= 0 && index < _webViewModels.length)
-        .toList();
   }
 
   void _cleanupWebspaceIndices() {
-    // Clean up invalid indices in all webspaces after site deletion/reordering
-    for (var webspace in _webspaces) {
-      webspace.siteIndices = webspace.siteIndices
-          .where((index) => index >= 0 && index < _webViewModels.length)
-          .toList();
-    }
+    WebspaceSelectionEngine.cleanupWebspaceIndices(
+      webspaces: _webspaces,
+      siteCount: _webViewModels.length,
+    );
     _saveWebspaces();
   }
 
@@ -2828,20 +2816,26 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!mounted) return;
     final currentModelIndex = _webViewModels.indexOf(deletedModel);
     if (currentModelIndex == -1) return;
+    // Patch the index-dependent state: `_loadedIndices` and each webspace's
+    // `siteIndices` are rewritten so indices > currentModelIndex shift down
+    // by one, and the deleted index drops out. `_currentIndex` is handled
+    // separately by the `wasCurrentIndex` branch below (preserving existing
+    // semantics — we don't shift it here).
+    final patch = SiteLifecycleEngine.computeDeletionPatch(
+      deletedIndex: currentModelIndex,
+      siteCountBeforeRemoval: _webViewModels.length,
+      loadedIndices: _loadedIndices,
+      webspaces: _webspaces,
+      currentIndex: _currentIndex,
+    );
     setState(() {
       _webViewModels.removeAt(currentModelIndex);
-      _loadedIndices.remove(currentModelIndex);
-      _loadedIndices.removeWhere((i) => i >= _webViewModels.length);
-      final updatedIndices = _loadedIndices
-          .map((i) => i > currentModelIndex ? i - 1 : i)
-          .toSet();
-      _loadedIndices.clear();
-      _loadedIndices.addAll(updatedIndices);
-      for (var webspace in _webspaces) {
-        webspace.siteIndices = webspace.siteIndices
-            .where((i) => i != currentModelIndex)
-            .map((i) => i > currentModelIndex ? i - 1 : i)
-            .toList();
+      _loadedIndices
+        ..clear()
+        ..addAll(patch.newLoadedIndices);
+      for (final webspace in _webspaces) {
+        final rewritten = patch.newSiteIndicesByWebspaceId[webspace.id];
+        if (rewritten != null) webspace.siteIndices = rewritten;
       }
     });
     if (wasCurrentIndex) {
