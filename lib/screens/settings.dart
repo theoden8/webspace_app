@@ -653,14 +653,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: Text(
                 LocalCdnService.instance.hasCache
                     ? '${LocalCdnService.instance.resourceCount} cached resources'
-                    : 'Cache CDN resources locally',
+                    : 'Download the cache in app settings first',
               ),
-              value: _localCdnEnabled,
-              onChanged: (bool value) {
-                setState(() {
-                  _localCdnEnabled = value;
-                });
-              },
+              value: _localCdnEnabled && LocalCdnService.instance.hasCache,
+              onChanged: LocalCdnService.instance.hasCache
+                  ? (bool value) {
+                      setState(() {
+                        _localCdnEnabled = value;
+                      });
+                    }
+                  : null,
             ),
           SwitchListTile(
             title: Row(

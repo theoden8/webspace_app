@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/settings_backup.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
@@ -31,7 +33,7 @@ void main() {
       expect(json['sites'], hasLength(1));
       expect(json['webspaces'], hasLength(1));
       expect(json['themeMode'], equals(2));
-      expect(json['showUrlBar'], equals(true));
+      expect((json['globalPrefs'] as Map)['showUrlBar'], equals(true));
       expect(json['selectedWebspaceId'], equals('ws-1'));
       expect(json['currentIndex'], equals(0));
       expect(json['exportedAt'], equals('2024-01-15T10:30:00.000'));
@@ -656,6 +658,136 @@ void main() {
       final cookies2 = backup2.sites[0]['cookies'] as List;
       expect(cookies2, hasLength(1));
       expect(cookies2[0]['name'], equals('theme'));
+    });
+  });
+
+  group('Global prefs registry', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('every registered key round-trips through export and import', () async {
+      // Write a non-default value for every registered key.
+      final prefs = await SharedPreferences.getInstance();
+      final nonDefaults = <String, Object>{};
+      for (final entry in kExportedAppPrefs.entries) {
+        final key = entry.key;
+        final defaultValue = entry.value;
+        late Object override;
+        if (defaultValue is bool) {
+          override = !defaultValue;
+          await prefs.setBool(key, override as bool);
+        } else if (defaultValue is int) {
+          override = defaultValue + 7;
+          await prefs.setInt(key, override as int);
+        } else if (defaultValue is double) {
+          override = defaultValue + 0.5;
+          await prefs.setDouble(key, override as double);
+        } else if (defaultValue is String) {
+          override = 'override-$key';
+          await prefs.setString(key, override as String);
+        } else if (defaultValue is List<String>) {
+          override = <String>['override-$key'];
+          await prefs.setStringList(key, override as List<String>);
+        } else {
+          fail('Add a test case for type ${defaultValue.runtimeType}');
+        }
+        nonDefaults[key] = override;
+      }
+
+      // Export using the registry reader.
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [],
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+        globalPrefs: readExportedAppPrefs(prefs),
+      );
+
+      // Every registered key must appear in the backup's globalPrefs with the
+      // non-default value. If this fails after adding a new pref, it means
+      // the registry is not being read correctly during export.
+      for (final key in kExportedAppPrefs.keys) {
+        expect(
+          backup.globalPrefs[key],
+          equals(nonDefaults[key]),
+          reason:
+              'Registered pref "$key" was not captured during export. '
+              'Ensure kExportedAppPrefs in lib/settings/app_prefs.dart '
+              'includes it and readExportedAppPrefs understands its type.',
+        );
+      }
+
+      // Simulate a fresh install.
+      SharedPreferences.setMockInitialValues({});
+      final freshPrefs = await SharedPreferences.getInstance();
+      for (final key in kExportedAppPrefs.keys) {
+        expect(freshPrefs.get(key), isNull);
+      }
+
+      // Apply the backup and assert each key was restored to the non-default
+      // value. A missing restore path for a new pref will fail here.
+      await writeExportedAppPrefs(freshPrefs, backup.globalPrefs);
+      for (final key in kExportedAppPrefs.keys) {
+        expect(
+          freshPrefs.get(key),
+          equals(nonDefaults[key]),
+          reason:
+              'Registered pref "$key" was not restored during import. '
+              'Ensure writeExportedAppPrefs handles its type.',
+        );
+      }
+    });
+
+    test('round-trips through JSON string without loss', () async {
+      final prefs = await SharedPreferences.getInstance();
+      // Flip every boolean pref to a non-default value for coverage.
+      for (final entry in kExportedAppPrefs.entries) {
+        if (entry.value is bool) {
+          await prefs.setBool(entry.key, !(entry.value as bool));
+        }
+      }
+
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [],
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+        globalPrefs: readExportedAppPrefs(prefs),
+      );
+      final jsonString = SettingsBackupService.exportToJson(backup);
+      final imported = SettingsBackupService.importFromJson(jsonString)!;
+
+      for (final entry in kExportedAppPrefs.entries) {
+        expect(
+          imported.globalPrefs[entry.key],
+          equals(backup.globalPrefs[entry.key]),
+          reason: 'Key "${entry.key}" lost across JSON round-trip',
+        );
+      }
+    });
+
+    test('legacy top-level fields migrate into globalPrefs', () {
+      // Older backup files stored these as flat top-level keys. The
+      // fromJson migration must preserve the values under globalPrefs so
+      // existing user backups still import correctly.
+      final legacyJson = {
+        'version': 1,
+        'sites': [],
+        'webspaces': [],
+        'themeMode': 0,
+        'showUrlBar': true,
+        'showTabStrip': true,
+        'showStatsBanner': false,
+        'exportedAt': '2024-01-01T00:00:00.000',
+      };
+      final backup = SettingsBackup.fromJson(legacyJson);
+      expect(backup.globalPrefs['showUrlBar'], equals(true));
+      expect(backup.globalPrefs['showTabStrip'], equals(true));
+      expect(backup.globalPrefs['showStatsBanner'], equals(false));
+      expect(backup.showUrlBar, equals(true));
+      expect(backup.showTabStrip, equals(true));
+      expect(backup.showStatsBanner, equals(false));
     });
   });
 
