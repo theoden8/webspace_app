@@ -11,13 +11,18 @@ import 'package:webspace/webspace_model.dart';
 /// Backup version for compatibility checking
 const int kBackupVersion = 1;
 
-/// Data class representing a backup of app settings
+/// Data class representing a backup of app settings.
+///
+/// Global boolean/int/string toggles live in [globalPrefs] keyed by their
+/// SharedPreferences key. The registry in `lib/settings/app_prefs.dart`
+/// controls which keys are included. The legacy flat fields (`showUrlBar`)
+/// are kept as getters so older backup files still deserialize.
 class SettingsBackup {
   final int version;
   final List<Map<String, dynamic>> sites;
   final List<Map<String, dynamic>> webspaces;
   final int themeMode;
-  final bool showUrlBar;
+  final Map<String, dynamic> globalPrefs;
   final String? selectedWebspaceId;
   final int? currentIndex;
   final DateTime exportedAt;
@@ -29,20 +34,33 @@ class SettingsBackup {
     required this.sites,
     required this.webspaces,
     required this.themeMode,
-    required this.showUrlBar,
+    Map<String, dynamic>? globalPrefs,
+    bool? showUrlBar,
+    bool? showTabStrip,
+    bool? showStatsBanner,
     this.selectedWebspaceId,
     this.currentIndex,
     required this.exportedAt,
     this.suggestedSites,
     this.globalUserScripts,
-  });
+  }) : globalPrefs = _normalizePrefs(
+          globalPrefs,
+          showUrlBar: showUrlBar,
+          showTabStrip: showTabStrip,
+          showStatsBanner: showStatsBanner,
+        );
+
+  /// Convenience accessors for commonly-used registry keys.
+  bool get showUrlBar => globalPrefs['showUrlBar'] as bool? ?? false;
+  bool get showTabStrip => globalPrefs['showTabStrip'] as bool? ?? false;
+  bool get showStatsBanner => globalPrefs['showStatsBanner'] as bool? ?? true;
 
   Map<String, dynamic> toJson() => {
         'version': version,
         'sites': sites,
         'webspaces': webspaces,
         'themeMode': themeMode,
-        'showUrlBar': showUrlBar,
+        'globalPrefs': globalPrefs,
         'selectedWebspaceId': selectedWebspaceId,
         'currentIndex': currentIndex,
         'exportedAt': exportedAt.toIso8601String(),
@@ -51,6 +69,16 @@ class SettingsBackup {
       };
 
   factory SettingsBackup.fromJson(Map<String, dynamic> json) {
+    final rawPrefs = json['globalPrefs'];
+    final prefs = rawPrefs is Map
+        ? Map<String, dynamic>.from(rawPrefs)
+        : <String, dynamic>{};
+    // Backward compat: older backups stored these as top-level fields.
+    for (final key in const ['showUrlBar', 'showTabStrip', 'showStatsBanner']) {
+      if (!prefs.containsKey(key) && json.containsKey(key)) {
+        prefs[key] = json[key];
+      }
+    }
     return SettingsBackup(
       version: json['version'] ?? 1,
       sites: (json['sites'] as List<dynamic>)
@@ -60,7 +88,7 @@ class SettingsBackup {
           .map((e) => e as Map<String, dynamic>)
           .toList(),
       themeMode: json['themeMode'] ?? 0,
-      showUrlBar: json['showUrlBar'] ?? false,
+      globalPrefs: prefs,
       selectedWebspaceId: json['selectedWebspaceId'],
       currentIndex: json['currentIndex'],
       exportedAt: json['exportedAt'] != null
@@ -74,6 +102,21 @@ class SettingsBackup {
           .toList(),
     );
   }
+
+  static Map<String, dynamic> _normalizePrefs(
+    Map<String, dynamic>? base, {
+    bool? showUrlBar,
+    bool? showTabStrip,
+    bool? showStatsBanner,
+  }) {
+    final result = base == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(base);
+    if (showUrlBar != null) result['showUrlBar'] = showUrlBar;
+    if (showTabStrip != null) result['showTabStrip'] = showTabStrip;
+    if (showStatsBanner != null) result['showStatsBanner'] = showStatsBanner;
+    return result;
+  }
 }
 
 /// Service for exporting and importing app settings
@@ -85,7 +128,10 @@ class SettingsBackupService {
     required List<WebViewModel> webViewModels,
     required List<Webspace> webspaces,
     required int themeMode,
-    required bool showUrlBar,
+    Map<String, Object?>? globalPrefs,
+    bool? showUrlBar,
+    bool? showTabStrip,
+    bool? showStatsBanner,
     String? selectedWebspaceId,
     int? currentIndex,
     List<Map<String, dynamic>>? suggestedSites,
@@ -113,7 +159,12 @@ class SettingsBackupService {
       sites: sitesJson,
       webspaces: webspacesJson,
       themeMode: themeMode,
+      globalPrefs: globalPrefs == null
+          ? null
+          : Map<String, dynamic>.from(globalPrefs),
       showUrlBar: showUrlBar,
+      showTabStrip: showTabStrip,
+      showStatsBanner: showStatsBanner,
       selectedWebspaceId: selectedWebspaceId,
       currentIndex: currentIndex,
       exportedAt: DateTime.now(),
@@ -133,7 +184,7 @@ class SettingsBackupService {
     required List<WebViewModel> webViewModels,
     required List<Webspace> webspaces,
     required int themeMode,
-    required bool showUrlBar,
+    Map<String, Object?>? globalPrefs,
     String? selectedWebspaceId,
     int? currentIndex,
     List<Map<String, dynamic>>? suggestedSites,
@@ -144,7 +195,7 @@ class SettingsBackupService {
         webViewModels: webViewModels,
         webspaces: webspaces,
         themeMode: themeMode,
-        showUrlBar: showUrlBar,
+        globalPrefs: globalPrefs,
         selectedWebspaceId: selectedWebspaceId,
         currentIndex: currentIndex,
         suggestedSites: suggestedSites,

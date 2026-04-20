@@ -43,6 +43,7 @@ import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:share_plus/share_plus.dart';
@@ -1515,12 +1516,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   // Export settings to a file
   Future<void> _exportSettings() async {
+    final prefs = await SharedPreferences.getInstance();
     await SettingsBackupService.exportAndSave(
       context,
       webViewModels: _webViewModels,
       webspaces: _webspaces,
       themeMode: _themeSettings.toStorageIndex(),
-      showUrlBar: _showUrlBar,
+      globalPrefs: readExportedAppPrefs(prefs),
       selectedWebspaceId: _selectedWebspaceId,
       currentIndex: _currentIndex,
       suggestedSites: _suggestedSites
@@ -1601,9 +1603,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Restore webspaces
       _webspaces.addAll(SettingsBackupService.restoreWebspaces(backup));
 
-      // Restore other settings - handle both new and legacy formats
+      // Restore other settings - handle both new and legacy formats.
+      // Every boolean/int/string global toggle is routed through the
+      // kExportedAppPrefs registry, so adding a new one requires zero
+      // additional code here.
       _themeSettings = AppThemeSettings.fromStorageIndex(backup.themeMode);
-      _showUrlBar = backup.showUrlBar;
+      _showUrlBar =
+          backup.globalPrefs['showUrlBar'] as bool? ?? _showUrlBar;
+      _showTabStrip =
+          backup.globalPrefs['showTabStrip'] as bool? ?? _showTabStrip;
+      _showStatsBanner =
+          backup.globalPrefs['showStatsBanner'] as bool? ?? _showStatsBanner;
 
       // Restore selection state
       if (backup.selectedWebspaceId != null &&
@@ -1633,11 +1643,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Apply theme to app
     widget.onThemeSettingsChanged(_themeSettings);
 
-    // Save all settings
+    // Save all settings. Global UI toggles go through the registry so
+    // new entries in kExportedAppPrefs are automatically persisted.
+    final prefsToWrite = await SharedPreferences.getInstance();
+    await writeExportedAppPrefs(prefsToWrite, backup.globalPrefs);
     await _saveWebViewModels();
     await _saveWebspaces();
     await _saveThemeSettings();
-    await _saveShowUrlBar();
     await _saveSelectedWebspaceId();
     await _saveCurrentIndex();
 

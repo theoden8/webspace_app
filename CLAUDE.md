@@ -117,6 +117,26 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
 
+## Adding a new global app setting
+
+Any user-facing global toggle/preference persisted to `SharedPreferences` MUST be routed through the export/import registry, otherwise it silently drops out of user backups.
+
+- Add the pref key + default value to `kExportedAppPrefs` in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart). That is the single source of truth for which global prefs round-trip through backup files.
+- The integrity test in [test/settings_backup_test.dart](test/settings_backup_test.dart) ("every registered key round-trips through export and import") iterates `kExportedAppPrefs` and will exercise the new key automatically — no test edit required for scalar types already covered (`bool`, `int`, `double`, `String`, `List<String>`).
+- Do NOT add per-pref parameters to `SettingsBackupService.createBackup` / `exportAndSave`. `main.dart` already calls `readExportedAppPrefs(prefs)` for export and `writeExportedAppPrefs(prefs, backup.globalPrefs)` for import.
+- Do NOT add keys to the registry for: migration flags, download timestamps, cache indices, or machine state tied to downloaded data (DNS blocklist, content blocker lists, localcdn). Those are not user intent.
+- Per-site settings (anything serialized on `WebViewModel.toJson`) are carried via the `sites` array automatically — keep them on the model, not in the global registry.
+
+When you touch the export/import code path for any reason, re-run `flutter test test/settings_backup_test.dart` before committing.
+
+## Per-site toggles that depend on downloaded data
+
+Some features (DNS blocklist, content blocker, LocalCDN) require a downloaded blob before the per-site toggle does anything. Gate the per-site `SwitchListTile` on the service's readiness so users can't flip it on while the backing data is empty:
+
+- Pattern: `onChanged: SomeService.instance.isReady ? (v) => ... : null` — a null `onChanged` grays out the switch.
+- Update the subtitle to hint the user to populate the data first when the service is not ready.
+- Examples in [lib/screens/settings.dart](lib/screens/settings.dart): DNS blocklist gates on `DnsBlockService.instance.hasBlocklist`; content blocker gates on `ContentBlockerService.instance.hasRules`; LocalCDN gates on `LocalCdnService.instance.hasCache`.
+
 ## UI Race Conditions
 
 Async event handlers in the UI (e.g. button callbacks, `onPopInvokedWithResult`, gesture handlers) can be invoked multiple times before the first invocation completes. Always review UI code changes for race conditions:
