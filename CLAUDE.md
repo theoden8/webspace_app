@@ -137,6 +137,26 @@ Some features (DNS blocklist, content blocker, LocalCDN) require a downloaded bl
 - Update the subtitle to hint the user to populate the data first when the service is not ready.
 - Examples in [lib/screens/settings.dart](lib/screens/settings.dart): DNS blocklist gates on `DnsBlockService.instance.hasBlocklist`; content blocker gates on `ContentBlockerService.instance.hasRules`; LocalCDN gates on `LocalCdnService.instance.hasCache`.
 
+## Logic engine vs. rendering engine
+
+Orchestration logic — "which sites to unload on a webspace switch", "how do indices shift after a deletion", "what cookies move where during site activation" — belongs in a pure-Dart **logic engine** under `lib/services/*_engine.dart`, not inlined in `_WebSpacePageState`. The template is [lib/services/cookie_isolation.dart](lib/services/cookie_isolation.dart): the engine takes mutable state as parameters, depends only on abstract I/O interfaces (`CookieManager`, `CookieSecureStorage`), and is invoked from `main.dart` as a thin call site. The **rendering engine** (native webview, platform channels, UI setState) stays at the call site. "Logic" is literal — it's the same code path in production and tests; the split is strictly about separating orchestration from rendering so the former can run without a display.
+
+Rules of thumb:
+
+- If a function mutates `_webViewModels`/`_loadedIndices`/`_webspaces` with more than one line of index arithmetic, it belongs in an engine.
+- If a function awaits a native call (`cookieManager.*`, `HtmlCacheService.*`) and then mutates shared state with logic that could differ per scenario, the logic part belongs in an engine.
+- Engines never import `package:flutter/material.dart`, never call `setState`, never touch `context`. If they need an I/O boundary that's not yet abstracted, add the interface on the existing service (e.g. `CookieManager`) rather than reaching into the concrete type.
+- Version guards (race protection) are passed in as `(versionAtEntry, int Function() currentVersion)` so the engine can bail between awaits without knowing about widget state.
+- Tests import the engine directly and supply in-memory fakes that **model the interface** (e.g. `MockCookieManager` modeling RFC 6265 domain-match), not trivial stubs. See [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart) for the pattern.
+
+## DRY: tests delegate, don't reimplement
+
+If a test harness re-implements production orchestration (its own `switchToSite`/`deleteSite`), that's a design smell pointing at an un-extracted engine. The harness should be a thin dispatcher that delegates to the real engine — the tests then exercise production code, not a parallel implementation that can drift. Example: [test/cookie_isolation_integration_test.dart:174-238](test/cookie_isolation_integration_test.dart) wraps `CookieIsolationEngine` without re-implementing the capture-nuke-restore dance. If you find yourself re-writing a flow in a test, stop and extract an engine first.
+
+## Code flows new → stable
+
+When adding a feature, extend the relevant engine (or introduce a new one alongside) rather than inlining a feature-specific branch into stable call sites. Corollary: never copy stable engine logic down into a new-feature codepath — that's how parallel implementations appear and silently diverge. If a new feature needs orchestration, it graduates into the engine layer before it ships; the stable engine doesn't fork to accommodate it. A `_WebSpacePageState` method should read as a sequence of engine calls + persistence/UI side-effects, with the "why" in the engine and the "where in the widget tree" at the call site.
+
 ## UI Race Conditions
 
 Async event handlers in the UI (e.g. button callbacks, `onPopInvokedWithResult`, gesture handlers) can be invoked multiple times before the first invocation completes. Always review UI code changes for race conditions:

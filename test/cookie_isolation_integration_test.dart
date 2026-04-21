@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
+import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -200,28 +201,24 @@ class CookieIsolationTestHarness {
 
   /// Mirrors `_setCurrentIndex` in main.dart: bumps the version, unloads
   /// any same-base-domain conflicting site, then delegates cookie restore
-  /// to the real engine.
+  /// to the real engine. Both the conflict-finding and restore steps go
+  /// through the production engines so the harness can't drift from prod.
   Future<void> switchToSite(int index) async {
     if (index < 0 || index >= sites.length) return;
     final v = ++version;
 
-    final target = sites[index];
-    if (!target.incognito) {
-      final targetDomain = getBaseDomain(target.initUrl);
-      for (final loadedIndex in List.from(loadedIndices)) {
-        if (loadedIndex == index) continue;
-        final loaded = sites[loadedIndex];
-        if (loaded.incognito) continue;
-        if (getBaseDomain(loaded.initUrl) == targetDomain) {
-          await engine.unloadSiteForDomainSwitch(
-            index: loadedIndex,
-            models: sites,
-            loadedIndices: loadedIndices,
-          );
-          if (v != version) return;
-          break;
-        }
-      }
+    final conflictIndex = SiteActivationEngine.findDomainConflict(
+      targetIndex: index,
+      models: sites,
+      loadedIndices: loadedIndices,
+    );
+    if (conflictIndex != null) {
+      await engine.unloadSiteForDomainSwitch(
+        index: conflictIndex,
+        models: sites,
+        loadedIndices: loadedIndices,
+      );
+      if (v != version) return;
     }
 
     await engine.restoreCookiesForSite(

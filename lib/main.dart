@@ -33,6 +33,11 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
+import 'package:webspace/services/navigation_engine.dart';
+import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_lifecycle_engine.dart';
+import 'package:webspace/services/startup_restore_engine.dart';
+import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -480,143 +485,23 @@ void main() async {
         LocalCdnService.instance.cacheIndexSnapshot);
   });
 
-  // Register custom licenses
-  LicenseRegistry.addLicense(() async* {
-    final assetsLicense = await rootBundle.loadString('assets/LICENSE');
-    yield LicenseEntryWithLineBreaks(
-      ['WebSpace Assets'],
-      assetsLicense,
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['favicon (modified)'],
-      '''MIT License
-
-Copyright (c) 2019 Marcus Johansson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Source: https://github.com/marcjoha/favicon''',
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['ClearURLs (rules data)'],
-      '''GNU Lesser General Public License v3.0
-
-Copyright (c) Kevin Röbert
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-Source: https://github.com/ClearURLs/Rules''',
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['Hagezi DNS Blocklists (domain data)'],
-      '''GNU General Public License v3.0
-
-Copyright (c) Hagezi
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-Source: https://github.com/hagezi/dns-blocklists''',
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['EasyList filter lists (filter data)'],
-      '''Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
-
-Copyright (c) The EasyList authors
-
-EasyList, EasyPrivacy, Fanboy's Social Blocking List, and Fanboy's
-Annoyance List are dual-licensed under the GNU General Public License
-version 3 (or later) and Creative Commons Attribution-ShareAlike 3.0
-Unported (or later). Used here under CC BY-SA 3.0.
-
-You are free to share and adapt the material, provided you give
-appropriate credit, provide a link to the license, and indicate if
-changes were made. If you remix, transform, or build upon the material,
-you must distribute your contributions under the same license.
-
-Full license: https://creativecommons.org/licenses/by-sa/3.0/
-Licence page: https://easylist.to/pages/licence.html
-Source: https://easylist.to/''',
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['cdnjs (LocalCDN resource data)'],
-      '''MIT License
-
-Copyright (c) cdnjs contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Source: https://github.com/cdnjs/cdnjs''',
-    );
-  });
+  // Register custom licenses. The list pairs a display name with the path
+  // to a bundled license text under `assets/licenses/`; see that directory
+  // for the originals. The pubspec asset glob pulls each `.txt` in.
+  const customLicenses = <(List<String>, String)>[
+    (['WebSpace Assets'], 'assets/LICENSE'),
+    (['favicon (modified)'], 'assets/licenses/favicon.txt'),
+    (['ClearURLs (rules data)'], 'assets/licenses/clearurls.txt'),
+    (['Hagezi DNS Blocklists (domain data)'], 'assets/licenses/hagezi.txt'),
+    (['EasyList filter lists (filter data)'], 'assets/licenses/easylist.txt'),
+    (['cdnjs (LocalCDN resource data)'], 'assets/licenses/cdnjs.txt'),
+  ];
+  for (final (packages, assetPath) in customLicenses) {
+    LicenseRegistry.addLicense(() async* {
+      final text = await rootBundle.loadString(assetPath);
+      yield LicenseEntryWithLineBreaks(packages, text);
+    });
+  }
 
   // Initialize platform info to detect proxy support before UI loads
   await PlatformInfo.initialize();
@@ -944,29 +829,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
     LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');
 
-    // Only check for domain conflicts if target is not incognito
-    if (!target.incognito) {
-      // Use second-level domain for cookie isolation (e.g., all *.google.com sites conflict)
-      final targetDomain = getBaseDomain(target.initUrl);
-
-      // Find and unload any conflicting sites (same domain, already loaded)
-      for (final loadedIndex in List.from(_loadedIndices)) {
-        if (loadedIndex == index) continue;
-        if (loadedIndex >= _webViewModels.length) continue;
-
-        final loaded = _webViewModels[loadedIndex];
-        if (loaded.incognito) continue; // Skip incognito sites
-
-        final loadedDomain = getBaseDomain(loaded.initUrl);
-        LogService.instance.log('CookieIsolation', 'Checking loaded site $loadedIndex: "${loaded.name}" domain: $loadedDomain');
-        if (loadedDomain == targetDomain) {
-          // Domain conflict - unload the conflicting site
-          LogService.instance.log('CookieIsolation', 'CONFLICT! Unloading site $loadedIndex', level: LogLevel.warning);
-          await _unloadSiteForDomainSwitch(loadedIndex);
-          if (version != _setCurrentIndexVersion) return;
-          break; // Only one conflict possible at a time
-        }
-      }
+    final conflictIndex = SiteActivationEngine.findDomainConflict(
+      targetIndex: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+    );
+    if (conflictIndex != null) {
+      LogService.instance.log(
+        'CookieIsolation',
+        'CONFLICT! Unloading site $conflictIndex: "${_webViewModels[conflictIndex].name}"',
+        level: LogLevel.warning,
+      );
+      await _unloadSiteForDomainSwitch(conflictIndex);
+      if (version != _setCurrentIndexVersion) return;
     }
 
     // Pause the previously active webview to save resources
@@ -1214,16 +1089,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieManager.deleteAllCookies();
 
     // Always start at home screen on launch - only restore index if launched via shortcut
-    int? indexToRestore;
-
-    // Check if launched via home screen shortcut
     final shortcutSiteId = await ShortcutService.getLaunchSiteId();
-    if (shortcutSiteId != null) {
-      final shortcutIndex = _webViewModels.indexWhere((m) => m.siteId == shortcutSiteId);
-      if (shortcutIndex >= 0) {
-        indexToRestore = shortcutIndex;
-      }
-    }
+    final indexToRestore = StartupRestoreEngine.resolveLaunchTarget(
+      shortcutSiteId: shortcutSiteId,
+      models: _webViewModels,
+    );
 
     // Set current index (async for cookie restoration)
     await _setCurrentIndex(indexToRestore);
@@ -1442,12 +1312,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (!mounted || version != _selectWebspaceVersion) return;
 
       if (online) {
-        // Find loaded sites that were in previous webspace but not in new one
-        final indicesToUnload = _loadedIndices
-            .where((i) => previousIndices.contains(i) && !newIndices.contains(i))
-            .toList();
+        final indicesToUnload = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
+          loadedIndices: _loadedIndices,
+          previousWebspaceIndices: previousIndices,
+          newWebspaceIndices: newIndices,
+        );
 
-        // Unload sites not in new webspace
         for (final index in indicesToUnload) {
           if (index >= 0 && index < _webViewModels.length) {
             _webViewModels[index].disposeWebView();
@@ -1485,32 +1355,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   List<int> _getFilteredSiteIndices() {
-    if (_selectedWebspaceId == null) {
-      return [];
-    }
-
-    // If "All" webspace is selected, return all site indices
-    if (_selectedWebspaceId == kAllWebspaceId) {
-      return List<int>.generate(_webViewModels.length, (index) => index);
-    }
-
-    final webspace = _webspaces.firstWhere(
-      (ws) => ws.id == _selectedWebspaceId,
-      orElse: () => Webspace(name: '', siteIndices: []),
+    return WebspaceSelectionEngine.filteredSiteIndices(
+      selectedWebspaceId: _selectedWebspaceId,
+      webspaces: _webspaces,
+      siteCount: _webViewModels.length,
     );
-    // Filter out indices that are out of bounds
-    return webspace.siteIndices
-        .where((index) => index >= 0 && index < _webViewModels.length)
-        .toList();
   }
 
   void _cleanupWebspaceIndices() {
-    // Clean up invalid indices in all webspaces after site deletion/reordering
-    for (var webspace in _webspaces) {
-      webspace.siteIndices = webspace.siteIndices
-          .where((index) => index >= 0 && index < _webViewModels.length)
-          .toList();
-    }
+    WebspaceSelectionEngine.cleanupWebspaceIndices(
+      webspaces: _webspaces,
+      siteCount: _webViewModels.length,
+    );
     _saveWebspaces();
   }
 
@@ -1704,15 +1560,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
   }
 
-  /// Compare a current URL against a site's initUrl, ignoring trailing slashes.
-  /// Webviews often normalize "https://example.com" to "https://example.com/"
-  /// so a plain == comparison misses the match.
-  static bool _isHomeUrl(String currentUrl, String initUrl) {
-    final a = currentUrl.endsWith('/') ? currentUrl.substring(0, currentUrl.length - 1) : currentUrl;
-    final b = initUrl.endsWith('/') ? initUrl.substring(0, initUrl.length - 1) : initUrl;
-    return a == b;
-  }
-
   /// Update _canGoBack from the current webview's controller.
   /// Used on iOS to enable drawer edge-swipe when there's no back history.
   /// Note: canGoBack() can return false for pushState/SPA navigations even
@@ -1722,28 +1569,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   void _updateCanGoBack() async {
     if (!Platform.isIOS) return;
     final version = ++_canGoBackVersion;
-    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
-      if (_canGoBack) setState(() => _canGoBack = false);
-      return;
-    }
-    final model = _webViewModels[_currentIndex!];
-    // Synchronous fast-path: if the current URL matches the site's home URL,
-    // there is no meaningful back history.  Set _canGoBack = false immediately
-    // so the drawer edge-swipe is enabled without waiting for the async
-    // canGoBack() call, which can race with other callbacks.
-    if (_isHomeUrl(model.currentUrl, model.initUrl)) {
-      if (_canGoBack) {
-        LogService.instance.log('Navigation', '_updateCanGoBack: at home URL, forcing false');
-        setState(() => _canGoBack = false);
+
+    final model = (_currentIndex != null && _currentIndex! < _webViewModels.length)
+        ? _webViewModels[_currentIndex!]
+        : null;
+    final sync = NavigationEngine.trySyncCanGoBack(
+      currentIndex: _currentIndex,
+      siteCount: _webViewModels.length,
+      currentUrl: model?.currentUrl,
+      initUrl: model?.initUrl,
+      hasController: model?.controller != null,
+    );
+    if (sync != null) {
+      if (_canGoBack != sync) {
+        if (model != null && sync == false && NavigationEngine.isHomeUrl(model.currentUrl, model.initUrl)) {
+          LogService.instance.log('Navigation', '_updateCanGoBack: at home URL, forcing false');
+        }
+        setState(() => _canGoBack = sync);
       }
       return;
     }
-    final controller = model.controller;
-    if (controller == null) {
-      if (_canGoBack) setState(() => _canGoBack = false);
-      return;
-    }
-    final canGoBack = await controller.canGoBack();
+
+    final canGoBack = await model!.controller!.canGoBack();
     if (!mounted || version != _canGoBackVersion) {
       LogService.instance.log('Navigation', '_updateCanGoBack: stale (v$version != v$_canGoBackVersion), discarding canGoBack=$canGoBack');
       return;
@@ -2828,20 +2675,26 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!mounted) return;
     final currentModelIndex = _webViewModels.indexOf(deletedModel);
     if (currentModelIndex == -1) return;
+    // Patch the index-dependent state: `_loadedIndices` and each webspace's
+    // `siteIndices` are rewritten so indices > currentModelIndex shift down
+    // by one, and the deleted index drops out. `_currentIndex` is handled
+    // separately by the `wasCurrentIndex` branch below (preserving existing
+    // semantics — we don't shift it here).
+    final patch = SiteLifecycleEngine.computeDeletionPatch(
+      deletedIndex: currentModelIndex,
+      siteCountBeforeRemoval: _webViewModels.length,
+      loadedIndices: _loadedIndices,
+      webspaces: _webspaces,
+      currentIndex: _currentIndex,
+    );
     setState(() {
       _webViewModels.removeAt(currentModelIndex);
-      _loadedIndices.remove(currentModelIndex);
-      _loadedIndices.removeWhere((i) => i >= _webViewModels.length);
-      final updatedIndices = _loadedIndices
-          .map((i) => i > currentModelIndex ? i - 1 : i)
-          .toSet();
-      _loadedIndices.clear();
-      _loadedIndices.addAll(updatedIndices);
-      for (var webspace in _webspaces) {
-        webspace.siteIndices = webspace.siteIndices
-            .where((i) => i != currentModelIndex)
-            .map((i) => i > currentModelIndex ? i - 1 : i)
-            .toList();
+      _loadedIndices
+        ..clear()
+        ..addAll(patch.newLoadedIndices);
+      for (final webspace in _webspaces) {
+        final rewritten = patch.newSiteIndicesByWebspaceId[webspace.id];
+        if (rewritten != null) webspace.siteIndices = rewritten;
       }
     });
     if (wasCurrentIndex) {
@@ -3387,7 +3240,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               // synchronously clear _canGoBack so the drawer edge-swipe is
               // enabled immediately for the next gesture.
               final homeUrl = _webViewModels[_currentIndex!].initUrl;
-              if (urlAfter != null && _isHomeUrl(urlAfter, homeUrl)) {
+              if (urlAfter != null && NavigationEngine.isHomeUrl(urlAfter, homeUrl)) {
                 LogService.instance.log('Navigation', 'Back gesture: landed on home URL, enabling drawer swipe');
                 ++_canGoBackVersion;
                 setState(() => _canGoBack = false);
