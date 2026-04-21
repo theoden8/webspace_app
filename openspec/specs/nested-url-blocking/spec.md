@@ -193,15 +193,38 @@ static bool _hasUserGesture(NavigationAction action) {
 
 ### Files
 
+#### `lib/services/navigation_decision_engine.dart`
+- `NavigationDecisionEngine.decideShouldOverrideUrlLoading` — pure
+  decision for the `shouldOverrideUrlLoading` callback; returns one of
+  `allow` / `blockSilent` / `blockSuppressed` / `blockOpenNested` plus
+  an optional `GestureStateUpdate` descriptor. Implements NESTED-004
+  (script-initiated cross-domain blocking), NESTED-006 (per-site
+  `blockAutoRedirects` toggle), and NESTED-007 (same-domain
+  propagation + 10s gesture window).
+- `NavigationDecisionEngine.decideOnUrlChanged` — same decision
+  shape for server-side 3xx redirects that bypass
+  `shouldOverrideUrlLoading`. `isCaptchaChallenge` is injected as a
+  callback so the engine has no transitive import of the captcha
+  domain list.
+
+Both the production callbacks in `lib/web_view_model.dart` AND the
+`NavigationTestHarness` in
+[test/nested_webview_navigation_test.dart](../../../test/nested_webview_navigation_test.dart)
+delegate to this engine — before extraction the harness carried an
+inline copy of the same decision tree, which is exactly the DRY smell
+CLAUDE.md now forbids. Direct engine tests live in
+[test/navigation_decision_engine_test.dart](../../../test/navigation_decision_engine_test.dart).
+
 #### `lib/services/webview.dart`
 - `_shouldBlockUrl()` — blocks `about:` (except blank/srcdoc) and service worker patterns
-- `isCaptchaChallenge()` — detects captcha domains and paths
+- `isCaptchaChallenge()` — detects captcha domains and paths; passed to `decideOnUrlChanged` as a callback
 - `shouldOverrideUrlLoading` callback passes `hasGesture` from `NavigationAction`
 - `onCreateWindow` — dismisses all `window.open()` except captcha challenges
 
 #### `lib/web_view_model.dart`
 - `blockAutoRedirects` field (default: `true`)
-- `shouldOverrideUrlLoading` callback checks gesture before opening nested webview
+- `shouldOverrideUrlLoading` callback: delegates to `NavigationDecisionEngine`, applies the returned `GestureStateUpdate` to `lastSameDomainGestureTime`, dispatches on the decision enum (log + `launchUrlFunc` for `blockOpenNested`)
+- `onUrlChanged` callback: same pattern; on `blockOpenNested` navigates back to `previousSameDomainUrl` before opening the nested webview
 - Serialized in `toJson()` / `fromJson()` with `?? true` for backward compat
 
 #### `lib/screens/settings.dart`
