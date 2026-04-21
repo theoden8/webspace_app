@@ -453,7 +453,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   });
                 },
                 icon: Icon(Icons.home), // Use an appropriate icon for generating user-agent
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).colorScheme.primary,
                 iconSize: 24, // Adjust the icon size as needed
               ),
               Expanded(
@@ -471,7 +471,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   });
                 },
                 icon: Icon(Icons.autorenew), // Use an appropriate icon for generating user-agent
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).colorScheme.primary,
                 iconSize: 24, // Adjust the icon size as needed
               ),
             ],
