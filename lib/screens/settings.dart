@@ -112,6 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _fullscreenMode;
+  late bool _desktopMode;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -159,6 +160,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _localCdnEnabled = widget.webViewModel.localCdnEnabled;
     _blockAutoRedirects = widget.webViewModel.blockAutoRedirects;
     _fullscreenMode = widget.webViewModel.fullscreenMode;
+    _desktopMode = widget.webViewModel.desktopMode;
     _selectedLanguage = widget.webViewModel.language;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -306,6 +308,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.fullscreenMode = _fullscreenMode;
+      widget.webViewModel.desktopMode = _desktopMode;
       widget.webViewModel.language = _selectedLanguage;
 
       if (!mounted) return;
@@ -702,6 +705,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               setState(() {
                 _fullscreenMode = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                const Flexible(child: Text('Desktop mode')),
+                const HintButton(
+                  title: 'Desktop Mode',
+                  description:
+                      'Requests the desktop version of websites. The webview is '
+                      'configured with a desktop user agent, a wide viewport, and '
+                      'pointer hints that make sites treat this view as a PC '
+                      "browser instead of a phone — the same effect as Chrome's "
+                      '"Request desktop site". Overrides any custom User-Agent '
+                      'set above while enabled.',
+                ),
+              ],
+            ),
+            subtitle: const Text('Request the desktop version of sites'),
+            value: _desktopMode,
+            onChanged: (bool value) {
+              setState(() {
+                _desktopMode = value;
               });
             },
           ),
