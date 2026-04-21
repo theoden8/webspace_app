@@ -701,12 +701,12 @@ class WebViewFactory {
     // URLs so allowed requests show up in the per-site log on iOS/macOS.
     // On Android, the native FastSubresourceInterceptor reports events
     // directly, so skip PerformanceObserver to avoid double-counting.
+    // Always inject when siteId is set — stats are recorded based on user
+    // intent to visit the site, not on whether blocklists are populated.
     final hasDnsRules = DnsBlockService.instance.hasBlocklist;
     final hasAbpRules =
         ContentBlockerService.instance.blockedDomains.isNotEmpty;
-    if (!Platform.isAndroid &&
-        config.siteId != null &&
-        (hasDnsRules || hasAbpRules)) {
+    if (!Platform.isAndroid && config.siteId != null) {
       userScripts.add(inapp.UserScript(
         groupName: 'block_resource_observer',
         source: '''
@@ -1035,13 +1035,12 @@ class WebViewFactory {
             return args.isNotEmpty ? args[0] : '';
           });
         }
-        // Block stats: register handler for resource observer JS. Runs
-        // whenever either blocklist is active so allowed requests are
-        // tallied even if DNS is off but ABP is on (or vice versa).
-        final hasAnyBlocklistDomains =
-            DnsBlockService.instance.hasBlocklist ||
-                ContentBlockerService.instance.blockedDomains.isNotEmpty;
-        if (config.siteId != null && hasAnyBlocklistDomains) {
+        // Block stats: register handler for resource observer JS. Always
+        // register when siteId is set so allowed requests are tallied
+        // regardless of whether any blocklist is populated — the JS
+        // checks below decide how to attribute a block, and a request
+        // with neither list matching is simply recorded as allowed.
+        if (config.siteId != null) {
           controller.addJavaScriptHandler(handlerName: 'blockResourceLoaded', callback: (args) {
             if (args.isNotEmpty && args[0] is String) {
               final url = args[0] as String;
@@ -1117,10 +1116,13 @@ class WebViewFactory {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
-        // DNS blocklist check + record navigation for stats
-        if (DnsBlockService.instance.hasBlocklist && config.siteId != null) {
+        // DNS blocklist check + record navigation for stats. Record for
+        // every http navigation so the per-site log works even when no
+        // blocklist is populated; isBlocked is a cheap set lookup.
+        if (config.siteId != null && url.startsWith('http')) {
           LogService.instance.log('DnsBlock', '[Navigation] $url');
-          final blocked = DnsBlockService.instance.isBlocked(url);
+          final blocked = DnsBlockService.instance.hasBlocklist &&
+              DnsBlockService.instance.isBlocked(url);
           DnsBlockService.instance.recordRequest(config.siteId!, url, blocked,
               source: blocked ? BlockSource.dns : null);
           if (blocked && config.dnsBlockEnabled) {
@@ -1192,10 +1194,10 @@ class WebViewFactory {
         lastLoadStartUrl = url?.toString();
         // Record the page navigation for the block stats banner so it
         // appears immediately. Tag the source (DNS or ABP) so the log
-        // keeps the attribution even for main-doc loads.
+        // keeps the attribution even for main-doc loads. Recorded for
+        // every http load so the per-site log reflects activity even
+        // when no blocklist is populated.
         if (config.siteId != null &&
-            (DnsBlockService.instance.hasBlocklist ||
-                ContentBlockerService.instance.blockedDomains.isNotEmpty) &&
             url != null &&
             url.toString().startsWith('http')) {
           final urlStr = url.toString();
