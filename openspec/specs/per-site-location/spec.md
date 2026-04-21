@@ -126,6 +126,18 @@ The system SHALL expose a per-site `webRtcPolicy` with three values: `defaultPol
 
 All six fields (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, `spoofTimezone`, `webRtcPolicy`) SHALL round-trip through `WebViewModel.toJson` / `fromJson` with sensible defaults when absent. They ride along in the `sites` array of settings backups automatically.
 
+#### Scenario: Round-trip through JSON
+
+**Given** a `WebViewModel` with `locationMode = spoof`, `spoofLatitude = 35.6762`, `spoofLongitude = 139.6503`, `spoofAccuracy = 25`, `spoofTimezone = 'Asia/Tokyo'`, `webRtcPolicy = relayOnly`
+**When** the model is serialized via `toJson` and re-hydrated via `fromJson`
+**Then** all six fields equal their original values
+
+#### Scenario: Defaults when absent from JSON
+
+**Given** a JSON blob from an older backup that has none of the six fields
+**When** the model is hydrated via `fromJson`
+**Then** `locationMode = off`, coordinates are `null`, `spoofAccuracy = 50`, `spoofTimezone = null`, and `webRtcPolicy = defaultPolicy`
+
 ---
 
 ## Implementation Notes
