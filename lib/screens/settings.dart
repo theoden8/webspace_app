@@ -708,30 +708,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                const Flexible(child: Text('Desktop mode')),
-                const HintButton(
-                  title: 'Desktop Mode',
-                  description:
-                      'Requests the desktop version of websites. The webview is '
-                      'configured with a desktop user agent, a wide viewport, and '
-                      'pointer hints that make sites treat this view as a PC '
-                      "browser instead of a phone — the same effect as Chrome's "
-                      '"Request desktop site". Overrides any custom User-Agent '
-                      'set above while enabled.',
-                ),
-              ],
+          if (Platform.isAndroid || Platform.isIOS)
+            SwitchListTile(
+              title: Row(
+                children: [
+                  const Flexible(child: Text('Desktop mode')),
+                  const HintButton(
+                    title: 'Desktop Mode',
+                    description:
+                        'Requests the desktop version of websites. The webview is '
+                        'configured with a desktop user agent, a wide viewport, and '
+                        'pointer hints that make sites treat this view as a PC '
+                        "browser instead of a phone — the same effect as Chrome's "
+                        '"Request desktop site". Overrides any custom User-Agent '
+                        'set above while enabled.',
+                  ),
+                ],
+              ),
+              subtitle: const Text('Request the desktop version of sites'),
+              value: _desktopMode,
+              onChanged: (bool value) {
+                setState(() {
+                  _desktopMode = value;
+                });
+              },
             ),
-            subtitle: const Text('Request the desktop version of sites'),
-            value: _desktopMode,
-            onChanged: (bool value) {
-              setState(() {
-                _desktopMode = value;
-              });
-            },
-          ),
           if (widget.onClearCookies != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

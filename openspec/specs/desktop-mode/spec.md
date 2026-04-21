@@ -17,6 +17,8 @@ Some sites (e.g. WhatsApp Web, Bluesky, messaging portals) do not expose their f
 
 The webview plugin already exposes a native desktop-mode flag (`InAppWebViewSettings.preferredContentMode`) that the underlying engine handles in a platform-appropriate way. Exposing it as a per-site toggle is a one-setting change that flips all the relevant signals together, rather than hand-rolling a JS shim over `navigator.userAgent`, `navigator.maxTouchPoints`, `window.innerWidth`, and the viewport meta tag.
 
+The feature only makes sense on mobile. On macOS (and the upcoming Linux target) the webview already renders with desktop viewport and non-touch pointer semantics, so "request desktop site" is a no-op. The UI toggle is therefore exposed only on Android and iOS; the stored per-site field still round-trips through backup/restore so a user who moves a backup between devices doesn't lose intent.
+
 ---
 
 ## Requirements
@@ -91,6 +93,32 @@ Desktop mode SHALL NOT change per-site cookie isolation semantics. A site's `sit
 
 ---
 
+### Requirement: DM-005 - Mobile-Only UI
+
+The system SHALL expose the "Desktop mode" toggle only on Android and iOS. On macOS (and future Linux builds) the toggle SHALL be hidden because the native webview already renders with desktop viewport and pointer semantics.
+
+#### Scenario: macOS hides the toggle
+
+**Given** the user opens site Settings on macOS
+**When** the settings view is rendered
+**Then** no "Desktop mode" switch is shown
+
+#### Scenario: Android/iOS show the toggle
+
+**Given** the user opens site Settings on Android or iOS
+**When** the settings view is rendered
+**Then** the "Desktop mode" switch is shown below "Full screen mode"
+
+#### Scenario: Backup from mobile restored on macOS preserves the field
+
+**Given** a backup from an Android device contains a site with `desktopMode = true`
+**When** the backup is imported on macOS
+**Then** the site's `desktopMode` remains `true` in storage
+**And** the toggle is not visible in the macOS settings UI
+**And** a later restore of the same backup on Android shows the switch already on
+
+---
+
 ## Implementation Details
 
 ### Data Model
@@ -118,6 +146,7 @@ The `preferredContentMode` setting is supported on Android, iOS 13+, and macOS 1
 - `SwitchListTile` placed immediately after the "Full screen mode" toggle, titled "Desktop mode"
 - Subtitle: "Request the desktop version of sites"
 - Tooltip explains that the toggle overrides any custom User-Agent while active, because `preferredContentMode: DESKTOP` synthesizes its own UA on Android/iOS
+- **Gated to mobile**: the widget is wrapped in `if (Platform.isAndroid || Platform.isIOS)` so the toggle does not appear on macOS. The `desktopMode` model field is still serialized on all platforms so backups round-trip cleanly between devices.
 
 ### Settings Persistence / Apply
 
