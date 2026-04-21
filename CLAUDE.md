@@ -106,6 +106,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | navigation | Back gesture, home button, drawer swipe, pull-to-refresh, platform quirks, race condition guards |
 | nested-url-blocking | Cross-domain navigation control: nested InAppBrowser, gesture-based auto-redirect blocking |
 | per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage |
+| per-site-location | Per-site geolocation spoofing, IANA timezone override, WebRTC leak lockdown |
 | platform-support | Platform abstraction layer for iOS, Android, macOS |
 | proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
 | screenshots | Automated screenshot generation via integration tests |

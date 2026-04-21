@@ -7,8 +7,11 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show Pu
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+
+export 'package:webspace/settings/location.dart' show LocationMode, WebRtcPolicy;
 
 class ConsoleLogEntry {
   final DateTime timestamp;
@@ -23,6 +26,7 @@ class ConsoleLogEntry {
     this.isEvalInput = false,
   });
 }
+
 
 /// Generates a unique site ID for per-site cookie isolation.
 String _generateSiteId() {
@@ -280,6 +284,15 @@ class WebViewModel {
   /// independently enables which ones to inject.
   Set<String> enabledGlobalScriptIds;
   Set<BlockedCookie> blockedCookies; // Per-site blocked cookies (name + domain)
+  LocationMode locationMode;
+  double? spoofLatitude;
+  double? spoofLongitude;
+  /// Coordinate accuracy in meters reported to the spoofed Position.
+  double spoofAccuracy;
+  /// IANA timezone name to expose via [Intl.DateTimeFormat] and
+  /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone.
+  String? spoofTimezone;
+  WebRtcPolicy webRtcPolicy;
 
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
@@ -317,6 +330,12 @@ class WebViewModel {
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
+    this.locationMode = LocationMode.off,
+    this.spoofLatitude,
+    this.spoofLongitude,
+    this.spoofAccuracy = 50.0,
+    this.spoofTimezone,
+    this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.stateSetterF,
   })  : userScripts = userScripts ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
@@ -472,6 +491,12 @@ class WebViewModel {
           dnsBlockEnabled: dnsBlockEnabled,
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
+          locationMode: locationMode,
+          spoofLatitude: spoofLatitude,
+          spoofLongitude: spoofLongitude,
+          spoofAccuracy: spoofAccuracy,
+          spoofTimezone: spoofTimezone,
+          webRtcPolicy: webRtcPolicy,
           userScripts: [
             // Globals have no master `enabled` toggle per spec — per-site
             // opt-in is the only enable control. Force `enabled: true` on
@@ -764,6 +789,12 @@ class WebViewModel {
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
         if (blockedCookies.isNotEmpty)
           'blockedCookies': blockedCookies.map((b) => b.toJson()).toList(),
+        'locationMode': locationMode.name,
+        if (spoofLatitude != null) 'spoofLatitude': spoofLatitude,
+        if (spoofLongitude != null) 'spoofLongitude': spoofLongitude,
+        'spoofAccuracy': spoofAccuracy,
+        if (spoofTimezone != null) 'spoofTimezone': spoofTimezone,
+        'webRtcPolicy': webRtcPolicy.name,
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
@@ -797,6 +828,18 @@ class WebViewModel {
       blockedCookies: (json['blockedCookies'] as List<dynamic>?)
           ?.map((e) => BlockedCookie.fromJson(e as Map<String, dynamic>))
           .toSet(),
+      locationMode: LocationMode.values.firstWhere(
+        (m) => m.name == json['locationMode'],
+        orElse: () => LocationMode.off,
+      ),
+      spoofLatitude: (json['spoofLatitude'] as num?)?.toDouble(),
+      spoofLongitude: (json['spoofLongitude'] as num?)?.toDouble(),
+      spoofAccuracy: (json['spoofAccuracy'] as num?)?.toDouble() ?? 50.0,
+      spoofTimezone: json['spoofTimezone'] as String?,
+      webRtcPolicy: WebRtcPolicy.values.firstWhere(
+        (p) => p.name == json['webRtcPolicy'],
+        orElse: () => WebRtcPolicy.defaultPolicy,
+      ),
       stateSetterF: stateSetterF,
     )..pageTitle = json['pageTitle'];
   }

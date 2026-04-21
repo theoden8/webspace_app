@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -116,6 +117,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
+  late LocationMode _locationMode;
+  late TextEditingController _latitudeController;
+  late TextEditingController _longitudeController;
+  late TextEditingController _accuracyController;
+  String? _spoofTimezone;
+  late WebRtcPolicy _webRtcPolicy;
 
   String getResetUserAgent() {
     return (widget.webViewModel.userAgent == '') ? (widget.webViewModel.defaultUserAgent ?? '') : widget.webViewModel.userAgent;
@@ -162,6 +169,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fullscreenMode = widget.webViewModel.fullscreenMode;
     _desktopMode = widget.webViewModel.desktopMode;
     _selectedLanguage = widget.webViewModel.language;
+    _locationMode = widget.webViewModel.locationMode;
+    _latitudeController = TextEditingController(
+      text: widget.webViewModel.spoofLatitude?.toString() ?? '',
+    );
+    _longitudeController = TextEditingController(
+      text: widget.webViewModel.spoofLongitude?.toString() ?? '',
+    );
+    _accuracyController = TextEditingController(
+      text: widget.webViewModel.spoofAccuracy.toString(),
+    );
+    _spoofTimezone = widget.webViewModel.spoofTimezone;
+    _webRtcPolicy = widget.webViewModel.webRtcPolicy;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
   }
@@ -172,6 +191,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _proxyAddressController.dispose();
     _proxyUsernameController.dispose();
     _proxyPasswordController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
+    _accuracyController.dispose();
     super.dispose();
   }
 
@@ -310,6 +332,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.desktopMode = _desktopMode;
       widget.webViewModel.language = _selectedLanguage;
+      widget.webViewModel.locationMode = _locationMode;
+      widget.webViewModel.spoofLatitude =
+          double.tryParse(_latitudeController.text.trim());
+      widget.webViewModel.spoofLongitude =
+          double.tryParse(_longitudeController.text.trim());
+      final accuracy = double.tryParse(_accuracyController.text.trim());
+      if (accuracy != null && accuracy > 0) {
+        widget.webViewModel.spoofAccuracy = accuracy;
+      }
+      widget.webViewModel.spoofTimezone = _spoofTimezone;
+      widget.webViewModel.webRtcPolicy = _webRtcPolicy;
 
       if (!mounted) return;
 
@@ -340,6 +373,143 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(content: Text('Error saving settings: $e')),
       );
     }
+  }
+
+  List<Widget> _buildLocationSection() {
+    return [
+      const Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Text('Location & timezone',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      ),
+      ListTile(
+        title: Row(
+          children: const [
+            Flexible(child: Text('Geolocation')),
+            HintButton(
+              title: 'Geolocation spoofing',
+              description:
+                  'Returns user-supplied coordinates from navigator.geolocation. '
+                  'The shim overrides Geolocation.prototype and hides the patch '
+                  'from Function.prototype.toString, so sites cannot trivially '
+                  'detect the spoof. For convincing results, also set a matching '
+                  'timezone and use a proxy in the same country — otherwise the '
+                  'site can cross-check via IP-based geolocation.',
+            ),
+          ],
+        ),
+        trailing: DropdownButton<LocationMode>(
+          value: _locationMode,
+          onChanged: (v) {
+            if (v != null) setState(() => _locationMode = v);
+          },
+          items: const [
+            DropdownMenuItem(
+                value: LocationMode.off, child: Text('Off (use real)')),
+            DropdownMenuItem(
+                value: LocationMode.spoof, child: Text('Spoof')),
+          ],
+        ),
+      ),
+      if (_locationMode == LocationMode.spoof) ...[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _latitudeController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                      signed: true, decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Latitude',
+                    hintText: 'e.g. 35.6762',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextFormField(
+                  controller: _longitudeController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                      signed: true, decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Longitude',
+                    hintText: 'e.g. 139.6503',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          child: TextFormField(
+            controller: _accuracyController,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Accuracy (meters)',
+              hintText: '50',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+      ],
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: DropdownButtonFormField<String?>(
+          value: commonTimezones.any((e) => e.key == _spoofTimezone)
+              ? _spoofTimezone
+              : null,
+          decoration: const InputDecoration(
+            labelText: 'Timezone',
+            helperText: 'Overrides Intl.DateTimeFormat and Date getters',
+            border: OutlineInputBorder(),
+          ),
+          items: commonTimezones
+              .map((e) => DropdownMenuItem<String?>(
+                    value: e.key,
+                    child: Text(e.value),
+                  ))
+              .toList(),
+          onChanged: (v) => setState(() => _spoofTimezone = v),
+        ),
+      ),
+      ListTile(
+        title: Row(
+          children: const [
+            Flexible(child: Text('WebRTC policy')),
+            HintButton(
+              title: 'WebRTC leak protection',
+              description:
+                  'HTTP(S) and SOCKS5 proxies only carry TCP. WebRTC uses UDP '
+                  'and leaks your real IP around the proxy. '
+                  '"Relay only" forces iceTransportPolicy=relay and strips '
+                  'non-relay ICE candidates; video calls that rely on direct '
+                  'peer-to-peer connections will break. '
+                  '"Disabled" blocks RTCPeerConnection entirely.',
+            ),
+          ],
+        ),
+        trailing: DropdownButton<WebRtcPolicy>(
+          value: _webRtcPolicy,
+          onChanged: (v) {
+            if (v != null) setState(() => _webRtcPolicy = v);
+          },
+          items: const [
+            DropdownMenuItem(
+                value: WebRtcPolicy.defaultPolicy, child: Text('Default')),
+            DropdownMenuItem(
+                value: WebRtcPolicy.relayOnly, child: Text('Relay only')),
+            DropdownMenuItem(
+                value: WebRtcPolicy.disabled, child: Text('Disabled')),
+          ],
+        ),
+      ),
+    ];
   }
 
   @override
@@ -733,6 +903,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
+          ..._buildLocationSection(),
           if (widget.onClearCookies != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
