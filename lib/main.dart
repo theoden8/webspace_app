@@ -485,143 +485,23 @@ void main() async {
         LocalCdnService.instance.cacheIndexSnapshot);
   });
 
-  // Register custom licenses
-  LicenseRegistry.addLicense(() async* {
-    final assetsLicense = await rootBundle.loadString('assets/LICENSE');
-    yield LicenseEntryWithLineBreaks(
-      ['WebSpace Assets'],
-      assetsLicense,
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['favicon (modified)'],
-      '''MIT License
-
-Copyright (c) 2019 Marcus Johansson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Source: https://github.com/marcjoha/favicon''',
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['ClearURLs (rules data)'],
-      '''GNU Lesser General Public License v3.0
-
-Copyright (c) Kevin Röbert
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-Source: https://github.com/ClearURLs/Rules''',
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['Hagezi DNS Blocklists (domain data)'],
-      '''GNU General Public License v3.0
-
-Copyright (c) Hagezi
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
-Source: https://github.com/hagezi/dns-blocklists''',
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['EasyList filter lists (filter data)'],
-      '''Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
-
-Copyright (c) The EasyList authors
-
-EasyList, EasyPrivacy, Fanboy's Social Blocking List, and Fanboy's
-Annoyance List are dual-licensed under the GNU General Public License
-version 3 (or later) and Creative Commons Attribution-ShareAlike 3.0
-Unported (or later). Used here under CC BY-SA 3.0.
-
-You are free to share and adapt the material, provided you give
-appropriate credit, provide a link to the license, and indicate if
-changes were made. If you remix, transform, or build upon the material,
-you must distribute your contributions under the same license.
-
-Full license: https://creativecommons.org/licenses/by-sa/3.0/
-Licence page: https://easylist.to/pages/licence.html
-Source: https://easylist.to/''',
-    );
-  });
-
-  LicenseRegistry.addLicense(() async* {
-    yield const LicenseEntryWithLineBreaks(
-      ['cdnjs (LocalCDN resource data)'],
-      '''MIT License
-
-Copyright (c) cdnjs contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-Source: https://github.com/cdnjs/cdnjs''',
-    );
-  });
+  // Register custom licenses. The list pairs a display name with the path
+  // to a bundled license text under `assets/licenses/`; see that directory
+  // for the originals. The pubspec asset glob pulls each `.txt` in.
+  const customLicenses = <(List<String>, String)>[
+    (['WebSpace Assets'], 'assets/LICENSE'),
+    (['favicon (modified)'], 'assets/licenses/favicon.txt'),
+    (['ClearURLs (rules data)'], 'assets/licenses/clearurls.txt'),
+    (['Hagezi DNS Blocklists (domain data)'], 'assets/licenses/hagezi.txt'),
+    (['EasyList filter lists (filter data)'], 'assets/licenses/easylist.txt'),
+    (['cdnjs (LocalCDN resource data)'], 'assets/licenses/cdnjs.txt'),
+  ];
+  for (final (packages, assetPath) in customLicenses) {
+    LicenseRegistry.addLicense(() async* {
+      final text = await rootBundle.loadString(assetPath);
+      yield LicenseEntryWithLineBreaks(packages, text);
+    });
+  }
 
   // Initialize platform info to detect proxy support before UI loads
   await PlatformInfo.initialize();
