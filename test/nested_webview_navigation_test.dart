@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/web_view_model.dart';
 
-/// Test harness that simulates shouldOverrideUrlLoading behavior.
-/// This tests the domain comparison logic without requiring actual webviews.
+/// Test driver for the production `NavigationDecisionEngine`. Applies
+/// the engine's `GestureStateUpdate` descriptors to per-site gesture
+/// state the same way `WebViewModel.getWebView`'s closure does, so
+/// production and the harness are exercising identical logic (not
+/// parallel implementations).
 class NavigationTestHarness {
   final List<WebViewModel> sites = [];
 
@@ -23,86 +27,66 @@ class NavigationTestHarness {
     ));
   }
 
-  /// Simulates a navigation request on a specific site's webview.
-  /// This replicates the exact logic from WebViewModel.getWebView's
-  /// shouldOverrideUrlLoading callback.
-  /// Returns true if navigation was allowed, false if blocked (opened nested)
+  /// Simulates a `shouldOverrideUrlLoading` call by delegating to
+  /// `NavigationDecisionEngine.decideShouldOverrideUrlLoading`. Returns
+  /// `true` if the navigation would be allowed, `false` if cancelled.
   bool simulateNavigation(int siteIndex, String targetUrl, {bool hasGesture = true}) {
     final site = sites[siteIndex];
-
-    // Allow data: and blob: URIs (inline content, no domain)
-    final scheme = Uri.tryParse(targetUrl)?.scheme ?? '';
-    if (scheme == 'data' || scheme == 'blob') {
-      return true;
+    final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+      targetUrl: targetUrl,
+      initUrl: site.initUrl,
+      hasGesture: hasGesture,
+      blockAutoRedirects: site.blockAutoRedirects,
+      isSiteActive: true,
+      lastSameDomainGestureTime: _lastSameDomainGestureTime[siteIndex],
+      now: DateTime.now(),
+    );
+    _applyGestureUpdate(siteIndex, result.gestureUpdate);
+    switch (result.decision) {
+      case NavigationDecision.allow:
+        return true;
+      case NavigationDecision.blockSilent:
+      case NavigationDecision.blockSuppressed:
+        return false;
+      case NavigationDecision.blockOpenNested:
+        launchUrlCalls.add((url: targetUrl, homeTitle: site.name));
+        return false;
     }
-
-    // Replicate the exact logic from WebViewModel.getWebView
-    final requestNormalized = getNormalizedDomain(targetUrl);
-    final initialNormalized = getNormalizedDomain(site.initUrl);
-
-    if (requestNormalized == initialNormalized) {
-      if (hasGesture) {
-        _lastSameDomainGestureTime[siteIndex] = DateTime.now();
-      }
-      return true; // Allow - same logical domain
-    }
-
-    // Gesture propagation for cross-domain redirects
-    bool effectiveHasGesture = hasGesture;
-    final lastGesture = _lastSameDomainGestureTime[siteIndex];
-    if (!hasGesture && lastGesture != null) {
-      final elapsed = DateTime.now().difference(lastGesture);
-      if (elapsed.inSeconds < 10) {
-        effectiveHasGesture = true;
-      }
-      _lastSameDomainGestureTime[siteIndex] = null; // Consume
-    }
-
-    if (site.blockAutoRedirects && !effectiveHasGesture) {
-      return false; // Cancel - blocked (no nested webview opened)
-    }
-
-    // Would block and call launchUrl with site's name as homeTitle
-    launchUrlCalls.add((url: targetUrl, homeTitle: site.name));
-    return false; // Cancel - open in nested webview
   }
 
-  /// Simulates the onUrlChanged cross-domain redirect detection.
-  /// Returns true if a cross-domain redirect was detected and handled
-  /// (i.e. a nested webview would be opened). Returns false if the
-  /// redirect was silently blocked or no redirect was detected.
+  /// Simulates an `onUrlChanged` call by delegating to
+  /// `NavigationDecisionEngine.decideOnUrlChanged`. Returns `true`
+  /// when a nested webview would be opened.
   bool simulateUrlChanged(int siteIndex, String newUrl) {
     final site = sites[siteIndex];
-
-    // Skip non-HTTP(S) URIs (inline content / browser internals, no domain)
-    final scheme = Uri.tryParse(newUrl)?.scheme ?? '';
-    if (scheme == 'data' || scheme == 'blob' || scheme == 'about') {
-      return false;
-    }
-
-    final urlDomain = getNormalizedDomain(newUrl);
-    final initDomain = getNormalizedDomain(site.initUrl);
-
-    if (urlDomain != initDomain && !WebViewFactory.isCaptchaChallenge(newUrl)) {
-      // Check gesture propagation (mirrors onUrlChanged logic)
-      bool hasRecentGesture = false;
-      final lastGesture = _lastSameDomainGestureTime[siteIndex];
-      if (lastGesture != null) {
-        final elapsed = DateTime.now().difference(lastGesture);
-        if (elapsed.inSeconds < 10) {
-          hasRecentGesture = true;
-        }
-        _lastSameDomainGestureTime[siteIndex] = null; // Consume
-      }
-
-      if (site.blockAutoRedirects && !hasRecentGesture) {
-        return false; // Silently blocked — no nested webview
-      }
-
+    final result = NavigationDecisionEngine.decideOnUrlChanged(
+      newUrl: newUrl,
+      initUrl: site.initUrl,
+      blockAutoRedirects: site.blockAutoRedirects,
+      isSiteActive: true,
+      lastSameDomainGestureTime: _lastSameDomainGestureTime[siteIndex],
+      now: DateTime.now(),
+      isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
+    );
+    _applyGestureUpdate(siteIndex, result.gestureUpdate);
+    if (result.decision == NavigationDecision.blockOpenNested) {
       launchUrlCalls.add((url: newUrl, homeTitle: site.name));
-      return true; // Cross-domain redirect → nested webview opened
+      return true;
     }
     return false;
+  }
+
+  void _applyGestureUpdate(int siteIndex, GestureStateUpdate? update) {
+    switch (update) {
+      case GestureStateUpdate.record:
+        _lastSameDomainGestureTime[siteIndex] = DateTime.now();
+        break;
+      case GestureStateUpdate.consume:
+        _lastSameDomainGestureTime[siteIndex] = null;
+        break;
+      case null:
+        break;
+    }
   }
 
   void clearLaunchUrlCalls() {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -491,114 +492,90 @@ class WebViewModel {
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
-            // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
-            if (url == 'about:blank' || url == 'about:srcdoc') {
-              LogService.instance.log('WebView', 'shouldOverrideUrlLoading: ALLOW $url (captcha iframe support)');
-              return true;
-            }
-
-            // Allow data: and blob: URIs - these are inline content with no
-            // real domain (e.g. DuckDuckGo uses data: URIs internally).
-            final scheme = Uri.tryParse(url)?.scheme ?? '';
-            if (scheme == 'data' || scheme == 'blob') {
-              LogService.instance.log('WebView', 'shouldOverrideUrlLoading: ALLOW $url (inline $scheme: URI)');
-              return true;
-            }
-
-            // Use normalized domain comparison (handles aliases like mail.google.com -> gmail.com)
-            final requestNormalized = getNormalizedDomain(url);
-            final initialNormalized = getNormalizedDomain(initUrl);
-
-            LogService.instance.log('WebView', 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url from=$initialNormalized to=$requestNormalized hasGesture=$hasGesture');
-
-            if (requestNormalized == initialNormalized) {
-              if (hasGesture) {
+            LogService.instance.log('WebView', 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture');
+            final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+              targetUrl: url,
+              initUrl: initUrl,
+              hasGesture: hasGesture,
+              blockAutoRedirects: blockAutoRedirects,
+              isSiteActive: isActive?.call() ?? true,
+              lastSameDomainGestureTime: lastSameDomainGestureTime,
+              now: DateTime.now(),
+            );
+            switch (result.gestureUpdate) {
+              case GestureStateUpdate.record:
                 lastSameDomainGestureTime = DateTime.now();
-              }
-              LogService.instance.log('WebView', '  -> ALLOW (same domain)');
-              return true; // Allow - same logical domain
+                break;
+              case GestureStateUpdate.consume:
+                lastSameDomainGestureTime = null;
+                break;
+              case null:
+                break;
             }
-
-            // For cross-domain navigations without gesture, check if this
-            // is a redirect from a recent user-clicked same-domain URL
-            // (e.g., search engine redirect: DDG /l/?uddg=..., Google /url?q=...).
-            // Propagate the gesture so the redirect opens a nested webview
-            // instead of being silently blocked.
-            bool effectiveHasGesture = hasGesture;
-            if (!hasGesture && lastSameDomainGestureTime != null) {
-              final elapsed = DateTime.now().difference(lastSameDomainGestureTime!);
-              if (elapsed.inSeconds < 10) {
-                effectiveHasGesture = true;
-                LogService.instance.log('WebView', '  -> Gesture propagated from same-domain click ${elapsed.inMilliseconds}ms ago');
-              }
-              lastSameDomainGestureTime = null; // Consume — only propagate once
+            switch (result.decision) {
+              case NavigationDecision.allow:
+                LogService.instance.log('WebView', '  -> ALLOW');
+                return true;
+              case NavigationDecision.blockSilent:
+                LogService.instance.log('WebView', '  -> CANCEL (auto-redirect blocked, no user gesture)');
+                return false;
+              case NavigationDecision.blockSuppressed:
+                LogService.instance.log('WebView', '  -> CANCEL (background site, suppressing nested webview)');
+                return false;
+              case NavigationDecision.blockOpenNested:
+                LogService.instance.log('WebView', '  -> CANCEL (opening nested webview)');
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
+                return false;
             }
-
-            // Block script-initiated cross-domain navigations (Google One Tap, Stripe, etc.)
-            if (blockAutoRedirects && !effectiveHasGesture) {
-              LogService.instance.log('WebView', '  -> CANCEL (auto-redirect blocked, no user gesture)');
-              return false;
-            }
-
-            // Only open nested webview if this site is currently active.
-            // In IndexedStack, background sites remain alive and can fire
-            // shouldOverrideUrlLoading — don't open dialogs for them.
-            if (isActive != null && !isActive()) {
-              LogService.instance.log('WebView', '  -> CANCEL (background site, suppressing nested webview)');
-              return false;
-            }
-
-            // Open in nested webview with home site title
-            LogService.instance.log('WebView', '  -> CANCEL (opening nested webview)');
-            launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
-            return false; // Cancel
           },
           onUrlChanged: (url) async {
             // Detect cross-domain redirects that bypassed shouldOverrideUrlLoading
             // (e.g., server-side 302 from search engine redirect pages like
             // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
-
-            // Skip non-HTTP(S) URIs — these are inline content or browser
-            // internals, not cross-domain navigations.
-            final urlScheme = Uri.tryParse(url)?.scheme ?? '';
-            if (urlScheme == 'data' || urlScheme == 'blob' || urlScheme == 'about') {
-              return;
-            }
-
-            final urlDomain = getNormalizedDomain(url);
             final initDomain = getNormalizedDomain(initUrl);
-            if (urlDomain != initDomain
-                && !WebViewFactory.isCaptchaChallenge(url)
-                && !redirectHandled) {
-              redirectHandled = true;
-
-              // Check gesture propagation (same logic as shouldOverrideUrlLoading)
-              bool hasRecentGesture = false;
-              if (lastSameDomainGestureTime != null) {
-                final elapsed = DateTime.now().difference(lastSameDomainGestureTime!);
-                if (elapsed.inSeconds < 10) {
-                  hasRecentGesture = true;
+            final urlDomain = getNormalizedDomain(url);
+            if (!redirectHandled) {
+              final result = NavigationDecisionEngine.decideOnUrlChanged(
+                newUrl: url,
+                initUrl: initUrl,
+                blockAutoRedirects: blockAutoRedirects,
+                isSiteActive: isActive?.call() ?? true,
+                lastSameDomainGestureTime: lastSameDomainGestureTime,
+                now: DateTime.now(),
+                isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
+              );
+              switch (result.gestureUpdate) {
+                case GestureStateUpdate.record:
+                  lastSameDomainGestureTime = DateTime.now();
+                  break;
+                case GestureStateUpdate.consume:
+                  lastSameDomainGestureTime = null;
+                  break;
+                case null:
+                  break;
+              }
+              if (result.decision != NavigationDecision.allow) {
+                redirectHandled = true;
+                // Navigate back to the last same-domain page before the
+                // cross-domain redirect lands visually.
+                if (controller != null) {
+                  controller!.loadUrl(previousSameDomainUrl ?? initUrl);
                 }
-                lastSameDomainGestureTime = null; // Consume
+                switch (result.decision) {
+                  case NavigationDecision.blockSilent:
+                    LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)');
+                    return;
+                  case NavigationDecision.blockSuppressed:
+                    LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect suppressed (background site): $url');
+                    return;
+                  case NavigationDecision.blockOpenNested:
+                    LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
+                    launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
+                    return;
+                  case NavigationDecision.allow:
+                    break;
+                }
               }
-
-              // Navigate back to the last same-domain page
-              if (controller != null) {
-                controller!.loadUrl(previousSameDomainUrl ?? initUrl);
-              }
-
-              if (blockAutoRedirects && !hasRecentGesture) {
-                // Silently block — no nested webview
-                LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)');
-                return;
-              }
-
-              LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
-              // Open in nested webview if this site is active
-              if (isActive == null || isActive()) {
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
-              }
-              return;
             }
             if (urlDomain == initDomain) {
               redirectHandled = false;
