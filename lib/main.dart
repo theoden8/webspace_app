@@ -34,7 +34,9 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/navigation_engine.dart';
+import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
+import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -947,29 +949,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
     LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');
 
-    // Only check for domain conflicts if target is not incognito
-    if (!target.incognito) {
-      // Use second-level domain for cookie isolation (e.g., all *.google.com sites conflict)
-      final targetDomain = getBaseDomain(target.initUrl);
-
-      // Find and unload any conflicting sites (same domain, already loaded)
-      for (final loadedIndex in List.from(_loadedIndices)) {
-        if (loadedIndex == index) continue;
-        if (loadedIndex >= _webViewModels.length) continue;
-
-        final loaded = _webViewModels[loadedIndex];
-        if (loaded.incognito) continue; // Skip incognito sites
-
-        final loadedDomain = getBaseDomain(loaded.initUrl);
-        LogService.instance.log('CookieIsolation', 'Checking loaded site $loadedIndex: "${loaded.name}" domain: $loadedDomain');
-        if (loadedDomain == targetDomain) {
-          // Domain conflict - unload the conflicting site
-          LogService.instance.log('CookieIsolation', 'CONFLICT! Unloading site $loadedIndex', level: LogLevel.warning);
-          await _unloadSiteForDomainSwitch(loadedIndex);
-          if (version != _setCurrentIndexVersion) return;
-          break; // Only one conflict possible at a time
-        }
-      }
+    final conflictIndex = SiteActivationEngine.findDomainConflict(
+      targetIndex: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+    );
+    if (conflictIndex != null) {
+      LogService.instance.log(
+        'CookieIsolation',
+        'CONFLICT! Unloading site $conflictIndex: "${_webViewModels[conflictIndex].name}"',
+        level: LogLevel.warning,
+      );
+      await _unloadSiteForDomainSwitch(conflictIndex);
+      if (version != _setCurrentIndexVersion) return;
     }
 
     // Pause the previously active webview to save resources
@@ -1217,16 +1209,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieManager.deleteAllCookies();
 
     // Always start at home screen on launch - only restore index if launched via shortcut
-    int? indexToRestore;
-
-    // Check if launched via home screen shortcut
     final shortcutSiteId = await ShortcutService.getLaunchSiteId();
-    if (shortcutSiteId != null) {
-      final shortcutIndex = _webViewModels.indexWhere((m) => m.siteId == shortcutSiteId);
-      if (shortcutIndex >= 0) {
-        indexToRestore = shortcutIndex;
-      }
-    }
+    final indexToRestore = StartupRestoreEngine.resolveLaunchTarget(
+      shortcutSiteId: shortcutSiteId,
+      models: _webViewModels,
+    );
 
     // Set current index (async for cookie restoration)
     await _setCurrentIndex(indexToRestore);
