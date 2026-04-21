@@ -210,6 +210,30 @@ Each webview widget SHALL maintain its identity via `ValueKey(siteId)` to preven
 
 ## Implementation Details
 
+### Simulator Engines
+
+Orchestration lives in pure-Dart engines under `lib/services/*_engine.dart`
+so the flows can be exercised headlessly with in-memory fakes of
+`CookieManager` / `CookieSecureStorage` instead of a widget tree. The
+rendering side (native cookie jar, webview lifecycle, `setState`) stays
+at the `_WebSpacePageState` call site.
+
+- [`CookieIsolationEngine`](../../../lib/services/cookie_isolation.dart) —
+  owns the capture-nuke-restore cycle for `unloadSiteForDomainSwitch`,
+  `restoreCookiesForSite`, and `preDeleteCookieCleanup`. Tests model RFC
+  6265 domain-match semantics in `MockCookieManager`
+  ([test/cookie_isolation_integration_test.dart](../../../test/cookie_isolation_integration_test.dart)).
+- [`SiteActivationEngine.findDomainConflict`](../../../lib/services/site_activation_engine.dart) —
+  pure `(targetIndex, models, loadedIndices) → int?` deciding which
+  loaded site (if any) must unload before activating the target per
+  ISO-001. Same function is called from `_setCurrentIndex` in
+  `main.dart` AND the integration-test harness, so the rule can't
+  diverge between prod and tests.
+- [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart) —
+  pure index-rewrite transform applied during site deletion (ISO-010);
+  shifts `_loadedIndices` and every webspace's `siteIndices` down when
+  an earlier index is removed, so references don't drift.
+
 ### Domain Comparison for Cookie Isolation
 
 Uses `getBaseDomain()` for conflict detection:
@@ -364,8 +388,13 @@ IndexedStack(
 - `lib/services/cookie_secure_storage.dart` - loadCookiesForSite(), saveCookiesForSite(), removeOrphanedCookies()
 
 ### Created
+- `lib/services/cookie_isolation.dart` - `CookieIsolationEngine` (capture-nuke-restore)
+- `lib/services/site_activation_engine.dart` - `SiteActivationEngine.findDomainConflict`
+- `lib/services/site_lifecycle_engine.dart` - `SiteLifecycleEngine.computeDeletionPatch`
 - `test/cookie_isolation_test.dart` - Unit tests for domain extraction, aliases, siteId
 - `test/cookie_isolation_integration_test.dart` - Integration tests with mock CookieManager
+- `test/site_activation_engine_test.dart` - Unit tests for domain-conflict resolution
+- `test/site_lifecycle_engine_test.dart` - Unit tests for deletion patch
 - `test/nested_webview_navigation_test.dart` - Tests for per-site URL blocking and widget identity
 - `openspec/specs/per-site-cookie-isolation/spec.md` - This specification
 

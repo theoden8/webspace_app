@@ -223,11 +223,20 @@ _updateCanGoBack() called         _goHome() called
 
 **Problem:** After `goBack()` lands on the site's home URL, `_canGoBack` must become `false` to enable the iOS drawer edge swipe. But `_updateCanGoBack()` is async — it calls `await canGoBack()` which takes indeterminate time. Meanwhile, `onLoadStop` or `onUpdateVisitedHistory` callbacks can fire and start *new* `_updateCanGoBack()` calls whose version counters post-date the PopScope handler's bump, making the version guard (RACE-001) ineffective against them.
 
-**Solution:** `_updateCanGoBack()` checks `currentUrl` against `initUrl` *synchronously* before the async `canGoBack()` call (using `_isHomeUrl()` which normalizes trailing slashes). When at the home URL, `_canGoBack` is set to `false` immediately and the async path is skipped entirely, eliminating the race window.
+**Solution:** `_updateCanGoBack()` checks `currentUrl` against `initUrl` *synchronously* before the async `canGoBack()` call (using `NavigationEngine.isHomeUrl` which normalizes trailing slashes). When at the home URL, `_canGoBack` is set to `false` immediately and the async path is skipped entirely, eliminating the race window.
 
 Additionally, the PopScope handler performs the same check right after a successful `goBack()` to cover the window before `onUrlChanged` fires.
 
-**Note:** URL comparison uses `_isHomeUrl()` which strips trailing slashes, since webviews normalize `https://example.com` to `https://example.com/`.
+**Note:** URL comparison uses `NavigationEngine.isHomeUrl` which strips trailing slashes, since webviews normalize `https://example.com` to `https://example.com/`.
+
+Both the sync fast-path itself and the URL-equality rule are extracted
+into [`NavigationEngine`](../../../lib/services/navigation_engine.dart):
+`trySyncCanGoBack` returns `false` when the decision is available
+synchronously (no site / out of bounds / on home URL / no controller)
+or `null` when the caller must await the controller. The iOS platform
+gate and `_canGoBackVersion` bookkeeping stay at the widget, so the
+engine is testable with plain values — see
+[test/navigation_engine_test.dart](../../../test/navigation_engine_test.dart).
 
 ### Guard: RACE-002 - _isBackHandling Flag
 
@@ -319,12 +328,15 @@ Home button pressed
 
 ### Files
 
+#### `lib/services/navigation_engine.dart`
+- `NavigationEngine.isHomeUrl(currentUrl, initUrl)` — URL equality ignoring a single trailing slash; shared by `_updateCanGoBack` and the PopScope handler so both sides of RACE-005 use the same rule
+- `NavigationEngine.trySyncCanGoBack(...)` — returns `false` for the sync fast-paths (no site, out of bounds, on home URL, no controller) or `null` when the caller must await the controller; exercised directly in `test/navigation_engine_test.dart`
+
 #### `lib/main.dart`
 - `_canGoBack` — iOS-only state: whether current webview has back history
 - `_canGoBackVersion` — version counter guarding `_updateCanGoBack`
 - `_isBackHandling` — boolean guard for PopScope handler
-- `_isHomeUrl()` — static helper: compares URLs ignoring trailing slash normalization
-- `_updateCanGoBack()` — async check of `controller.canGoBack()` with version guard and synchronous home-URL fast-path (RACE-005)
+- `_updateCanGoBack()` — async check of `controller.canGoBack()` with version guard; delegates the sync decision to `NavigationEngine.trySyncCanGoBack`
 - `_goHome()` — synchronous: dispose webview, reset URL, invalidate version
 - `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (two-step exit), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison
 - `drawerEdgeDragWidth` — conditional drawer edge swipe based on platform and `_canGoBack`

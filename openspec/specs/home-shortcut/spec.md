@@ -102,13 +102,23 @@ The shortcut launches `MainActivity` with:
 ### Launch Handling
 
 On app start and on `onNewIntent` (app already running), check for `siteId` in the intent:
-1. Find the site index matching the `siteId`
+1. Call [`StartupRestoreEngine.resolveLaunchTarget`](../../../lib/services/startup_restore_engine.dart)
+   with the shortcut siteId and the current models list — it returns
+   the matching index (or `null` when there is no intent, or the
+   siteId no longer maps to any site because the user deleted it after
+   pinning)
 2. Call `_setCurrentIndex(index)` to switch to that site
+
+The resolution rule is exercised headlessly in
+[test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart);
+no widget tree required.
 
 ### Files
 
 #### New
 - `lib/services/shortcut_service.dart` — Flutter wrapper around the platform channel
+- `lib/services/startup_restore_engine.dart` — `resolveLaunchTarget` shortcut→index resolution
+- `test/startup_restore_engine_test.dart` — unit tests for the resolution rule
 - `openspec/specs/home-shortcut/spec.md` — this specification
 
 #### Modified

@@ -174,13 +174,44 @@ Stored in SharedPreferences:
 
 ---
 
+## Simulator Engines
+
+Selection and index-update logic is extracted into pure-Dart engines so
+the rules can be exercised without a widget tree:
+
+- [`WebspaceSelectionEngine`](../../../lib/services/webspace_selection_engine.dart):
+  - `filteredSiteIndices({selectedWebspaceId, webspaces, siteCount})` —
+    implements WEBSPACE-004 (filtered drawer) including the `All`
+    special-case and out-of-bounds filtering.
+  - `indicesToUnloadOnWebspaceSwitch({loadedIndices, previousWebspaceIndices,
+    newWebspaceIndices})` — returns the loaded sites that leave the
+    visible set on a webspace switch. The offline short-circuit
+    (preserve-all-loaded when disconnected) is a policy decision owned
+    by the caller, not the engine.
+  - `cleanupWebspaceIndices({webspaces, siteCount})` — strips
+    out-of-bounds entries in place.
+- [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart)
+  — returns the rewritten `siteIndices` for every affected webspace
+  when a site is removed from `_webViewModels`, implementing
+  WEBSPACE-010. The rewrite drops the deleted index and shifts every
+  `i > deletedIndex` down by one.
+
+Tests live in [test/webspace_selection_engine_test.dart](../../../test/webspace_selection_engine_test.dart)
+and [test/site_lifecycle_engine_test.dart](../../../test/site_lifecycle_engine_test.dart).
+
+---
+
 ## Files
 
 ### Created
 - `lib/webspace_model.dart` - Webspace data model
 - `lib/screens/webspaces_list.dart` - Main webspaces screen
 - `lib/screens/webspace_detail.dart` - Edit webspace screen
+- `lib/services/webspace_selection_engine.dart` - Filter + unload-on-switch logic
+- `lib/services/site_lifecycle_engine.dart` - Deletion-patch index rewrite
 - `test/webspace_model_test.dart` - Unit tests
+- `test/webspace_selection_engine_test.dart` - Selection/unload/cleanup tests
+- `test/site_lifecycle_engine_test.dart` - Deletion patch tests
 
 ### Modified
 - `lib/main.dart` - Webspace state management and UI integration
