@@ -75,6 +75,20 @@ The system SHALL persist `desktopMode` as part of the site's JSON so it round-tr
 
 Desktop mode SHALL NOT change per-site cookie isolation semantics. A site's `siteId` and domain-conflict rules are independent of its content mode.
 
+#### Scenario: Toggling desktop mode preserves siteId
+
+**Given** site "X" has `desktopMode = false` and a stable `siteId`
+**When** the user enables "Desktop mode" and saves
+**Then** the site's `siteId` is unchanged
+**And** cookies previously stored under that `siteId` continue to load for the site
+
+#### Scenario: Domain conflict detection ignores desktopMode
+
+**Given** two sites share a base domain and must not be loaded simultaneously
+**When** one of them has `desktopMode = true` and the other has `desktopMode = false`
+**Then** the cookie isolation engine still treats them as conflicting
+**And** switching between them triggers the standard unload/cookie-save/restore path
+
 ---
 
 ## Implementation Details
