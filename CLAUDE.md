@@ -137,9 +137,9 @@ Some features (DNS blocklist, content blocker, LocalCDN) require a downloaded bl
 - Update the subtitle to hint the user to populate the data first when the service is not ready.
 - Examples in [lib/screens/settings.dart](lib/screens/settings.dart): DNS blocklist gates on `DnsBlockService.instance.hasBlocklist`; content blocker gates on `ContentBlockerService.instance.hasRules`; LocalCDN gates on `LocalCdnService.instance.hasCache`.
 
-## Simulator engine vs. rendering engine
+## Logic engine vs. rendering engine
 
-Orchestration logic — "which sites to unload on a webspace switch", "how do indices shift after a deletion", "what cookies move where during site activation" — belongs in a pure-Dart **simulator engine** under `lib/services/*_engine.dart`, not inlined in `_WebSpacePageState`. The template is [lib/services/cookie_isolation.dart](lib/services/cookie_isolation.dart): the engine takes mutable state as parameters, depends only on abstract I/O interfaces (`CookieManager`, `CookieSecureStorage`), and is invoked from `main.dart` as a thin call site. The **rendering engine** (native webview, platform channels, UI setState) stays at the call site.
+Orchestration logic — "which sites to unload on a webspace switch", "how do indices shift after a deletion", "what cookies move where during site activation" — belongs in a pure-Dart **logic engine** under `lib/services/*_engine.dart`, not inlined in `_WebSpacePageState`. The template is [lib/services/cookie_isolation.dart](lib/services/cookie_isolation.dart): the engine takes mutable state as parameters, depends only on abstract I/O interfaces (`CookieManager`, `CookieSecureStorage`), and is invoked from `main.dart` as a thin call site. The **rendering engine** (native webview, platform channels, UI setState) stays at the call site. "Logic" is literal — it's the same code path in production and tests; the split is strictly about separating orchestration from rendering so the former can run without a display.
 
 Rules of thumb:
 

@@ -210,13 +210,14 @@ Each webview widget SHALL maintain its identity via `ValueKey(siteId)` to preven
 
 ## Implementation Details
 
-### Simulator Engines
+### Logic Engines
 
 Orchestration lives in pure-Dart engines under `lib/services/*_engine.dart`
 so the flows can be exercised headlessly with in-memory fakes of
-`CookieManager` / `CookieSecureStorage` instead of a widget tree. The
-rendering side (native cookie jar, webview lifecycle, `setState`) stays
-at the `_WebSpacePageState` call site.
+`CookieManager` / `CookieSecureStorage` instead of a widget tree. Same
+code runs in production; the split is strictly between logic and the
+rendering side (native cookie jar, webview lifecycle, `setState`) which
+stays at the `_WebSpacePageState` call site.
 
 - [`CookieIsolationEngine`](../../../lib/services/cookie_isolation.dart) —
   owns the capture-nuke-restore cycle for `unloadSiteForDomainSwitch`,

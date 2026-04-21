@@ -174,10 +174,11 @@ Stored in SharedPreferences:
 
 ---
 
-## Simulator Engines
+## Logic Engines
 
 Selection and index-update logic is extracted into pure-Dart engines so
-the rules can be exercised without a widget tree:
+the rules can be exercised without a widget tree (same code runs in
+production):
 
 - [`WebspaceSelectionEngine`](../../../lib/services/webspace_selection_engine.dart):
   - `filteredSiteIndices({selectedWebspaceId, webspaces, siteCount})` —
