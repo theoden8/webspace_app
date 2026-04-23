@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
+import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview.dart';
@@ -451,6 +452,7 @@ class WebViewModel {
     String? initialHtml,
     bool Function()? isActive,
     Future<bool> Function(String url)? onConfirmScriptFetch,
+    Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
@@ -517,6 +519,7 @@ class WebViewModel {
             ...userScripts,
           ],
           onConfirmScriptFetch: onConfirmScriptFetch,
+          onExternalSchemeUrl: onExternalSchemeUrl,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {

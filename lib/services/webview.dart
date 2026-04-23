@@ -13,6 +13,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
+import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -280,6 +281,11 @@ class WebViewConfig {
   /// Callback to confirm fetching a script from a non-whitelisted URL.
   /// Returns true if the user approves, false to block.
   final Future<bool> Function(String url)? onConfirmScriptFetch;
+  /// Callback fired when the webview tries to navigate to a non-webview
+  /// URL (`intent://`, `tel:`, `mailto:`, custom app schemes). The
+  /// webview always cancels such navigations; the host UI decides
+  /// whether to launch the target app after confirming with the user.
+  final Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
   /// Per-site geolocation mode. [LocationMode.spoof] injects a shim that
@@ -318,6 +324,7 @@ class WebViewConfig {
     this.onConsoleMessage,
     this.userScripts = const [],
     this.onConfirmScriptFetch,
+    this.onExternalSchemeUrl,
     this.pullToRefreshController,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -1315,6 +1322,17 @@ class WebViewFactory {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
+        // External app schemes (intent://, tel:, mailto:, market:, custom
+        // app schemes) can't be rendered in a webview — flutter_inappwebview
+        // returns ERR_UNKNOWN_URL_SCHEME. Cancel and hand the URL to the
+        // host UI, which confirms with the user before calling url_launcher.
+        final externalInfo = ExternalUrlParser.parse(url);
+        if (externalInfo != null) {
+          if (config.onExternalSchemeUrl != null) {
+            config.onExternalSchemeUrl!(url, externalInfo);
+          }
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
         // DNS blocklist check + record navigation for stats. Record for
         // every http navigation so the per-site log works even when no
         // blocklist is populated; isBlocked is a cheap set lookup.
@@ -1363,6 +1381,17 @@ class WebViewFactory {
           if (config.onWindowRequested != null && windowId != null) {
             await config.onWindowRequested!(windowId, url);
             return true;
+          }
+          return false;
+        }
+
+        // target="_blank" links can carry external app schemes too (e.g.
+        // a `<a target="_blank" href="intent://...">`). Route them through
+        // the same confirmation path as direct navigations.
+        final externalInfo = ExternalUrlParser.parse(url);
+        if (externalInfo != null) {
+          if (config.onExternalSchemeUrl != null) {
+            config.onExternalSchemeUrl!(url, externalInfo);
           }
           return false;
         }
