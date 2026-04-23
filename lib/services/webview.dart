@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -578,6 +579,38 @@ const String _clearUrlShareScript = r'''
 })();
 ''';
 
+/// JavaScript that overrides `navigator.language`, `navigator.languages`, and
+/// `Intl.DateTimeFormat().resolvedOptions().locale` so JS-side locale resolvers
+/// (React i18n, date formatters) see the per-site language instead of the OS
+/// locale. Must be injected at DOCUMENT_START to beat the page's own JS.
+String _languageOverrideScript(String language) {
+  // Use JSON encoding so the tag is safely escaped into the JS literal.
+  final encoded = jsonEncode(language);
+  return '''
+(function() {
+  try {
+    var lang = $encoded;
+    var langs = Object.freeze([lang]);
+    Object.defineProperty(Navigator.prototype, 'language', {
+      configurable: true, get: function() { return lang; }
+    });
+    Object.defineProperty(Navigator.prototype, 'languages', {
+      configurable: true, get: function() { return langs; }
+    });
+    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+      var proto = Intl.DateTimeFormat.prototype;
+      var orig = proto.resolvedOptions;
+      proto.resolvedOptions = function() {
+        var r = orig.apply(this, arguments);
+        r.locale = lang;
+        return r;
+      };
+    }
+  } catch (e) {}
+})();
+''';
+}
+
 
 /// Factory for creating webviews
 class WebViewFactory {
@@ -699,6 +732,18 @@ class WebViewFactory {
       userScripts.add(inapp.UserScript(
         groupName: 'clearurl_share',
         source: '$_clearUrlShareScript\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
+    // Override navigator.language / navigator.languages so client-rendered
+    // SPAs (Bluesky, etc.) pick up the per-site language instead of the OS
+    // locale. The Accept-Language header alone doesn't reach JS-side locale
+    // resolvers. Must run at DOCUMENT_START before the page's JS reads it.
+    if (config.language != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'language_override',
+        source: '${_languageOverrideScript(config.language!)}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       ));
     }
