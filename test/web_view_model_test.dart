@@ -276,6 +276,64 @@ void main() {
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.desktopMode, isTrue);
     });
+
+    test('location spoof fields default to off and null', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      expect(model.locationMode, equals(LocationMode.off));
+      expect(model.spoofLatitude, isNull);
+      expect(model.spoofLongitude, isNull);
+      expect(model.spoofAccuracy, equals(50.0));
+      expect(model.spoofTimezone, isNull);
+      expect(model.webRtcPolicy, equals(WebRtcPolicy.defaultPolicy));
+    });
+
+    test('location spoof fields round-trip through JSON', () {
+      final original = WebViewModel(
+        initUrl: 'https://example.com',
+        locationMode: LocationMode.spoof,
+        spoofLatitude: 35.6762,
+        spoofLongitude: 139.6503,
+        spoofAccuracy: 25.0,
+        spoofTimezone: 'Asia/Tokyo',
+        webRtcPolicy: WebRtcPolicy.relayOnly,
+      );
+
+      final json = original.toJson();
+      expect(json['locationMode'], equals('spoof'));
+      expect(json['spoofLatitude'], equals(35.6762));
+      expect(json['spoofLongitude'], equals(139.6503));
+      expect(json['spoofAccuracy'], equals(25.0));
+      expect(json['spoofTimezone'], equals('Asia/Tokyo'));
+      expect(json['webRtcPolicy'], equals('relayOnly'));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.locationMode, equals(LocationMode.spoof));
+      expect(restored.spoofLatitude, equals(35.6762));
+      expect(restored.spoofLongitude, equals(139.6503));
+      expect(restored.spoofAccuracy, equals(25.0));
+      expect(restored.spoofTimezone, equals('Asia/Tokyo'));
+      expect(restored.webRtcPolicy, equals(WebRtcPolicy.relayOnly));
+    });
+
+    test('location spoof fields default when missing from JSON', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.locationMode, equals(LocationMode.off));
+      expect(model.spoofLatitude, isNull);
+      expect(model.spoofLongitude, isNull);
+      expect(model.spoofAccuracy, equals(50.0));
+      expect(model.spoofTimezone, isNull);
+      expect(model.webRtcPolicy, equals(WebRtcPolicy.defaultPolicy));
+    });
   });
 
   group('extractDomain', () {

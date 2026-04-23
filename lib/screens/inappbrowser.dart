@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/location.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -21,6 +22,12 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool contentBlockEnabled;
   final String? language;
   final bool showUrlBar;
+  final LocationMode locationMode;
+  final double? spoofLatitude;
+  final double? spoofLongitude;
+  final double spoofAccuracy;
+  final String? spoofTimezone;
+  final WebRtcPolicy webRtcPolicy;
 
   InAppWebViewScreen({
     required this.url,
@@ -33,6 +40,12 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.contentBlockEnabled,
     required this.language,
     this.showUrlBar = false,
+    this.locationMode = LocationMode.off,
+    this.spoofLatitude,
+    this.spoofLongitude,
+    this.spoofAccuracy = 50.0,
+    this.spoofTimezone,
+    this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
   });
 
   @override
@@ -265,6 +278,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                 dnsBlockEnabled: widget.dnsBlockEnabled,
                 contentBlockEnabled: widget.contentBlockEnabled,
                 language: widget.language,
+                locationMode: widget.locationMode,
+                spoofLatitude: widget.spoofLatitude,
+                spoofLongitude: widget.spoofLongitude,
+                spoofAccuracy: widget.spoofAccuracy,
+                spoofTimezone: widget.spoofTimezone,
+                webRtcPolicy: widget.webRtcPolicy,
                 pullToRefreshController: _pullToRefreshController,
                 onUrlChanged: (url) {
                   setState(() {

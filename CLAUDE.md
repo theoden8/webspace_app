@@ -106,6 +106,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | navigation | Back gesture, home button, drawer swipe, pull-to-refresh, platform quirks, race condition guards |
 | nested-url-blocking | Cross-domain navigation control: nested InAppBrowser, gesture-based auto-redirect blocking |
 | per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage |
+| per-site-location | Per-site geolocation spoofing, IANA timezone override, WebRTC leak lockdown |
 | platform-support | Platform abstraction layer for iOS, Android, macOS |
 | proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
 | screenshots | Automated screenshot generation via integration tests |
@@ -138,6 +139,20 @@ Some features (DNS blocklist, content blocker, LocalCDN) require a downloaded bl
 - Pattern: `onChanged: SomeService.instance.isReady ? (v) => ... : null` — a null `onChanged` grays out the switch.
 - Update the subtitle to hint the user to populate the data first when the service is not ready.
 - Examples in [lib/screens/settings.dart](lib/screens/settings.dart): DNS blocklist gates on `DnsBlockService.instance.hasBlocklist`; content blocker gates on `ContentBlockerService.instance.hasRules`; LocalCDN gates on `LocalCdnService.instance.hasCache`.
+
+## Per-site settings MUST apply to nested webviews
+
+Per-site settings (cookie isolation flags, language, geolocation/timezone spoof, WebRTC policy, user scripts, content blocking, ClearURLs, DNS blocklist, desktop mode, etc.) apply to the parent webview *and* every nested webview spawned from it. Cross-domain navigations open a new `InAppWebViewScreen` via `launchUrl` in [lib/main.dart](lib/main.dart), which constructs its own `WebViewConfig` — that config MUST carry the parent site's per-site fields, otherwise the nested webview runs as a plain browser and any privacy property the user configured silently breaks in the one place a hostile site is most likely to test it (e.g. opening `browserleaks.com/webrtc` after following an outbound link).
+
+When you add a new per-site field:
+
+1. Add it to `WebViewModel.toJson`/`fromJson`.
+2. Pass it into `WebViewConfig` at the main call site in `WebViewModel.getWebView` ([lib/web_view_model.dart](lib/web_view_model.dart)).
+3. Add it to `launchUrl`'s signature in [lib/main.dart](lib/main.dart).
+4. Add it to the `InAppWebViewScreen` constructor in [lib/screens/inappbrowser.dart](lib/screens/inappbrowser.dart) and pass it into that screen's `WebViewConfig` as well.
+5. Update the `launchUrlFunc` typedef and both call sites in [lib/web_view_model.dart](lib/web_view_model.dart) that invoke it.
+
+If a field controls JavaScript injected via `initialUserScripts`, also set `forMainFrameOnly: false` on the `inapp.UserScript` so the shim reaches cross-origin iframes (on iOS the default is main-frame-only). Otherwise a site can embed the detection logic in an iframe and bypass the shim.
 
 ## Logic engine vs. rendering engine
 

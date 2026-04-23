@@ -11,8 +11,10 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/user_script_service.dart';
+import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
@@ -275,6 +277,17 @@ class WebViewConfig {
   final Future<bool> Function(String url)? onConfirmScriptFetch;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
+  /// Per-site geolocation mode. [LocationMode.spoof] injects a shim that
+  /// overrides `navigator.geolocation` with [spoofLatitude]/[spoofLongitude].
+  final LocationMode locationMode;
+  final double? spoofLatitude;
+  final double? spoofLongitude;
+  final double spoofAccuracy;
+  /// IANA timezone name reported via [Intl.DateTimeFormat] and
+  /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone.
+  final String? spoofTimezone;
+  /// WebRTC policy — prevents real-IP leak that bypasses HTTP(S)/SOCKS proxies.
+  final WebRtcPolicy webRtcPolicy;
 
   WebViewConfig({
     this.key,
@@ -301,6 +314,12 @@ class WebViewConfig {
     this.userScripts = const [],
     this.onConfirmScriptFetch,
     this.pullToRefreshController,
+    this.locationMode = LocationMode.off,
+    this.spoofLatitude,
+    this.spoofLongitude,
+    this.spoofAccuracy = 50.0,
+    this.spoofTimezone,
+    this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
   });
 }
 
@@ -713,9 +732,32 @@ class WebViewFactory {
     // so sub-resources (CSS/JS/images) resolve from browser HTTP cache.
     final usesCachedHtml = config.initialHtml != null;
 
+    final userScripts = <inapp.UserScript>[];
+
+    // Location / timezone / WebRTC shim — must run FIRST so overrides are
+    // in place before any site script can capture the unpatched references.
+    final locationShim = LocationSpoofService.buildScript(
+      locationMode: config.locationMode,
+      spoofLatitude: config.spoofLatitude,
+      spoofLongitude: config.spoofLongitude,
+      spoofAccuracy: config.spoofAccuracy,
+      spoofTimezone: config.spoofTimezone,
+      webRtcPolicy: config.webRtcPolicy,
+    );
+    if (locationShim != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'location_spoof',
+        source: '$locationShim\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        // Inject into every frame (iOS WKUserScript defaults to main-frame
+        // only). Without this a site could embed browserleaks.com in an
+        // iframe and bypass the spoof.
+        forMainFrameOnly: false,
+      ));
+    }
+
     // Inject content blocker CSS at DOCUMENT_START so elements are hidden
     // before they ever render, eliminating the flash of unstyled content.
-    final userScripts = <inapp.UserScript>[];
     if (config.contentBlockEnabled) {
       final earlyScript = ContentBlockerService.instance.getEarlyCssScript(config.initialUrl);
       if (earlyScript != null) {

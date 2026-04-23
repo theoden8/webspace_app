@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/dev_tools.dart';
@@ -62,6 +63,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late AppThemeSettings _settings;
   late bool _showTabStrip;
   late bool _showStatsBanner;
+  late TextEditingController _osmTileUrlController;
   bool _isDownloadingRules = false;
   DateTime? _rulesLastUpdated;
 
@@ -89,6 +91,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _settings = widget.currentSettings;
     _showTabStrip = widget.showTabStrip;
     _showStatsBanner = widget.showStatsBanner;
+    _osmTileUrlController = TextEditingController();
+    _loadOsmTileUrl();
     _spinController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -100,6 +104,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   @override
   void dispose() {
+    _osmTileUrlController.dispose();
     _spinController.dispose();
     super.dispose();
   }
@@ -267,6 +272,24 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
     }
     return n.toString();
+  }
+
+  Future<void> _loadOsmTileUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final url = prefs.getString('osmTileUrl') ??
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    if (!mounted) return;
+    _osmTileUrlController.text = url;
+  }
+
+  Future<void> _saveOsmTileUrl(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      await prefs.remove('osmTileUrl');
+    } else {
+      await prefs.setString('osmTileUrl', trimmed);
+    }
   }
 
   Future<void> _loadRulesLastUpdated() async {
@@ -443,6 +466,42 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               });
               widget.onShowStatsBannerChanged(value);
             },
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Text(
+                  'Location picker',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const HintButton(
+                  title: 'Location picker tile provider',
+                  description:
+                      'The tile URL used by the per-site location picker. '
+                      'No tiles are fetched unless the user taps "Load map" on '
+                      'the picker itself — the app never makes background '
+                      'requests to this provider. The {z}/{x}/{y} placeholders '
+                      'are substituted with OSM tile coordinates. '
+                      'Defaults to OpenStreetMap; swap for any '
+                      'OSM-compatible provider (MapTiler, CartoDB, a self-'
+                      'hosted server, etc.).',
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: TextFormField(
+              controller: _osmTileUrlController,
+              decoration: const InputDecoration(
+                labelText: 'Tile URL',
+                hintText: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: _saveOsmTileUrl,
+            ),
           ),
 
           const Divider(height: 32),
