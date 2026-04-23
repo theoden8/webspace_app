@@ -19,6 +19,7 @@ openspec/
     ├── dns-blocklist/spec.md             # Hagezi DNS blocklist domain blocking
     ├── home-shortcut/spec.md             # Android home screen shortcuts
     ├── icon-fetching/spec.md             # Progressive favicon loading
+    ├── language/spec.md                  # Per-site language (Accept-Language + navigator.language override)
     ├── lazy-webview-loading/spec.md      # On-demand webview creation
     ├── localcdn/spec.md                  # Local CDN resource caching
     ├── navigation/spec.md                # Back gesture, home button, pull-to-refresh
@@ -58,6 +59,7 @@ Each spec file follows the OpenSpec format:
 | DNS Blocklist | Completed | Hagezi DNS blocklist with severity levels and per-site toggle |
 | Home Shortcut | Completed | Android home screen shortcut via pinned shortcuts API |
 | Icon Fetching | Completed | Progressive favicon loading with fallbacks |
+| Language | Completed | Per-site language via Accept-Language header and navigator.language override |
 | Lazy Webview Loading | Completed | On-demand webview creation with IndexedStack placeholders |
 | LocalCDN | Completed | Cache CDN resources locally to prevent CDN tracking (Android) |
 | Navigation | Completed | Back gesture, home button, drawer swipe, pull-to-refresh |
@@ -70,7 +72,7 @@ Each spec file follows the OpenSpec format:
 | Site Editing | Completed | Edit URLs and custom names |
 | User Scripts | Completed | Per-site custom JavaScript injection with timing control |
 | Webspaces | Completed | Organize sites into named collections |
-| Webview Hints | Completed | Webview theme and display hints |
+| Webview Hints | Completed | Webview theme hints (color-scheme, matchMedia, HTML cache theme prelude) |
 
 ## Usage
 

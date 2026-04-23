@@ -100,6 +100,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | dns-blocklist | Hagezi DNS blocklist domain blocking with severity levels and per-site toggle |
 | home-shortcut | Android home screen shortcut for sites via pinned shortcuts API |
 | icon-fetching | Progressive favicon loading with fallbacks |
+| language | Per-site language: Accept-Language header + DOCUMENT_START navigator.language / Intl override |
 | lazy-webview-loading | On-demand webview creation, IndexedStack placeholders |
 | localcdn | LocalCDN - cache CDN resources locally to prevent CDN tracking (Android) |
 | navigation | Back gesture, home button, drawer swipe, pull-to-refresh, platform quirks, race condition guards |
@@ -112,7 +113,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | site-editing | Edit site URLs and custom names |
 | user-scripts | Per-site custom JavaScript injection with injection timing control |
 | webspaces | Site organization into named collections |
-| webview-hints | Webview theme and display hints |
+| webview-hints | Webview theme hints (color-scheme, matchMedia, cache theme prelude) |
 | fullscreen-mode | Full screen mode: hide app bar/tab strip/system UI, per-site auto-fullscreen setting |
 | desktop-mode | Per-site desktop-mode toggle wired to `InAppWebViewSettings.preferredContentMode` |
 
