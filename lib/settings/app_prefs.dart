@@ -21,6 +21,10 @@ const Map<String, Object> kExportedAppPrefs = <String, Object>{
   'showUrlBar': false,
   'showTabStrip': false,
   'showStatsBanner': true,
+  // Tile URL used by the optional location picker map. Only queried after
+  // the user explicitly taps "Load map" on the picker — no requests happen
+  // from normal app use.
+  'osmTileUrl': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
 };
 
 /// Read every registered pref from [prefs] into a map suitable for embedding

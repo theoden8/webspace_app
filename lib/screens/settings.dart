@@ -10,6 +10,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
+import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -375,6 +376,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<LocationPickerResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerScreen(
+          initialLatitude: double.tryParse(_latitudeController.text.trim()),
+          initialLongitude: double.tryParse(_longitudeController.text.trim()),
+          initialAccuracy: double.tryParse(_accuracyController.text.trim()) ?? 50.0,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _latitudeController.text = result.latitude.toStringAsFixed(6);
+      _longitudeController.text = result.longitude.toStringAsFixed(6);
+      _accuracyController.text = result.accuracy.toString();
+    });
+  }
+
   List<Widget> _buildLocationSection() {
     return [
       const Padding(
@@ -455,6 +475,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               hintText: '50',
               border: OutlineInputBorder(),
             ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Pick on map'),
+            onPressed: _openLocationPicker,
           ),
         ),
       ],

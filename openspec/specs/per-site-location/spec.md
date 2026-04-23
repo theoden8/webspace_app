@@ -122,6 +122,43 @@ The system SHALL expose a per-site `webRtcPolicy` with three values: `defaultPol
 
 ---
 
+### Requirement: LOC-006 - Map picker with explicit opt-in
+
+The per-site location settings SHALL provide a "Pick on map" button that opens a full-screen picker. The picker SHALL NOT make any network requests (map tile fetches) until the user explicitly taps a "Load map" button on the picker's placeholder state. Manual coordinate entry SHALL remain available without ever loading the map.
+
+The tile URL used by the picker SHALL come from a global app pref (`osmTileUrl`, default `https://tile.openstreetmap.org/{z}/{x}/{y}.png`). The pref SHALL be editable from the app-level settings and SHALL round-trip through settings backup/restore via the existing registry in `lib/settings/app_prefs.dart`.
+
+#### Scenario: Opening the picker makes no requests
+
+**Given** the user has tapped "Pick on map" on the per-site location settings
+**When** the picker opens
+**Then** no tile requests have been made
+**And** the placeholder view is shown with the configured tile host name
+**And** latitude, longitude, and accuracy inputs are already editable
+
+#### Scenario: User enters coordinates without loading the map
+
+**Given** the picker is showing the placeholder
+**When** the user types coordinates into the inputs and taps "Done"
+**Then** still no tile requests have been made
+**And** the picker returns the typed coordinates to the caller
+
+#### Scenario: User loads the map
+
+**Given** the picker is showing the placeholder
+**When** the user taps "Load map"
+**Then** the map is mounted
+**And** tile requests begin to the URL configured in `osmTileUrl`
+**And** tapping anywhere on the map updates the coordinate inputs and moves the pin
+
+#### Scenario: Tile URL is swappable
+
+**Given** the user has opened the app settings and changed "Tile URL" to a self-hosted tile server
+**When** the user later opens the location picker and taps "Load map"
+**Then** tile requests go to the configured server, not to openstreetmap.org
+
+---
+
 ### Requirement: LOC-005 - Persistence and backup
 
 All six fields (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, `spoofTimezone`, `webRtcPolicy`) SHALL round-trip through `WebViewModel.toJson` / `fromJson` with sensible defaults when absent. They ride along in the `sites` array of settings backups automatically.
