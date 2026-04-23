@@ -1116,6 +1116,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     required bool dnsBlockEnabled,
     required bool contentBlockEnabled,
     required String? language,
+    LocationMode locationMode = LocationMode.off,
+    double? spoofLatitude,
+    double? spoofLongitude,
+    double spoofAccuracy = 50.0,
+    String? spoofTimezone,
+    WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
   }) async {
     await Navigator.push(
       context,
@@ -1131,6 +1137,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           contentBlockEnabled: contentBlockEnabled,
           language: language,
           showUrlBar: _showUrlBar,
+          locationMode: locationMode,
+          spoofLatitude: spoofLatitude,
+          spoofLongitude: spoofLongitude,
+          spoofAccuracy: spoofAccuracy,
+          spoofTimezone: spoofTimezone,
+          webRtcPolicy: webRtcPolicy,
         ),
       ),
     );

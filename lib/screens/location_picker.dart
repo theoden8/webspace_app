@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher.dart' as launcher;
+
+import 'package:webspace/settings/location.dart';
 
 /// Full-screen picker for [LocationPickerResult] (lat/lng + accuracy).
 ///
-/// Two states:
-/// - **Placeholder** (default): manual lat/lng/accuracy text fields plus a
-///   "Load map" button. No network requests are made — [flutter_map] is not
-///   mounted until the user explicitly opts in. This is the privacy-default
-///   for a browser that tries to avoid leaking user intent to third parties.
-/// - **Map mounted**: after "Load map" is tapped, the map fetches tiles from
-///   the URL configured in the `osmTileUrl` global pref (default OSM). Tap
-///   anywhere on the map to move the pin, which in turn updates the text
-///   fields. The text fields remain editable and keep the pin in sync.
+/// Privacy-first design — there is NO embedded map. Typing or choosing a
+/// preset city makes zero network requests. If the user needs to visually
+/// pick a coordinate they can tap "Open in OpenStreetMap" which hands off
+/// to the platform browser via `url_launcher`, and they paste the result
+/// back in. Keeping the map out-of-process means the webspace app itself
+/// never calls a tile server and never leaks the user's IP or inspection
+/// target to OSM from inside our webview/network stack.
+///
+/// The tile URL in the "Open in…" button is derived from the `osmTileUrl`
+/// global pref so self-hosters can point it at their own provider.
 class LocationPickerScreen extends StatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
@@ -43,14 +44,43 @@ class LocationPickerResult {
   });
 }
 
+/// Popular cities for one-tap selection. Intentionally short — the point is
+/// quick access to recognizable anchors, not a gazetteer.
+const List<_PresetCity> _presetCities = [
+  _PresetCity('Tokyo', 35.6762, 139.6503),
+  _PresetCity('London', 51.5074, -0.1278),
+  _PresetCity('New York', 40.7128, -74.0060),
+  _PresetCity('Paris', 48.8566, 2.3522),
+  _PresetCity('Berlin', 52.5200, 13.4050),
+  _PresetCity('Los Angeles', 34.0522, -118.2437),
+  _PresetCity('Sydney', -33.8688, 151.2093),
+  _PresetCity('São Paulo', -23.5505, -46.6333),
+  _PresetCity('Moscow', 55.7558, 37.6173),
+  _PresetCity('Dubai', 25.2048, 55.2708),
+  _PresetCity('Singapore', 1.3521, 103.8198),
+  _PresetCity('Hong Kong', 22.3193, 114.1694),
+  _PresetCity('Seoul', 37.5665, 126.9780),
+  _PresetCity('Mumbai', 19.0760, 72.8777),
+  _PresetCity('Mexico City', 19.4326, -99.1332),
+  _PresetCity('Cairo', 30.0444, 31.2357),
+  _PresetCity('Istanbul', 41.0082, 28.9784),
+  _PresetCity('Toronto', 43.6532, -79.3832),
+  _PresetCity('Amsterdam', 52.3676, 4.9041),
+  _PresetCity('Reykjavík', 64.1466, -21.9426),
+];
+
+class _PresetCity {
+  final String name;
+  final double lat;
+  final double lng;
+  const _PresetCity(this.name, this.lat, this.lng);
+}
+
 class _LocationPickerScreenState extends State<LocationPickerScreen> {
   late TextEditingController _latController;
   late TextEditingController _lngController;
   late TextEditingController _accController;
-
-  bool _mapLoaded = false;
   String _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  final MapController _mapController = MapController();
 
   @override
   void initState() {
@@ -82,32 +112,18 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     super.dispose();
   }
 
-  LatLng? _currentLatLng() {
+  bool _coordsValid() {
     final lat = double.tryParse(_latController.text.trim());
     final lng = double.tryParse(_lngController.text.trim());
-    if (lat == null || lng == null) return null;
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-    return LatLng(lat, lng);
+    if (lat == null || lng == null) return false;
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   }
 
-  void _setPin(LatLng p) {
+  void _applyPreset(_PresetCity city) {
     setState(() {
-      _latController.text = p.latitude.toStringAsFixed(6);
-      _lngController.text = p.longitude.toStringAsFixed(6);
+      _latController.text = city.lat.toString();
+      _lngController.text = city.lng.toString();
     });
-  }
-
-  void _onCoordTyped(String _) {
-    setState(() {});
-    if (_mapLoaded) {
-      final p = _currentLatLng();
-      if (p == null) return;
-      try {
-        _mapController.move(p, _mapController.camera.zoom);
-      } catch (_) {
-        // Camera not attached yet — ignore; marker still rebuilds from state.
-      }
-    }
   }
 
   String _hostOfTileUrl() {
@@ -123,6 +139,18 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     }
   }
 
+  Future<void> _openExternalMap() async {
+    // Seed the external map at the currently typed coords if valid,
+    // otherwise at the world view.
+    final lat = double.tryParse(_latController.text.trim()) ?? 0.0;
+    final lng = double.tryParse(_lngController.text.trim()) ?? 0.0;
+    final zoom = _coordsValid() ? 10 : 2;
+    final url = Uri.parse(
+      'https://www.openstreetmap.org/?mlat=$lat&mlon=$lng#map=$zoom/$lat/$lng',
+    );
+    await launcher.launchUrl(url, mode: launcher.LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,8 +159,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              final p = _currentLatLng();
-              if (p == null) {
+              if (!_coordsValid()) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Enter valid coordinates first')),
                 );
@@ -142,8 +169,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               Navigator.pop(
                 context,
                 LocationPickerResult(
-                  latitude: p.latitude,
-                  longitude: p.longitude,
+                  latitude: double.parse(_latController.text.trim()),
+                  longitude: double.parse(_lngController.text.trim()),
                   accuracy: acc > 0 ? acc : 50.0,
                 ),
               );
@@ -152,21 +179,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildCoordinateInputs(),
-          Expanded(
-            child: _mapLoaded ? _buildMap() : _buildPlaceholder(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCoordinateInputs() {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Column(
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
           Row(
             children: [
@@ -180,7 +194,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  onChanged: _onCoordTyped,
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(width: 8),
@@ -194,122 +208,55 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  onChanged: _onCoordTyped,
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _accController,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
               labelText: 'Accuracy (meters)',
               border: OutlineInputBorder(),
               isDense: true,
             ),
           ),
+          const SizedBox(height: 24),
+          Text('Preset cities',
+              style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _presetCities
+                .map((c) => ActionChip(
+                      label: Text(c.name),
+                      onPressed: () => _applyPreset(c),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 24),
+          Text('Pick visually',
+              style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 8),
+          Text(
+            'Opens ${_hostOfTileUrl()} in your device browser — no requests '
+            'are made from inside WebSpace. Copy coordinates back into the '
+            'fields above when you have a spot.',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Open in OpenStreetMap'),
+            onPressed: _openExternalMap,
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPlaceholder() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map_outlined,
-                size: 64,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-            const SizedBox(height: 16),
-            const Text(
-              'Map is not loaded.',
-              style: TextStyle(fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Loading the map will fetch tiles from ${_hostOfTileUrl()}, '
-              'revealing the area you view to the tile server. '
-              'You can also just type coordinates above and tap Done.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              icon: const Icon(Icons.download_outlined),
-              label: const Text('Load map'),
-              onPressed: () => setState(() => _mapLoaded = true),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Change provider in App Settings → Location picker',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMap() {
-    final initial = _currentLatLng() ?? const LatLng(0, 0);
-    final initialZoom = _currentLatLng() == null ? 2.0 : 10.0;
-    return Stack(
-      children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: initial,
-            initialZoom: initialZoom,
-            onTap: (_, p) => _setPin(p),
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: _tileUrl,
-              userAgentPackageName: 'com.webspace.app',
-              maxZoom: 19,
-            ),
-            if (_currentLatLng() != null)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: _currentLatLng()!,
-                    width: 40,
-                    height: 40,
-                    child: Icon(
-                      Icons.location_pin,
-                      color: Theme.of(context).colorScheme.error,
-                      size: 40,
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-        Positioned(
-          bottom: 4,
-          right: 4,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            color: Colors.white.withValues(alpha: 0.75),
-            child: GestureDetector(
-              onTap: () =>
-                  launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
-              child: const Text(
-                '© OpenStreetMap contributors',
-                style: TextStyle(fontSize: 10, color: Colors.black87),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

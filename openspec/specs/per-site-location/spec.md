@@ -122,40 +122,65 @@ The system SHALL expose a per-site `webRtcPolicy` with three values: `defaultPol
 
 ---
 
-### Requirement: LOC-006 - Map picker with explicit opt-in
+### Requirement: LOC-006 - Picker with no in-app map
 
-The per-site location settings SHALL provide a "Pick on map" button that opens a full-screen picker. The picker SHALL NOT make any network requests (map tile fetches) until the user explicitly taps a "Load map" button on the picker's placeholder state. Manual coordinate entry SHALL remain available without ever loading the map.
+The per-site location settings SHALL provide a "Pick on map" button that opens a full-screen picker. The picker SHALL NOT embed a map widget inside the app and SHALL NOT make any tile requests from the WebSpace process — so the user's act of *choosing* a spoof location never leaks the area of interest through our network stack. Selection methods offered:
 
-The tile URL used by the picker SHALL come from a global app pref (`osmTileUrl`, default `https://tile.openstreetmap.org/{z}/{x}/{y}.png`). The pref SHALL be editable from the app-level settings and SHALL round-trip through settings backup/restore via the existing registry in `lib/settings/app_prefs.dart`.
+- Typed latitude / longitude / accuracy.
+- A preset-city chip list for one-tap common anchors.
+- An "Open in OpenStreetMap" button that hands off to the OS browser via `url_launcher`, preseeded with the currently typed coordinates. The tile provider used by the handoff URL comes from the `osmTileUrl` global pref (default `https://tile.openstreetmap.org/{z}/{x}/{y}.png`). The pref is editable from app-level settings and round-trips through settings backup via `lib/settings/app_prefs.dart`.
 
 #### Scenario: Opening the picker makes no requests
 
 **Given** the user has tapped "Pick on map" on the per-site location settings
 **When** the picker opens
-**Then** no tile requests have been made
-**And** the placeholder view is shown with the configured tile host name
-**And** latitude, longitude, and accuracy inputs are already editable
+**Then** no network requests have been made from the WebSpace process
+**And** latitude, longitude, and accuracy inputs are editable
+**And** a preset city chip list is visible
 
-#### Scenario: User enters coordinates without loading the map
+#### Scenario: Preset city sets coordinates without network
 
-**Given** the picker is showing the placeholder
-**When** the user types coordinates into the inputs and taps "Done"
-**Then** still no tile requests have been made
-**And** the picker returns the typed coordinates to the caller
+**Given** the picker is open
+**When** the user taps the "Tokyo" preset chip
+**Then** still no network requests have been made
+**And** the latitude / longitude inputs now contain Tokyo's coordinates
 
-#### Scenario: User loads the map
+#### Scenario: External handoff opens device browser
 
-**Given** the picker is showing the placeholder
-**When** the user taps "Load map"
-**Then** the map is mounted
-**And** tile requests begin to the URL configured in `osmTileUrl`
-**And** tapping anywhere on the map updates the coordinate inputs and moves the pin
+**Given** the picker is open
+**When** the user taps "Open in OpenStreetMap"
+**Then** the device's OS browser opens `https://www.openstreetmap.org/?mlat=...&mlon=...#map=...` seeded at the currently typed coordinates
+**And** WebSpace's webview/networking never touches the tile server
 
-#### Scenario: Tile URL is swappable
+#### Scenario: Tile URL pref persists through backup
 
-**Given** the user has opened the app settings and changed "Tile URL" to a self-hosted tile server
-**When** the user later opens the location picker and taps "Load map"
-**Then** tile requests go to the configured server, not to openstreetmap.org
+**Given** the user has opened app settings and changed "Tile URL" under "Location picker" to a self-hosted value
+**When** they export and re-import their settings
+**Then** the configured tile URL is restored from the backup
+
+**Note:** the external handoff currently targets `https://www.openstreetmap.org/?mlat=…&mlon=…`. The tile URL pref is surfaced so users can still see and configure which provider the "Pick visually" button references, but the OSM website URL is hardcoded — Leaflet-style tile URLs are not necessarily browser-viewable maps. Self-hosters who point the tile URL at their own server should type coordinates directly or use their own map UI.
+
+---
+
+### Requirement: LOC-007 - Settings apply to nested webviews
+
+Every per-site field on `WebViewModel` that controls privacy behavior (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, `spoofTimezone`, `webRtcPolicy`) SHALL propagate to every `InAppWebViewScreen` spawned by cross-domain navigation from the parent site via `launchUrl` in `lib/main.dart`. The JS shim SHALL be injected into cross-origin iframes as well as the top frame by setting `forMainFrameOnly: false` on the `inapp.UserScript`.
+
+Otherwise a site could defeat the spoof by linking to a detection page (e.g. browserleaks.com) — which opens in a nested browser — or embedding it in an iframe.
+
+#### Scenario: Nested browser inherits the spoof
+
+**Given** site "Acme" has `locationMode = spoof`, `spoofLatitude = 35.6762`, `spoofLongitude = 139.6503`, and `webRtcPolicy = disabled`
+**When** the user follows a cross-domain link from Acme that opens a nested `InAppWebViewScreen` at browserleaks.com/webrtc
+**Then** the nested webview reports the spoofed coordinates
+**And** `RTCPeerConnection` is neutered in the nested webview too
+
+#### Scenario: Iframe sees the spoof
+
+**Given** a page embeds `https://browserleaks.com/webrtc` inside a cross-origin iframe
+**When** the iframe runs its detection script
+**Then** `navigator.geolocation` returns the spoofed coordinates
+**And** `RTCPeerConnection` is either neutered or relay-only per the parent site's policy
 
 ---
 

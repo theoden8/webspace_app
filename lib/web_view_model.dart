@@ -442,7 +442,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, WebRtcPolicy webRtcPolicy}) launchUrlFunc,
     CookieManager cookieManager,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
@@ -552,7 +552,7 @@ class WebViewModel {
                 return false;
               case NavigationDecision.blockOpenNested:
                 LogService.instance.log('WebView', '  -> CANCEL (opening nested webview)');
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, webRtcPolicy: webRtcPolicy);
                 return false;
             }
           },
@@ -598,7 +598,7 @@ class WebViewModel {
                     return;
                   case NavigationDecision.blockOpenNested:
                     LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
-                    launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language);
+                    launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, webRtcPolicy: webRtcPolicy);
                     return;
                   case NavigationDecision.allow:
                     break;
@@ -691,7 +691,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, WebRtcPolicy webRtcPolicy}) launchUrlFunc,
     CookieManager cookieManager,
     Function saveFunc, {
     List<UserScriptConfig> globalUserScripts = const [],

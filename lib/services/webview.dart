@@ -749,6 +749,10 @@ class WebViewFactory {
         groupName: 'location_spoof',
         source: '$locationShim\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        // Inject into every frame (iOS WKUserScript defaults to main-frame
+        // only). Without this a site could embed browserleaks.com in an
+        // iframe and bypass the spoof.
+        forMainFrameOnly: false,
       ));
     }
 
