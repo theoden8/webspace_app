@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -31,6 +32,11 @@ class InAppWebViewScreen extends StatefulWidget {
   final String? spoofTimezone;
   final bool spoofTimezoneFromLocation;
   final WebRtcPolicy webRtcPolicy;
+  /// Pre-combined per-site + opted-in global user scripts to inject. Carried
+  /// over from the parent webview so cosmetic/privacy/custom scripts keep
+  /// working when the user follows an outbound link into a nested screen.
+  final List<UserScriptConfig> userScripts;
+  final Future<bool> Function(String url)? onConfirmScriptFetch;
 
   InAppWebViewScreen({
     required this.url,
@@ -50,6 +56,8 @@ class InAppWebViewScreen extends StatefulWidget {
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
+    this.userScripts = const [],
+    this.onConfirmScriptFetch,
   });
 
   @override
@@ -114,6 +122,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         spoofTimezone: widget.spoofTimezone,
         spoofTimezoneFromLocation: widget.spoofTimezoneFromLocation,
         webRtcPolicy: widget.webRtcPolicy,
+        userScripts: widget.userScripts,
+        onConfirmScriptFetch: widget.onConfirmScriptFetch,
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {
           if (mounted) {
