@@ -1396,14 +1396,23 @@ class WebViewFactory {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
       onDownloadStartRequest: (controller, downloadStartRequest) async {
-        await _handleDownloadRequest(downloadStartRequest);
+        await _handleDownloadRequest(controller, downloadStartRequest);
       },
     );
   }
 
   static Future<void> _handleDownloadRequest(
+    inapp.InAppWebViewController controller,
     inapp.DownloadStartRequest req,
   ) async {
+    // Abort any in-flight main-frame navigation to this URL. Without this
+    // the webview tries to render the attachment response as a page and
+    // ends up on a "net::ERR_UNKNOWN_URL_SCHEME" / "invalid request" error
+    // page while the URL bar is stuck on the download URL.
+    try {
+      await controller.stopLoading();
+    } catch (_) {}
+
     final urlStr = req.url.toString();
     final scheme = req.url.scheme.toLowerCase();
 
