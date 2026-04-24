@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
@@ -9,6 +10,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -16,6 +18,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/widgets/root_messenger.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
 typedef Cookie = inapp.Cookie;
@@ -1124,6 +1127,11 @@ class WebViewFactory {
         cacheMode: usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null,
         // iOS: play videos inline instead of auto-fullscreen
         allowsInlineMediaPlayback: true,
+        // Required for onDownloadStartRequest to fire when the webview
+        // navigates to a downloadable response (Content-Disposition:
+        // attachment, or an unrecognized MIME type). Without this, the
+        // webview silently drops the navigation and the user sees nothing.
+        useOnDownloadStart: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
@@ -1387,6 +1395,78 @@ class WebViewFactory {
       onConsoleMessage: (controller, consoleMessage) {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
+      onDownloadStartRequest: (controller, downloadStartRequest) async {
+        await _handleDownloadRequest(downloadStartRequest);
+      },
+    );
+  }
+
+  static Future<void> _handleDownloadRequest(
+    inapp.DownloadStartRequest req,
+  ) async {
+    final urlStr = req.url.toString();
+    final scheme = req.url.scheme.toLowerCase();
+
+    if (scheme != 'http' && scheme != 'https') {
+      // blob:/data:/file: aren't reachable via a simple HTTP GET. Surface
+      // a message instead of silently dropping — blob downloads need a JS
+      // shim (FileReader → base64 → handler) which isn't wired up yet.
+      _showDownloadSnack(
+        'Can\'t download $scheme: URL yet (only http/https supported).',
+      );
+      return;
+    }
+
+    _showDownloadSnack('Downloading…');
+
+    try {
+      final cookies = await inapp.CookieManager.instance()
+          .getCookies(url: req.url);
+      final cookieHeader = DownloadEngine.buildCookieHeader(
+        cookies.map((c) => MapEntry(c.name, c.value.toString())),
+      );
+
+      final engine = DownloadEngine();
+      final result = await engine.fetch(
+        url: urlStr,
+        cookieHeader: cookieHeader,
+        userAgent: req.userAgent,
+        suggestedFilename: req.suggestedFilename,
+        mimeTypeHint: req.mimeType,
+      );
+
+      final savedPath = await _saveViaPicker(result);
+      if (savedPath == null) {
+        _showDownloadSnack('Download cancelled.');
+        return;
+      }
+      _showDownloadSnack('Saved ${result.filename}');
+    } on DownloadException catch (e) {
+      _showDownloadSnack('Download failed: ${e.message}');
+    } catch (e, stack) {
+      debugPrint('Download error: $e\n$stack');
+      _showDownloadSnack('Download failed: $e');
+    }
+  }
+
+  static Future<String?> _saveViaPicker(DownloadResult result) async {
+    final isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+    final outputPath = await FilePicker.saveFile(
+      dialogTitle: 'Save download',
+      fileName: result.filename,
+      bytes: isMobile ? result.bytes : null,
+    );
+    if (outputPath == null) return null;
+    if (!isMobile) {
+      final file = File(outputPath);
+      await file.writeAsBytes(result.bytes);
+    }
+    return outputPath;
+  }
+
+  static void _showDownloadSnack(String message) {
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }
