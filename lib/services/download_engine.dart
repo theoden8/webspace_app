@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -122,6 +123,60 @@ class DownloadEngine {
         .replaceAll(RegExp(r'[/\\]'), '_')
         .replaceAll(RegExp(r'[\x00-\x1f]'), '')
         .trim();
+  }
+
+  /// Decodes a `data:` URI into bytes + filename + mime. Supports both
+  /// base64 (`data:<mime>;base64,<payload>`) and URL-encoded
+  /// (`data:<mime>,<payload>`) forms, with or without a mime.
+  static DownloadResult decodeDataUri({
+    required String url,
+    String? suggestedFilename,
+  }) {
+    final uri = Uri.parse(url);
+    if (uri.scheme != 'data') {
+      throw DownloadException('Not a data URI: $url');
+    }
+    final data = UriData.fromUri(uri);
+    final bytes = Uint8List.fromList(data.contentAsBytes());
+    final mime = data.mimeType.isEmpty ? null : data.mimeType;
+    // The data URI's "path" is the payload itself, which produces garbage
+    // when fed to deriveFilename — pass an empty URL so it falls straight
+    // through to the mime-based fallback.
+    return DownloadResult(
+      bytes: bytes,
+      filename: deriveFilename(
+        suggested: suggestedFilename,
+        url: '',
+        mimeType: mime,
+      ),
+      mimeType: mime,
+    );
+  }
+
+  /// Wraps a base64 payload (e.g. from a blob:→FileReader round-trip) in a
+  /// [DownloadResult]. The payload is the bare base64 string — no
+  /// `data:<mime>;base64,` prefix.
+  static DownloadResult fromBase64({
+    required String base64Data,
+    String? suggestedFilename,
+    String? mimeType,
+    String? sourceUrl,
+  }) {
+    final Uint8List bytes;
+    try {
+      bytes = base64.decode(base64Data.trim());
+    } on FormatException catch (e) {
+      throw DownloadException('Malformed base64: ${e.message}');
+    }
+    return DownloadResult(
+      bytes: bytes,
+      filename: deriveFilename(
+        suggested: suggestedFilename,
+        url: sourceUrl ?? '',
+        mimeType: mimeType,
+      ),
+      mimeType: mimeType,
+    );
   }
 
   static String? _parseMime(String contentType) {

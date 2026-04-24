@@ -195,6 +195,89 @@ void main() {
       expect(result.filename, 'invoice.pdf');
     });
   });
+
+  group('DownloadEngine.decodeDataUri', () {
+    test('decodes base64 payload', () {
+      final result = DownloadEngine.decodeDataUri(
+        url: 'data:text/plain;base64,SGVsbG8=',
+      );
+      expect(utf8.decode(result.bytes), 'Hello');
+      expect(result.mimeType, 'text/plain');
+      expect(result.filename, 'download.txt');
+    });
+
+    test('decodes URL-encoded payload', () {
+      final result = DownloadEngine.decodeDataUri(
+        url: 'data:text/plain,Hello%20world',
+      );
+      expect(utf8.decode(result.bytes), 'Hello world');
+      expect(result.mimeType, 'text/plain');
+    });
+
+    test('handles data URI without explicit mime (RFC 2397 default)', () {
+      // Per RFC 2397, an absent mime means text/plain. Dart's UriData
+      // reports that as the mimeType, so we surface it too.
+      final result = DownloadEngine.decodeDataUri(
+        url: 'data:;base64,SGVsbG8=',
+      );
+      expect(result.bytes, utf8.encode('Hello'));
+      expect(result.mimeType, 'text/plain');
+    });
+
+    test('suggested filename wins over mime-derived fallback', () {
+      final result = DownloadEngine.decodeDataUri(
+        url: 'data:application/pdf;base64,JVBERi0=',
+        suggestedFilename: 'invoice.pdf',
+      );
+      expect(result.filename, 'invoice.pdf');
+    });
+
+    test('rejects non-data URI', () {
+      expect(
+        () => DownloadEngine.decodeDataUri(
+            url: 'https://example.com/file'),
+        throwsA(isA<DownloadException>()),
+      );
+    });
+  });
+
+  group('DownloadEngine.fromBase64', () {
+    test('decodes base64 and applies suggested filename + mime', () {
+      final bytes = Uint8List.fromList(utf8.encode('hello world'));
+      final payload = base64.encode(bytes);
+      final result = DownloadEngine.fromBase64(
+        base64Data: payload,
+        suggestedFilename: 'note.txt',
+        mimeType: 'text/plain',
+      );
+      expect(result.bytes, bytes);
+      expect(result.filename, 'note.txt');
+      expect(result.mimeType, 'text/plain');
+    });
+
+    test('derives filename from mime when no suggestion', () {
+      final payload = base64.encode([1, 2, 3]);
+      final result = DownloadEngine.fromBase64(
+        base64Data: payload,
+        mimeType: 'application/pdf',
+      );
+      expect(result.filename, 'download.pdf');
+    });
+
+    test('throws DownloadException on malformed base64', () {
+      expect(
+        () => DownloadEngine.fromBase64(base64Data: '!!!not-base64!!!'),
+        throwsA(isA<DownloadException>().having(
+            (e) => e.message, 'message', contains('Malformed base64'))),
+      );
+    });
+
+    test('tolerates surrounding whitespace in base64', () {
+      final payload = '  ${base64.encode(utf8.encode('ok'))}  ';
+      final result = DownloadEngine.fromBase64(base64Data: payload);
+      expect(utf8.decode(result.bytes), 'ok');
+    });
+  });
 }
 
 class SocketExceptionStub implements Exception {

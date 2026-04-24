@@ -1204,6 +1204,46 @@ class WebViewFactory {
           }
         }
         userScriptService.registerHandlers(controller);
+        // Blob download: JS reads the blob via FileReader and hands the
+        // base64 payload back through these handlers.
+        controller.addJavaScriptHandler(
+          handlerName: '_webspaceBlobDownload',
+          callback: (args) async {
+            if (args.length < 3) return null;
+            final filename = args[0] is String ? args[0] as String : '';
+            final base64Data = args[1] is String ? args[1] as String : '';
+            final mimeType = args[2] is String ? args[2] as String : '';
+            if (base64Data.isEmpty) {
+              _showDownloadSnack('Download failed: empty payload');
+              return null;
+            }
+            try {
+              final result = DownloadEngine.fromBase64(
+                base64Data: base64Data,
+                suggestedFilename: filename.isEmpty ? null : filename,
+                mimeType: mimeType.isEmpty ? null : mimeType,
+              );
+              final saved = await _saveViaPicker(result);
+              _showDownloadSnack(saved == null
+                  ? 'Download cancelled.'
+                  : 'Saved ${result.filename}');
+            } on DownloadException catch (e) {
+              _showDownloadSnack('Download failed: ${e.message}');
+            } catch (e, stack) {
+              debugPrint('Blob download error: $e\n$stack');
+              _showDownloadSnack('Download failed: $e');
+            }
+            return null;
+          },
+        );
+        controller.addJavaScriptHandler(
+          handlerName: '_webspaceBlobDownloadError',
+          callback: (args) {
+            final msg = args.isNotEmpty ? args[0].toString() : 'unknown';
+            _showDownloadSnack('Blob download failed: $msg');
+            return null;
+          },
+        );
         // If we loaded cached HTML, navigate to the real URL when online
         if (usesCachedHtml) {
           final online = await ConnectivityService.instance.isOnline();
@@ -1416,44 +1456,116 @@ class WebViewFactory {
     final urlStr = req.url.toString();
     final scheme = req.url.scheme.toLowerCase();
 
-    if (scheme != 'http' && scheme != 'https') {
-      // blob:/data:/file: aren't reachable via a simple HTTP GET. Surface
-      // a message instead of silently dropping — blob downloads need a JS
-      // shim (FileReader → base64 → handler) which isn't wired up yet.
-      _showDownloadSnack(
-        'Can\'t download $scheme: URL yet (only http/https supported).',
-      );
-      return;
+    switch (scheme) {
+      case 'http':
+      case 'https':
+        await _handleHttpDownload(req);
+        return;
+      case 'data':
+        _handleDataDownload(req);
+        return;
+      case 'blob':
+        await _handleBlobDownload(controller, urlStr, req.suggestedFilename);
+        return;
+      default:
+        _showDownloadSnack('Can\'t download $scheme: URL.');
     }
+  }
 
+  static Future<void> _handleHttpDownload(
+      inapp.DownloadStartRequest req) async {
     _showDownloadSnack('Downloading…');
-
     try {
       final cookies = await inapp.CookieManager.instance()
           .getCookies(url: req.url);
       final cookieHeader = DownloadEngine.buildCookieHeader(
         cookies.map((c) => MapEntry(c.name, c.value.toString())),
       );
-
       final engine = DownloadEngine();
       final result = await engine.fetch(
-        url: urlStr,
+        url: req.url.toString(),
         cookieHeader: cookieHeader,
         userAgent: req.userAgent,
         suggestedFilename: req.suggestedFilename,
         mimeTypeHint: req.mimeType,
       );
-
       final savedPath = await _saveViaPicker(result);
-      if (savedPath == null) {
-        _showDownloadSnack('Download cancelled.');
-        return;
-      }
-      _showDownloadSnack('Saved ${result.filename}');
+      _showDownloadSnack(savedPath == null
+          ? 'Download cancelled.'
+          : 'Saved ${result.filename}');
     } on DownloadException catch (e) {
       _showDownloadSnack('Download failed: ${e.message}');
     } catch (e, stack) {
       debugPrint('Download error: $e\n$stack');
+      _showDownloadSnack('Download failed: $e');
+    }
+  }
+
+  static void _handleDataDownload(inapp.DownloadStartRequest req) async {
+    try {
+      final result = DownloadEngine.decodeDataUri(
+        url: req.url.toString(),
+        suggestedFilename: req.suggestedFilename,
+      );
+      final savedPath = await _saveViaPicker(result);
+      _showDownloadSnack(savedPath == null
+          ? 'Download cancelled.'
+          : 'Saved ${result.filename}');
+    } on DownloadException catch (e) {
+      _showDownloadSnack('Download failed: ${e.message}');
+    } catch (e, stack) {
+      debugPrint('Data-URI download error: $e\n$stack');
+      _showDownloadSnack('Download failed: $e');
+    }
+  }
+
+  static Future<void> _handleBlobDownload(
+    inapp.InAppWebViewController controller,
+    String blobUrl,
+    String? suggestedFilename,
+  ) async {
+    _showDownloadSnack('Downloading…');
+    // IIFE: fetch the blob, read via FileReader, hand the base64 back to
+    // Dart. Result is delivered asynchronously through
+    // _webspaceBlobDownload(filename, base64, mimeType).
+    final blobJson = jsonEncode(blobUrl);
+    final fnJson = jsonEncode(suggestedFilename ?? '');
+    final script = '''
+(function(blobUrl, suggestedFilename) {
+  try {
+    fetch(blobUrl).then(function(r) { return r.blob(); }).then(function(blob) {
+      var reader = new FileReader();
+      reader.onload = function() {
+        var result = reader.result || '';
+        var comma = result.indexOf(',');
+        var base64 = comma === -1 ? '' : result.substring(comma + 1);
+        window.flutter_inappwebview.callHandler(
+          '_webspaceBlobDownload',
+          suggestedFilename,
+          base64,
+          blob.type || ''
+        );
+      };
+      reader.onerror = function() {
+        var msg = (reader.error && reader.error.message) || 'read error';
+        window.flutter_inappwebview.callHandler(
+          '_webspaceBlobDownloadError', msg);
+      };
+      reader.readAsDataURL(blob);
+    }).catch(function(err) {
+      window.flutter_inappwebview.callHandler(
+        '_webspaceBlobDownloadError', (err && err.message) || String(err));
+    });
+  } catch (e) {
+    window.flutter_inappwebview.callHandler(
+      '_webspaceBlobDownloadError', (e && e.message) || String(e));
+  }
+})($blobJson, $fnJson);
+''';
+    try {
+      await controller.evaluateJavascript(source: script);
+    } catch (e, stack) {
+      debugPrint('Blob download eval error: $e\n$stack');
       _showDownloadSnack('Download failed: $e');
     }
   }
