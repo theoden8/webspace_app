@@ -360,7 +360,12 @@ class _WebViewController implements WebViewController {
   @override
   Future<void> loadUrl(String url, {String? language}) {
     final headers = <String, String>{};
-    if (language != null) {
+    // HTTP headers are only meaningful for http(s) schemes. Attaching them to
+    // non-HTTP URLs (chrome://, about:, file://, data:, javascript:) routes
+    // the request through the WebView's HTTP path and can get rejected as
+    // "invalid URL".
+    final isHttp = url.startsWith('http://') || url.startsWith('https://');
+    if (language != null && isHttp) {
       headers['Accept-Language'] = '$language, *;q=0.5';
     }
     return _c.loadUrl(
