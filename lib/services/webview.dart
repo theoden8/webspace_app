@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
@@ -9,6 +10,9 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/download_engine.dart';
+import 'package:webspace/services/download_manager.dart';
+import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -16,6 +20,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/widgets/root_messenger.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
 typedef Cookie = inapp.Cookie;
@@ -1071,6 +1076,13 @@ class WebViewFactory {
     // SPA navigations (pushState) from real page loads in onUpdateVisitedHistory.
     String? lastLoadStartUrl;
 
+    // Track the last URL that actually finished loading as a renderable
+    // page. Updated via DownloadUrlRevertEngine.updateStable in
+    // onLoadStop; consumed by the onDownloadStartRequest revert so the
+    // URL bar and persisted currentUrl roll back to the referring page.
+    // Initial-load fallback is handled inside the engine.
+    String? lastStableUrl;
+
     LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
 
     return inapp.InAppWebView(
@@ -1124,6 +1136,11 @@ class WebViewFactory {
         cacheMode: usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null,
         // iOS: play videos inline instead of auto-fullscreen
         allowsInlineMediaPlayback: true,
+        // Required for onDownloadStartRequest to fire when the webview
+        // navigates to a downloadable response (Content-Disposition:
+        // attachment, or an unrecognized MIME type). Without this, the
+        // webview silently drops the navigation and the user sees nothing.
+        useOnDownloadStart: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
@@ -1196,6 +1213,84 @@ class WebViewFactory {
           }
         }
         userScriptService.registerHandlers(controller);
+        // Blob download: JS reads the blob via FileReader and hands the
+        // base64 payload back through these handlers.
+        controller.addJavaScriptHandler(
+          handlerName: '_webspaceBlobDownload',
+          callback: (args) async {
+            if (args.length < 4) return null;
+            final filename = args[0] is String ? args[0] as String : '';
+            final base64Data = args[1] is String ? args[1] as String : '';
+            final mimeType = args[2] is String ? args[2] as String : '';
+            final taskId = args[3] is String ? args[3] as String : '';
+            if (base64Data.isEmpty) {
+              if (taskId.isNotEmpty) {
+                DownloadsService.instance.fail(taskId, 'empty payload');
+              }
+              return null;
+            }
+            try {
+              final result = DownloadEngine.fromBase64(
+                base64Data: base64Data,
+                suggestedFilename: filename.isEmpty ? null : filename,
+                mimeType: mimeType.isEmpty ? null : mimeType,
+              );
+              if (taskId.isNotEmpty) {
+                DownloadsService.instance.updateProgress(taskId,
+                    bytesDone: result.bytes.length,
+                    bytesTotal: result.bytes.length);
+              }
+              final saved = await _saveViaPicker(result);
+              if (taskId.isNotEmpty) {
+                if (saved == null) {
+                  DownloadsService.instance.cancel(taskId);
+                } else {
+                  DownloadsService.instance
+                      .complete(taskId, savedPath: saved);
+                }
+              }
+            } on DownloadException catch (e) {
+              if (taskId.isNotEmpty) {
+                DownloadsService.instance.fail(taskId, e.message);
+              }
+            } catch (e, stack) {
+              debugPrint('Blob download error: $e\n$stack');
+              if (taskId.isNotEmpty) {
+                DownloadsService.instance.fail(taskId, e.toString());
+              }
+            }
+            return null;
+          },
+        );
+        controller.addJavaScriptHandler(
+          handlerName: '_webspaceBlobDownloadError',
+          callback: (args) {
+            final msg = args.isNotEmpty ? args[0].toString() : 'unknown';
+            final taskId = args.length >= 2 && args[1] is String
+                ? args[1] as String
+                : '';
+            if (taskId.isNotEmpty) {
+              DownloadsService.instance.fail(taskId, msg);
+            }
+            return null;
+          },
+        );
+        controller.addJavaScriptHandler(
+          handlerName: '_webspaceBlobProgress',
+          callback: (args) {
+            if (args.length < 3) return null;
+            final taskId = args[0] is String ? args[0] as String : '';
+            final done = _asInt(args[1]);
+            final total = _asInt(args[2]);
+            if (taskId.isEmpty) return null;
+            DownloadsService.instance.updateProgress(
+              taskId,
+              bytesDone: done,
+              bytesTotal: total,
+            );
+            return null;
+          },
+        );
         // If we loaded cached HTML, navigate to the real URL when online
         if (usesCachedHtml) {
           final online = await ConnectivityService.instance.isOnline();
@@ -1335,32 +1430,46 @@ class WebViewFactory {
       onLoadStop: (controller, url) async {
         // End pull-to-refresh animation
         config.pullToRefreshController?.endRefreshing();
-        if (url != null) {
-          config.onUrlChanged?.call(url.toString());
-          if (config.onCookiesChanged != null) {
-            final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
-            config.onCookiesChanged!(cookies);
-          }
-          // Inject full cosmetic script: MutationObserver + text-based hiding
-          if (config.contentBlockEnabled) {
-            final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
-            if (script != null) {
-              try {
-                await controller.evaluateJavascript(source: '$script\n;null;');
-              } catch (_) {} // WebKit "unsupported type" — JS still ran
-            }
-          }
-          await userScriptService.reinjectOnLoadStop(controller);
-          // Cache HTML for offline viewing
-          if (config.onHtmlLoaded != null) {
+        if (url == null) return;
+        final urlStr = url.toString();
+
+        // Downloads, javascript: bookmarklets, and other non-renderable
+        // schemes can reach here when controller.stopLoading() interrupts
+        // an in-flight navigation (the download path does this to keep
+        // the webview from rendering the attachment as a page). There's
+        // no real page to snapshot — onHtmlLoaded would end up writing
+        // either the previous page's HTML keyed under the download URL,
+        // or empty content, clobbering a legitimate offline cache entry.
+        // Skip all post-load work in that case; onDownloadStartRequest's
+        // revert handles URL bar restoration.
+        if (!DownloadUrlRevertEngine.isRenderable(urlStr)) return;
+
+        lastStableUrl =
+            DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
+        config.onUrlChanged?.call(urlStr);
+        if (config.onCookiesChanged != null) {
+          final cookies = await cookieManager.getCookies(url: inapp.WebUri(urlStr));
+          config.onCookiesChanged!(cookies);
+        }
+        // Inject full cosmetic script: MutationObserver + text-based hiding
+        if (config.contentBlockEnabled) {
+          final script = ContentBlockerService.instance.getCosmeticScript(urlStr);
+          if (script != null) {
             try {
-              final html = await controller.getHtml();
-              if (html != null && html.isNotEmpty) {
-                config.onHtmlLoaded!(url.toString(), html);
-              }
-            } catch (_) {
-              // Controller may have been disposed if webview was unloaded
+              await controller.evaluateJavascript(source: '$script\n;null;');
+            } catch (_) {} // WebKit "unsupported type" — JS still ran
+          }
+        }
+        await userScriptService.reinjectOnLoadStop(controller);
+        // Cache HTML for offline viewing
+        if (config.onHtmlLoaded != null) {
+          try {
+            final html = await controller.getHtml();
+            if (html != null && html.isNotEmpty) {
+              config.onHtmlLoaded!(urlStr, html);
             }
+          } catch (_) {
+            // Controller may have been disposed if webview was unloaded
           }
         }
       },
@@ -1387,6 +1496,238 @@ class WebViewFactory {
       onConsoleMessage: (controller, consoleMessage) {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
+      onDownloadStartRequest: (controller, downloadStartRequest) async {
+        // onUrlChanged / onUpdateVisitedHistory has likely already fired
+        // with the download URL (e.g. "data:application/pdf;..."), which
+        // would otherwise be persisted as the site's "current URL" and
+        // tried again on next launch. Resolve the revert target BEFORE
+        // awaiting the download so a nested callback can't clobber it,
+        // then roll the URL bar back after stopLoading().
+        final revert = DownloadUrlRevertEngine.pickRevertTarget(
+          lastStableUrl: lastStableUrl,
+          initialUrl: config.initialUrl,
+        );
+        await _handleDownloadRequest(
+          controller,
+          downloadStartRequest,
+          referer: lastStableUrl ?? config.initialUrl,
+        );
+        if (revert != null) {
+          config.onUrlChanged?.call(revert);
+        }
+      },
     );
+  }
+
+  static Future<void> _handleDownloadRequest(
+    inapp.InAppWebViewController controller,
+    inapp.DownloadStartRequest req, {
+    String? referer,
+  }) async {
+    // Abort any in-flight main-frame navigation to this URL. Without this
+    // the webview tries to render the attachment response as a page and
+    // ends up on a "net::ERR_UNKNOWN_URL_SCHEME" / "invalid request" error
+    // page while the URL bar is stuck on the download URL.
+    try {
+      await controller.stopLoading();
+    } catch (_) {}
+
+    final urlStr = req.url.toString();
+    final scheme = req.url.scheme.toLowerCase();
+
+    switch (scheme) {
+      case 'http':
+      case 'https':
+        await _handleHttpDownload(req, referer: referer);
+        return;
+      case 'data':
+        _handleDataDownload(req);
+        return;
+      case 'blob':
+        await _handleBlobDownload(controller, urlStr, req.suggestedFilename);
+        return;
+      default:
+        _showDownloadSnack('Can\'t download $scheme: URL.');
+    }
+  }
+
+  static Future<void> _handleHttpDownload(
+    inapp.DownloadStartRequest req, {
+    String? referer,
+  }) async {
+    final initialFilename = DownloadEngine.deriveFilename(
+      suggested: req.suggestedFilename,
+      url: req.url.toString(),
+      mimeType: req.mimeType,
+    );
+    final task = DownloadsService.instance.start(
+      filename: initialFilename,
+      url: req.url.toString(),
+      bytesTotal: req.contentLength > 0 ? req.contentLength : null,
+    );
+    try {
+      final cookies = await inapp.CookieManager.instance()
+          .getCookies(url: req.url);
+      final cookieHeader = DownloadEngine.buildCookieHeader(
+        cookies.map((c) => MapEntry(c.name, c.value.toString())),
+      );
+      final engine = DownloadEngine();
+      final result = await engine.fetch(
+        url: req.url.toString(),
+        cookieHeader: cookieHeader,
+        userAgent: req.userAgent,
+        referer: referer,
+        suggestedFilename: req.suggestedFilename,
+        mimeTypeHint: req.mimeType,
+        onProgress: (done, total) => DownloadsService.instance
+            .updateProgress(task.id, bytesDone: done, bytesTotal: total),
+      );
+      task.filename = result.filename;
+      final savedPath = await _saveViaPicker(result);
+      if (savedPath == null) {
+        DownloadsService.instance.cancel(task.id);
+      } else {
+        DownloadsService.instance.complete(task.id, savedPath: savedPath);
+      }
+    } on DownloadException catch (e) {
+      DownloadsService.instance.fail(task.id, e.message);
+    } catch (e, stack) {
+      debugPrint('Download error: $e\n$stack');
+      DownloadsService.instance.fail(task.id, e.toString());
+    }
+  }
+
+  static void _handleDataDownload(inapp.DownloadStartRequest req) async {
+    final task = DownloadsService.instance.start(
+      filename: req.suggestedFilename?.isNotEmpty == true
+          ? req.suggestedFilename!
+          : 'download',
+      url: req.url.toString(),
+    );
+    try {
+      final result = DownloadEngine.decodeDataUri(
+        url: req.url.toString(),
+        suggestedFilename: req.suggestedFilename,
+      );
+      task.filename = result.filename;
+      DownloadsService.instance.updateProgress(task.id,
+          bytesDone: result.bytes.length, bytesTotal: result.bytes.length);
+      final savedPath = await _saveViaPicker(result);
+      if (savedPath == null) {
+        DownloadsService.instance.cancel(task.id);
+      } else {
+        DownloadsService.instance.complete(task.id, savedPath: savedPath);
+      }
+    } on DownloadException catch (e) {
+      DownloadsService.instance.fail(task.id, e.message);
+    } catch (e, stack) {
+      debugPrint('Data-URI download error: $e\n$stack');
+      DownloadsService.instance.fail(task.id, e.toString());
+    }
+  }
+
+  static Future<void> _handleBlobDownload(
+    inapp.InAppWebViewController controller,
+    String blobUrl,
+    String? suggestedFilename,
+  ) async {
+    final task = DownloadsService.instance.start(
+      filename: suggestedFilename?.isNotEmpty == true
+          ? suggestedFilename!
+          : 'download',
+      url: blobUrl,
+    );
+    // IIFE: fetch the blob, read via FileReader, hand the base64 back to
+    // Dart. Result is delivered asynchronously through
+    // _webspaceBlobDownload(filename, base64, mimeType). The taskId is
+    // round-tripped through JS so the handler can resolve which task to
+    // complete.
+    final blobJson = jsonEncode(blobUrl);
+    final fnJson = jsonEncode(suggestedFilename ?? '');
+    final idJson = jsonEncode(task.id);
+    final script = '''
+(function(blobUrl, suggestedFilename, taskId) {
+  function progress(done, total) {
+    window.flutter_inappwebview.callHandler(
+      '_webspaceBlobProgress', taskId, done, total);
+  }
+  try {
+    fetch(blobUrl).then(function(r) { return r.blob(); }).then(function(blob) {
+      var total = blob.size || 0;
+      progress(0, total);
+      var reader = new FileReader();
+      reader.onprogress = function(e) {
+        if (e && e.lengthComputable) {
+          progress(e.loaded, e.total);
+        }
+      };
+      reader.onload = function() {
+        progress(total, total);
+        var result = reader.result || '';
+        var comma = result.indexOf(',');
+        var base64 = comma === -1 ? '' : result.substring(comma + 1);
+        window.flutter_inappwebview.callHandler(
+          '_webspaceBlobDownload',
+          suggestedFilename,
+          base64,
+          blob.type || '',
+          taskId
+        );
+      };
+      reader.onerror = function() {
+        var msg = (reader.error && reader.error.message) || 'read error';
+        window.flutter_inappwebview.callHandler(
+          '_webspaceBlobDownloadError', msg, taskId);
+      };
+      reader.readAsDataURL(blob);
+    }).catch(function(err) {
+      window.flutter_inappwebview.callHandler(
+        '_webspaceBlobDownloadError',
+        (err && err.message) || String(err), taskId);
+    });
+  } catch (e) {
+    window.flutter_inappwebview.callHandler(
+      '_webspaceBlobDownloadError',
+      (e && e.message) || String(e), taskId);
+  }
+})($blobJson, $fnJson, $idJson);
+''';
+    try {
+      await controller.evaluateJavascript(source: script);
+    } catch (e, stack) {
+      debugPrint('Blob download eval error: $e\n$stack');
+      DownloadsService.instance.fail(task.id, e.toString());
+    }
+  }
+
+  static Future<String?> _saveViaPicker(DownloadResult result) async {
+    final isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+    final outputPath = await FilePicker.saveFile(
+      dialogTitle: 'Save download',
+      fileName: result.filename,
+      bytes: isMobile ? result.bytes : null,
+    );
+    if (outputPath == null) return null;
+    if (!isMobile) {
+      final file = File(outputPath);
+      await file.writeAsBytes(result.bytes);
+    }
+    return outputPath;
+  }
+
+  static void _showDownloadSnack(String message) {
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  /// Coerce a JS handler arg to an int. Small integers come back as int
+  /// but large ones can arrive as double (JSON number serialization), so
+  /// normalize both.
+  static int? _asInt(Object? v) {
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
   }
 }

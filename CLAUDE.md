@@ -98,6 +98,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | cookie-secure-storage | Encrypted cookie persistence with flutter_secure_storage |
 | developer-tools | In-app dev tools: JS console, cookie inspector, HTML export, app logs |
 | dns-blocklist | Hagezi DNS blocklist domain blocking with severity levels and per-site toggle |
+| downloads | Webview-initiated downloads (http/https/data/blob) with streamed progress + save dialog |
 | home-shortcut | Android home screen shortcut for sites via pinned shortcuts API |
 | icon-fetching | Progressive favicon loading with fallbacks |
 | language | Per-site language: Accept-Language header + DOCUMENT_START navigator.language / Intl override |

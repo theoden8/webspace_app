@@ -53,6 +53,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 
 // Accent color enum
@@ -1693,6 +1694,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 ).name
               : 'No Webspace Selected'),
       actions: [
+        const DownloadButton(),
         IconButton(
           icon: Icon(_getThemeIcon()),
           tooltip: _getThemeTooltip(),
