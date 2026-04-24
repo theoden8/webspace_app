@@ -12,6 +12,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
+import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -1075,12 +1076,12 @@ class WebViewFactory {
     // SPA navigations (pushState) from real page loads in onUpdateVisitedHistory.
     String? lastLoadStartUrl;
 
-    // Track the last URL that actually finished loading without being a
-    // download. When a download is triggered, the webview has already
-    // fired onUrlChanged with the download URL, so we roll the URL bar
-    // back to this value. Seeded with the initial URL so a download
-    // triggered on first load still has somewhere to revert to.
-    String? lastStableUrl = config.initialUrl;
+    // Track the last URL that actually finished loading as a renderable
+    // page. Updated via DownloadUrlRevertEngine.updateStable in
+    // onLoadStop; consumed by the onDownloadStartRequest revert so the
+    // URL bar and persisted currentUrl roll back to the referring page.
+    // Initial-load fallback is handled inside the engine.
+    String? lastStableUrl;
 
     LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
 
@@ -1415,15 +1416,10 @@ class WebViewFactory {
         config.pullToRefreshController?.endRefreshing();
         if (url != null) {
           final urlStr = url.toString();
-          // Only remember as stable if the scheme is something a page can
-          // actually render — data:/blob: URLs only reach this path in
-          // rare edge cases and we don't want them persisted as the
-          // site's last URL if a download later fires.
-          final scheme = url.scheme.toLowerCase();
-          if (scheme == 'http' || scheme == 'https' ||
-              scheme == 'file' || scheme == 'about') {
-            lastStableUrl = urlStr;
-          }
+          // Only renderable schemes update the stable URL — see
+          // DownloadUrlRevertEngine.isRenderable for the rationale.
+          lastStableUrl =
+              DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
           config.onUrlChanged?.call(urlStr);
           if (config.onCookiesChanged != null) {
             final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
@@ -1476,13 +1472,17 @@ class WebViewFactory {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
       onDownloadStartRequest: (controller, downloadStartRequest) async {
-        final revert = lastStableUrl;
-        await _handleDownloadRequest(controller, downloadStartRequest);
         // onUrlChanged / onUpdateVisitedHistory has likely already fired
         // with the download URL (e.g. "data:application/pdf;..."), which
         // would otherwise be persisted as the site's "current URL" and
-        // tried again on next launch. Roll the URL bar back to the last
-        // page the webview actually rendered.
+        // tried again on next launch. Resolve the revert target BEFORE
+        // awaiting the download so a nested callback can't clobber it,
+        // then roll the URL bar back after stopLoading().
+        final revert = DownloadUrlRevertEngine.pickRevertTarget(
+          lastStableUrl: lastStableUrl,
+          initialUrl: config.initialUrl,
+        );
+        await _handleDownloadRequest(controller, downloadStartRequest);
         if (revert != null) {
           config.onUrlChanged?.call(revert);
         }
