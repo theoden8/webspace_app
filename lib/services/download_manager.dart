@@ -123,3 +123,45 @@ class DownloadsService extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+/// Pure helper for the app-bar progress ring. Given the list of tasks
+/// currently surfaced by [DownloadsService], computes what the ring
+/// should display.
+///
+/// Extracted so it's unit-testable without mounting a widget.
+class DownloadAggregateProgress {
+  /// Resulting ring value — null means "render indeterminate".
+  final double? value;
+
+  /// Whether anything is currently in flight. When false, the caller
+  /// should render the "download done" glyph without a ring.
+  final bool hasActive;
+
+  const DownloadAggregateProgress({
+    required this.value,
+    required this.hasActive,
+  });
+
+  /// Aggregate across all active tasks: [value] is done/total if every
+  /// active task has a positive known total; otherwise null so the ring
+  /// falls back to an indeterminate spin. Completed/failed/cancelled
+  /// tasks don't contribute.
+  static DownloadAggregateProgress from(Iterable<DownloadTask> tasks) {
+    final active = tasks.where((t) => t.isActive).toList(growable: false);
+    if (active.isEmpty) {
+      return const DownloadAggregateProgress(value: null, hasActive: false);
+    }
+    if (!active.every((t) => (t.bytesTotal ?? 0) > 0)) {
+      return const DownloadAggregateProgress(value: null, hasActive: true);
+    }
+    final total = active.fold<int>(0, (a, t) => a + t.bytesTotal!);
+    if (total <= 0) {
+      return const DownloadAggregateProgress(value: null, hasActive: true);
+    }
+    final done = active.fold<int>(0, (a, t) => a + t.bytesDone);
+    return DownloadAggregateProgress(
+      value: (done / total).clamp(0.0, 1.0),
+      hasActive: true,
+    );
+  }
+}

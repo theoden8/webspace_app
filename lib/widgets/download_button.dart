@@ -17,22 +17,24 @@ class DownloadButton extends StatelessWidget {
         if (tasks.isEmpty) return const SizedBox.shrink();
 
         final active = tasks.where((t) => t.isActive).toList();
-        // Aggregate progress: if every active task has a known total, show
-        // the aggregate ratio; otherwise render indeterminate.
-        double? aggregate;
-        if (active.isNotEmpty && active.every((t) => t.bytesTotal != null)) {
-          final total = active.fold<int>(0, (a, t) => a + t.bytesTotal!);
-          if (total > 0) {
-            final done = active.fold<int>(0, (a, t) => a + t.bytesDone);
-            aggregate = (done / total).clamp(0.0, 1.0);
-          }
-        }
+        final aggregate = DownloadAggregateProgress.from(tasks);
 
         final iconColor = IconTheme.of(context).color;
+        // Tooltip reports bytes-received even when the ring is
+        // indeterminate so the user can tell progress is happening when
+        // the server didn't send Content-Length.
+        final tooltip = () {
+          if (active.isEmpty) return '${tasks.length} recent downloads';
+          final doneBytes = active.fold<int>(0, (a, t) => a + t.bytesDone);
+          final doneStr = _DownloadTile._formatBytes(doneBytes);
+          if (aggregate.value != null) {
+            final pct = (aggregate.value! * 100).toStringAsFixed(0);
+            return '${active.length} downloading — $pct% ($doneStr)';
+          }
+          return '${active.length} downloading — $doneStr received';
+        }();
         return Tooltip(
-          message: active.isEmpty
-              ? '${tasks.length} recent downloads'
-              : '${active.length} downloading',
+          message: tooltip,
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: () => _openSheet(context),
@@ -44,12 +46,12 @@ class DownloadButton extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    if (active.isNotEmpty)
+                    if (aggregate.hasActive)
                       SizedBox(
                         width: 28,
                         height: 28,
                         child: CircularProgressIndicator(
-                          value: aggregate,
+                          value: aggregate.value,
                           strokeWidth: 2.5,
                           color: iconColor,
                         ),
