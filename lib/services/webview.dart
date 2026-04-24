@@ -1430,37 +1430,46 @@ class WebViewFactory {
       onLoadStop: (controller, url) async {
         // End pull-to-refresh animation
         config.pullToRefreshController?.endRefreshing();
-        if (url != null) {
-          final urlStr = url.toString();
-          // Only renderable schemes update the stable URL — see
-          // DownloadUrlRevertEngine.isRenderable for the rationale.
-          lastStableUrl =
-              DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
-          config.onUrlChanged?.call(urlStr);
-          if (config.onCookiesChanged != null) {
-            final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
-            config.onCookiesChanged!(cookies);
-          }
-          // Inject full cosmetic script: MutationObserver + text-based hiding
-          if (config.contentBlockEnabled) {
-            final script = ContentBlockerService.instance.getCosmeticScript(url.toString());
-            if (script != null) {
-              try {
-                await controller.evaluateJavascript(source: '$script\n;null;');
-              } catch (_) {} // WebKit "unsupported type" — JS still ran
-            }
-          }
-          await userScriptService.reinjectOnLoadStop(controller);
-          // Cache HTML for offline viewing
-          if (config.onHtmlLoaded != null) {
+        if (url == null) return;
+        final urlStr = url.toString();
+
+        // Downloads, javascript: bookmarklets, and other non-renderable
+        // schemes can reach here when controller.stopLoading() interrupts
+        // an in-flight navigation (the download path does this to keep
+        // the webview from rendering the attachment as a page). There's
+        // no real page to snapshot — onHtmlLoaded would end up writing
+        // either the previous page's HTML keyed under the download URL,
+        // or empty content, clobbering a legitimate offline cache entry.
+        // Skip all post-load work in that case; onDownloadStartRequest's
+        // revert handles URL bar restoration.
+        if (!DownloadUrlRevertEngine.isRenderable(urlStr)) return;
+
+        lastStableUrl =
+            DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
+        config.onUrlChanged?.call(urlStr);
+        if (config.onCookiesChanged != null) {
+          final cookies = await cookieManager.getCookies(url: inapp.WebUri(urlStr));
+          config.onCookiesChanged!(cookies);
+        }
+        // Inject full cosmetic script: MutationObserver + text-based hiding
+        if (config.contentBlockEnabled) {
+          final script = ContentBlockerService.instance.getCosmeticScript(urlStr);
+          if (script != null) {
             try {
-              final html = await controller.getHtml();
-              if (html != null && html.isNotEmpty) {
-                config.onHtmlLoaded!(url.toString(), html);
-              }
-            } catch (_) {
-              // Controller may have been disposed if webview was unloaded
+              await controller.evaluateJavascript(source: '$script\n;null;');
+            } catch (_) {} // WebKit "unsupported type" — JS still ran
+          }
+        }
+        await userScriptService.reinjectOnLoadStop(controller);
+        // Cache HTML for offline viewing
+        if (config.onHtmlLoaded != null) {
+          try {
+            final html = await controller.getHtml();
+            if (html != null && html.isNotEmpty) {
+              config.onHtmlLoaded!(urlStr, html);
             }
+          } catch (_) {
+            // Controller may have been disposed if webview was unloaded
           }
         }
       },
