@@ -11,6 +11,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/download_engine.dart';
+import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -1209,12 +1210,15 @@ class WebViewFactory {
         controller.addJavaScriptHandler(
           handlerName: '_webspaceBlobDownload',
           callback: (args) async {
-            if (args.length < 3) return null;
+            if (args.length < 4) return null;
             final filename = args[0] is String ? args[0] as String : '';
             final base64Data = args[1] is String ? args[1] as String : '';
             final mimeType = args[2] is String ? args[2] as String : '';
+            final taskId = args[3] is String ? args[3] as String : '';
             if (base64Data.isEmpty) {
-              _showDownloadSnack('Download failed: empty payload');
+              if (taskId.isNotEmpty) {
+                DownloadsService.instance.fail(taskId, 'empty payload');
+              }
               return null;
             }
             try {
@@ -1223,15 +1227,29 @@ class WebViewFactory {
                 suggestedFilename: filename.isEmpty ? null : filename,
                 mimeType: mimeType.isEmpty ? null : mimeType,
               );
+              if (taskId.isNotEmpty) {
+                DownloadsService.instance.updateProgress(taskId,
+                    bytesDone: result.bytes.length,
+                    bytesTotal: result.bytes.length);
+              }
               final saved = await _saveViaPicker(result);
-              _showDownloadSnack(saved == null
-                  ? 'Download cancelled.'
-                  : 'Saved ${result.filename}');
+              if (taskId.isNotEmpty) {
+                if (saved == null) {
+                  DownloadsService.instance.cancel(taskId);
+                } else {
+                  DownloadsService.instance
+                      .complete(taskId, savedPath: saved);
+                }
+              }
             } on DownloadException catch (e) {
-              _showDownloadSnack('Download failed: ${e.message}');
+              if (taskId.isNotEmpty) {
+                DownloadsService.instance.fail(taskId, e.message);
+              }
             } catch (e, stack) {
               debugPrint('Blob download error: $e\n$stack');
-              _showDownloadSnack('Download failed: $e');
+              if (taskId.isNotEmpty) {
+                DownloadsService.instance.fail(taskId, e.toString());
+              }
             }
             return null;
           },
@@ -1240,7 +1258,12 @@ class WebViewFactory {
           handlerName: '_webspaceBlobDownloadError',
           callback: (args) {
             final msg = args.isNotEmpty ? args[0].toString() : 'unknown';
-            _showDownloadSnack('Blob download failed: $msg');
+            final taskId = args.length >= 2 && args[1] is String
+                ? args[1] as String
+                : '';
+            if (taskId.isNotEmpty) {
+              DownloadsService.instance.fail(taskId, msg);
+            }
             return null;
           },
         );
@@ -1474,7 +1497,16 @@ class WebViewFactory {
 
   static Future<void> _handleHttpDownload(
       inapp.DownloadStartRequest req) async {
-    _showDownloadSnack('Downloading…');
+    final initialFilename = DownloadEngine.deriveFilename(
+      suggested: req.suggestedFilename,
+      url: req.url.toString(),
+      mimeType: req.mimeType,
+    );
+    final task = DownloadsService.instance.start(
+      filename: initialFilename,
+      url: req.url.toString(),
+      bytesTotal: req.contentLength > 0 ? req.contentLength : null,
+    );
     try {
       final cookies = await inapp.CookieManager.instance()
           .getCookies(url: req.url);
@@ -1488,34 +1520,50 @@ class WebViewFactory {
         userAgent: req.userAgent,
         suggestedFilename: req.suggestedFilename,
         mimeTypeHint: req.mimeType,
+        onProgress: (done, total) => DownloadsService.instance
+            .updateProgress(task.id, bytesDone: done, bytesTotal: total),
       );
+      task.filename = result.filename;
       final savedPath = await _saveViaPicker(result);
-      _showDownloadSnack(savedPath == null
-          ? 'Download cancelled.'
-          : 'Saved ${result.filename}');
+      if (savedPath == null) {
+        DownloadsService.instance.cancel(task.id);
+      } else {
+        DownloadsService.instance.complete(task.id, savedPath: savedPath);
+      }
     } on DownloadException catch (e) {
-      _showDownloadSnack('Download failed: ${e.message}');
+      DownloadsService.instance.fail(task.id, e.message);
     } catch (e, stack) {
       debugPrint('Download error: $e\n$stack');
-      _showDownloadSnack('Download failed: $e');
+      DownloadsService.instance.fail(task.id, e.toString());
     }
   }
 
   static void _handleDataDownload(inapp.DownloadStartRequest req) async {
+    final task = DownloadsService.instance.start(
+      filename: req.suggestedFilename?.isNotEmpty == true
+          ? req.suggestedFilename!
+          : 'download',
+      url: req.url.toString(),
+    );
     try {
       final result = DownloadEngine.decodeDataUri(
         url: req.url.toString(),
         suggestedFilename: req.suggestedFilename,
       );
+      task.filename = result.filename;
+      DownloadsService.instance.updateProgress(task.id,
+          bytesDone: result.bytes.length, bytesTotal: result.bytes.length);
       final savedPath = await _saveViaPicker(result);
-      _showDownloadSnack(savedPath == null
-          ? 'Download cancelled.'
-          : 'Saved ${result.filename}');
+      if (savedPath == null) {
+        DownloadsService.instance.cancel(task.id);
+      } else {
+        DownloadsService.instance.complete(task.id, savedPath: savedPath);
+      }
     } on DownloadException catch (e) {
-      _showDownloadSnack('Download failed: ${e.message}');
+      DownloadsService.instance.fail(task.id, e.message);
     } catch (e, stack) {
       debugPrint('Data-URI download error: $e\n$stack');
-      _showDownloadSnack('Download failed: $e');
+      DownloadsService.instance.fail(task.id, e.toString());
     }
   }
 
@@ -1524,14 +1572,22 @@ class WebViewFactory {
     String blobUrl,
     String? suggestedFilename,
   ) async {
-    _showDownloadSnack('Downloading…');
+    final task = DownloadsService.instance.start(
+      filename: suggestedFilename?.isNotEmpty == true
+          ? suggestedFilename!
+          : 'download',
+      url: blobUrl,
+    );
     // IIFE: fetch the blob, read via FileReader, hand the base64 back to
     // Dart. Result is delivered asynchronously through
-    // _webspaceBlobDownload(filename, base64, mimeType).
+    // _webspaceBlobDownload(filename, base64, mimeType). The taskId is
+    // round-tripped through JS so the handler can resolve which task to
+    // complete.
     final blobJson = jsonEncode(blobUrl);
     final fnJson = jsonEncode(suggestedFilename ?? '');
+    final idJson = jsonEncode(task.id);
     final script = '''
-(function(blobUrl, suggestedFilename) {
+(function(blobUrl, suggestedFilename, taskId) {
   try {
     fetch(blobUrl).then(function(r) { return r.blob(); }).then(function(blob) {
       var reader = new FileReader();
@@ -1543,30 +1599,33 @@ class WebViewFactory {
           '_webspaceBlobDownload',
           suggestedFilename,
           base64,
-          blob.type || ''
+          blob.type || '',
+          taskId
         );
       };
       reader.onerror = function() {
         var msg = (reader.error && reader.error.message) || 'read error';
         window.flutter_inappwebview.callHandler(
-          '_webspaceBlobDownloadError', msg);
+          '_webspaceBlobDownloadError', msg, taskId);
       };
       reader.readAsDataURL(blob);
     }).catch(function(err) {
       window.flutter_inappwebview.callHandler(
-        '_webspaceBlobDownloadError', (err && err.message) || String(err));
+        '_webspaceBlobDownloadError',
+        (err && err.message) || String(err), taskId);
     });
   } catch (e) {
     window.flutter_inappwebview.callHandler(
-      '_webspaceBlobDownloadError', (e && e.message) || String(e));
+      '_webspaceBlobDownloadError',
+      (e && e.message) || String(e), taskId);
   }
-})($blobJson, $fnJson);
+})($blobJson, $fnJson, $idJson);
 ''';
     try {
       await controller.evaluateJavascript(source: script);
     } catch (e, stack) {
       debugPrint('Blob download eval error: $e\n$stack');
-      _showDownloadSnack('Download failed: $e');
+      DownloadsService.instance.fail(task.id, e.toString());
     }
   }
 

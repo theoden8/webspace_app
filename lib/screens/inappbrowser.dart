@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -180,6 +181,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
       appBar: AppBar(
         title: Text(title ?? 'In-App WebView'),
         actions: [
+          const DownloadButton(),
           PopupMenuButton<String>(
             itemBuilder: (BuildContext context) {
               return [

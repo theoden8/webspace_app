@@ -74,6 +74,7 @@ class DownloadEngine {
     String? userAgent,
     String? suggestedFilename,
     String? mimeTypeHint,
+    void Function(int bytesDone, int? bytesTotal)? onProgress,
   }) async {
     final Uri uri;
     try {
@@ -85,30 +86,56 @@ class DownloadEngine {
       throw DownloadException('Unsupported scheme: ${uri.scheme}');
     }
 
-    final headers = <String, String>{};
+    final request = http.Request('GET', uri);
     if (cookieHeader != null && cookieHeader.isNotEmpty) {
-      headers['cookie'] = cookieHeader;
+      request.headers['cookie'] = cookieHeader;
     }
     if (userAgent != null && userAgent.isNotEmpty) {
-      headers['user-agent'] = userAgent;
+      request.headers['user-agent'] = userAgent;
     }
 
-    final http.Response response;
+    final http.StreamedResponse response;
     try {
-      response = await _client.get(uri, headers: headers);
+      response = await _client.send(request);
     } catch (e) {
       throw DownloadException('Network error: $e');
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      // Drain the body so the connection can be returned to the pool.
+      try {
+        await response.stream.drain<void>();
+      } catch (_) {}
       throw DownloadException('HTTP ${response.statusCode}');
+    }
+
+    final total = response.contentLength;
+    onProgress?.call(0, total);
+
+    final chunks = <List<int>>[];
+    var done = 0;
+    try {
+      await for (final chunk in response.stream) {
+        chunks.add(chunk);
+        done += chunk.length;
+        onProgress?.call(done, total);
+      }
+    } catch (e) {
+      throw DownloadException('Network error: $e');
+    }
+
+    final bytes = Uint8List(done);
+    var offset = 0;
+    for (final c in chunks) {
+      bytes.setRange(offset, offset + c.length, c);
+      offset += c.length;
     }
 
     final contentType = response.headers['content-type'];
     final mime = contentType == null ? mimeTypeHint : _parseMime(contentType);
 
     return DownloadResult(
-      bytes: response.bodyBytes,
+      bytes: bytes,
       filename: deriveFilename(
         suggested: suggestedFilename,
         url: url,

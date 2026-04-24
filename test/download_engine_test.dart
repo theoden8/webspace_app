@@ -194,6 +194,58 @@ void main() {
       );
       expect(result.filename, 'invoice.pdf');
     });
+
+    test('streams progress callbacks with known total', () async {
+      final payload = Uint8List.fromList(List<int>.filled(1024, 42));
+      final client = MockClient.streaming((request, bodyStream) async {
+        Stream<List<int>> chunks() async* {
+          yield payload.sublist(0, 256);
+          yield payload.sublist(256, 512);
+          yield payload.sublist(512, 1024);
+        }
+        return http.StreamedResponse(
+          chunks(),
+          200,
+          contentLength: payload.length,
+          headers: {'content-type': 'application/octet-stream'},
+        );
+      });
+
+      final events = <(int, int?)>[];
+      final result = await DownloadEngine(client: client).fetch(
+        url: 'https://example.com/big.bin',
+        onProgress: (done, total) => events.add((done, total)),
+      );
+
+      expect(result.bytes, payload);
+      // First event is initial (0, total); last event is full.
+      expect(events.first, (0, 1024));
+      expect(events.last, (1024, 1024));
+      // Monotonic non-decreasing done.
+      for (var i = 1; i < events.length; i++) {
+        expect(events[i].$1 >= events[i - 1].$1, isTrue);
+      }
+    });
+
+    test('streams progress with unknown total (no Content-Length)', () async {
+      final client = MockClient.streaming((request, bodyStream) async {
+        Stream<List<int>> chunks() async* {
+          yield [1, 2, 3];
+          yield [4, 5];
+        }
+        return http.StreamedResponse(chunks(), 200);
+      });
+
+      final events = <(int, int?)>[];
+      final result = await DownloadEngine(client: client).fetch(
+        url: 'https://example.com/unknown',
+        onProgress: (done, total) => events.add((done, total)),
+      );
+
+      expect(result.bytes, [1, 2, 3, 4, 5]);
+      expect(events.first.$2, isNull);
+      expect(events.last.$1, 5);
+    });
   });
 
   group('DownloadEngine.decodeDataUri', () {
