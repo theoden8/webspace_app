@@ -61,7 +61,7 @@ class DownloadButton extends StatelessWidget {
                       size: 16,
                       color: iconColor,
                     ),
-                    if (tasks.length > 1)
+                    if (active.length > 1)
                       Positioned(
                         right: -4,
                         top: -4,
@@ -73,7 +73,7 @@ class DownloadButton extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${tasks.length}',
+                            '${active.length}',
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onPrimary,
                               fontSize: 9,
