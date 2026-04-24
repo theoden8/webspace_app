@@ -1507,7 +1507,11 @@ class WebViewFactory {
           lastStableUrl: lastStableUrl,
           initialUrl: config.initialUrl,
         );
-        await _handleDownloadRequest(controller, downloadStartRequest);
+        await _handleDownloadRequest(
+          controller,
+          downloadStartRequest,
+          referer: lastStableUrl ?? config.initialUrl,
+        );
         if (revert != null) {
           config.onUrlChanged?.call(revert);
         }
@@ -1517,8 +1521,9 @@ class WebViewFactory {
 
   static Future<void> _handleDownloadRequest(
     inapp.InAppWebViewController controller,
-    inapp.DownloadStartRequest req,
-  ) async {
+    inapp.DownloadStartRequest req, {
+    String? referer,
+  }) async {
     // Abort any in-flight main-frame navigation to this URL. Without this
     // the webview tries to render the attachment response as a page and
     // ends up on a "net::ERR_UNKNOWN_URL_SCHEME" / "invalid request" error
@@ -1533,7 +1538,7 @@ class WebViewFactory {
     switch (scheme) {
       case 'http':
       case 'https':
-        await _handleHttpDownload(req);
+        await _handleHttpDownload(req, referer: referer);
         return;
       case 'data':
         _handleDataDownload(req);
@@ -1547,7 +1552,9 @@ class WebViewFactory {
   }
 
   static Future<void> _handleHttpDownload(
-      inapp.DownloadStartRequest req) async {
+    inapp.DownloadStartRequest req, {
+    String? referer,
+  }) async {
     final initialFilename = DownloadEngine.deriveFilename(
       suggested: req.suggestedFilename,
       url: req.url.toString(),
@@ -1569,6 +1576,7 @@ class WebViewFactory {
         url: req.url.toString(),
         cookieHeader: cookieHeader,
         userAgent: req.userAgent,
+        referer: referer,
         suggestedFilename: req.suggestedFilename,
         mimeTypeHint: req.mimeType,
         onProgress: (done, total) => DownloadsService.instance

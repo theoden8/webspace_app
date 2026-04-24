@@ -72,6 +72,7 @@ class DownloadEngine {
     required String url,
     String? cookieHeader,
     String? userAgent,
+    String? referer,
     String? suggestedFilename,
     String? mimeTypeHint,
     void Function(int bytesDone, int? bytesTotal)? onProgress,
@@ -92,6 +93,14 @@ class DownloadEngine {
     }
     if (userAgent != null && userAgent.isNotEmpty) {
       request.headers['user-agent'] = userAgent;
+    }
+    // Many download servers use Referer for hotlink protection; without
+    // one they may 302 to an error page or stream HTML with no
+    // Content-Length, which makes the progress ring spin indeterminately.
+    // Only forward http(s) referers so we don't leak data: / file: URLs.
+    if (referer != null &&
+        (referer.startsWith('http://') || referer.startsWith('https://'))) {
+      request.headers['referer'] = referer;
     }
 
     final http.StreamedResponse response;

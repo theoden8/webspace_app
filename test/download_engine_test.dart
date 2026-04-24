@@ -119,6 +119,33 @@ void main() {
       expect(capturedHeaders?['user-agent'], 'TestAgent/1.0');
     });
 
+    test('forwards http/https referer when supplied', () async {
+      Map<String, String>? capturedHeaders;
+      final client = MockClient((request) async {
+        capturedHeaders = request.headers;
+        return http.Response('ok', 200);
+      });
+      await DownloadEngine(client: client).fetch(
+        url: 'https://example.com/file',
+        referer: 'https://example.com/page',
+      );
+      expect(capturedHeaders?['referer'], 'https://example.com/page');
+    });
+
+    test('drops non-http referer to avoid leaking data:/file: URLs',
+        () async {
+      Map<String, String>? capturedHeaders;
+      final client = MockClient((request) async {
+        capturedHeaders = request.headers;
+        return http.Response('ok', 200);
+      });
+      await DownloadEngine(client: client).fetch(
+        url: 'https://example.com/file',
+        referer: 'data:text/html,hello',
+      );
+      expect(capturedHeaders?.containsKey('referer'), isFalse);
+    });
+
     test('does not send cookie header when none supplied', () async {
       Map<String, String>? capturedHeaders;
       final client = MockClient((request) async {
