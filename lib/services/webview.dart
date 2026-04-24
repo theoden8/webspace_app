@@ -1275,6 +1275,22 @@ class WebViewFactory {
             return null;
           },
         );
+        controller.addJavaScriptHandler(
+          handlerName: '_webspaceBlobProgress',
+          callback: (args) {
+            if (args.length < 3) return null;
+            final taskId = args[0] is String ? args[0] as String : '';
+            final done = _asInt(args[1]);
+            final total = _asInt(args[2]);
+            if (taskId.isEmpty) return null;
+            DownloadsService.instance.updateProgress(
+              taskId,
+              bytesDone: done,
+              bytesTotal: total,
+            );
+            return null;
+          },
+        );
         // If we loaded cached HTML, navigate to the real URL when online
         if (usesCachedHtml) {
           final online = await ConnectivityService.instance.isOnline();
@@ -1614,10 +1630,22 @@ class WebViewFactory {
     final idJson = jsonEncode(task.id);
     final script = '''
 (function(blobUrl, suggestedFilename, taskId) {
+  function progress(done, total) {
+    window.flutter_inappwebview.callHandler(
+      '_webspaceBlobProgress', taskId, done, total);
+  }
   try {
     fetch(blobUrl).then(function(r) { return r.blob(); }).then(function(blob) {
+      var total = blob.size || 0;
+      progress(0, total);
       var reader = new FileReader();
+      reader.onprogress = function(e) {
+        if (e && e.lengthComputable) {
+          progress(e.loaded, e.total);
+        }
+      };
       reader.onload = function() {
+        progress(total, total);
         var result = reader.result || '';
         var comma = result.indexOf(',');
         var base64 = comma === -1 ? '' : result.substring(comma + 1);
@@ -1674,5 +1702,15 @@ class WebViewFactory {
     rootScaffoldMessengerKey.currentState?.showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  /// Coerce a JS handler arg to an int. Small integers come back as int
+  /// but large ones can arrive as double (JSON number serialization), so
+  /// normalize both.
+  static int? _asInt(Object? v) {
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
   }
 }
