@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 /// Result of a successful download fetch.
 class DownloadResult {
@@ -30,7 +32,19 @@ class DownloadException implements Exception {
 class DownloadEngine {
   final http.Client _client;
 
-  DownloadEngine({http.Client? client}) : _client = client ?? http.Client();
+  DownloadEngine({http.Client? client}) : _client = client ?? _defaultClient();
+
+  /// Default HTTP client with gzip auto-decompression DISABLED so the
+  /// server's Content-Length survives to the caller. When
+  /// `autoUncompress: true` (the dart:io default), the client adds
+  /// `Accept-Encoding: gzip` and then strips Content-Length from the
+  /// response headers after decompression — leaving the progress ring
+  /// indeterminate even for servers that know how big the download is.
+  static http.Client _defaultClient() {
+    final httpClient = HttpClient();
+    httpClient.autoUncompress = false;
+    return IOClient(httpClient);
+  }
 
   /// RFC 6265 `Cookie:` header value from an ordered list of name/value
   /// pairs. Returns null if no pairs were supplied.
@@ -133,11 +147,31 @@ class DownloadEngine {
       throw DownloadException('Network error: $e');
     }
 
-    final bytes = Uint8List(done);
+    final bytesReceived = Uint8List(done);
     var offset = 0;
     for (final c in chunks) {
-      bytes.setRange(offset, offset + c.length, c);
+      bytesReceived.setRange(offset, offset + c.length, c);
       offset += c.length;
+    }
+
+    // If the server compressed the response despite our not asking for
+    // it (autoUncompress: false means we don't send Accept-Encoding),
+    // decompress now. Progress tracking above is in wire bytes, which
+    // matches Content-Length; the final DownloadResult exposes the
+    // decoded body so the save-to-disk path writes usable files.
+    final encoding =
+        response.headers['content-encoding']?.trim().toLowerCase();
+    final Uint8List bytes;
+    try {
+      bytes = switch (encoding) {
+        'gzip' || 'x-gzip' =>
+          Uint8List.fromList(gzip.decode(bytesReceived)),
+        'deflate' =>
+          Uint8List.fromList(zlib.decode(bytesReceived)),
+        _ => bytesReceived,
+      };
+    } on FormatException catch (e) {
+      throw DownloadException('Decompression failed: ${e.message}');
     }
 
     final contentType = response.headers['content-type'];

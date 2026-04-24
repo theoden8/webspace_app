@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -252,6 +253,51 @@ void main() {
       for (var i = 1; i < events.length; i++) {
         expect(events[i].$1 >= events[i - 1].$1, isTrue);
       }
+    });
+
+    test('decompresses gzip-encoded response bodies', () async {
+      final plain = utf8.encode('hello gzipped world');
+      final compressed = Uint8List.fromList(gzip.encode(plain));
+      final client = MockClient((request) async => http.Response.bytes(
+            compressed,
+            200,
+            headers: {
+              'content-type': 'text/plain',
+              'content-encoding': 'gzip',
+              'content-length': '${compressed.length}',
+            },
+          ));
+      final result =
+          await DownloadEngine(client: client).fetch(url: 'https://x/f.txt');
+      expect(utf8.decode(result.bytes), 'hello gzipped world');
+    });
+
+    test('decompresses deflate-encoded response bodies', () async {
+      final plain = utf8.encode('hello deflated');
+      final compressed = Uint8List.fromList(zlib.encode(plain));
+      final client = MockClient((request) async => http.Response.bytes(
+            compressed,
+            200,
+            headers: {
+              'content-type': 'text/plain',
+              'content-encoding': 'deflate',
+            },
+          ));
+      final result =
+          await DownloadEngine(client: client).fetch(url: 'https://x/f.txt');
+      expect(utf8.decode(result.bytes), 'hello deflated');
+    });
+
+    test('passes through uncompressed bodies unchanged', () async {
+      final body = Uint8List.fromList([1, 2, 3, 4, 5]);
+      final client = MockClient((request) async => http.Response.bytes(
+            body,
+            200,
+            headers: {'content-type': 'application/octet-stream'},
+          ));
+      final result =
+          await DownloadEngine(client: client).fetch(url: 'https://x/f');
+      expect(result.bytes, body);
     });
 
     test('streams progress with unknown total (no Content-Length)', () async {
