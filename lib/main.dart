@@ -51,6 +51,7 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/utils/url_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 
@@ -2531,9 +2532,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               var url = urlController.text.trim();
 
               // Infer protocol if not specified
-              if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                url = 'https://$url';
-              }
+              url = ensureUrlScheme(url);
 
               Navigator.pop(context, {'name': name, 'url': url});
             },

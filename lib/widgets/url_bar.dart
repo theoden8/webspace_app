@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/url_utils.dart';
 
 class UrlBar extends StatefulWidget {
   final String currentUrl;
@@ -55,9 +56,7 @@ class _UrlBarState extends State<UrlBar> {
     String url = _urlController.text.trim();
 
     // Infer protocol if not specified
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://$url';
-    }
+    url = ensureUrlScheme(url);
 
     widget.onUrlSubmitted(url);
     _focusNode.unfocus();

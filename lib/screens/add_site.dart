@@ -9,6 +9,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show extractDomain;
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, IconUpdate;
+import '../utils/url_utils.dart';
 
 /// Persistent cache for favicon URLs and SVG content
 class FaviconUrlCache {
@@ -339,10 +340,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       return;
     }
 
-    String url = text;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://$url';
-    }
+    String url = ensureUrlScheme(text);
 
     final uri = Uri.tryParse(url);
     if (uri == null || uri.host.isEmpty ||
@@ -470,9 +468,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                 final name = nameController.text.trim();
                 var url = urlController.text.trim();
                 if (name.isEmpty || url.isEmpty) return;
-                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                  url = 'https://$url';
-                }
+                url = ensureUrlScheme(url);
                 final uri = Uri.tryParse(url);
                 if (uri == null || uri.host.isEmpty) return;
                 final suggestion = SiteSuggestion(
@@ -543,9 +539,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                   onPressed: () {
                     String url = urlController.text.trim();
                     // If no protocol specified, default to https
-                    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                      url = 'https://$url';
-                    }
+                    url = ensureUrlScheme(url);
                     Navigator.of(context).pop();
                     Navigator.of(context).pop({'url': url, 'name': '', 'incognito': incognito});
                   },
@@ -666,9 +660,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                               onPressed: () {
                                 String url = _urlController.text.trim();
                                 // If no protocol specified, default to https
-                                if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                                  url = 'https://$url';
-                                }
+                                url = ensureUrlScheme(url);
                                 Navigator.pop(context, {'url': url, 'name': '', 'incognito': _incognito});
                               },
                               child: Text('Add Site'),
