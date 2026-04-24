@@ -1075,6 +1075,13 @@ class WebViewFactory {
     // SPA navigations (pushState) from real page loads in onUpdateVisitedHistory.
     String? lastLoadStartUrl;
 
+    // Track the last URL that actually finished loading without being a
+    // download. When a download is triggered, the webview has already
+    // fired onUrlChanged with the download URL, so we roll the URL bar
+    // back to this value. Seeded with the initial URL so a download
+    // triggered on first load still has somewhere to revert to.
+    String? lastStableUrl = config.initialUrl;
+
     LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
 
     return inapp.InAppWebView(
@@ -1407,7 +1414,17 @@ class WebViewFactory {
         // End pull-to-refresh animation
         config.pullToRefreshController?.endRefreshing();
         if (url != null) {
-          config.onUrlChanged?.call(url.toString());
+          final urlStr = url.toString();
+          // Only remember as stable if the scheme is something a page can
+          // actually render — data:/blob: URLs only reach this path in
+          // rare edge cases and we don't want them persisted as the
+          // site's last URL if a download later fires.
+          final scheme = url.scheme.toLowerCase();
+          if (scheme == 'http' || scheme == 'https' ||
+              scheme == 'file' || scheme == 'about') {
+            lastStableUrl = urlStr;
+          }
+          config.onUrlChanged?.call(urlStr);
           if (config.onCookiesChanged != null) {
             final cookies = await cookieManager.getCookies(url: inapp.WebUri(url.toString()));
             config.onCookiesChanged!(cookies);
@@ -1459,7 +1476,16 @@ class WebViewFactory {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
       onDownloadStartRequest: (controller, downloadStartRequest) async {
+        final revert = lastStableUrl;
         await _handleDownloadRequest(controller, downloadStartRequest);
+        // onUrlChanged / onUpdateVisitedHistory has likely already fired
+        // with the download URL (e.g. "data:application/pdf;..."), which
+        // would otherwise be persisted as the site's "current URL" and
+        // tried again on next launch. Roll the URL bar back to the last
+        // page the webview actually rendered.
+        if (revert != null) {
+          config.onUrlChanged?.call(revert);
+        }
       },
     );
   }
