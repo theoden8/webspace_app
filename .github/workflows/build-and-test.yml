@@ -97,6 +97,24 @@ jobs:
             fvm flutter build apk --release --flavor fdroid --split-per-abi
           fi
 
+      - name: Verify APK is free of Google Mobile Services
+        # Per openspec/specs/per-site-profiles/spec.md PROF-006, no shipped
+        # artifact may contain com.google.android.gms.* / firebase / play
+        # classes. Scans the *built* APK because clean Gradle deps can
+        # transitively pull GMS through AARs, vendored jars, or codegen —
+        # an audit of `./gradlew app:dependencies` would miss those.
+        run: |
+          set -e
+          shopt -s nullglob
+          apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "ERROR: no fdroid APK found to scan" >&2
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            bash scripts/check_no_gms.sh "$apk"
+          done
+
       - name: Build Linux
         run: fvm flutter build linux --release
 
