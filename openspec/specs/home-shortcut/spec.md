@@ -82,6 +82,26 @@ The feature SHALL only be available on Android. On iOS/macOS, the menu item is n
 
 ---
 
+### Requirement: HS-005 - Hide When Already Pinned
+
+Sites in WebSpace are stable, so a home shortcut is a one-time setup per site. The "Home Shortcut" menu item SHALL be hidden when the current site already has a pinned shortcut, and SHALL reappear if the user removes the shortcut from the launcher.
+
+#### Scenario: Site already has a pinned shortcut
+
+**Given** the user previously pinned a shortcut for the current site
+**When** the user opens the overflow menu
+**Then** the "Home Shortcut" option is not shown for that site
+
+#### Scenario: Shortcut removed from launcher
+
+**Given** the user removed a previously pinned shortcut from their home screen
+**When** the user backgrounds and re-foregrounds the app, then opens the overflow menu for that site
+**Then** the "Home Shortcut" option is shown again
+
+The pinned-shortcut set is queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` exposed through the platform channel as `getPinnedSiteIds`. The cached set is refreshed on `initState` and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal.
+
+---
+
 ## Implementation
 
 ### Platform Channel
@@ -90,7 +110,9 @@ Flutter communicates with native Android code via `MethodChannel('org.codeberg.t
 
 Methods:
 - `pinShortcut({siteId, label, iconUrl})` — requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`
+- `removeShortcut(siteId)` — disables and removes the dynamic+pinned shortcut for a deleted site
 - `getLaunchSiteId()` — returns the `siteId` from the launch intent extra (if launched via shortcut)
+- `getPinnedSiteIds()` — returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix
 
 ### Shortcut Intent
 

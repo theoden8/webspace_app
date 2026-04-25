@@ -43,4 +43,18 @@ class ShortcutService {
       return null;
     }
   }
+
+  /// Get the set of siteIds that currently have a pinned home shortcut.
+  static Future<Set<String>> getPinnedSiteIds() async {
+    if (!Platform.isAndroid) return const <String>{};
+    try {
+      final result = await _channel.invokeMethod('getPinnedSiteIds');
+      if (result is List) {
+        return result.whereType<String>().toSet();
+      }
+      return const <String>{};
+    } on PlatformException {
+      return const <String>{};
+    }
+  }
 }
