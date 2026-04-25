@@ -159,6 +159,65 @@ The tile URL used by the picker SHALL come from a global app pref (`osmTileUrl`,
 
 ---
 
+### Requirement: LOC-008 - Use current location button
+
+The location picker SHALL expose a "Use current location" button on platforms where a native location service is wired in (Android, iOS). Tapping it SHALL request a single GPS fix from the device's native location service and populate the latitude, longitude, and accuracy inputs with the result. The implementation SHALL:
+
+- Use Android's `android.location.LocationManager` (GPS + NETWORK providers) and iOS's `CLLocationManager`. No Google Play Services dependency, so the F-Droid flavor remains GMS-free.
+- Request the runtime permission only when the user taps the button (not at app launch). On Android, request `ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION`; on iOS, request `When-In-Use` authorization with `NSLocationWhenInUseUsageDescription`.
+- Make NO network requests as part of fetching the fix. The button must work even when the map is not loaded (i.e. the privacy default in LOC-006 is preserved).
+- Acquire a single fix, not a continuous stream. The native side stops listening as soon as the first fix arrives or the timeout expires.
+- Surface failure modes distinctly: permission denied, permission denied forever (offer Settings hint), location services disabled, timeout, unsupported platform.
+- Hide the button entirely on platforms where it is not supported (e.g. macOS, Linux), so it never appears as a dead control.
+
+This is a manual user action that fills inputs the user can still edit. It does not change the per-site spoof semantics — the chosen coordinates remain whatever the user accepts via "Done", whether typed, picked on the map, or imported from the device GPS.
+
+#### Scenario: Permission granted on first tap
+
+**Given** the picker is open and the user has never granted location permission to the app
+**When** the user taps "Use current location"
+**Then** the system permission prompt appears
+**And** if the user grants permission, the latitude, longitude, and accuracy inputs are populated with the device's current fix within ~30 seconds
+**And** no map tile requests are made unless the user separately taps "Load map"
+
+#### Scenario: Permission denied
+
+**Given** the picker is open
+**When** the user taps "Use current location" and denies the permission prompt
+**Then** the inputs are unchanged
+**And** a message explains that location permission was not granted
+
+#### Scenario: Permission permanently denied
+
+**Given** the user previously denied the permission with "don't ask again" (Android) or fully denied it in Settings (iOS)
+**When** the user taps "Use current location"
+**Then** no permission prompt appears
+**And** a message explains that the permission must be re-enabled in system Settings
+
+#### Scenario: Location services off
+
+**Given** location services are disabled at the OS level
+**When** the user taps "Use current location"
+**Then** a message indicates that location services are disabled
+
+#### Scenario: Timeout outdoors
+
+**Given** the user has granted permission but no fix arrives within the timeout
+**When** the timeout elapses
+**Then** the native side stops listening for updates
+**And** the picker shows a timeout message
+
+#### Scenario: Button hidden on unsupported platforms
+
+**Given** the picker is opened on a platform without a wired native location plugin (e.g. macOS, Linux)
+**Then** the "Use current location" button is not shown
+
+#### Scenario: No GMS dependency on Android
+
+**Given** the F-Droid flavor APK is installed on a device without Google Play Services
+**When** the user taps "Use current location"
+**Then** the request still succeeds (or fails with a non-GMS status), because the implementation uses `LocationManager`, not `FusedLocationProviderClient`
+
 ---
 
 ### Requirement: LOC-007 - Settings apply to nested webviews

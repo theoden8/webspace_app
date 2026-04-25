@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/current_location_service.dart';
+
 /// Full-screen picker for [LocationPickerResult] (lat/lng + accuracy).
 ///
 /// Two states:
@@ -49,6 +51,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   late TextEditingController _accController;
 
   bool _mapLoaded = false;
+  bool _fetchingLocation = false;
   String _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   final MapController _mapController = MapController();
 
@@ -108,6 +111,53 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         // Camera not attached yet — ignore; marker still rebuilds from state.
       }
     }
+  }
+
+  Future<void> _useCurrentLocation() async {
+    if (_fetchingLocation) return;
+    setState(() => _fetchingLocation = true);
+    final res = await CurrentLocationService.getCurrentLocation();
+    if (!mounted) return;
+    setState(() => _fetchingLocation = false);
+    switch (res.status) {
+      case CurrentLocationStatus.ok:
+        final fix = res.fix!;
+        setState(() {
+          _latController.text = fix.latitude.toStringAsFixed(6);
+          _lngController.text = fix.longitude.toStringAsFixed(6);
+          if (fix.accuracy > 0) {
+            _accController.text = fix.accuracy.toStringAsFixed(1);
+          }
+        });
+        if (_mapLoaded) {
+          try {
+            _mapController.move(LatLng(fix.latitude, fix.longitude), 14.0);
+          } catch (_) {}
+        }
+        break;
+      case CurrentLocationStatus.permissionDenied:
+        _showSnack('Location permission was not granted.');
+        break;
+      case CurrentLocationStatus.permissionDeniedForever:
+        _showSnack('Location permission is denied. Enable it in system Settings.');
+        break;
+      case CurrentLocationStatus.serviceDisabled:
+        _showSnack('Location services are disabled on this device.');
+        break;
+      case CurrentLocationStatus.timeout:
+        _showSnack('Could not get a location fix in time. Try again outdoors.');
+        break;
+      case CurrentLocationStatus.unsupported:
+        _showSnack('Current location is not available on this platform.');
+        break;
+      case CurrentLocationStatus.error:
+        _showSnack(res.message ?? 'Failed to get current location.');
+        break;
+    }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _hostOfTileUrl() {
@@ -210,6 +260,25 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               isDense: true,
             ),
           ),
+          if (CurrentLocationService.isSupported) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                icon: _fetchingLocation
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location),
+                label: Text(_fetchingLocation
+                    ? 'Getting current location…'
+                    : 'Use current location'),
+                onPressed: _fetchingLocation ? null : _useCurrentLocation,
+              ),
+            ),
+          ],
         ],
       ),
     );
