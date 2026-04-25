@@ -87,11 +87,7 @@ in [`lib/services/outbound_http.dart`](../../lib/services/outbound_http.dart).
 
 ### Requirement: LEAK-002 - Single Dart-side outbound seam
 
-Every Dart-side `http.get` / `http.post` / `http.head` / `http.Client`
-acquisition that may carry user-identifying traffic SHALL go through
-[`outboundHttp.clientFor(...)`](../../lib/services/outbound_http.dart). New
-code MUST NOT call `http.get(...)` (or instantiate a raw `http.Client` /
-`HttpClient`) directly for network-bound URLs.
+Every Dart-side outbound HTTP call that may carry user-identifying traffic SHALL go through [`outboundHttp.clientFor(...)`](../../lib/services/outbound_http.dart), and new code MUST NOT call `http.get(...)` (or instantiate a raw `http.Client` / `HttpClient`) directly for network-bound URLs.
 
 The seam is testable: tests replace the global `outboundHttp` factory with
 a recording fake (see `test/outbound_http_test.dart` and
@@ -125,12 +121,7 @@ came from `outboundHttp.clientFor(HTTP 10.0.0.1:8080)`
 
 ### Requirement: LEAK-003 - Fail-closed on un-tunnelable proxies
 
-When the resolved proxy is one that cannot be honored from Dart-side
-(currently any `SOCKS5`, since `dart:io` lacks SOCKS5 support and Chromium's
-SOCKS5 plumbing is webview-only), every Dart-side outbound seam SHALL
-fail-closed: skip the request entirely rather than fall back to a direct
-connection. Falling back would leak the device IP to the very party the
-user picked SOCKS5 to hide it from.
+Every Dart-side outbound seam SHALL fail-closed when the resolved proxy cannot be honored from Dart-side (currently any `SOCKS5`, since `dart:io` lacks SOCKS5 support and Chromium's SOCKS5 plumbing is webview-only): the seam MUST skip the request entirely rather than fall back to a direct connection, since falling back would leak the device IP to the very party the user picked SOCKS5 to hide it from.
 
 Webview navigation continues to use SOCKS5 normally — the webview's proxy
 controller does support SOCKS5 on Android/iOS.
@@ -207,10 +198,7 @@ without modification
 
 ### Requirement: LEAK-005 - WebRTC lockdown ties into proxy threat model
 
-WebRTC `RTCPeerConnection` + STUN bypasses HTTP(S) and SOCKS5 proxies in
-Chromium. The per-site `webRtcPolicy` setting documented in
-[`per-site-location/spec.md` LOC-004](../per-site-location/spec.md) is
-therefore part of the IP-leakage defense, not just the geolocation defense.
+The per-site `webRtcPolicy` (documented in [LOC-004](../per-site-location/spec.md)) MUST be treated as part of the IP-leakage defense, not only the geolocation defense, because WebRTC `RTCPeerConnection` + STUN bypasses HTTP(S) and SOCKS5 proxies in Chromium and would otherwise expose the device IP through the very channel the user picked the proxy to hide.
 
 The recommended posture for users behind a proxy is:
 - **`webRtcPolicy = relayOnly`** for sites that need WebRTC (video chat,
@@ -246,15 +234,9 @@ details and nested-iframe coverage.)
 
 ---
 
-### Requirement: LEAK-006 - DNS leakage guidance
+### Requirement: LEAK-006 - DNS leakage posture
 
-Hostname resolution for *Dart-side* outbound calls happens before the proxy
-is consulted in dart:io. With an HTTP / HTTPS proxy, this is normally fine —
-the proxy receives a `CONNECT host:port` request and resolves the host
-itself, so the local resolver only sees the proxy's IP, not the destination.
-With SOCKS5, the proxy is supposed to resolve hostnames, but `dart:io` can
-still emit local lookups. WebSpace's fail-closed posture for SOCKS5 (LEAK-003)
-sidesteps this by never emitting Dart-side traffic through SOCKS5 at all.
+The implementation MUST NOT emit local DNS lookups on the user's behalf for any Dart-side outbound call once a non-DEFAULT proxy is resolved. Under HTTP/HTTPS proxies, `dart:io`'s `CONNECT host:port` flow already keeps the local resolver out of the loop. Under SOCKS5, the fail-closed behavior in LEAK-003 prevents Dart-side traffic — and therefore Dart-side DNS — from being emitted at all.
 
 For *webview* navigation, the platform webview does the right thing on
 Android (HTTP/HTTPS) and iOS — the proxy receives the hostname and the
