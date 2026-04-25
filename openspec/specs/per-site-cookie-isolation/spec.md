@@ -1,7 +1,19 @@
 # Per-Site Cookie Isolation
 
 ## Status
-**Implemented**
+**Implemented (legacy / fallback path).**
+
+> **Note:** This is the fallback engine, used when
+> [`ProfileNative.isSupported()`](../../../lib/services/profile_native.dart)
+> is `false` — i.e. iOS, macOS, and Android System WebView <110. On
+> Android System WebView 110+, the app uses native per-site profiles
+> instead; see
+> [openspec/specs/per-site-profiles/spec.md](../per-site-profiles/spec.md).
+> Engine selection is a single cached `bool _useProfiles` in
+> [`_WebSpacePageState`](../../../lib/main.dart) resolved at startup;
+> none of the requirements below apply when `_useProfiles == true`
+> (the conflict-find / unload-on-switch / capture-nuke-restore code
+> path is skipped end-to-end in that mode).
 
 ## Purpose
 Implements cookie isolation between sites on the same domain. This allows users to have multiple accounts (e.g., two GitHub accounts) as separate sites without session sharing.

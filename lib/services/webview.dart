@@ -16,6 +16,7 @@ import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
+import 'package:webspace/services/profile_native.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -1442,6 +1443,19 @@ class WebViewFactory {
         // subsequent updates are picked up without re-attaching.
         if (Platform.isAndroid) {
           Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
+          // Bind this WebView to its per-site native profile (Android,
+          // System WebView 110+). No-ops on devices that don't advertise
+          // WebViewFeature.MULTI_PROFILE — the engine selection in
+          // `_setCurrentIndex` then keeps using capture-nuke-restore.
+          // Idempotent: if a WebView already carries the matching profile
+          // (re-attach after rebuild), the native side fast-returns.
+          final siteId = config.siteId;
+          if (siteId != null) {
+            Future.microtask(() async {
+              await ProfileNative.instance.getOrCreateProfile(siteId);
+              await ProfileNative.instance.bindProfileToWebView(siteId);
+            });
+          }
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {

@@ -66,7 +66,9 @@ fvm dart run flutter_launcher_icons
 - **webview.dart** - CookieManager wrapper around flutter_inappwebview, WebViewTheme enum
 
 ### Key Patterns
-- **Per-site cookie isolation**: Sites with matching base domains cannot be loaded simultaneously. When switching to a site, conflicting sites are unloaded and cookies saved.
+- **Per-site cookie isolation (two engines, runtime-selected)**: Two engines coexist; `_WebSpacePageState` caches `bool _useProfiles = await ProfileNative.isSupported()` at startup and gates the entire isolation code path on it.
+  - **Profile path** (Android, System WebView 110+): each `siteId` maps to a native `androidx.webkit.Profile` named `ws-<siteId>` that owns its own cookies, `localStorage`, IDB, ServiceWorkers, and HTTP cache. Same-base-domain sites can be loaded concurrently; no conflict-unload, no capture-nuke-restore. Engine: [`ProfileIsolationEngine`](lib/services/profile_isolation_engine.dart). Native bridge: [`ProfileNative`](lib/services/profile_native.dart) → [`WebSpaceProfilePlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceProfilePlugin.kt). Spec: [openspec/specs/per-site-profiles/spec.md](openspec/specs/per-site-profiles/spec.md).
+  - **Legacy path** (iOS, macOS, Android System WebView <110): sites with matching base domains cannot be loaded simultaneously; switching unloads the conflicting site and runs capture-nuke-restore on the shared cookie jar. Engine: [`CookieIsolationEngine`](lib/services/cookie_isolation.dart). Spec: [openspec/specs/per-site-cookie-isolation/spec.md](openspec/specs/per-site-cookie-isolation/spec.md).
 - **Lazy webview loading**: Webviews only created when visited (`_loadedIndices` tracks loaded sites)
 - **Demo mode**: `isDemoMode` flag prevents persistence, uses seeded demo data
 
@@ -106,7 +108,8 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | localcdn | LocalCDN - cache CDN resources locally to prevent CDN tracking (Android) |
 | navigation | Back gesture, home button, drawer swipe, pull-to-refresh, platform quirks, race condition guards |
 | nested-url-blocking | Cross-domain navigation control: nested InAppBrowser, gesture-based auto-redirect blocking |
-| per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage |
+| per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage (legacy / fallback engine) |
+| per-site-profiles | Native per-site profiles via `androidx.webkit.Profile` (Android, System WebView 110+); supersedes per-site-cookie-isolation when supported |
 | per-site-location | Per-site geolocation spoofing, IANA timezone override, WebRTC leak lockdown |
 | platform-support | Platform abstraction layer for iOS, Android, macOS |
 | proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
