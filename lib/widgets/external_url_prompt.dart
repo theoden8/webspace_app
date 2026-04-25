@@ -38,6 +38,9 @@ String _cleanFallback(String? fallbackUrl) {
   return cleaned.isEmpty ? fallbackUrl : cleaned;
 }
 
+/// Outcome of the confirmation dialog.
+enum _ExternalUrlChoice { cancel, openInApp, openInBrowser }
+
 /// Ask the user whether to hand [info.url] to the OS via url_launcher.
 /// If the OS has no handler (or the user declines) and the intent carried
 /// a `browser_fallback_url`, load that in [fallbackController] instead.
@@ -51,16 +54,30 @@ Future<void> confirmAndLaunchExternalUrl(
   if (_isConfirming) return;
   _isConfirming = true;
   try {
+    final hasRules = ClearUrlService.instance.hasRules;
     final cleanedLaunchUrl = _stripTrackingFromIntent(info.url);
     final cleanedFallback = _cleanFallback(info.fallbackUrl);
+    final urlChanged = cleanedLaunchUrl != info.url;
+    final fallbackChanged = cleanedFallback != (info.fallbackUrl ?? '');
     LogService.instance.log(
       'ExternalUrl',
       'prompt: scheme=${info.scheme} package=${info.package} '
-      'rawUrl=${info.url} cleanedUrl=$cleanedLaunchUrl '
-      'rawFallback=${info.fallbackUrl} cleanedFallback=$cleanedFallback',
+      'clearUrlsLoaded=$hasRules urlCleaned=$urlChanged '
+      'fallbackCleaned=$fallbackChanged',
     );
+    LogService.instance.log('ExternalUrl', '  rawUrl=${info.url}');
+    if (urlChanged) {
+      LogService.instance.log('ExternalUrl', '  cleanedUrl=$cleanedLaunchUrl');
+    }
+    if (info.fallbackUrl != null) {
+      LogService.instance.log('ExternalUrl', '  rawFallback=${info.fallbackUrl}');
+      if (fallbackChanged) {
+        LogService.instance.log('ExternalUrl', '  cleanedFallback=$cleanedFallback');
+      }
+    }
 
-    final confirmed = await showDialog<bool>(
+    final hasFallback = cleanedFallback.isNotEmpty && fallbackController != null;
+    final choice = await showDialog<_ExternalUrlChoice>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Open external app?'),
@@ -79,7 +96,7 @@ Future<void> confirmAndLaunchExternalUrl(
                 const SizedBox(height: 8),
                 Text('Package: ${info.package}'),
               ],
-              if (cleanedFallback.isNotEmpty) ...[
+              if (hasFallback) ...[
                 const SizedBox(height: 8),
                 Text('Fallback URL: $cleanedFallback'),
               ],
@@ -88,55 +105,72 @@ Future<void> confirmAndLaunchExternalUrl(
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.cancel),
             child: const Text('Cancel'),
           ),
+          if (hasFallback)
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInBrowser),
+              child: const Text('Open in browser'),
+            ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Open'),
+            onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInApp),
+            child: const Text('Open in app'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) {
-      LogService.instance.log('ExternalUrl', 'user declined: $cleanedLaunchUrl');
-      // Even though shouldOverrideUrlLoading returned CANCEL and we called
-      // stopLoading() in the webview, Android sometimes paints an
-      // ERR_UNKNOWN_URL_SCHEME error page when the navigation was a
-      // server-side redirect. Loading the cleaned fallback URL keeps the
-      // user on a usable page; otherwise leave them where they were.
-      if (cleanedFallback.isNotEmpty && fallbackController != null) {
-        await fallbackController.loadUrl(cleanedFallback);
-      }
-      return;
+    switch (choice ?? _ExternalUrlChoice.cancel) {
+      case _ExternalUrlChoice.cancel:
+        LogService.instance.log('ExternalUrl', 'user chose: cancel');
+        return;
+      case _ExternalUrlChoice.openInBrowser:
+        LogService.instance.log('ExternalUrl', 'user chose: open in browser → $cleanedFallback');
+        await fallbackController!.loadUrl(cleanedFallback);
+        return;
+      case _ExternalUrlChoice.openInApp:
+        LogService.instance.log('ExternalUrl', 'user chose: open in app → $cleanedLaunchUrl');
+        await _launchInApp(cleanedLaunchUrl, cleanedFallback, fallbackController, info.scheme);
+        return;
     }
-
-    final uri = Uri.tryParse(cleanedLaunchUrl);
-    var launched = false;
-    if (uri != null) {
-      try {
-        launched = await url_launcher.launchUrl(
-          uri,
-          mode: url_launcher.LaunchMode.externalApplication,
-        );
-      } catch (e) {
-        LogService.instance.log('ExternalUrl', 'launchUrl threw: $e');
-        launched = false;
-      }
-    }
-    LogService.instance.log('ExternalUrl', 'launched=$launched url=$cleanedLaunchUrl');
-    if (launched) return;
-
-    if (cleanedFallback.isNotEmpty && fallbackController != null) {
-      LogService.instance.log('ExternalUrl', 'loading fallback in webview: $cleanedFallback');
-      await fallbackController.loadUrl(cleanedFallback);
-      return;
-    }
-    rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text('No app available to open ${info.scheme}:')),
-    );
   } finally {
     _isConfirming = false;
   }
+}
+
+Future<void> _launchInApp(
+  String launchUrl,
+  String cleanedFallback,
+  WebViewController? fallbackController,
+  String scheme,
+) async {
+  final uri = Uri.tryParse(launchUrl);
+  var launched = false;
+  if (uri != null) {
+    try {
+      launched = await url_launcher.launchUrl(
+        uri,
+        mode: url_launcher.LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      LogService.instance.log('ExternalUrl', 'launchUrl threw: $e');
+      launched = false;
+    }
+  }
+  LogService.instance.log('ExternalUrl', 'launched=$launched url=$launchUrl');
+  // Note: on Android, launchUrl can return true even when no app handles
+  // the intent (the OS shows its own "no app" toast). We can't distinguish
+  // that from a real launch — that's why the dialog offers an explicit
+  // "Open in browser" button rather than relying on this fallback.
+  if (launched) return;
+
+  if (cleanedFallback.isNotEmpty && fallbackController != null) {
+    LogService.instance.log('ExternalUrl', 'launch failed, loading fallback: $cleanedFallback');
+    await fallbackController.loadUrl(cleanedFallback);
+    return;
+  }
+  rootScaffoldMessengerKey.currentState?.showSnackBar(
+    SnackBar(content: Text('No app available to open $scheme:')),
+  );
 }
