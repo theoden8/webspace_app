@@ -597,11 +597,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // platform call complete before the pause call, leaving the webview stuck.
   Future<void>? _lifecyclePauseFuture;
 
+  // Tracks which sites already have a pinned home shortcut, so the
+  // "Home Shortcut" menu item can hide for sites that are already pinned.
+  Set<String> _pinnedSiteIds = const <String>{};
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _restoreAppState();
+    _refreshPinnedSiteIds();
+  }
+
+  Future<void> _refreshPinnedSiteIds() async {
+    final ids = await ShortcutService.getPinnedSiteIds();
+    if (!mounted) return;
+    if (ids.length == _pinnedSiteIds.length &&
+        ids.containsAll(_pinnedSiteIds)) {
+      return;
+    }
+    setState(() {
+      _pinnedSiteIds = ids;
+    });
   }
 
   @override
@@ -621,6 +638,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Await any in-flight pause before resuming to prevent ordering inversion
       _resumeAfterLifecyclePause();
       _handleShortcutIntent();
+      // Pinned shortcuts may have been added (via the launcher's pin dialog)
+      // or removed (by the user from the launcher) while we were backgrounded.
+      _refreshPinnedSiteIds();
     }
   }
 
@@ -1875,7 +1895,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     ],
                   ),
                 ),
-                if (Platform.isAndroid)
+                if (Platform.isAndroid &&
+                    _currentIndex != null &&
+                    !_pinnedSiteIds.contains(_webViewModels[_currentIndex!].siteId))
                   PopupMenuItem<String>(
                     value: "addToHome",
                     child: Row(
@@ -2268,7 +2290,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               ],
             ),
           ),
-          if (Platform.isAndroid)
+          if (Platform.isAndroid &&
+              _currentIndex != null &&
+              !_pinnedSiteIds.contains(_webViewModels[_currentIndex!].siteId))
             PopupMenuItem<String>(
               value: "addToHome",
               child: Row(

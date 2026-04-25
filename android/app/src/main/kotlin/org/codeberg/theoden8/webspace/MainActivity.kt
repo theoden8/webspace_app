@@ -58,6 +58,20 @@ class MainActivity: FlutterActivity() {
                     val siteId = intent?.getStringExtra("siteId")
                     result.success(siteId)
                 }
+                "getPinnedSiteIds" -> {
+                    try {
+                        val pinned = ShortcutManagerCompat.getShortcuts(
+                            this,
+                            ShortcutManagerCompat.FLAG_MATCH_PINNED
+                        )
+                        val ids = pinned.mapNotNull { info ->
+                            info.id.takeIf { it.startsWith("site_") }?.removePrefix("site_")
+                        }
+                        result.success(ids)
+                    } catch (e: Exception) {
+                        result.success(emptyList<String>())
+                    }
+                }
                 else -> result.notImplemented()
             }
         }
