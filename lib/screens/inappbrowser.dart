@@ -53,7 +53,8 @@ class InAppWebViewScreen extends StatefulWidget {
   _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
 }
 
-class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
+class _InAppWebViewScreenState extends State<InAppWebViewScreen>
+    with WidgetsBindingObserver {
   WebViewController? _controller;
   String? title;
   late String _currentUrl;
@@ -65,6 +66,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Use home site title if provided
     title = widget.homeTitle;
     _currentUrl = widget.url;
@@ -75,6 +77,17 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
         _controller?.reload();
       },
     ) : null;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeTextScaleFactor() {
+    _controller?.setTextZoom(WebViewFactory.systemTextZoomPercent());
   }
 
   void updateTitle(String newTitle) {
