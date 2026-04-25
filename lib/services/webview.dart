@@ -1326,8 +1326,19 @@ class WebViewFactory {
         // app schemes) can't be rendered in a webview — flutter_inappwebview
         // returns ERR_UNKNOWN_URL_SCHEME. Cancel and hand the URL to the
         // host UI, which confirms with the user before calling url_launcher.
+        // We also stopLoading() because returning CANCEL alone doesn't
+        // prevent Android's WebView from painting an ERR_UNKNOWN_URL_SCHEME
+        // error page when the navigation came from a server-side redirect
+        // or a window.location assignment (same root cause the downloads
+        // path mitigates below).
         final externalInfo = ExternalUrlParser.parse(url);
         if (externalInfo != null) {
+          LogService.instance.log('WebView',
+              'External scheme intercepted: scheme=${externalInfo.scheme} '
+              'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url');
+          try {
+            await controller.stopLoading();
+          } catch (_) {}
           if (config.onExternalSchemeUrl != null) {
             config.onExternalSchemeUrl!(url, externalInfo);
           }
@@ -1390,6 +1401,9 @@ class WebViewFactory {
         // the same confirmation path as direct navigations.
         final externalInfo = ExternalUrlParser.parse(url);
         if (externalInfo != null) {
+          LogService.instance.log('WebView',
+              'External scheme intercepted (onCreateWindow): '
+              'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url');
           if (config.onExternalSchemeUrl != null) {
             config.onExternalSchemeUrl!(url, externalInfo);
           }
