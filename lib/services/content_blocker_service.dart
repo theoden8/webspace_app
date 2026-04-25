@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -338,8 +339,19 @@ class ContentBlockerService {
     final list = _lists.firstWhere((l) => l.id == id,
         orElse: () => throw Exception('List not found: $id'));
 
+    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
+    if (clientResult is OutboundClientBlocked) {
+      LogService.instance.log(
+        'ContentBlocker',
+        'Skipped download of ${list.name}: ${clientResult.reason}',
+        level: LogLevel.warning,
+      );
+      return false;
+    }
+    final client = (clientResult as OutboundClientReady).client;
+
     try {
-      final response = await http
+      final response = await client
           .get(Uri.parse(list.url))
           .timeout(const Duration(seconds: 30));
 
@@ -370,6 +382,8 @@ class ContentBlockerService {
     } catch (e) {
       LogService.instance.log('ContentBlocker', 'Error downloading ${list.name}: $e', level: LogLevel.error);
       return false;
+    } finally {
+      client.close();
     }
   }
 

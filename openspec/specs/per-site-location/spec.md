@@ -237,6 +237,10 @@ The per-site Timezone dropdown SHALL include a "From picked location" entry. The
 
 The system SHALL expose a per-site `webRtcPolicy` with three values: `defaultPolicy` (no change), `relayOnly`, and `disabled`.
 
+The WebRTC side channel is also part of the broader IP-leakage threat
+model — see [LEAK-005](../ip-leakage/spec.md) for how it interacts with
+the per-site / app-global proxy precedence.
+
 #### Scenario: Relay-only strips local candidates
 
 **Given** `webRtcPolicy = relayOnly`

@@ -1,12 +1,15 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/current_location_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 
 /// Full-screen picker for [LocationPickerResult] (lat/lng + accuracy).
 ///
@@ -67,6 +70,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     ..onTap = () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'));
   late final TapGestureRecognizer _osmFixmapRecognizer = TapGestureRecognizer()
     ..onTap = () => launchUrl(Uri.parse('https://www.openstreetmap.org/fixthemap'));
+  /// HTTP client built once when the user opts into "Load map", routing
+  /// every tile request through the app-global outbound proxy. Null when
+  /// the configured proxy can't be honored from Dart-side (SOCKS5) — in
+  /// that case the picker stays in placeholder mode so we don't leak the
+  /// device IP via the default flutter_map client.
+  http.Client? _tileHttpClient;
+  String? _tileBlockedReason;
 
   @override
   void initState() {
@@ -108,7 +118,23 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _accController.dispose();
     _osmCopyrightRecognizer.dispose();
     _osmFixmapRecognizer.dispose();
+    _tileHttpClient?.close();
     super.dispose();
+  }
+
+  /// Build a proxied client for tile fetches. Returns false (and stashes
+  /// a reason in [_tileBlockedReason]) when the proxy can't be honored.
+  bool _ensureTileClient() {
+    if (_tileHttpClient != null) return true;
+    final result = outboundHttp.clientFor(GlobalOutboundProxy.current);
+    if (result is OutboundClientReady) {
+      _tileHttpClient = result.client;
+      return true;
+    }
+    if (result is OutboundClientBlocked) {
+      _tileBlockedReason = result.reason;
+    }
+    return false;
   }
 
   LatLng? _currentLatLng() {
@@ -340,7 +366,18 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             FilledButton.icon(
               icon: const Icon(Icons.download_outlined),
               label: const Text('Load map'),
-              onPressed: () => setState(() => _mapLoaded = true),
+              onPressed: () {
+                if (!_ensureTileClient()) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_tileBlockedReason ??
+                          'Tile fetches are blocked by your proxy settings.'),
+                    ),
+                  );
+                  return;
+                }
+                setState(() => _mapLoaded = true);
+              },
             ),
             const SizedBox(height: 8),
             Text(
@@ -370,8 +407,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             TileLayer(
               urlTemplate: _tileUrl,
               userAgentPackageName: 'com.webspace.app',
+              // Route every tile request through the app-global outbound
+              // proxy (or fall back to a default client when no proxy is
+              // configured). The OSM Tile Usage Policy requires a
+              // descriptive User-Agent on every request.
               tileProvider: NetworkTileProvider(
                 headers: {'User-Agent': _tileUserAgent},
+                httpClient: _tileHttpClient ?? http.Client(),
               ),
               maxZoom: 19,
               // In dark mode, post-process the standard light cartography

@@ -25,6 +25,7 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -280,16 +281,22 @@ class ProxyManager {
 
     final controller = inapp.ProxyController.instance();
 
-    if (settings.type == ProxyType.DEFAULT) {
+    // When the per-site setting is DEFAULT, fall through to the app-global
+    // outbound proxy. This keeps webview traffic and Dart-side traffic
+    // honoring the same proxy precedence: explicit per-site override wins,
+    // otherwise the global applies, otherwise system/direct.
+    final effective = resolveEffectiveProxy(settings);
+
+    if (effective.type == ProxyType.DEFAULT) {
       await controller.clearProxyOverride();
       return;
     }
 
-    if (settings.address == null || settings.address!.isEmpty) {
+    if (effective.address == null || effective.address!.isEmpty) {
       throw Exception('Proxy address is required');
     }
 
-    final parts = settings.address!.split(':');
+    final parts = effective.address!.split(':');
     if (parts.length != 2) {
       throw Exception('Proxy address must be in format host:port');
     }
@@ -300,14 +307,14 @@ class ProxyManager {
       throw Exception('Invalid port number');
     }
 
-    final scheme = switch (settings.type) {
+    final scheme = switch (effective.type) {
       ProxyType.HTTPS => 'https',
       ProxyType.SOCKS5 => 'socks5',
       _ => 'http',
     };
 
-    final proxyUrl = settings.hasCredentials
-        ? '$scheme://${Uri.encodeComponent(settings.username!)}:${Uri.encodeComponent(settings.password!)}@$host:$port'
+    final proxyUrl = effective.hasCredentials
+        ? '$scheme://${Uri.encodeComponent(effective.username!)}:${Uri.encodeComponent(effective.password!)}@$host:$port'
         : '$scheme://$host:$port';
 
     await controller.setProxyOverride(
@@ -448,14 +455,18 @@ class WebViewConfig {
   final bool spoofTimezoneFromLocation;
   /// WebRTC policy — prevents real-IP leak that bypasses HTTP(S)/SOCKS proxies.
   final WebRtcPolicy webRtcPolicy;
-  /// Per-site proxy. On iOS 17+ / macOS 14+ this is honored at WebView
-  /// construction via [WebSpaceInAppWebViewSettings.webspaceProxy] and
-  /// each site genuinely uses its own proxy (the patched native side
-  /// attaches it to the per-site `WKWebsiteDataStore`). On Android the
-  /// per-site config still exists in the data model but the underlying
-  /// `inapp.ProxyController` is a process-wide singleton, so the
-  /// last-applied proxy wins for every site loaded concurrently — see
-  /// PROXY-008 in [openspec/specs/proxy/spec.md] for the asymmetry.
+  /// Per-site proxy. Carried into:
+  ///
+  /// - The native webview proxy: on iOS 17+ / macOS 14+ via
+  ///   [WebSpaceInAppWebViewSettings.webspaceProxy] (per-site
+  ///   `WKWebsiteDataStore.proxyConfigurations`); on Android via the
+  ///   process-wide `inapp.ProxyController` (last-write-wins under
+  ///   profile mode — see PROXY-008 in
+  ///   [openspec/specs/proxy/spec.md] for the asymmetry).
+  /// - Every Dart-side outbound call originating from this site
+  ///   (downloads, user-script fetches), where it resolves through
+  ///   `resolveEffectiveProxy` so [ProxyType.DEFAULT] falls through to
+  ///   the app-global outbound proxy.
   final UserProxySettings? proxySettings;
 
   WebViewConfig({
@@ -1531,6 +1542,7 @@ class WebViewFactory {
     final userScriptService = UserScriptService(
       scripts: config.userScripts,
       onConfirmScriptFetch: config.onConfirmScriptFetch,
+      proxy: config.proxySettings,
     );
     userScripts.addAll(userScriptService.buildInitialUserScripts());
 
@@ -1592,8 +1604,13 @@ class WebViewFactory {
     // the global `inapp.ProxyController` path runs from
     // `WebViewModel._applyProxySettings` instead, so leave `webspaceProxy`
     // null and avoid sending a no-op map to the native side.
+    // resolveEffectiveProxy keeps the iOS/macOS WebView in sync with the
+    // Dart-side and Android paths: per-site DEFAULT falls through to the
+    // app-global outbound proxy, so a site the user hasn't customized
+    // still inherits a global Tor / corporate proxy. Explicit per-site
+    // values win.
     final webspaceProxy = (Platform.isIOS || Platform.isMacOS) && config.proxySettings != null
-        ? _proxySettingsToWebspaceProxy(config.proxySettings!)
+        ? _proxySettingsToWebspaceProxy(resolveEffectiveProxy(config.proxySettings!))
         : null;
 
     LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} webspaceProfile=$webspaceProfile webspaceProxy=${webspaceProxy != null}');
@@ -2300,6 +2317,7 @@ class WebViewFactory {
           controller,
           downloadStartRequest,
           referer: lastStableUrl ?? config.initialUrl,
+          proxy: config.proxySettings,
         );
         if (revert != null) {
           config.onUrlChanged?.call(revert);
@@ -2312,6 +2330,7 @@ class WebViewFactory {
     inapp.InAppWebViewController controller,
     inapp.DownloadStartRequest req, {
     String? referer,
+    UserProxySettings? proxy,
   }) async {
     // Abort any in-flight main-frame navigation to this URL. Without this
     // the webview tries to render the attachment response as a page and
@@ -2327,7 +2346,7 @@ class WebViewFactory {
     switch (scheme) {
       case 'http':
       case 'https':
-        await _handleHttpDownload(req, referer: referer);
+        await _handleHttpDownload(req, referer: referer, proxy: proxy);
         return;
       case 'data':
         _handleDataDownload(req);
@@ -2343,6 +2362,7 @@ class WebViewFactory {
   static Future<void> _handleHttpDownload(
     inapp.DownloadStartRequest req, {
     String? referer,
+    UserProxySettings? proxy,
   }) async {
     final initialFilename = DownloadEngine.deriveFilename(
       suggested: req.suggestedFilename,
@@ -2360,7 +2380,7 @@ class WebViewFactory {
       final cookieHeader = DownloadEngine.buildCookieHeader(
         cookies.map((c) => MapEntry(c.name, c.value.toString())),
       );
-      final engine = DownloadEngine();
+      final engine = DownloadEngine(proxy: proxy);
       final result = await engine.fetch(
         url: req.url.toString(),
         cookieHeader: cookieHeader,

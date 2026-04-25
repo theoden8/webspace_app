@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
@@ -37,6 +38,11 @@ class InAppWebViewScreen extends StatefulWidget {
   /// working when the user follows an outbound link into a nested screen.
   final List<UserScriptConfig> userScripts;
   final Future<bool> Function(String url)? onConfirmScriptFetch;
+  /// Per-site proxy of the parent site that opened this nested browser.
+  /// Forwarded into the nested [WebViewConfig] so cross-domain links from
+  /// a proxied site stay proxied. Resolves through the global outbound
+  /// proxy when type is DEFAULT.
+  final UserProxySettings proxySettings;
 
   InAppWebViewScreen({
     required this.url,
@@ -58,7 +64,9 @@ class InAppWebViewScreen extends StatefulWidget {
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.userScripts = const [],
     this.onConfirmScriptFetch,
-  });
+    UserProxySettings? proxySettings,
+  }) : proxySettings = proxySettings ??
+            UserProxySettings(type: ProxyType.DEFAULT);
 
   @override
   _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
@@ -122,6 +130,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         spoofTimezone: widget.spoofTimezone,
         spoofTimezoneFromLocation: widget.spoofTimezoneFromLocation,
         webRtcPolicy: widget.webRtcPolicy,
+        proxySettings: widget.proxySettings,
         userScripts: widget.userScripts,
         onConfirmScriptFetch: widget.onConfirmScriptFetch,
         pullToRefreshController: _pullToRefreshController,

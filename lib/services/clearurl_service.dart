@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,9 +63,24 @@ class ClearUrlService {
 
   /// Download rules from the ClearURLs server, cache to disk, and parse.
   /// Returns true on success, false on failure.
+  ///
+  /// The download is routed through the app-global outbound proxy
+  /// ([GlobalOutboundProxy.current]). When the configured proxy cannot be
+  /// honored from Dart-side (e.g. SOCKS5), this returns false without making
+  /// the request — falling back to direct would leak the device IP.
   Future<bool> downloadRules() async {
+    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
+    if (clientResult is OutboundClientBlocked) {
+      LogService.instance.log(
+        'ClearURLs',
+        'Skipped download: ${clientResult.reason}',
+        level: LogLevel.warning,
+      );
+      return false;
+    }
+    final client = (clientResult as OutboundClientReady).client;
     try {
-      final response = await http.get(Uri.parse(_rulesUrl)).timeout(
+      final response = await client.get(Uri.parse(_rulesUrl)).timeout(
         const Duration(seconds: 15),
       );
 
@@ -92,6 +108,8 @@ class ClearUrlService {
     } catch (e) {
       LogService.instance.log('ClearURLs', 'Download error: $e', level: LogLevel.error);
       return false;
+    } finally {
+      client.close();
     }
   }
 
