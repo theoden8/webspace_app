@@ -628,6 +628,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   @override
+  void didChangeTextScaleFactor() {
+    final zoom = WebViewFactory.systemTextZoomPercent();
+    for (final i in _loadedIndices) {
+      if (i < _webViewModels.length) {
+        _webViewModels[i].controller?.setTextZoom(zoom);
+      }
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       // Pause the active webview when the app goes to background

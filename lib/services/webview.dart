@@ -348,6 +348,9 @@ abstract class WebViewController {
     bool? incognito,
   });
   Future<void> setThemePreference(WebViewTheme theme);
+  /// Update the page-text zoom (percent, 100 = unscaled). Used to track
+  /// system "font size" accessibility changes after the webview is created.
+  Future<void> setTextZoom(int zoomPercent);
   Future<void> goBack();
   Future<bool> canGoBack();
   /// Pause the webview (stop rendering and JS execution).
@@ -440,6 +443,10 @@ class _WebViewController implements WebViewController {
       userAgent: userAgent,
       thirdPartyCookiesEnabled: thirdPartyCookiesEnabled ?? false,
       incognito: incognito ?? false,
+      // Preserve system-derived textZoom — the InAppWebViewSettings
+      // constructor defaults it to 100 and toMap always emits it, so any
+      // setSettings call without this resets the user's font scale.
+      textZoom: WebViewFactory.systemTextZoomPercent(),
       supportZoom: true,
       useShouldOverrideUrlLoading: true,
       // Enable multiple windows for Cloudflare Turnstile and other challenges
@@ -456,6 +463,30 @@ class _WebViewController implements WebViewController {
   Future<void> setThemePreference(WebViewTheme theme) async {
     final themeValue = theme == WebViewTheme.system ? 'system' : (theme == WebViewTheme.dark ? 'dark' : 'light');
     await evaluateJavascript(_themeInjectionScript(themeValue));
+  }
+
+  @override
+  Future<void> setTextZoom(int zoomPercent) async {
+    if (Platform.isAndroid) {
+      await _c.setSettings(
+        settings: inapp.InAppWebViewSettings(textZoom: zoomPercent),
+      );
+      return;
+    }
+    // iOS/macOS: WKWebView has no textZoom setting. Rotate the
+    // DOCUMENT_START user script so future page loads pick up the new
+    // value, then update the style element on the current page.
+    final source = '${WebViewFactory._textSizeAdjustScript(zoomPercent)}\n;null;';
+    try {
+      await _c.removeUserScriptsByGroupName(groupName: 'system_text_zoom');
+      await _c.addUserScript(userScript: inapp.UserScript(
+        groupName: 'system_text_zoom',
+        source: source,
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    } catch (_) {} // controller may be detached during teardown
+    await evaluateJavascript(WebViewFactory._textSizeAdjustScript(zoomPercent));
   }
 
   @override
@@ -643,6 +674,37 @@ String _languageOverrideScript(String language) {
 
 /// Factory for creating webviews
 class WebViewFactory {
+  /// System font scale → webview text zoom percent. Tracks the OS-level
+  /// "font size" accessibility setting so web content matches the size
+  /// users see in their system browser.
+  static int systemTextZoomPercent() {
+    final scale = WidgetsBinding.instance.platformDispatcher.textScaleFactor;
+    return (scale * 100).round();
+  }
+
+  /// CSS injected on iOS/macOS where WKWebView has no `textZoom` setting.
+  /// `-webkit-text-size-adjust` is the closest equivalent — it scales text
+  /// without resizing images. Sites that hard-pin it to 100% still win.
+  static String _textSizeAdjustCss(int zoomPercent) =>
+      'html{-webkit-text-size-adjust:$zoomPercent% !important;}';
+
+  static String _textSizeAdjustScript(int zoomPercent) => '''
+(function(){
+  var id='__webspace_text_zoom__';
+  var css='${_textSizeAdjustCss(zoomPercent)}';
+  function apply(){
+    var el=document.getElementById(id);
+    if(!el){
+      el=document.createElement('style');
+      el.id=id;
+      (document.head||document.documentElement).appendChild(el);
+    }
+    el.textContent=css;
+  }
+  if(document.documentElement){apply();}
+  else{document.addEventListener('DOMContentLoaded',apply);}
+})();''';
+
   /// Determine if a navigation was triggered by a user gesture.
   /// Android: uses hasGesture property.
   /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
@@ -707,6 +769,7 @@ class WebViewFactory {
     required int windowId,
     VoidCallback? onCloseWindow,
   }) {
+    final textZoom = systemTextZoomPercent();
     return inapp.InAppWebView(
       windowId: windowId,
       initialSettings: inapp.InAppWebViewSettings(
@@ -715,11 +778,20 @@ class WebViewFactory {
         domStorageEnabled: true,
         databaseEnabled: true,
         javaScriptCanOpenWindowsAutomatically: true,
+        textZoom: textZoom,
         // Enable browser-level resource caching for offline sub-resource loading
         cacheEnabled: true,
         // Enable DevTools inspection in debug mode (chrome://inspect on Android)
         isInspectable: kDebugMode,
       ),
+      initialUserScripts: Platform.isAndroid ? null : UnmodifiableListView([
+        inapp.UserScript(
+          groupName: 'system_text_zoom',
+          source: '${_textSizeAdjustScript(textZoom)}\n;null;',
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+          forMainFrameOnly: false,
+        ),
+      ]),
       onCloseWindow: (controller) {
         onCloseWindow?.call();
       },
@@ -742,7 +814,20 @@ class WebViewFactory {
     // so sub-resources (CSS/JS/images) resolve from browser HTTP cache.
     final usesCachedHtml = config.initialHtml != null;
 
+    final textZoom = systemTextZoomPercent();
+
     final userScripts = <inapp.UserScript>[];
+
+    // System text zoom for non-Android: WKWebView has no `textZoom`
+    // setting, so inject CSS that pushes -webkit-text-size-adjust.
+    if (!Platform.isAndroid) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'system_text_zoom',
+        source: '${_textSizeAdjustScript(textZoom)}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
 
     // Location / timezone / WebRTC shim — must run FIRST so overrides are
     // in place before any site script can capture the unpatched references.
@@ -1104,6 +1189,7 @@ class WebViewFactory {
         userAgent: config.userAgent,
         thirdPartyCookiesEnabled: config.thirdPartyCookiesEnabled,
         incognito: config.incognito,
+        textZoom: textZoom,
         // Desktop mode: flutter_inappwebview maps DESKTOP to iOS
         // WKWebpagePreferences.preferredContentMode + Android useWideViewPort
         // + a desktop UA, reproducing Chrome/Safari's "Request desktop site".
@@ -1295,9 +1381,12 @@ class WebViewFactory {
         if (usesCachedHtml) {
           final online = await ConnectivityService.instance.isOnline();
           if (online) {
-            // Reset cache mode to default before loading live URL
+            // Reset cache mode to default before loading live URL.
+            // Re-pass textZoom so it isn't reset to the default 100 by
+            // the constructor's emitted toMap.
             await controller.setSettings(settings: inapp.InAppWebViewSettings(
               cacheMode: inapp.CacheMode.LOAD_DEFAULT,
+              textZoom: textZoom,
             ));
             wrappedController.loadUrl(config.initialUrl, language: config.language);
           }
