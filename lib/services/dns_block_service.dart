@@ -496,6 +496,12 @@ class DnsBlockService {
   /// present (relative URLs, `data:` / `about:` / `javascript:` etc.) so
   /// the caller treats them as not-blockable, matching the previous
   /// `Uri.tryParse` behavior.
+  ///
+  /// Case-folds only when the host actually contains uppercase ASCII.
+  /// `String.toLowerCase()` always allocates a new string, so for the
+  /// common case of already-lowercase hosts we return the substring
+  /// directly. The uppercase scan piggybacks on the existing authority
+  /// scan loop — zero added work in the no-uppercase fast path.
   static String? _fastHost(String url) {
     final i = url.indexOf('://');
     if (i < 0) return null;
@@ -519,7 +525,10 @@ class DnsBlockService {
     if (hostStart < end && url.codeUnitAt(hostStart) == 0x5B /* [ */) {
       for (var j = hostStart; j < end; j++) {
         if (url.codeUnitAt(j) == 0x5D /* ] */) {
-          return url.substring(hostStart, j + 1).toLowerCase();
+          // IPv6 literals are hex digits + ':' — already case-insensitive
+          // but we lowercase for canonical-form match. Most real hosts
+          // are lowercase already.
+          return _slice(url, hostStart, j + 1);
         }
       }
       return null; // unterminated [
@@ -532,7 +541,24 @@ class DnsBlockService {
         break;
       }
     }
-    return url.substring(hostStart, hostEnd).toLowerCase();
+    return _slice(url, hostStart, hostEnd);
+  }
+
+  /// Substring + conditional lowercase. Scans for any uppercase ASCII in
+  /// `url[start..end)` and only allocates a lowercased copy if found.
+  /// In the common case (already-lowercase host) this returns the bare
+  /// substring — one allocation instead of two.
+  static String _slice(String url, int start, int end) {
+    bool hasUpper = false;
+    for (var j = start; j < end; j++) {
+      final c = url.codeUnitAt(j);
+      if (c >= 0x41 && c <= 0x5A) {
+        hasUpper = true;
+        break;
+      }
+    }
+    final s = url.substring(start, end);
+    return hasUpper ? s.toLowerCase() : s;
   }
 
   /// Substring-based hierarchy walk. Avoids the per-step `parts.sublist(i)
