@@ -443,6 +443,10 @@ class _WebViewController implements WebViewController {
       userAgent: userAgent,
       thirdPartyCookiesEnabled: thirdPartyCookiesEnabled ?? false,
       incognito: incognito ?? false,
+      // Preserve system-derived textZoom — the InAppWebViewSettings
+      // constructor defaults it to 100 and toMap always emits it, so any
+      // setSettings call without this resets the user's font scale.
+      textZoom: WebViewFactory.systemTextZoomPercent(),
       supportZoom: true,
       useShouldOverrideUrlLoading: true,
       // Enable multiple windows for Cloudflare Turnstile and other challenges
@@ -1377,9 +1381,12 @@ class WebViewFactory {
         if (usesCachedHtml) {
           final online = await ConnectivityService.instance.isOnline();
           if (online) {
-            // Reset cache mode to default before loading live URL
+            // Reset cache mode to default before loading live URL.
+            // Re-pass textZoom so it isn't reset to the default 100 by
+            // the constructor's emitted toMap.
             await controller.setSettings(settings: inapp.InAppWebViewSettings(
               cacheMode: inapp.CacheMode.LOAD_DEFAULT,
+              textZoom: textZoom,
             ));
             wrappedController.loadUrl(config.initialUrl, language: config.language);
           }
