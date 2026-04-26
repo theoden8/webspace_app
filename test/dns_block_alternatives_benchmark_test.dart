@@ -27,11 +27,15 @@ import 'package:webspace/services/dns_block_service.dart';
 ///                           parent is. Uses the substring walk.
 ///   4. lruCacheWalk       — LinkedHashMap-backed LRU on the resolved
 ///                           host -> bool decision; on miss, falls back to
-///                           the substring walk. This is the "cache like
-///                           iOS does" piece, ported to native Dart.
+///                           the substring walk.
 ///   5. bloomLruWalk       — both: LRU first, on miss bloom-prefilter, then
 ///                           substring walk. This is the full iOS-style
 ///                           tier order in Dart.
+///   6. mapCacheWalk       — plain Map<String,bool> cache with FIFO eviction
+///                           only on insert (no reorder on hit). Mirrors the
+///                           production _domainCache exactly. This is the
+///                           "cache like iOS does" piece, properly ported.
+///   7. mapCacheBloomWalk  — plain Map cache + bloom + substring walk.
 ///
 /// We use a synthetic blocklist sized to ~600k entries (Hagezi Ultimate
 /// ~522k + a slice for EasyList domain rules) because the hot-path cost
@@ -43,138 +47,170 @@ import 'package:webspace/services/dns_block_service.dart';
 /// completes without regressing past a generous absolute bound, so the
 /// benchmark always runs to completion and you can read the comparison.
 void main() {
-  // Build dataset + workload once. group setUpAll runs before each test.
+  // Build dataset + workloads once.
   late _Dataset dataset;
-  late List<String> workload;
+  late List<String> mixedWorkload;
+  late List<String> singleSiteWorkload;
 
   setUpAll(() {
     dataset = _buildDataset(domainCount: 600000, seed: 42);
-    workload = _buildZipfianWorkload(
+    mixedWorkload = _buildZipfianWorkload(
       dataset: dataset,
       requestCount: 200000,
       seed: 99,
     );
+    singleSiteWorkload = _buildSingleSiteWorkload(
+      dataset: dataset,
+      requestCount: 200000,
+      distinctHosts: 40,
+      seed: 7,
+    );
   });
 
-  group('DnsBlock alternatives — 600k domains, Zipfian workload', () {
-    test('00. dataset and workload sanity', () {
-      // ignore: avoid_print
-      print('=== Dataset ===');
-      // ignore: avoid_print
-      print('  domains in blocklist: ${dataset.domains.length}');
-      // ignore: avoid_print
-      print('  bloom size: ${dataset.bloom.sizeInBytes} bytes, k=${dataset.bloom.k}');
-      // ignore: avoid_print
-      print('=== Workload ===');
-      // ignore: avoid_print
-      print('  total lookups: ${workload.length}');
-      // Estimate hit rate for the workload using the production isBlocked.
-      DnsBlockService.instance.loadDomainsFromString(dataset.rawText);
-      int hits = 0;
-      for (final url in workload) {
-        if (DnsBlockService.instance.isBlocked(url)) hits++;
-      }
-      // ignore: avoid_print
-      print('  blocked: $hits  allowed: ${workload.length - hits}  '
-          'block-rate: ${(hits / workload.length * 100).toStringAsFixed(1)}%');
-      expect(workload.length, equals(200000));
-      expect(dataset.domains.length, greaterThan(500000));
-    });
-
-    test('01. baseline (Set.contains + sublist+join walk) — current production path', () {
-      DnsBlockService.instance.loadDomainsFromString(dataset.rawText);
-      final sw = Stopwatch()..start();
-      int hits = 0;
-      for (final url in workload) {
-        if (DnsBlockService.instance.isBlocked(url)) hits++;
-      }
-      sw.stop();
-      _report('baseline (sublist+join)', sw, workload.length, hits);
-      expect(sw.elapsedMilliseconds, lessThan(60000));
-    });
-
-    test('02. substring walk (same Set, no allocations in walk)', () {
-      final domains = dataset.domains;
-      final sw = Stopwatch()..start();
-      int hits = 0;
-      for (final url in workload) {
-        if (_isBlockedSubstring(url, domains)) hits++;
-      }
-      sw.stop();
-      _report('substring walk', sw, workload.length, hits);
-      expect(sw.elapsedMilliseconds, lessThan(60000));
-    });
-
-    test('03. bloom prefilter + substring walk', () {
-      final domains = dataset.domains;
-      final bloom = dataset.bloom;
-      final sw = Stopwatch()..start();
-      int hits = 0;
-      for (final url in workload) {
-        if (_isBlockedBloomFirst(url, domains, bloom)) hits++;
-      }
-      sw.stop();
-      _report('bloom + substring walk', sw, workload.length, hits);
-      expect(sw.elapsedMilliseconds, lessThan(60000));
-    });
-
-    test('04. LRU host-decision cache (5000) + substring walk', () {
-      final domains = dataset.domains;
-      final cache = _LruCache<String, bool>(capacity: 5000);
-      final sw = Stopwatch()..start();
-      int hits = 0;
-      for (final url in workload) {
-        if (_isBlockedLru(url, domains, cache)) hits++;
-      }
-      sw.stop();
-      _report('LRU + substring walk', sw, workload.length, hits,
-          extra: 'cache size=${cache.length}');
-      expect(sw.elapsedMilliseconds, lessThan(60000));
-    });
-
-    test('05. bloom + LRU + substring walk (iOS-style tiering)', () {
-      final domains = dataset.domains;
-      final bloom = dataset.bloom;
-      final cache = _LruCache<String, bool>(capacity: 5000);
-      final sw = Stopwatch()..start();
-      int hits = 0;
-      for (final url in workload) {
-        if (_isBlockedBloomLru(url, domains, bloom, cache)) hits++;
-      }
-      sw.stop();
-      _report('bloom + LRU + substring', sw, workload.length, hits,
-          extra: 'cache size=${cache.length}');
-      expect(sw.elapsedMilliseconds, lessThan(60000));
-    });
-
-    test('06. cold cache vs warm cache for variant 04 (LRU)', () {
-      // Run the LRU variant twice. The second run should be cache-warm and
-      // shows the steady-state cost when the working-set fits the cache.
-      final domains = dataset.domains;
-      final cache = _LruCache<String, bool>(capacity: 5000);
-
-      final coldSw = Stopwatch()..start();
-      for (final url in workload) {
-        _isBlockedLru(url, domains, cache);
-      }
-      coldSw.stop();
-
-      final warmSw = Stopwatch()..start();
-      for (final url in workload) {
-        _isBlockedLru(url, domains, cache);
-      }
-      warmSw.stop();
-
-      // ignore: avoid_print
-      print('LRU cold:  ${coldSw.elapsedMilliseconds}ms total, '
-          '${(coldSw.elapsedMicroseconds / workload.length).toStringAsFixed(2)}us/call');
-      // ignore: avoid_print
-      print('LRU warm:  ${warmSw.elapsedMilliseconds}ms total, '
-          '${(warmSw.elapsedMicroseconds / workload.length).toStringAsFixed(2)}us/call');
-      // ignore: avoid_print
-      print('LRU final cache size: ${cache.length}');
-    });
+  test('00. sanity', () {
+    DnsBlockService.instance.loadDomainsFromString(dataset.rawText);
+    // ignore: avoid_print
+    print('=== Dataset ===');
+    // ignore: avoid_print
+    print('  domains: ${dataset.domains.length}');
+    // ignore: avoid_print
+    print('  bloom: ${dataset.bloom.sizeInBytes} bytes, k=${dataset.bloom.k}');
+    final mixedHits = _countHits(mixedWorkload);
+    final ssHits = _countHits(singleSiteWorkload);
+    // ignore: avoid_print
+    print('=== Workloads ===');
+    // ignore: avoid_print
+    print('  mixed (Zipfian, ~50k distinct): '
+        '${mixedWorkload.length} lookups, '
+        '$mixedHits blocked '
+        '(${(mixedHits / mixedWorkload.length * 100).toStringAsFixed(1)}%), '
+        '${mixedWorkload.toSet().length} distinct hosts');
+    // ignore: avoid_print
+    print('  single-site (40 hosts):         '
+        '${singleSiteWorkload.length} lookups, '
+        '$ssHits blocked '
+        '(${(ssHits / singleSiteWorkload.length * 100).toStringAsFixed(1)}%), '
+        '${singleSiteWorkload.toSet().length} distinct hosts');
+    expect(dataset.domains.length, greaterThan(500000));
   });
+
+  for (final wl in [
+    _Workload('mixed (Zipfian, big tail)', () => mixedWorkload),
+    _Workload('single-site (40 distinct hosts)', () => singleSiteWorkload),
+  ]) {
+    group('Workload: ${wl.name}', () {
+      test('01. baseline (Set + sublist+join walk) — production path', () {
+        DnsBlockService.instance.loadDomainsFromString(dataset.rawText);
+        _runVariant(wl.name, '01 baseline (sublist+join)', wl.get(), (url) {
+          return DnsBlockService.instance.isBlocked(url);
+        });
+      });
+
+      test('02. substring walk', () {
+        final domains = dataset.domains;
+        _runVariant(wl.name, '02 substring walk', wl.get(), (url) {
+          return _isBlockedSubstring(url, domains);
+        });
+      });
+
+      test('03. bloom + substring walk', () {
+        final domains = dataset.domains;
+        final bloom = dataset.bloom;
+        _runVariant(wl.name, '03 bloom + substring', wl.get(), (url) {
+          return _isBlockedBloomFirst(url, domains, bloom);
+        });
+      });
+
+      test('04. plain Map cache (FIFO, no reorder) + substring walk', () {
+        final domains = dataset.domains;
+        final cache = _MapFifoCache<String, bool>(capacity: 5000);
+        _runVariant(wl.name, '04 Map(FIFO) + substring', wl.get(), (url) {
+          return _isBlockedMapCache(url, domains, cache);
+        }, extra: () => 'cache size=${cache.length}');
+      });
+
+      test('05. LinkedHashMap LRU + substring walk', () {
+        final domains = dataset.domains;
+        final cache = _LruCache<String, bool>(capacity: 5000);
+        _runVariant(wl.name, '05 LinkedHashMap LRU + substring', wl.get(), (url) {
+          return _isBlockedLru(url, domains, cache);
+        }, extra: () => 'cache size=${cache.length}');
+      });
+
+      test('06. plain Map cache + bloom + substring walk', () {
+        final domains = dataset.domains;
+        final bloom = dataset.bloom;
+        final cache = _MapFifoCache<String, bool>(capacity: 5000);
+        _runVariant(wl.name, '06 Map + bloom + substring', wl.get(), (url) {
+          return _isBlockedMapBloom(url, domains, bloom, cache);
+        }, extra: () => 'cache size=${cache.length}');
+      });
+
+      test('07. cold-then-warm: plain Map cache (steady-state)', () {
+        final domains = dataset.domains;
+        final cache = _MapFifoCache<String, bool>(capacity: 5000);
+
+        final cold = Stopwatch()..start();
+        for (final url in wl.get()) {
+          _isBlockedMapCache(url, domains, cache);
+        }
+        cold.stop();
+
+        final warm = Stopwatch()..start();
+        for (final url in wl.get()) {
+          _isBlockedMapCache(url, domains, cache);
+        }
+        warm.stop();
+
+        final n = wl.get().length;
+        // ignore: avoid_print
+        print('[${wl.name}] Map(FIFO) cold: '
+            '${cold.elapsedMilliseconds}ms (${(cold.elapsedMicroseconds / n).toStringAsFixed(3)}us/call)');
+        // ignore: avoid_print
+        print('[${wl.name}] Map(FIFO) warm: '
+            '${warm.elapsedMilliseconds}ms (${(warm.elapsedMicroseconds / n).toStringAsFixed(3)}us/call)');
+        // ignore: avoid_print
+        print('[${wl.name}] cache size: ${cache.length}');
+      });
+    });
+  }
+}
+
+class _Workload {
+  final String name;
+  final List<String> Function() get;
+  _Workload(this.name, this.get);
+}
+
+int _countHits(List<String> urls) {
+  int hits = 0;
+  for (final url in urls) {
+    if (DnsBlockService.instance.isBlocked(url)) hits++;
+  }
+  return hits;
+}
+
+void _runVariant(
+  String workloadName,
+  String name,
+  List<String> urls,
+  bool Function(String) check, {
+  String Function()? extra,
+}) {
+  final sw = Stopwatch()..start();
+  int hits = 0;
+  for (final url in urls) {
+    if (check(url)) hits++;
+  }
+  sw.stop();
+  final perCallUs = sw.elapsedMicroseconds / urls.length;
+  // ignore: avoid_print
+  print('[$workloadName] $name: '
+      '${sw.elapsedMilliseconds}ms total, '
+      '${perCallUs.toStringAsFixed(3)}us/call, '
+      'hits=$hits/${urls.length}'
+      '${extra != null ? "  ${extra()}" : ""}');
+  expect(sw.elapsedMilliseconds, lessThan(60000));
 }
 
 // -----------------------------------------------------------------------------
@@ -227,7 +263,52 @@ bool _isBlockedBloomFirst(String url, Set<String> domains, BloomFilter bloom) {
   return false;
 }
 
-/// LRU cache on host-level decision, falls back to substring walk.
+/// Plain Map cache on host-level decision (no LRU reorder on hit).
+/// Mirrors the production _domainCache: insertion-order FIFO eviction only
+/// when capacity is exceeded on insert.
+bool _isBlockedMapCache(
+    String url, Set<String> domains, _MapFifoCache<String, bool> cache) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  final host = uri.host;
+  if (host.isEmpty) return false;
+  final cached = cache.getRaw(host);
+  if (cached != null) return cached;
+  final result = _hostBlockedSubstring(host, domains);
+  cache.put(host, result);
+  return result;
+}
+
+/// Plain Map cache + bloom prefilter + substring walk.
+bool _isBlockedMapBloom(String url, Set<String> domains, BloomFilter bloom,
+    _MapFifoCache<String, bool> cache) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  final host = uri.host;
+  if (host.isEmpty) return false;
+  final cached = cache.getRaw(host);
+  if (cached != null) return cached;
+
+  bool maybeMember = bloom.contains(host);
+  if (!maybeMember) {
+    int dot = host.indexOf('.');
+    while (dot >= 0 && dot < host.length - 1) {
+      final parent = host.substring(dot + 1);
+      if (parent.indexOf('.') < 0) break;
+      if (bloom.contains(parent)) {
+        maybeMember = true;
+        break;
+      }
+      dot = host.indexOf('.', dot + 1);
+    }
+  }
+
+  final result = !maybeMember ? false : _hostBlockedSubstring(host, domains);
+  cache.put(host, result);
+  return result;
+}
+
+/// LinkedHashMap LRU variant (kept for direct comparison).
 bool _isBlockedLru(String url, Set<String> domains, _LruCache<String, bool> cache) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
@@ -290,6 +371,30 @@ bool _hostBlockedSubstring(String host, Set<String> domains) {
     dot = host.indexOf('.', dot + 1);
   }
   return false;
+}
+
+// -----------------------------------------------------------------------------
+// Plain Map cache with FIFO eviction on insert. Mirrors the production
+// _domainCache (lib/services/dns_block_service.dart line 186) — no reorder on
+// hit, just a HashMap lookup. The bool is unboxed to avoid the per-call
+// `_Closure.call` overhead from `Map.get` on a generic typed map.
+// -----------------------------------------------------------------------------
+
+class _MapFifoCache<K, V> {
+  final int capacity;
+  final Map<K, V> _map = <K, V>{};
+  _MapFifoCache({required this.capacity});
+
+  V? getRaw(K key) => _map[key];
+
+  void put(K key, V value) {
+    if (_map.length >= capacity && !_map.containsKey(key)) {
+      _map.remove(_map.keys.first);
+    }
+    _map[key] = value;
+  }
+
+  int get length => _map.length;
 }
 
 // -----------------------------------------------------------------------------
@@ -415,6 +520,41 @@ List<String> _buildZipfianWorkload({
       );
       host = '$name.notblocked.test';
     }
+    urls.add('https://$host/path?q=$i');
+  }
+  return urls;
+}
+
+/// Build a realistic single-site workload: a small fixed pool of distinct
+/// hosts (~40, the kind a single page actually loads — main host, a handful
+/// of CDNs, a few trackers, fonts/analytics) repeated `requestCount` times
+/// with Zipfian sampling. This is what the per-page pipeline actually sees:
+/// dozens of resources from the same handful of hosts, fired in tight bursts.
+List<String> _buildSingleSiteWorkload({
+  required _Dataset dataset,
+  required int requestCount,
+  required int distinctHosts,
+  required int seed,
+}) {
+  final random = Random(seed);
+  final blocked = dataset.domainList;
+  // ~70% of distinct hosts are blocked-list members (trackers/CDNs the page
+  // tries to load), the rest are non-blocked (the page itself, allowed CDNs).
+  final pool = <String>[];
+  for (var i = 0; i < distinctHosts; i++) {
+    if (random.nextInt(10) < 7) {
+      pool.add(blocked[random.nextInt(blocked.length)]);
+    } else {
+      // Non-blocked host
+      final name = String.fromCharCodes(
+        List.generate(8, (_) => 97 + random.nextInt(26)),
+      );
+      pool.add('$name.example.test');
+    }
+  }
+  final urls = <String>[];
+  for (var i = 0; i < requestCount; i++) {
+    final host = pool[_zipf(random, pool.length)];
     urls.add('https://$host/path?q=$i');
   }
   return urls;
