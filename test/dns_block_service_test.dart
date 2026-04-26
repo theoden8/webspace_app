@@ -135,5 +135,50 @@ void main() {
       expect(service.isBlocked('https://tracker.net/'), isTrue);
       expect(service.isBlocked('https://host999999.example.test/'), isFalse);
     });
+
+    test('host extraction is case-insensitive', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://Tracker.NET/path'), isTrue);
+      expect(service.isBlocked('https://SUB.TRACKER.NET/'), isTrue);
+      expect(service.isBlocked('HTTPS://tracker.net/'), isTrue);
+    });
+
+    test('host extraction strips port', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://tracker.net:8443/'), isTrue);
+      expect(service.isBlocked('https://tracker.net:443'), isTrue);
+    });
+
+    test('host extraction strips userinfo', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://user:pass@tracker.net/'), isTrue);
+      expect(service.isBlocked('https://user@tracker.net:8080/'), isTrue);
+    });
+
+    test('host extraction handles IPv6 literals', () {
+      service.loadDomainsFromString('[2001:db8::1]');
+      expect(service.isBlocked('https://[2001:db8::1]/'), isTrue);
+      expect(service.isBlocked('https://[2001:db8::1]:443/'), isTrue);
+      // Different IPv6 host must not match.
+      expect(service.isBlocked('https://[2001:db8::2]/'), isFalse);
+    });
+
+    test('URLs with no scheme://host are not blocked', () {
+      service.loadDomainsFromString('tracker.net');
+      // about:, data:, javascript:, plain text — none have ://host
+      expect(service.isBlocked('about:blank'), isFalse);
+      expect(service.isBlocked('data:text/html,<p>hi</p>'), isFalse);
+      expect(service.isBlocked('javascript:void(0)'), isFalse);
+      expect(service.isBlocked('tracker.net/path'), isFalse);
+      // file:// has scheme but empty host.
+      expect(service.isBlocked('file:///etc/hosts'), isFalse);
+    });
+
+    test('URLs with no path still extract host correctly', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://tracker.net'), isTrue);
+      expect(service.isBlocked('https://tracker.net?q=1'), isTrue);
+      expect(service.isBlocked('https://tracker.net#frag'), isTrue);
+    });
   });
 }
