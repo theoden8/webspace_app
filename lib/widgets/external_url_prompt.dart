@@ -11,24 +11,96 @@ import 'package:webspace/widgets/root_messenger.dart';
 /// webview with several intent:// bursts in a row) only surface one dialog.
 bool _isConfirming = false;
 
-/// Strips ClearURLs tracking query params from an `intent://` URL by
-/// reconstructing it as an https URL (which the ClearURLs ruleset
+/// Suppression window. After the user picks Open in browser / Open in app,
+/// any subsequent intent:// for the same target host+path+package is
+/// silently aborted for this long — the fallback URL we just loaded
+/// almost always re-fires the same intent immediately, and re-prompting
+/// the user is worse than letting them stay on a half-loaded page.
+const Duration _suppressDuration = Duration(seconds: 30);
+
+/// Per-target expiry timestamps. Key returned by [_suppressKey].
+final Map<String, DateTime> _suppressed = {};
+
+String _suppressKey(ExternalUrlInfo info) {
+  final uri = Uri.tryParse(info.url);
+  final hostPath = uri == null ? info.url : '${uri.host}${uri.path}';
+  return '${info.scheme}|$hostPath|${info.package ?? ''}';
+}
+
+bool _isSuppressed(ExternalUrlInfo info) {
+  final key = _suppressKey(info);
+  final expiry = _suppressed[key];
+  if (expiry == null) return false;
+  if (DateTime.now().isAfter(expiry)) {
+    _suppressed.remove(key);
+    return false;
+  }
+  return true;
+}
+
+void _markSuppressed(ExternalUrlInfo info) {
+  _suppressed[_suppressKey(info)] = DateTime.now().add(_suppressDuration);
+}
+
+/// Strips ClearURLs tracking query params from a URL, regardless of scheme,
+/// by reconstructing it as an https URL (which the ClearURLs ruleset
 /// recognizes), running [ClearUrlService.cleanUrl], then putting the
-/// cleaned query back. Falls back to the input on any parse failure.
-/// Non-intent URLs are returned unchanged.
+/// cleaned query back. Returns the input on any parse failure or when no
+/// rules are loaded.
+String _stripTrackingFromQuery(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return url;
+  if (uri.query.isEmpty) return url;
+  if (!ClearUrlService.instance.hasRules) return url;
+
+  final asHttps = 'https://${uri.host}${uri.path}?${uri.query}';
+  final cleaned = ClearUrlService.instance.cleanUrl(asHttps);
+  if (cleaned == asHttps || cleaned.isEmpty) return url;
+  final cleanedUri = Uri.tryParse(cleaned);
+  if (cleanedUri == null) return url;
+  return uri.replace(query: cleanedUri.hasQuery ? cleanedUri.query : null).toString();
+}
+
+/// Strips ClearURLs from an intent:// URL: cleans the toplevel query AND
+/// the URL-encoded `S.browser_fallback_url` extra inside the fragment.
+/// Without the fragment-rewrite step, `utm_campaign` survives the
+/// embedded fallback URL even though it gets stripped from the toplevel.
 String _stripTrackingFromIntent(String intentUrl) {
   final uri = Uri.tryParse(intentUrl);
   if (uri == null) return intentUrl;
   if (uri.scheme.toLowerCase() != 'intent') return intentUrl;
-  if (uri.query.isEmpty) return intentUrl;
   if (!ClearUrlService.instance.hasRules) return intentUrl;
 
-  final asHttps = 'https://${uri.host}${uri.path}?${uri.query}';
-  final cleaned = ClearUrlService.instance.cleanUrl(asHttps);
-  if (cleaned == asHttps || cleaned.isEmpty) return intentUrl;
+  // Step 1: clean the toplevel query.
+  String cleaned = _stripTrackingFromQuery(intentUrl);
+
+  // Step 2: clean the embedded browser_fallback_url inside the Intent
+  // extras. Re-parse because step 1 may have changed the URL.
   final cleanedUri = Uri.tryParse(cleaned);
-  if (cleanedUri == null) return intentUrl;
-  return uri.replace(query: cleanedUri.hasQuery ? cleanedUri.query : null).toString();
+  if (cleanedUri == null) return cleaned;
+  final fragment = cleanedUri.fragment;
+  if (!fragment.startsWith('Intent;')) return cleaned;
+
+  final parts = fragment.substring('Intent;'.length).split(';');
+  var rewroteAny = false;
+  for (var i = 0; i < parts.length; i++) {
+    final part = parts[i];
+    if (!part.startsWith('S.browser_fallback_url=')) continue;
+    final rawValue = part.substring('S.browser_fallback_url='.length);
+    String decoded;
+    try {
+      decoded = Uri.decodeComponent(rawValue);
+    } catch (_) {
+      continue;
+    }
+    final cleanedFallback = ClearUrlService.instance.cleanUrl(decoded);
+    if (cleanedFallback == decoded || cleanedFallback.isEmpty) continue;
+    parts[i] = 'S.browser_fallback_url=${Uri.encodeComponent(cleanedFallback)}';
+    rewroteAny = true;
+  }
+  if (!rewroteAny) return cleaned;
+  final newFragment = 'Intent;${parts.join(';')}';
+  return cleanedUri.replace(fragment: newFragment).toString();
 }
 
 String _cleanFallback(String? fallbackUrl) {
@@ -51,6 +123,17 @@ Future<void> confirmAndLaunchExternalUrl(
   ExternalUrlInfo info, {
   WebViewController? fallbackController,
 }) async {
+  // Loop guard: pages frequently re-fire the same intent immediately
+  // after we load their browser_fallback_url. Without suppression the
+  // user gets re-prompted every redirect and the choice they made a
+  // moment ago is meaningless.
+  if (_isSuppressed(info)) {
+    LogService.instance.log(
+      'ExternalUrl',
+      'suppressed (recently handled within ${_suppressDuration.inSeconds}s): ${info.url}',
+    );
+    return;
+  }
   if (_isConfirming) return;
   _isConfirming = true;
   try {
@@ -124,13 +207,18 @@ Future<void> confirmAndLaunchExternalUrl(
     switch (choice ?? _ExternalUrlChoice.cancel) {
       case _ExternalUrlChoice.cancel:
         LogService.instance.log('ExternalUrl', 'user chose: cancel');
+        // Suppress so a script-driven redirect doesn't re-prompt the
+        // user a second later for the choice they just declined.
+        _markSuppressed(info);
         return;
       case _ExternalUrlChoice.openInBrowser:
         LogService.instance.log('ExternalUrl', 'user chose: open in browser → $cleanedFallback');
+        _markSuppressed(info);
         await fallbackController!.loadUrl(cleanedFallback);
         return;
       case _ExternalUrlChoice.openInApp:
         LogService.instance.log('ExternalUrl', 'user chose: open in app → $cleanedLaunchUrl');
+        _markSuppressed(info);
         await _launchInApp(cleanedLaunchUrl, cleanedFallback, fallbackController, info.scheme);
         return;
     }
@@ -159,10 +247,6 @@ Future<void> _launchInApp(
     }
   }
   LogService.instance.log('ExternalUrl', 'launched=$launched url=$launchUrl');
-  // Note: on Android, launchUrl can return true even when no app handles
-  // the intent (the OS shows its own "no app" toast). We can't distinguish
-  // that from a real launch — that's why the dialog offers an explicit
-  // "Open in browser" button rather than relying on this fallback.
   if (launched) return;
 
   if (cleanedFallback.isNotEmpty && fallbackController != null) {
