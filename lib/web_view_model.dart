@@ -793,9 +793,16 @@ class WebViewModel {
     cookies = await cookieManager.getCookies(url: url);
   }
 
-  /// Pause the webview to reduce resource usage when in background.
-  /// Stops rendering (Android) and JS timers. The webview remains in the
-  /// widget tree but consumes minimal resources.
+  /// Per-instance pause for site switches.
+  ///
+  /// Reduces resource usage but does NOT fully stop the page — Web Workers,
+  /// Service Workers, in-flight network requests (and the `Set-Cookie` they
+  /// return), media playback, WebRTC and WebSocket I/O all keep running. On
+  /// Android, JS timers also keep running (Android's per-instance pause does
+  /// not cover them, and the global timer pause would freeze other tabs too).
+  /// This is a resource hint, not a security boundary — see
+  /// [WebViewController.pause] for the full caveat list. To safely mutate
+  /// cookies or proxy under a webview, dispose it instead.
   Future<void> pauseWebView() async {
     if (controller == null) return;
     try {
@@ -812,6 +819,34 @@ class WebViewModel {
     try {
       await controller!.resume();
       LogService.instance.log('WebView', 'Resumed webview for "$name" (siteId: $siteId)');
+    } catch (_) {
+      // Controller may have been disposed
+    }
+  }
+
+  /// App-lifecycle pause: per-instance pause + process-global JS timer pause.
+  ///
+  /// The global timer pause is intentional here: when the whole app goes to
+  /// background we want every loaded webview's JS frozen, not just the active
+  /// one. Pair with [resumeFromAppLifecycle] on resume.
+  Future<void> pauseForAppLifecycle() async {
+    if (controller == null) return;
+    try {
+      await controller!.pause();
+      await controller!.pauseAllJsTimers();
+      LogService.instance.log('WebView', 'App-lifecycle paused webview for "$name" (siteId: $siteId)');
+    } catch (_) {
+      // Controller may have been disposed
+    }
+  }
+
+  /// Inverse of [pauseForAppLifecycle].
+  Future<void> resumeFromAppLifecycle() async {
+    if (controller == null) return;
+    try {
+      await controller!.resume();
+      await controller!.resumeAllJsTimers();
+      LogService.instance.log('WebView', 'App-lifecycle resumed webview for "$name" (siteId: $siteId)');
     } catch (_) {
       // Controller may have been disposed
     }

@@ -672,9 +672,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      // Pause the active webview when the app goes to background
+      // App is backgrounding: pause active webview AND globally freeze JS
+      // timers so loaded-but-inactive webviews stop too.
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseWebView();
+        _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
       }
     } else if (state == AppLifecycleState.resumed) {
       // Await any in-flight pause before resuming to prevent ordering inversion
@@ -692,7 +693,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _lifecyclePauseFuture = null;
     }
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      await _webViewModels[_currentIndex!].resumeWebView();
+      await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
