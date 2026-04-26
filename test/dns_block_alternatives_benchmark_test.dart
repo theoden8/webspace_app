@@ -146,6 +146,41 @@ void main() {
         }, extra: () => 'cache size=${cache.length}');
       });
 
+      test('08. ring-buffer FIFO cache + substring walk', () {
+        // Same shape as variant 04, but the FIFO eviction is a circular
+        // buffer of host strings rather than `_map.keys.first` (which
+        // allocates an iterator on every evict). Targets the eviction-heavy
+        // mixed-Zipfian regression.
+        final domains = dataset.domains;
+        final cache = _RingFifoCache(capacity: 5000);
+        _runVariant(wl.name, '08 Ring + substring', wl.get(), (url) {
+          return _isBlockedRing(url, domains, cache);
+        }, extra: () => 'cache size=${cache.length}');
+      });
+
+      test('09. fast host extractor + Map cache + substring walk', () {
+        // Same as variant 04 but skips Uri.tryParse for the simple
+        // scheme://host[:port]/... case. We don't need RFC 3986 validation;
+        // we just need the host. Targets the URL-parsing slice (~30-40% of
+        // baseline cost on uncached calls).
+        final domains = dataset.domains;
+        final cache = _MapFifoCache<String, bool>(capacity: 5000);
+        _runVariant(wl.name, '09 fastHost + Map + substring', wl.get(), (url) {
+          return _isBlockedFastHostMap(url, domains, cache);
+        }, extra: () => 'cache size=${cache.length}');
+      });
+
+      test('10. fast host extractor + ring-buffer cache + substring walk', () {
+        // Both optimizations together: skip URL parse + avoid iterator
+        // allocation on evict. This is the maximum that's reachable
+        // without leaving Dart.
+        final domains = dataset.domains;
+        final cache = _RingFifoCache(capacity: 5000);
+        _runVariant(wl.name, '10 fastHost + Ring + substring', wl.get(), (url) {
+          return _isBlockedFastHostRing(url, domains, cache);
+        }, extra: () => 'cache size=${cache.length}');
+      });
+
       test('07. cold-then-warm: plain Map cache (steady-state)', () {
         final domains = dataset.domains;
         final cache = _MapFifoCache<String, bool>(capacity: 5000);
@@ -308,6 +343,84 @@ bool _isBlockedMapBloom(String url, Set<String> domains, BloomFilter bloom,
   return result;
 }
 
+/// Ring-buffer FIFO cache variant. Eviction is `_ring[head++ % cap]` —
+/// no iterator allocation per evict. Targets the mixed-Zipfian regression
+/// where 90% of calls trigger evictions and `Map.keys.first` allocates.
+bool _isBlockedRing(String url, Set<String> domains, _RingFifoCache cache) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  final host = uri.host;
+  if (host.isEmpty) return false;
+  final cached = cache.get(host);
+  if (cached != null) return cached;
+  final result = _hostBlockedSubstring(host, domains);
+  cache.put(host, result);
+  return result;
+}
+
+/// Fast host extractor + Map cache. Skips Uri.tryParse for the common
+/// `scheme://host[:port]/...` case. Validates only what we actually use.
+bool _isBlockedFastHostMap(
+    String url, Set<String> domains, _MapFifoCache<String, bool> cache) {
+  final host = _fastHost(url);
+  if (host == null || host.isEmpty) return false;
+  final cached = cache.getRaw(host);
+  if (cached != null) return cached;
+  final result = _hostBlockedSubstring(host, domains);
+  cache.put(host, result);
+  return result;
+}
+
+/// Fast host extractor + ring-buffer cache: maximum reachable in pure Dart.
+bool _isBlockedFastHostRing(
+    String url, Set<String> domains, _RingFifoCache cache) {
+  final host = _fastHost(url);
+  if (host == null || host.isEmpty) return false;
+  final cached = cache.get(host);
+  if (cached != null) return cached;
+  final result = _hostBlockedSubstring(host, domains);
+  cache.put(host, result);
+  return result;
+}
+
+/// Extract the host from `scheme://host[:port]/...` without RFC 3986
+/// validation. Returns null on inputs we can't cheaply parse — caller can
+/// fall back to Uri.tryParse for those (rare in practice; almost every URL
+/// the webview hands us is a normal http/https URL).
+String? _fastHost(String url) {
+  final i = url.indexOf('://');
+  if (i < 0) return null;
+  final start = i + 3;
+  // Host runs to the first '/', '?', '#', or end-of-string.
+  int end = url.length;
+  for (var j = start; j < url.length; j++) {
+    final c = url.codeUnitAt(j);
+    if (c == 0x2F /* / */ ||
+        c == 0x3F /* ? */ ||
+        c == 0x23 /* # */) {
+      end = j;
+      break;
+    }
+  }
+  // Strip userinfo (`user:pass@host`).
+  int hostStart = start;
+  for (var j = start; j < end; j++) {
+    if (url.codeUnitAt(j) == 0x40 /* @ */) {
+      hostStart = j + 1;
+      break;
+    }
+  }
+  // Strip :port.
+  int hostEnd = end;
+  for (var j = hostStart; j < end; j++) {
+    if (url.codeUnitAt(j) == 0x3A /* : */) {
+      hostEnd = j;
+      break;
+    }
+  }
+  return url.substring(hostStart, hostEnd);
+}
+
 /// LinkedHashMap LRU variant (kept for direct comparison).
 bool _isBlockedLru(String url, Set<String> domains, _LruCache<String, bool> cache) {
   final uri = Uri.tryParse(url);
@@ -350,6 +463,46 @@ class _MapFifoCache<K, V> {
   void put(K key, V value) {
     if (_map.length >= capacity && !_map.containsKey(key)) {
       _map.remove(_map.keys.first);
+    }
+    _map[key] = value;
+  }
+
+  int get length => _map.length;
+}
+
+// -----------------------------------------------------------------------------
+// Ring-buffer FIFO cache. Same semantics as _MapFifoCache but eviction is
+// O(1) without allocating an iterator: a circular buffer of host strings
+// tracks insertion order, and on insert past capacity we drop _ring[head].
+// On the cache-thrash workload this avoids the per-call cost of
+// `Map.keys.first` (iterator allocation + moveNext).
+// -----------------------------------------------------------------------------
+
+class _RingFifoCache {
+  final int capacity;
+  final List<String?> _ring;
+  int _head = 0;
+  int _size = 0;
+  final Map<String, bool> _map = <String, bool>{};
+
+  _RingFifoCache({required this.capacity})
+      : _ring = List<String?>.filled(capacity, null);
+
+  bool? get(String key) => _map[key];
+
+  void put(String key, bool value) {
+    if (_map.containsKey(key)) {
+      _map[key] = value;
+      return;
+    }
+    if (_size >= capacity) {
+      final old = _ring[_head];
+      if (old != null) _map.remove(old);
+      _ring[_head] = key;
+      _head = (_head + 1) % capacity;
+    } else {
+      _ring[(_head + _size) % capacity] = key;
+      _size++;
     }
     _map[key] = value;
   }
