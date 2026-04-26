@@ -9,7 +9,7 @@ import 'package:webspace/services/dns_block_service.dart';
 /// Zipfian browsing workload, to answer:
 ///
 ///   "Does the iOS-style bloom-filter + per-host cache help the native Dart
-///    isBlocked() hot path, beyond what the existing Set<String> already does?"
+///    isBlocked() hot path, beyond what the existing `Set<String>` already does?"
 ///
 /// The five variants share the same domain set + same workload so timings are
 /// directly comparable. Each variant only differs in the per-call code path.
@@ -31,7 +31,7 @@ import 'package:webspace/services/dns_block_service.dart';
 ///   5. bloomLruWalk       — both: LRU first, on miss bloom-prefilter, then
 ///                           substring walk. This is the full iOS-style
 ///                           tier order in Dart.
-///   6. mapCacheWalk       — plain Map<String,bool> cache with FIFO eviction
+///   6. mapCacheWalk       — plain `Map<String,bool>` cache with FIFO eviction
 ///                           only on insert (no reorder on hit). Mirrors the
 ///                           production _domainCache exactly. This is the
 ///                           "cache like iOS does" piece, properly ported.
@@ -229,7 +229,7 @@ bool _isBlockedSubstring(String url, Set<String> domains) {
   while (dot >= 0 && dot < host.length - 1) {
     final parent = host.substring(dot + 1);
     // Stop at the eTLD level: don't check single-label "com".
-    if (parent.indexOf('.') < 0) break;
+    if (!parent.contains('.')) break;
     if (domains.contains(parent)) return true;
     dot = host.indexOf('.', dot + 1);
   }
@@ -254,7 +254,7 @@ bool _isBlockedBloomFirst(String url, Set<String> domains, BloomFilter bloom) {
   int dot = host.indexOf('.');
   while (dot >= 0 && dot < host.length - 1) {
     final parent = host.substring(dot + 1);
-    if (parent.indexOf('.') < 0) break;
+    if (!parent.contains('.')) break;
     if (bloom.contains(parent)) {
       if (domains.contains(parent)) return true;
     }
@@ -294,7 +294,7 @@ bool _isBlockedMapBloom(String url, Set<String> domains, BloomFilter bloom,
     int dot = host.indexOf('.');
     while (dot >= 0 && dot < host.length - 1) {
       final parent = host.substring(dot + 1);
-      if (parent.indexOf('.') < 0) break;
+      if (!parent.contains('.')) break;
       if (bloom.contains(parent)) {
         maybeMember = true;
         break;
@@ -321,52 +321,12 @@ bool _isBlockedLru(String url, Set<String> domains, _LruCache<String, bool> cach
   return result;
 }
 
-/// LRU + bloom prefilter + substring walk. Bloom check is applied only on
-/// cache miss, mirroring the iOS JS interceptor's tier order:
-///   1. cache hit            → instant
-///   2. bloom says no        → instant negative
-///   3. bloom says maybe     → authoritative Set walk
-bool _isBlockedBloomLru(
-    String url, Set<String> domains, BloomFilter bloom, _LruCache<String, bool> cache) {
-  final uri = Uri.tryParse(url);
-  if (uri == null) return false;
-  final host = uri.host;
-  if (host.isEmpty) return false;
-  final cached = cache.get(host);
-  if (cached != null) return cached;
-
-  // Bloom probe over host + parents. If all bloom probes are negative we can
-  // record `false` without touching the Set.
-  bool maybeMember = bloom.contains(host);
-  if (!maybeMember) {
-    int dot = host.indexOf('.');
-    while (dot >= 0 && dot < host.length - 1) {
-      final parent = host.substring(dot + 1);
-      if (parent.indexOf('.') < 0) break;
-      if (bloom.contains(parent)) {
-        maybeMember = true;
-        break;
-      }
-      dot = host.indexOf('.', dot + 1);
-    }
-  }
-
-  bool result;
-  if (!maybeMember) {
-    result = false;
-  } else {
-    result = _hostBlockedSubstring(host, domains);
-  }
-  cache.put(host, result);
-  return result;
-}
-
 bool _hostBlockedSubstring(String host, Set<String> domains) {
   if (domains.contains(host)) return true;
   int dot = host.indexOf('.');
   while (dot >= 0 && dot < host.length - 1) {
     final parent = host.substring(dot + 1);
-    if (parent.indexOf('.') < 0) break;
+    if (!parent.contains('.')) break;
     if (domains.contains(parent)) return true;
     dot = host.indexOf('.', dot + 1);
   }
@@ -571,22 +531,3 @@ int _zipf(Random random, int n) {
   return idx;
 }
 
-// -----------------------------------------------------------------------------
-// Reporting
-// -----------------------------------------------------------------------------
-
-void _report(String name, Stopwatch sw, int n, int hits, {String? extra}) {
-  final perCallUs = sw.elapsedMicroseconds / n;
-  // ignore: avoid_print
-  print('--- $name ---');
-  // ignore: avoid_print
-  print('  total:    ${sw.elapsedMilliseconds}ms (${sw.elapsedMicroseconds}us)');
-  // ignore: avoid_print
-  print('  per call: ${perCallUs.toStringAsFixed(3)}us');
-  // ignore: avoid_print
-  print('  hits:     $hits / $n');
-  if (extra != null) {
-    // ignore: avoid_print
-    print('  $extra');
-  }
-}

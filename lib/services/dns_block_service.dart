@@ -167,23 +167,42 @@ class DnsBlockService {
 
   void _notifyBlocklistChanged() {
     // Invalidate the merged Bloom since the DNS half changed. The
-    // ContentBlockerService change path invalidates it too.
+    // ContentBlockerService change path invalidates it too. The DNS hot-path
+    // cache is also stale because _blockedDomains itself changed.
     _mergedBloomFilter = null;
+    _dnsBlockCache.clear();
     for (final listener in List<VoidCallback>.from(_blocklistChangedListeners)) {
       listener();
     }
   }
 
-  /// Invalidate the merged Bloom so the next getter rebuilds it. Called by
-  /// ContentBlockerService when its rules change.
+  /// Called by ContentBlockerService when its rule set changes. Invalidates
+  /// the merged Bloom and the merged host-decision cache (which may have
+  /// stale entries: a host previously cached as blocked because of an
+  /// ABP-only rule is no longer blocked, or vice versa). The DNS-only hot
+  /// path cache is unaffected because it depends only on _blockedDomains.
   void invalidateMergedBloom() {
     _mergedBloomFilter = null;
+    // Fire-and-forget; the in-memory clear is synchronous, the prefs delete
+    // happens on the microtask queue and never blocks the caller.
+    _clearDomainCache();
   }
 
-  /// Global per-domain resolver cache: host -> blocked_bool.
+  /// Global per-domain merged-decision cache: host -> blocked_bool.
   /// Shared across all sites since the same tracker/CDN domains appear
-  /// everywhere. Loaded from disk on init, invalidated on blocklist update.
+  /// everywhere. Stores the *merged* (DNS ∪ ABP) decision because that's
+  /// what the iOS JS interceptor needs to skip Dart roundtrips. The native
+  /// Dart [isBlocked] hot path uses [_dnsBlockCache] instead, since reading
+  /// merged decisions there would conflate ABP-only blocks with DNS blocks
+  /// and break per-site `dnsBlockEnabled` gating.
   final Map<String, bool> _domainCache = {};
+
+  /// DNS-only host-decision cache for the [isBlocked] hot path. In-memory
+  /// only — no disk persistence — since the cost of a cold cache after
+  /// startup is modest (a single cheap walk per first-seen host) and
+  /// avoiding the persist debounce keeps [isBlocked] purely synchronous.
+  /// Cleared whenever [_blockedDomains] changes.
+  final Map<String, bool> _dnsBlockCache = {};
 
   static const _domainCacheKey = 'dns_domain_cache';
   static const _maxDomainCacheEntries = 5000;
@@ -191,17 +210,24 @@ class DnsBlockService {
   /// Get the current domain cache (for hydrating new webviews).
   Map<String, bool> getDomainCache() => _domainCache;
 
-  /// Record a confirmed decision for a host. Persists asynchronously.
+  /// Insert (or update) a host->bool entry into the given cache, enforcing
+  /// the [_maxDomainCacheEntries] cap with FIFO eviction. Single point of
+  /// truth for cache writes so the cap can never be bypassed.
+  void _putCappedHostDecision(Map<String, bool> cache, String host, bool blocked) {
+    final present = cache.containsKey(host);
+    if (!present && cache.length >= _maxDomainCacheEntries) {
+      cache.remove(cache.keys.first);
+    }
+    cache[host] = blocked;
+  }
+
+  /// Record a confirmed merged decision for a host. Persists asynchronously.
+  /// Called from [recordRequest] — caller has already merged DNS+ABP signals.
   void recordDomainDecision(String host, bool blocked) {
     if (host.isEmpty) return;
     final prev = _domainCache[host];
     if (prev == blocked) return; // no change, no write
-    _domainCache[host] = blocked;
-    if (_domainCache.length > _maxDomainCacheEntries) {
-      // FIFO trim by deleting the first inserted key
-      final first = _domainCache.keys.first;
-      _domainCache.remove(first);
-    }
+    _putCappedHostDecision(_domainCache, host, blocked);
     _schedulePersistDomainCache();
   }
 
@@ -228,7 +254,12 @@ class DnsBlockService {
       if (raw == null) return;
       final data = jsonDecode(raw) as Map<String, dynamic>;
       _domainCache.clear();
+      // Defensively cap at load time. If a previous version (or a tampered
+      // prefs blob) wrote past _maxDomainCacheEntries, take only the first
+      // cap-many entries and let the rest fall off — better to drop tail
+      // entries than to load an unbounded cache into memory.
       for (final e in data.entries) {
+        if (_domainCache.length >= _maxDomainCacheEntries) break;
         _domainCache[e.key] = e.value as bool;
       }
     } catch (e) {
@@ -236,8 +267,10 @@ class DnsBlockService {
     }
   }
 
-  /// Clear the global domain cache. Called when the blocklist changes
-  /// since cached decisions may no longer be valid.
+  /// Clear the merged domain cache. Called when the DNS blocklist changes,
+  /// when the ABP rule set changes, or when the level is set to Off.
+  /// The DNS-only [_dnsBlockCache] is cleared separately by
+  /// [_notifyBlocklistChanged] since it's only invalidated by DNS changes.
   Future<void> _clearDomainCache() async {
     _domainCache.clear();
     _persistTimer?.cancel();
@@ -423,8 +456,10 @@ class DnsBlockService {
     return false;
   }
 
-  /// Check if a URL should be blocked. Synchronous hot path.
-  /// Extracts host, checks exact match, then walks up domain hierarchy.
+  /// Check if a URL should be blocked by the DNS blocklist. Synchronous
+  /// hot path — called per navigation and (on iOS) per JS-interceptor
+  /// roundtrip. Backed by [_dnsBlockCache] so a domain repeated dozens of
+  /// times within a single page (the common case) only walks once.
   bool isBlocked(String url) {
     if (_blockedDomains.isEmpty) return false;
 
@@ -434,15 +469,28 @@ class DnsBlockService {
     final host = uri.host;
     if (host.isEmpty) return false;
 
-    // Exact match
+    final cached = _dnsBlockCache[host];
+    if (cached != null) return cached;
+
+    final result = _hostIsBlocked(host);
+    _putCappedHostDecision(_dnsBlockCache, host, result);
+    return result;
+  }
+
+  /// Substring-based hierarchy walk. Avoids the per-step `parts.sublist(i)
+  /// .join('.')` allocation pattern of the previous implementation. Same
+  /// matching semantics: exact match, then walk parents until the final
+  /// label (eTLD) — `mytracker.net` is NOT blocked by `tracker.net`.
+  bool _hostIsBlocked(String host) {
     if (_blockedDomains.contains(host)) return true;
-
-    // Walk up domain hierarchy: sub.tracker.net → tracker.net
-    final parts = host.split('.');
-    for (int i = 1; i < parts.length - 1; i++) {
-      if (_blockedDomains.contains(parts.sublist(i).join('.'))) return true;
+    int dot = host.indexOf('.');
+    while (dot >= 0 && dot < host.length - 1) {
+      final parent = host.substring(dot + 1);
+      // Stop at the eTLD level — never check a single-label string like "com".
+      if (!parent.contains('.')) break;
+      if (_blockedDomains.contains(parent)) return true;
+      dot = host.indexOf('.', dot + 1);
     }
-
     return false;
   }
 

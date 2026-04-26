@@ -92,5 +92,48 @@ void main() {
       expect(dnsBlockLevelNames[4], equals('Pro++'));
       expect(dnsBlockLevelNames[5], equals('Ultimate'));
     });
+
+    test('isBlocked() result is invalidated when blocklist reloads', () {
+      // Cache holds true for tracker.net via the first lookup.
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://tracker.net/'), isTrue);
+
+      // Reload with a different list. _notifyBlocklistChanged must clear
+      // the DNS host cache so a stale `true` doesn't survive.
+      service.loadDomainsFromString('other.net');
+      expect(service.isBlocked('https://tracker.net/'), isFalse,
+          reason: 'cache must be cleared when _blockedDomains changes');
+      expect(service.isBlocked('https://other.net/'), isTrue);
+    });
+
+    test('isBlocked() result is invalidated when blocklist clears', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://tracker.net/'), isTrue);
+
+      // Clear: should not still report blocked.
+      service.loadDomainsFromString('');
+      expect(service.isBlocked('https://tracker.net/'), isFalse);
+    });
+
+    test('isBlocked() cache is bounded — many distinct hosts do not blow memory', () {
+      service.loadDomainsFromString('tracker.net');
+      // Hammer the cache with 20K distinct *unblocked* hosts. The cap is
+      // 5000, so the cache must FIFO-evict and never grow past it. We can't
+      // read the private cache, but we can assert the function still
+      // answers correctly under the load and that it stays fast (a runaway
+      // unbounded cache would either OOM or slow to a crawl).
+      final sw = Stopwatch()..start();
+      for (int i = 0; i < 20000; i++) {
+        service.isBlocked('https://host$i.example.test/');
+      }
+      sw.stop();
+      // Generous bound: 20K bounded-cache lookups should finish well under
+      // a second on any machine that runs this test suite.
+      expect(sw.elapsedMilliseconds, lessThan(2000),
+          reason: 'cache eviction path must be O(1)');
+      // Sanity: still answers correctly after the churn.
+      expect(service.isBlocked('https://tracker.net/'), isTrue);
+      expect(service.isBlocked('https://host999999.example.test/'), isFalse);
+    });
   });
 }
