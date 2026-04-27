@@ -8,6 +8,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app may request access to your photo library when uploading files through web pages.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Used only when you tap "Use current location" in the per-site location picker, to fill in your coordinates for the site's spoofed location.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

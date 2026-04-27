@@ -28,6 +28,24 @@ void main() {
       expect(script, isNull);
     });
 
+    test('live mode emits a shim that flips LIVE_LOC and not STATIC_LOC', () {
+      final script = LocationSpoofService.buildScript(
+        locationMode: LocationMode.live,
+        spoofLatitude: null,
+        spoofLongitude: null,
+        spoofAccuracy: 50.0,
+        spoofTimezone: null,
+        webRtcPolicy: WebRtcPolicy.defaultPolicy,
+      );
+      expect(script, isNotNull);
+      // STATIC_LOC must be false — the shim should not embed any static
+      // coords. LIVE_LOC must be true so the JS code path calls back into
+      // Dart for fresh fixes via flutter_inappwebview.callHandler.
+      expect(script, contains('var STATIC_LOC = false'));
+      expect(script, contains('var LIVE_LOC = true'));
+      expect(script, contains("callHandler('getRealLocation')"));
+    });
+
     test('geolocation shim embeds the coordinates', () {
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.spoof,
@@ -38,7 +56,7 @@ void main() {
         webRtcPolicy: WebRtcPolicy.defaultPolicy,
       );
       expect(script, isNotNull);
-      expect(script, contains('var SPOOF_LOC = true'));
+      expect(script, contains('var STATIC_LOC = true'));
       expect(script, contains('var LAT = 35.6762'));
       expect(script, contains('var LNG = 139.6503'));
       expect(script, contains('var ACC = 25.0'));
@@ -46,7 +64,7 @@ void main() {
       expect(script, contains('var WRTC = "default"'));
     });
 
-    test('timezone-only shim still emits script without spoof_loc', () {
+    test('timezone-only shim still emits script without static_loc', () {
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.off,
         spoofLatitude: null,
@@ -56,7 +74,7 @@ void main() {
         webRtcPolicy: WebRtcPolicy.defaultPolicy,
       );
       expect(script, isNotNull);
-      expect(script, contains('var SPOOF_LOC = false'));
+      expect(script, contains('var STATIC_LOC = false'));
       expect(script, contains('var TZ = "Asia/Tokyo"'));
     });
 

@@ -1,8 +1,12 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../services/current_location_service.dart';
 
 /// Full-screen picker for [LocationPickerResult] (lat/lng + accuracy).
 ///
@@ -49,8 +53,20 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   late TextEditingController _accController;
 
   bool _mapLoaded = false;
+  bool _fetchingLocation = false;
   String _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  // Compliant User-Agent per OSM Tile Usage Policy: clearly identifies the
+  // app, includes a contact URL, and avoids the library default. Populated
+  // before the map can mount (see _loadTileUrl).
+  String _tileUserAgent = 'Webspace (+https://github.com/theoden8/webspace_app)';
   final MapController _mapController = MapController();
+  // Held at field scope so the recognizers are only allocated once and
+  // disposed in [dispose]. Building them inline in [_buildMap] would leak on
+  // every rebuild (e.g. when the user types coordinates while the map is up).
+  late final TapGestureRecognizer _osmCopyrightRecognizer = TapGestureRecognizer()
+    ..onTap = () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'));
+  late final TapGestureRecognizer _osmFixmapRecognizer = TapGestureRecognizer()
+    ..onTap = () => launchUrl(Uri.parse('https://www.openstreetmap.org/fixthemap'));
 
   @override
   void initState() {
@@ -70,8 +86,19 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Future<void> _loadTileUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final url = prefs.getString('osmTileUrl') ?? _tileUrl;
+    String ua = _tileUserAgent;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final v = info.version;
+      ua = 'Webspace/$v (+https://github.com/theoden8/webspace_app)';
+    } catch (_) {
+      // Keep the static fallback if PackageInfo is unavailable.
+    }
     if (!mounted) return;
-    setState(() => _tileUrl = url);
+    setState(() {
+      _tileUrl = url;
+      _tileUserAgent = ua;
+    });
   }
 
   @override
@@ -79,6 +106,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _latController.dispose();
     _lngController.dispose();
     _accController.dispose();
+    _osmCopyrightRecognizer.dispose();
+    _osmFixmapRecognizer.dispose();
     super.dispose();
   }
 
@@ -108,6 +137,53 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         // Camera not attached yet — ignore; marker still rebuilds from state.
       }
     }
+  }
+
+  Future<void> _useCurrentLocation() async {
+    if (_fetchingLocation) return;
+    setState(() => _fetchingLocation = true);
+    final res = await CurrentLocationService.getCurrentLocation();
+    if (!mounted) return;
+    setState(() => _fetchingLocation = false);
+    switch (res.status) {
+      case CurrentLocationStatus.ok:
+        final fix = res.fix!;
+        setState(() {
+          _latController.text = fix.latitude.toStringAsFixed(6);
+          _lngController.text = fix.longitude.toStringAsFixed(6);
+          if (fix.accuracy > 0) {
+            _accController.text = fix.accuracy.toStringAsFixed(1);
+          }
+        });
+        if (_mapLoaded) {
+          try {
+            _mapController.move(LatLng(fix.latitude, fix.longitude), 14.0);
+          } catch (_) {}
+        }
+        break;
+      case CurrentLocationStatus.permissionDenied:
+        _showSnack('Location permission was not granted.');
+        break;
+      case CurrentLocationStatus.permissionDeniedForever:
+        _showSnack('Location permission is denied. Enable it in system Settings.');
+        break;
+      case CurrentLocationStatus.serviceDisabled:
+        _showSnack('Location services are disabled on this device.');
+        break;
+      case CurrentLocationStatus.timeout:
+        _showSnack('Could not get a location fix in time. Try again outdoors.');
+        break;
+      case CurrentLocationStatus.unsupported:
+        _showSnack('Current location is not available on this platform.');
+        break;
+      case CurrentLocationStatus.error:
+        _showSnack(res.message ?? 'Failed to get current location.');
+        break;
+    }
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _hostOfTileUrl() {
@@ -210,6 +286,25 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               isDense: true,
             ),
           ),
+          if (CurrentLocationService.isSupported) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                icon: _fetchingLocation
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location),
+                label: Text(_fetchingLocation
+                    ? 'Getting current location…'
+                    : 'Use current location'),
+                onPressed: _fetchingLocation ? null : _useCurrentLocation,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -261,6 +356,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Widget _buildMap() {
     final initial = _currentLatLng() ?? const LatLng(0, 0);
     final initialZoom = _currentLatLng() == null ? 2.0 : 10.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Stack(
       children: [
         FlutterMap(
@@ -274,7 +370,32 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             TileLayer(
               urlTemplate: _tileUrl,
               userAgentPackageName: 'com.webspace.app',
+              tileProvider: NetworkTileProvider(
+                headers: {'User-Agent': _tileUserAgent},
+              ),
               maxZoom: 19,
+              // In dark mode, post-process the standard light cartography
+              // into a dark-friendly version client-side instead of
+              // requiring a separate dark tile server. The matrix below
+              // maps each output channel to the negative luminance of
+              // the input (0.2126·R + 0.7152·G + 0.0722·B), then offsets
+              // by 255 — i.e. light → dark, dark → light, while
+              // preserving relative contrast. Roads, labels, and water
+              // stay readable; the map gets a flat dark-grey aesthetic
+              // that matches Material's dark surfaces.
+              tileBuilder: isDark
+                  ? (context, tileWidget, tile) {
+                      return ColorFiltered(
+                        colorFilter: const ColorFilter.matrix(<double>[
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          0, 0, 0, 1, 0,
+                        ]),
+                        child: tileWidget,
+                      );
+                    }
+                  : null,
             ),
             if (_currentLatLng() != null)
               MarkerLayer(
@@ -293,18 +414,51 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               ),
           ],
         ),
+        // Attribution per OSMF Attribution Guidelines (2021-06-25):
+        // - The word "OpenStreetMap" itself is the link to /copyright (not
+        //   the whole string) and is visually styled as a link.
+        // - 12pt is used for legibility; the guidelines reference WCAG.
+        // - Always visible while the map is loaded (no auto-collapse).
+        // - "Report a map issue" link is recommended by the Tile Usage Policy.
+        // - Surface and text colours adapt to dark theme so the overlay
+        //   stays legible on the dark-filtered tiles below.
         Positioned(
           bottom: 4,
           right: 4,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            color: Colors.white.withValues(alpha: 0.75),
-            child: GestureDetector(
-              onTap: () =>
-                  launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
-              child: const Text(
-                '© OpenStreetMap contributors',
-                style: TextStyle(fontSize: 10, color: Colors.black87),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.85),
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : Colors.black87),
+                children: [
+                  const TextSpan(text: '© '),
+                  TextSpan(
+                    text: 'OpenStreetMap',
+                    style: TextStyle(
+                      // Wikipedia-style link blue on light, lighter cyan
+                      // on dark — both meet WCAG AA on the chosen surface.
+                      color: isDark
+                          ? const Color(0xFF6CA0DC)
+                          : const Color(0xFF0645AD),
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: _osmCopyrightRecognizer,
+                  ),
+                  const TextSpan(text: ' contributors · '),
+                  TextSpan(
+                    text: 'Report a map issue',
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF6CA0DC)
+                          : const Color(0xFF0645AD),
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: _osmFixmapRecognizer,
+                  ),
+                ],
               ),
             ),
           ),

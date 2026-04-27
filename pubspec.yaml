@@ -58,6 +58,10 @@ dependencies:
   material_design_icons_flutter: ^7.0.7296
   flutter_map: ^8.0.0
   latlong2: ^0.9.1
+  # Used to unzip the downloaded timezone-boundary-builder GeoJSON release.
+  # Already a transitive dependency of other packages; promoted to direct
+  # so it has a stable version constraint we control.
+  archive: ^4.0.0
 
 dev_dependencies:
   flutter_test:

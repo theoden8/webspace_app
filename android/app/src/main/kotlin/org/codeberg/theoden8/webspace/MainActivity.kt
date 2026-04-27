@@ -15,6 +15,7 @@ import java.net.URL
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
     private var webInterceptPlugin: WebInterceptPlugin? = null
+    private var locationPlugin: LocationPlugin? = null
 
     override fun getFlutterShellArgs(): FlutterShellArgs {
         val args = FlutterShellArgs.fromIntent(intent)
@@ -31,6 +32,7 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
+        locationPlugin = LocationPlugin(this, flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pinShortcut" -> {
@@ -130,5 +132,16 @@ class MainActivity: FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        if (locationPlugin?.onRequestPermissionsResult(requestCode, permissions, grantResults) == true) {
+            return
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 }
