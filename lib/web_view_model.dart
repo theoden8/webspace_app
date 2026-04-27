@@ -277,7 +277,6 @@ class WebViewModel {
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
-  bool desktopMode; // Request desktop layout (viewport + UA + touch hints) from the webview
   List<UserScriptConfig> userScripts; // Per-site user scripts
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -326,7 +325,6 @@ class WebViewModel {
     this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
     this.fullscreenMode = false,
-    this.desktopMode = false,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
@@ -485,7 +483,6 @@ class WebViewModel {
           userAgent: userAgent.isNotEmpty ? userAgent : null,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
-          desktopMode: desktopMode,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
           clearUrlEnabled: clearUrlEnabled,
           dnsBlockEnabled: dnsBlockEnabled,
@@ -783,7 +780,6 @@ class WebViewModel {
         'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
         'fullscreenMode': fullscreenMode,
-        'desktopMode': desktopMode,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -818,7 +814,6 @@ class WebViewModel {
       localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       fullscreenMode: json['fullscreenMode'] ?? false,
-      desktopMode: json['desktopMode'] ?? false,
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),

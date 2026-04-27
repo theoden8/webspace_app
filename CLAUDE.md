@@ -117,7 +117,6 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | webspaces | Site organization into named collections |
 | webview-hints | Webview theme hints (color-scheme, matchMedia, cache theme prelude) |
 | fullscreen-mode | Full screen mode: hide app bar/tab strip/system UI, per-site auto-fullscreen setting |
-| desktop-mode | Per-site desktop-mode toggle wired to `InAppWebViewSettings.preferredContentMode` |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
 
