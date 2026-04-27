@@ -24,7 +24,6 @@ void main() {
       expect(model.contentBlockEnabled, isTrue);
       expect(model.localCdnEnabled, isTrue);
       expect(model.fullscreenMode, isFalse);
-      expect(model.desktopMode, isFalse);
     });
 
     test('should serialize to JSON correctly', () {
@@ -50,7 +49,6 @@ void main() {
       expect(json['contentBlockEnabled'], equals(true));
       expect(json['localCdnEnabled'], equals(true));
       expect(json['fullscreenMode'], equals(false));
-      expect(json['desktopMode'], equals(false));
       expect(json['cookies'], isList);
       expect(json['proxySettings'], isMap);
     });
@@ -106,7 +104,6 @@ void main() {
       expect(restored.contentBlockEnabled, equals(original.contentBlockEnabled));
       expect(restored.localCdnEnabled, equals(original.localCdnEnabled));
       expect(restored.fullscreenMode, equals(original.fullscreenMode));
-      expect(restored.desktopMode, equals(original.desktopMode));
     });
 
     test('clearUrlEnabled defaults to true when missing from JSON', () {
@@ -247,34 +244,6 @@ void main() {
 
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.fullscreenMode, isTrue);
-    });
-
-    test('desktopMode defaults to false when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.desktopMode, isFalse);
-    });
-
-    test('desktopMode true is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        desktopMode: true,
-      );
-
-      final json = model.toJson();
-      expect(json['desktopMode'], equals(true));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.desktopMode, isTrue);
     });
 
     test('location spoof fields default to off and null', () {

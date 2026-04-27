@@ -244,11 +244,6 @@ class WebViewConfig {
   final String? userAgent;
   final bool thirdPartyCookiesEnabled;
   final bool incognito;
-  /// Request desktop content mode for this site. When true, the webview is
-  /// created with `preferredContentMode: DESKTOP`, which synthesizes a
-  /// desktop UA, a wide viewport, and pointer/touch hints — matching the
-  /// "Request desktop site" behavior of Chrome/Safari.
-  final bool desktopMode;
   /// Language code for Accept-Language header (e.g., 'en', 'es', 'fr').
   /// If null, uses system default.
   final String? language;
@@ -302,7 +297,6 @@ class WebViewConfig {
     this.userAgent,
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
-    this.desktopMode = false,
     this.language,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
@@ -1190,12 +1184,6 @@ class WebViewFactory {
         thirdPartyCookiesEnabled: config.thirdPartyCookiesEnabled,
         incognito: config.incognito,
         textZoom: textZoom,
-        // Desktop mode: flutter_inappwebview maps DESKTOP to iOS
-        // WKWebpagePreferences.preferredContentMode + Android useWideViewPort
-        // + a desktop UA, reproducing Chrome/Safari's "Request desktop site".
-        preferredContentMode: config.desktopMode
-            ? inapp.UserPreferredContentMode.DESKTOP
-            : inapp.UserPreferredContentMode.RECOMMENDED,
         supportZoom: true,
         useShouldOverrideUrlLoading: true,
         // Keep the Dart shouldInterceptRequest callback disabled on Android:
