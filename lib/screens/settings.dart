@@ -420,13 +420,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  /// Build the geolocation row. Three mutually exclusive states:
-  /// - **off**: no custom location, no live tracking. Shows "Pick" and
-  ///   "Live" buttons; tapping either flips into the corresponding state.
-  /// - **spoof**: static custom coords. Shows the coords with edit and
-  ///   clear icons.
-  /// - **live**: real device GPS forwarded through the shim. Shows
-  ///   "Tracking device location" and a button to switch back.
+  /// Build the geolocation section. A SegmentedButton at the top (Off /
+  /// Custom / Live) is always visible so all three modes are reachable
+  /// regardless of current state — the previous trailing-button layout
+  /// hid Live once coords were set, leaving no way to switch from spoof
+  /// to live without clearing coords first.
+  ///
+  /// Below the selector a detail row shows whatever's relevant for the
+  /// active mode: nothing for Off, coords + edit/clear for Custom,
+  /// "tracking device GPS" for Live.
   ///
   /// `locationMode` is derived from this state at save time, not stored
   /// explicitly here. See [_saveSettings].
@@ -442,86 +444,173 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'Off (default): navigator.geolocation is left untouched. Sites '
           'get the platform default (typically denied unless the user '
           'grants permission to the webview).\n\n'
-          'Custom location: navigator.geolocation returns the coordinates '
-          'you supply. Tap "Pick location" to open the picker, where you '
-          'can type coordinates, pick on a map, or use the "Use current '
+          'Custom: navigator.geolocation returns the coordinates you '
+          'supply. Tap "Pick location" to open the picker, where you can '
+          'type coordinates, pick on a map, or use the "Use current '
           'location" button to fill them with your real device GPS once. '
           'The coordinates are then static.\n\n'
-          'Live (device GPS): navigator.geolocation calls back into the '
-          'app on every getCurrentPosition / watchPosition to fetch a '
-          'fresh fix from the platform\'s native location service, so the '
-          'reported position tracks the device as it moves. The shim '
-          'still overrides Geolocation.prototype and hides the patch from '
+          'Live: navigator.geolocation calls back into the app on every '
+          'getCurrentPosition / watchPosition to fetch a fresh fix from '
+          'the platform\'s native location service, so the reported '
+          'position tracks the device as it moves. The shim still '
+          'overrides Geolocation.prototype and hides the patch from '
           'Function.prototype.toString — so timezone override and WebRTC '
           'policy still apply, but the coordinates are real and current.',
     );
 
-    if (_isLiveLocation) {
-      return ListTile(
-        title: Row(
-          children: const [Flexible(child: Text('Geolocation')), hint],
-        ),
-        subtitle: const Text('Live: tracks device GPS via the platform '
-            'location service'),
-        trailing: IconButton(
-          tooltip: 'Disable live tracking',
-          icon: const Icon(Icons.close),
-          onPressed: () => setState(() => _isLiveLocation = false),
-        ),
-      );
+    // Derive the active segment from current state. `Custom` is selected
+    // when there are coords AND we're not in live mode; `Live` is selected
+    // when the live flag is on (regardless of whether stale coords linger
+    // — they're ignored on save in that branch).
+    final _LocationSegment selected = _isLiveLocation
+        ? _LocationSegment.live
+        : (hasCoords ? _LocationSegment.custom : _LocationSegment.off);
+
+    void onSegmentChanged(Set<_LocationSegment> values) {
+      final v = values.first;
+      setState(() {
+        switch (v) {
+          case _LocationSegment.off:
+            _isLiveLocation = false;
+            _latitudeController.clear();
+            _longitudeController.clear();
+            _accuracyController.text = '50';
+            break;
+          case _LocationSegment.custom:
+            _isLiveLocation = false;
+            // If switching from off → custom with no coords yet, open the
+            // picker so the user lands on something useful instead of
+            // an empty selection. From live → custom we keep whatever
+            // coords were last saved (probably none) and the picker is
+            // one tap away on the detail row.
+            if (!hasCoords) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _openLocationPicker();
+              });
+            }
+            break;
+          case _LocationSegment.live:
+            _isLiveLocation = true;
+            break;
+        }
+      });
     }
 
-    if (!hasCoords) {
-      return ListTile(
-        title: Row(
-          children: const [Flexible(child: Text('Geolocation')), hint],
-        ),
-        subtitle: const Text('No custom location set'),
-        trailing: Wrap(
-          spacing: 4,
-          children: [
-            OutlinedButton.icon(
-              icon: const Icon(Icons.map_outlined, size: 18),
-              label: const Text('Pick'),
-              onPressed: _openLocationPicker,
+    final selector = SegmentedButton<_LocationSegment>(
+      segments: const [
+        ButtonSegment(
+            value: _LocationSegment.off,
+            icon: Icon(Icons.location_disabled),
+            label: Text('Off')),
+        ButtonSegment(
+            value: _LocationSegment.custom,
+            icon: Icon(Icons.map_outlined),
+            label: Text('Custom')),
+        ButtonSegment(
+            value: _LocationSegment.live,
+            icon: Icon(Icons.my_location),
+            label: Text('Live')),
+      ],
+      selected: {selected},
+      onSelectionChanged: onSegmentChanged,
+      showSelectedIcon: false,
+    );
+
+    Widget detail;
+    switch (selected) {
+      case _LocationSegment.off:
+        detail = const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Text(
+            'Sites use the webview default (typically denied).',
+            style: TextStyle(fontSize: 12),
+          ),
+        );
+        break;
+      case _LocationSegment.live:
+        detail = const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Text(
+            'Tracks the device\'s real GPS via the platform location '
+            'service. Permission is requested on the first call.',
+            style: TextStyle(fontSize: 12),
+          ),
+        );
+        break;
+      case _LocationSegment.custom:
+        if (hasCoords) {
+          detail = ListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            title: Text(
+              '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}  '
+              '±${acc.toStringAsFixed(0)}m',
             ),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.my_location, size: 18),
-              label: const Text('Live'),
-              onPressed: () => setState(() => _isLiveLocation = true),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Edit location',
+                  icon: const Icon(Icons.edit_location_alt_outlined),
+                  onPressed: _openLocationPicker,
+                ),
+                IconButton(
+                  tooltip: 'Clear custom location',
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() {
+                    _latitudeController.clear();
+                    _longitudeController.clear();
+                    _accuracyController.text = '50';
+                  }),
+                ),
+              ],
             ),
-          ],
-        ),
-      );
+          );
+        } else {
+          detail = Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                const Expanded(child: Text(
+                  'No custom location set',
+                  style: TextStyle(fontSize: 12),
+                )),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.map_outlined, size: 18),
+                  label: const Text('Pick'),
+                  onPressed: _openLocationPicker,
+                ),
+              ],
+            ),
+          );
+        }
+        break;
     }
 
-    return ListTile(
-      title: Row(
-        children: const [Flexible(child: Text('Geolocation')), hint],
-      ),
-      subtitle: Text(
-        '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'
-        '  ±${acc.toStringAsFixed(0)}m',
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: 'Edit location',
-            icon: const Icon(Icons.edit_location_alt_outlined),
-            onPressed: _openLocationPicker,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: const [
+              Text('Geolocation',
+                  style: TextStyle(fontWeight: FontWeight.w500)),
+              hint,
+            ],
           ),
-          IconButton(
-            tooltip: 'Clear custom location',
-            icon: const Icon(Icons.close),
-            onPressed: () => setState(() {
-              _latitudeController.clear();
-              _longitudeController.clear();
-              _accuracyController.text = '50';
-            }),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            // SegmentedButton wants a constrained width; give it the full
+            // row so the three pills don't crowd into a corner on tablets.
+            width: double.infinity,
+            child: selector,
           ),
-        ],
-      ),
+        ),
+        detail,
+      ],
     );
   }
 
@@ -1086,3 +1175,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
+
+/// Three-way segmented control state for the per-site geolocation row.
+/// Maps to LocationMode at save time:
+///   off    -> LocationMode.off     (no shim)
+///   custom -> LocationMode.spoof   (static user-supplied coords)
+///   live   -> LocationMode.live    (real device GPS via the shim's
+///                                   getRealLocation handler)
+enum _LocationSegment { off, custom, live }
+
