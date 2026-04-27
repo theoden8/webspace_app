@@ -356,6 +356,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Widget _buildMap() {
     final initial = _currentLatLng() ?? const LatLng(0, 0);
     final initialZoom = _currentLatLng() == null ? 2.0 : 10.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Stack(
       children: [
         FlutterMap(
@@ -373,6 +374,28 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 headers: {'User-Agent': _tileUserAgent},
               ),
               maxZoom: 19,
+              // In dark mode, post-process the standard light cartography
+              // into a dark-friendly version client-side instead of
+              // requiring a separate dark tile server. The matrix below
+              // maps each output channel to the negative luminance of
+              // the input (0.2126·R + 0.7152·G + 0.0722·B), then offsets
+              // by 255 — i.e. light → dark, dark → light, while
+              // preserving relative contrast. Roads, labels, and water
+              // stay readable; the map gets a flat dark-grey aesthetic
+              // that matches Material's dark surfaces.
+              tileBuilder: isDark
+                  ? (context, tileWidget, tile) {
+                      return ColorFiltered(
+                        colorFilter: const ColorFilter.matrix(<double>[
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          0, 0, 0, 1, 0,
+                        ]),
+                        child: tileWidget,
+                      );
+                    }
+                  : null,
             ),
             if (_currentLatLng() != null)
               MarkerLayer(
@@ -397,21 +420,29 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         // - 12pt is used for legibility; the guidelines reference WCAG.
         // - Always visible while the map is loaded (no auto-collapse).
         // - "Report a map issue" link is recommended by the Tile Usage Policy.
+        // - Surface and text colours adapt to dark theme so the overlay
+        //   stays legible on the dark-filtered tiles below.
         Positioned(
           bottom: 4,
           right: 4,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            color: Colors.white.withValues(alpha: 0.85),
+            color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.85),
             child: Text.rich(
               TextSpan(
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : Colors.black87),
                 children: [
                   const TextSpan(text: '© '),
                   TextSpan(
                     text: 'OpenStreetMap',
-                    style: const TextStyle(
-                      color: Color(0xFF0645AD),
+                    style: TextStyle(
+                      // Wikipedia-style link blue on light, lighter cyan
+                      // on dark — both meet WCAG AA on the chosen surface.
+                      color: isDark
+                          ? const Color(0xFF6CA0DC)
+                          : const Color(0xFF0645AD),
                       decoration: TextDecoration.underline,
                     ),
                     recognizer: _osmCopyrightRecognizer,
@@ -419,8 +450,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   const TextSpan(text: ' contributors · '),
                   TextSpan(
                     text: 'Report a map issue',
-                    style: const TextStyle(
-                      color: Color(0xFF0645AD),
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF6CA0DC)
+                          : const Color(0xFF0645AD),
                       decoration: TextDecoration.underline,
                     ),
                     recognizer: _osmFixmapRecognizer,
