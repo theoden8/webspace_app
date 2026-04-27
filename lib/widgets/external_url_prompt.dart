@@ -11,37 +11,6 @@ import 'package:webspace/widgets/root_messenger.dart';
 /// webview with several intent:// bursts in a row) only surface one dialog.
 bool _isConfirming = false;
 
-/// Suppression window. After the user picks Open in browser / Open in app,
-/// any subsequent intent:// for the same target host+path+package is
-/// silently aborted for this long — the fallback URL we just loaded
-/// almost always re-fires the same intent immediately, and re-prompting
-/// the user is worse than letting them stay on a half-loaded page.
-const Duration _suppressDuration = Duration(seconds: 30);
-
-/// Per-target expiry timestamps. Key returned by [_suppressKey].
-final Map<String, DateTime> _suppressed = {};
-
-String _suppressKey(ExternalUrlInfo info) {
-  final uri = Uri.tryParse(info.url);
-  final hostPath = uri == null ? info.url : '${uri.host}${uri.path}';
-  return '${info.scheme}|$hostPath|${info.package ?? ''}';
-}
-
-bool _isSuppressed(ExternalUrlInfo info) {
-  final key = _suppressKey(info);
-  final expiry = _suppressed[key];
-  if (expiry == null) return false;
-  if (DateTime.now().isAfter(expiry)) {
-    _suppressed.remove(key);
-    return false;
-  }
-  return true;
-}
-
-void _markSuppressed(ExternalUrlInfo info) {
-  _suppressed[_suppressKey(info)] = DateTime.now().add(_suppressDuration);
-}
-
 /// Strips ClearURLs tracking query params from a URL, regardless of scheme,
 /// by reconstructing it as an https URL (which the ClearURLs ruleset
 /// recognizes), running [ClearUrlService.cleanUrl], then putting the
@@ -127,10 +96,10 @@ Future<void> confirmAndLaunchExternalUrl(
   // after we load their browser_fallback_url. Without suppression the
   // user gets re-prompted every redirect and the choice they made a
   // moment ago is meaningless.
-  if (_isSuppressed(info)) {
+  if (ExternalUrlSuppressor.isSuppressedInfo(info)) {
     LogService.instance.log(
       'ExternalUrl',
-      'suppressed (recently handled within ${_suppressDuration.inSeconds}s): ${info.url}',
+      'suppressed (recently handled): ${info.url}',
     );
     return;
   }
@@ -209,16 +178,16 @@ Future<void> confirmAndLaunchExternalUrl(
         LogService.instance.log('ExternalUrl', 'user chose: cancel');
         // Suppress so a script-driven redirect doesn't re-prompt the
         // user a second later for the choice they just declined.
-        _markSuppressed(info);
+        ExternalUrlSuppressor.mark(info);
         return;
       case _ExternalUrlChoice.openInBrowser:
         LogService.instance.log('ExternalUrl', 'user chose: open in browser → $cleanedFallback');
-        _markSuppressed(info);
+        ExternalUrlSuppressor.mark(info);
         await fallbackController!.loadUrl(cleanedFallback);
         return;
       case _ExternalUrlChoice.openInApp:
         LogService.instance.log('ExternalUrl', 'user chose: open in app → $cleanedLaunchUrl');
-        _markSuppressed(info);
+        ExternalUrlSuppressor.mark(info);
         await _launchInApp(cleanedLaunchUrl, cleanedFallback, fallbackController, info.scheme);
         return;
     }

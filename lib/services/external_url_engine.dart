@@ -114,3 +114,53 @@ class ExternalUrlParser {
     );
   }
 }
+
+/// Loop-suppression for external URL prompts. After the user decides what
+/// to do with an intent (open in app / browser / cancel), pages commonly
+/// re-fire the same intent moments later (Google Maps does this every
+/// visit). The suppression list breaks that loop and lets the
+/// `onReceivedError` recovery in `webview.dart` skip reloading a URL the
+/// user already chose to leave alone.
+class ExternalUrlSuppressor {
+  ExternalUrlSuppressor._();
+
+  static final Map<String, DateTime> _suppressed = {};
+
+  static String _keyForInfo(ExternalUrlInfo info) {
+    final uri = Uri.tryParse(info.url);
+    final hostPath = uri == null ? info.url : '${uri.host}${uri.path}';
+    return '${info.scheme}|$hostPath|${info.package ?? ''}';
+  }
+
+  /// Returns true if a suppression entry exists for [info] and hasn't
+  /// expired.
+  static bool isSuppressedInfo(ExternalUrlInfo info) =>
+      _checkExpiry(_keyForInfo(info));
+
+  /// URL-keyed variant — convenience for callers that only have the raw
+  /// URL string (e.g. `onReceivedError` in webview.dart).
+  static bool isSuppressedUrl(String url) {
+    final info = ExternalUrlParser.parse(url);
+    return info == null ? false : isSuppressedInfo(info);
+  }
+
+  static void mark(
+    ExternalUrlInfo info, {
+    Duration duration = const Duration(seconds: 30),
+  }) {
+    _suppressed[_keyForInfo(info)] = DateTime.now().add(duration);
+  }
+
+  static bool _checkExpiry(String key) {
+    final expiry = _suppressed[key];
+    if (expiry == null) return false;
+    if (DateTime.now().isAfter(expiry)) {
+      _suppressed.remove(key);
+      return false;
+    }
+    return true;
+  }
+
+  /// Test hook.
+  static void clear() => _suppressed.clear();
+}

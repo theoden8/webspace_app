@@ -1326,19 +1326,16 @@ class WebViewFactory {
         // app schemes) can't be rendered in a webview — flutter_inappwebview
         // returns ERR_UNKNOWN_URL_SCHEME. Cancel and hand the URL to the
         // host UI, which confirms with the user before calling url_launcher.
-        // We also stopLoading() because returning CANCEL alone doesn't
-        // prevent Android's WebView from painting an ERR_UNKNOWN_URL_SCHEME
-        // error page when the navigation came from a server-side redirect
-        // or a window.location assignment (same root cause the downloads
-        // path mitigates below).
+        // Don't call controller.stopLoading() here — chromium has crashed
+        // with a dangling raw_ptr when stopLoading runs concurrently with
+        // a synchronous CANCEL path. The CANCEL alone aborts the
+        // navigation; if Android still paints ERR_UNKNOWN_URL_SCHEME,
+        // onReceivedError handles recovery.
         final externalInfo = ExternalUrlParser.parse(url);
         if (externalInfo != null) {
           LogService.instance.log('WebView',
               'External scheme intercepted: scheme=${externalInfo.scheme} '
               'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url');
-          try {
-            await controller.stopLoading();
-          } catch (_) {}
           if (config.onExternalSchemeUrl != null) {
             config.onExternalSchemeUrl!(url, externalInfo);
           }
@@ -1543,23 +1540,36 @@ class WebViewFactory {
         // Android's WebView paints an ERR_UNKNOWN_URL_SCHEME page when an
         // intent:// (or other non-internal scheme) navigation slips past
         // shouldOverrideUrlLoading — typically when the URL came from a
-        // server-side redirect or a window.location assignment. Cancelling
-        // the navigation isn't enough; the error commit happens anyway.
-        // Detect main-frame failures whose URL has a non-internal scheme
-        // and reload the last stable URL to clear the error.
+        // server-side redirect or a window.location assignment.
+        // Recovery: reload the last stable URL so the user isn't stuck
+        // on the error page. But ONLY if the URL isn't currently
+        // suppressed — when the user just chose Open in browser/app the
+        // page redirects right back to the same intent on its own load,
+        // and reloading would clobber whatever the fallback rendered.
+        // Defer the loadUrl to a microtask so chromium can finish its
+        // own bookkeeping for this navigation before we issue another;
+        // a previous version called loadUrl synchronously and triggered
+        // a dangling raw_ptr FATAL inside chromium.
         if (request.isForMainFrame != true) return;
         final reqUrl = request.url.toString();
         final externalInfo = ExternalUrlParser.parse(reqUrl);
         if (externalInfo == null) return;
+        if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
+          LogService.instance.log('WebView',
+              'onReceivedError: suppressed, leaving page in place — url=$reqUrl');
+          return;
+        }
         final recovery = lastStableUrl ?? config.initialUrl;
         LogService.instance.log('WebView',
             'onReceivedError: type=${error.type} url=$reqUrl '
-            '— reloading $recovery to clear error page');
-        try {
-          await controller.loadUrl(
-            urlRequest: inapp.URLRequest(url: inapp.WebUri(recovery)),
-          );
-        } catch (_) {}
+            '— scheduling reload of $recovery to clear error page');
+        Future.microtask(() async {
+          try {
+            await controller.loadUrl(
+              urlRequest: inapp.URLRequest(url: inapp.WebUri(recovery)),
+            );
+          } catch (_) {}
+        });
       },
       onDownloadStartRequest: (controller, downloadStartRequest) async {
         // onUrlChanged / onUpdateVisitedHistory has likely already fired
