@@ -640,17 +640,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? _spoofTimezone
             : null);
 
+    // The "From picked location" entry is conceptually a sibling of
+    // "System default" (both auto-derive the timezone instead of taking
+    // an explicit value), so insert it right after the System default
+    // entry rather than at the bottom of the list.
     final items = <DropdownMenuItem<String?>>[];
+    var insertedFromLocation = false;
     for (final e in commonTimezones) {
       items.add(DropdownMenuItem<String?>(
         value: e.key,
         child: Text(_timezoneLabel(e)),
       ));
+      if (!insertedFromLocation && e.key == null) {
+        items.add(DropdownMenuItem<String?>(
+          value: _kFromLocationSentinel,
+          child: Text('From picked location ($preview)'),
+        ));
+        insertedFromLocation = true;
+      }
     }
-    items.add(DropdownMenuItem<String?>(
-      value: _kFromLocationSentinel,
-      child: Text('From picked location ($preview)'),
-    ));
+    // Defensive fallback: if commonTimezones ever loses the System
+    // default entry, still expose the option somewhere.
+    if (!insertedFromLocation) {
+      items.insert(0, DropdownMenuItem<String?>(
+        value: _kFromLocationSentinel,
+        child: Text('From picked location ($preview)'),
+      ));
+    }
 
     return DropdownButtonFormField<String?>(
       value: value,
