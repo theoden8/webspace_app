@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -53,6 +54,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   bool _mapLoaded = false;
   bool _fetchingLocation = false;
   String _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  // Compliant User-Agent per OSM Tile Usage Policy: clearly identifies the
+  // app, includes a contact URL, and avoids the library default. Populated
+  // before the map can mount (see _loadTileUrl).
+  String _tileUserAgent = 'Webspace (+https://github.com/theoden8/webspace_app)';
   final MapController _mapController = MapController();
 
   @override
@@ -73,8 +78,19 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Future<void> _loadTileUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final url = prefs.getString('osmTileUrl') ?? _tileUrl;
+    String ua = _tileUserAgent;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final v = info.version;
+      ua = 'Webspace/$v (+https://github.com/theoden8/webspace_app)';
+    } catch (_) {
+      // Keep the static fallback if PackageInfo is unavailable.
+    }
     if (!mounted) return;
-    setState(() => _tileUrl = url);
+    setState(() {
+      _tileUrl = url;
+      _tileUserAgent = ua;
+    });
   }
 
   @override
@@ -343,6 +359,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             TileLayer(
               urlTemplate: _tileUrl,
               userAgentPackageName: 'com.webspace.app',
+              tileProvider: NetworkTileProvider(
+                headers: {'User-Agent': _tileUserAgent},
+              ),
               maxZoom: 19,
             ),
             if (_currentLatLng() != null)
@@ -368,13 +387,32 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             color: Colors.white.withValues(alpha: 0.75),
-            child: GestureDetector(
-              onTap: () =>
-                  launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
-              child: const Text(
-                '© OpenStreetMap contributors',
-                style: TextStyle(fontSize: 10, color: Colors.black87),
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () => launchUrl(
+                      Uri.parse('https://www.openstreetmap.org/copyright')),
+                  child: const Text(
+                    '© OpenStreetMap contributors',
+                    style: TextStyle(fontSize: 10, color: Colors.black87),
+                  ),
+                ),
+                const Text(' · ',
+                    style: TextStyle(fontSize: 10, color: Colors.black54)),
+                GestureDetector(
+                  onTap: () => launchUrl(
+                      Uri.parse('https://www.openstreetmap.org/fixthemap')),
+                  child: const Text(
+                    'Report a map issue',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.black87,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

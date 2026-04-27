@@ -29,6 +29,8 @@ A single site-level toggle set is therefore required: spoof coordinates, overrid
 
 The system SHALL expose a per-site `locationMode` with two values: `off` (default) and `spoof`. When `spoof`, user-supplied latitude/longitude/accuracy replace the real geolocation.
 
+In the UI the modes SHALL be labeled "Off" and "Custom location" respectively. "Spoof" as a label is avoided because the user-supplied coordinates can be either fake or real (the picker has a "Use current location" button — LOC-008 — that fills the inputs with the device's real GPS fix). The on-disk enum names remain `off` / `spoof` for backward compatibility with existing settings backups.
+
 #### Scenario: Off mode passes through
 
 **Given** site "Acme" has `locationMode = off`
@@ -96,6 +98,15 @@ The system SHALL expose a per-site `spoofTimezone` (IANA name, nullable). When s
 
 **Rationale:** covering `getHours`/`getMinutes`/`getDate`/... requires shifting each call into the target zone, which is invasive and has DST-boundary edge cases. Most fingerprint libraries use `Intl` or `getTimezoneOffset`.
 
+#### Scenario: System default entry shows what it entails
+
+**Given** the per-site settings timezone dropdown is open on a device whose timezone is `Europe/Helsinki` and the wall clock reads `14:32`
+**When** the user inspects the "System default" entry (the `null` option)
+**Then** its label SHALL include the device's timezone name (or abbreviation), the UTC offset, and the current local time, e.g. `"System default (EEST, UTC+03:00, 14:32)"`
+**And** all other timezone entries SHALL be displayed verbatim from `commonTimezones`
+
+This is a UI affordance only — when `spoofTimezone` is `null` the JS shim is not active for timezone, so the device's real timezone is used. The label exists so the user can see what "default" actually means before deciding whether to override.
+
 ---
 
 ### Requirement: LOC-004 - WebRTC policy
@@ -156,6 +167,21 @@ The tile URL used by the picker SHALL come from a global app pref (`osmTileUrl`,
 **Given** the user has opened the app settings and changed "Tile URL" to a self-hosted tile server
 **When** the user later opens the location picker and taps "Load map"
 **Then** tile requests go to the configured server, not to openstreetmap.org
+
+#### Scenario: OSM Tile Usage Policy compliance
+
+When the picker is configured to use the default `tile.openstreetmap.org` URL it SHALL meet the OSM Tile Usage Policy at https://operations.osmfoundation.org/policies/tiles/. Specifically:
+
+**Given** the picker has loaded the map with the default `osmTileUrl`
+**Then** every tile HTTP request SHALL carry a `User-Agent` of the form `Webspace/<version> (+https://github.com/theoden8/webspace_app)` (NOT the flutter_map library default `flutter_map (...)`)
+**And** the request SHALL NOT include `Cache-Control: no-cache` or `Pragma: no-cache`
+**And** the request SHALL go to the canonical `https://tile.openstreetmap.org/{z}/{x}/{y}.png` URL (no other subdomains, no HTTP)
+**And** the visible attribution SHALL show `© OpenStreetMap contributors` linking to https://www.openstreetmap.org/copyright
+**And** a "Report a map issue" link to https://www.openstreetmap.org/fixthemap SHALL be visible on the map view
+**And** the picker SHALL NOT pre-fetch, bulk-download, or offer "save area for offline" features
+**And** the picker SHALL NOT mount the map (issue any tile request) until the user taps "Load map" — the LOC-006 opt-in is preserved
+
+OpenStreetMap data is © OpenStreetMap contributors and licensed under ODbL; the cartography is CC BY-SA 2.0. These are compatible with commercial use as long as attribution is preserved. Tile-server access from `tile.openstreetmap.org` is best-effort and may be withdrawn by the OSMF at any time per their policy; users who require guaranteed availability or offline maps SHALL configure a self-hosted or commercial tile provider via the `osmTileUrl` app pref.
 
 ---
 

@@ -497,6 +497,7 @@ void main() async {
     (['Hagezi DNS Blocklists (domain data)'], 'assets/licenses/hagezi.txt'),
     (['EasyList filter lists (filter data)'], 'assets/licenses/easylist.txt'),
     (['cdnjs (LocalCDN resource data)'], 'assets/licenses/cdnjs.txt'),
+    (['OpenStreetMap (map data and tiles)'], 'assets/licenses/openstreetmap.txt'),
   ];
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {

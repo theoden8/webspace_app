@@ -1,0 +1,37 @@
+OpenStreetMap data and tiles
+============================
+
+Map data is © OpenStreetMap contributors, and is available under the
+Open Database License (ODbL).
+
+  https://www.openstreetmap.org/copyright
+  https://opendatacommons.org/licenses/odbl/
+
+The map cartography (the rendered raster tiles served from
+tile.openstreetmap.org) is licensed under the Creative Commons
+Attribution-ShareAlike 2.0 license (CC BY-SA 2.0).
+
+  https://creativecommons.org/licenses/by-sa/2.0/
+
+Webspace uses tiles from tile.openstreetmap.org as the default base map
+in the per-site location picker. This usage is subject to the
+OpenStreetMap Foundation's Tile Usage Policy:
+
+  https://operations.osmfoundation.org/policies/tiles/
+
+Webspace complies with the policy by:
+- using the canonical HTTPS URL https://tile.openstreetmap.org/{z}/{x}/{y}.png,
+- sending an identifying User-Agent of the form
+  `Webspace/<version> (+https://github.com/theoden8/webspace_app)`,
+- displaying the © OpenStreetMap contributors attribution and a link to
+  https://www.openstreetmap.org/fixthemap on every map view,
+- caching tiles per the platform HTTP cache (no Cache-Control: no-cache),
+- never bulk-downloading or pre-fetching tiles for offline use,
+- not loading any tiles until the user explicitly taps "Load map",
+- allowing the user to swap the tile URL at runtime via App Settings →
+  Location picker.
+
+Tile server access is best-effort and may be withdrawn by the OSMF at
+any time, per their policy. Users who require offline maps or guaranteed
+availability should configure a self-hosted or commercial tile provider
+in App Settings.

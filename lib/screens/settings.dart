@@ -395,6 +395,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  /// Render a timezone dropdown entry. The `null` (System default) entry is
+  /// enriched with the device's current timezone abbreviation/offset and the
+  /// current local time, so the user can see what "default" actually entails.
+  String _timezoneLabel(MapEntry<String?, String> entry) {
+    if (entry.key != null) return entry.value;
+    final now = DateTime.now();
+    final tzName = now.timeZoneName;
+    final offset = now.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final hours = offset.inHours.abs().toString().padLeft(2, '0');
+    final mins = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+    final hh = now.hour.toString().padLeft(2, '0');
+    final mm = now.minute.toString().padLeft(2, '0');
+    return '${entry.value} ($tzName, UTC$sign$hours:$mins, $hh:$mm)';
+  }
+
   List<Widget> _buildLocationSection() {
     return [
       const Padding(
@@ -407,14 +423,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: const [
             Flexible(child: Text('Geolocation')),
             HintButton(
-              title: 'Geolocation spoofing',
+              title: 'Geolocation',
               description:
-                  'Returns user-supplied coordinates from navigator.geolocation. '
-                  'The shim overrides Geolocation.prototype and hides the patch '
-                  'from Function.prototype.toString, so sites cannot trivially '
-                  'detect the spoof. For convincing results, also set a matching '
-                  'timezone and use a proxy in the same country — otherwise the '
-                  'site can cross-check via IP-based geolocation.',
+                  'Off: navigator.geolocation is left untouched. The webview\'s '
+                  'platform default applies.\n\n'
+                  'Custom location: navigator.geolocation returns the coordinates '
+                  'you supply below. Use the "Use current location" button in the '
+                  'picker to fill them with your real device GPS, or type any '
+                  'coordinates to spoof. The shim overrides Geolocation.prototype '
+                  'and hides the patch from Function.prototype.toString so sites '
+                  'cannot trivially detect that it is a shim. For convincing '
+                  'spoofing, also set a matching timezone and use a proxy in the '
+                  'same country — otherwise the site can cross-check via '
+                  'IP-based geolocation.',
             ),
           ],
         ),
@@ -425,9 +446,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           },
           items: const [
             DropdownMenuItem(
-                value: LocationMode.off, child: Text('Off (use real)')),
+                value: LocationMode.off, child: Text('Off')),
             DropdownMenuItem(
-                value: LocationMode.spoof, child: Text('Spoof')),
+                value: LocationMode.spoof, child: Text('Custom location')),
           ],
         ),
       ),
@@ -500,7 +521,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           items: commonTimezones
               .map((e) => DropdownMenuItem<String?>(
                     value: e.key,
-                    child: Text(e.value),
+                    child: Text(_timezoneLabel(e)),
                   ))
               .toList(),
           onChanged: (v) => setState(() => _spoofTimezone = v),
