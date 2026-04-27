@@ -118,7 +118,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
-  late LocationMode _locationMode;
   late TextEditingController _latitudeController;
   late TextEditingController _longitudeController;
   late TextEditingController _accuracyController;
@@ -170,7 +169,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fullscreenMode = widget.webViewModel.fullscreenMode;
     _desktopMode = widget.webViewModel.desktopMode;
     _selectedLanguage = widget.webViewModel.language;
-    _locationMode = widget.webViewModel.locationMode;
+    // locationMode is derived from whether coords are present at save time;
+    // no separate UI state needed (see _buildLocationTile).
     _latitudeController = TextEditingController(
       text: widget.webViewModel.spoofLatitude?.toString() ?? '',
     );
@@ -333,11 +333,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.desktopMode = _desktopMode;
       widget.webViewModel.language = _selectedLanguage;
-      widget.webViewModel.locationMode = _locationMode;
-      widget.webViewModel.spoofLatitude =
-          double.tryParse(_latitudeController.text.trim());
-      widget.webViewModel.spoofLongitude =
-          double.tryParse(_longitudeController.text.trim());
+      // locationMode is derived from whether a custom location is set: if
+      // the user has picked coords, mode is `spoof`; otherwise `off`. The
+      // dropdown UI was replaced with a single Pick/Clear button — see
+      // _buildLocationSection.
+      final lat = double.tryParse(_latitudeController.text.trim());
+      final lng = double.tryParse(_longitudeController.text.trim());
+      widget.webViewModel.spoofLatitude = lat;
+      widget.webViewModel.spoofLongitude = lng;
+      widget.webViewModel.locationMode =
+          (lat != null && lng != null) ? LocationMode.spoof : LocationMode.off;
       final accuracy = double.tryParse(_accuracyController.text.trim());
       if (accuracy != null && accuracy > 0) {
         widget.webViewModel.spoofAccuracy = accuracy;
@@ -395,6 +400,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  /// Build the geolocation row. With no custom location set, shows a single
+  /// "Pick location" button. When set, shows the picked coordinates with
+  /// edit and clear actions. Picking flips `locationMode` to `spoof`;
+  /// clearing flips it back to `off`. The mode dropdown was removed because
+  /// the user cannot meaningfully be in "spoof" mode without coordinates,
+  /// and "off + coords" was never a valid combination.
+  Widget _buildLocationTile() {
+    final lat = double.tryParse(_latitudeController.text.trim());
+    final lng = double.tryParse(_longitudeController.text.trim());
+    final hasCoords = lat != null && lng != null;
+    final acc = double.tryParse(_accuracyController.text.trim()) ?? 50.0;
+
+    const hint = HintButton(
+      title: 'Geolocation',
+      description:
+          'When no custom location is set, navigator.geolocation is left '
+          'untouched. Sites get the platform default (typically denied unless '
+          'the user grants permission to the webview).\n\n'
+          'When a custom location is set, navigator.geolocation returns those '
+          'coordinates. Tap "Pick location" to open the picker, where you can '
+          'type coordinates, pick on a map, or use the "Use current location" '
+          'button to fill them with your real device GPS. The shim overrides '
+          'Geolocation.prototype and hides the patch from '
+          'Function.prototype.toString so sites cannot trivially detect that '
+          'it is a shim. For convincing spoofing, also set a matching '
+          'timezone and use a proxy in the same country — otherwise the site '
+          'can cross-check via IP-based geolocation.',
+    );
+
+    if (!hasCoords) {
+      return ListTile(
+        title: Row(
+          children: const [Flexible(child: Text('Geolocation')), hint],
+        ),
+        subtitle: const Text('No custom location set'),
+        trailing: OutlinedButton.icon(
+          icon: const Icon(Icons.map_outlined),
+          label: const Text('Pick location'),
+          onPressed: _openLocationPicker,
+        ),
+      );
+    }
+
+    return ListTile(
+      title: Row(
+        children: const [Flexible(child: Text('Geolocation')), hint],
+      ),
+      subtitle: Text(
+        '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'
+        '  ±${acc.toStringAsFixed(0)}m',
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Edit location',
+            icon: const Icon(Icons.edit_location_alt_outlined),
+            onPressed: _openLocationPicker,
+          ),
+          IconButton(
+            tooltip: 'Clear custom location',
+            icon: const Icon(Icons.close),
+            onPressed: () => setState(() {
+              _latitudeController.clear();
+              _longitudeController.clear();
+              _accuracyController.text = '50';
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Render a timezone dropdown entry. The `null` (System default) entry is
   /// enriched with the device's current timezone abbreviation/offset and the
   /// current local time, so the user can see what "default" actually entails.
@@ -418,95 +496,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Text('Location & timezone',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
       ),
-      ListTile(
-        title: Row(
-          children: const [
-            Flexible(child: Text('Geolocation')),
-            HintButton(
-              title: 'Geolocation',
-              description:
-                  'Off: navigator.geolocation is left untouched. The webview\'s '
-                  'platform default applies.\n\n'
-                  'Custom location: navigator.geolocation returns the coordinates '
-                  'you supply below. Use the "Use current location" button in the '
-                  'picker to fill them with your real device GPS, or type any '
-                  'coordinates to spoof. The shim overrides Geolocation.prototype '
-                  'and hides the patch from Function.prototype.toString so sites '
-                  'cannot trivially detect that it is a shim. For convincing '
-                  'spoofing, also set a matching timezone and use a proxy in the '
-                  'same country — otherwise the site can cross-check via '
-                  'IP-based geolocation.',
-            ),
-          ],
-        ),
-        trailing: DropdownButton<LocationMode>(
-          value: _locationMode,
-          onChanged: (v) {
-            if (v != null) setState(() => _locationMode = v);
-          },
-          items: const [
-            DropdownMenuItem(
-                value: LocationMode.off, child: Text('Off')),
-            DropdownMenuItem(
-                value: LocationMode.spoof, child: Text('Custom location')),
-          ],
-        ),
-      ),
-      if (_locationMode == LocationMode.spoof) ...[
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _latitudeController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      signed: true, decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Latitude',
-                    hintText: 'e.g. 35.6762',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  controller: _longitudeController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      signed: true, decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Longitude',
-                    hintText: 'e.g. 139.6503',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-          child: TextFormField(
-            controller: _accuracyController,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Accuracy (meters)',
-              hintText: '50',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-          child: OutlinedButton.icon(
-            icon: const Icon(Icons.map_outlined),
-            label: const Text('Pick on map'),
-            onPressed: _openLocationPicker,
-          ),
-        ),
-      ],
+      _buildLocationTile(),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: DropdownButtonFormField<String?>(

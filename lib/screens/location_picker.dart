@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -59,6 +60,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   // before the map can mount (see _loadTileUrl).
   String _tileUserAgent = 'Webspace (+https://github.com/theoden8/webspace_app)';
   final MapController _mapController = MapController();
+  // Held at field scope so the recognizers are only allocated once and
+  // disposed in [dispose]. Building them inline in [_buildMap] would leak on
+  // every rebuild (e.g. when the user types coordinates while the map is up).
+  late final TapGestureRecognizer _osmCopyrightRecognizer = TapGestureRecognizer()
+    ..onTap = () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'));
+  late final TapGestureRecognizer _osmFixmapRecognizer = TapGestureRecognizer()
+    ..onTap = () => launchUrl(Uri.parse('https://www.openstreetmap.org/fixthemap'));
 
   @override
   void initState() {
@@ -98,6 +106,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _latController.dispose();
     _lngController.dispose();
     _accController.dispose();
+    _osmCopyrightRecognizer.dispose();
+    _osmFixmapRecognizer.dispose();
     super.dispose();
   }
 
@@ -381,38 +391,42 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               ),
           ],
         ),
+        // Attribution per OSMF Attribution Guidelines (2021-06-25):
+        // - The word "OpenStreetMap" itself is the link to /copyright (not
+        //   the whole string) and is visually styled as a link.
+        // - 12pt is used for legibility; the guidelines reference WCAG.
+        // - Always visible while the map is loaded (no auto-collapse).
+        // - "Report a map issue" link is recommended by the Tile Usage Policy.
         Positioned(
           bottom: 4,
           right: 4,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            color: Colors.white.withValues(alpha: 0.75),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: () => launchUrl(
-                      Uri.parse('https://www.openstreetmap.org/copyright')),
-                  child: const Text(
-                    '© OpenStreetMap contributors',
-                    style: TextStyle(fontSize: 10, color: Colors.black87),
-                  ),
-                ),
-                const Text(' · ',
-                    style: TextStyle(fontSize: 10, color: Colors.black54)),
-                GestureDetector(
-                  onTap: () => launchUrl(
-                      Uri.parse('https://www.openstreetmap.org/fixthemap')),
-                  child: const Text(
-                    'Report a map issue',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.black87,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            color: Colors.white.withValues(alpha: 0.85),
+            child: Text.rich(
+              TextSpan(
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+                children: [
+                  const TextSpan(text: '© '),
+                  TextSpan(
+                    text: 'OpenStreetMap',
+                    style: const TextStyle(
+                      color: Color(0xFF0645AD),
                       decoration: TextDecoration.underline,
                     ),
+                    recognizer: _osmCopyrightRecognizer,
                   ),
-                ),
-              ],
+                  const TextSpan(text: ' contributors · '),
+                  TextSpan(
+                    text: 'Report a map issue',
+                    style: const TextStyle(
+                      color: Color(0xFF0645AD),
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: _osmFixmapRecognizer,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

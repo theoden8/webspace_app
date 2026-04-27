@@ -29,7 +29,34 @@ A single site-level toggle set is therefore required: spoof coordinates, overrid
 
 The system SHALL expose a per-site `locationMode` with two values: `off` (default) and `spoof`. When `spoof`, user-supplied latitude/longitude/accuracy replace the real geolocation.
 
-In the UI the modes SHALL be labeled "Off" and "Custom location" respectively. "Spoof" as a label is avoided because the user-supplied coordinates can be either fake or real (the picker has a "Use current location" button — LOC-008 — that fills the inputs with the device's real GPS fix). The on-disk enum names remain `off` / `spoof` for backward compatibility with existing settings backups.
+The UI SHALL NOT expose the mode as a separate dropdown. Instead, the per-site settings screen SHALL render a single "Pick location" affordance:
+
+- When no coordinates are stored, a single button labeled "Pick location" is shown alongside the subtitle "No custom location set". Tapping it opens the picker (LOC-006).
+- When coordinates are stored, the row shows the coordinates and accuracy as the subtitle, plus an edit-icon button (re-opens the picker) and a clear-icon button (unsets the coordinates).
+
+`locationMode` is derived at save time: if both `spoofLatitude` and `spoofLongitude` are non-null, the mode is `spoof`; otherwise `off`. This keeps the on-disk model unchanged for backward compatibility, and removes the user-facing concept of "mode" entirely — the user only thinks in terms of "I have a custom location set" or "I don't".
+
+#### Scenario: No location set shows Pick affordance
+
+**Given** site "Acme" has `locationMode = off` and no `spoofLatitude` / `spoofLongitude`
+**When** the user opens per-site settings for Acme
+**Then** the Geolocation row shows the subtitle "No custom location set"
+**And** a single "Pick location" button is visible
+**And** no latitude/longitude/accuracy fields are shown
+
+#### Scenario: Picking a location flips mode to spoof
+
+**Given** the user has tapped "Pick location" and chosen 35.6762, 139.6503 with accuracy 50 in the picker
+**When** the picker returns and the user saves the per-site settings
+**Then** the persisted state is `locationMode = spoof`, `spoofLatitude = 35.6762`, `spoofLongitude = 139.6503`, `spoofAccuracy = 50`
+**And** subsequent `navigator.geolocation.getCurrentPosition` calls from Acme return those coordinates
+
+#### Scenario: Clearing a location flips mode to off
+
+**Given** site "Acme" has `locationMode = spoof`, `spoofLatitude = 35.6762`, `spoofLongitude = 139.6503`
+**When** the user opens per-site settings, taps the clear (✕) icon next to the coordinates, and saves
+**Then** the persisted state is `locationMode = off` and the latitude/longitude are null
+**And** subsequent `navigator.geolocation.getCurrentPosition` calls from Acme return whatever the platform's webview default does (no shim)
 
 #### Scenario: Off mode passes through
 
@@ -168,18 +195,30 @@ The tile URL used by the picker SHALL come from a global app pref (`osmTileUrl`,
 **When** the user later opens the location picker and taps "Load map"
 **Then** tile requests go to the configured server, not to openstreetmap.org
 
-#### Scenario: OSM Tile Usage Policy compliance
+#### Scenario: OSM Tile Usage Policy and Attribution Guidelines compliance
 
-When the picker is configured to use the default `tile.openstreetmap.org` URL it SHALL meet the OSM Tile Usage Policy at https://operations.osmfoundation.org/policies/tiles/. Specifically:
+When the picker is configured to use the default `tile.openstreetmap.org` URL it SHALL meet the OSM Tile Usage Policy (https://operations.osmfoundation.org/policies/tiles/) and the OSMF Attribution Guidelines (adopted 2021-06-25). Specifically:
+
+**Tile requests:**
 
 **Given** the picker has loaded the map with the default `osmTileUrl`
 **Then** every tile HTTP request SHALL carry a `User-Agent` of the form `Webspace/<version> (+https://github.com/theoden8/webspace_app)` (NOT the flutter_map library default `flutter_map (...)`)
 **And** the request SHALL NOT include `Cache-Control: no-cache` or `Pragma: no-cache`
 **And** the request SHALL go to the canonical `https://tile.openstreetmap.org/{z}/{x}/{y}.png` URL (no other subdomains, no HTTP)
-**And** the visible attribution SHALL show `© OpenStreetMap contributors` linking to https://www.openstreetmap.org/copyright
-**And** a "Report a map issue" link to https://www.openstreetmap.org/fixthemap SHALL be visible on the map view
 **And** the picker SHALL NOT pre-fetch, bulk-download, or offer "save area for offline" features
 **And** the picker SHALL NOT mount the map (issue any tile request) until the user taps "Load map" — the LOC-006 opt-in is preserved
+
+**Attribution (Attribution Guidelines):**
+
+**And** the attribution overlay SHALL be visible on every map view, in a corner, without requiring the user to interact with the map
+**And** the text SHALL include the word `OpenStreetMap` styled visibly as a hyperlink (underlined and link-coloured), with the link target https://www.openstreetmap.org/copyright (acceptable historical form: `© OpenStreetMap contributors`)
+**And** the link SHALL be the word `OpenStreetMap` itself, not just the surrounding `©` glyph or the entire string (per the Attribution Guidelines, "by making the text 'OpenStreetMap' a link to openstreetmap.org/copyright")
+**And** the font size SHALL be at least 12 points and contrast with its background to meet WCAG legibility expectations (the guidelines reference WCAG)
+**And** a "Report a map issue" link to https://www.openstreetmap.org/fixthemap SHALL be visible adjacent to the attribution
+
+**License documentation:**
+
+**And** the in-app License screen SHALL include an entry titled "OpenStreetMap (map data and tiles)" explaining the ODbL (data) / CC BY-SA 2.0 (cartography) split, commercial-use compatibility, and the policy commitments above
 
 OpenStreetMap data is © OpenStreetMap contributors and licensed under ODbL; the cartography is CC BY-SA 2.0. These are compatible with commercial use as long as attribution is preserved. Tile-server access from `tile.openstreetmap.org` is best-effort and may be withdrawn by the OSMF at any time per their policy; users who require guaranteed availability or offline maps SHALL configure a self-hosted or commercial tile provider via the `osmTileUrl` app pref.
 
