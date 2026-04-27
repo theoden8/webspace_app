@@ -144,18 +144,33 @@ class TimezoneLocationService {
 
       String body;
       if (url.toLowerCase().endsWith('.zip')) {
-        // tb_builder publishes zipped GeoJSON. Pull out the first .geojson
-        // entry — releases contain exactly one.
+        // timezone-boundary-builder release zips name the inner file
+        // `combined-now.json` (or `combined.json`, `combined-with-oceans.json`)
+        // — not `.geojson` — even though the *zip* is `*.geojson.zip`.
+        // Accept either extension; fall back to the largest JSON-ish file
+        // if neither is present so the dataset doesn't fail to load when a
+        // future release renames things.
         final archive = ZipDecoder().decodeBytes(response.bodyBytes);
         ArchiveFile? gj;
+        ArchiveFile? largestJson;
+        var largestSize = 0;
         for (final f in archive.files) {
-          if (f.isFile && f.name.toLowerCase().endsWith('.geojson')) {
+          if (!f.isFile) continue;
+          final n = f.name.toLowerCase();
+          if (n.endsWith('.geojson')) {
             gj = f;
             break;
           }
+          if (n.endsWith('.json') && f.size > largestSize) {
+            largestJson = f;
+            largestSize = f.size;
+          }
         }
+        gj ??= largestJson;
         if (gj == null) {
-          LogService.instance.log('TZ', 'Zip contains no .geojson file',
+          LogService.instance.log('TZ',
+              'Zip contains no .geojson or .json file (entries: '
+              '${archive.files.where((f) => f.isFile).map((f) => f.name).join(", ")})',
               level: LogLevel.error);
           return false;
         }
