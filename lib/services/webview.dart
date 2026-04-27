@@ -9,7 +9,9 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
@@ -291,6 +293,12 @@ class WebViewConfig {
   /// IANA timezone name reported via [Intl.DateTimeFormat] and
   /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone.
   final String? spoofTimezone;
+  /// When true, the effective spoof timezone is derived from
+  /// (spoofLatitude, spoofLongitude) at shim build time using
+  /// [TimezoneLocationService]. Mutually exclusive with [spoofTimezone];
+  /// if the polygon dataset is absent or the lookup misses, this falls
+  /// through to no-timezone-spoof.
+  final bool spoofTimezoneFromLocation;
   /// WebRTC policy — prevents real-IP leak that bypasses HTTP(S)/SOCKS proxies.
   final WebRtcPolicy webRtcPolicy;
 
@@ -324,6 +332,7 @@ class WebViewConfig {
     this.spoofLongitude,
     this.spoofAccuracy = 50.0,
     this.spoofTimezone,
+    this.spoofTimezoneFromLocation = false,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
   });
 }
@@ -829,6 +838,20 @@ class WebViewFactory {
       ));
     }
 
+    // Resolve the effective spoof timezone. If the user picked
+    // "From picked location" AND the polygon dataset is loaded AND there
+    // are coordinates, look up the IANA zone here so the JS shim sees a
+    // concrete value. If the dataset is missing or the lookup misses
+    // (e.g. open ocean in the no-oceans dataset), fall through to
+    // no-timezone-spoof rather than failing the whole shim.
+    String? effectiveSpoofTimezone = config.spoofTimezone;
+    if (config.spoofTimezoneFromLocation &&
+        config.spoofLatitude != null &&
+        config.spoofLongitude != null) {
+      effectiveSpoofTimezone = TimezoneLocationService.instance
+          .lookup(config.spoofLatitude!, config.spoofLongitude!);
+    }
+
     // Location / timezone / WebRTC shim — must run FIRST so overrides are
     // in place before any site script can capture the unpatched references.
     final locationShim = LocationSpoofService.buildScript(
@@ -836,7 +859,7 @@ class WebViewFactory {
       spoofLatitude: config.spoofLatitude,
       spoofLongitude: config.spoofLongitude,
       spoofAccuracy: config.spoofAccuracy,
-      spoofTimezone: config.spoofTimezone,
+      spoofTimezone: effectiveSpoofTimezone,
       webRtcPolicy: config.webRtcPolicy,
     );
     if (locationShim != null) {
@@ -1233,6 +1256,32 @@ class WebViewFactory {
       onWebViewCreated: (controller) async {
         final wrappedController = _WebViewController(controller);
         onControllerCreated(wrappedController);
+        // Live geolocation: forward navigator.geolocation calls from the
+        // shim into the platform's native location service. Permission is
+        // requested by the native plugin only when this handler is first
+        // invoked — i.e. only when the page actually calls
+        // getCurrentPosition / watchPosition. The handler returns a
+        // serialisable map matching CurrentLocationService's JSON shape.
+        if (config.locationMode == LocationMode.live) {
+          controller.addJavaScriptHandler(
+            handlerName: 'getRealLocation',
+            callback: (args) async {
+              final res = await CurrentLocationService.getCurrentLocation();
+              if (res.status == CurrentLocationStatus.ok && res.fix != null) {
+                return {
+                  'status': 'ok',
+                  'latitude': res.fix!.latitude,
+                  'longitude': res.fix!.longitude,
+                  'accuracy': res.fix!.accuracy,
+                };
+              }
+              return {
+                'status': res.status.name,
+                'message': res.message ?? 'unknown',
+              };
+            },
+          );
+        }
         // Register ClearURLs handler for clipboard/share URL cleaning
         if (config.clearUrlEnabled) {
           controller.addJavaScriptHandler(handlerName: 'clearUrl', callback: (args) {

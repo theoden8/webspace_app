@@ -1,7 +1,14 @@
-/// Per-site geolocation mode. [off] leaves the Geolocation API untouched.
-/// [spoof] replaces `navigator.geolocation` with a shim that returns
-/// user-supplied coordinates.
-enum LocationMode { off, spoof }
+/// Per-site geolocation mode.
+/// - [off]: leaves the Geolocation API untouched (webview platform default).
+/// - [spoof]: replaces `navigator.geolocation` with a shim that returns
+///   user-supplied static coordinates with ~2 m jitter.
+/// - [live]: replaces `navigator.geolocation` with a shim that calls back
+///   into Dart on every `getCurrentPosition`/`watchPosition` to fetch a
+///   fresh fix from the platform's native location service. Same shim
+///   structure as `spoof` (so timezone override / WebRTC policy / sites'
+///   detection routes still apply), but the coordinates are real and
+///   change as the device moves.
+enum LocationMode { off, spoof, live }
 
 /// Per-site WebRTC policy. HTTP(S)/SOCKS5 proxies only tunnel TCP — WebRTC
 /// UDP candidates leak the real client IP even with proxy enabled. This

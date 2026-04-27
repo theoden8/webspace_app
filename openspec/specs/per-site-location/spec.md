@@ -27,14 +27,26 @@ A single site-level toggle set is therefore required: spoof coordinates, overrid
 
 ### Requirement: LOC-001 - Per-site location mode
 
-The system SHALL expose a per-site `locationMode` with two values: `off` (default) and `spoof`. When `spoof`, user-supplied latitude/longitude/accuracy replace the real geolocation.
+The system SHALL expose a per-site `locationMode` with three values:
 
-The UI SHALL NOT expose the mode as a separate dropdown. Instead, the per-site settings screen SHALL render a single "Pick location" affordance:
+- `off` (default): the JS shim does not touch `navigator.geolocation`. The webview's platform default applies.
+- `spoof`: the shim replaces `navigator.geolocation` with a static-coordinates path that returns the user-supplied `spoofLatitude` / `spoofLongitude` / `spoofAccuracy` (with sub-meter jitter so `watchPosition` doesn't return byte-identical frames).
+- `live`: the shim replaces `navigator.geolocation` with a callback path that, on every `getCurrentPosition` / `watchPosition` tick, asks the Dart side for a fresh fix from the platform's native location service (Android `LocationManager`, iOS `CLLocationManager`) and returns those real coordinates. `watchPosition` polls every 5 s.
 
-- When no coordinates are stored, a single button labeled "Pick location" is shown alongside the subtitle "No custom location set". Tapping it opens the picker (LOC-006).
-- When coordinates are stored, the row shows the coordinates and accuracy as the subtitle, plus an edit-icon button (re-opens the picker) and a clear-icon button (unsets the coordinates).
+In all three modes, `spoofTimezone` and `webRtcPolicy` apply independently — `live` does NOT bypass the timezone override or WebRTC policy. The on-disk values are `off` / `spoof` / `live`; existing settings backups round-trip without migration (older backups without a value default to `off`).
 
-`locationMode` is derived at save time: if both `spoofLatitude` and `spoofLongitude` are non-null, the mode is `spoof`; otherwise `off`. This keeps the on-disk model unchanged for backward compatibility, and removes the user-facing concept of "mode" entirely — the user only thinks in terms of "I have a custom location set" or "I don't".
+The UI SHALL NOT expose the mode as a separate dropdown. Instead, the per-site settings screen SHALL render a state-aware geolocation row with three states:
+
+- **Off** (no custom coords, live disabled): subtitle "No custom location set" with two buttons — "Pick" (opens the picker → flips to spoof) and "Live" (flips to live).
+- **Spoof** (custom coords): subtitle shows the coordinates and accuracy, with an edit-icon button (re-opens the picker) and a clear-icon button (flips to off).
+- **Live** (live tracking): subtitle "Live: tracks device GPS via the platform location service", with a clear button that flips back to off.
+
+`locationMode` is derived at save time:
+- if the user is in the live state → `live`,
+- else if both `spoofLatitude` and `spoofLongitude` are non-null → `spoof`,
+- else → `off`.
+
+The user-facing concept of "mode" is removed — the user thinks in terms of "I have a custom location", "I'm tracking my real one", or "I don't have anything set".
 
 #### Scenario: No location set shows Pick affordance
 
@@ -98,6 +110,46 @@ The spoof SHALL resist trivial detection by:
 
 ---
 
+### Requirement: LOC-009 - Live device location passthrough
+
+When `locationMode = live`, the JS shim SHALL forward `navigator.geolocation.getCurrentPosition` and `navigator.geolocation.watchPosition` calls to the platform's native location service via a `flutter_inappwebview` JavaScript handler named `getRealLocation`. Each call returns a fresh fix; coordinates change as the device moves. The same shim hardening as `spoof` mode applies (prototype overrides, toString native reporting, Permissions API → granted).
+
+The shim variable controlling the static-coordinates path SHALL be named `STATIC_LOC` (not `SPOOF_LOC`) for clarity, since both `spoof` and `live` are technically "spoofs" of `navigator.geolocation` — `STATIC_LOC` specifically gates the path that returns hardcoded coords.
+
+The Dart-side handler for `getRealLocation` SHALL be registered in `webview.dart`'s `onWebViewCreated` only when `config.locationMode == LocationMode.live`. The handler delegates to `CurrentLocationService.getCurrentLocation()` (Android `LocationManager` / iOS `CLLocationManager`, no Google Play Services). The platform permission prompt fires the first time the page actually calls `getCurrentPosition` — not at app launch, not at site activation.
+
+`watchPosition` SHALL poll every 5 s in live mode and stop when the page calls `clearWatch`. `options.maximumAge` and similar are ignored — the cadence is fixed by the shim, not exposed to pages.
+
+#### Scenario: getCurrentPosition returns a real fix
+
+**Given** site "Acme" has `locationMode = live`
+**When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
+**Then** the platform permission prompt appears (first call only)
+**And** if the user grants permission, `cb` is invoked with the device's current coordinates from the native location service
+**And** the Position object has `coords.latitude`/`coords.longitude` matching the device GPS within accuracy
+
+#### Scenario: watchPosition tracks movement
+
+**Given** site "Acme" has `locationMode = live` and the user has granted permission
+**When** the site calls `navigator.geolocation.watchPosition(cb)` and the device moves between fixes
+**Then** `cb` is invoked at least every 5 s with the latest fix
+**And** `cb` continues firing until the site calls `clearWatch(id)`
+
+#### Scenario: Permission denied surfaces a GeolocationPositionError
+
+**Given** site "Acme" has `locationMode = live`
+**When** the site calls `getCurrentPosition(success, error)` and the user denies the permission prompt
+**Then** the `error` callback is invoked with a `GeolocationPositionError`-shaped object whose `code` is `1` (PERMISSION_DENIED)
+
+#### Scenario: Timezone and WebRTC apply independently
+
+**Given** site "Acme" has `locationMode = live`, `spoofTimezone = 'Asia/Tokyo'`, `webRtcPolicy = disabled`
+**When** the site reads `Intl.DateTimeFormat().resolvedOptions().timeZone` and constructs a new `RTCPeerConnection`
+**Then** `Intl` reports `'Asia/Tokyo'` (the timezone override is unaffected by live mode)
+**And** `RTCPeerConnection` is neutered per the policy
+
+---
+
 ### Requirement: LOC-003 - Timezone override
 
 The system SHALL expose a per-site `spoofTimezone` (IANA name, nullable). When set, it SHALL override:
@@ -133,6 +185,51 @@ The system SHALL expose a per-site `spoofTimezone` (IANA name, nullable). When s
 **And** all other timezone entries SHALL be displayed verbatim from `commonTimezones`
 
 This is a UI affordance only — when `spoofTimezone` is `null` the JS shim is not active for timezone, so the device's real timezone is used. The label exists so the user can see what "default" actually means before deciding whether to override.
+
+---
+
+### Requirement: LOC-010 - Timezone from picked location
+
+The per-site model SHALL expose a boolean field `spoofTimezoneFromLocation`. When true AND coordinates are set AND a polygon dataset is loaded, the effective spoof timezone is the IANA zone whose polygon contains `(spoofLatitude, spoofLongitude)`. `spoofTimezone` is ignored in that case (the two fields are mutually exclusive in the UI).
+
+If the polygon dataset is absent, or the coordinates fall in a region not covered by the dataset (e.g. open ocean in the no-oceans variant), the lookup SHALL fall through to no-timezone-spoof (system default) rather than failing the whole shim. The lookup happens once at shim build time in `webview.dart`, not on every JS call, so a slow polygon test does not affect page perf after the initial page load.
+
+The polygon dataset SHALL be downloadable on demand via App Settings → Location picker → "Timezone polygons" → Download. Default source is the `evansiroky/timezone-boundary-builder` GitHub release (zipped GeoJSON, ~7–15 MB compressed). The download URL is user-configurable so users can swap in a smaller community dataset, a self-hosted mirror, or a pre-extracted GeoJSON file. The dataset is not bundled with the app — it is opt-in. The state (loaded zone count, last-updated timestamp, configured URL) round-trips across app launches in app private storage.
+
+The per-site Timezone dropdown SHALL include a "From picked location" entry. The entry's label SHALL preview what the lookup would resolve to right now (the IANA zone for the current coords, or a hint indicating which prerequisite is missing — "Download polygon dataset in App Settings" / "Pick a location first").
+
+#### Scenario: Dataset not downloaded
+
+**Given** the user has not yet downloaded the polygon dataset
+**When** the user opens per-site settings and inspects the Timezone dropdown
+**Then** the "From picked location" entry SHALL be present but its label SHALL include "Download polygon dataset in App Settings"
+
+#### Scenario: Dataset downloaded, no coords picked
+
+**Given** the user has downloaded the dataset but the site has no `spoofLatitude` / `spoofLongitude`
+**When** the user opens the dropdown
+**Then** the "From picked location" entry SHALL include "Pick a location first"
+
+#### Scenario: Dataset downloaded and coords set
+
+**Given** the user has downloaded the dataset and picked coordinates inside a covered zone (e.g. 35.6762, 139.6503)
+**When** the user opens the dropdown
+**Then** the "From picked location" entry SHALL include the resolved zone in parentheses (e.g. "From picked location (Asia/Tokyo)")
+**And** selecting it SHALL set `spoofTimezoneFromLocation = true` and `spoofTimezone = null`
+
+#### Scenario: Lookup miss falls through
+
+**Given** `spoofTimezoneFromLocation = true` and the picked coords fall outside every polygon in the loaded dataset
+**When** a webview is built for the site
+**Then** the JS shim SHALL be built with no timezone spoof (system default applies)
+**And** no error is raised — the rest of the shim (geolocation, WebRTC) builds normally
+
+#### Scenario: Dataset is opt-in and clearable
+
+**Given** the dataset has been downloaded
+**When** the user taps the "Clear" icon next to the dataset row in App Settings
+**Then** the cache file is deleted, in-memory state is cleared, and `isReady` returns false
+**And** any per-site setting with `spoofTimezoneFromLocation = true` falls through to system default
 
 ---
 
@@ -287,7 +384,9 @@ This is a manual user action that fills inputs the user can still edit. It does 
 
 ### Requirement: LOC-007 - Settings apply to nested webviews
 
-Every per-site field on `WebViewModel` that controls privacy behavior (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, `spoofTimezone`, `webRtcPolicy`) SHALL propagate to every `InAppWebViewScreen` spawned by cross-domain navigation from the parent site via `launchUrl` in `lib/main.dart`. The JS shim SHALL be injected into cross-origin iframes as well as the top frame by setting `forMainFrameOnly: false` on the `inapp.UserScript`.
+Every per-site field on `WebViewModel` that controls privacy behavior (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, `spoofTimezone`, `spoofTimezoneFromLocation`, `webRtcPolicy`) SHALL propagate to every `InAppWebViewScreen` spawned by cross-domain navigation from the parent site via `launchUrl` in `lib/main.dart`. The JS shim SHALL be injected into cross-origin iframes as well as the top frame by setting `forMainFrameOnly: false` on the `inapp.UserScript`.
+
+When the parent's mode is `live`, nested webviews SHALL inherit the live behavior — including the `getRealLocation` JS handler registration in `webview.dart`'s `onWebViewCreated` — so that a nested browser opened from the parent site continues to read fresh device coords through the shim, not platform-default geolocation.
 
 Otherwise a site could defeat the spoof by linking to a detection page (e.g. browserleaks.com) — which opens in a nested browser — or embedding it in an iframe.
 

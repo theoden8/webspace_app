@@ -10,6 +10,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
+import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -122,6 +123,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _longitudeController;
   late TextEditingController _accuracyController;
   String? _spoofTimezone;
+  bool _spoofTimezoneFromLocation = false;
+  // Tracks the "live" geolocation mode. Mutually exclusive with custom
+  // coordinates: enabling live clears coords; picking coords clears live.
+  bool _isLiveLocation = false;
   late WebRtcPolicy _webRtcPolicy;
 
   String getResetUserAgent() {
@@ -181,6 +186,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       text: widget.webViewModel.spoofAccuracy.toString(),
     );
     _spoofTimezone = widget.webViewModel.spoofTimezone;
+    _spoofTimezoneFromLocation = widget.webViewModel.spoofTimezoneFromLocation;
+    _isLiveLocation = widget.webViewModel.locationMode == LocationMode.live;
     _webRtcPolicy = widget.webViewModel.webRtcPolicy;
     // Show credentials section if credentials already exist
     _showProxyCredentials = _proxySettings.hasCredentials;
@@ -333,21 +340,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.desktopMode = _desktopMode;
       widget.webViewModel.language = _selectedLanguage;
-      // locationMode is derived from whether a custom location is set: if
-      // the user has picked coords, mode is `spoof`; otherwise `off`. The
-      // dropdown UI was replaced with a single Pick/Clear button — see
-      // _buildLocationSection.
+      // locationMode is derived from the UI state:
+      // - `_isLiveLocation` → live (real device GPS forwarded through the shim)
+      // - else if custom coords are set → spoof (static custom coords)
+      // - else → off (no shim)
+      // Live and custom-coords are mutually exclusive in the UI: the user
+      // picks one or the other, not both. See _buildLocationTile.
       final lat = double.tryParse(_latitudeController.text.trim());
       final lng = double.tryParse(_longitudeController.text.trim());
-      widget.webViewModel.spoofLatitude = lat;
-      widget.webViewModel.spoofLongitude = lng;
-      widget.webViewModel.locationMode =
-          (lat != null && lng != null) ? LocationMode.spoof : LocationMode.off;
+      if (_isLiveLocation) {
+        widget.webViewModel.locationMode = LocationMode.live;
+        widget.webViewModel.spoofLatitude = null;
+        widget.webViewModel.spoofLongitude = null;
+      } else if (lat != null && lng != null) {
+        widget.webViewModel.locationMode = LocationMode.spoof;
+        widget.webViewModel.spoofLatitude = lat;
+        widget.webViewModel.spoofLongitude = lng;
+      } else {
+        widget.webViewModel.locationMode = LocationMode.off;
+        widget.webViewModel.spoofLatitude = null;
+        widget.webViewModel.spoofLongitude = null;
+      }
       final accuracy = double.tryParse(_accuracyController.text.trim());
       if (accuracy != null && accuracy > 0) {
         widget.webViewModel.spoofAccuracy = accuracy;
       }
       widget.webViewModel.spoofTimezone = _spoofTimezone;
+      widget.webViewModel.spoofTimezoneFromLocation =
+          _spoofTimezoneFromLocation;
       widget.webViewModel.webRtcPolicy = _webRtcPolicy;
 
       if (!mounted) return;
@@ -400,12 +420,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  /// Build the geolocation row. With no custom location set, shows a single
-  /// "Pick location" button. When set, shows the picked coordinates with
-  /// edit and clear actions. Picking flips `locationMode` to `spoof`;
-  /// clearing flips it back to `off`. The mode dropdown was removed because
-  /// the user cannot meaningfully be in "spoof" mode without coordinates,
-  /// and "off + coords" was never a valid combination.
+  /// Build the geolocation row. Three mutually exclusive states:
+  /// - **off**: no custom location, no live tracking. Shows "Pick" and
+  ///   "Live" buttons; tapping either flips into the corresponding state.
+  /// - **spoof**: static custom coords. Shows the coords with edit and
+  ///   clear icons.
+  /// - **live**: real device GPS forwarded through the shim. Shows
+  ///   "Tracking device location" and a button to switch back.
+  ///
+  /// `locationMode` is derived from this state at save time, not stored
+  /// explicitly here. See [_saveSettings].
   Widget _buildLocationTile() {
     final lat = double.tryParse(_latitudeController.text.trim());
     final lng = double.tryParse(_longitudeController.text.trim());
@@ -415,19 +439,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     const hint = HintButton(
       title: 'Geolocation',
       description:
-          'When no custom location is set, navigator.geolocation is left '
-          'untouched. Sites get the platform default (typically denied unless '
-          'the user grants permission to the webview).\n\n'
-          'When a custom location is set, navigator.geolocation returns those '
-          'coordinates. Tap "Pick location" to open the picker, where you can '
-          'type coordinates, pick on a map, or use the "Use current location" '
-          'button to fill them with your real device GPS. The shim overrides '
-          'Geolocation.prototype and hides the patch from '
-          'Function.prototype.toString so sites cannot trivially detect that '
-          'it is a shim. For convincing spoofing, also set a matching '
-          'timezone and use a proxy in the same country — otherwise the site '
-          'can cross-check via IP-based geolocation.',
+          'Off (default): navigator.geolocation is left untouched. Sites '
+          'get the platform default (typically denied unless the user '
+          'grants permission to the webview).\n\n'
+          'Custom location: navigator.geolocation returns the coordinates '
+          'you supply. Tap "Pick location" to open the picker, where you '
+          'can type coordinates, pick on a map, or use the "Use current '
+          'location" button to fill them with your real device GPS once. '
+          'The coordinates are then static.\n\n'
+          'Live (device GPS): navigator.geolocation calls back into the '
+          'app on every getCurrentPosition / watchPosition to fetch a '
+          'fresh fix from the platform\'s native location service, so the '
+          'reported position tracks the device as it moves. The shim '
+          'still overrides Geolocation.prototype and hides the patch from '
+          'Function.prototype.toString — so timezone override and WebRTC '
+          'policy still apply, but the coordinates are real and current.',
     );
+
+    if (_isLiveLocation) {
+      return ListTile(
+        title: Row(
+          children: const [Flexible(child: Text('Geolocation')), hint],
+        ),
+        subtitle: const Text('Live: tracks device GPS via the platform '
+            'location service'),
+        trailing: IconButton(
+          tooltip: 'Disable live tracking',
+          icon: const Icon(Icons.close),
+          onPressed: () => setState(() => _isLiveLocation = false),
+        ),
+      );
+    }
 
     if (!hasCoords) {
       return ListTile(
@@ -435,10 +477,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: const [Flexible(child: Text('Geolocation')), hint],
         ),
         subtitle: const Text('No custom location set'),
-        trailing: OutlinedButton.icon(
-          icon: const Icon(Icons.map_outlined),
-          label: const Text('Pick location'),
-          onPressed: _openLocationPicker,
+        trailing: Wrap(
+          spacing: 4,
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.map_outlined, size: 18),
+              label: const Text('Pick'),
+              onPressed: _openLocationPicker,
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.my_location, size: 18),
+              label: const Text('Live'),
+              onPressed: () => setState(() => _isLiveLocation = true),
+            ),
+          ],
         ),
       );
     }
@@ -473,6 +525,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// Sentinel value used in the timezone dropdown for the "From picked
+  /// location" entry. Not a real IANA name — translated to/from the
+  /// `spoofTimezoneFromLocation` bool when reading and writing.
+  static const String _kFromLocationSentinel = '__from_location__';
+
+  Widget _buildTimezoneDropdown() {
+    final tzReady = TimezoneLocationService.instance.isReady;
+    final lat = double.tryParse(_latitudeController.text.trim());
+    final lng = double.tryParse(_longitudeController.text.trim());
+    final hasCoords = lat != null && lng != null;
+    // Preview what the dataset would resolve to right now, so the user can
+    // see whether the lookup will succeed for their picked coords. Falls
+    // back to a hint if either prerequisite is missing.
+    final preview = (tzReady && hasCoords)
+        ? (TimezoneLocationService.instance.lookup(lat, lng) ??
+            'no match — fall through to system default')
+        : (!tzReady
+            ? 'Download polygon dataset in App Settings'
+            : 'Pick a location first');
+
+    final value = _spoofTimezoneFromLocation
+        ? _kFromLocationSentinel
+        : (commonTimezones.any((e) => e.key == _spoofTimezone)
+            ? _spoofTimezone
+            : null);
+
+    final items = <DropdownMenuItem<String?>>[];
+    for (final e in commonTimezones) {
+      items.add(DropdownMenuItem<String?>(
+        value: e.key,
+        child: Text(_timezoneLabel(e)),
+      ));
+    }
+    items.add(DropdownMenuItem<String?>(
+      value: _kFromLocationSentinel,
+      child: Text('From picked location ($preview)'),
+    ));
+
+    return DropdownButtonFormField<String?>(
+      value: value,
+      decoration: const InputDecoration(
+        labelText: 'Timezone',
+        helperText: 'Overrides Intl.DateTimeFormat and Date getters',
+        border: OutlineInputBorder(),
+      ),
+      items: items,
+      isExpanded: true,
+      onChanged: (v) => setState(() {
+        if (v == _kFromLocationSentinel) {
+          _spoofTimezoneFromLocation = true;
+          _spoofTimezone = null;
+        } else {
+          _spoofTimezoneFromLocation = false;
+          _spoofTimezone = v;
+        }
+      }),
+    );
+  }
+
   /// Render a timezone dropdown entry. The `null` (System default) entry is
   /// enriched with the device's current timezone abbreviation/offset and the
   /// current local time, so the user can see what "default" actually entails.
@@ -499,23 +610,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _buildLocationTile(),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: DropdownButtonFormField<String?>(
-          value: commonTimezones.any((e) => e.key == _spoofTimezone)
-              ? _spoofTimezone
-              : null,
-          decoration: const InputDecoration(
-            labelText: 'Timezone',
-            helperText: 'Overrides Intl.DateTimeFormat and Date getters',
-            border: OutlineInputBorder(),
-          ),
-          items: commonTimezones
-              .map((e) => DropdownMenuItem<String?>(
-                    value: e.key,
-                    child: Text(_timezoneLabel(e)),
-                  ))
-              .toList(),
-          onChanged: (v) => setState(() => _spoofTimezone = v),
-        ),
+        child: _buildTimezoneDropdown(),
       ),
       ListTile(
         title: Row(

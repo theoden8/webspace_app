@@ -9,6 +9,8 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/timezone_location_service.dart';
+import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/webview.dart';
@@ -67,6 +69,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   bool _isDownloadingRules = false;
   DateTime? _rulesLastUpdated;
 
+  // Timezone polygon dataset state (per-site "From picked location" timezone option)
+  bool _isDownloadingTimezones = false;
+  DateTime? _timezonesLastUpdated;
+  int _timezoneZoneCount = 0;
+
   // DNS Blocklist state
   bool _isDownloadingBlocklist = false;
   DateTime? _blocklistLastUpdated;
@@ -100,6 +107,48 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _loadRulesLastUpdated();
     _loadBlocklistState();
     _loadLocalCdnState();
+    _loadTimezoneState();
+  }
+
+  Future<void> _loadTimezoneState() async {
+    final lastUpdated = await TimezoneLocationService.instance.getLastUpdated();
+    if (!mounted) return;
+    setState(() {
+      _timezonesLastUpdated = lastUpdated;
+      _timezoneZoneCount = TimezoneLocationService.instance.zoneCount;
+    });
+  }
+
+  Future<void> _downloadTimezones() async {
+    setState(() => _isDownloadingTimezones = true);
+    _spinController.repeat();
+    final success = await TimezoneLocationService.instance.download();
+    if (!mounted) return;
+    _spinController.stop();
+    _spinController.reset();
+    setState(() {
+      _isDownloadingTimezones = false;
+      _timezoneZoneCount = TimezoneLocationService.instance.zoneCount;
+    });
+    if (success) {
+      _timezonesLastUpdated =
+          await TimezoneLocationService.instance.getLastUpdated();
+      if (mounted) setState(() {});
+      rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
+          content: Text('Loaded $_timezoneZoneCount timezones')));
+    } else {
+      rootScaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(
+          content: Text('Timezone dataset download failed (check log)')));
+    }
+  }
+
+  Future<void> _clearTimezones() async {
+    await TimezoneLocationService.instance.clear();
+    if (!mounted) return;
+    setState(() {
+      _timezonesLastUpdated = null;
+      _timezoneZoneCount = 0;
+    });
   }
 
   @override
@@ -502,6 +551,69 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ),
               onChanged: _saveOsmTileUrl,
             ),
+          ),
+
+          // Timezone polygon dataset — opt-in download enabling the
+          // "From picked location" timezone option in per-site settings.
+          // Modeled on the DNS blocklist pattern: status + download/refresh
+          // button, plus a clear button when data is present.
+          ListTile(
+            leading: const Icon(Icons.public),
+            title: const Row(
+              children: [
+                Text('Timezone polygons'),
+                HintButton(
+                  title: 'Timezone polygon dataset',
+                  description:
+                      'Downloads a GeoJSON dataset of IANA timezone '
+                      'boundaries (~10–60 MB) so the per-site settings can '
+                      'offer a "From picked location" timezone option that '
+                      'auto-resolves the IANA zone of your spoofed '
+                      'coordinates. Only fetched on demand (this button); '
+                      'kept in app private storage until you clear it. '
+                      'Default source: timezone-boundary-builder GitHub '
+                      'releases. Tap Clear to delete.',
+                ),
+              ],
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_timezoneZoneCount > 0
+                    ? '${_formatNumber(_timezoneZoneCount)} zones'
+                    : 'Not downloaded'),
+                if (_timezonesLastUpdated != null)
+                  Text(
+                    'Updated: ${_timezonesLastUpdated!.toLocal().toString().split('.')[0]}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+              ],
+            ),
+            trailing: _isDownloadingTimezones
+                ? RotationTransition(
+                    turns: _spinController,
+                    child: const Icon(Icons.sync),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_timezoneZoneCount > 0)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: 'Clear dataset',
+                          onPressed: _clearTimezones,
+                        ),
+                      IconButton(
+                        icon: Icon(_timezoneZoneCount > 0
+                            ? Icons.sync
+                            : Icons.download),
+                        tooltip: _timezoneZoneCount > 0
+                            ? 'Refresh dataset'
+                            : 'Download dataset',
+                        onPressed: _downloadTimezones,
+                      ),
+                    ],
+                  ),
           ),
 
           const Divider(height: 32),

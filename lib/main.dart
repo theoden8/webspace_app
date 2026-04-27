@@ -41,6 +41,7 @@ import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -439,6 +440,12 @@ void main() async {
 
   // Initialize DNS block service (loads cached blocklist from disk)
   await DnsBlockService.instance.initialize();
+
+  // Load timezone-polygon dataset if previously downloaded. Lookups are
+  // synchronous so the per-site shim builder needs the data ready before
+  // it runs. Missing/empty cache is fine — the "From picked location"
+  // dropdown option just stays disabled.
+  await TimezoneLocationService.instance.loadFromCacheIfPresent();
 
   // Initialize native interceptor bridge for sub-resource DNS + ABP
   // blocking and LocalCDN serving (Android). The Dart shouldInterceptRequest
@@ -1154,6 +1161,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     double? spoofLongitude,
     double spoofAccuracy = 50.0,
     String? spoofTimezone,
+    bool spoofTimezoneFromLocation = false,
     WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
   }) async {
     await Navigator.push(
@@ -1175,6 +1183,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           spoofLongitude: spoofLongitude,
           spoofAccuracy: spoofAccuracy,
           spoofTimezone: spoofTimezone,
+          spoofTimezoneFromLocation: spoofTimezoneFromLocation,
           webRtcPolicy: webRtcPolicy,
         ),
       ),

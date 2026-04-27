@@ -28,6 +28,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final double? spoofLongitude;
   final double spoofAccuracy;
   final String? spoofTimezone;
+  final bool spoofTimezoneFromLocation;
   final WebRtcPolicy webRtcPolicy;
 
   InAppWebViewScreen({
@@ -46,6 +47,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.spoofLongitude,
     this.spoofAccuracy = 50.0,
     this.spoofTimezone,
+    this.spoofTimezoneFromLocation = false,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
   });
 
@@ -298,6 +300,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 spoofLongitude: widget.spoofLongitude,
                 spoofAccuracy: widget.spoofAccuracy,
                 spoofTimezone: widget.spoofTimezone,
+                spoofTimezoneFromLocation: widget.spoofTimezoneFromLocation,
                 webRtcPolicy: widget.webRtcPolicy,
                 pullToRefreshController: _pullToRefreshController,
                 onUrlChanged: (url) {

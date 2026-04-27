@@ -34,10 +34,13 @@ class LocationSpoofService {
     final spoofLocation = locationMode == LocationMode.spoof &&
         spoofLatitude != null &&
         spoofLongitude != null;
+    final liveLocation = locationMode == LocationMode.live;
     final hasTimezone = spoofTimezone != null && spoofTimezone.isNotEmpty;
     final hasWebRtc = webRtcPolicy != WebRtcPolicy.defaultPolicy;
 
-    if (!spoofLocation && !hasTimezone && !hasWebRtc) return null;
+    if (!spoofLocation && !liveLocation && !hasTimezone && !hasWebRtc) {
+      return null;
+    }
 
     final lat = spoofLatitude ?? 0.0;
     final lng = spoofLongitude ?? 0.0;
@@ -50,7 +53,8 @@ class LocationSpoofService {
     };
 
     return _template
-        .replaceAll('__SPOOF_LOC__', spoofLocation ? 'true' : 'false')
+        .replaceAll('__STATIC_LOC__', spoofLocation ? 'true' : 'false')
+        .replaceAll('__LIVE_LOC__', liveLocation ? 'true' : 'false')
         .replaceAll('__LAT__', lat.toString())
         .replaceAll('__LNG__', lng.toString())
         .replaceAll('__ACC__', acc.toString())
@@ -64,7 +68,8 @@ const String _template = r'''
   if (window.__wsLocShimInstalled) return;
   window.__wsLocShimInstalled = true;
 
-  var SPOOF_LOC = __SPOOF_LOC__;
+  var STATIC_LOC = __STATIC_LOC__;
+  var LIVE_LOC = __LIVE_LOC__;
   var LAT = __LAT__;
   var LNG = __LNG__;
   var ACC = __ACC__;
@@ -93,22 +98,23 @@ const String _template = r'''
     } catch (e) {}
   }
 
-  // --- Geolocation spoofing ---
-  if (SPOOF_LOC && navigator.geolocation) {
+  // --- Geolocation: spoof (static) or live (real device GPS via Dart) ---
+  if ((STATIC_LOC || LIVE_LOC) && navigator.geolocation) {
     var _coordsProto = (typeof GeolocationCoordinates !== 'undefined')
       ? GeolocationCoordinates.prototype : Object.prototype;
     var _posProto = (typeof GeolocationPosition !== 'undefined')
       ? GeolocationPosition.prototype : Object.prototype;
 
-    function makeCoords() {
-      // Sub-meter jitter so watchPosition doesn't return identical frames.
+    function makeCoordsFrom(lat, lng, acc) {
+      // Sub-meter jitter so watchPosition doesn't return identical frames
+      // when the device is stationary (also masks discretized GPS rounding).
       var jLat = (Math.random() - 0.5) * 0.00002;
       var jLng = (Math.random() - 0.5) * 0.00002;
       var c = Object.create(_coordsProto);
       Object.defineProperties(c, {
-        latitude: { value: LAT + jLat, enumerable: true },
-        longitude: { value: LNG + jLng, enumerable: true },
-        accuracy: { value: ACC, enumerable: true },
+        latitude: { value: lat + jLat, enumerable: true },
+        longitude: { value: lng + jLng, enumerable: true },
+        accuracy: { value: acc > 0 ? acc : 50, enumerable: true },
         altitude: { value: null, enumerable: true },
         altitudeAccuracy: { value: null, enumerable: true },
         heading: { value: null, enumerable: true },
@@ -116,20 +122,68 @@ const String _template = r'''
       });
       return c;
     }
-    function makePosition() {
+    function makePositionFrom(lat, lng, acc) {
       var p = Object.create(_posProto);
       Object.defineProperties(p, {
-        coords: { value: makeCoords(), enumerable: true },
+        coords: { value: makeCoordsFrom(lat, lng, acc), enumerable: true },
         timestamp: { value: Date.now(), enumerable: true },
       });
       return p;
     }
+    function makePositionStatic() {
+      return makePositionFrom(LAT, LNG, ACC);
+    }
+
+    // Map a Dart status payload to a GeolocationPositionError code:
+    //   1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT.
+    function geolocationErrorFor(payload) {
+      var code = 2;
+      if (payload && payload.status === 'permission_denied') code = 1;
+      else if (payload && payload.status === 'permission_denied_forever') code = 1;
+      else if (payload && payload.status === 'timeout') code = 3;
+      return {
+        code: code,
+        message: (payload && payload.message) || 'unknown',
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      };
+    }
+
+    // Single source of truth for fetching a fresh real fix in live mode.
+    // Returns a Promise that resolves with either {ok, lat, lng, acc} or
+    // {error, payload}. The handler is registered Dart-side only when the
+    // mode is `live`; if it's missing here we still defensively fail
+    // closed so a legacy/no-handler page doesn't hang forever.
+    function getLiveFix() {
+      if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        return window.flutter_inappwebview.callHandler('getRealLocation').then(function(res) {
+          if (res && res.status === 'ok') {
+            return { ok: true, lat: res.latitude, lng: res.longitude, acc: res.accuracy };
+          }
+          return { ok: false, payload: res };
+        }, function() {
+          return { ok: false, payload: { status: 'error', message: 'handler_failed' } };
+        });
+      }
+      return Promise.resolve({ ok: false, payload: { status: 'error', message: 'no_handler' } });
+    }
 
     var _latency = 150 + Math.random() * 250;
     var _getCurrent = function getCurrentPosition(success, error, options) {
-      setTimeout(function() {
-        if (success) { try { success(makePosition()); } catch (e) {} }
-      }, _latency);
+      if (LIVE_LOC) {
+        getLiveFix().then(function(r) {
+          if (r.ok) {
+            if (success) { try { success(makePositionFrom(r.lat, r.lng, r.acc)); } catch (e) {} }
+          } else if (error) {
+            try { error(geolocationErrorFor(r.payload)); } catch (e) {}
+          }
+        });
+      } else {
+        setTimeout(function() {
+          if (success) { try { success(makePositionStatic()); } catch (e) {} }
+        }, _latency);
+      }
     };
     asNative(_getCurrent, 'getCurrentPosition');
 
@@ -137,12 +191,30 @@ const String _template = r'''
     var _watchTimers = {};
     var _watch = function watchPosition(success, error, options) {
       var id = ++_watchId;
-      setTimeout(function() {
-        if (success) { try { success(makePosition()); } catch (e) {} }
-      }, _latency);
-      _watchTimers[id] = setInterval(function() {
-        if (success) { try { success(makePosition()); } catch (e) {} }
-      }, 1000);
+      if (LIVE_LOC) {
+        var tick = function() {
+          getLiveFix().then(function(r) {
+            if (r.ok) {
+              if (success) { try { success(makePositionFrom(r.lat, r.lng, r.acc)); } catch (e) {} }
+            } else if (error) {
+              try { error(geolocationErrorFor(r.payload)); } catch (e) {}
+            }
+          });
+        };
+        // Fire once immediately, then poll. 5s is the same cadence used by
+        // most real GPS receivers under battery-conservative settings; the
+        // page can call clearWatch to stop. We don't expose this period to
+        // pages — `options.maximumAge` etc. are intentionally ignored.
+        setTimeout(tick, _latency);
+        _watchTimers[id] = setInterval(tick, 5000);
+      } else {
+        setTimeout(function() {
+          if (success) { try { success(makePositionStatic()); } catch (e) {} }
+        }, _latency);
+        _watchTimers[id] = setInterval(function() {
+          if (success) { try { success(makePositionStatic()); } catch (e) {} }
+        }, 1000);
+      }
       return id;
     };
     asNative(_watch, 'watchPosition');
