@@ -421,7 +421,15 @@ class WebViewModel {
     }
   }
 
-  /// Apply proxy settings to the webview
+  /// Apply proxy settings to the webview.
+  ///
+  /// Android: routes through the global `inapp.ProxyController`. Takes
+  /// effect on next request without reload.
+  ///
+  /// iOS / macOS: no-op — the per-site proxy is bound to the per-site
+  /// `WKWebsiteDataStore` at WebView construction (via
+  /// `WebSpaceInAppWebViewSettings.webspaceProxy`). To pick up a runtime
+  /// change, the WebView must be rebuilt; see [updateProxySettings].
   Future<void> _applyProxySettings() async {
     final proxyManager = ProxyManager();
     try {
@@ -443,9 +451,20 @@ class WebViewModel {
     }
   }
 
-  /// Update proxy settings and apply them
+  /// Update proxy settings and apply them.
+  ///
+  /// On iOS / macOS, the proxy is sealed into the per-site
+  /// `WKWebsiteDataStore` at WebView construction time. To pick up the
+  /// new value, the live WebView is discarded so the next render
+  /// reconstructs it with the new `WebSpaceInAppWebViewSettings.webspaceProxy`
+  /// dictionary. The caller MUST trigger a rebuild (typically via
+  /// `setState`) so the IndexedStack actually re-creates the slot.
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
     proxySettings = newSettings;
+    if (Platform.isIOS || Platform.isMacOS) {
+      disposeWebView();
+      return;
+    }
     await _applyProxySettings();
   }
 
@@ -507,6 +526,11 @@ class WebViewModel {
           spoofTimezone: spoofTimezone,
           spoofTimezoneFromLocation: spoofTimezoneFromLocation,
           webRtcPolicy: webRtcPolicy,
+          // Per-site proxy. Honored at WebView construction on iOS 17+ /
+          // macOS 14+ via the patched `preWKWebViewConfiguration` (see
+          // PROXY-002 / PROXY-008). Android ignores this and routes
+          // through the global `ProxyController` in `_applyProxySettings`.
+          proxySettings: proxySettings,
           userScripts: [
             // Globals have no master `enabled` toggle per spec — per-site
             // opt-in is the only enable control. Force `enabled: true` on

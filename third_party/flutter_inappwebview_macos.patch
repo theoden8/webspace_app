@@ -1,6 +1,6 @@
 diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
---- a/lib/src/cookie_manager.dart	2026-04-28 04:51:37.604496334 +0000
-+++ b/lib/src/cookie_manager.dart	2026-04-28 04:51:37.816496257 +0000
+--- a/lib/src/cookie_manager.dart	2026-04-28 05:25:58.506949888 +0000
++++ b/lib/src/cookie_manager.dart	2026-04-28 05:25:58.525143347 +0000
 @@ -183,6 +183,10 @@
  
      Map<String, dynamic> args = <String, dynamic>{};
@@ -24,9 +24,21 @@ diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
    }
  
 diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppWebView/InAppWebView.swift
---- a/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 04:51:37.635496323 +0000
-+++ b/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 04:51:37.716496293 +0000
-@@ -15,6 +15,42 @@
+--- a/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 05:25:58.510235898 +0000
++++ b/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 05:31:22.906387074 +0000
+@@ -7,6 +7,11 @@
+ 
+ import FlutterMacOS
+ import Foundation
++// [WebSpace fork patch] — `Network` provides `NWEndpoint` / `ProxyConfiguration`,
++// used by WebSpaceProxy.swift to build the per-site proxy applied to a per-site
++// WKWebsiteDataStore on macOS 14+. The framework ships in macOS 10.14+, well
++// below our deployment target, so importing it unconditionally is fine.
++import Network
+ import WebKit
+ 
+ public class InAppWebView: WKWebView, WKUIDelegate,
+@@ -15,6 +20,42 @@
                              Disposable {
      static var METHOD_CHANNEL_NAME_PREFIX = "com.pichillilorenzo/flutter_inappwebview_"
  
@@ -69,7 +81,7 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
      var id: Any? // viewId
      var plugin: InAppWebViewFlutterPlugin?
      var windowId: Int64?
-@@ -63,8 +99,20 @@
+@@ -63,8 +104,20 @@
          self.initialUserScripts = userScripts
          uiDelegate = self
          navigationDelegate = self
@@ -91,7 +103,7 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
      required public init(coder aDecoder: NSCoder) {
          super.init(coder: aDecoder)!
      }
-@@ -261,6 +309,16 @@
+@@ -261,6 +314,29 @@
              } else if settings.cacheEnabled {
                  configuration.websiteDataStore = WKWebsiteDataStore.default()
              }
@@ -105,13 +117,26 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
 +                configuration.websiteDataStore =
 +                    WKWebsiteDataStore(forIdentifier: WebSpaceProfile.uuid(for: profile))
 +            }
++            // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo.
++            // Per-site proxy on macOS 14+. Same shape and rationale as the iOS
++            // fork's block (see PROF-005 + the proxy spec): we attach the proxy
++            // to whichever store this WebView ended up with — typically the
++            // per-site `WKWebsiteDataStore(forIdentifier:)` set above, so each
++            // site genuinely uses its own proxy. Diverges from upstream PR #2671,
++            // which forces every view through the GLOBAL nonPersistent store and
++            // would defeat per-site isolation.
++            if let proxy = settings.webspaceProxy,
++               #available(macOS 14.0, *) {
++                configuration.websiteDataStore.proxyConfigurations =
++                    WebSpaceProxy.configurations(from: proxy)
++            }
              if !settings.applicationNameForUserAgent.isEmpty {
                  if let applicationNameForUserAgent = configuration.applicationNameForUserAgent {
                      configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
 diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classes/InAppWebView/InAppWebViewSettings.swift
---- a/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 04:51:37.637496322 +0000
-+++ b/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 04:51:37.720496292 +0000
-@@ -28,6 +28,11 @@
+--- a/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 05:25:58.510217734 +0000
++++ b/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 05:31:29.962387493 +0000
+@@ -28,6 +28,16 @@
      var interceptOnlyAsyncAjaxRequests = true
      var useShouldInterceptFetchRequest = false
      var incognito = false
@@ -120,12 +145,17 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classe
 +    // shares the same `WKWebsiteDataStore(forIdentifier:)` API. See
 +    // PROF-005 in openspec/specs/per-site-profiles/spec.md.
 +    var webspaceProfile: String? = nil
++    // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo.
++    // Same shape as the iOS fork's webspaceProxy field; macOS 14+ shares the
++    // same `WKWebsiteDataStore.proxyConfigurations` API. Honored only on
++    // macOS 14+; ignored on older OSes.
++    var webspaceProxy: [String: Any]? = nil
      var cacheEnabled = true
      var transparentBackground = false
      var supportZoom = true
 diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InAppWebView/WebSpaceProfile.swift
 --- a/macos/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
-+++ b/macos/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 04:51:37.724496290 +0000
++++ b/macos/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 05:25:58.526674942 +0000
 @@ -0,0 +1,36 @@
 +//
 +// WebSpaceProfile.swift
@@ -163,9 +193,62 @@ diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InA
 +        return UUID(uuid: bytes)
 +    }
 +}
+diff -urN a/macos/Classes/InAppWebView/WebSpaceProxy.swift b/macos/Classes/InAppWebView/WebSpaceProxy.swift
+--- a/macos/Classes/InAppWebView/WebSpaceProxy.swift	1970-01-01 00:00:00.000000000 +0000
++++ b/macos/Classes/InAppWebView/WebSpaceProxy.swift	2026-04-28 05:31:40.190388101 +0000
+@@ -0,0 +1,49 @@
++//
++// WebSpaceProxy.swift
++//
++// [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++//
++// Sister copy of the iOS fork's WebSpaceProxy helper. The two platform
++// packages don't share a Swift module so the helper is duplicated; the
++// byte-level definition stays identical so a given proxy dictionary
++// produces the same configuration on both platforms.
++//
++// Keep the body byte-identical to
++// third_party/flutter_inappwebview_ios/ios/Classes/InAppWebView/WebSpaceProxy.swift.
++
++import Foundation
++import Network
++
++@available(macOS 14.0, *)
++public enum WebSpaceProxy {
++    public static func configurations(from map: [String: Any]) -> [ProxyConfiguration] {
++        guard let type = map["type"] as? String,
++              let host = map["host"] as? String, !host.isEmpty,
++              let portInt = map["port"] as? Int,
++              portInt > 0, portInt <= 65535,
++              let port = NWEndpoint.Port(rawValue: UInt16(portInt)) else {
++            return []
++        }
++
++        let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: port)
++
++        var config: ProxyConfiguration
++        switch type.lowercased() {
++        case "https":
++            config = ProxyConfiguration(httpCONNECTProxy: endpoint, tlsOptions: NWProtocolTLS.Options())
++        case "http":
++            config = ProxyConfiguration(httpCONNECTProxy: endpoint, tlsOptions: nil)
++        case "socks5":
++            config = ProxyConfiguration(socksv5Proxy: endpoint)
++        default:
++            return []
++        }
++
++        if let username = map["username"] as? String, !username.isEmpty,
++           let password = map["password"] as? String, !password.isEmpty {
++            config.applyCredential(username: username, password: password)
++        }
++
++        return [config]
++    }
++}
 diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.swift
---- a/macos/Classes/MyCookieManager.swift	2026-04-28 04:51:37.642496320 +0000
-+++ b/macos/Classes/MyCookieManager.swift	2026-04-28 04:51:37.726496290 +0000
+--- a/macos/Classes/MyCookieManager.swift	2026-04-28 05:25:58.510567047 +0000
++++ b/macos/Classes/MyCookieManager.swift	2026-04-28 05:25:58.526786888 +0000
 @@ -5,6 +5,7 @@
  //  Created by Lorenzo on 26/10/18.
  //

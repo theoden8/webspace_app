@@ -314,8 +314,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Apply proxy settings immediately
         await widget.webViewModel.updateProxySettings(_proxySettings);
 
-        // Sync proxy settings to all other WebViewModels (proxy is global)
-        widget.onProxySettingsChanged?.call(_proxySettings);
+        // On Android, `inapp.ProxyController` is a process-wide singleton:
+        // changing the proxy on one site silently changes it for every
+        // currently-loaded WebView, so the data model is sync'd to match.
+        // On iOS 17+ / macOS 14+, each site has its own
+        // `WKWebsiteDataStore.proxyConfigurations`, so per-site values
+        // are independent and the sync would clobber them. See PROXY-008.
+        if (Platform.isAndroid) {
+          widget.onProxySettingsChanged?.call(_proxySettings);
+        }
       } else {
         // Force DEFAULT proxy on unsupported platforms
         final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);

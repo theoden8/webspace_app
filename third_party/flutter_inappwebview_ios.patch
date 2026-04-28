@@ -1,7 +1,19 @@
 diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebView/InAppWebView.swift
---- a/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 04:51:25.785500668 +0000
-+++ b/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 04:51:25.921500618 +0000
-@@ -16,6 +16,39 @@
+--- a/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 05:25:52.863677986 +0000
++++ b/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 05:29:36.230380733 +0000
+@@ -7,6 +7,11 @@
+ 
+ import Flutter
+ import Foundation
++// [WebSpace fork patch] — `Network` provides `NWEndpoint` / `ProxyConfiguration`,
++// used by WebSpaceProxy.swift to build the per-site proxy applied to a per-site
++// WKWebsiteDataStore on iOS 17+. Adding the import unconditionally is fine —
++// `Network` ships in iOS 12+, well below our deployment target.
++import Network
+ import WebKit
+ 
+ public class InAppWebView: WKWebView, UIScrollViewDelegate, WKUIDelegate,
+@@ -16,6 +21,39 @@
                              Disposable {
      static let METHOD_CHANNEL_NAME_PREFIX = "com.pichillilorenzo/flutter_inappwebview_"
  
@@ -41,7 +53,7 @@ diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebVi
      var id: Any? // viewId
      var plugin: SwiftFlutterPlugin?
      var windowId: Int64?
-@@ -74,6 +107,8 @@
+@@ -74,6 +112,8 @@
          super.init(frame: frame, configuration: configuration)
          self.id = id
          self.plugin = plugin
@@ -50,7 +62,7 @@ diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebVi
          if let id = id, let registrar = plugin?.registrar {
              let channel = FlutterMethodChannel(name: InAppWebView.METHOD_CHANNEL_NAME_PREFIX + String(describing: id),
                                                 binaryMessenger: registrar.messenger())
-@@ -617,6 +652,19 @@
+@@ -617,6 +657,37 @@
                  } else if settings.cacheEnabled {
                      configuration.websiteDataStore = WKWebsiteDataStore.default()
                  }
@@ -67,13 +79,31 @@ diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebVi
 +                    configuration.websiteDataStore =
 +                        WKWebsiteDataStore(forIdentifier: WebSpaceProfile.uuid(for: profile))
 +                }
++                // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo.
++                // Per-site proxy. Apple's `WKWebsiteDataStore.proxyConfigurations`
++                // (iOS 17+ / macOS 14+) is the only API that scopes a proxy to a
++                // single WKWebView, by attaching the config to the view's data
++                // store. We intentionally diverge from upstream PR #2671 here:
++                // that PR routes proxy through the GLOBAL `default()` /
++                // `nonPersistent()` stores, defeating per-site isolation when
++                // multiple sites are loaded concurrently. We attach the proxy
++                // to whichever store this WebView ended up with — typically the
++                // per-site `WKWebsiteDataStore(forIdentifier:)` set above, so
++                // each site genuinely uses its own proxy. On <iOS 17 / <macOS 14
++                // there is no per-store proxy API, so the block is no-op and the
++                // site falls back to system default routing.
++                if let proxy = settings.webspaceProxy,
++                   #available(iOS 17.0, macOS 14.0, *) {
++                    configuration.websiteDataStore.proxyConfigurations =
++                        WebSpaceProxy.configurations(from: proxy)
++                }
                  if !settings.applicationNameForUserAgent.isEmpty {
                      if let applicationNameForUserAgent = configuration.applicationNameForUserAgent {
                          configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
 diff -urN a/ios/Classes/InAppWebView/InAppWebViewSettings.swift b/ios/Classes/InAppWebView/InAppWebViewSettings.swift
---- a/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 04:51:25.787500667 +0000
-+++ b/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 04:51:25.924500617 +0000
-@@ -30,6 +30,16 @@
+--- a/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 05:25:52.863658569 +0000
++++ b/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 05:29:50.530381583 +0000
+@@ -30,6 +30,24 @@
      var interceptOnlyAsyncAjaxRequests = true
      var useShouldInterceptFetchRequest = false
      var incognito = false
@@ -87,12 +117,20 @@ diff -urN a/ios/Classes/InAppWebView/InAppWebViewSettings.swift b/ios/Classes/In
 +    // before `WKWebView(frame:configuration:)` runs — the data store
 +    // is frozen at construction.
 +    var webspaceProfile: String? = nil
++    // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo.
++    // Per-site proxy applied to the per-site WKWebsiteDataStore in
++    // preWKWebViewConfiguration. Map keys: `type` ("http"|"https"|"socks5"),
++    // `host` (String), `port` (Int 1..65535), and optional `username` /
++    // `password` (Strings). Nil means "no proxy override" — the site uses
++    // system default routing. Honored only on iOS 17+ / macOS 14+; ignored
++    // on older OSes (no API to scope a proxy to one data store there).
++    var webspaceProxy: [String: Any]? = nil
      var cacheEnabled = true
      var transparentBackground = false
      var disableVerticalScroll = false
 diff -urN a/ios/Classes/InAppWebView/WebSpaceProfile.swift b/ios/Classes/InAppWebView/WebSpaceProfile.swift
 --- a/ios/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
-+++ b/ios/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 04:51:25.929500615 +0000
++++ b/ios/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 05:25:52.884789988 +0000
 @@ -0,0 +1,51 @@
 +//
 +// WebSpaceProfile.swift
@@ -145,9 +183,86 @@ diff -urN a/ios/Classes/InAppWebView/WebSpaceProfile.swift b/ios/Classes/InAppWe
 +        return UUID(uuid: bytes)
 +    }
 +}
+diff -urN a/ios/Classes/InAppWebView/WebSpaceProxy.swift b/ios/Classes/InAppWebView/WebSpaceProxy.swift
+--- a/ios/Classes/InAppWebView/WebSpaceProxy.swift	1970-01-01 00:00:00.000000000 +0000
++++ b/ios/Classes/InAppWebView/WebSpaceProxy.swift	2026-04-28 05:30:44.662384801 +0000
+@@ -0,0 +1,73 @@
++//
++// WebSpaceProxy.swift
++//
++// [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++//
++// Per-site proxy helper. Apple's `WKWebsiteDataStore.proxyConfigurations`
++// (iOS 17+ / macOS 14+) takes an array of `Network.ProxyConfiguration`,
++// which is the only API that scopes a proxy to a single WKWebView's data
++// store. Upstream `flutter_inappwebview` doesn't expose this; we pass
++// the proxy through a new `webspaceProxy` settings field and translate
++// it here.
++//
++// Why we don't reuse upstream PR #2671's design:
++//   - PR #2671 routes proxy via the GLOBAL `WKWebsiteDataStore.default()`
++//     and a swap to `nonPersistent()`, defeating per-site isolation.
++//   - We attach proxy to whichever store the WebView ended up with —
++//     for a profile-bound site, that's the per-site
++//     `WKWebsiteDataStore(forIdentifier:)` set in
++//     `preWKWebViewConfiguration`. So each site genuinely uses its own
++//     proxy, even when multiple sites are loaded concurrently.
++//
++// Map shape (passed from Dart through the settings dictionary):
++//   {
++//     "type":     "http" | "https" | "socks5",   // required
++//     "host":     "proxy.example.com",            // required
++//     "port":     8080,                           // required, 1..65535
++//     "username": "user",                         // optional
++//     "password": "pass"                          // optional
++//   }
++//
++// Invalid maps return an empty array, which clears any previously-set
++// proxy on the store (matches the documented "no override" behavior).
++
++import Foundation
++import Network
++
++@available(iOS 17.0, macOS 14.0, *)
++public enum WebSpaceProxy {
++    /// Build a `[ProxyConfiguration]` from the Dart-provided dictionary.
++    /// Returns an empty array on invalid input (caller should treat that
++    /// as "clear proxy").
++    public static func configurations(from map: [String: Any]) -> [ProxyConfiguration] {
++        guard let type = map["type"] as? String,
++              let host = map["host"] as? String, !host.isEmpty,
++              let portInt = map["port"] as? Int,
++              portInt > 0, portInt <= 65535,
++              let port = NWEndpoint.Port(rawValue: UInt16(portInt)) else {
++            return []
++        }
++
++        let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: port)
++
++        var config: ProxyConfiguration
++        switch type.lowercased() {
++        case "https":
++            // HTTPS proxy = HTTP CONNECT over TLS to the proxy itself.
++            config = ProxyConfiguration(httpCONNECTProxy: endpoint, tlsOptions: NWProtocolTLS.Options())
++        case "http":
++            config = ProxyConfiguration(httpCONNECTProxy: endpoint, tlsOptions: nil)
++        case "socks5":
++            config = ProxyConfiguration(socksv5Proxy: endpoint)
++        default:
++            return []
++        }
++
++        if let username = map["username"] as? String, !username.isEmpty,
++           let password = map["password"] as? String, !password.isEmpty {
++            config.applyCredential(username: username, password: password)
++        }
++
++        return [config]
++    }
++}
 diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swift
---- a/ios/Classes/MyCookieManager.swift	2026-04-28 04:51:25.797500664 +0000
-+++ b/ios/Classes/MyCookieManager.swift	2026-04-28 04:51:25.931500615 +0000
+--- a/ios/Classes/MyCookieManager.swift	2026-04-28 05:25:52.864194206 +0000
++++ b/ios/Classes/MyCookieManager.swift	2026-04-28 05:25:52.884938486 +0000
 @@ -6,6 +6,7 @@
  //
  
@@ -260,8 +375,8 @@ diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swif
                      })
                      return
 diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
---- a/lib/src/cookie_manager.dart	2026-04-28 04:51:25.885500631 +0000
-+++ b/lib/src/cookie_manager.dart	2026-04-28 04:51:26.025500580 +0000
+--- a/lib/src/cookie_manager.dart	2026-04-28 05:25:52.862086498 +0000
++++ b/lib/src/cookie_manager.dart	2026-04-28 05:25:52.885085689 +0000
 @@ -183,6 +183,14 @@
  
      Map<String, dynamic> args = <String, dynamic>{};
