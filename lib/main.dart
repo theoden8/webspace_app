@@ -33,6 +33,9 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
+import 'package:webspace/services/profile_isolation_engine.dart';
+import 'package:webspace/services/profile_native.dart';
+import 'package:webspace/services/profile_cookie_manager.dart';
 import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
@@ -573,6 +576,26 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     cookieManager: _cookieManager,
     storage: _cookieSecureStorage,
   );
+  late final ProfileIsolationEngine _profileIsolation = ProfileIsolationEngine(
+    profileNative: ProfileNative.instance,
+  );
+
+  /// Profile-mode cookie manager. Non-null when `_useProfiles ==
+  /// true`; null in legacy mode (the existing `_cookieManager` covers
+  /// that path). Resolved alongside `_useProfiles` in
+  /// `_restoreAppState` so the branches stay tied to the same
+  /// runtime decision. The WebViewModel cookie-blocking path branches
+  /// on `profileCookieManager != null`.
+  late final ProfileCookieManager? _profileCookieManager;
+
+  /// Cached result of [ProfileNative.isSupported] resolved during
+  /// `_restoreAppState`. When true, the app uses native per-site profiles
+  /// (Android, System WebView 110+); same-base-domain sites can be loaded
+  /// concurrently and the capture-nuke-restore cycle in
+  /// [_restoreCookiesForSite] / [_unloadSiteForDomainSwitch] / preDelete
+  /// cleanup is skipped. When false (iOS, macOS, legacy Android) the app
+  /// falls through to the existing [CookieIsolationEngine].
+  bool _useProfiles = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isBackHandling = false;
@@ -870,19 +893,25 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
     LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');
 
-    final conflictIndex = SiteActivationEngine.findDomainConflict(
-      targetIndex: index,
-      models: _webViewModels,
-      loadedIndices: _loadedIndices,
-    );
-    if (conflictIndex != null) {
-      LogService.instance.log(
-        'CookieIsolation',
-        'CONFLICT! Unloading site $conflictIndex: "${_webViewModels[conflictIndex].name}"',
-        level: LogLevel.warning,
+    // Domain-conflict unload + capture-nuke-restore is only needed when
+    // the native cookie jar is shared between sites. With the Profile
+    // API, each site has its own jar; concurrent same-base-domain sites
+    // are isolated by the engine and do not need to be unloaded.
+    if (!_useProfiles) {
+      final conflictIndex = SiteActivationEngine.findDomainConflict(
+        targetIndex: index,
+        models: _webViewModels,
+        loadedIndices: _loadedIndices,
       );
-      await _unloadSiteForDomainSwitch(conflictIndex);
-      if (version != _setCurrentIndexVersion) return;
+      if (conflictIndex != null) {
+        LogService.instance.log(
+          'CookieIsolation',
+          'CONFLICT! Unloading site $conflictIndex: "${_webViewModels[conflictIndex].name}"',
+          level: LogLevel.warning,
+        );
+        await _unloadSiteForDomainSwitch(conflictIndex);
+        if (version != _setCurrentIndexVersion) return;
+      }
     }
 
     // Pause the previously active webview to save resources
@@ -891,9 +920,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (version != _setCurrentIndexVersion) return;
     }
 
-    // Restore cookies for target site before loading
-    await _restoreCookiesForSite(index);
-    if (version != _setCurrentIndexVersion) return;
+    if (_useProfiles) {
+      // Profile path: ensure the named profile exists in the native
+      // ProfileStore before the WebView is bound to it. Idempotent.
+      await _profileIsolation.ensureProfile(target.siteId);
+      if (version != _setCurrentIndexVersion) return;
+    } else {
+      // Legacy path: restore cookies for target site before loading
+      await _restoreCookiesForSite(index);
+      if (version != _setCurrentIndexVersion) return;
+    }
 
     // Validate index is still in bounds after async gaps
     if (index >= _webViewModels.length) return;
@@ -1119,6 +1155,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _migrateGlobalScriptOptIn();
     _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
 
+    // Profile API selection: query the native plugin once at startup so
+    // every code path downstream can branch synchronously on _useProfiles
+    // (engine selection in _setCurrentIndex, deletion path, save/restore).
+    // Returns false on iOS/macOS and on Android System WebView <110.
+    _useProfiles = await ProfileNative.instance.isSupported();
+    _profileCookieManager = _useProfiles ? ProfileCookieManager() : null;
+    LogService.instance.log(
+      'Profile',
+      _useProfiles
+          ? 'Profile API supported — using ProfileIsolationEngine + ProfileCookieManager'
+          : 'Profile API not supported — using CookieIsolationEngine + (legacy) CookieManager',
+    );
+
     // Startup GC: sweep orphaned per-siteId encrypted storage and HTML cache
     // (sites deleted in previous sessions), then nuke the native cookie jar
     // so residual cookies from deleted/legacy sites don't leak into the next
@@ -1128,6 +1177,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIdsAtStartup);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIdsAtStartup);
     await _cookieManager.deleteAllCookies();
+    // Sweep profiles whose owning site no longer exists. No-op when the
+    // Profile API is unsupported.
+    await _profileIsolation.garbageCollectOrphans(activeSiteIdsAtStartup);
 
     // Always start at home screen on launch - only restore index if launched via shortcut
     final shortcutSiteId = await ShortcutService.getLaunchSiteId();
@@ -1612,7 +1664,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if(_currentIndex == null) {
       return null;
     }
-    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _profileCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
   }
 
   /// Update _canGoBack from the current webview's controller.
@@ -1953,7 +2005,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         },
                         onScriptsChanged: _resetCurrentSiteWebView,
                         onClearCookies: () {
-                          _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                          _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _profileCookieManager);
                           _saveWebViewModels();
                           getController()?.reload();
                         },
@@ -2033,6 +2085,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         builder: (context) => DevToolsScreen(
                           webViewModel: _webViewModels[_currentIndex!],
                           cookieManager: _cookieManager,
+                          profileCookieManager: _profileCookieManager,
                           onSave: _saveWebViewModels,
                           globalUserScripts: _globalUserScripts,
                         ),
@@ -2185,7 +2238,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           UrlBar(
             currentUrl: model.currentUrl,
             onUrlSubmitted: (url) async {
-              final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+              final controller = model.getController(launchUrl, _cookieManager, _profileCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
               if (controller != null) {
                 await controller.loadUrl(url, language: model.language);
                 if (!mounted) return;
@@ -2348,7 +2401,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   },
                   onScriptsChanged: _resetCurrentSiteWebView,
                   onClearCookies: () {
-                    _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                    _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _profileCookieManager);
                     _saveWebViewModels();
                     getController()?.reload();
                   },
@@ -2428,6 +2481,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   builder: (context) => DevToolsScreen(
                     webViewModel: _webViewModels[_currentIndex!],
                     cookieManager: _cookieManager,
+                    profileCookieManager: _profileCookieManager,
                     onSave: _saveWebViewModels,
                     globalUserScripts: _globalUserScripts,
                   ),
@@ -2719,16 +2773,23 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await ShortcutService.removeShortcut(deletedModel.siteId);
     if (!mounted) return;
 
-    // Delegate cookie cleanup to the isolation engine: it snapshots any
-    // loaded same-base-domain site's session, clears the deleted site's
-    // native cookies, and restores the surviving session so the active
-    // webview isn't silently logged out.
-    await _cookieIsolation.preDeleteCookieCleanup(
-      deletedModel: deletedModel,
-      deletedIndex: index,
-      models: _webViewModels,
-      loadedIndices: _loadedIndices,
-    );
+    if (_useProfiles) {
+      // Profile path: each site has its own profile, so deleting one
+      // site cannot wipe a sibling site's cookies. Just drop the named
+      // profile and its on-disk data (cookies, localStorage, IDB, SW,
+      // cache) in one call.
+      await _profileIsolation.onSiteDeleted(deletedModel.siteId);
+    } else {
+      // Legacy path: snapshot any loaded same-base-domain site's session,
+      // clear the deleted site's native cookies, and restore the
+      // surviving session so the active webview isn't silently logged out.
+      await _cookieIsolation.preDeleteCookieCleanup(
+        deletedModel: deletedModel,
+        deletedIndex: index,
+        models: _webViewModels,
+        loadedIndices: _loadedIndices,
+      );
+    }
     await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
     if (!mounted) return;
     final currentModelIndex = _webViewModels.indexOf(deletedModel);
@@ -3149,6 +3210,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                 child: webViewModel.getWebView(
                                   launchUrl,
                                   _cookieManager,
+                                  _profileCookieManager,
                                   _saveWebViewModels,
                                   onWindowRequested: _showPopupWindow,
                                   language: webViewModel.language,

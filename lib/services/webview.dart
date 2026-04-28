@@ -16,6 +16,8 @@ import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
+import 'package:webspace/services/profile_native.dart';
+import 'package:webspace/services/profile_cookie_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -27,6 +29,38 @@ import 'package:webspace/widgets/root_messenger.dart';
 
 // Re-export inapp.Cookie as Cookie for convenience
 typedef Cookie = inapp.Cookie;
+
+/// Subclass of [inapp.InAppWebViewSettings] that smuggles a
+/// `webspaceProfile` key into the settings map sent to the native
+/// plugin. The vendored fork at
+/// `third_party/flutter_inappwebview_android/` reads this key in
+/// `InAppWebViewSettings.parse()` and binds the WebView to the named
+/// profile via `WebViewCompat.setProfile` at the very top of
+/// `InAppWebView.prepare()`, before any session-bound op locks the
+/// WebView to the default profile.
+///
+/// Stock plugin builds (iOS, macOS) ignore the unknown map key.
+///
+/// We extend `InAppWebViewSettings` rather than wrapping it because
+/// `flutter_inappwebview_android`'s Dart layer reads the
+/// `useHybridComposition` field directly (and mutates other fields
+/// via `_inferInitialSettings`); a forwarding adapter would have to
+/// proxy every field. Subclassing inherits all 100+ fields for free
+/// and lets `super.toMap()` serialize them.
+class WebSpaceInAppWebViewSettings extends inapp.InAppWebViewSettings {
+  /// Native profile name (e.g. `ws-<siteId>`), or null to skip the
+  /// profile bind. The patched native side gates on `!= null`.
+  String? webspaceProfile;
+
+  WebSpaceInAppWebViewSettings({this.webspaceProfile});
+
+  @override
+  Map<String, dynamic> toMap() {
+    final map = super.toMap();
+    map['webspaceProfile'] = webspaceProfile;
+    return map;
+  }
+}
 
 /// Extension to add JSON serialization to inapp.Cookie
 extension CookieJson on inapp.Cookie {
@@ -252,6 +286,18 @@ class WebViewConfig {
   final String? language;
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
+  /// Cookie reader used inside [_onLoadStop] before invoking
+  /// [onCookiesChanged]. Exactly one of these is non-null per
+  /// `_WebSpacePageState`'s `_useProfiles` decision: legacy mode
+  /// passes [cookieManager] (global default jar); profile mode
+  /// passes [profileCookieManager] (the patched plugin routes through
+  /// the bound profile via `webViewController:`).
+  final CookieManager? cookieManager;
+  final ProfileCookieManager? profileCookieManager;
+  /// siteId of the owning [WebViewModel]. Required when
+  /// [profileCookieManager] is set so per-site reads route through
+  /// the bound WebView's profile.
+  final String? cookieSiteId;
   final Function(int activeMatch, int totalMatches)? onFindResult;
   final Function(String url, bool hasGesture)? shouldOverrideUrlLoading;
   /// Callback for when a popup window is requested (e.g., Cloudflare challenges).
@@ -318,6 +364,9 @@ class WebViewConfig {
     this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onCookiesChanged,
+    this.cookieManager,
+    this.profileCookieManager,
+    this.cookieSiteId,
     this.onFindResult,
     this.shouldOverrideUrlLoading,
     this.onWindowRequested,
@@ -340,6 +389,14 @@ class WebViewConfig {
 
 /// Controller interface for webview operations
 abstract class WebViewController {
+  /// The underlying `inapp.InAppWebViewController` this wrapper is
+  /// bound to. Exposed so per-site code paths can pass it as the
+  /// `webViewController:` argument to `inapp.CookieManager` methods,
+  /// which the patched plugin uses to resolve the WebView's bound
+  /// profile and route cookie ops to its per-site jar (see
+  /// `third_party/PATCHES.md`).
+  inapp.InAppWebViewController get nativeController;
+
   Future<void> loadUrl(String url, {String? language});
   Future<void> loadHtmlString(String html, {String? baseUrl});
   Future<void> reload();
@@ -347,6 +404,13 @@ abstract class WebViewController {
   Future<String?> getTitle();
   Future<String?> getHtml();
   Future<void> evaluateJavascript(String source);
+  /// Evaluate [source] and return whatever the JS expression produced,
+  /// JSON-decoded by the platform plugin into a Dart `dynamic`.
+  /// Distinct from
+  /// [evaluateJavascript] which suffixes the source with `null;` to
+  /// neutralize WebKit's "unsupported return type" errors and so
+  /// always resolves to `null`.
+  Future<Object?> evaluateJavascriptReturning(String source);
   Future<void> findAllAsync({required String find});
   Future<void> findNext({required bool forward});
   Future<void> clearMatches();
@@ -374,6 +438,9 @@ abstract class WebViewController {
 class _WebViewController implements WebViewController {
   final inapp.InAppWebViewController _c;
   _WebViewController(this._c);
+
+  @override
+  inapp.InAppWebViewController get nativeController => _c;
 
   @override
   Future<void> loadUrl(String url, {String? language}) {
@@ -421,6 +488,15 @@ class _WebViewController implements WebViewController {
     try {
       await _c.evaluateJavascript(source: '$source\n;null;');
     } catch (_) {} // WebKit "unsupported type" — JS still ran
+  }
+
+  @override
+  Future<Object?> evaluateJavascriptReturning(String source) async {
+    try {
+      return await _c.evaluateJavascript(source: source);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -812,8 +888,6 @@ class WebViewFactory {
     required WebViewConfig config,
     required Function(WebViewController) onControllerCreated,
   }) {
-    final cookieManager = inapp.CookieManager.instance();
-
     // Build initial URL request with optional Accept-Language header
     final headers = <String, String>{};
     if (config.language != null) {
@@ -1192,7 +1266,69 @@ class WebViewFactory {
     // Initial-load fallback is handled inside the engine.
     String? lastStableUrl;
 
-    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
+    // Profile API binding. Stock flutter_inappwebview's `prepare()` does
+    // session-bound ops (addJavascriptInterface, addDocumentStartJavaScript,
+    // setAcceptThirdPartyCookies) BEFORE `onWebViewCreated` fires, which
+    // locks the WebView to the default profile and made our earlier
+    // post-hoc-bind approach silently leak across sites. The vendored
+    // fork at `third_party/flutter_inappwebview_android/` (see
+    // PATCHES.md there) adds a `webspaceProfile` field to
+    // `InAppWebViewSettings` and binds it via `WebViewCompat.setProfile`
+    // at the very top of `prepare()`, before any session-bound op runs.
+    // Pass the profile name via `webspaceProfile` and the patched native
+    // side handles the bind.
+    // `cachedSupported` is already platform-aware (the iOS / macOS stub
+    // returns false on platforms where the patched plugin doesn't ship a
+    // bind); no extra Platform.isAndroid gate needed. Pre-iOS-fork code
+    // had `Platform.isAndroid &&` here which silently wedged macOS/iOS at
+    // `webspaceProfile=null` even though the native side was ready —
+    // see git history of this line for the user-reported bug.
+    final webspaceProfile = (ProfileNative.instance.cachedSupported &&
+            config.siteId != null)
+        ? 'ws-${config.siteId}'
+        : null;
+
+    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} webspaceProfile=$webspaceProfile');
+
+    final settings = WebSpaceInAppWebViewSettings(webspaceProfile: webspaceProfile)
+      ..javaScriptEnabled = config.javascriptEnabled
+      ..userAgent = config.userAgent
+      ..thirdPartyCookiesEnabled = config.thirdPartyCookiesEnabled
+      ..incognito = config.incognito
+      ..textZoom = textZoom
+      ..supportZoom = true
+      ..useShouldOverrideUrlLoading = true
+      // Keep the Dart shouldInterceptRequest callback disabled on Android:
+      // the native FastSubresourceInterceptor handles DNS blocking and
+      // LocalCDN replacement for every sub-resource, whereas the Dart
+      // callback only fires for main-document navigations on modern
+      // Chromium WebView.
+      ..useShouldInterceptRequest = false
+      ..useShouldInterceptAjaxRequest = false
+      ..useShouldInterceptFetchRequest = false
+      ..useOnLoadResource = false
+      ..supportMultipleWindows = true
+      // Required for Cloudflare Turnstile and other challenge systems
+      ..domStorageEnabled = true
+      ..databaseEnabled = true
+      ..javaScriptCanOpenWindowsAutomatically = true
+      // Android: allow file and content access for Cloudflare Turnstile
+      ..allowFileAccess = true
+      ..allowContentAccess = true
+      // Enable browser-level resource caching for offline sub-resource loading
+      ..cacheEnabled = true
+      // When cached HTML is used, set cache-first mode from the start so
+      // sub-resources (CSS/JS/images) resolve from browser cache immediately
+      ..cacheMode = usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null
+      // iOS: play videos inline instead of auto-fullscreen
+      ..allowsInlineMediaPlayback = true
+      // Required for onDownloadStartRequest to fire when the webview
+      // navigates to a downloadable response (Content-Disposition:
+      // attachment, or an unrecognized MIME type). Without this, the
+      // webview silently drops the navigation and the user sees nothing.
+      ..useOnDownloadStart = true
+      // Enable DevTools inspection in debug mode (chrome://inspect on Android)
+      ..isInspectable = kDebugMode;
 
     return inapp.InAppWebView(
       key: config.key,
@@ -1208,46 +1344,7 @@ class WebViewFactory {
       ) : null,
       pullToRefreshController: config.pullToRefreshController,
       initialUserScripts: UnmodifiableListView(userScripts),
-      initialSettings: inapp.InAppWebViewSettings(
-        javaScriptEnabled: config.javascriptEnabled,
-        userAgent: config.userAgent,
-        thirdPartyCookiesEnabled: config.thirdPartyCookiesEnabled,
-        incognito: config.incognito,
-        textZoom: textZoom,
-        supportZoom: true,
-        useShouldOverrideUrlLoading: true,
-        // Keep the Dart shouldInterceptRequest callback disabled on Android:
-        // the native FastSubresourceInterceptor handles DNS blocking and
-        // LocalCDN replacement for every sub-resource, whereas the Dart
-        // callback only fires for main-document navigations on modern
-        // Chromium WebView.
-        useShouldInterceptRequest: false,
-        useShouldInterceptAjaxRequest: false,
-        useShouldInterceptFetchRequest: false,
-        useOnLoadResource: false,
-        supportMultipleWindows: true,
-        // Required for Cloudflare Turnstile and other challenge systems
-        domStorageEnabled: true,
-        databaseEnabled: true,
-        javaScriptCanOpenWindowsAutomatically: true,
-        // Android: allow file and content access for Cloudflare Turnstile
-        allowFileAccess: true,
-        allowContentAccess: true,
-        // Enable browser-level resource caching for offline sub-resource loading
-        cacheEnabled: true,
-        // When cached HTML is used, set cache-first mode from the start so
-        // sub-resources (CSS/JS/images) resolve from browser cache immediately
-        cacheMode: usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null,
-        // iOS: play videos inline instead of auto-fullscreen
-        allowsInlineMediaPlayback: true,
-        // Required for onDownloadStartRequest to fire when the webview
-        // navigates to a downloadable response (Content-Disposition:
-        // attachment, or an unrecognized MIME type). Without this, the
-        // webview silently drops the navigation and the user sees nothing.
-        useOnDownloadStart: true,
-        // Enable DevTools inspection in debug mode (chrome://inspect on Android)
-        isInspectable: kDebugMode,
-      ),
+      initialSettings: settings,
       onWebViewCreated: (controller) async {
         final wrappedController = _WebViewController(controller);
         onControllerCreated(wrappedController);
@@ -1435,6 +1532,14 @@ class WebViewFactory {
             wrappedController.loadUrl(config.initialUrl, language: config.language);
           }
         }
+        // Profile API bind happens natively inside the patched
+        // `InAppWebView.prepare()` (see vendored fork at
+        // third_party/flutter_inappwebview_android/PATCHES.md), driven
+        // by the `webspaceProfile` we set on `InAppWebViewSettings`
+        // above. By the time `onWebViewCreated` fires, the WebView is
+        // already bound to its per-site profile and every cookie / IDB /
+        // ServiceWorker / cache write that follows is partitioned to
+        // that profile.
         // Attach native interceptor (DNS blocking + LocalCDN serving) once
         // the view is in the hierarchy. Always attach on Android — the
         // handler no-ops cheaply when neither blocklist nor CDN cache are
@@ -1614,7 +1719,29 @@ class WebViewFactory {
             DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
         config.onUrlChanged?.call(urlStr);
         if (config.onCookiesChanged != null) {
-          final cookies = await cookieManager.getCookies(url: inapp.WebUri(urlStr));
+          // Read cookies from the right jar — exactly one of the two
+          // managers is non-null per the engine selection on
+          // `_WebSpacePageState`. profileCookieManager routes through
+          // the patched plugin's `webViewController:` to the bound
+          // profile's cookie store; cookieManager hits the global
+          // default jar.
+          final List<Cookie> cookies;
+          if (config.profileCookieManager != null && config.cookieSiteId != null) {
+            cookies = await config.profileCookieManager!.getCookies(
+              controller: _WebViewController(controller),
+              siteId: config.cookieSiteId!,
+              url: Uri.parse(urlStr),
+            );
+          } else {
+            assert(
+              config.cookieManager != null,
+              'onCookiesChanged requires cookieManager (legacy mode) '
+              'or profileCookieManager + cookieSiteId (profile mode).',
+            );
+            cookies = await config.cookieManager!.getCookies(
+              url: Uri.parse(urlStr),
+            );
+          }
           config.onCookiesChanged!(cookies);
         }
         // Inject full cosmetic script: MutationObserver + text-based hiding

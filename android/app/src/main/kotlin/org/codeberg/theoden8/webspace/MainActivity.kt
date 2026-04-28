@@ -16,6 +16,7 @@ class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
     private var webInterceptPlugin: WebInterceptPlugin? = null
     private var locationPlugin: LocationPlugin? = null
+    private var webSpaceProfilePlugin: WebSpaceProfilePlugin? = null
 
     override fun getFlutterShellArgs(): FlutterShellArgs {
         val args = FlutterShellArgs.fromIntent(intent)
@@ -33,6 +34,7 @@ class MainActivity: FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
         locationPlugin = LocationPlugin(this, flutterEngine)
+        webSpaceProfilePlugin = WebSpaceProfilePlugin(this, flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pinShortcut" -> {

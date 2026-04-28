@@ -80,6 +80,16 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
+      - name: Apply WebSpace plugin patches
+        # See third_party/PATCHES.md. The script materializes patched
+        # copies of flutter_inappwebview_{android,ios,macos} under
+        # .dart_tool/webspace_patched_plugins/<plugin>/, downloading
+        # upstream from pub.dev when ~/.pub-cache is cold. Must run
+        # BEFORE the first `pub get` because pub validates path:
+        # dependency targets exist (exit 66 otherwise) and
+        # dependency_overrides in pubspec.yaml point at those paths.
+        run: fvm dart run scripts/apply_plugin_patches.dart
+
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
@@ -96,6 +106,24 @@ jobs:
           else
             fvm flutter build apk --release --flavor fdroid --split-per-abi
           fi
+
+      - name: Verify APK is free of Google Mobile Services
+        # Per openspec/specs/per-site-profiles/spec.md PROF-007, no shipped
+        # artifact may contain com.google.android.gms.* / firebase / play
+        # classes. Scans the *built* APK because clean Gradle deps can
+        # transitively pull GMS through AARs, vendored jars, or codegen —
+        # an audit of `./gradlew app:dependencies` would miss those.
+        run: |
+          set -e
+          shopt -s nullglob
+          apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "ERROR: no fdroid APK found to scan" >&2
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            bash scripts/check_no_gms.sh "$apk"
+          done
 
       - name: Build Linux
         run: fvm flutter build linux --release
@@ -251,6 +279,16 @@ jobs:
           key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock', 'macos/Podfile.lock') }}
           restore-keys: |
             pods-${{ runner.os }}-
+
+      - name: Apply WebSpace plugin patches
+        # See third_party/PATCHES.md. The script materializes patched
+        # copies of flutter_inappwebview_{android,ios,macos} under
+        # .dart_tool/webspace_patched_plugins/<plugin>/, downloading
+        # upstream from pub.dev when ~/.pub-cache is cold. Must run
+        # BEFORE the first `pub get` because pub validates path:
+        # dependency targets exist (exit 66 otherwise) and
+        # dependency_overrides in pubspec.yaml point at those paths.
+        run: fvm dart run scripts/apply_plugin_patches.dart
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile

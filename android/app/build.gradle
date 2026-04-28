@@ -116,4 +116,11 @@ flutter {
 }
 
 dependencies {
+    // Profile API for per-site cookie/storage isolation. Used by
+    // WebSpaceProfilePlugin (ws-<siteId> profiles) — see
+    // openspec/specs/per-site-profiles/spec.md. The MULTI_PROFILE feature
+    // is gated at runtime via WebViewFeature.isFeatureSupported; devices
+    // whose System WebView does not advertise it fall through to the
+    // legacy capture-nuke-restore engine.
+    implementation "androidx.webkit:webkit:1.12.1"
 }

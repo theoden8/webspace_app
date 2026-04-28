@@ -1,7 +1,19 @@
 # Per-Site Cookie Isolation
 
 ## Status
-**Implemented**
+**Implemented (legacy / fallback path).**
+
+> **Note:** This is the fallback engine, used when
+> [`ProfileNative.isSupported()`](../../../lib/services/profile_native.dart)
+> is `false` — i.e. iOS, macOS, and Android System WebView <110. On
+> Android System WebView 110+, the app uses native per-site profiles
+> instead; see
+> [openspec/specs/per-site-profiles/spec.md](../per-site-profiles/spec.md).
+> Engine selection is a single cached `bool _useProfiles` in
+> [`_WebSpacePageState`](../../../lib/main.dart) resolved at startup;
+> none of the requirements below apply when `_useProfiles == true`
+> (the conflict-find / unload-on-switch / capture-nuke-restore code
+> path is skipped end-to-end in that mode).
 
 ## Purpose
 Implements cookie isolation between sites on the same domain. This allows users to have multiple accounts (e.g., two GitHub accounts) as separate sites without session sharing.
@@ -450,6 +462,14 @@ The system SHALL clean up all cookie-related data when a site is deleted.
 ### Requirement: ISO-011 - Per-Site Cookie Blocking
 
 The system SHALL allow blocking specific cookies by name + domain on a per-site basis. Blocked cookies are deleted from the webview cookie jar after each page load and skipped during cookie restoration.
+
+> **Profile mode note.** This requirement applies in legacy mode
+> (`_useProfiles == false`); the delete routes through the global
+> `CookieManager`. In profile mode the same scenarios are satisfied
+> by [PROF-006 — Cookie Ops via ProfileCookieManager](../per-site-profiles/spec.md#requirement-prof-006--cookie-ops-via-profilecookiemanager),
+> which does the delete via the patched `inapp.CookieManager`'s
+> `webViewController:` parameter so the per-site profile's cookie
+> store is targeted (HttpOnly cookies included).
 
 #### Scenario: Block a cookie from the cookie inspector
 

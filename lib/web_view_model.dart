@@ -7,6 +7,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show Pu
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/profile_cookie_manager.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -451,6 +452,7 @@ class WebViewModel {
   Widget getWebView(
     Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy}) launchUrlFunc,
     CookieManager cookieManager,
+    ProfileCookieManager? profileCookieManager,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
@@ -646,18 +648,36 @@ class WebViewModel {
             }
             await saveFunc();
           },
+          // Route the post-load cookie read through whichever
+          // manager is active for this engine. Profile mode hits the
+          // per-site profile via the patched plugin's
+          // `webViewController:`; legacy mode hits the global jar.
+          cookieManager: cookieManager,
+          profileCookieManager: profileCookieManager,
+          cookieSiteId: siteId,
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar
             if (blockedCookies.isNotEmpty) {
               final blocked = newCookies.where((c) => isCookieBlocked(c.name, c.domain)).toList();
               final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
               for (final c in blocked) {
-                await cookieManager.deleteCookie(
-                  url: url,
-                  name: c.name,
-                  domain: c.domain,
-                  path: c.path ?? '/',
-                );
+                if (profileCookieManager != null) {
+                  await profileCookieManager.deleteCookie(
+                    controller: controller,
+                    siteId: siteId,
+                    url: url,
+                    name: c.name,
+                    domain: c.domain,
+                    path: c.path ?? '/',
+                  );
+                } else {
+                  await cookieManager.deleteCookie(
+                    url: url,
+                    name: c.name,
+                    domain: c.domain,
+                    path: c.path ?? '/',
+                  );
+                }
               }
               cookies = newCookies.where((c) => !isCookieBlocked(c.name, c.domain)).toList();
             } else {
@@ -702,12 +722,13 @@ class WebViewModel {
   WebViewController? getController(
     Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy}) launchUrlFunc,
     CookieManager cookieManager,
+    ProfileCookieManager? profileCookieManager,
     Function saveFunc, {
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
       // Create webview with current language setting
-      webview = getWebView(launchUrlFunc, cookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts);
+      webview = getWebView(launchUrlFunc, cookieManager, profileCookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts);
     }
     if (controller != null) {
       setController();
@@ -715,14 +736,27 @@ class WebViewModel {
     return controller;
   }
 
-  Future<void> deleteCookies(CookieManager cookieManager) async {
+  Future<void> deleteCookies(CookieManager cookieManager,
+      ProfileCookieManager? profileCookieManager) async {
+    final url = Uri.parse(initUrl);
     for (final Cookie cookie in cookies) {
-      await cookieManager.deleteCookie(
-        url: Uri.parse(initUrl),
-        name: cookie.name,
-        domain: cookie.domain,
-        path: cookie.path ?? "/",
-      );
+      if (profileCookieManager != null) {
+        await profileCookieManager.deleteCookie(
+          controller: controller,
+          siteId: siteId,
+          url: url,
+          name: cookie.name,
+          domain: cookie.domain,
+          path: cookie.path ?? "/",
+        );
+      } else {
+        await cookieManager.deleteCookie(
+          url: url,
+          name: cookie.name,
+          domain: cookie.domain,
+          path: cookie.path ?? "/",
+        );
+      }
     }
     cookies = [];
   }

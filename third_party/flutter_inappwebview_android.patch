@@ -1,0 +1,263 @@
+diff -urN a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/MyCookieManager.java b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/MyCookieManager.java
+--- a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/MyCookieManager.java	2023-12-11 23:38:07.000000000 +0000
++++ b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/MyCookieManager.java	2026-04-28 03:31:11.272970455 +0000
+@@ -2,6 +2,8 @@
+ 
+ import android.os.Build;
+ import android.util.Log;
++import android.view.View;
++import android.view.ViewGroup;
+ import android.webkit.CookieManager;
+ import android.webkit.CookieSyncManager;
+ import android.webkit.ValueCallback;
+@@ -10,8 +12,13 @@
+ import androidx.annotation.Nullable;
+ import androidx.webkit.CookieManagerCompat;
+ import androidx.webkit.WebViewFeature;
++// [WebSpace fork patch] — see third_party/PATCHES.md
++import androidx.webkit.Profile;
++import androidx.webkit.WebViewCompat;
+ 
+ import com.pichillilorenzo.flutter_inappwebview_android.types.ChannelDelegateImpl;
++// [WebSpace fork patch]
++import com.pichillilorenzo.flutter_inappwebview_android.webview.in_app_webview.InAppWebView;
+ 
+ import java.text.ParseException;
+ import java.text.SimpleDateFormat;
+@@ -78,7 +85,11 @@
+         }
+         break;
+       case "getCookies":
+-        result.success(getCookies((String) call.argument("url")));
++        // [WebSpace fork patch] — `webViewId` (when provided) scopes
++        // the read to the per-profile cookie manager.
++        result.success(getCookies(
++            (String) call.argument("url"),
++            call.argument("webViewId")));
+         break;
+       case "deleteCookie":
+         {
+@@ -86,7 +97,9 @@
+           String name = (String) call.argument("name");
+           String domain = (String) call.argument("domain");
+           String path = (String) call.argument("path");
+-          deleteCookie(url, name, domain, path, result);
++          // [WebSpace fork patch]
++          Object webViewId = call.argument("webViewId");
++          deleteCookie(url, name, domain, path, webViewId, result);
+         }
+         break;
+       case "deleteCookies":
+@@ -142,6 +155,63 @@
+     return cookieManager;
+   }
+ 
++  // [WebSpace fork patch] — see third_party/PATCHES.md
++  // Resolve the per-profile CookieManager for the WebView identified
++  // by [webViewId] (typically the platform-view int passed from Dart
++  // as the `webViewId` arg). When the WebView is bound to a non-
++  // default `androidx.webkit.Profile`, returns that profile's
++  // `CookieManager` so subsequent reads/writes target the per-site
++  // cookie jar instead of the global default. Falls back to the
++  // global manager when:
++  //   - webViewId is null (caller didn't scope the op)
++  //   - MULTI_PROFILE feature unsupported (System WebView <110)
++  //   - InAppWebView with that id isn't in the live view tree
++  //   - bound profile is the default profile (or unavailable)
++  // The fallback path is byte-identical to stock upstream behavior,
++  // so unscoped callers (DevTools cookie inspector during legacy
++  // mode, settings-import path, etc.) keep working unchanged.
++  private @Nullable CookieManager getCookieManagerForWebView(@Nullable Object webViewId) {
++    if (webViewId == null || plugin == null || plugin.activity == null) {
++      return getCookieManager();
++    }
++    if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
++      return getCookieManager();
++    }
++    InAppWebView webView = findInAppWebViewById(
++        plugin.activity.getWindow().getDecorView().getRootView(), webViewId);
++    if (webView == null) return getCookieManager();
++    Profile profile;
++    try {
++      profile = WebViewCompat.getProfile(webView);
++    } catch (Throwable t) {
++      return getCookieManager();
++    }
++    if (profile == null) return getCookieManager();
++    if (Profile.DEFAULT_PROFILE_NAME.equals(profile.getName())) {
++      return getCookieManager();
++    }
++    return profile.getCookieManager();
++  }
++
++  // [WebSpace fork patch]
++  // Recursive view-tree walk locating the InAppWebView whose `id`
++  // matches [webViewId]. Same enumeration pattern WebSpaceProfilePlugin
++  // and WebInterceptPlugin use; sub-millisecond on a typical tree.
++  private static @Nullable InAppWebView findInAppWebViewById(View view, Object webViewId) {
++    if (view instanceof InAppWebView) {
++      InAppWebView wv = (InAppWebView) view;
++      if (webViewId.equals(wv.id)) return wv;
++    }
++    if (view instanceof ViewGroup) {
++      ViewGroup vg = (ViewGroup) view;
++      for (int i = 0; i < vg.getChildCount(); i++) {
++        InAppWebView found = findInAppWebViewById(vg.getChildAt(i), webViewId);
++        if (found != null) return found;
++      }
++    }
++    return null;
++  }
++
+   public void setCookie(String url,
+                                String name,
+                                String value,
+@@ -204,10 +274,17 @@
+   }
+ 
+   public List<Map<String, Object>> getCookies(final String url) {
++    return getCookies(url, null);
++  }
++
++  // [WebSpace fork patch] — webViewId-scoped overload routes through the
++  // bound profile's CookieManager when one is set; null webViewId is
++  // identical to the stock global-jar path.
++  public List<Map<String, Object>> getCookies(final String url, @Nullable Object webViewId) {
+ 
+     final List<Map<String, Object>> cookieListMap = new ArrayList<>();
+ 
+-    cookieManager = getCookieManager();
++    cookieManager = getCookieManagerForWebView(webViewId);
+     if (cookieManager == null) return cookieListMap;
+ 
+     List<String> cookies = new ArrayList<>();
+@@ -286,7 +363,15 @@
+   }
+ 
+   public void deleteCookie(String url, String name, String domain, String path, final MethodChannel.Result result) {
+-    cookieManager = getCookieManager();
++    deleteCookie(url, name, domain, path, null, result);
++  }
++
++  // [WebSpace fork patch] — webViewId-scoped overload routes through the
++  // bound profile's CookieManager when one is set; null webViewId is
++  // identical to the stock global-jar path.
++  public void deleteCookie(String url, String name, String domain, String path,
++                           @Nullable Object webViewId, final MethodChannel.Result result) {
++    cookieManager = getCookieManagerForWebView(webViewId);
+     if (cookieManager == null) {
+       result.success(false);
+       return;
+diff -urN a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebView.java b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebView.java
+--- a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebView.java	2024-10-01 09:59:55.000000000 +0000
++++ b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebView.java	2026-04-28 01:49:39.000000000 +0000
+@@ -61,6 +61,8 @@
+ import androidx.webkit.WebSettingsCompat;
+ import androidx.webkit.WebViewCompat;
+ import androidx.webkit.WebViewFeature;
++// [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++import androidx.webkit.ProfileStore;
+ 
+ import com.pichillilorenzo.flutter_inappwebview_android.InAppWebViewFlutterPlugin;
+ import com.pichillilorenzo.flutter_inappwebview_android.R;
+@@ -238,6 +240,30 @@
+ 
+   @SuppressLint("RestrictedApi")
+   public void prepare() {
++    // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++    // The Profile API requires WebViewCompat.setProfile to run BEFORE any
++    // session-bound operation on the WebView. Stock prepare() calls
++    // addJavascriptInterface, addDocumentStartJavaScript, and
++    // CookieManager.setAcceptThirdPartyCookies a few lines below — each
++    // of which locks the WebView to whichever profile is current
++    // (default), making the post-construction bind path the user-app
++    // tried (`ProfileNative.bindProfileToWebView` walking the view tree
++    // from `onWebViewCreated`) silently no-op with IllegalStateException.
++    //
++    // Doing the bind here, before anything else in prepare(), partitions
++    // cookies / localStorage / IDB / ServiceWorkers / HTTP cache for the
++    // rest of the WebView's lifetime.
++    if (customSettings.webspaceProfile != null
++        && WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
++      try {
++        ProfileStore.getInstance().getOrCreateProfile(customSettings.webspaceProfile);
++        WebViewCompat.setProfile(this, customSettings.webspaceProfile);
++      } catch (Throwable t) {
++        android.util.Log.w(LOG_TAG,
++            "WebSpace fork: setProfile(" + customSettings.webspaceProfile + ") failed: " + t);
++      }
++    }
++
+     if (plugin != null) {
+       webViewAssetLoaderExt = WebViewAssetLoaderExt.fromMap(customSettings.webViewAssetLoader, plugin, getContext());
+     }
+diff -urN a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebViewSettings.java b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebViewSettings.java
+--- a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebViewSettings.java	2024-09-22 19:46:50.000000000 +0000
++++ b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebViewSettings.java	2026-04-28 01:49:39.000000000 +0000
+@@ -101,6 +101,15 @@
+   public String standardFontFamily = "sans-serif";
+   public Boolean saveFormData = true;
+   public Boolean thirdPartyCookiesEnabled = true;
++  // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++  // Name of the androidx.webkit Profile to bind this WebView to before any
++  // session-bound operation. When non-null, InAppWebView.prepare() will call
++  // ProfileStore.getOrCreateProfile + WebViewCompat.setProfile at the very
++  // top, before addJavascriptInterface / addDocumentStartJavaScript /
++  // setAcceptThirdPartyCookies — all of which lock the WebView to whichever
++  // profile is current and would otherwise pin it to "Default".
++  @Nullable
++  public String webspaceProfile = null;
+   public Boolean hardwareAcceleration = true;
+   public Boolean supportMultipleWindows = false;
+   public String regexToCancelSubFramesLoading;
+@@ -337,6 +346,10 @@
+         case "thirdPartyCookiesEnabled":
+           thirdPartyCookiesEnabled = (Boolean) value;
+           break;
++        case "webspaceProfile":
++          // [WebSpace fork patch]
++          webspaceProfile = (String) value;
++          break;
+         case "hardwareAcceleration":
+           hardwareAcceleration = (Boolean) value;
+           break;
+@@ -486,6 +499,8 @@
+     settings.put("standardFontFamily", standardFontFamily);
+     settings.put("saveFormData", saveFormData);
+     settings.put("thirdPartyCookiesEnabled", thirdPartyCookiesEnabled);
++    // [WebSpace fork patch]
++    settings.put("webspaceProfile", webspaceProfile);
+     settings.put("hardwareAcceleration", hardwareAcceleration);
+     settings.put("supportMultipleWindows", supportMultipleWindows);
+     settings.put("regexToCancelSubFramesLoading", regexToCancelSubFramesLoading);
+diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
+--- a/lib/src/cookie_manager.dart	2023-12-11 23:38:15.000000000 +0000
++++ b/lib/src/cookie_manager.dart	2026-04-28 03:31:51.052964234 +0000
+@@ -106,6 +106,14 @@
+ 
+     Map<String, dynamic> args = <String, dynamic>{};
+     args.putIfAbsent('url', () => url.toString());
++    // [WebSpace fork patch] — see third_party/PATCHES.md.
++    // Forwarding the controller id lets the patched Java side
++    // route through the bound profile's CookieManager (when one is
++    // set). Stock upstream ignores the parameter; the patched plugin
++    // honors it to fix per-site reads in profile mode.
++    if (webViewController?.id != null) {
++      args.putIfAbsent('webViewId', () => webViewController!.id);
++    }
+     List<dynamic> cookieListMap =
+         await channel?.invokeMethod<List>('getCookies', args) ?? [];
+     cookieListMap = cookieListMap.cast<Map<dynamic, dynamic>>();
+@@ -176,6 +184,12 @@
+     args.putIfAbsent('name', () => name);
+     args.putIfAbsent('domain', () => domain);
+     args.putIfAbsent('path', () => path);
++    // [WebSpace fork patch] — see third_party/PATCHES.md.
++    // Routes the delete through the bound profile's CookieManager
++    // when webViewController is supplied; identical to stock when not.
++    if (webViewController?.id != null) {
++      args.putIfAbsent('webViewId', () => webViewController!.id);
++    }
+     return await channel?.invokeMethod<bool>('deleteCookie', args) ?? false;
+   }
+ 
