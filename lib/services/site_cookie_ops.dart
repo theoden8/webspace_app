@@ -26,6 +26,23 @@ import 'package:webspace/services/webview.dart';
 /// cookies in and out of the singleton); plumbing it through a
 /// per-site abstraction would only obscure intent.
 abstract class SiteCookieOps {
+  /// Read the cookies visible to the page at [url] in [siteId]'s
+  /// jar. In legacy mode this routes through the global
+  /// `CookieManager.getCookies(url:)`. In profile mode it
+  /// JS-evaluates `document.cookie` inside the bound WebView and
+  /// parses the `name=value; ...` form into [Cookie] objects.
+  ///
+  /// Caveat in profile mode: `document.cookie` returns only
+  /// non-HttpOnly cookies; HttpOnly cookies (typical session
+  /// tokens) are visible to neither read nor write here. The
+  /// per-site profile is the source of truth — these reads reflect
+  /// what the page itself can see.
+  Future<List<Cookie>> getCookies({
+    WebViewController? controller,
+    required String siteId,
+    required Uri url,
+  });
+
   /// Delete a cookie matching `(name, domain, path)` for [siteId].
   ///
   /// In legacy mode, [controller] and [siteId] are ignored; the
@@ -56,6 +73,15 @@ class LegacySiteCookieOps implements SiteCookieOps {
   LegacySiteCookieOps(this.cookieManager);
 
   @override
+  Future<List<Cookie>> getCookies({
+    WebViewController? controller,
+    required String siteId,
+    required Uri url,
+  }) async {
+    return cookieManager.getCookies(url: url);
+  }
+
+  @override
   Future<void> deleteCookie({
     WebViewController? controller,
     required String siteId,
@@ -82,6 +108,42 @@ class LegacySiteCookieOps implements SiteCookieOps {
 /// unconditionally global; using JS uniformly across platforms
 /// keeps the behaviour identical.
 class ProfileSiteCookieOps implements SiteCookieOps {
+  @override
+  Future<List<Cookie>> getCookies({
+    WebViewController? controller,
+    required String siteId,
+    required Uri url,
+  }) async {
+    if (controller == null) return const [];
+    // `document.cookie` returns the cookies the document can read —
+    // i.e. the per-profile non-HttpOnly cookies for the current
+    // origin. Format: `name1=value1; name2=value2; …`. We parse it
+    // and synthesize Cookie objects with name + value populated and
+    // host/path inferred from the request URL. Domain/expires/secure
+    // attributes are not exposed by `document.cookie` and stay null.
+    final raw = await controller.evaluateJavascriptReturning(
+      "document.cookie",
+    );
+    if (raw == null) return const [];
+    final str = raw.toString();
+    if (str.isEmpty) return const [];
+
+    final out = <Cookie>[];
+    for (final piece in str.split(';')) {
+      final trimmed = piece.trim();
+      if (trimmed.isEmpty) continue;
+      final eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      out.add(Cookie(
+        name: trimmed.substring(0, eq),
+        value: trimmed.substring(eq + 1),
+        domain: url.host,
+        path: '/',
+      ));
+    }
+    return out;
+  }
+
   @override
   Future<void> deleteCookie({
     WebViewController? controller,

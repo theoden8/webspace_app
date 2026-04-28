@@ -647,6 +647,11 @@ class WebViewModel {
             }
             await saveFunc();
           },
+          // Route the post-load cookie read through cookieOps so it
+          // sees the per-site profile in profile mode, not the
+          // global default jar.
+          cookieOps: cookieOps,
+          cookieOpsSiteId: siteId,
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar
             if (blockedCookies.isNotEmpty) {
