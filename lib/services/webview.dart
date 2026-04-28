@@ -1559,7 +1559,20 @@ class WebViewFactory {
         if (externalInfo == null) return;
         if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
           LogService.instance.log('WebView',
-              'onReceivedError: suppressed, leaving page in place — url=$reqUrl');
+              'onReceivedError: suppressed — calling goBack to drop error commit (url=$reqUrl)');
+          // The fallback page loaded successfully and got cached; the
+          // intent:// redirect that Android painted over it as
+          // chrome-error://chromewebdata is just one entry on top in the
+          // back stack. Pop it so the user lands on the fallback page
+          // they actually wanted to see. Defer to a microtask for the
+          // same chromium-bookkeeping reason as the recovery path below.
+          Future.microtask(() async {
+            try {
+              if (await controller.canGoBack()) {
+                await controller.goBack();
+              }
+            } catch (_) {}
+          });
           return;
         }
         if (config.onExternalSchemeUrl != null) {
