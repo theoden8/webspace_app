@@ -1259,6 +1259,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     String? spoofTimezone,
     bool spoofTimezoneFromLocation = false,
     WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
+    required List<UserScriptConfig> userScripts,
   }) async {
     await Navigator.push(
       context,
@@ -1281,9 +1282,40 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           spoofTimezone: spoofTimezone,
           spoofTimezoneFromLocation: spoofTimezoneFromLocation,
           webRtcPolicy: webRtcPolicy,
+          userScripts: userScripts,
+          onConfirmScriptFetch: _confirmScriptFetch,
         ),
       ),
     );
+  }
+
+  /// Stable callback for the user-script fetch-from-URL confirmation prompt.
+  /// Used by both the parent webview (via `getWebView`) and the nested
+  /// `InAppWebViewScreen` so external dependency loading prompts the user
+  /// the same way regardless of where the webview was opened.
+  Future<bool> _confirmScriptFetch(String url) async {
+    if (!mounted) return false;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Load external script?'),
+        content: Text(
+          'A user script wants to load:\n\n$url\n\n'
+          'This URL is not on the trusted CDN list. Allow?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Deny'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   void _toggleFind() {
@@ -3320,30 +3352,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                           return HtmlCacheService.applyThemePrelude(cached, dark: isDark);
                                         }(),
                                   isActive: () => _currentIndex == index,
-                                  onConfirmScriptFetch: (url) async {
-                                    if (!mounted) return false;
-                                    final result = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text('Load external script?'),
-                                        content: Text(
-                                          'A user script wants to load:\n\n$url\n\n'
-                                          'This URL is not on the trusted CDN list. Allow?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx, false),
-                                            child: const Text('Deny'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx, true),
-                                            child: const Text('Allow'),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    return result ?? false;
-                                  },
+                                  onConfirmScriptFetch: _confirmScriptFetch,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;
                                     await confirmAndLaunchExternalUrl(context, info);
