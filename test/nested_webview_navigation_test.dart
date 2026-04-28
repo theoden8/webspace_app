@@ -19,6 +19,24 @@ class NavigationTestHarness {
   /// in WebViewModel.getWebView's closure).
   final Map<int, DateTime?> _lastSameDomainGestureTime = {};
 
+  /// Per-site state for `simulateFullUrlChanged`. Owned by the harness; the
+  /// harness delegates the actual decision to the production
+  /// `NavigationDecisionEngine.handleOnUrlChanged` rather than re-implementing
+  /// the redirect-handled/current-url logic.
+  final Map<int, OnUrlChangedState> _urlChangedState = {};
+
+  /// URLs the engine asked the call site to navigate the parent webview
+  /// back to. Production no longer issues these as actual
+  /// `controller.loadUrl` calls — the loadUrl-during-in-flight-cross-
+  /// origin-redirect was a chromium dangling-raw_ptr trigger on the
+  /// affected Android System WebView build — but the engine still
+  /// computes the would-be target so the regression tests below can
+  /// keep asserting that the engine picks a sane URL (not a redirector,
+  /// not a stale cross-domain entry, etc.). The harness records the
+  /// engine's request; production reads `result.navigateBackTo` and
+  /// drops it on the floor.
+  final List<({int siteIndex, String url})> loadUrlCalls = [];
+
   void addSite(String url, {String? name, bool blockAutoRedirects = true}) {
     sites.add(WebViewModel(
       initUrl: url,
@@ -75,6 +93,44 @@ class NavigationTestHarness {
     }
     return false;
   }
+
+  /// Simulates a full onUrlChanged invocation by delegating to the
+  /// production `NavigationDecisionEngine.handleOnUrlChanged`. The harness
+  /// plays the caller's role: applies the gesture update, records
+  /// loadUrl/launchNested side effects, and commits the new state back.
+  /// Multi-event scenarios (duplicate onUrlChanged from onLoadStop+
+  /// onUpdateVisitedHistory, followed by the loadUrl-back settling event)
+  /// round-trip through the engine without a parallel implementation.
+  void simulateFullUrlChanged(int siteIndex, String newUrl) {
+    final site = sites[siteIndex];
+    final prev = _urlChangedState[siteIndex] ??
+        OnUrlChangedState.initial(site.initUrl);
+    final result = NavigationDecisionEngine.handleOnUrlChanged(
+      newUrl: newUrl,
+      initUrl: site.initUrl,
+      blockAutoRedirects: site.blockAutoRedirects,
+      isSiteActive: true,
+      lastSameDomainGestureTime: _lastSameDomainGestureTime[siteIndex],
+      now: DateTime.now(),
+      isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
+      state: prev,
+    );
+    _applyGestureUpdate(siteIndex, result.gestureUpdate);
+    if (result.navigateBackTo != null) {
+      loadUrlCalls.add((siteIndex: siteIndex, url: result.navigateBackTo!));
+    }
+    if (result.launchNestedUrl != null) {
+      launchUrlCalls.add((url: result.launchNestedUrl!, homeTitle: site.name));
+    }
+    _urlChangedState[siteIndex] = result.state;
+  }
+
+  /// Snapshot of the closure-level state for a site. Exposed so tests can
+  /// assert post-condition invariants (e.g. previousSameDomainUrl stays on
+  /// a same-domain URL after a handled cross-domain redirect).
+  OnUrlChangedState stateFor(int siteIndex) =>
+      _urlChangedState[siteIndex] ??
+      OnUrlChangedState.initial(sites[siteIndex].initUrl);
 
   void _applyGestureUpdate(int siteIndex, GestureStateUpdate? update) {
     switch (update) {
@@ -560,6 +616,263 @@ void main() {
       expect(detected, isTrue);
       expect(harness.launchUrlCalls.length, equals(1));
       expect(harness.launchUrlCalls.last.url, equals('https://www.amazon.de/'));
+    });
+
+    test('LinkedIn safety/go redirector: same-domain click propagates gesture to cross-domain target', () {
+      // LinkedIn wraps outbound links in https://www.linkedin.com/safety/go?url=<encoded>
+      // The wrapper URL is same-domain (linkedin.com), so shouldOverrideUrlLoading
+      // allows it and records the gesture. The server then redirects to the target
+      // URL (cross-domain), which WKWebView surfaces only via onUrlChanged. The
+      // gesture-propagation window should kick in so the redirect target opens
+      // in a nested browser instead of overwriting the LinkedIn webview.
+      harness.addSite('https://linkedin.com', name: 'LinkedIn');
+
+      final allowed = harness.simulateNavigation(
+        0,
+        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2FLocalLLaMA%2Fcomments%2F1srd2cc',
+        hasGesture: true,
+      );
+      expect(allowed, isTrue, reason: 'safety/go wrapper is same-domain, must be allowed');
+
+      final detected = harness.simulateUrlChanged(
+        0,
+        'https://www.reddit.com/r/LocalLLaMA/comments/1srd2cc',
+      );
+      expect(detected, isTrue,
+        reason: 'redirect from safety/go must open a nested browser');
+      expect(harness.launchUrlCalls.length, equals(1));
+      expect(harness.launchUrlCalls.last.url,
+        equals('https://www.reddit.com/r/LocalLLaMA/comments/1srd2cc'));
+    });
+
+    test('duplicate onUrlChanged (onLoadStop+onUpdateVisitedHistory) does not pollute currentUrl', () {
+      // Regression: onUrlChanged fires twice for a cross-domain redirect
+      // (once from onUpdateVisitedHistory, once from onLoadStop — see
+      // lib/services/webview.dart:1247,1280). The decision block runs only
+      // on the first pass because redirectHandled is set; the second pass
+      // must NOT commit the cross-domain URL to currentUrl. If it did,
+      // the next same-domain event would save it as previousSameDomainUrl
+      // and the next cross-domain redirect's loadUrl-back would navigate
+      // into a cross-domain URL (see "nth attempt" regression below).
+      harness.addSite('https://linkedin.com', name: 'LinkedIn');
+
+      // User lands on a messaging thread (same-domain gesture-less nav).
+      harness.simulateFullUrlChanged(
+        0, 'https://www.linkedin.com/mwlite/messaging/thread/foo');
+      expect(
+        harness.stateFor(0).currentUrl,
+        equals('https://www.linkedin.com/mwlite/messaging/thread/foo'),
+      );
+
+      // User taps outbound link → safety/go wrapper loads, records gesture.
+      harness.simulateNavigation(
+        0,
+        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        hasGesture: true,
+      );
+      harness.simulateFullUrlChanged(
+        0, 'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
+
+      // Server redirects to Reddit. onUrlChanged #1 fires (no slash).
+      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+      expect(harness.launchUrlCalls, hasLength(1));
+      expect(harness.loadUrlCalls, hasLength(1),
+        reason: 'navigate-back to the prior same-domain URL');
+      expect(
+        harness.loadUrlCalls.last.url,
+        equals('https://www.linkedin.com/mwlite/messaging/thread/foo'),
+        reason: 'navigate-back target is the pre-safety/go same-domain URL',
+      );
+      expect(harness.stateFor(0).redirectHandled, isTrue);
+
+      // Duplicate onUrlChanged #2 fires (trailing slash / canonicalized).
+      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo/');
+      expect(harness.launchUrlCalls, hasLength(1),
+        reason: 'duplicate must not open a second nested browser');
+      expect(
+        harness.stateFor(0).currentUrl,
+        isNot(startsWith('https://www.reddit.com')),
+        reason: 'currentUrl must NOT be polluted with the cross-domain URL',
+      );
+      expect(
+        harness.stateFor(0).currentUrl,
+        startsWith('https://www.linkedin.com/'),
+        reason: 'currentUrl must stay on a linkedin.com URL',
+      );
+    });
+
+    test('inline scheme URLs (about:blank, data:, blob:) do not pollute previousSameDomainUrl', () {
+      // Regression for the bug observed on a real device: after a
+      // captcha / iframe / chromium-internal about:blank fired
+      // onUrlChanged on the parent webview, the next same-domain
+      // event saved "about:blank" as previousSameDomainUrl. The next
+      // cross-domain redirect then navigated the parent webview to
+      // about:blank instead of a real prior page — visible in the log
+      // as: `navigating back from cross-domain "...reddit..." ->
+      // "about:blank"`. The user ended up with a blank screen.
+      harness.addSite('https://linkedin.com', name: 'LinkedIn');
+
+      // Seed: user is on a real LinkedIn page.
+      harness.simulateFullUrlChanged(0, 'https://www.linkedin.com/feed/');
+      expect(harness.stateFor(0).currentUrl,
+          equals('https://www.linkedin.com/feed/'));
+
+      // about:blank fires (captcha iframe, intermediate chromium state,
+      // page tear-down placeholder, etc.). It should NOT advance state.
+      harness.simulateFullUrlChanged(0, 'about:blank');
+      expect(harness.stateFor(0).currentUrl,
+          equals('https://www.linkedin.com/feed/'),
+          reason: 'about:blank must not be committed as currentUrl');
+
+      // data: URI fires similarly.
+      harness.simulateFullUrlChanged(
+          0, 'data:text/html;charset=utf-8,<html></html>');
+      expect(harness.stateFor(0).currentUrl,
+          equals('https://www.linkedin.com/feed/'),
+          reason: 'data: URI must not be committed as currentUrl');
+
+      // blob: URI.
+      harness.simulateFullUrlChanged(0, 'blob:https://example.com/abc-123');
+      expect(harness.stateFor(0).currentUrl,
+          equals('https://www.linkedin.com/feed/'),
+          reason: 'blob: URI must not be committed as currentUrl');
+
+      // Now a cross-domain redirect fires. previousSameDomainUrl
+      // should still be the genuine prior page — NOT any inline
+      // scheme — so the navigate-back target is a real LinkedIn URL.
+      harness.simulateNavigation(
+        0, 'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        hasGesture: true,
+      );
+      harness.simulateFullUrlChanged(
+          0, 'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
+      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+
+      expect(harness.loadUrlCalls, hasLength(1));
+      expect(harness.loadUrlCalls.last.url,
+          equals('https://www.linkedin.com/feed/'),
+          reason: 'navigate-back target must be the real prior LinkedIn '
+                  'page, never an inline scheme like about:blank');
+    });
+
+    test('navigate-back never targets a same-domain redirector URL the user is already on', () {
+      // Regression for an infinite-redirect loop observed on Android
+      // System WebView: tapping a link wrapped in a same-domain
+      // redirector (e.g. linkedin.com/safety/go?url=reddit) eventually
+      // crashed with `partition_alloc_support.cc:770 dangling raw_ptr`
+      // on Chrome_IOThread. Trace from a real device:
+      //
+      //   onUrlChanged: navigating back from cross-domain
+      //     "https://www.reddit.com/..." -> "https://www.linkedin.com/safety/go?url=..."
+      //
+      // The navigate-back was targeting the redirector itself, which
+      // 302s back to reddit, which fires onUrlChanged(reddit) again —
+      // infinite loop, eventually exhausts chromium's iframe / request
+      // lifecycle bookkeeping and trips MiraclePtr.
+      //
+      // The bug: duplicate onUrlChanged events (onLoadStop +
+      // onUpdateVisitedHistory both fire for the same URL) overwrote
+      // previousSameDomainUrl with the URL the webview is already on,
+      // losing the genuine prior page reference. The next cross-domain
+      // event then used the redirector URL as its loadUrl-back target.
+      harness.addSite('https://linkedin.com', name: 'LinkedIn');
+
+      // Seed: user lands on a normal LinkedIn page.
+      harness.simulateFullUrlChanged(0, 'https://www.linkedin.com/feed/');
+
+      // User taps an outbound link. The webview navigates to the
+      // redirector. onUrlChanged fires TWICE for the same URL (once
+      // from each of the underlying chromium callbacks) before the
+      // server-side redirect kicks in.
+      harness.simulateNavigation(
+        0,
+        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        hasGesture: true,
+      );
+      const redirectorUrl =
+          'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo';
+      harness.simulateFullUrlChanged(0, redirectorUrl);
+      // Duplicate event for the same URL — must NOT poison
+      // previousSameDomainUrl by overwriting it with the redirector.
+      harness.simulateFullUrlChanged(0, redirectorUrl);
+
+      // Server 302s. Cross-domain event fires.
+      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+
+      expect(harness.loadUrlCalls, hasLength(1),
+        reason: 'should issue exactly one navigate-back, not loop');
+      expect(
+        harness.loadUrlCalls.last.url,
+        equals('https://www.linkedin.com/feed/'),
+        reason: 'navigate-back must target the genuine prior page, '
+                'not the redirector that put us on a cross-domain URL '
+                '(which would 302 us right back into the same loop)',
+      );
+      expect(
+        harness.loadUrlCalls.last.url,
+        isNot(contains('safety/go')),
+        reason: 'navigate-back to a known redirector pattern is the '
+                'infinite-loop trap',
+      );
+    });
+
+    test('nth attempt still navigates back to a same-domain URL, not the stale cross-domain one', () {
+      // Regression for the bug observed in a real macOS session: after the
+      // first safety/go → reddit redirect, currentUrl was committed to the
+      // cross-domain URL by the duplicate onUrlChanged (from onLoadStop +
+      // onUpdateVisitedHistory firing the same redirect twice). The next
+      // same-domain settle then did `previousSameDomainUrl = currentUrl`
+      // and saved the stale cross-domain URL. When WKWebView later served
+      // the safety/go response from cache on a subsequent tap — skipping
+      // the intermediate onUrlChanged(safety/go) that would have corrected
+      // previousSameDomainUrl — the next cross-domain redirect's loadUrl
+      // back target was the stale REDDIT URL. shouldOverrideUrlLoading
+      // then CANCELed that (cross-domain, no gesture after consume), so
+      // the "navigate back before the nested opens" cleanup was silently
+      // dropped and the main webview stayed showing the Reddit content.
+      harness.addSite('https://linkedin.com', name: 'LinkedIn');
+
+      // Seed the state: user is mid-session on a messaging thread.
+      harness.simulateFullUrlChanged(
+        0, 'https://www.linkedin.com/mwlite/messaging/thread/foo');
+
+      // === Attempt 1: happy path, full onUrlChanged chain ===
+      harness.simulateNavigation(
+        0,
+        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        hasGesture: true,
+      );
+      harness.simulateFullUrlChanged(
+        0, 'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
+      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo/'); // duplicate
+      // loadUrl-back settles on the prior same-domain page.
+      harness.simulateFullUrlChanged(
+        0, 'https://www.linkedin.com/mwlite/messaging/thread/foo');
+
+      expect(harness.launchUrlCalls, hasLength(1));
+      expect(harness.loadUrlCalls.last.url,
+        equals('https://www.linkedin.com/mwlite/messaging/thread/foo'));
+
+      // === Attempt 2: WKWebView serves safety/go from cache, skipping the
+      // intermediate onUrlChanged(safety/go) entirely. This is the critical
+      // scenario for the regression — without the pollution guard, the
+      // loadUrl-back on this attempt goes to the stale reddit URL. ===
+      harness.simulateNavigation(
+        0,
+        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        hasGesture: true,
+      );
+      // NOTE: no simulateFullUrlChanged(safety/go) — WKWebView skipped it.
+      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+
+      expect(harness.launchUrlCalls, hasLength(2),
+        reason: 'attempt 2 must still open a nested browser');
+      expect(harness.loadUrlCalls.last.url,
+        startsWith('https://www.linkedin.com/'),
+        reason: 'navigate-back must stay on linkedin.com — never reddit. '
+                'A reddit URL here would be CANCELed by shouldOverrideUrlLoading '
+                '(cross-domain, no gesture) and leave the Reddit page visible.');
     });
 
     test('same-domain URL change is not flagged', () {

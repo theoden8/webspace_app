@@ -45,9 +45,23 @@ class HtmlCacheService {
       await _cacheDirectory!.create(recursive: true);
     }
 
-    // Pre-load all cached HTML into memory for sync access
-    await _preloadCache();
+    // No eager preload here — main() calls [preloadCache] explicitly
+    // before runApp so the heap pressure of decrypted HTML is gated on
+    // the same lifecycle phase as the webview-creation flow that needs
+    // it. Done this way to keep the constructor cheap; preloadCache
+    // is awaited up-front because [InAppWebViewInitialData] requires
+    // synchronous access to the bytes.
   }
+
+  /// Decrypt every cache file on disk into [_memoryCache]. Called from
+  /// `main()` so that subsequent `getHtmlSync(siteId)` calls during
+  /// `WebSpacePage.build` can return cached pages without an awaited
+  /// disk read — `InAppWebViewInitialData` needs the bytes available
+  /// at construction time.
+  ///
+  /// File imports also populate [_memoryCache] independently via
+  /// [saveHtml] at import time, so they work even before this runs.
+  Future<void> preloadCache() => _preloadCache();
 
   /// Initialize AES encryption with key from secure storage
   Future<void> _initEncryption() async {
@@ -155,6 +169,7 @@ class HtmlCacheService {
         LogService.instance.log('HtmlCache', 'Cleared cache on upgrade from $lastVersion to $currentVersion', level: LogLevel.info);
       }
       _memoryCache.clear();
+      _lastSaveAt.clear();
       // Generate new encryption key on upgrade
       await _secureStorage.delete(key: _encryptionKeyKey);
       await _initEncryption();
@@ -170,6 +185,34 @@ class HtmlCacheService {
 
   /// Max HTML size to cache (10MB)
   static const int _maxHtmlSize = 10 * 1024 * 1024;
+
+  /// Minimum interval between successful saves for a given siteId.
+  /// onLoadStop fires multiple times per page (initial commit, SPA
+  /// pseudo-navigations, BFCache restorations) and each save reads the
+  /// live DOM via `controller.getHtml()` — an IPC into the chromium
+  /// renderer that races frame-lifecycle teardown if the page is
+  /// transitioning. Debouncing collapses the storm of saves into one
+  /// per page-settled window, dropping the per-onLoadStop renderer
+  /// pressure without losing the last-seen-page guarantee for offline
+  /// viewing.
+  static const Duration _minSaveInterval = Duration(seconds: 10);
+
+  /// Last successful save timestamp per siteId. Used by [shouldSave]
+  /// to skip saves that fire inside the [_minSaveInterval] window.
+  final Map<String, DateTime> _lastSaveAt = {};
+
+  /// Returns true if a save for [siteId] should proceed right now.
+  /// False means the caller should skip the save (and, in particular,
+  /// skip the upstream `controller.getHtml()` IPC into the renderer
+  /// that produces the HTML payload).
+  ///
+  /// Callers pattern: gate the `getHtml()` call itself on this, not
+  /// just the save — the IPC is the expensive part.
+  bool shouldSave(String siteId) {
+    final last = _lastSaveAt[siteId];
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= _minSaveInterval;
+  }
 
   /// Inline style prepended to cached HTML for dark-theme sites so the
   /// pre-paint frame (before stylesheets and user scripts run on reload)
@@ -219,8 +262,9 @@ class HtmlCacheService {
 
       await file.writeAsString(encrypted);
 
-      // Update memory cache
+      // Update memory cache and debounce timestamp
       _memoryCache[siteId] = html;
+      _lastSaveAt[siteId] = DateTime.now();
 
       LogService.instance.log('HtmlCache', 'Saved ${html.length} bytes for site $siteId (encrypted)');
     } catch (e) {
@@ -271,6 +315,7 @@ class HtmlCacheService {
       await file.delete();
     }
     _memoryCache.remove(siteId);
+    _lastSaveAt.remove(siteId);
   }
 
   /// Delete cached HTML for sites not in the provided set
@@ -285,6 +330,7 @@ class HtmlCacheService {
         if (!activeSiteIds.contains(siteId)) {
           await entity.delete();
           _memoryCache.remove(siteId);
+    _lastSaveAt.remove(siteId);
           LogService.instance.log('HtmlCache', 'Removed orphaned cache for $siteId', level: LogLevel.info);
         }
       }

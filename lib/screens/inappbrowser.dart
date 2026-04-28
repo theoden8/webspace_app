@@ -63,6 +63,23 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   late String _currentUrl;
   late final inapp.PullToRefreshController? _pullToRefreshController;
 
+  /// Cached InAppWebView widget. Built once in initState and reused on
+  /// every build() so setState calls (URL bar updates, find results,
+  /// FindToolbar visibility) don't reconstruct the WebView Widget.
+  ///
+  /// Why this matters: each WebViewFactory.createWebView call returns a
+  /// fresh InAppWebView Widget. Even with key=null Flutter's element
+  /// matching has been observed to recreate the underlying State on
+  /// some Android System WebView builds when the parent Column's
+  /// children list churns (FindToolbar appearing/disappearing). State
+  /// recreation tears down the platform view and creates a new one,
+  /// which triggers fresh onWebViewCreated → attachToAllWebViews. That
+  /// platform-view churn, mid-page-load, has been the trigger for
+  /// `partition_alloc_support.cc:770 dangling raw_ptr` SIGTRAPs on
+  /// Chrome_IOThread. Stabilizing the Widget reference removes the
+  /// source of churn.
+  late final Widget _webView;
+
   bool _isFindVisible = false;
   FindMatchesResult findMatches = FindMatchesResult();
 
@@ -80,6 +97,60 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         _controller?.reload();
       },
     ) : null;
+    _webView = WebViewFactory.createWebView(
+      config: WebViewConfig(
+        siteId: widget.siteId,
+        initialUrl: widget.url,
+        incognito: widget.incognito,
+        thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
+        clearUrlEnabled: widget.clearUrlEnabled,
+        dnsBlockEnabled: widget.dnsBlockEnabled,
+        contentBlockEnabled: widget.contentBlockEnabled,
+        language: widget.language,
+        locationMode: widget.locationMode,
+        spoofLatitude: widget.spoofLatitude,
+        spoofLongitude: widget.spoofLongitude,
+        spoofAccuracy: widget.spoofAccuracy,
+        spoofTimezone: widget.spoofTimezone,
+        spoofTimezoneFromLocation: widget.spoofTimezoneFromLocation,
+        webRtcPolicy: widget.webRtcPolicy,
+        pullToRefreshController: _pullToRefreshController,
+        onUrlChanged: (url) {
+          if (mounted) {
+            setState(() {
+              _currentUrl = url;
+            });
+          }
+        },
+        onFindResult: (activeMatch, totalMatches) {
+          if (mounted) {
+            setState(() {
+              findMatches.activeMatchOrdinal = activeMatch;
+              findMatches.numberOfMatches = totalMatches;
+            });
+          }
+        },
+        onWindowRequested: _showPopupWindow,
+        onExternalSchemeUrl: (url, info) async {
+          if (!mounted) return;
+          await confirmAndLaunchExternalUrl(context, info);
+        },
+      ),
+      onControllerCreated: (controller) {
+        _controller = controller;
+        // Remove all cookies on load
+        controller.evaluateJavascript('''
+          (function() {
+            var cookies = document.cookie.split("; ");
+            for (var i = 0; i < cookies.length; i++) {
+              var cookie = cookies[i];
+              var cookieName = cookie.split("=")[0];
+              document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            }
+          })();
+        ''');
+      },
+    );
   }
 
   @override
@@ -285,58 +356,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 _toggleFind();
               },
             ),
-          Expanded(
-            child: WebViewFactory.createWebView(
-              config: WebViewConfig(
-                siteId: widget.siteId,
-                initialUrl: widget.url,
-                incognito: widget.incognito,
-                thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
-                clearUrlEnabled: widget.clearUrlEnabled,
-                dnsBlockEnabled: widget.dnsBlockEnabled,
-                contentBlockEnabled: widget.contentBlockEnabled,
-                language: widget.language,
-                locationMode: widget.locationMode,
-                spoofLatitude: widget.spoofLatitude,
-                spoofLongitude: widget.spoofLongitude,
-                spoofAccuracy: widget.spoofAccuracy,
-                spoofTimezone: widget.spoofTimezone,
-                spoofTimezoneFromLocation: widget.spoofTimezoneFromLocation,
-                webRtcPolicy: widget.webRtcPolicy,
-                pullToRefreshController: _pullToRefreshController,
-                onUrlChanged: (url) {
-                  setState(() {
-                    _currentUrl = url;
-                  });
-                },
-                onFindResult: (activeMatch, totalMatches) {
-                  setState(() {
-                    findMatches.activeMatchOrdinal = activeMatch;
-                    findMatches.numberOfMatches = totalMatches;
-                  });
-                },
-                onWindowRequested: _showPopupWindow,
-                onExternalSchemeUrl: (url, info) async {
-                  if (!mounted) return;
-                  await confirmAndLaunchExternalUrl(context, info);
-                },
-              ),
-              onControllerCreated: (controller) {
-                _controller = controller;
-                // Remove all cookies on load
-                controller.evaluateJavascript('''
-                  (function() {
-                    var cookies = document.cookie.split("; ");
-                    for (var i = 0; i < cookies.length; i++) {
-                      var cookie = cookies[i];
-                      var cookieName = cookie.split("=")[0];
-                      document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                    }
-                  })();
-                ''');
-              },
-            ),
-          ),
+          Expanded(child: _webView),
           if (widget.showUrlBar)
             UrlBar(
               currentUrl: _currentUrl,
