@@ -4,11 +4,12 @@
 
 ### Requirement: NOTIF-001 - Notification Permission Handling
 
-The system SHALL handle JavaScript `Notification.requestPermission()` calls from web pages and grant or deny based on the per-site notification toggle.
+The system SHALL handle JavaScript `Notification.requestPermission()` calls from web pages and grant or deny based on the per-site notification toggle. Requires profile mode (`_useProfiles == true`).
 
 #### Scenario: Site requests notification permission with toggle enabled
 
-**Given** a site has `notificationsEnabled` set to `true`
+**Given** profile mode is active
+**And** a site has `notificationsEnabled` set to `true`
 **When** the site calls `Notification.requestPermission()`
 **Then** the permission is granted
 **And** the site receives `"granted"` as the permission result
@@ -19,6 +20,12 @@ The system SHALL handle JavaScript `Notification.requestPermission()` calls from
 **When** the site calls `Notification.requestPermission()`
 **Then** the permission is denied
 **And** the site receives `"denied"` as the permission result
+
+#### Scenario: Notification toggles hidden on legacy devices
+
+**Given** profile mode is NOT active (`_useProfiles == false`)
+**When** the user opens site settings
+**Then** the `notificationsEnabled` and `backgroundActive` toggles are not shown
 
 ### Requirement: NOTIF-002 - JavaScript Notification Bridge
 
@@ -33,7 +40,7 @@ The system SHALL intercept `new Notification()` constructor calls from web pages
 
 ### Requirement: NOTIF-003 - Notification Tap Navigation
 
-The system SHALL navigate to the originating site when the user taps a notification. This routes through `_setCurrentIndex`, which applies the standard domain-conflict detection and cookie isolation cycle.
+The system SHALL navigate to the originating site when the user taps a notification. This routes through `_setCurrentIndex`. In profile mode, no domain conflicts occur — the target site simply becomes active.
 
 #### Scenario: User taps a notification for a loaded site
 
@@ -44,27 +51,18 @@ The system SHALL navigate to the originating site when the user taps a notificat
 **And** `_setCurrentIndex` is called with Site A's index
 **And** Site A becomes the active site
 
-#### Scenario: User taps a notification that triggers domain conflict
-
-**Given** a native notification was created by Site A (`github.com/personal`)
-**And** Site B (`github.com/work`) is currently loaded
-**When** the user taps the notification
-**Then** `_setCurrentIndex` runs domain-conflict detection
-**And** Site B is unloaded (cookies captured, webview disposed, CookieManager cleared)
-**And** Site A's cookies are restored and its webview is created
-**And** Cookies for remaining background-active sites on other domains are also restored
-
-#### Scenario: User taps a notification for a site that was unloaded
+#### Scenario: User taps a notification for a site that was not yet loaded
 
 **Given** a native notification was created by Site A
-**And** Site A was since unloaded (e.g., due to a domain conflict)
+**And** Site A is not in `_loadedIndices` (e.g., app was restarted)
 **When** the user taps the notification
-**Then** `_setCurrentIndex` creates Site A's webview fresh
-**And** Site A's cookies are restored from secure storage
+**Then** `_setCurrentIndex` adds Site A to `_loadedIndices`
+**And** Site A's webview is created with its profile
+**And** Site A becomes the active site
 
 ### Requirement: NOTIF-004 - Per-Site Notification Toggle
 
-The system SHALL provide a per-site toggle to control whether the site is allowed to show notifications. Defaults to off (opt-in).
+The system SHALL provide a per-site toggle to control whether the site is allowed to show notifications. Defaults to off (opt-in). Only visible when profile mode is active.
 
 #### Scenario: User enables notifications for a site
 
@@ -82,15 +80,16 @@ The system SHALL provide a per-site toggle to control whether the site is allowe
 
 ### Requirement: NOTIF-005 - Per-Site Background Active Toggle
 
-The system SHALL provide a per-site toggle to keep selected webviews running when the app enters the background. The `backgroundActive` flag does NOT override cookie isolation — same-domain mutual exclusion still applies.
+The system SHALL provide a per-site toggle to keep selected webviews running when the app enters the background. Only visible when profile mode is active. In profile mode, there are no domain conflicts, so all background-active sites stay loaded concurrently with their own isolated profiles.
 
-#### Scenario: App enters background with background-active site
+#### Scenario: App enters background with background-active sites
 
-**Given** Site A has `backgroundActive` set to `true`
-**And** Site A is currently loaded
+**Given** Site A and Site B both have `backgroundActive` set to `true`
+**And** both are currently loaded (profile mode, no domain conflicts)
 **When** the app enters the background
-**Then** Site A's webview is NOT paused
-**And** Site A continues executing JavaScript
+**Then** Site A and Site B's webviews are NOT paused
+**And** both continue executing JavaScript
+**And** both retain authenticated sessions via their per-profile cookie jars
 
 #### Scenario: App enters background without background-active sites
 
@@ -98,26 +97,40 @@ The system SHALL provide a per-site toggle to keep selected webviews running whe
 **When** the app enters the background
 **Then** all webviews are paused (existing behavior)
 
-#### Scenario: Background-active site detached by domain conflict via keepAlive
-
-**Given** Site A (`github.com/personal`) has `backgroundActive` set to `true`
-**And** Site A's webview was created with an `InAppWebViewKeepAlive` token
-**And** Site A is loaded and running in background
-**When** Site B (`github.com/work`) is selected by the user
-**Then** Site A's cookies are captured and saved
-**And** Site A's widget is removed from the IndexedStack
-**And** Site A's native WebView is preserved via keepAlive (JS/WebSockets continue)
-**And** Site A can still deliver notifications via the JS bridge
-**But** Site A's HTTP requests may lack correct cookies until re-attached
-
-#### Scenario: Two background-active sites on same domain
+#### Scenario: Multiple same-domain background-active sites coexist
 
 **Given** Site A (`github.com/personal`) has `backgroundActive` set to `true`
 **And** Site B (`github.com/work`) has `backgroundActive` set to `true`
-**When** both sites attempt to auto-load on startup
-**Then** only one is loaded (the first encountered)
-**And** the other remains as a placeholder due to domain conflict
-**And** a warning is logged
+**And** profile mode is active
+**When** both sites are loaded
+**Then** both stay loaded concurrently (PROF-003 — no domain conflict)
+**And** both continue running in background when app is backgrounded
+
+### Requirement: NOTIF-PROXY - Proxy Conflict Warning
+
+When a user enables `backgroundActive` on a site with a non-default proxy, and another background-active site has a different proxy configuration, the system SHALL warn the user. `ProxyController` is a process-wide singleton — only one proxy config is active at a time across all WebViews.
+
+#### Scenario: Background-active sites with same proxy
+
+**Given** Site A has `backgroundActive` set to `true` with SOCKS5 proxy on `localhost:9050`
+**And** Site B has `backgroundActive` set to `true` with the same SOCKS5 proxy
+**When** both are loaded concurrently
+**Then** no warning is shown (proxy configs match)
+
+#### Scenario: Background-active sites with conflicting proxies
+
+**Given** Site A has `backgroundActive` set to `true` with SOCKS5 proxy
+**And** the user enables `backgroundActive` on Site B which has an HTTP proxy
+**When** the toggle is enabled
+**Then** a warning is shown explaining that only one proxy config can be active at a time
+**And** the toggle is still allowed (user choice)
+
+#### Scenario: Background-active site with default proxy
+
+**Given** Site A has `backgroundActive` set to `true` with no proxy (DEFAULT)
+**And** Site B has `backgroundActive` set to `true` with no proxy (DEFAULT)
+**When** both are loaded
+**Then** no warning is shown
 
 ### Requirement: NOTIF-006 - Android Foreground Service
 
@@ -149,52 +162,9 @@ On Android 13+, the system SHALL request the `POST_NOTIFICATIONS` runtime permis
 **Then** the system requests the `POST_NOTIFICATIONS` runtime permission
 **And** notifications are displayed only if the permission is granted
 
-### Requirement: NOTIF-008 - InAppWebViewKeepAlive for Background-Active Sites
-
-Background-active sites SHALL use `InAppWebViewKeepAlive` to preserve their native WebView instance when the widget is removed from the tree (e.g., due to domain conflict). This keeps JS execution, WebSocket connections, and DOM state alive, enabling continued notification delivery.
-
-#### Scenario: KeepAlive token created when backgroundActive is enabled
-
-**Given** a site has `backgroundActive` set to `false`
-**And** no keepAlive token exists for the site
-**When** the user enables `backgroundActive` in site settings
-**Then** an `InAppWebViewKeepAlive` instance is created on the `WebViewModel`
-**And** the webview is recreated with the keepAlive token passed to `InAppWebView(keepAlive: ...)`
-
-#### Scenario: KeepAlive token disposed when backgroundActive is disabled
-
-**Given** a site has `backgroundActive` set to `true` with a keepAlive token
-**When** the user disables `backgroundActive` in site settings
-**Then** the keepAlive token is disposed
-**And** the webview is recreated without a keepAlive token (standard behavior)
-
-#### Scenario: KeepAlive preserves state across domain-conflict detach/reattach
-
-**Given** Site A has `backgroundActive` set to `true` with a keepAlive token
-**And** Site A has scrolled to the middle of a page and has form data entered
-**When** Site A is detached from IndexedStack due to domain conflict
-**And** later the user switches back to Site A
-**Then** the same native WebView is re-attached via keepAlive
-**And** scroll position, form data, and DOM state are preserved
-**And** no page reload occurs
-
-#### Scenario: Non-background-active sites do not use keepAlive
-
-**Given** a site has `backgroundActive` set to `false`
-**When** the site's webview is created
-**Then** no `InAppWebViewKeepAlive` token is used
-**And** the webview follows existing dispose-on-conflict behavior
-
-#### Scenario: KeepAlive token disposed on site deletion
-
-**Given** a background-active site with a keepAlive token
-**When** the user deletes the site
-**Then** the keepAlive token is disposed
-**And** the native WebView is destroyed
-
 ## Manual Test Procedure
 
-Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it via "Import HTML file" on the Add Site screen.
+Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it via "Import HTML file" on the Add Site screen. **Requires a device with profile mode support** (Android System WebView 110+ or iOS 17+ / macOS 14+).
 
 ### Test: Permission grant/deny (NOTIF-001, NOTIF-004)
 1. Import `notification_test.html` as a site
@@ -226,25 +196,21 @@ Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it v
 4. **Expected**: 3 native notifications arrive over 15 seconds
 5. On Android: a persistent foreground service notification should appear
 
+### Test: Multiple background-active sites
+1. Import `notification_test.html` twice (as two separate sites)
+2. Enable `backgroundActive` and `notificationsEnabled` on both
+3. On Site A, tap "Send Delayed Notifications", then switch to Site B
+4. On Site B, tap "Send Delayed Notifications"
+5. Put app in background
+6. **Expected**: Notifications from both sites arrive (profile mode — no conflicts)
+
 ### Test: Edge cases
 1. Tap "Send 5 Rapid Notifications" — all 5 should appear as native notifications
 2. Tap "Send Empty Notification" — should display with title only, no body
 3. Tap "Send Notification with Long Text" — text should be truncated or scrollable
 4. Disable `notificationsEnabled`, tap "Send Without Permission" — no notification should display
 
-### Test: KeepAlive state preservation (NOTIF-008)
-1. Import `notification_test.html` as Site A, enable `backgroundActive`
-2. Add a second site with the same file:// domain or create two `github.com` sites
-3. On Site A, tap "Send Delayed Notifications (5s, 10s, 15s)", scroll down, type in the log
-4. Switch to the conflicting site (Site A detached via keepAlive)
-5. **Expected**: Delayed notifications still arrive (native WebView alive via keepAlive)
-6. Switch back to Site A
-7. **Expected**: Scroll position and page state preserved, no page reload, on-page log shows successful sends
-
-### Test: Cookie isolation interaction
-1. Import `notification_test.html` as Site A
-2. Add a real site (e.g., `github.com`) as Site B
-3. Enable `backgroundActive` and `notificationsEnabled` on Site A
-4. Tap "Send Delayed Notifications" on Site A, then switch to Site B
-5. **Expected**: Notifications still arrive (file:// domain doesn't conflict with github.com)
-6. The on-page log records successful sends (check when switching back to Site A)
+### Test: Legacy device
+1. On a device with `_useProfiles == false`
+2. Open site settings
+3. **Expected**: `notificationsEnabled` and `backgroundActive` toggles are NOT shown

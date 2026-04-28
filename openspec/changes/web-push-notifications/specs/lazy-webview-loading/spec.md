@@ -4,32 +4,27 @@
 
 ### Requirement: LAZY-001 - On-Demand Loading
 
-Webviews SHALL be created only when the user visits a site, EXCEPT for sites marked as background-active which SHALL be auto-loaded on app startup. Auto-loading respects domain-conflict rules: if two background-active sites share a second-level domain, only one can be loaded.
+Webviews SHALL be created only when the user visits a site, EXCEPT for sites marked as background-active which SHALL be auto-loaded on app startup. Requires profile mode (`_useProfiles == true`); on legacy devices `backgroundActive` is not available so this modification does not apply.
 
-#### Scenario: App starts with background-active sites on distinct domains
+In profile mode there are no domain-conflict restrictions (PROF-003), so all background-active sites auto-load freely regardless of domain overlap.
 
-**Given** Site A (`slack.com`) has `backgroundActive` set to `true`
+#### Scenario: App starts with multiple background-active sites
+
+**Given** profile mode is active
+**And** Site A (`slack.com`) has `backgroundActive` set to `true`
 **And** Site B (`teams.microsoft.com`) has `backgroundActive` set to `true`
-**And** Site A and Site B have different second-level domains
+**And** Site C (`github.com/personal`) has `backgroundActive` set to `true`
 **When** the app starts
-**Then** both Site A and Site B are added to `_loadedIndices`
-**And** both webviews are created and begin executing JavaScript
+**Then** Sites A, B, and C are all added to `_loadedIndices`
+**And** all three webviews are created with their per-site profiles
+**And** all three begin executing JavaScript
 **And** non-background-active sites remain as placeholders until visited
-
-#### Scenario: App starts with background-active sites on same domain
-
-**Given** Site A (`github.com/personal`) has `backgroundActive` set to `true`
-**And** Site B (`github.com/work`) has `backgroundActive` set to `true`
-**And** both share the second-level domain `github.com`
-**When** the app starts
-**Then** only the first site (by list order) is auto-loaded
-**And** the second site remains as a placeholder
-**And** a warning is logged about the domain conflict
 
 #### Scenario: Background-active site auto-loads alongside manually visited site
 
-**Given** Site A (`slack.com`) has `backgroundActive` set to `true`
+**Given** profile mode is active
+**And** Site A (`slack.com`) has `backgroundActive` set to `true`
 **And** the user manually visits Site B (`github.com`)
 **When** both sites are loaded
-**Then** both coexist in `_loadedIndices` (different domains, no conflict)
+**Then** both coexist in `_loadedIndices` with isolated profiles
 **And** Site A continues running JavaScript in background
