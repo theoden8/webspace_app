@@ -1236,8 +1236,13 @@ class WebViewFactory {
     // at the very top of `prepare()`, before any session-bound op runs.
     // Pass the profile name via `webspaceProfile` and the patched native
     // side handles the bind.
-    final webspaceProfile = (Platform.isAndroid &&
-            ProfileNative.instance.cachedSupported &&
+    // `cachedSupported` is already platform-aware (the iOS / macOS stub
+    // returns false on platforms where the patched plugin doesn't ship a
+    // bind); no extra Platform.isAndroid gate needed. Pre-iOS-fork code
+    // had `Platform.isAndroid &&` here which silently wedged macOS/iOS at
+    // `webspaceProfile=null` even though the native side was ready —
+    // see git history of this line for the user-reported bug.
+    final webspaceProfile = (ProfileNative.instance.cachedSupported &&
             config.siteId != null)
         ? 'ws-${config.siteId}'
         : null;
