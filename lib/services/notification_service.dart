@@ -29,7 +29,7 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: _onTap,
     );
 
@@ -96,7 +96,7 @@ class NotificationService {
     final payload = jsonEncode({'siteId': siteId});
     final id = siteId.hashCode ^ title.hashCode;
 
-    await _plugin.show(id, title, body.isNotEmpty ? body : null, details, payload: payload);
+    await _plugin.show(id: id, title: title, body: body.isNotEmpty ? body : null, notificationDetails: details, payload: payload);
     LogService.instance.log('Notification', 'Showed notification: "$title" for siteId: $siteId');
   }
 
