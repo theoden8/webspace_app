@@ -520,11 +520,43 @@ abstract class WebViewController {
   Future<void> setTextZoom(int zoomPercent);
   Future<void> goBack();
   Future<bool> canGoBack();
-  /// Pause the webview (stop rendering and JS execution).
-  /// On Android this pauses the WebView entirely; on iOS it pauses timers.
+  /// Per-instance pause to reduce resource usage.
+  ///
+  /// On Android: calls `WebView.onPause()`, which is a best-effort pause of
+  /// animations and geolocation. **Does NOT pause JavaScript** — Android only
+  /// pauses JS via the process-global `pauseTimers()`, which we do not call
+  /// here because it would also freeze every other loaded webview.
+  ///
+  /// On iOS: calls `pauseTimers()`, which the plugin implements per-instance
+  /// via an `alert()`-deadlock hack that blocks this WebView's main JS thread.
+  ///
+  /// Activity that keeps running while paused on **both** platforms:
+  ///   - Web Workers and Service Workers
+  ///   - network requests already in flight (and any `Set-Cookie` they return)
+  ///   - media playback (`<video>` / `<audio>` decoders)
+  ///   - WebRTC peer connections, WebSocket frames over the wire
+  ///
+  /// `pause()` is for resource saving. It is **not a security boundary** — a
+  /// page can observe cookies being deleted or proxy being swapped while
+  /// paused (e.g. via a Service Worker fetch, or via `document.cookie` diff
+  /// on the next `visibilitychange`). To safely mutate global state under
+  /// a webview, dispose it instead.
   Future<void> pause();
+
   /// Resume a previously paused webview.
   Future<void> resume();
+
+  /// Pause JavaScript timers (`setTimeout`/`setInterval`/`requestAnimationFrame`)
+  /// process-globally on Android, per-instance on iOS.
+  ///
+  /// On Android, `WebView.pauseTimers()` is documented as global across all
+  /// loaded WebViews. Use this only when the whole app is going to background;
+  /// do **not** use it to pause a single site, otherwise you also freeze the
+  /// site that's about to become active.
+  Future<void> pauseAllJsTimers();
+
+  /// Inverse of [pauseAllJsTimers].
+  Future<void> resumeAllJsTimers();
 }
 
 /// InAppWebView controller wrapper
@@ -677,18 +709,30 @@ class _WebViewController implements WebViewController {
   @override
   Future<void> pause() async {
     if (Platform.isAndroid) {
+      // Android: per-instance only. pauseTimers() is process-global and would
+      // freeze every other loaded WebView too — see [pauseAllJsTimers].
       await _c.pause();
+    } else if (Platform.isIOS) {
+      // iOS has no per-instance native pause; pauseTimers() is the plugin's
+      // per-instance alert()-deadlock hack and is safe to call on one site.
+      await _c.pauseTimers();
     }
-    await _c.pauseTimers();
   }
 
   @override
   Future<void> resume() async {
     if (Platform.isAndroid) {
       await _c.resume();
+    } else if (Platform.isIOS) {
+      await _c.resumeTimers();
     }
-    await _c.resumeTimers();
   }
+
+  @override
+  Future<void> pauseAllJsTimers() => _c.pauseTimers();
+
+  @override
+  Future<void> resumeAllJsTimers() => _c.resumeTimers();
 }
 
 String _themeInjectionScript(String themeValue) => '''

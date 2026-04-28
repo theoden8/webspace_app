@@ -136,6 +136,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | user-scripts | Per-site custom JavaScript injection with injection timing control |
 | webspaces | Site organization into named collections |
 | webview-hints | Webview theme hints (color-scheme, matchMedia, cache theme prelude) |
+| webview-pause-lifecycle | Per-instance vs process-global webview pause; "paused != frozen" caveat |
 | fullscreen-mode | Full screen mode: hide app bar/tab strip/system UI, per-site auto-fullscreen setting |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
