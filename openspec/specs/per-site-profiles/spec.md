@@ -171,13 +171,13 @@ The system SHALL sweep profiles whose owning site no longer exists.
 
 ### Requirement: PROF-005 — Bind Before First Load
 
-`WebViewCompat.setProfile` rejects WebViews that have already
-performed a session-bound operation (`loadUrl`, `evaluateJavascript`,
-…). To structurally avoid that race the construction path SHALL
-defer the initial URL load: when `ProfileNative.cachedSupported` is
-true and a `siteId` is set, the `InAppWebView` is constructed with
-`initialUrlRequest: null`, the bind runs *synchronously* inside
-`onWebViewCreated`, and only then does Dart call
+The construction path SHALL bind the profile before the first
+navigation. `WebViewCompat.setProfile` rejects WebViews that have
+already performed a session-bound operation (`loadUrl`,
+`evaluateJavascript`, …), so when `ProfileNative.cachedSupported`
+is true and a `siteId` is set, the `InAppWebView` is constructed
+with `initialUrlRequest: null`, the bind runs *synchronously*
+inside `onWebViewCreated`, and only then does Dart call
 `controller.loadUrl(initialUrl)`. Cached-HTML loads use
 `initialData` (which is processed during platform-view construction
 without entering session-bound state) and remain unaffected.
