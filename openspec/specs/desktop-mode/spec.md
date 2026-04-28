@@ -148,13 +148,13 @@ underlying mobile WebView's signals.
 
 ### Requirement: DM-003 — Backup migration from legacy desktopMode field
 
-Earlier branches persisted a per-site `desktopMode` field — first as a
-`bool`, later as a string enum (`"off"`/`"linux"`/`"macos"`/`"windows"`).
-Backups exported under those formats SHALL still produce the user's
-intended desktop / mobile behavior on import.
-
-`WebViewModel.fromJson` SHALL apply the following migration rule when the
-imported `userAgent` is empty:
+`WebViewModel.fromJson` SHALL apply the migration table below when an
+imported site has the legacy per-site `desktopMode` field (which earlier
+branches persisted, first as a `bool`, later as a string enum
+`"off"` / `"linux"` / `"macos"` / `"windows"`) AND its `userAgent` is
+empty. The migration populates `userAgent` so the user's intended
+desktop / mobile behavior is preserved on import without requiring them
+to manually re-edit the UA.
 
 | Legacy `desktopMode` value | Migrated `userAgent` |
 |---|---|
