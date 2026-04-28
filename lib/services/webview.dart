@@ -1537,19 +1537,22 @@ class WebViewFactory {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
       onReceivedError: (controller, request, error) async {
-        // Android's WebView paints an ERR_UNKNOWN_URL_SCHEME page when an
-        // intent:// (or other non-internal scheme) navigation slips past
-        // shouldOverrideUrlLoading — typically when the URL came from a
-        // server-side redirect or a window.location assignment.
-        // Recovery: reload the last stable URL so the user isn't stuck
-        // on the error page. But ONLY if the URL isn't currently
-        // suppressed — when the user just chose Open in browser/app the
-        // page redirects right back to the same intent on its own load,
-        // and reloading would clobber whatever the fallback rendered.
-        // Defer the loadUrl to a microtask so chromium can finish its
-        // own bookkeeping for this navigation before we issue another;
-        // a previous version called loadUrl synchronously and triggered
-        // a dangling raw_ptr FATAL inside chromium.
+        // For non-internal schemes (intent://, custom app schemes) Android
+        // sometimes hands the URL straight to onReceivedError without
+        // calling shouldOverrideUrlLoading first — observed every time on
+        // Google Maps' window.location='intent://...' redirect. Without
+        // routing through the dialog path here, the user never sees the
+        // confirmation, suppression is never marked, and the previous
+        // "reload lastStableUrl" recovery looped forever (every reload
+        // re-renders the page that re-fires the same intent).
+        //
+        // New flow:
+        //   * already suppressed → silent no-op (lets the page sit on
+        //     whatever it managed to render before redirecting).
+        //   * external scheme + host UI hooked up → fire the dialog
+        //     callback; the helper guards against duplicate prompts and
+        //     marks suppression on the user's choice.
+        //   * external scheme + no host UI → best-effort reload.
         if (request.isForMainFrame != true) return;
         final reqUrl = request.url.toString();
         final externalInfo = ExternalUrlParser.parse(reqUrl);
@@ -1559,10 +1562,17 @@ class WebViewFactory {
               'onReceivedError: suppressed, leaving page in place — url=$reqUrl');
           return;
         }
+        if (config.onExternalSchemeUrl != null) {
+          LogService.instance.log('WebView',
+              'onReceivedError: type=${error.type} url=$reqUrl '
+              '— routing to external-scheme dialog');
+          config.onExternalSchemeUrl!(reqUrl, externalInfo);
+          return;
+        }
         final recovery = lastStableUrl ?? config.initialUrl;
         LogService.instance.log('WebView',
             'onReceivedError: type=${error.type} url=$reqUrl '
-            '— scheduling reload of $recovery to clear error page');
+            '— no host UI, scheduling reload of $recovery');
         Future.microtask(() async {
           try {
             await controller.loadUrl(
