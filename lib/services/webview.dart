@@ -875,8 +875,6 @@ class WebViewFactory {
     required WebViewConfig config,
     required Function(WebViewController) onControllerCreated,
   }) {
-    final cookieManager = inapp.CookieManager.instance();
-
     // Build initial URL request with optional Accept-Language header
     final headers = <String, String>{};
     if (config.language != null) {
@@ -1708,26 +1706,24 @@ class WebViewFactory {
             DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
         config.onUrlChanged?.call(urlStr);
         if (config.onCookiesChanged != null) {
-          // Route through SiteCookieOps so the read targets the
-          // right jar in profile mode (per-site profile, via JS
-          // `document.cookie`) rather than the global default jar
-          // that `cookieManager.getCookies(url:)` always reads.
-          // Falls back to the global path when cookieOps isn't
-          // wired (older nested-webview code paths).
-          final List<Cookie> cookies;
-          if (config.cookieOps != null && config.cookieOpsSiteId != null) {
-            // controller here is the raw inapp.InAppWebViewController
-            // from the onLoadStop signature; wrap it cheaply for the
-            // ops API. Distinct from the wrappedController declared
-            // inside onWebViewCreated (different closure scope).
-            cookies = await config.cookieOps!.getCookies(
-              controller: _WebViewController(controller),
-              siteId: config.cookieOpsSiteId!,
-              url: Uri.parse(urlStr),
-            );
-          } else {
-            cookies = await cookieManager.getCookies(url: inapp.WebUri(urlStr));
-          }
+          assert(
+            config.cookieOps != null && config.cookieOpsSiteId != null,
+            'onCookiesChanged requires cookieOps + cookieOpsSiteId; '
+            "the WebViewConfig that set onCookiesChanged must also "
+            'pass through the SiteCookieOps from _WebSpacePageState. '
+            'See lib/services/site_cookie_ops.dart for the contract.',
+          );
+          // Read cookies through SiteCookieOps so the snapshot
+          // reflects the per-site profile in profile mode (JS-eval
+          // `document.cookie` on the bound WebView) and the global
+          // jar in legacy mode. controller here is the raw
+          // inapp.InAppWebViewController from the onLoadStop
+          // signature; wrap it for the ops API.
+          final cookies = await config.cookieOps!.getCookies(
+            controller: _WebViewController(controller),
+            siteId: config.cookieOpsSiteId!,
+            url: Uri.parse(urlStr),
+          );
           config.onCookiesChanged!(cookies);
         }
         // Inject full cosmetic script: MutationObserver + text-based hiding
