@@ -26,6 +26,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -1943,6 +1944,35 @@ class WebViewFactory {
               return map;
             });
           }
+        }
+        if (config.siteId != null && config.notificationsEnabled) {
+          controller.addJavaScriptHandler(
+            handlerName: 'webNotification',
+            callback: (args) {
+              if (args.isEmpty || args[0] is! Map) return null;
+              final data = Map<String, dynamic>.from(args[0] as Map);
+              final title = data['title'] as String? ?? '';
+              final body = data['body'] as String? ?? '';
+              final tag = data['tag'] as String?;
+              final siteId = data['siteId'] as String? ?? config.siteId!;
+              NotificationService.instance.show(
+                siteId: siteId,
+                title: title,
+                body: body,
+                tag: tag,
+                siteUrl: config.initialUrl,
+              );
+              return null;
+            },
+          );
+        }
+        if (config.siteId != null) {
+          controller.addJavaScriptHandler(
+            handlerName: 'webNotificationRequestPermission',
+            callback: (args) {
+              return config.notificationsEnabled ? 'granted' : 'denied';
+            },
+          );
         }
         userScriptService.registerHandlers(controller);
         // Blob download: JS reads the blob via FileReader and hands the

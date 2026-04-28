@@ -25,10 +25,10 @@
 
 ## 4. JavaScript handler registration
 
-- [ ] 4.1 In `WebViewFactory.createWebView`'s `onWebViewCreated`, register `webNotification` JS handler. Body: lookup the corresponding `WebViewModel` by `siteId`, validate `notificationsEnabled`, call `NotificationService.show(...)` with title/body/tag from the JS payload.
-- [ ] 4.2 Register `webNotificationRequestPermission` JS handler. Body: return `'granted'` if `notificationsEnabled == true` for that site, else `'denied'`. (No OS-level prompt at this stage — that happens lazily on first actual notification.)
-- [ ] 4.3 Plumb the `WebViewModel` lookup through the factory: pass a `WebViewModel? Function(String siteId)` resolver into `createWebView` so handlers can find the originating site. Wire it from `_WebSpacePageState`.
-- [ ] 4.4 Test: load `test/fixtures/notification_test.html` in an integration test (if feasible without a device) or document manual test steps.
+- [x] 4.1 In `WebViewFactory.createWebView`'s `onWebViewCreated`, register `webNotification` JS handler. Body: lookup the corresponding `WebViewModel` by `siteId`, validate `notificationsEnabled`, call `NotificationService.show(...)` with title/body/tag from the JS payload.
+- [x] 4.2 Register `webNotificationRequestPermission` JS handler. Body: return `'granted'` if `notificationsEnabled == true` for that site, else `'denied'`. (No OS-level prompt at this stage — that happens lazily on first actual notification.)
+- [x] 4.3 Plumb the `WebViewModel` lookup through the factory: pass a `WebViewModel? Function(String siteId)` resolver into `createWebView` so handlers can find the originating site. Wire it from `_WebSpacePageState`.
+- [x] 4.4 Test: load `test/fixtures/notification_test.html` in an integration test (if feasible without a device) or document manual test steps.
 
 ## 5. Per-site UI toggles
 
