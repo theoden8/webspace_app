@@ -14,24 +14,29 @@
 //
 //   dart run scripts/apply_plugin_patches.dart
 //
-// Ordering with pub get:
+// Run this BEFORE `flutter pub get`. `pub get` validates that every
+// path: dependency target exists; if our `.dart_tool/...` paths
+// haven't been created yet, pub fails with exit 66 before the
+// script ever gets a chance to run. So the script bootstraps itself:
+// it tries `~/.pub-cache/hosted/pub.dev/<plugin>-<version>/` first
+// and falls back to downloading the upstream tarball from pub.dev
+// directly if that's missing. After this script succeeds, a single
+// `flutter pub get --enforce-lockfile` resolves the overrides.
 //
-//   1. `flutter pub get` (populates ~/.pub-cache with upstream plugins).
-//   2. This script (copies + patches).
-//   3. `flutter pub get` again (resolves the dependency_overrides path
-//      dependencies to the now-patched copies).
+// CI ([.github/workflows/build-and-test.yml]) does:
 //
-// On a clean checkout, that double-pub-get sequence is the contract.
-// CI ([.github/workflows/build-and-test.yml]) chains the three steps.
+//   dart run scripts/apply_plugin_patches.dart
+//   fvm flutter pub get --enforce-lockfile
 //
 // Failure modes:
 //
-//   - Missing pub-cache entry → script reports the upstream version it
-//     wanted and the path it looked for. Run pub get first.
+//   - Network unreachable AND cache miss → script reports the
+//     plugin version it wanted, the cache path it tried, and the
+//     URL it tried.
 //   - Patch fails to apply → the upstream plugin moved the lines we
 //     touch. Bump _plugins to the new version, rebase the patch by
-//     hand against the new upstream (see third_party/PATCHES.md), then
-//     re-run.
+//     hand against the new upstream (see third_party/PATCHES.md),
+//     then re-run.
 
 import 'dart:io';
 
@@ -67,13 +72,8 @@ Future<void> main(List<String> args) async {
     final outPath = '$projectRoot/$_outDir/$pluginName';
 
     if (!Directory(upstreamDir).existsSync()) {
-      stderr.writeln(
-        '\nERROR: upstream $pluginName-$version not found at:\n'
-        '  $upstreamDir\n'
-        'Run `flutter pub get` first to populate the cache, then re-run '
-        'this script.',
-      );
-      exit(2);
+      print('\n[$pluginName] $version — cache miss, downloading from pub.dev');
+      await _downloadFromPubDev(pluginName, version, upstreamDir);
     }
     if (!File(patchFile).existsSync()) {
       stderr.writeln('\nERROR: patch file missing: $patchFile');
@@ -149,4 +149,71 @@ String _resolvePubCacheRoot() {
     exit(2);
   }
   return '$home/.pub-cache';
+}
+
+/// Download a published package's tarball from pub.dev and extract it
+/// to [destDir]. Used when running on a fresh checkout where
+/// `flutter pub get` hasn't populated `~/.pub-cache` yet — the script
+/// has to materialize the upstream sources before pub.yaml's
+/// `dependency_overrides` can resolve.
+///
+/// Pub.dev archive URLs are stable: per the pub package layout
+/// document, every published version has a tarball at
+/// `https://pub.dev/api/archives/<package>-<version>.tar.gz`. We
+/// follow redirects, write to a tempfile, then `tar xzf` into
+/// [destDir]. tar is on Linux + macOS runners by default.
+Future<void> _downloadFromPubDev(
+    String pluginName, String version, String destDir) async {
+  final url = 'https://pub.dev/api/archives/$pluginName-$version.tar.gz';
+  print('  GET $url');
+
+  final tmpFile = await File(
+          '${Directory.systemTemp.path}/$pluginName-$version-${DateTime.now().microsecondsSinceEpoch}.tar.gz')
+      .create();
+  final client = HttpClient();
+  try {
+    HttpClientRequest req = await client.getUrl(Uri.parse(url));
+    HttpClientResponse res = await req.close();
+    // pub.dev redirects via 30x to the actual storage URL; follow.
+    var hops = 0;
+    while ((res.statusCode == 301 ||
+            res.statusCode == 302 ||
+            res.statusCode == 303 ||
+            res.statusCode == 307 ||
+            res.statusCode == 308) &&
+        hops < 5) {
+      final loc = res.headers.value(HttpHeaders.locationHeader);
+      if (loc == null) break;
+      // Drain to free the connection.
+      await res.drain<void>();
+      req = await client.getUrl(Uri.parse(loc));
+      res = await req.close();
+      hops++;
+    }
+    if (res.statusCode != 200) {
+      stderr.writeln('\nERROR: pub.dev returned HTTP ${res.statusCode} for $url');
+      exit(2);
+    }
+    final sink = tmpFile.openWrite();
+    await res.pipe(sink);
+  } finally {
+    client.close(force: true);
+  }
+
+  Directory(destDir).createSync(recursive: true);
+  final extract = await Process.run(
+    'tar',
+    ['-xzf', tmpFile.path, '-C', destDir],
+  );
+  if (extract.exitCode != 0) {
+    stderr.writeln('\nERROR: tar -xzf failed for $pluginName:');
+    stderr.writeln(extract.stdout);
+    stderr.writeln(extract.stderr);
+    exit(extract.exitCode);
+  }
+  // Best-effort cleanup; ignore failure (tempfile is in /tmp anyway).
+  try {
+    tmpFile.deleteSync();
+  } catch (_) {}
+  print('  extracted to ${Directory(destDir).path}');
 }

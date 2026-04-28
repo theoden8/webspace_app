@@ -80,22 +80,17 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
-      - name: Populate pub cache (so the patch script can find upstream sources)
-        # Initial resolve before patching cannot use --enforce-lockfile
-        # because .dart_tool/webspace_patched_plugins/ doesn't exist
-        # yet on a fresh runner; the lockfile-pinned override paths
-        # would fail to resolve. Run a permissive resolve, then patch,
-        # then re-resolve with the lockfile enforced.
-        run: fvm flutter pub get
-
       - name: Apply WebSpace plugin patches
-        # See third_party/PATCHES.md. Copies stock upstream from
-        # pub-cache into .dart_tool/webspace_patched_plugins/<plugin>/
-        # and applies the per-plugin .patch file. The dependency_overrides
-        # in pubspec.yaml resolve to those generated paths.
+        # See third_party/PATCHES.md. The script materializes patched
+        # copies of flutter_inappwebview_{android,ios,macos} under
+        # .dart_tool/webspace_patched_plugins/<plugin>/, downloading
+        # upstream from pub.dev when ~/.pub-cache is cold. Must run
+        # BEFORE the first `pub get` because pub validates path:
+        # dependency targets exist (exit 66 otherwise) and
+        # dependency_overrides in pubspec.yaml point at those paths.
         run: fvm dart run scripts/apply_plugin_patches.dart
 
-      - name: Resolve patched plugins
+      - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
       - name: Run tests
@@ -285,22 +280,17 @@ jobs:
           restore-keys: |
             pods-${{ runner.os }}-
 
-      - name: Populate pub cache (so the patch script can find upstream sources)
-        # Initial resolve before patching cannot use --enforce-lockfile
-        # because .dart_tool/webspace_patched_plugins/ doesn't exist
-        # yet on a fresh runner; the lockfile-pinned override paths
-        # would fail to resolve. Run a permissive resolve, then patch,
-        # then re-resolve with the lockfile enforced.
-        run: fvm flutter pub get
-
       - name: Apply WebSpace plugin patches
-        # See third_party/PATCHES.md. Copies stock upstream from
-        # pub-cache into .dart_tool/webspace_patched_plugins/<plugin>/
-        # and applies the per-plugin .patch file. The dependency_overrides
-        # in pubspec.yaml resolve to those generated paths.
+        # See third_party/PATCHES.md. The script materializes patched
+        # copies of flutter_inappwebview_{android,ios,macos} under
+        # .dart_tool/webspace_patched_plugins/<plugin>/, downloading
+        # upstream from pub.dev when ~/.pub-cache is cold. Must run
+        # BEFORE the first `pub get` because pub validates path:
+        # dependency targets exist (exit 66 otherwise) and
+        # dependency_overrides in pubspec.yaml point at those paths.
         run: fvm dart run scripts/apply_plugin_patches.dart
 
-      - name: Resolve patched plugins
+      - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
       - name: Run tests
