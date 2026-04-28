@@ -10,6 +10,8 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/current_location_service.dart';
+import 'package:webspace/services/desktop_mode_shim.dart';
+import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/download_engine.dart';
@@ -1158,6 +1160,26 @@ class WebViewFactory {
       ));
     }
 
+    // Desktop-mode inference: a per-site UA without mobile markers
+    // ("Android" / "iPhone" / "Mobile" etc) is treated as desktop, and
+    // we inject the shim that patches navigator.userAgentData /
+    // maxTouchPoints / matchMedia / viewport so feature-detecting sites
+    // see a coherent desktop fingerprint instead of an Android-mobile one
+    // with a desktop UA glued on top. Runs at DOCUMENT_START so the
+    // shim's properties are in place before any site script reads them.
+    final desktopMode = isDesktopUserAgent(config.userAgent);
+    if (desktopMode) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'desktop_mode_shim',
+        source: '${buildDesktopModeShim(config.userAgent ?? '')}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        // Inject into iframes too. Without this, a site can embed
+        // browserleaks.com or similar in an iframe and bypass the shim
+        // (iOS WKUserScript defaults to main-frame-only).
+        forMainFrameOnly: false,
+      ));
+    }
+
     // System text zoom for non-Android: WKWebView has no `textZoom`
     // setting, so inject CSS that pushes -webkit-text-size-adjust.
     if (!Platform.isAndroid) {
@@ -1609,6 +1631,14 @@ class WebViewFactory {
       // attachment, or an unrecognized MIME type). Without this, the
       // webview silently drops the navigation and the user sees nothing.
       ..useOnDownloadStart = true
+      // Desktop content mode mirrors the per-site UA: a desktop-shaped UA
+      // turns on the plugin's `setDesktopMode(true)` path, which flips
+      // useWideViewPort + loadWithOverviewMode + zoom on Android and
+      // WKWebpagePreferences.preferredContentMode = .desktop on iOS. The
+      // shim above handles the JS-side touch / userAgentData patches.
+      ..preferredContentMode = desktopMode
+          ? inapp.UserPreferredContentMode.DESKTOP
+          : inapp.UserPreferredContentMode.RECOMMENDED
       // Enable DevTools inspection in debug mode (chrome://inspect on Android)
       ..isInspectable = kDebugMode;
 

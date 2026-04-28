@@ -8,6 +8,7 @@ import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/profile_cookie_manager.dart';
+import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -35,6 +36,43 @@ String _generateSiteId() {
   final now = DateTime.now().microsecondsSinceEpoch;
   final random = Random().nextInt(999999);
   return '${now.toRadixString(36)}-${random.toRadixString(36)}';
+}
+
+/// Migrate a backup's `userAgent` field, accounting for the legacy
+/// `desktopMode` toggle that this branch shipped earlier in development.
+///
+/// Older backups stored `desktopMode` as either:
+///   * a `bool` (`true` → desktop mode on, no platform choice), or
+///   * a `String` (`"linux"`/`"macos"`/`"windows"`/`"off"` from the picker
+///     iteration).
+///
+/// In the current design the per-site UA string itself decides desktop vs.
+/// mobile (see [isDesktopUserAgent] in
+/// `lib/services/user_agent_classifier.dart`). When importing a backup
+/// from before this collapse, if the user had desktop mode enabled but
+/// no custom UA, populate the UA with a Firefox desktop UA matching their
+/// chosen platform — that's the smallest change that preserves their
+/// intent under the new model. If they already had a custom UA, leave
+/// it alone (it wins).
+String _migrateUserAgent(Map<String, dynamic> json) {
+  final ua = (json['userAgent'] as String?) ?? '';
+  if (ua.isNotEmpty) return ua;
+
+  final raw = json['desktopMode'];
+  if (raw is bool) {
+    return raw ? firefoxLinuxDesktopUserAgent : '';
+  }
+  if (raw is String) {
+    switch (raw) {
+      case 'linux':
+        return firefoxLinuxDesktopUserAgent;
+      case 'macos':
+        return firefoxMacosDesktopUserAgent;
+      case 'windows':
+        return firefoxWindowsDesktopUserAgent;
+    }
+  }
+  return ua;
 }
 
 String extractDomain(String url) {
@@ -971,7 +1009,7 @@ class WebViewModel {
           .toList(),
       proxySettings: UserProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
-      userAgent: json['userAgent'],
+      userAgent: _migrateUserAgent(json),
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
       incognito: json['incognito'] ?? false,
       language: json['language'],
