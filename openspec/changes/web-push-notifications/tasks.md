@@ -40,25 +40,25 @@
 
 ## 6. Lifecycle: skip pause for background-poll sites
 
-- [ ] 6.1 Modify `_WebSpacePageState.didChangeAppLifecycleState` so that when state is `paused`, only sites with `backgroundPoll == false` are paused. Background-poll sites stay active.
-- [ ] 6.2 On state `resumed`, resume only the currently active site (existing behavior); background-poll sites were never paused so no-op.
+- [x] 6.1 Modify `_WebSpacePageState.didChangeAppLifecycleState` so that when state is `paused`, only sites with `backgroundPoll == false` are paused. Background-poll sites stay active.
+- [x] 6.2 On state `resumed`, resume only the currently active site (existing behavior); background-poll sites were never paused so no-op.
 - [ ] 6.3 Manual test: enable `backgroundPoll` on the fixture site, send a delayed notification, background the app, verify it arrives.
 
 ## 7. Auto-load background-poll sites at startup
 
-- [ ] 7.1 In `_restoreAppState`, after sites are loaded from `SharedPreferences`, iterate `_webViewModels` and add to `_loadedIndices` every site with `backgroundPoll == true` (without changing `_currentIndex`).
-- [ ] 7.2 The IndexedStack will then construct those webviews on first build; they'll initialize their profile and start running JS.
+- [x] 7.1 In `_restoreAppState`, after sites are loaded from `SharedPreferences`, iterate `_webViewModels` and add to `_loadedIndices` every site with `backgroundPoll == true` (without changing `_currentIndex`).
+- [x] 7.2 The IndexedStack will then construct those webviews on first build; they'll initialize their profile and start running JS.
 - [ ] 7.3 Update LAZY-001 delta scenarios test if applicable (see `openspec/changes/web-push-notifications/specs/lazy-webview-loading/spec.md`).
 - [ ] 7.4 Manual test: restart app with background-poll sites configured; verify they appear loaded (not blank placeholders) immediately after startup.
 
 ## 8. Foreground active polling timer
 
-- [ ] 8.1 Add a `Timer? _foregroundPollTimer` field to `_WebSpacePageState`.
-- [ ] 8.2 Start the timer in `initState` (or after `_restoreAppState` completes): `Timer.periodic(Duration(minutes: 5), _onForegroundPollTick)`.
-- [ ] 8.3 In `_onForegroundPollTick`, iterate `_webViewModels` and for each site where `backgroundPoll == true && index != _currentIndex && _loadedIndices.contains(index)`, call `model.controller?.reload()`.
-- [ ] 8.4 Cancel the timer on `didChangeAppLifecycleState(.paused)` and re-create on `.resumed`.
-- [ ] 8.5 Cancel and null in `dispose()`.
-- [ ] 8.6 Unit test the iteration logic (which indices to refresh) by extracting it to a pure function in a new `lib/services/foreground_poll_engine.dart`.
+- [x] 8.1 Add a `Timer? _foregroundPollTimer` field to `_WebSpacePageState`.
+- [x] 8.2 Start the timer in `initState` (or after `_restoreAppState` completes): `Timer.periodic(Duration(minutes: 5), _onForegroundPollTick)`.
+- [x] 8.3 In `_onForegroundPollTick`, iterate `_webViewModels` and for each site where `backgroundPoll == true && index != _currentIndex && _loadedIndices.contains(index)`, call `model.controller?.reload()`.
+- [x] 8.4 Cancel the timer on `didChangeAppLifecycleState(.paused)` and re-create on `.resumed`.
+- [x] 8.5 Cancel and null in `dispose()`.
+- [x] 8.6 Unit test the iteration logic (which indices to refresh) by extracting it to a pure function in a new `lib/services/foreground_poll_engine.dart`.
 
 ## 9. Android foreground service
 

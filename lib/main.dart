@@ -707,6 +707,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Global user scripts (shared across all sites)
   List<UserScriptConfig> _globalUserScripts = [];
 
+  Timer? _foregroundPollTimer;
+
   // Guards lifecycle pause/resume against rapid state transitions.
   // Without this, a quick inactive→resumed sequence could let the resume
   // platform call complete before the pause call, leaving the webview stuck.
@@ -738,6 +740,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   @override
   void dispose() {
+    _foregroundPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -840,21 +843,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      // App is backgrounding: pause active webview AND globally freeze JS
-      // timers so loaded-but-inactive webviews stop too.
+      _foregroundPollTimer?.cancel();
+      _foregroundPollTimer = null;
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
-        // Capture state for the active site so an OS-induced kill
-        // while we're backgrounded doesn't lose the back/forward
-        // stack and (Apple) form data. Best-effort, fire-and-forget;
-        // the webview stays loaded — disk capture is just defense
-        // in depth in case the OS reaps the app entirely. Bytes-
-        // only capture — lifecycleState stays `live` because the
-        // webview is not disposed.
+        if (!_webViewModels[_currentIndex!].backgroundPoll) {
+          _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
+        }
         final activeIdx = _currentIndex!;
         unawaited(_captureStateBytes(_webViewModels[activeIdx]));
       }
     } else if (state == AppLifecycleState.resumed) {
+      _startForegroundPollTimer();
       // Await any in-flight pause before resuming to prevent ordering inversion
       _resumeAfterLifecyclePause();
       _handleShortcutIntent();
@@ -870,7 +869,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _lifecyclePauseFuture = null;
     }
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
+      if (!_webViewModels[_currentIndex!].backgroundPoll) {
+        await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
+      }
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
@@ -1680,6 +1681,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       models: _webViewModels,
     );
 
+    // Auto-load background-poll sites so they start running immediately
+    for (int i = 0; i < _webViewModels.length; i++) {
+      if (_webViewModels[i].backgroundPoll) {
+        _loadedIndices.add(i);
+      }
+    }
+
     // Set current index (async for cookie restoration)
     await _setCurrentIndex(indexToRestore);
     if (!mounted) return;
@@ -1689,6 +1697,26 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
     for (var webViewModel in List.from(_webViewModels)) {
       await webViewModel.setTheme(webViewTheme);
+    }
+
+    _startForegroundPollTimer();
+  }
+
+  void _startForegroundPollTimer() {
+    _foregroundPollTimer?.cancel();
+    _foregroundPollTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => _onForegroundPollTick(),
+    );
+  }
+
+  void _onForegroundPollTick() {
+    for (int i = 0; i < _webViewModels.length; i++) {
+      if (_webViewModels[i].backgroundPoll &&
+          i != _currentIndex &&
+          _loadedIndices.contains(i)) {
+        _webViewModels[i].controller?.reload();
+      }
     }
   }
 
