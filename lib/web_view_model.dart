@@ -511,6 +511,7 @@ class WebViewModel {
     bool Function()? isActive,
     Future<bool> Function(String url)? onConfirmScriptFetch,
     Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
+    void Function(String url, VoidCallback continueHere)? onIosUniversalLinkUrl,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
@@ -572,6 +573,7 @@ class WebViewModel {
           userScripts: combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
           onExternalSchemeUrl: onExternalSchemeUrl,
+          onIosUniversalLinkUrl: onIosUniversalLinkUrl,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {

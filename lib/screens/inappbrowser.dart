@@ -12,6 +12,7 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/ios_universal_link_prompt.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {
@@ -144,6 +145,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         onExternalSchemeUrl: (url, info) async {
           if (!mounted) return;
           await confirmAndLaunchExternalUrl(context, info);
+        },
+        onIosUniversalLinkUrl: (url, continueHere) {
+          if (!mounted) return;
+          confirmIosUniversalLinkUrl(context, url, continueHere: continueHere);
         },
       ),
       onControllerCreated: (controller) {

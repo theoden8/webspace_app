@@ -1,4 +1,4 @@
-/// iOS Universal Link bypass.
+/// iOS Universal Link prompt gate.
 ///
 /// `WKWebView` honors apple-app-site-association entries: when the
 /// user taps a link (or follows a redirect chain rooted in a tap)
@@ -7,10 +7,17 @@
 /// without a prompt, and even when the user explicitly added the
 /// site to WebSpace and is using the webview on purpose.
 ///
-/// The webview-side fix: cancel the offending navigation and reissue
-/// it via `controller.loadUrl` (a programmatic load, navigation type
-/// `.other`). WebKit doesn't match programmatic loads against AASA,
-/// so the URL renders inside the webview as the user intended.
+/// Fix: on iOS, intercept navigations to known auto-launch URLs,
+/// CANCEL them so iOS can't route to the app, and surface a
+/// confirmation dialog (like the existing `intent://` prompt on
+/// Android). The user picks:
+///   * Continue here  — programmatic reload in the webview;
+///     marked via [markApprovedContinue] so the reissued nav
+///     passes through this gate without re-prompting.
+///   * Open in app    — `url_launcher` external launch; iOS routes
+///     it to the native app via Universal Links.
+///   * Cancel         — drop the navigation; user stays where they
+///     were.
 ///
 /// Scope: iOS only. Android's WebView doesn't auto-launch installed
 /// apps for plain http(s) URLs — `intent://` schemes are handled
@@ -18,69 +25,86 @@
 class IosUniversalLinkBypass {
   IosUniversalLinkBypass();
 
-  /// Hosts whose AASA entries activate Universal Links from WKWebView
-  /// even when the navigation is a server redirect that followed a
-  /// user click. Matched by exact host or `*.host` suffix.
+  /// Match rules for hosts whose AASA aggressively activates Universal
+  /// Links from WKWebView. Each rule is `host` + optional `pathPrefix`:
+  ///   * pathPrefix == null  → any path on this host matches.
+  ///   * pathPrefix != null  → only paths that start with this prefix
+  ///     match (e.g. `www.google.com/maps*` matches but
+  ///     `www.google.com/search` doesn't).
   ///
-  /// Start narrow: add a host only when an actual report surfaces.
-  /// Many domains with AASA entries (LinkedIn, Twitter, Reddit) don't
-  /// auto-launch from WKWebView in practice and need no bypass.
-  static const Set<String> _domains = {
-    // Google Maps: maps.google.com auto-launches the Google Maps iOS
-    // app from WKWebView even on the consent.google.com → maps.google.com
-    // redirect after the cookie-consent flow, kicking the user out of
-    // the webview the moment they accept consent.
-    'maps.google.com',
-    // Google Maps short links (maps.app.goo.gl/...) resolve to
-    // maps.google.com via 302 and trigger the same UL routing.
-    'maps.app.goo.gl',
-  };
+  /// Hosts also match their subdomains (`*.host`).
+  static const List<_Rule> _rules = [
+    // Google Maps: maps.google.com on any path. Triggers the Maps iOS
+    // app even when the user explicitly added Google Maps to WebSpace
+    // and is browsing the webview.
+    _Rule('maps.google.com'),
+    // Google Maps short links resolve to maps.google.com via 302.
+    _Rule('maps.app.goo.gl'),
+    // Google's own redirect after the consent flow lands on
+    // www.google.com/maps (NOT maps.google.com), and that path on
+    // www.google.com / google.com is also covered by the Maps AASA —
+    // observed in user logs after accepting cookie consent.
+    _Rule('www.google.com', pathPrefix: '/maps'),
+    _Rule('google.com', pathPrefix: '/maps'),
+  ];
 
-  /// Per-WebView memo: URL → timestamp of the last cancel-and-reissue.
-  /// After we reissue programmatically the same URL fires
-  /// `shouldOverrideUrlLoading` again; the memo flips the second pass
-  /// to ALLOW so we don't bounce in a loop.
-  final Map<String, DateTime> _recentBypass = {};
+  /// Per-WebView memo of URLs the user just approved to "continue
+  /// here". Entries TTL out so a future re-navigation to the same URL
+  /// re-prompts instead of silently passing through.
+  final Map<String, DateTime> _approvedContinue = {};
 
-  /// Memo TTL. Long enough that the reissued navigation arrives and
-  /// resolves; short enough that a future re-navigation to the same
-  /// URL gets bypassed again.
-  static const Duration _memoWindow = Duration(seconds: 2);
+  static const Duration _approvalWindow = Duration(seconds: 5);
 
-  /// True when [url]'s host is on the bypass list. Pure function;
-  /// callers should still gate on `Platform.isIOS`.
-  static bool isUniversalLinkDomain(String url) {
+  /// True when [url] should be intercepted and routed through the
+  /// confirmation prompt. Pure function; callers should still gate
+  /// on `Platform.isIOS`.
+  static bool isUniversalLinkUrl(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
     final host = uri.host.toLowerCase();
     if (host.isEmpty) return false;
-    for (final domain in _domains) {
-      if (host == domain) return true;
-      if (host.endsWith('.$domain')) return true;
+    final path = uri.path;
+    for (final rule in _rules) {
+      final hostMatches = host == rule.host || host.endsWith('.${rule.host}');
+      if (!hostMatches) continue;
+      if (rule.pathPrefix == null) return true;
+      if (path == rule.pathPrefix ||
+          path.startsWith('${rule.pathPrefix!}/') ||
+          path.startsWith('${rule.pathPrefix!}?')) {
+        return true;
+      }
     }
     return false;
   }
 
-  /// Decide whether the caller should cancel-and-reissue this
-  /// navigation. Returns:
-  ///   * `true` on the first pass for a UL-domain URL (caller
-  ///     cancels the navigation and reissues via `loadUrl`),
-  ///   * `false` on the second pass (the just-reissued nav landing
-  ///     in shouldOverrideUrlLoading again — caller allows it).
-  ///
-  /// The memo entry is consumed on the second pass, so a fresh
-  /// navigation to the same URL later still triggers the bypass.
-  bool shouldCancelAndReissue(String url, {DateTime? now}) {
+  /// Called when the user picks "Continue here" — the next
+  /// shouldOverrideUrlLoading for [url] within [_approvalWindow] is
+  /// allowed through without prompting.
+  void markApprovedContinue(String url, {DateTime? now}) {
+    _approvedContinue[url] = now ?? DateTime.now();
+  }
+
+  /// True if the user just approved [url] to "continue here". Consumes
+  /// the memo entry so a fresh navigation to the same URL later still
+  /// triggers a prompt.
+  bool consumeApproval(String url, {DateTime? now}) {
     final t = now ?? DateTime.now();
-    final last = _recentBypass[url];
-    if (last != null && t.difference(last) < _memoWindow) {
-      _recentBypass.remove(url);
+    final last = _approvedContinue[url];
+    if (last == null) return false;
+    if (t.difference(last) > _approvalWindow) {
+      _approvedContinue.remove(url);
       return false;
     }
-    _recentBypass[url] = t;
+    _approvedContinue.remove(url);
     return true;
   }
 
   /// Test hook.
-  void clear() => _recentBypass.clear();
+  void clear() => _approvedContinue.clear();
+}
+
+class _Rule {
+  final String host;
+  final String? pathPrefix;
+  const _Rule(this.host, {this.pathPrefix});
 }
