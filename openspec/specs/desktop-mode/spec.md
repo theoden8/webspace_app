@@ -146,53 +146,6 @@ underlying mobile WebView's signals.
 
 ---
 
-### Requirement: DM-003 — Backup migration from legacy desktopMode field
-
-`WebViewModel.fromJson` SHALL apply the migration table below when an
-imported site has the legacy per-site `desktopMode` field (which earlier
-branches persisted, first as a `bool`, later as a string enum
-`"off"` / `"linux"` / `"macos"` / `"windows"`) AND its `userAgent` is
-empty. The migration populates `userAgent` so the user's intended
-desktop / mobile behavior is preserved on import without requiring them
-to manually re-edit the UA.
-
-| Legacy `desktopMode` value | Migrated `userAgent` |
-|---|---|
-| `true` (bool) | Firefox Linux desktop UA |
-| `false` (bool) | empty (mobile) |
-| `"linux"` | Firefox Linux desktop UA |
-| `"macos"` | Firefox macOS desktop UA |
-| `"windows"` | Firefox Windows desktop UA |
-| `"off"` | empty (mobile) |
-| absent / unknown | empty (no migration) |
-
-If the imported `userAgent` is non-empty, it wins — the user's explicit
-custom UA is preserved regardless of the legacy `desktopMode` value.
-
-The legacy `desktopMode` field is NOT preserved on re-export. The current
-model has no such field; it is consumed at import time and discarded.
-
-#### Scenario: Old bool=true backup with no custom UA
-
-**Given** a backup contains `"desktopMode": true` and `"userAgent": ""`
-**When** the user imports the backup
-**Then** the restored site has `userAgent == firefoxLinuxDesktopUserAgent`
-**And** `isDesktopUserAgent(userAgent)` is `true`
-
-#### Scenario: Old enum=macos backup migrates to macOS desktop UA
-
-**Given** a backup contains `"desktopMode": "macos"` and `"userAgent": ""`
-**When** the user imports the backup
-**Then** the restored site has `userAgent == firefoxMacosDesktopUserAgent`
-
-#### Scenario: User's custom UA wins over migration
-
-**Given** a backup contains `"desktopMode": "macos"` and `"userAgent": "MyCustom/1.0"`
-**When** the user imports the backup
-**Then** the restored site has `userAgent == "MyCustom/1.0"`
-
----
-
 ## Known limitation: `Sec-CH-UA-*` HTTP headers
 
 The `Sec-CH-UA`, `Sec-CH-UA-Mobile`, and `Sec-CH-UA-Platform` HTTP
@@ -230,7 +183,5 @@ path is dead. Not currently implemented.
 | `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, canonical Firefox desktop UA constants |
 | `lib/services/desktop_mode_shim.dart` | `buildDesktopModeShim(userAgent)` — JS source for AT_DOCUMENT_START injection |
 | `lib/services/webview.dart` | `createWebView`: injects shim and sets `preferredContentMode` based on `isDesktopUserAgent(config.userAgent)` |
-| `lib/web_view_model.dart` | `_migrateUserAgent`: reads legacy `desktopMode` field on import and populates `userAgent` |
 | `test/user_agent_classifier_test.dart` | Coverage for the inference helpers |
 | `test/desktop_mode_shim_test.dart` | Coverage for the JS shim source generation |
-| `test/desktop_mode_migration_test.dart` | Coverage for legacy backup migration |

@@ -75,10 +75,12 @@ String navigatorPlatformFor(DesktopUaPlatform p) {
   }
 }
 
-/// Canonical Firefox desktop UA strings, exposed for the legacy
-/// `desktopMode`-field migration in `WebViewModel.fromJson`. Versioned to
-/// stay reasonably close to current Firefox; the rendered shape matches
-/// the project's existing `generateRandomUserAgent()` output.
+/// Canonical Firefox desktop UA strings, exposed as named constants so
+/// tests have stable fixtures and so the same shape is reachable from
+/// any future caller that wants to seed the per-site UA field with a
+/// known-good desktop UA. Versioned to stay reasonably close to current
+/// Firefox; the rendered shape matches the project's existing
+/// `generateRandomUserAgent()` output.
 const String firefoxLinuxDesktopUserAgent =
     'Mozilla/5.0 (X11; Linux x86_64; rv:147.0) Gecko/20100101 Firefox/147.0';
 const String firefoxMacosDesktopUserAgent =
