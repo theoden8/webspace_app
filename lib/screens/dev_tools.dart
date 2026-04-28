@@ -578,8 +578,21 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           siteId: widget.webViewModel!.siteId,
           url: Uri.parse(url),
         );
+        LogService.instance.log(
+          'DevTools',
+          'Cookie inspector via ProfileCookieManager: '
+              'siteId=${widget.webViewModel!.siteId} url=$url '
+              'count=${cookies.length}',
+        );
       } else {
         cookies = await widget.cookieManager.getCookies(url: Uri.parse(url));
+        LogService.instance.log(
+          'DevTools',
+          'Cookie inspector via legacy CookieManager: '
+              'siteId=${widget.webViewModel!.siteId} url=$url '
+              'count=${cookies.length} '
+              '(profile=${profile != null} ctrl=${controller != null})',
+        );
       }
       if (mounted) {
         widget.webViewModel!.cookies = cookies;

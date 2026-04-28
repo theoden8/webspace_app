@@ -1,6 +1,6 @@
 diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebView/InAppWebView.swift
 --- a/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-25 20:26:04.000000000 +0000
-+++ b/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 03:32:38.681956785 +0000
++++ b/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 03:41:24.000000000 +0000
 @@ -617,6 +617,19 @@
                  } else if settings.cacheEnabled {
                      configuration.websiteDataStore = WKWebsiteDataStore.default()
@@ -23,7 +23,7 @@ diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebVi
                          configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
 diff -urN a/ios/Classes/InAppWebView/InAppWebViewSettings.swift b/ios/Classes/InAppWebView/InAppWebViewSettings.swift
 --- a/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-25 20:26:03.000000000 +0000
-+++ b/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 03:32:38.683956785 +0000
++++ b/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 03:41:24.000000000 +0000
 @@ -30,6 +30,16 @@
      var interceptOnlyAsyncAjaxRequests = true
      var useShouldInterceptFetchRequest = false
@@ -43,7 +43,7 @@ diff -urN a/ios/Classes/InAppWebView/InAppWebViewSettings.swift b/ios/Classes/In
      var disableVerticalScroll = false
 diff -urN a/ios/Classes/InAppWebView/WebSpaceProfile.swift b/ios/Classes/InAppWebView/WebSpaceProfile.swift
 --- a/ios/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
-+++ b/ios/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 03:32:38.684956785 +0000
++++ b/ios/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 03:41:24.000000000 +0000
 @@ -0,0 +1,51 @@
 +//
 +// WebSpaceProfile.swift
@@ -98,7 +98,7 @@ diff -urN a/ios/Classes/InAppWebView/WebSpaceProfile.swift b/ios/Classes/InAppWe
 +}
 diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swift
 --- a/ios/Classes/MyCookieManager.swift	2026-04-25 20:26:04.000000000 +0000
-+++ b/ios/Classes/MyCookieManager.swift	2026-04-28 03:38:02.114907689 +0000
++++ b/ios/Classes/MyCookieManager.swift	2026-04-28 04:24:27.996177815 +0000
 @@ -6,6 +6,7 @@
  //
  
@@ -107,7 +107,7 @@ diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swif
  import WebKit
  
  @available(iOS 11.0, *)
-@@ -13,6 +14,71 @@
+@@ -13,6 +14,74 @@
      static let METHOD_CHANNEL_NAME = "com.pichillilorenzo/flutter_inappwebview_cookiemanager"
      static let httpCookieStore = WKWebsiteDataStore.default().httpCookieStore
  
@@ -166,20 +166,23 @@ diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swif
 +    }
 +
 +    // [WebSpace fork patch]
-+    // Compare two `Any` ids — they may be Int or String depending on
-+    // whether the WebView was created with a keepAliveId.
++    // Compare two `Any` ids — they may be Int / Int64 / NSNumber on
++    // the numeric path (Flutter standard codec decodes ints to
++    // NSNumber, while `InAppWebView.id` is a typed Int64). Bridging
++    // through NSNumber.isEqual handles every numeric pair without
++    // caring which exact Swift type each side has.
 +    private static func anyEqual(_ a: Any, _ b: Any) -> Bool {
-+        if let ai = a as? Int, let bi = b as? Int { return ai == bi }
++        if let an = a as? NSNumber, let bn = b as? NSNumber {
++            return an.isEqual(bn)
++        }
 +        if let as_ = a as? String, let bs = b as? String { return as_ == bs }
-+        // Method-channel ints often arrive as Int64/NSNumber; coerce.
-+        if let an = a as? NSNumber, let bn = b as? NSNumber { return an == bn }
 +        return false
 +    }
 +
      private var plugin: SwiftFlutterPlugin?
      
      init(plugin: SwiftFlutterPlugin) {
-@@ -54,7 +120,11 @@
+@@ -54,7 +123,11 @@
                  break
              case "getCookies":
                  let url = arguments!["url"] as! String
@@ -192,7 +195,7 @@ diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swif
                  break
              case "getAllCookies":
                  MyCookieManager.getAllCookies(result: result)
-@@ -64,7 +134,11 @@
+@@ -64,7 +137,11 @@
                  let name = arguments!["name"] as! String
                  let path = arguments!["path"] as! String
                  let domain = arguments!["domain"] as? String
@@ -205,7 +208,7 @@ diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swif
                  break
              case "deleteCookies":
                  let url = arguments!["url"] as! String
-@@ -143,10 +217,17 @@
+@@ -143,10 +220,17 @@
      }
      
      public static func getCookies(url: String, result: @escaping FlutterResult) {
@@ -225,7 +228,7 @@ diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swif
                  for cookie in cookies {
                      if urlHost.hasSuffix(cookie.domain) || ".\(urlHost)".hasSuffix(cookie.domain) {
                          var sameSite: String? = nil
-@@ -220,8 +301,22 @@
+@@ -220,8 +304,22 @@
      }
      
      public static func deleteCookie(url: String, name: String, path: String, domain: String?, result: @escaping FlutterResult) {
@@ -249,7 +252,7 @@ diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swif
              for cookie in cookies {
                  var originURL = url
                  if cookie.properties![.originURL] is String {
-@@ -238,7 +333,7 @@
+@@ -238,7 +336,7 @@
                      }
                  }
                  if let domain = domain, cookie.domain == domain, cookie.name == name, cookie.path == path {
@@ -260,7 +263,7 @@ diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swif
                      return
 diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
 --- a/lib/src/cookie_manager.dart	2026-04-25 20:26:00.000000000 +0000
-+++ b/lib/src/cookie_manager.dart	2026-04-28 03:38:41.551901994 +0000
++++ b/lib/src/cookie_manager.dart	2026-04-28 03:41:24.000000000 +0000
 @@ -183,6 +183,14 @@
  
      Map<String, dynamic> args = <String, dynamic>{};

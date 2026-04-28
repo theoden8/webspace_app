@@ -1,6 +1,6 @@
 diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
 --- a/lib/src/cookie_manager.dart	2026-04-25 20:26:02.000000000 +0000
-+++ b/lib/src/cookie_manager.dart	2026-04-28 03:40:57.990882290 +0000
++++ b/lib/src/cookie_manager.dart	2026-04-28 03:41:25.000000000 +0000
 @@ -183,6 +183,10 @@
  
      Map<String, dynamic> args = <String, dynamic>{};
@@ -25,7 +25,7 @@ diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
  
 diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppWebView/InAppWebView.swift
 --- a/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-25 20:26:07.000000000 +0000
-+++ b/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 03:32:39.212956702 +0000
++++ b/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 03:41:25.000000000 +0000
 @@ -261,6 +261,16 @@
              } else if settings.cacheEnabled {
                  configuration.websiteDataStore = WKWebsiteDataStore.default()
@@ -45,7 +45,7 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
                      configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
 diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classes/InAppWebView/InAppWebViewSettings.swift
 --- a/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-25 20:26:07.000000000 +0000
-+++ b/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 03:32:39.214956702 +0000
++++ b/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 03:41:25.000000000 +0000
 @@ -28,6 +28,11 @@
      var interceptOnlyAsyncAjaxRequests = true
      var useShouldInterceptFetchRequest = false
@@ -60,7 +60,7 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classe
      var supportZoom = true
 diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InAppWebView/WebSpaceProfile.swift
 --- a/macos/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
-+++ b/macos/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 03:32:39.217956701 +0000
++++ b/macos/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 03:41:25.000000000 +0000
 @@ -0,0 +1,36 @@
 +//
 +// WebSpaceProfile.swift
@@ -100,7 +100,7 @@ diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InA
 +}
 diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.swift
 --- a/macos/Classes/MyCookieManager.swift	2026-04-25 20:26:07.000000000 +0000
-+++ b/macos/Classes/MyCookieManager.swift	2026-04-28 03:40:26.258886873 +0000
++++ b/macos/Classes/MyCookieManager.swift	2026-04-28 04:24:37.196174866 +0000
 @@ -5,6 +5,7 @@
  //  Created by Lorenzo on 26/10/18.
  //
@@ -109,7 +109,7 @@ diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.
  import Foundation
  import WebKit
  import FlutterMacOS
-@@ -14,6 +15,55 @@
+@@ -14,6 +15,59 @@
      static let METHOD_CHANNEL_NAME = "com.pichillilorenzo/flutter_inappwebview_cookiemanager"
      var plugin: InAppWebViewFlutterPlugin?
      static var httpCookieStore = WKWebsiteDataStore.default().httpCookieStore
@@ -156,16 +156,20 @@ diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.
 +    }
 +
 +    // [WebSpace fork patch]
++    // See iOS counterpart for the rationale on NSNumber bridging —
++    // both methods stay byte-identical so a given platform-view id
++    // compares the same way everywhere.
 +    private static func anyEqual(_ a: Any, _ b: Any) -> Bool {
-+        if let ai = a as? Int, let bi = b as? Int { return ai == bi }
++        if let an = a as? NSNumber, let bn = b as? NSNumber {
++            return an.isEqual(bn)
++        }
 +        if let as_ = a as? String, let bs = b as? String { return as_ == bs }
-+        if let an = a as? NSNumber, let bn = b as? NSNumber { return an == bn }
 +        return false
 +    }
      
      init(plugin: InAppWebViewFlutterPlugin) {
          super.init(channel: FlutterMethodChannel(name: MyCookieManager.METHOD_CHANNEL_NAME, binaryMessenger: plugin.registrar!.messenger))
-@@ -54,7 +104,11 @@
+@@ -54,7 +108,11 @@
                  break
              case "getCookies":
                  let url = arguments!["url"] as! String
@@ -178,7 +182,7 @@ diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.
                  break
              case "getAllCookies":
                  MyCookieManager.getAllCookies(result: result)
-@@ -64,7 +118,11 @@
+@@ -64,7 +122,11 @@
                  let name = arguments!["name"] as! String
                  let path = arguments!["path"] as! String
                  let domain = arguments!["domain"] as? String
@@ -191,7 +195,7 @@ diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.
                  break;
              case "deleteCookies":
                  let url = arguments!["url"] as! String
-@@ -142,10 +200,17 @@
+@@ -142,10 +204,17 @@
      }
      
      public static func getCookies(url: String, result: @escaping FlutterResult) {
@@ -211,7 +215,7 @@ diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.
                  for cookie in cookies {
                      if urlHost.hasSuffix(cookie.domain) || ".\(urlHost)".hasSuffix(cookie.domain) {
                          var sameSite: String? = nil
-@@ -219,8 +284,20 @@
+@@ -219,8 +288,20 @@
      }
      
      public static func deleteCookie(url: String, name: String, path: String, domain: String?, result: @escaping FlutterResult) {
@@ -233,7 +237,7 @@ diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.
              for cookie in cookies {
                  var originURL = url
                  if cookie.properties![.originURL] is String {
-@@ -233,7 +310,7 @@
+@@ -233,7 +314,7 @@
                      domain = domainUrl.host
                  }
                  if let domain = domain, cookie.domain == domain, cookie.name == name, cookie.path == path {
