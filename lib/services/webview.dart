@@ -1193,11 +1193,27 @@ class WebViewFactory {
     // Initial-load fallback is handled inside the engine.
     String? lastStableUrl;
 
-    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl}');
+    // Profile API on Android binds storage at the WebView level, but
+    // `WebViewCompat.setProfile` rejects views that have already started a
+    // session-bound operation (`loadUrl`, `evaluateJavascript`, …). The
+    // flutter_inappwebview Android plugin issues `webView.loadUrl(initialUrlRequest)`
+    // inside `FlutterWebViewFactory.create()` *before* it signals
+    // `onWebViewCreated` to Dart, so a microtask-scheduled bind always
+    // loses the race and the WebView leaks into the default profile —
+    // exactly the symptom the user reported (two same-base-domain sites
+    // sharing a session). Defer the initial load to Dart so we can bind
+    // before the first navigation. Cached-HTML loads use `initialData`
+    // and are unaffected (they never call `loadUrl` during `prepare()`).
+    final useProfileBind = Platform.isAndroid &&
+        ProfileNative.instance.cachedSupported &&
+        config.siteId != null;
+    final deferInitialLoad = useProfileBind && !usesCachedHtml;
+
+    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} deferInitialLoad=$deferInitialLoad');
 
     return inapp.InAppWebView(
       key: config.key,
-      initialUrlRequest: usesCachedHtml ? null : inapp.URLRequest(
+      initialUrlRequest: (usesCachedHtml || deferInitialLoad) ? null : inapp.URLRequest(
         url: inapp.WebUri(config.initialUrl),
         headers: headers.isNotEmpty ? headers : null,
       ),
@@ -1436,6 +1452,35 @@ class WebViewFactory {
             wrappedController.loadUrl(config.initialUrl, language: config.language);
           }
         }
+        // Profile API bind (Android, System WebView 110+). MUST happen
+        // before the first navigation because `WebViewCompat.setProfile`
+        // throws if the WebView has already loaded. We deferred the
+        // initial URL load above to keep this window open; bind here,
+        // synchronously inside `onWebViewCreated` (NOT in a microtask),
+        // then issue the load from Dart so it lands on the bound profile.
+        // No-ops when MULTI_PROFILE isn't supported — the engine in
+        // `_setCurrentIndex` then keeps using capture-nuke-restore.
+        if (useProfileBind) {
+          final siteId = config.siteId!;
+          try {
+            await ProfileNative.instance.getOrCreateProfile(siteId);
+            await ProfileNative.instance.bindProfileToWebView(siteId);
+          } catch (e) {
+            LogService.instance.log(
+              'Profile',
+              'bind failed in onWebViewCreated for $siteId: $e',
+              level: LogLevel.error,
+            );
+          }
+          if (deferInitialLoad) {
+            await controller.loadUrl(
+              urlRequest: inapp.URLRequest(
+                url: inapp.WebUri(config.initialUrl),
+                headers: headers.isNotEmpty ? headers : null,
+              ),
+            );
+          }
+        }
         // Attach native interceptor (DNS blocking + LocalCDN serving) once
         // the view is in the hierarchy. Always attach on Android — the
         // handler no-ops cheaply when neither blocklist nor CDN cache are
@@ -1443,19 +1488,6 @@ class WebViewFactory {
         // subsequent updates are picked up without re-attaching.
         if (Platform.isAndroid) {
           Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
-          // Bind this WebView to its per-site native profile (Android,
-          // System WebView 110+). No-ops on devices that don't advertise
-          // WebViewFeature.MULTI_PROFILE — the engine selection in
-          // `_setCurrentIndex` then keeps using capture-nuke-restore.
-          // Idempotent: if a WebView already carries the matching profile
-          // (re-attach after rebuild), the native side fast-returns.
-          final siteId = config.siteId;
-          if (siteId != null) {
-            Future.microtask(() async {
-              await ProfileNative.instance.getOrCreateProfile(siteId);
-              await ProfileNative.instance.bindProfileToWebView(siteId);
-            });
-          }
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {

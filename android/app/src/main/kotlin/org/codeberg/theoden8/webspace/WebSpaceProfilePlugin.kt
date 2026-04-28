@@ -109,45 +109,78 @@ class WebSpaceProfilePlugin(private val activity: Activity, flutterEngine: Flutt
     private fun profileNameFor(siteId: String): String = "$PROFILE_PREFIX$siteId"
 
     /// Walks the activity's view tree, finds every flutter_inappwebview
-    /// InAppWebView, and binds the requested profile to each. setProfile
-    /// throws IllegalStateException if the WebView has already started a
-    /// session-bound operation (loadUrl, evaluateJavascript, etc.) — we
-    /// catch and skip those so a single race doesn't fail the whole batch
-    /// and so a re-bind on a fresh instance still succeeds.
+    /// InAppWebView, and binds the requested profile to those that are
+    /// still on the default profile (i.e. fresh, not yet loaded — at most
+    /// one such WebView is in the tree at any moment, the one whose
+    /// `onWebViewCreated` triggered this bind call).
+    ///
+    /// Webviews already bound to a non-default profile are siblings owned
+    /// by other sites; touching them with `setProfile` would throw because
+    /// they have already started session-bound operations. We skip them
+    /// explicitly rather than swallowing the resulting exception, so the
+    /// returned count is a faithful "bound for this siteId" tally and the
+    /// surfaced log line accurately reports race losses.
     private fun bindProfile(siteId: String): Int {
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
         findInAppWebViews(rootView, webViews)
         val profileName = profileNameFor(siteId)
-        var bound = 0
+        var newlyBound = 0
+        var alreadyBound = 0
+        var skippedSibling = 0
+        var raceLost = 0
         for (webView in webViews) {
-            // Skip webviews that already have the right profile to keep this
-            // call idempotent (the Dart side may invoke it on every
-            // onWebViewCreated for safety).
             val current: Profile? = try {
                 WebViewCompat.getProfile(webView)
             } catch (_: Throwable) {
                 null
             }
-            if (current?.name == profileName) {
-                bound++
-                continue
-            }
-            try {
-                WebViewCompat.setProfile(webView, profileName)
-                bound++
-            } catch (_: IllegalStateException) {
-                // WebView has already done a session-bound operation; binding
-                // is no longer permitted on this instance. Falls back to the
-                // default profile for this view.
-            } catch (_: UnsupportedOperationException) {
-                // Profile API not actually supported (shouldn't happen if
-                // isSupported() returned true, but be defensive).
-            } catch (_: Throwable) {
-                // Defensive: never let a single view's failure propagate.
+            val currentName = current?.name
+            when {
+                currentName == profileName -> {
+                    // Already bound to this exact profile — re-bind on
+                    // page reload, etc. Idempotent.
+                    alreadyBound++
+                }
+                currentName != null && currentName != Profile.DEFAULT_PROFILE_NAME -> {
+                    // A sibling site's webview, already loaded under its
+                    // own profile. Don't touch it.
+                    skippedSibling++
+                }
+                else -> {
+                    // Fresh webview (default profile or null) — try to bind.
+                    try {
+                        WebViewCompat.setProfile(webView, profileName)
+                        newlyBound++
+                    } catch (_: IllegalStateException) {
+                        // The view already started a session-bound operation
+                        // (typically `webView.loadUrl(initialUrlRequest)` running
+                        // before our bind on the platform-view-creation
+                        // timeline). The Dart construction path is supposed to
+                        // defer the initial load when profile mode is active so
+                        // this branch doesn't fire — a non-zero raceLost in the
+                        // surfaced log line means something queued a load too
+                        // early and that webview is now leaking into the default
+                        // profile.
+                        raceLost++
+                    } catch (_: UnsupportedOperationException) {
+                        // Profile API not actually supported (shouldn't happen
+                        // if isSupported() returned true, but be defensive).
+                        raceLost++
+                    } catch (_: Throwable) {
+                        raceLost++
+                    }
+                }
             }
         }
-        return bound
+        android.util.Log.i(
+            "WebSpaceProfilePlugin",
+            "bind siteId=$siteId profile=$profileName " +
+                "newly=$newlyBound already=$alreadyBound " +
+                "siblings=$skippedSibling raceLost=$raceLost " +
+                "totalWebViews=${webViews.size}"
+        )
+        return newlyBound + alreadyBound
     }
 
     private fun findInAppWebViews(view: View, results: MutableList<InAppWebView>) {

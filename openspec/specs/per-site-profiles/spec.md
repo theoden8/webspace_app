@@ -169,34 +169,58 @@ The system SHALL sweep profiles whose owning site no longer exists.
 **Then** no profile is deleted
 **And** the call returns 0
 
-### Requirement: PROF-005 — Bind Idempotency and Race Tolerance
+### Requirement: PROF-005 — Bind Before First Load
 
-`ProfileNative.bindProfileToWebView` SHALL be idempotent and tolerant
-of `WebViewCompat.setProfile`'s constraint that the WebView must not
-have started a session-bound operation. Failed binds SHALL NOT
-propagate as exceptions to Dart.
+`WebViewCompat.setProfile` rejects WebViews that have already
+performed a session-bound operation (`loadUrl`, `evaluateJavascript`,
+…). To structurally avoid that race the construction path SHALL
+defer the initial URL load: when `ProfileNative.cachedSupported` is
+true and a `siteId` is set, the `InAppWebView` is constructed with
+`initialUrlRequest: null`, the bind runs *synchronously* inside
+`onWebViewCreated`, and only then does Dart call
+`controller.loadUrl(initialUrl)`. Cached-HTML loads use
+`initialData` (which is processed during platform-view construction
+without entering session-bound state) and remain unaffected.
 
-#### Scenario: Re-bind after WebView reload
+#### Scenario: Bind precedes the first navigation
+
+**Given** profile mode is supported and a fresh site is being
+  activated
+**When** the InAppWebView is constructed
+**Then** no `initialUrlRequest` is passed — `webView.loadUrl(...)`
+  does NOT run inside `FlutterWebViewFactory.create()`
+**And** `onWebViewCreated` fires
+**And** Dart awaits `getOrCreateProfile` then `bindProfileToWebView`
+  before issuing `controller.loadUrl(initialUrl)`
+**And** every cookie / storage write that follows is partitioned to
+  the bound profile
+
+#### Scenario: Re-bind after WebView reload is idempotent
 
 **Given** a WebView is already bound to the correct profile
 **When** `bindProfileToWebView` is called again with the same siteId
 **Then** the native side detects the matching profile via
   `WebViewCompat.getProfile` and skips the re-set
-**And** the call counts the WebView as bound
+**And** the bound count includes the already-bound WebView
 
-#### Scenario: setProfile races against initialUrl load
+#### Scenario: Sibling webview is left untouched
 
-**Given** flutter_inappwebview started loading `initialUrlRequest`
-  before `onWebViewCreated` fired
-**When** the native side calls `WebViewCompat.setProfile`
-**Then** if `IllegalStateException` or
-  `UnsupportedOperationException` is thrown, the native side catches
-  it
-**And** the call returns the count of WebViews successfully bound
-  (excluding the one that lost the race)
-**And** Dart sees no exception — the affected WebView falls back to
-  the default profile for that session, equivalent to today's
-  capture-nuke-restore worst case
+**Given** site B's webview is loaded and bound to `ws-B`
+**And** site A is being activated for the first time
+**When** the native bind walks the activity view tree
+**Then** site B's webview (current profile = `ws-B`, ≠ default)
+  is skipped — no `setProfile` call, no exception, no profile swap
+
+#### Scenario: Defensive race log
+
+**Given** a `setProfile` call still throws `IllegalStateException`
+  despite the deferred-load contract (e.g. a future code path
+  queued an early load)
+**When** the native side catches the exception
+**Then** the surfaced log line records `raceLost > 0` for that
+  bind so the regression is observable in
+  `LogService` / `adb logcat -s WebSpaceProfilePlugin`
+**And** Dart sees no exception
 
 ### Requirement: PROF-006 — No GMS in Shipped Artifacts
 
@@ -256,27 +280,51 @@ live view hierarchy.
 
 ### Per-WebView Bind Site
 
-[`WebViewFactory.createWebView`](../../../lib/services/webview.dart)'s
-`onWebViewCreated` callback fires the bind:
+The flutter_inappwebview Android plugin issues
+`webView.loadUrl(initialUrlRequest)` inside
+`FlutterWebViewFactory.create()` *before* `onWebViewCreated` fires
+Dart-side. A bind queued via `Future.microtask` after
+`onWebViewCreated` therefore always loses the race against the
+first navigation and the WebView leaks into the default profile.
+[`WebViewFactory.createWebView`](../../../lib/services/webview.dart)
+solves this by **deferring the initial URL load** when profile mode
+is active:
 
 ```dart
-if (Platform.isAndroid) {
-  Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
-  final siteId = config.siteId;
-  if (siteId != null) {
-    Future.microtask(() async {
+final useProfileBind = Platform.isAndroid &&
+    ProfileNative.instance.cachedSupported &&
+    config.siteId != null;
+final deferInitialLoad = useProfileBind && !usesCachedHtml;
+
+return inapp.InAppWebView(
+  initialUrlRequest: (usesCachedHtml || deferInitialLoad) ? null : ...,
+  ...
+  onWebViewCreated: (controller) async {
+    ...
+    if (useProfileBind) {
       await ProfileNative.instance.getOrCreateProfile(siteId);
       await ProfileNative.instance.bindProfileToWebView(siteId);
-    });
-  }
-}
+      if (deferInitialLoad) {
+        await controller.loadUrl(urlRequest: inapp.URLRequest(...));
+      }
+    }
+    ...
+  },
+);
 ```
 
-The `Future.microtask` wrapper queues the bind for the next event-
-loop iteration. flutter_inappwebview begins loading
-`initialUrlRequest` shortly after `onWebViewCreated`; the bind races
-against that first load. PROF-005 covers the fallback when the race
-is lost.
+`cachedSupported` is the synchronous getter on
+[`ProfileNative`](../../../lib/services/profile_native.dart),
+populated during `_restoreAppState` (the same pass that resolves
+`_useProfiles`). It defaults to `false` until the first async
+resolution completes, so the first webview a process ever
+constructs (before `_restoreAppState` runs to completion) takes the
+non-deferred path — but by then no site has been activated yet, so
+this case never fires in practice.
+
+`Future.microtask` is still used for `WebInterceptNative.attachToWebViews`,
+which is race-insensitive (the ContentBlockerHandler can be set
+post-load).
 
 ### Per-Site Settings Still Apply
 

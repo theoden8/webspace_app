@@ -42,6 +42,15 @@ abstract class ProfileNative {
   /// site no longer exists.
   Future<List<String>> listProfiles();
 
+  /// Synchronous, cached copy of the most recent [isSupported] result.
+  /// Defaults to `false` until the first async resolution completes.
+  /// Call sites that need to branch *synchronously* during widget build
+  /// (e.g. choosing whether to defer `initialUrlRequest` on the
+  /// flutter_inappwebview construction path so the bind can win the
+  /// race against `webView.loadUrl`) read this getter; the async
+  /// resolution is performed once at startup in `_restoreAppState`.
+  bool get cachedSupported;
+
   /// Default singleton routed to the platform-appropriate impl. Tests
   /// inject a mock directly into the engine instead.
   static final ProfileNative instance =
@@ -53,6 +62,9 @@ class _MethodChannelProfileNative implements ProfileNative {
       MethodChannel('org.codeberg.theoden8.webspace/profile');
 
   bool? _supportedCache;
+
+  @override
+  bool get cachedSupported => _supportedCache ?? false;
 
   @override
   Future<bool> isSupported() async {
@@ -131,6 +143,9 @@ class _MethodChannelProfileNative implements ProfileNative {
 /// selection in [_WebSpacePageState] then falls through to
 /// [CookieIsolationEngine].
 class _StubProfileNative implements ProfileNative {
+  @override
+  bool get cachedSupported => false;
+
   @override
   Future<bool> isSupported() async => false;
 

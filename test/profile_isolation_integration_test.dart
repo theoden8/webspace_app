@@ -40,6 +40,9 @@ class MockProfileNative implements ProfileNative {
   MockProfileNative({this.supported = true});
 
   @override
+  bool get cachedSupported => supported;
+
+  @override
   Future<bool> isSupported() async {
     calls.add('isSupported');
     return supported;
