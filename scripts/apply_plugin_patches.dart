@@ -134,8 +134,39 @@ Future<void> main(List<String> args) async {
     }
   }
 
-  print('\nDone. Run `flutter pub get` again so dependency_overrides '
-      'resolves the patched paths.');
+  // Auto-run pub get so the script is a true one-shot bootstrap. On a
+  // clean checkout the user can just `dart run
+  // scripts/apply_plugin_patches.dart` and be done — the override
+  // paths now exist, so pub resolves them. Subsequent `flutter pub
+  // get` invocations work normally without re-running this script
+  // (unless a plugin version pin or .patch file changes).
+  print('\nResolving dependencies against the patched paths …');
+  final pubGet = await Process.run(
+    'flutter',
+    ['pub', 'get', '--enforce-lockfile'],
+    workingDirectory: projectRoot,
+    runInShell: true,
+  );
+  stdout.write(pubGet.stdout);
+  stderr.write(pubGet.stderr);
+  if (pubGet.exitCode != 0) {
+    // Fall back to a permissive resolve in case the lockfile drifted
+    // (e.g. after bumping a plugin version pin in this script).
+    final retry = await Process.run(
+      'flutter',
+      ['pub', 'get'],
+      workingDirectory: projectRoot,
+      runInShell: true,
+    );
+    stdout.write(retry.stdout);
+    stderr.write(retry.stderr);
+    if (retry.exitCode != 0) {
+      stderr.writeln('\nERROR: `flutter pub get` failed after applying '
+          'patches.');
+      exit(retry.exitCode);
+    }
+  }
+  print('\nDone.');
 }
 
 /// Resolve the pub-cache root the way the dart tool does:

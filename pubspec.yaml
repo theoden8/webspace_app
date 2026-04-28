@@ -73,16 +73,20 @@ dev_dependencies:
 
 # Per-site profile isolation requires patches to the
 # flutter_inappwebview platform plugins. The patches live as `.patch`
-# files at `third_party/flutter_inappwebview_*.patch`; running
-# `dart run scripts/apply_plugin_patches.dart` copies stock upstream
-# from `~/.pub-cache/` into `.dart_tool/webspace_patched_plugins/<plugin>/`
-# and applies the diff there. The dependency_overrides below point at
-# those generated paths.
+# files at `third_party/flutter_inappwebview_*.patch`; the
+# dependency_overrides below point at paths that
+# `dart run scripts/apply_plugin_patches.dart` materializes by copying
+# stock upstream from `~/.pub-cache/` (or downloading from pub.dev on
+# cache miss) into `.dart_tool/webspace_patched_plugins/<plugin>/` and
+# applying the per-plugin .patch.
 #
-# First-time / clean-checkout workflow:
-#   1. `flutter pub get`  (populates pub-cache with stock upstream)
-#   2. `dart run scripts/apply_plugin_patches.dart`
-#   3. `flutter pub get`  (resolves the override paths now that they exist)
+# Clean-checkout workflow — ONE COMMAND:
+#
+#   dart run scripts/apply_plugin_patches.dart
+#
+# (a plain `flutter pub get` fails with exit 66 because pub validates
+# that path: dependency targets exist before downloading anything; the
+# script bootstraps those paths and then runs pub get for you).
 #
 # Each patch teaches its plugin to honor a `webspaceProfile` settings
 # field and bind the WebView to a per-site profile / WKWebsiteDataStore

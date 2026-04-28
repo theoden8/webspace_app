@@ -77,9 +77,15 @@ fvm dart run flutter_launcher_icons
 Per-site profile isolation requires patches to all three
 flutter_inappwebview platform plugins (`_android`, `_ios`,
 `_macos`). The patches are not vendored — they live as `.patch`
-files in `third_party/`, applied at build time by [`scripts/apply_plugin_patches.dart`](scripts/apply_plugin_patches.dart). The script copies stock upstream from `~/.pub-cache/` into `.dart_tool/webspace_patched_plugins/<plugin>/` and applies the diff there; `dependency_overrides` in [pubspec.yaml](pubspec.yaml) point at the generated paths. `.dart_tool/` is gitignored, so the patched copies never enter the repo.
+files in `third_party/`, applied at build time by [`scripts/apply_plugin_patches.dart`](scripts/apply_plugin_patches.dart). The script copies stock upstream from `~/.pub-cache/` (or downloads it from pub.dev on cache miss) into `.dart_tool/webspace_patched_plugins/<plugin>/` and applies the diff there; `dependency_overrides` in [pubspec.yaml](pubspec.yaml) point at the generated paths. `.dart_tool/` is gitignored, so the patched copies never enter the repo.
 
-Workflow on a clean checkout: `flutter pub get` (populates pub-cache) → `dart run scripts/apply_plugin_patches.dart` → `flutter pub get` (resolves the override paths). CI follows the same three-step sequence; see [.github/workflows/build-and-test.yml](.github/workflows/build-and-test.yml).
+**Run once after every clone (and after any change to a patch file or version pin):**
+
+```bash
+dart run scripts/apply_plugin_patches.dart
+```
+
+The script bootstraps the patched plugin paths *and* runs `flutter pub get` for you, so a plain `flutter pub get` would fail beforehand with `could not find package flutter_inappwebview_macos at .dart_tool/...` (the exit-66 chicken-and-egg). After the script runs, future `flutter pub get` invocations work normally.
 
 Every patched line is marked with a `// [WebSpace fork patch]` comment so `grep -rn '\[WebSpace fork patch\]' .dart_tool/webspace_patched_plugins/` lists the surface area after a build. Full rationale, upgrade procedure (when the upstream version moves), and removal procedure (if upstream merges native profile support) live in [third_party/PATCHES.md](third_party/PATCHES.md). Read it before bumping the `flutter_inappwebview` pubspec version or any of the version pins in `apply_plugin_patches.dart`.
 

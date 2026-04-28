@@ -66,22 +66,35 @@ the repo. CI regenerates them on every build.
 
 ### Clean checkout / fresh CI runner
 
+One command:
+
 ```sh
-flutter pub get                              # 1. populate ~/.pub-cache
-dart run scripts/apply_plugin_patches.dart   # 2. patch into .dart_tool/
-flutter pub get                              # 3. resolve override paths
+dart run scripts/apply_plugin_patches.dart
 ```
 
-The first `pub get` cannot use `--enforce-lockfile` because the
-override paths don't exist yet. The second one can.
+The script:
 
-CI does this verbatim — see
+1. Materializes patched copies of the three plugins under
+   `.dart_tool/webspace_patched_plugins/<plugin>/`. If
+   `~/.pub-cache/` lacks an upstream version we expect, it downloads
+   the tarball from `https://pub.dev/api/archives/<plugin>-<version>.tar.gz`
+   and extracts it there. This sidesteps the chicken-and-egg of
+   running `flutter pub get` first — pub validates that
+   `dependency_overrides` paths exist *before* downloading anything,
+   so a plain `flutter pub get` on a fresh checkout fails with exit
+   66 ("could not find package flutter_inappwebview_macos at
+   .dart_tool/…").
+2. Runs `flutter pub get --enforce-lockfile` for you against the
+   now-existing override paths.
+
+CI runs the same single command; see
 [`.github/workflows/build-and-test.yml`](../.github/workflows/build-and-test.yml).
 
 ### Routine development
 
-After the initial setup, normal `flutter pub get` works. Re-run the
-script only if the upstream version pin or a patch file changes.
+After that one-shot, plain `flutter pub get` works. Re-run the
+script only if the upstream version pin in
+`scripts/apply_plugin_patches.dart` or a `.patch` file changes.
 
 ### Upgrading to a newer upstream
 
