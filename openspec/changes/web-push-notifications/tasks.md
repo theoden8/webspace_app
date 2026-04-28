@@ -110,9 +110,8 @@
 ## 15. Notification tap routing
 
 - [ ] 15.1 Wire `NotificationService`'s tap callback to a method on `_WebSpacePageState`: `void _onNotificationTapped(String siteId)`.
-- [ ] 15.2 Implementation: find the index in `_webViewModels` where `model.siteId == siteId`. If found, call `await _setCurrentIndex(index)`. If not found, log a warning ("notification tap for unknown siteId: ...") and ignore.
-- [ ] 15.3 Handle cold-start case: notification tap when the app is fully terminated. The plugin's `getNotificationAppLaunchDetails` returns the payload; check this in `initState` after `_restoreAppState` and call `_onNotificationTapped` if present.
-- [ ] 15.4 Manual test: send notification, terminate app, tap notification, verify the correct site is active on launch.
+- [ ] 15.2 Implementation: find the index in `_webViewModels` where `model.siteId == siteId`. If found, call `await _setCurrentIndex(index)`. If not found (site deleted between notification and tap), log a warning and ignore.
+- [ ] 15.3 Manual test: send notification, switch to another site, tap notification, verify the correct site becomes active.
 
 ## 16. iOS notification permission UX
 
