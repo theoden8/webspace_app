@@ -19,16 +19,13 @@ This feature requires native per-site profiles (`_useProfiles == true`). On lega
 
 On legacy devices, the CookieIsolation engine's capture-nuke-restore cycle and singleton CookieManager make reliable background notifications infeasible: domain conflicts dispose webviews, `deleteAllCookies()` wipes sessions, and keepAlive'd WebViews lose authentication. Rather than ship a degraded experience, we gate the feature on profile support.
 
-## Known Constraint: Process-Wide Proxy
+## Known Constraint: Process-Wide Proxy (Android Only)
 
-`ProxyController.instance()` is a process-wide singleton (Android). `setProxyOverride` applies to ALL WebViews regardless of profile. If two background-active sites have different proxy configurations, only the proxy of the currently active (foreground) site is in effect — the background site's traffic routes through the wrong proxy.
+On Android, `ProxyController.instance()` is a process-wide singleton. `setProxyOverride` applies to ALL WebViews regardless of profile. If two background-active sites have different proxy configurations, only the proxy of the currently active (foreground) site is in effect — the background site's traffic routes through the wrong proxy.
 
-Options:
-1. **Warn the user.** When enabling `backgroundActive` on a site with a non-default proxy, show a warning that other background-active sites with different proxy settings may be affected.
-2. **Disallow conflicting proxies.** Prevent enabling `backgroundActive` on sites whose proxy config conflicts with an already-background-active site.
-3. **Accept the limitation.** Most notification-producing sites (Slack, Teams, Telegram) won't use per-site proxies. Document the constraint.
+On iOS 17+ / macOS 14+, per-site proxy is natively supported via `WKWebsiteDataStore` — each site's proxy config is attached to its per-profile data store, so concurrent background-active sites with different proxies work correctly.
 
-Recommendation: option 3 (accept + document) for the initial implementation; option 1 (warn) if users report issues.
+Recommendation: accept the Android limitation and document it. Most notification-producing sites (Slack, Teams, Telegram) won't use per-site proxies. Warn the user on Android if they enable `backgroundActive` on a site whose proxy conflicts with another background-active site.
 
 ## Capabilities
 

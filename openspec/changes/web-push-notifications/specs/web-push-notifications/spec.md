@@ -106,31 +106,34 @@ The system SHALL provide a per-site toggle to keep selected webviews running whe
 **Then** both stay loaded concurrently (PROF-003 — no domain conflict)
 **And** both continue running in background when app is backgrounded
 
-### Requirement: NOTIF-PROXY - Proxy Conflict Warning
+### Requirement: NOTIF-PROXY - Proxy Conflict Warning (Android Only)
 
-When a user enables `backgroundActive` on a site with a non-default proxy, and another background-active site has a different proxy configuration, the system SHALL warn the user. `ProxyController` is a process-wide singleton — only one proxy config is active at a time across all WebViews.
+On Android, `ProxyController` is a process-wide singleton — only one proxy config is active at a time across all WebViews. When a user enables `backgroundActive` on a site with a non-default proxy, and another background-active site has a different proxy configuration, the system SHALL warn the user. On iOS 17+ / macOS 14+, per-site proxy is natively supported via `WKWebsiteDataStore`, so no warning is needed.
 
-#### Scenario: Background-active sites with same proxy
+#### Scenario: Conflicting proxies on Android
 
-**Given** Site A has `backgroundActive` set to `true` with SOCKS5 proxy on `localhost:9050`
-**And** Site B has `backgroundActive` set to `true` with the same SOCKS5 proxy
-**When** both are loaded concurrently
-**Then** no warning is shown (proxy configs match)
-
-#### Scenario: Background-active sites with conflicting proxies
-
-**Given** Site A has `backgroundActive` set to `true` with SOCKS5 proxy
+**Given** the platform is Android
+**And** Site A has `backgroundActive` set to `true` with SOCKS5 proxy
 **And** the user enables `backgroundActive` on Site B which has an HTTP proxy
 **When** the toggle is enabled
-**Then** a warning is shown explaining that only one proxy config can be active at a time
+**Then** a warning is shown explaining that only one proxy config can be active at a time on Android
 **And** the toggle is still allowed (user choice)
 
-#### Scenario: Background-active site with default proxy
+#### Scenario: Conflicting proxies on iOS / macOS
 
-**Given** Site A has `backgroundActive` set to `true` with no proxy (DEFAULT)
-**And** Site B has `backgroundActive` set to `true` with no proxy (DEFAULT)
-**When** both are loaded
-**Then** no warning is shown
+**Given** the platform is iOS 17+ or macOS 14+
+**And** Site A has `backgroundActive` set to `true` with SOCKS5 proxy
+**And** the user enables `backgroundActive` on Site B which has an HTTP proxy
+**When** both are loaded concurrently
+**Then** no warning is shown (per-site proxy is natively supported)
+**And** each site routes traffic through its own proxy
+
+#### Scenario: No conflict when proxies match or are default
+
+**Given** Site A and Site B both have `backgroundActive` set to `true`
+**And** both have the same proxy config (or both use DEFAULT)
+**When** both are loaded concurrently
+**Then** no warning is shown on any platform
 
 ### Requirement: NOTIF-006 - Android Foreground Service
 
