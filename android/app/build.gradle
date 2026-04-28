@@ -28,6 +28,7 @@ android {
     ndkVersion flutter.ndkVersion
 
     compileOptions {
+        coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
@@ -116,6 +117,7 @@ flutter {
 }
 
 dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
     // Profile API for per-site cookie/storage isolation. Used by the
     // fork's flutter_inappwebview_android (ws-<siteId> containers) and
     // by WebSpaceContainerPlugin's MULTI_PROFILE runtime probe — see
