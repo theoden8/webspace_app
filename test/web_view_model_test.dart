@@ -24,6 +24,8 @@ void main() {
       expect(model.contentBlockEnabled, isTrue);
       expect(model.localCdnEnabled, isTrue);
       expect(model.fullscreenMode, isFalse);
+      expect(model.notificationsEnabled, isFalse);
+      expect(model.backgroundPoll, isFalse);
     });
 
     test('should serialize to JSON correctly', () {
@@ -244,6 +246,38 @@ void main() {
 
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.fullscreenMode, isTrue);
+    });
+
+    test('notificationsEnabled and backgroundPoll default to false when missing from JSON', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.notificationsEnabled, isFalse);
+      expect(model.backgroundPoll, isFalse);
+    });
+
+    test('notificationsEnabled and backgroundPoll true are preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        notificationsEnabled: true,
+        backgroundPoll: true,
+      );
+
+      final json = model.toJson();
+      expect(json['notificationsEnabled'], equals(true));
+      expect(json['backgroundPoll'], equals(true));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.notificationsEnabled, isTrue);
+      expect(restored.backgroundPoll, isTrue);
     });
 
     test('location spoof fields default to off and null', () {

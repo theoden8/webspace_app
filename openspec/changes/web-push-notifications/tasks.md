@@ -1,10 +1,10 @@
 ## 1. Data model and persistence
 
-- [ ] 1.1 Add `notificationsEnabled` (bool, default false) and `backgroundPoll` (bool, default false) fields to `WebViewModel` in `lib/web_view_model.dart`.
-- [ ] 1.2 Update `WebViewModel.toJson` to serialize both fields.
-- [ ] 1.3 Update `WebViewModel.fromJson` to deserialize with defaults `false` when keys are absent (legacy data).
-- [ ] 1.4 Add unit tests in `test/web_view_model_test.dart` covering the new fields' round-trip serialization.
-- [ ] 1.5 Run `flutter test test/settings_backup_test.dart` to confirm per-site backup/restore round-trip still passes (no global registry changes needed; these are per-site fields).
+- [x] 1.1 Add `notificationsEnabled` (bool, default false) and `backgroundPoll` (bool, default false) fields to `WebViewModel` in `lib/web_view_model.dart`.
+- [x] 1.2 Update `WebViewModel.toJson` to serialize both fields.
+- [x] 1.3 Update `WebViewModel.fromJson` to deserialize with defaults `false` when keys are absent (legacy data).
+- [x] 1.4 Add unit tests in `test/web_view_model_test.dart` covering the new fields' round-trip serialization.
+- [x] 1.5 Run `flutter test test/settings_backup_test.dart` to confirm per-site backup/restore round-trip still passes (no global registry changes needed; these are per-site fields).
 
 ## 2. JavaScript Notification API polyfill
 
