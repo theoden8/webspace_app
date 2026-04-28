@@ -178,8 +178,28 @@ class ClearUrlService {
   void _parseRules(Map<String, dynamic> json) {
     final providers = <ClearUrlProvider>[];
 
+    // Built-in providers for known cross-domain redirectors that the
+    // upstream ClearURLs catalog misses or under-handles. Prepended
+    // BEFORE the downloaded providers so they win the
+    // first-match-wins iteration in [cleanUrl] — important because
+    // the upstream catalog's per-host rules (e.g. for linkedin.com)
+    // can strip parameters that those redirectors actually NEED in
+    // order to honor the redirect (e.g. linkedin.com/safety/go
+    // requires the `trk` parameter; without it the server replies
+    // with a 404 page instead of the redirect target).
+    //
+    // Each redirector is handled via a `redirections` rule that
+    // extracts the embedded destination URL directly, so we never
+    // even request the redirector — we navigate to the destination
+    // ourselves. That sidesteps the upstream parameter-stripping
+    // issue entirely.
+    providers.addAll(_builtInRedirectorProviders());
+
     final providersRaw = json['providers'];
-    if (providersRaw == null || providersRaw is! Map) return;
+    if (providersRaw == null || providersRaw is! Map) {
+      _providers = providers;
+      return;
+    }
     final providersJson = Map<String, dynamic>.from(providersRaw);
 
     for (final entry in providersJson.entries) {
@@ -213,6 +233,60 @@ class ClearUrlService {
     }
 
     _providers = providers;
+  }
+
+  /// Built-in providers for cross-domain redirector URLs. Each one
+  /// matches a known redirector pattern and extracts the embedded
+  /// destination URL via `redirections`. ClearURLs upstream covers
+  /// some of these but not all, and where it does cover them it
+  /// sometimes only strips tracking parameters from the redirector
+  /// URL itself rather than extracting the destination — which on
+  /// `linkedin.com/safety/go` breaks the redirect because LinkedIn's
+  /// server requires the `trk` parameter to honor the request.
+  ///
+  /// Adding these as built-ins (rather than pushing upstream) lets
+  /// them ship without waiting for catalog updates.
+  static List<ClearUrlProvider> _builtInRedirectorProviders() {
+    return [
+      // LinkedIn outbound-link redirector. Used in messaging,
+      // articles, posts, notifications. Format:
+      //   https://www.linkedin.com/safety/go?url=<encoded-target>&trk=...&...
+      // ClearURLs upstream's linkedin provider strips `trk`, which
+      // breaks safety/go's server-side redirect — we extract the
+      // destination directly instead.
+      ClearUrlProvider(
+        urlPattern: RegExp(
+          r'^https?://([\w-]+\.)*linkedin\.com/safety/go(\?|$)',
+          caseSensitive: false,
+        ),
+        redirections: [
+          RegExp(r'\?(?:.*&)?url=([^&#]+)', caseSensitive: false),
+        ],
+      ),
+      // Google search outbound-link redirector. Format:
+      //   https://www.google.com/url?q=<encoded-target>&sa=...
+      // Also reachable as `google.<tld>/url` for regional Google.
+      ClearUrlProvider(
+        urlPattern: RegExp(
+          r'^https?://([\w-]+\.)*google\.[a-z.]+/url(\?|$)',
+          caseSensitive: false,
+        ),
+        redirections: [
+          RegExp(r'\?(?:.*&)?q=([^&#]+)', caseSensitive: false),
+        ],
+      ),
+      // DuckDuckGo search outbound-link redirector. Format:
+      //   https://duckduckgo.com/l/?uddg=<encoded-target>&...
+      ClearUrlProvider(
+        urlPattern: RegExp(
+          r'^https?://([\w-]+\.)*duckduckgo\.com/l/?(\?|$)',
+          caseSensitive: false,
+        ),
+        redirections: [
+          RegExp(r'\?(?:.*&)?uddg=([^&#]+)', caseSensitive: false),
+        ],
+      ),
+    ];
   }
 
   List<RegExp> _parseRegexList(List<dynamic>? list) {

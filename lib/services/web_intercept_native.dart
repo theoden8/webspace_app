@@ -11,6 +11,11 @@ import 'package:webspace/services/log_service.dart';
 /// resources for sub-resource requests — the Dart shouldInterceptRequest
 /// callback only fires for the main document on modern Chromium WebView,
 /// so any sub-resource interception has to happen natively.
+///
+/// **Currently inert** — the native side has the kill-switch hard-forced
+/// ON (see WebInterceptPlugin.kt) while we localize a System WebView
+/// dangling-raw_ptr crash on Chrome_IOThread. DNS / ABP / LocalCDN are
+/// all bypassed at the native layer until the upstream issue is found.
 class WebInterceptNative {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/web_intercept');

@@ -302,6 +302,13 @@ class WebViewModel {
   bool spoofTimezoneFromLocation;
   WebRtcPolicy webRtcPolicy;
 
+  /// Whether the webview is currently mid-navigation. Set true on
+  /// `onLoadStart`, false on `onLoadStop`. Driven by the
+  /// `WebViewConfig.onLoadingChanged` callback wired in [getWebView].
+  /// Consumed by the URL-bar action button to swap Refresh ↔ Stop
+  /// while a load is in flight.
+  bool isLoading = false;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
@@ -476,6 +483,7 @@ class WebViewModel {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
     Function(String url, String html)? onHtmlLoaded,
+    bool Function()? shouldFetchHtml,
     String? initialHtml,
     bool Function()? isActive,
     Future<bool> Function(String url)? onConfirmScriptFetch,
@@ -499,12 +507,19 @@ class WebViewModel {
       // propagate it to cross-domain redirects (e.g., search engine
       // redirect links like DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
       DateTime? lastSameDomainGestureTime;
-      // Guard against re-entrant cross-domain redirect handling from
-      // onUrlChanged (called by both onUpdateVisitedHistory and onLoadStop).
-      bool redirectHandled = false;
-      // The URL before the most recent same-domain navigation, used to
-      // navigate back when a cross-domain redirect is detected.
-      String? previousSameDomainUrl;
+      // Immutable state for the onUrlChanged handler, owned here and
+      // swapped by `NavigationDecisionEngine.handleOnUrlChanged`. Carries
+      // redirectHandled / previousSameDomainUrl / currentUrl; the engine
+      // enforces the invariants (see its class-level doc).
+      var urlChangedState = OnUrlChangedState.initial(currentUrl);
+      // The URL we most recently fired the post-state-commit IPC chain
+      // (`getTitle` + `setThemePreference`) for. `onUrlChanged` is wired
+      // up to BOTH `onLoadStop` and `onUpdateVisitedHistory` in
+      // webview.dart, so a single navigation reliably produces two
+      // events with the same URL — without dedup we'd post 2× getTitle
+      // + 2× evaluateJavascript IPCs per navigation, doubling the
+      // race-window count for the chromium dangling-raw_ptr crash.
+      String? lastNotifiedUrl;
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -591,84 +606,124 @@ class WebViewModel {
                 return false;
             }
           },
+          onLoadingChanged: (loading) {
+            if (isLoading == loading) return;
+            isLoading = loading;
+            // Trigger a UI rebuild so the URL-bar action button can
+            // swap between Refresh and Stop. saveFunc is intentionally
+            // NOT called here — the loading bool is transient runtime
+            // state, not part of the persisted site model.
+            stateSetterF?.call();
+          },
           onUrlChanged: (url) async {
             // Detect cross-domain redirects that bypassed shouldOverrideUrlLoading
             // (e.g., server-side 302 from search engine redirect pages like
             // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
             final initDomain = getNormalizedDomain(initUrl);
-            final urlDomain = getNormalizedDomain(url);
-            if (!redirectHandled) {
-              final result = NavigationDecisionEngine.decideOnUrlChanged(
-                newUrl: url,
-                initUrl: initUrl,
-                blockAutoRedirects: blockAutoRedirects,
-                isSiteActive: isActive?.call() ?? true,
-                lastSameDomainGestureTime: lastSameDomainGestureTime,
-                now: DateTime.now(),
-                isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
-              );
-              switch (result.gestureUpdate) {
-                case GestureStateUpdate.record:
-                  lastSameDomainGestureTime = DateTime.now();
-                  break;
-                case GestureStateUpdate.consume:
-                  lastSameDomainGestureTime = null;
-                  break;
-                case null:
+            final handled = NavigationDecisionEngine.handleOnUrlChanged(
+              newUrl: url,
+              initUrl: initUrl,
+              blockAutoRedirects: blockAutoRedirects,
+              isSiteActive: isActive?.call() ?? true,
+              lastSameDomainGestureTime: lastSameDomainGestureTime,
+              now: DateTime.now(),
+              isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
+              state: urlChangedState,
+            );
+            switch (handled.gestureUpdate) {
+              case GestureStateUpdate.record:
+                lastSameDomainGestureTime = DateTime.now();
+                break;
+              case GestureStateUpdate.consume:
+                lastSameDomainGestureTime = null;
+                break;
+              case null:
+                break;
+            }
+            urlChangedState = handled.state;
+            // Navigate-back was previously fired here when a cross-domain
+            // URL was confirmed via `controller.getUrl()`. Removed: even
+            // the conservative `stopLoading()` + `Future.microtask` +
+            // `loadUrl(prev)` sequence still races chromium's in-flight
+            // cross-origin redirect handling on the broken Android
+            // System WebView build that surfaces a dangling-raw_ptr
+            // SIGTRAP at `partition_alloc_support.cc:770`. Real-device
+            // logs reproduced the crash on the LinkedIn safety/go →
+            // reddit redirect sequence with cached-HTML and WebGL paths
+            // already mitigated; the only remaining suspect is our own
+            // loadUrl-during-redirect.
+            //
+            // Trade-off: when a cross-domain server-side redirect bypasses
+            // shouldOverrideUrlLoading, the parent webview briefly
+            // displays the redirect target until the next user-initiated
+            // navigation. The nested webview still opens (handled below)
+            // so the user sees the destination they actually wanted.
+            // That visual artifact is preferable to crashing the
+            // renderer.
+            if (handled.decision != null &&
+                handled.decision != NavigationDecision.allow) {
+              switch (handled.decision!) {
+                case NavigationDecision.blockSilent:
+                  LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)');
+                  return;
+                case NavigationDecision.blockSuppressed:
+                  LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect suppressed (background site): $url');
+                  return;
+                case NavigationDecision.blockOpenNested:
+                  LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
+                  if (handled.launchNestedUrl != null) {
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, webRtcPolicy: webRtcPolicy);
+                  }
+                  return;
+                case NavigationDecision.allow:
                   break;
               }
-              if (result.decision != NavigationDecision.allow) {
-                redirectHandled = true;
-                // Navigate back to the last same-domain page before the
-                // cross-domain redirect lands visually.
-                if (controller != null) {
-                  controller!.loadUrl(previousSameDomainUrl ?? initUrl);
-                }
-                switch (result.decision) {
-                  case NavigationDecision.blockSilent:
-                    LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)');
-                    return;
-                  case NavigationDecision.blockSuppressed:
-                    LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect suppressed (background site): $url');
-                    return;
-                  case NavigationDecision.blockOpenNested:
-                    LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
-                    launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, webRtcPolicy: webRtcPolicy);
-                    return;
-                  case NavigationDecision.allow:
-                    break;
-                }
-              }
             }
-            if (urlDomain == initDomain) {
-              redirectHandled = false;
-              previousSameDomainUrl = currentUrl;
-            }
-
-            currentUrl = url;
+            // State committed; sync currentUrl to the state's view of it.
+            currentUrl = urlChangedState.currentUrl;
             // Trigger UI rebuild so URL bar updates
             if (stateSetterF != null) {
               stateSetterF!();
             }
-            // Get page title and update name if we have a title
-            if (controller != null) {
-              var title = await controller!.getTitle();
-
-              // Fallback: If controller doesn't provide title,
-              // parse HTML to extract it
-              if (title == null || title.isEmpty) {
-                // Import getPageTitle from main.dart would cause circular dependency
-                // So we'll handle this in the UI layer instead
-              } else {
-                pageTitle = title;
-                // Auto-update name from page title if name is still the default domain
-                if (name == extractDomain(initUrl)) {
-                  name = title;
+            // Get page title and update name if we have a title.
+            // Skip the title + theme IPCs when the URL didn't actually
+            // advance — this is the duplicate event from the other of
+            // `onLoadStop` / `onUpdateVisitedHistory` firing for the
+            // same URL we just processed. Halves the chromium IPC
+            // traffic per real navigation, removing one race window
+            // for the `partition_alloc_support.cc:770` dangling-raw_ptr
+            // SIGTRAP that can fire when an `evaluateJavascript`
+            // continuation lands on a frame chromium has torn down.
+            final currentNotifyUrl = urlChangedState.currentUrl;
+            if (currentNotifyUrl != lastNotifiedUrl) {
+              lastNotifiedUrl = currentNotifyUrl;
+              // Each await below is a yield point where disposeWebView() can
+              // null `controller`, so we re-check before every native call —
+              // calling into a torn-down WebView peer can trip Chromium's
+              // dangling raw_ptr detector and SIGTRAP the renderer.
+              try {
+                if (controller == null) return;
+                final title = await controller!.getTitle();
+                if (controller == null) return;
+                if (title != null && title.isNotEmpty) {
+                  pageTitle = title;
+                  // Auto-update name from page title if name is still the default domain
+                  if (name == extractDomain(initUrl)) {
+                    name = title;
+                  }
                 }
+              } catch (_) {
+                // Controller torn down mid-call — safe to swallow, the next
+                // page load on the new controller will reapply title.
               }
-
-              // Reapply theme after page load (some sites might override it)
-              await controller!.setThemePreference(_currentTheme);
+              // Reapply theme after page load (some sites might override it).
+              // Fire-and-forget: don't await. The await chained an
+              // evaluateJavascript continuation onto our local Dart future,
+              // and that continuation is the candidate that lands on a
+              // dying frame when chromium tears down between our request
+              // and its dispatch. The theme call doesn't gate any
+              // subsequent work — saveFunc below is Dart-only.
+              controller?.setThemePreference(_currentTheme).catchError((_) {});
             }
             await saveFunc();
           },
@@ -720,6 +775,7 @@ class WebViewModel {
             }
           },
           onHtmlLoaded: onHtmlLoaded,
+          shouldFetchHtml: shouldFetchHtml,
           initialHtml: initialHtml,
           onConsoleMessage: (message, level) {
             consoleLogs.add(ConsoleLogEntry(

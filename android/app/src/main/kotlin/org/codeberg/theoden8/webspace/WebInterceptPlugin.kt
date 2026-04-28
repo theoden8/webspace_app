@@ -12,6 +12,7 @@ import com.pichillilorenzo.flutter_inappwebview_android.types.WebResourceRequest
 import com.pichillilorenzo.flutter_inappwebview_android.webview.in_app_webview.InAppWebView
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.net.URI
@@ -48,6 +49,20 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     // that was served; Dart turns each into a recordReplacement(siteId) call.
     private val pendingCdnEvents = ConcurrentHashMap<String, MutableList<Map<String, Any>>>()
     private val cdnSignalPending = ConcurrentHashMap<String, AtomicBoolean>()
+
+    // Diagnostic kill-switch for the LocalCDN serve path inside
+    // FastSubresourceInterceptor.checkUrl. Originally added when we
+    // suspected LocalCDN's FileInputStream-backed WebResourceResponse
+    // was a candidate for a chromium dangling-raw_ptr crash on
+    // Chrome_IOThread. Symbolicated minidump analysis later traced the
+    // dangle to chromium's own `PartitionAllocUnretainedDanglingPtr`
+    // self-test (a feature-gated debug check enabled on AOSP userdebug
+    // builds, disabled in production Stable WebView), unrelated to
+    // LocalCDN. Re-enabled.
+    //
+    // The flag is kept as plumbing so we can re-disable from a single
+    // line if a real LocalCDN-specific crash surfaces in the future.
+    private val localCdnDisabled = AtomicBoolean(false)
 
     init {
         channel.setMethodCallHandler { call, result ->
@@ -199,6 +214,21 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
         findInAppWebViews(rootView, webViews)
+
+        // Prune `siteIdMap` of entries whose webview is no longer in the
+        // activity tree. Without this the map retains hard refs to disposed
+        // InAppWebView instances forever, which keeps their native peer
+        // alive past the point chromium thinks it's gone — exactly the
+        // kind of lifetime mismatch that surfaces as a dangling raw_ptr
+        // crash on the IO thread.
+        if (siteIdMap.isNotEmpty()) {
+            val live = HashSet<InAppWebView>(webViews)
+            val it = siteIdMap.keys.iterator()
+            while (it.hasNext()) {
+                if (!live.contains(it.next())) it.remove()
+            }
+        }
+
         for (webView in webViews) {
             val isNew = webView.contentBlockerHandler !is FastSubresourceInterceptor
             if (isNew && newSiteId != null) {
@@ -206,11 +236,18 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
             }
             if (isNew) {
                 val siteId = siteIdMap[webView] ?: "unknown"
+                // Always attach the interceptor. The kill-switch
+                // (localCdnDisabled) governs only the LocalCDN
+                // FileInputStream serve path inside checkUrl — it does
+                // not gate DNS or ABP blocking, which must stay active
+                // so users don't have a window where their blocklists
+                // silently stop protecting sub-resource fetches.
                 webView.contentBlockerHandler = FastSubresourceInterceptor(
                     dnsBlockedDomains = dnsBlockedDomains,
                     abpBlockedDomains = abpBlockedDomains,
                     cdnPatterns = cdnPatterns,
                     cdnCacheIndex = cdnCacheIndex,
+                    localCdnDisabled = localCdnDisabled,
                     onBlockChecked = { host, blocked, source ->
                         recordBlockEvent(siteId, host, blocked, source)
                     },
@@ -220,7 +257,8 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                 log("WebIntercept",
                     "Attached interceptor: siteId=$siteId dns=${dnsBlockedDomains.size} " +
                     "abp=${abpBlockedDomains.size} cdnPatterns=${cdnPatterns.size} " +
-                    "cdnCache=${cdnCacheIndex.size}")
+                    "cdnCache=${cdnCacheIndex.size} " +
+                    "localCdnDisabled=${localCdnDisabled.get()}")
             }
         }
         return webViews.size
@@ -258,6 +296,7 @@ class FastSubresourceInterceptor(
     private val abpBlockedDomains: HashSet<String>,
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
+    private val localCdnDisabled: AtomicBoolean,
     private val onBlockChecked: (String, Boolean, String?) -> Unit,
     private val onCdnReplaced: (String, String) -> Unit,
     private val onLog: (String, String) -> Unit = { _, _ -> }
@@ -265,6 +304,7 @@ class FastSubresourceInterceptor(
 
     private var checkCount = 0
     private var loggedNoCache = false
+    private var loggedLocalCdnDisabled = false
 
     init {
         // Dummy rule so the Java guard `ruleList.size() > 0` passes
@@ -292,22 +332,54 @@ class FastSubresourceInterceptor(
             onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
         }
 
-        // 1. Domain blocking (DNS first, then ABP) with source attribution
+        // 1. Domain blocking (DNS first, then ABP) with source attribution.
+        // ALWAYS runs, regardless of the LocalCDN kill-switch.
+        //
+        // Use an EMPTY ByteArrayInputStream for the response body, NOT
+        // null. Returning a `WebResourceResponse(_, _, null)` is a
+        // documented edge case: per the chromium WebView source the
+        // null body is treated as "request blocked" but the response
+        // object is still routed across the IPC boundary to chromium's
+        // IO thread, which on some builds dereferences the InputStream
+        // during cleanup of cross-origin redirects. That's the candidate
+        // for the dangling-raw_ptr SIGTRAP at
+        // `partition_alloc_support.cc:770` we keep hitting on the
+        // LinkedIn safety/go → reddit redirect path: the previous
+        // origin's blocked sub-resource responses are still cleaning up
+        // when chromium swaps SiteInstance, and a null InputStream
+        // there nulls a raw_ptr held against the old RenderFrameHost.
+        // An empty stream gives chromium a real (zero-byte) object to
+        // route through the same code path with no null dereference.
         when {
             isInSet(host, dnsBlockedDomains) -> {
                 onBlockChecked(host, true, "dns")
-                return WebResourceResponse("text/plain", "utf-8", null)
+                return WebResourceResponse(
+                    "text/plain", "utf-8", ByteArrayInputStream(EMPTY_BODY))
             }
             isInSet(host, abpBlockedDomains) -> {
                 onBlockChecked(host, true, "abp")
-                return WebResourceResponse("text/plain", "utf-8", null)
+                return WebResourceResponse(
+                    "text/plain", "utf-8", ByteArrayInputStream(EMPTY_BODY))
             }
             else -> {
                 onBlockChecked(host, false, null)
             }
         }
 
-        // 2. LocalCDN: try to serve from the pre-downloaded cache
+        // 2. LocalCDN — gated by the diagnostic kill-switch. Builds a
+        // WebResourceResponse with a FileInputStream that chromium's IO
+        // thread reads async; if the request lifecycle ends before
+        // chromium consumes the stream, that's the candidate origin
+        // for the System WebView dangling-raw_ptr crash on
+        // Chrome_IOThread (`partition_alloc_support.cc:770`).
+        if (localCdnDisabled.get()) {
+            if (!loggedLocalCdnDisabled) {
+                loggedLocalCdnDisabled = true
+                onLog("WebIntercept",
+                    "LocalCDN serve disabled (DNS + ABP blocking remain active)")
+            }
+            return null
+        }
         if (cdnPatterns.isNotEmpty() && cdnCacheIndex.isNotEmpty()) {
             val response = tryServeCdn(url)
             if (response != null) return response
@@ -366,6 +438,13 @@ class FastSubresourceInterceptor(
     }
 
     companion object {
+        /// Shared empty-body buffer for blocked-request responses.
+        /// Reused across calls so we don't allocate a fresh byte array
+        /// per blocked sub-resource (Reddit page loads alone fire
+        /// hundreds of these). The InputStream wrapping is per-call
+        /// because chromium consumes/closes it.
+        private val EMPTY_BODY = ByteArray(0)
+
         private val contentTypes = linkedMapOf(
             ".js" to "application/javascript",
             ".mjs" to "application/javascript",

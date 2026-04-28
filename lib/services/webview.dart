@@ -383,12 +383,26 @@ class WebViewConfig {
   final String? cookieSiteId;
   final Function(int activeMatch, int totalMatches)? onFindResult;
   final Function(String url, bool hasGesture)? shouldOverrideUrlLoading;
+  /// Fires when the page enters or exits a loading state. Driven by
+  /// `onLoadStart` (true) and `onLoadStop` (false). The call site can
+  /// use this to swap a Refresh button with a Stop button while a
+  /// navigation is in flight.
+  final Function(bool isLoading)? onLoadingChanged;
   /// Callback for when a popup window is requested (e.g., Cloudflare challenges).
   /// Returns a widget (typically a WebView) to display in the popup.
   /// The callback receives the windowId for the popup and the requested URL.
   final Future<void> Function(int windowId, String url)? onWindowRequested;
   /// Callback when page HTML should be cached. Called on page load with (url, html).
   final Function(String url, String html)? onHtmlLoaded;
+  /// Optional pre-gate for the [onHtmlLoaded] path. Returning `false`
+  /// makes `onLoadStop` skip the `controller.getHtml()` IPC entirely
+  /// (not just the encrypt+write that follows). The IPC is the
+  /// expensive, lifecycle-racing piece — the renderer has to walk and
+  /// serialize the live DOM, and during a frame teardown that walk
+  /// can hold a `raw_ptr` to a soon-to-be-freed Frame. Skipping the
+  /// IPC outright is the only way to drop the renderer pressure.
+  /// When unset, every `onLoadStop` fetches HTML (legacy behavior).
+  final bool Function()? shouldFetchHtml;
   /// Optional cached HTML to display when offline. Sub-resources (CSS/JS/images)
   /// load from the browser's HTTP cache via LOAD_CACHE_ELSE_NETWORK mode.
   final String? initialHtml;
@@ -455,6 +469,7 @@ class WebViewConfig {
     this.contentBlockEnabled = true,
     this.localCdnEnabled = true,
     this.onUrlChanged,
+    this.onLoadingChanged,
     this.onCookiesChanged,
     this.cookieManager,
     this.profileCookieManager,
@@ -463,6 +478,7 @@ class WebViewConfig {
     this.shouldOverrideUrlLoading,
     this.onWindowRequested,
     this.onHtmlLoaded,
+    this.shouldFetchHtml,
     this.initialHtml,
     this.onConsoleMessage,
     this.userScripts = const [],
@@ -557,6 +573,11 @@ abstract class WebViewController {
 
   /// Inverse of [pauseAllJsTimers].
   Future<void> resumeAllJsTimers();
+
+  /// Abort any in-flight main-frame load. Used to quiesce chromium
+  /// before queuing a follow-up navigation, shrinking the overlap
+  /// between in-flight teardown and the next loadUrl.
+  Future<void> stopLoading();
 }
 
 /// InAppWebView controller wrapper
@@ -733,6 +754,11 @@ class _WebViewController implements WebViewController {
 
   @override
   Future<void> resumeAllJsTimers() => _c.resumeTimers();
+
+  @override
+  Future<void> stopLoading() async {
+    await _c.stopLoading();
+  }
 }
 
 String _themeInjectionScript(String themeValue) => '''
@@ -790,6 +816,47 @@ String _themeInjectionScript(String themeValue) => '''
       try { item.listener({ matches: matches, media: item.query }); } catch (e) {}
     });
   }
+})();
+''';
+
+/// JavaScript that disables every entry-point JS has into WebGL context
+/// creation, so chromium never enters its WebGL-blocklist code path —
+/// the suspect for a dangling-raw_ptr SIGTRAP at
+/// `partition_alloc_support.cc:770` on the Android System WebView build
+/// our crash logs come from. Injected at DOCUMENT_START into every
+/// frame on Android only (see WebViewFactory.createWebView).
+///
+/// Coverage:
+///   - HTMLCanvasElement.prototype.getContext('webgl' | 'webgl2' |
+///     'experimental-webgl' | 'experimental-webgl2') → null
+///   - OffscreenCanvas.prototype.getContext same treatment
+///   - window.WebGLRenderingContext / WebGL2RenderingContext deleted so
+///     `typeof WebGLRenderingContext === 'undefined'` feature detection
+///     short-circuits before getContext is even attempted
+const String _webGlKillSwitchScript = r'''
+(function() {
+  var GL_TYPES = {
+    'webgl': 1, 'webgl2': 1,
+    'experimental-webgl': 1, 'experimental-webgl2': 1
+  };
+  function patchGetContext(proto) {
+    if (!proto || !proto.getContext) return;
+    var orig = proto.getContext;
+    proto.getContext = function(type) {
+      if (typeof type === 'string' && GL_TYPES[type.toLowerCase()]) {
+        return null;
+      }
+      return orig.apply(this, arguments);
+    };
+  }
+  try { patchGetContext(HTMLCanvasElement.prototype); } catch (_) {}
+  try {
+    if (typeof OffscreenCanvas !== 'undefined') {
+      patchGetContext(OffscreenCanvas.prototype);
+    }
+  } catch (_) {}
+  try { delete window.WebGLRenderingContext; } catch (_) {}
+  try { delete window.WebGL2RenderingContext; } catch (_) {}
 })();
 ''';
 
@@ -1031,13 +1098,65 @@ class WebViewFactory {
       headers['Accept-Language'] = '${config.language}, *;q=0.5';
     }
 
-    // Use cached HTML for offline display. Set cache mode from the start
-    // so sub-resources (CSS/JS/images) resolve from browser HTTP cache.
+    // Cached-HTML render: when the call site supplies
+    // `config.initialHtml`, feed it to chromium via
+    // `InAppWebViewInitialData(data, baseUrl: initialUrl)` for instant
+    // first paint. Once the cached parse settles (`onLoadStop` for the
+    // initialData), fire a one-shot `controller.reload()` to fetch the
+    // live URL — which is `baseUrl`, so chromium re-loads the same
+    // origin without losing the cached visual state during the
+    // network round-trip.
+    //
+    // file:// imports are the exception — their initialUrl is a
+    // synthetic `file://<filename>` handle with no fetchable form, so
+    // we render the cache and never reload to live.
+    //
+    // The reload-to-live swap is what triggers the chromium
+    // `partition_alloc_support.cc:770` dangling-raw_ptr SIGTRAP we
+    // chased for many commits. That FATAL is gated by the
+    // `PartitionAllocUnretainedDanglingPtr` chromium feature flag —
+    // enabled on AOSP userdebug builds (where this branch was
+    // originally tested), disabled in production Stable WebView.
+    // Production users get the speed-up of cached first paint without
+    // the dev-only crash.
+    final isFileImport = config.initialUrl.startsWith('file://');
     final usesCachedHtml = config.initialHtml != null;
+    // One-shot: when the cached HTML's first onLoadStop fires, do
+    // exactly one controller.reload() to get a live page. Subsequent
+    // onLoadStop events (post-reload, or for SPA navigations) leave
+    // it false. Skip entirely for file:// imports and for builds
+    // where we KNOW we're offline at construction (no live to fetch).
+    var pendingLiveReload = usesCachedHtml && !isFileImport;
 
     final textZoom = systemTextZoomPercent();
 
     final userScripts = <inapp.UserScript>[];
+
+    // WebGL kill-switch (Android). LinkedIn's `protechts.net`
+    // fingerprint script (and other sites) try to create a WebGL
+    // context on every page; on this device's WebView build that
+    // walks a chromium code path with a dangling-raw_ptr regression
+    // and SIGTRAPs the renderer at `partition_alloc_support.cc:770`.
+    // `hardwareAcceleration: false` does NOT prevent this — chromium
+    // still walks the WebGL blocklist code path even with software
+    // compositing — and there's no `disableWebGL` flag in
+    // InAppWebViewSettings. The only mechanism that actually works
+    // is shimming the JS API so getContext() returns null for WebGL
+    // types, which means JS never asks for the context and chromium
+    // never enters the blocklist cleanup path.
+    //
+    // iOS/macOS WebKit doesn't have the regression, so leave WebGL
+    // alone there.
+    if (Platform.isAndroid) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'webgl_kill_switch',
+        source: '$_webGlKillSwitchScript\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        // Inject into every frame — third-party fingerprint scripts
+        // routinely run inside iframes.
+        forMainFrameOnly: false,
+      ));
+    }
 
     // System text zoom for non-Android: WKWebView has no `textZoom`
     // setting, so inject CSS that pushes -webkit-text-size-adjust.
@@ -1403,6 +1522,20 @@ class WebViewFactory {
     // Initial-load fallback is handled inside the engine.
     String? lastStableUrl;
 
+    // Monotonic counter bumped on every `shouldOverrideUrlLoading`
+    // entry — i.e. every time chromium asks us about a new navigation,
+    // including the synthetic invocations chromium fires for
+    // server-side 3xx redirects. `onLoadStart` captures this value at
+    // entry; if a later `shouldOverrideUrlLoading` bumps the counter
+    // before we finish issuing IPCs against the previous frame, we bail
+    // out of the remaining work. The previous frame is being torn down
+    // and any further `evaluateJavascript` we post against it is bound
+    // with `Unretained` lifetimes that the chromium IO thread later
+    // dereferences after the frame is freed — exactly the
+    // dangling-raw_ptr SIGTRAP at `partition_alloc_support.cc:770`
+    // that this branch has been chasing.
+    var navigationGen = 0;
+
     // Profile API binding. Stock flutter_inappwebview's `prepare()` does
     // session-bound ops (addJavascriptInterface, addDocumentStartJavaScript,
     // setAcceptThirdPartyCookies) BEFORE `onWebViewCreated` fires, which
@@ -1667,20 +1800,13 @@ class WebViewFactory {
             return null;
           },
         );
-        // If we loaded cached HTML, navigate to the real URL when online
-        if (usesCachedHtml) {
-          final online = await ConnectivityService.instance.isOnline();
-          if (online) {
-            // Reset cache mode to default before loading live URL.
-            // Re-pass textZoom so it isn't reset to the default 100 by
-            // the constructor's emitted toMap.
-            await controller.setSettings(settings: inapp.InAppWebViewSettings(
-              cacheMode: inapp.CacheMode.LOAD_DEFAULT,
-              textZoom: textZoom,
-            ));
-            wrappedController.loadUrl(config.initialUrl, language: config.language);
-          }
-        }
+        // Cached-HTML → live-URL swap is wired up in onLoadStop below.
+        // Don't fire loadUrl here — `onWebViewCreated` runs while chromium
+        // is still parsing the initialData, and a synchronous loadUrl in
+        // that window aborts the in-flight parse (load-while-loading),
+        // which on Android System WebView trips a dangling-raw_ptr in the
+        // renderer process at `partition_alloc_support.cc:770`.
+        //
         // Profile API bind happens natively inside the patched
         // `InAppWebView.prepare()` (see vendored fork at
         // third_party/flutter_inappwebview_android/PATCHES.md), driven
@@ -1699,6 +1825,12 @@ class WebViewFactory {
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
+        // Bump the navigation generation FIRST. Any in-flight `onLoadStart`
+        // handler from the previous navigation that's about to fire an
+        // `evaluateJavascript` IPC will see the advance and skip the call,
+        // so the IPC isn't bound to a frame chromium is in the middle of
+        // tearing down.
+        navigationGen++;
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
@@ -1752,6 +1884,29 @@ class WebViewFactory {
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
+        // Cross-domain → nested-webview routing applies to MAIN-FRAME
+        // navigations only. On Android API 24+ chromium fires
+        // shouldOverrideUrlLoading for child-frame (iframe) navigations
+        // as well, with `isForMainFrame == false` distinguishing them.
+        // If we forwarded those into the engine we'd open every
+        // embedded iframe (Google One Tap GSI, Cloudflare challenge
+        // iframe, third-party SSO popups) as a separate top-level
+        // webview — wrong, intrusive, and on Android can race the
+        // chromium frame-lifecycle code path that the
+        // `partition_alloc_support.cc:770` dangle ride sits on top
+        // of. Allow iframe navigations to load in-place; the engine
+        // sees only main-frame navigations.
+        final isMainFrame = navigationAction.isForMainFrame ?? true;
+        // Diagnostic: log the raw isForMainFrame so we can tell
+        // when a platform reports null vs. true vs. false. WebKit2GTK
+        // on Linux has been observed to return true for navigations
+        // that originate from inside an iframe; Android API 24+
+        // returns false for child-frame navigations consistently.
+        LogService.instance.log('WebView',
+            'shouldOverrideUrlLoading: isForMainFrame=${navigationAction.isForMainFrame}');
+        if (!isMainFrame) {
+          return inapp.NavigationActionPolicy.ALLOW;
+        }
         if (config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(navigationAction);
           return config.shouldOverrideUrlLoading!(url, hasGesture)
@@ -1763,6 +1918,8 @@ class WebViewFactory {
       onCreateWindow: (controller, createWindowAction) async {
         final url = createWindowAction.request.url?.toString() ?? '';
         final windowId = createWindowAction.windowId;
+        LogService.instance.log('WebView',
+            'onCreateWindow: url=$url windowId=$windowId');
 
         // Show popup dialog for Cloudflare challenges (captcha verification).
         if (isCaptchaChallenge(url)) {
@@ -1809,6 +1966,18 @@ class WebViewFactory {
       // and LocalCDN replacement are both handled by the native
       // FastSubresourceInterceptor attached via WebInterceptNative.
       onLoadStart: (controller, url) async {
+        // Snapshot the navigation generation BEFORE any await — if a
+        // later `shouldOverrideUrlLoading` advances the counter while
+        // we're between IPCs, the previous frame is being torn down and
+        // we abandon the remaining work rather than post evaluateJS
+        // against it. See the `navigationGen` comment above for why.
+        final myGen = navigationGen;
+        bool stillCurrent() => navigationGen == myGen;
+
+        // Notify the call site that a navigation just started so the
+        // Refresh button can swap to a Stop button while loading.
+        config.onLoadingChanged?.call(true);
+
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
         // Record the page navigation for the block stats banner so it
@@ -1830,26 +1999,40 @@ class WebViewFactory {
           DnsBlockService.instance
               .recordRequest(config.siteId!, urlStr, blocked, source: source);
         }
-        // Re-inject CSS for in-page navigations (initialUserScripts only runs on first load)
+        // Batch the early-injected helpers (content-blocker CSS,
+        // ClearURLs share-API shim) into a single evaluateJavascript
+        // IPC. Two separate IPCs gave chromium two race windows per
+        // onLoadStart; one IPC closes one of those windows entirely.
+        // Both scripts are already self-contained IIFEs, so
+        // concatenation is safe.
+        final earlyScripts = <String>[];
         if (config.contentBlockEnabled && url != null) {
-          final script = ContentBlockerService.instance.getEarlyCssScript(url.toString());
-          if (script != null) {
-            try {
-              await controller.evaluateJavascript(source: '$script\n;null;');
-            } catch (_) {} // WebKit "unsupported type" — JS still ran
-          }
+          final cssScript =
+              ContentBlockerService.instance.getEarlyCssScript(url.toString());
+          if (cssScript != null) earlyScripts.add(cssScript);
         }
-        // Re-inject ClearURLs share script for in-page navigations
         if (config.clearUrlEnabled) {
+          earlyScripts.add(_clearUrlShareScript);
+        }
+        if (earlyScripts.isNotEmpty && stillCurrent()) {
           try {
-            await controller.evaluateJavascript(source: '$_clearUrlShareScript\n;null;');
+            await controller.evaluateJavascript(
+                source: '${earlyScripts.join('\n')}\n;null;');
           } catch (_) {} // WebKit "unsupported type" — JS still ran
         }
-        await userScriptService.reinjectOnLoadStart(controller);
+        if (stillCurrent()) {
+          await userScriptService.reinjectOnLoadStart(controller);
+        }
       },
       onLoadStop: (controller, url) async {
         // End pull-to-refresh animation
         config.pullToRefreshController?.endRefreshing();
+        // Notify the call site that this navigation finished loading
+        // (or was canceled) so the Stop button can swap back to
+        // Refresh. Fired regardless of whether `url` is renderable —
+        // the loading-state UI is independent of the cache/snapshot
+        // logic gated below.
+        config.onLoadingChanged?.call(false);
         if (url == null) return;
         final urlStr = url.toString();
 
@@ -1863,6 +2046,30 @@ class WebViewFactory {
         // Skip all post-load work in that case; onDownloadStartRequest's
         // revert handles URL bar restoration.
         if (!DownloadUrlRevertEngine.isRenderable(urlStr)) return;
+
+        // Cached-HTML one-shot live refresh. After the cached HTML
+        // parse settles, fire a single `controller.reload()` to fetch
+        // a fresh copy of the page over the network. The
+        // `pendingLiveReload` flag is consumed on first use so the
+        // subsequent (post-reload) onLoadStop doesn't recurse.
+        //
+        // Gated on `navigationGen == 0` — i.e. no shouldOverrideUrlLoading
+        // has fired yet. If the user clicked anything during the cached
+        // parse, gen > 0 and we skip the reload; their navigation is the
+        // current intent. (`reload()` itself does not bump
+        // navigationGen on Android WebView.)
+        //
+        // Skipped for offline runs via the `isOnline()` check — there's
+        // no live to fetch, so the cached page is the answer.
+        if (pendingLiveReload && navigationGen == 0) {
+          pendingLiveReload = false;
+          ConnectivityService.instance.isOnline().then((online) {
+            if (!online) return;
+            try {
+              controller.reload();
+            } catch (_) {}
+          });
+        }
 
         lastStableUrl =
             DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
@@ -1903,8 +2110,12 @@ class WebViewFactory {
           }
         }
         await userScriptService.reinjectOnLoadStop(controller);
-        // Cache HTML for offline viewing
-        if (config.onHtmlLoaded != null) {
+        // Cache HTML for offline viewing. Pre-gate the renderer IPC
+        // via shouldFetchHtml so the per-onLoadStop storm is collapsed
+        // before we ask chromium to serialize the DOM — the IPC, not
+        // the encrypt+write afterward, is the lifecycle-racing piece.
+        if (config.onHtmlLoaded != null
+            && (config.shouldFetchHtml?.call() ?? true)) {
           try {
             final html = await controller.getHtml();
             if (html != null && html.isNotEmpty) {

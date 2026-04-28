@@ -8,6 +8,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
+    show ServiceWorkerController;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -457,6 +459,27 @@ void main() async {
   // WebView, so everything per-subresource has to go through the native
   // path.
   WebInterceptNative.initialize();
+  // Disable network loads from any service worker registered by a
+  // visited site. Service workers stay alive across page navigations
+  // (they're tied to the origin, not the document), and on Android
+  // System WebView there are open chromium regressions where a SW's
+  // fetch-handler tasks race against parent-page navigation and trip
+  // MiraclePtr's dangling-raw_ptr detector on the IO thread. We
+  // never use service-worker functionality ourselves (no offline
+  // pages, no push), so blocking SW network is no functional loss.
+  if (Platform.isAndroid) {
+    try {
+      await inapp.ServiceWorkerController.setBlockNetworkLoads(true);
+      await inapp.ServiceWorkerController.instance()
+          .setServiceWorkerClient(null);
+      LogService.instance.log('WebView',
+          'Service worker network loads blocked at WebView layer');
+    } catch (e) {
+      LogService.instance.log('WebView',
+          'Failed to block service worker network loads: $e',
+          level: LogLevel.error);
+    }
+  }
   if (DnsBlockService.instance.hasBlocklist) {
     await WebInterceptNative.sendDnsDomains(
         DnsBlockService.instance.blockedDomains);
@@ -519,6 +542,25 @@ void main() async {
 
   // Initialize platform info to detect proxy support before UI loads
   await PlatformInfo.initialize();
+
+  // Prime ConnectivityService.lastKnownOnline before the first webview
+  // is constructed. The offline cached-HTML render path needs a sync
+  // answer to decide between live URL and `initialData` at construction
+  // time — without this the first webview always sees `null` and
+  // defaults to live load even when the device is offline.
+  await ConnectivityService.instance.primeLastKnownOnline();
+
+  // Populate HtmlCacheService._memoryCache before the first webview
+  // is built. `WebSpacePage.build` reads cached HTML synchronously
+  // via `getHtmlSync(siteId)` to feed the cached-HTML render path,
+  // and the only sites that ever land in `_memoryCache` are the ones
+  // that have been previously cached on disk for this user. Eating
+  // the decryption cost up front (rather than lazy-loading on first
+  // miss) lets the build path stay synchronous, which is what
+  // `InAppWebViewInitialData` requires — chromium needs the bytes
+  // before navigation starts, not after an awaited disk read.
+  await HtmlCacheService.instance.preloadCache();
+
   runApp(WebSpaceApp());
 }
 
@@ -1907,14 +1949,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           }
                         },
                       ),
-                      IconButton(
-                        icon: Icon(Icons.refresh),
-                        tooltip: 'Refresh',
-                        onPressed: () {
-                          Navigator.pop(context);
-                          getController()?.reload();
-                        },
-                      ),
+                      Builder(builder: (context) {
+                        final model = _currentIndex != null
+                            ? _webViewModels[_currentIndex!]
+                            : null;
+                        final loading = model?.isLoading ?? false;
+                        return IconButton(
+                          icon: Icon(loading ? Icons.close : Icons.refresh),
+                          tooltip: loading ? 'Stop' : 'Refresh',
+                          onPressed: () {
+                            Navigator.pop(context);
+                            if (loading) {
+                              getController()?.stopLoading();
+                            } else {
+                              getController()?.reload();
+                            }
+                          },
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -2303,14 +2355,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     }
                   },
                 ),
-                IconButton(
-                  icon: Icon(Icons.refresh),
-                  tooltip: 'Refresh',
-                  onPressed: () {
-                    Navigator.pop(context);
-                    getController()?.reload();
-                  },
-                ),
+                Builder(builder: (context) {
+                  final model = _currentIndex != null
+                      ? _webViewModels[_currentIndex!]
+                      : null;
+                  final loading = model?.isLoading ?? false;
+                  return IconButton(
+                    icon: Icon(loading ? Icons.close : Icons.refresh),
+                    tooltip: loading ? 'Stop' : 'Refresh',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      if (loading) {
+                        getController()?.stopLoading();
+                      } else {
+                        getController()?.reload();
+                      }
+                    },
+                  );
+                }),
               ],
             ),
           ),
@@ -3219,9 +3281,37 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
                                     HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
                                   },
+                                  // Skip the per-onLoadStop getHtml() IPC into chromium when
+                                  // a save would be debounced anyway. Drops the storm of
+                                  // renderer-DOM-serializations that fired on every SPA pseudo-
+                                  // navigation (8+ Saved events per page on LinkedIn) — each one
+                                  // a candidate for racing chromium's frame-lifecycle teardown.
+                                  shouldFetchHtml: webViewModel.incognito
+                                      ? null
+                                      : () => HtmlCacheService.instance.shouldSave(webViewModel.siteId),
                                   initialHtml: webViewModel.incognito
                                       ? null
                                       : () {
+                                          // Always feed cached HTML when we have it (and we're not
+                                          // incognito). The webview factory uses it for instant
+                                          // first paint via `InAppWebViewInitialData` and then
+                                          // swaps to a fresh live load via `controller.reload()`
+                                          // once the cached parse settles. file:// imports skip
+                                          // the swap (no live to fetch); offline cold starts skip
+                                          // the swap inside the factory's `pendingLiveReload`
+                                          // gate. Online cold starts get cache-then-live.
+                                          //
+                                          // The previous version of this code gated cached-HTML
+                                          // render on `lastKnownOnline == false` to avoid a
+                                          // chromium dangling-raw_ptr crash on the swap. Later
+                                          // minidump analysis (see `unretained_dangling_ptr_guide.md`)
+                                          // showed that crash is gated by chromium's own
+                                          // `PartitionAllocUnretainedDanglingPtr` debug feature
+                                          // — enabled only on AOSP userdebug builds, off in
+                                          // production Stable WebView. The gate was paying a
+                                          // cold-start UX cost for *every* online user to
+                                          // protect *userdebug developers* from a chromium
+                                          // self-test, which is the wrong trade.
                                           final cached = HtmlCacheService.instance.getHtmlSync(webViewModel.siteId);
                                           if (cached == null) return null;
                                           final isDark = webViewModel.currentTheme == WebViewTheme.dark ||
