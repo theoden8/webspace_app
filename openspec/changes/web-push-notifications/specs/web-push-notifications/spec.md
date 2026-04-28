@@ -27,16 +27,32 @@ The system SHALL handle JavaScript `Notification.requestPermission()` calls from
 **When** the user opens site settings
 **Then** the `notificationsEnabled` and `backgroundActive` toggles are not shown
 
-### Requirement: NOTIF-002 - JavaScript Notification Bridge
+### Requirement: NOTIF-002 - JavaScript Notification Polyfill
 
-The system SHALL intercept `new Notification()` constructor calls from web pages and display them as native platform notifications.
+The system SHALL inject a JavaScript polyfill at `DOCUMENT_START` (with `forMainFrameOnly: false`) that defines `window.Notification`, `Notification.permission`, `Notification.requestPermission()`, and the `Notification` constructor. The polyfill bridges to Dart via `addJavaScriptHandler`. `flutter_inappwebview`'s native `onNotificationReceived` callback is NOT used (Windows-only in current versions).
 
-#### Scenario: Site creates a JavaScript notification
+#### Scenario: Polyfill is injected on every site
+
+**Given** a webview is being created for any site (regardless of platform)
+**When** the page loads
+**Then** `window.Notification` is defined before any page script runs
+**And** `Notification.permission` is `"granted"` if the site has `notificationsEnabled == true`, otherwise `"denied"`
+**And** the polyfill is injected with `forMainFrameOnly: false` so cross-origin iframes also see it
+
+#### Scenario: Site creates a notification via the polyfill
 
 **Given** a site has notification permission granted
 **When** the site calls `new Notification("title", { body: "message", icon: "url" })`
-**Then** a native notification is displayed with the title, body, and icon
+**Then** the polyfill calls `flutter_inappwebview.callHandler('webNotification', ...)` with title, body, icon, tag, and `siteId`
+**And** Dart receives the call and shows a native notification via `flutter_local_notifications`
 **And** the notification is tagged with the originating site's `siteId`
+
+#### Scenario: Notification constructor is a no-op when permission is denied
+
+**Given** a site has `notificationsEnabled == false` (polyfill sees `permission === 'denied'`)
+**When** the site calls `new Notification(...)`
+**Then** the polyfill returns without invoking the JS bridge
+**And** no native notification is shown
 
 ### Requirement: NOTIF-003 - Notification Tap Navigation
 
@@ -80,16 +96,7 @@ The system SHALL provide a per-site toggle to control whether the site is allowe
 
 ### Requirement: NOTIF-005 - Per-Site Background Active Toggle
 
-The system SHALL provide a per-site toggle to keep selected webviews running when the app enters the background. Only visible when profile mode is active. In profile mode, there are no domain conflicts, so all background-active sites stay loaded concurrently with their own isolated profiles.
-
-#### Scenario: App enters background with background-active sites
-
-**Given** Site A and Site B both have `backgroundActive` set to `true`
-**And** both are currently loaded (profile mode, no domain conflicts)
-**When** the app enters the background
-**Then** Site A and Site B's webviews are NOT paused
-**And** both continue executing JavaScript
-**And** both retain authenticated sessions via their per-profile cookie jars
+The system SHALL provide a per-site toggle to keep selected webviews running when the app enters the background. Only visible when profile mode is active. Behavior is platform-dependent — see NOTIF-005-A (Android), NOTIF-005-M (macOS), NOTIF-005-I (iOS) below.
 
 #### Scenario: App enters background without background-active sites
 
@@ -104,7 +111,73 @@ The system SHALL provide a per-site toggle to keep selected webviews running whe
 **And** profile mode is active
 **When** both sites are loaded
 **Then** both stay loaded concurrently (PROF-003 — no domain conflict)
-**And** both continue running in background when app is backgrounded
+**And** both continue running per platform-specific background semantics
+
+### Requirement: NOTIF-005-A - Android Real-Time Background Execution
+
+On Android, background-active sites SHALL continue executing JavaScript indefinitely while the app is in the background, gated on a foreground service (NOTIF-006).
+
+#### Scenario: Android app enters background with background-active sites
+
+**Given** the platform is Android
+**And** Site A and Site B both have `backgroundActive` set to `true`
+**And** both are currently loaded
+**When** the app enters the background
+**Then** neither webview is paused (`pauseWebView` is skipped)
+**And** both continue executing JavaScript, JS timers, and WebSocket connections indefinitely
+**And** the foreground service keeps the process alive
+
+### Requirement: NOTIF-005-M - macOS Real-Time Background Execution
+
+On macOS, background-active sites SHALL continue executing JavaScript while the app is hidden or in the background. The app SHALL opt out of `NSAppNapPriority` so the OS does not throttle a fully-hidden process.
+
+#### Scenario: macOS app is hidden with background-active sites
+
+**Given** the platform is macOS
+**And** Site A has `backgroundActive` set to `true` and is loaded
+**When** the user hides the app (Cmd+H) or moves it off-screen
+**Then** Site A's webview is NOT paused
+**And** App Nap is disabled (`ProcessInfo.processInfo.beginActivity(...)`)
+**And** Site A continues executing JavaScript at normal priority
+
+#### Scenario: macOS App Nap is re-enabled when no background-active sites remain
+
+**Given** App Nap was disabled because Site A had `backgroundActive == true`
+**When** the user disables `backgroundActive` for Site A (or deletes the site)
+**And** no other sites have `backgroundActive == true`
+**Then** App Nap is re-enabled (`endActivity`)
+
+### Requirement: NOTIF-005-I - iOS Best-Effort Background Execution
+
+On iOS, the OS aggressively suspends apps within seconds of backgrounding. The system SHALL provide a best-effort background flush via `beginBackgroundTask` (~30s grace period) and SHALL clearly inform the user of this limitation. Real-time iOS background notifications would require server-side APNs relay (out of scope).
+
+#### Scenario: iOS app enters background with background-active sites
+
+**Given** the platform is iOS
+**And** Site A has `backgroundActive` set to `true` and is loaded
+**When** the app enters the background
+**Then** the app calls `UIApplication.shared.beginBackgroundTask(expirationHandler:)`
+**And** Site A's webview is NOT paused for the duration of the background task
+**And** any notifications fired by Site A during the ~30 second grace period are delivered
+**And** when the grace period expires (or `expirationHandler` is called), iOS suspends the app
+
+#### Scenario: iOS user is informed of the background limitation
+
+**Given** the platform is iOS
+**And** the user enables `backgroundActive` on a site for the first time
+**When** the toggle is enabled
+**Then** an informational dialog appears explaining: "iOS limits background execution. Notifications arrive while WebSpace is open or in the recent-tasks list. For real-time delivery, keep WebSpace in your dock or use the Android / macOS version."
+**And** the dialog is shown only once (a "shown" flag is persisted)
+**And** the toggle is still allowed (the foreground + grace-period behavior is useful)
+
+#### Scenario: iOS notifications work normally in foreground
+
+**Given** the platform is iOS
+**And** Site A has `notificationsEnabled == true` and `backgroundActive == true`
+**And** the app is in foreground (active or inactive but not suspended)
+**When** Site A fires a notification via the polyfill
+**Then** the notification displays via `flutter_local_notifications`
+**And** behavior is identical to Android / macOS in foreground
 
 ### Requirement: NOTIF-PROXY - Proxy Conflict Warning (Android Only)
 
@@ -169,6 +242,12 @@ On Android 13+, the system SHALL request the `POST_NOTIFICATIONS` runtime permis
 
 Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it via "Import HTML file" on the Add Site screen. **Requires a device with profile mode support** (Android System WebView 110+ or iOS 17+ / macOS 14+).
 
+### Test: Polyfill is injected (NOTIF-002)
+1. Import `notification_test.html` as a site
+2. Open developer tools (or check the on-page log)
+3. **Expected**: `typeof Notification` is `"function"` (polyfill is in place — without it, WKWebView would report `"undefined"` on iOS / macOS)
+4. **Expected**: `Notification.permission` reflects the per-site toggle state
+
 ### Test: Permission grant/deny (NOTIF-001, NOTIF-004)
 1. Import `notification_test.html` as a site
 2. Open site settings, ensure `notificationsEnabled` is OFF
@@ -192,12 +271,36 @@ Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it v
 3. Tap the notification in the system tray
 4. **Expected**: App switches back to the notification fixture site
 
-### Test: Background delivery (NOTIF-005, NOTIF-006)
-1. Enable `backgroundActive` for the fixture site
-2. Tap "Send Delayed Notifications (5s, 10s, 15s)"
-3. Immediately put the app in background
-4. **Expected**: 3 native notifications arrive over 15 seconds
-5. On Android: a persistent foreground service notification should appear
+### Test: Background delivery on Android (NOTIF-005-A, NOTIF-006)
+1. Platform: Android
+2. Enable `backgroundActive` for the fixture site
+3. Tap "Send Delayed Notifications (5s, 10s, 15s)"
+4. Immediately put the app in background
+5. **Expected**: 3 native notifications arrive over 15 seconds
+6. **Expected**: A persistent foreground service notification appears
+
+### Test: Background delivery on macOS (NOTIF-005-M)
+1. Platform: macOS 14+
+2. Enable `backgroundActive` for the fixture site
+3. Tap "Send Delayed Notifications (5s, 10s, 15s)"
+4. Hide the app (Cmd+H) or switch to a different Space
+5. **Expected**: 3 native notifications arrive over 15 seconds (App Nap is disabled)
+
+### Test: Background delivery on iOS (NOTIF-005-I)
+1. Platform: iOS 17+
+2. Enable `backgroundActive` for the fixture site (verify the one-time info dialog appears)
+3. Tap "Send Delayed Notifications (5s, 10s, 15s)"
+4. Immediately put the app in background (press Home / swipe up)
+5. **Expected**: First notification (5s) arrives within the grace period
+6. **Expected**: Subsequent notifications (10s, 15s) MAY arrive depending on iOS scheduling
+7. **Expected**: After ~30 seconds, the app is suspended and no further notifications arrive until the user opens WebSpace again
+
+### Test: iOS foreground notifications (NOTIF-005-I foreground scenario)
+1. Platform: iOS
+2. Enable `backgroundActive` and `notificationsEnabled` on the fixture site
+3. Keep the app in foreground
+4. Tap "Send Delayed Notifications (5s, 10s, 15s)"
+5. **Expected**: All 3 notifications arrive normally — foreground behavior is identical to Android/macOS
 
 ### Test: Multiple background-active sites
 1. Import `notification_test.html` twice (as two separate sites)
