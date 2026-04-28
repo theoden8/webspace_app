@@ -36,7 +36,10 @@ class ExternalUrlInfo {
 }
 
 /// Schemes handled by the webview itself — everything else is routed
-/// through the external-URL confirmation flow.
+/// through the external-URL confirmation flow. The chrome-* family is
+/// rendered by the Chromium engine that powers Android's WebView (e.g.
+/// `chrome://version`, `chrome-error://chromewebdata` from a failed
+/// load); they aren't OS app launches and shouldn't prompt.
 const Set<String> _internalSchemes = {
   'http',
   'https',
@@ -46,6 +49,11 @@ const Set<String> _internalSchemes = {
   'file',
   'javascript',
   'view-source',
+  'chrome',
+  'chrome-extension',
+  'chrome-error',
+  'chrome-search',
+  'chrome-untrusted',
 };
 
 class ExternalUrlParser {

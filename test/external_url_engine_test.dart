@@ -14,6 +14,18 @@ void main() {
       expect(ExternalUrlParser.parse('blob:https://example.com/abc'), isNull);
       expect(ExternalUrlParser.parse('file:///tmp/x.html'), isNull);
       expect(ExternalUrlParser.parse('javascript:void(0)'), isNull);
+      expect(ExternalUrlParser.parse('view-source:https://example.com/'), isNull);
+    });
+
+    test('returns null for chrome-family internal schemes', () {
+      // Rendered by the Chromium engine inside Android WebView; not OS
+      // app launches.
+      expect(ExternalUrlParser.parse('chrome://version'), isNull);
+      expect(ExternalUrlParser.parse('chrome://gpu'), isNull);
+      expect(ExternalUrlParser.parse('chrome-extension://abcd/popup.html'), isNull);
+      expect(ExternalUrlParser.parse('chrome-error://chromewebdata/'), isNull);
+      expect(ExternalUrlParser.parse('chrome-search://local-ntp'), isNull);
+      expect(ExternalUrlParser.parse('chrome-untrusted://nope'), isNull);
     });
 
     test('returns null for URLs with empty scheme', () {
