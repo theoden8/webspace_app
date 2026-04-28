@@ -2589,6 +2589,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     MaterialPageRoute(
                       builder: (context) => SettingsScreen(
                         webViewModel: _webViewModels[_currentIndex!],
+                        useProfiles: _useProfiles,
                         globalUserScripts: _globalUserScripts,
                         onGlobalUserScriptsChanged: (scripts) {
                           _globalUserScripts = scripts;
@@ -3003,6 +3004,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               MaterialPageRoute(
                 builder: (context) => SettingsScreen(
                   webViewModel: _webViewModels[_currentIndex!],
+                  useProfiles: _useProfiles,
                   globalUserScripts: _globalUserScripts,
                   onGlobalUserScriptsChanged: (scripts) {
                     _globalUserScripts = scripts;

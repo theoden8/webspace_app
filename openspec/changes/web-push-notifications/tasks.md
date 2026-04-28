@@ -32,10 +32,10 @@
 
 ## 5. Per-site UI toggles
 
-- [ ] 5.1 In the per-site settings screen (`lib/screens/site_settings.dart` or wherever per-site toggles live), add `SwitchListTile` for `notificationsEnabled`. Subtitle: "Allow this site to show system notifications."
-- [ ] 5.2 Add `SwitchListTile` for `backgroundPoll`. Subtitle (iOS): "Check for updates periodically (~15-30 min between checks while app is closed)." Subtitle (Android proxy-eligible): "Keep checking for updates while app is backgrounded." Subtitle (Android proxy-conflict): "Cannot enable: another site with a different proxy is already polling in background." Disable in the conflict case.
-- [ ] 5.3 Gate visibility of both toggles on `_useProfiles` (passed in or read via a getter on `_WebSpacePageState`). When `_useProfiles == false`, do not render either tile.
-- [ ] 5.4 Persist toggle changes via `setState` + `_saveAppState()`.
+- [x] 5.1 In the per-site settings screen (`lib/screens/site_settings.dart` or wherever per-site toggles live), add `SwitchListTile` for `notificationsEnabled`. Subtitle: "Allow this site to show system notifications."
+- [x] 5.2 Add `SwitchListTile` for `backgroundPoll`. Subtitle (iOS): "Check for updates periodically (~15-30 min between checks while app is closed)." Subtitle (Android proxy-eligible): "Keep checking for updates while app is backgrounded." Subtitle (Android proxy-conflict): "Cannot enable: another site with a different proxy is already polling in background." Disable in the conflict case.
+- [x] 5.3 Gate visibility of both toggles on `_useProfiles` (passed in or read via a getter on `_WebSpacePageState`). When `_useProfiles == false`, do not render either tile.
+- [x] 5.4 Persist toggle changes via `setState` + `_saveAppState()`.
 - [ ] 5.5 On enabling `backgroundPoll`, call `NotificationService.requestPermission()` so the OS dialog appears at a moment of clear user intent (rather than waiting for the first notification).
 
 ## 6. Lifecycle: skip pause for background-poll sites
