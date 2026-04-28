@@ -16,6 +16,7 @@ import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
+import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/profile_native.dart';
 import 'package:webspace/services/profile_cookie_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
@@ -1536,6 +1537,12 @@ class WebViewFactory {
     // that this branch has been chasing.
     var navigationGen = 0;
 
+    // iOS Universal Link bypass state (per-WebView). Tracks URLs we
+    // just cancelled-and-reissued so the second-pass shouldOverrideUrlLoading
+    // call (the reissued programmatic load landing here again) doesn't
+    // loop. See lib/services/ios_universal_link_bypass.dart.
+    final iosUlBypass = IosUniversalLinkBypass();
+
     // Profile API binding. Stock flutter_inappwebview's `prepare()` does
     // session-bound ops (addJavascriptInterface, addDocumentStartJavaScript,
     // setAcceptThirdPartyCookies) BEFORE `onWebViewCreated` fires, which
@@ -1909,9 +1916,40 @@ class WebViewFactory {
         }
         if (config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(navigationAction);
-          return config.shouldOverrideUrlLoading!(url, hasGesture)
-              ? inapp.NavigationActionPolicy.ALLOW
-              : inapp.NavigationActionPolicy.CANCEL;
+          final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
+          if (!allow) return inapp.NavigationActionPolicy.CANCEL;
+        }
+        // iOS Universal Link bypass. WKWebView auto-routes user-tap
+        // navigations (and redirect chains rooted in a tap) to the
+        // native app for hosts whose AASA matches an installed app —
+        // even when the user explicitly added the site to WebSpace.
+        // For known offenders (Google Maps), cancel the navigation
+        // and reissue via loadUrl so WebKit treats it as a programmatic
+        // load (`.other`) and skips AASA matching, keeping the page
+        // inside the webview. The second pass (reissued nav landing
+        // here again) is allowed via the per-URL memo.
+        if (Platform.isIOS &&
+            isMainFrame &&
+            IosUniversalLinkBypass.isUniversalLinkDomain(url)) {
+          if (iosUlBypass.shouldCancelAndReissue(url)) {
+            LogService.instance.log('WebView',
+                '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url');
+            // Reissue as a programmatic load. WebKit treats this as
+            // navigation type `.other` and skips AASA matching, so the
+            // URL renders inside the webview instead of being routed
+            // to the native app. Forward the original headers (if any)
+            // so per-site Accept-Language survives the reissue; POST
+            // body is dropped, which is acceptable here because the
+            // observed trigger (server 302 from consent.google.com →
+            // maps.google.com) carries no body.
+            controller.loadUrl(urlRequest: inapp.URLRequest(
+              url: navigationAction.request.url,
+              headers: navigationAction.request.headers,
+            ));
+            return inapp.NavigationActionPolicy.CANCEL;
+          }
+          LogService.instance.log('WebView',
+              '  -> ALLOW (iOS UL bypass: reissued nav passing through)');
         }
         return inapp.NavigationActionPolicy.ALLOW;
       },
