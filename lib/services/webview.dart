@@ -15,6 +15,7 @@ import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
+import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -277,6 +278,11 @@ class WebViewConfig {
   /// Callback to confirm fetching a script from a non-whitelisted URL.
   /// Returns true if the user approves, false to block.
   final Future<bool> Function(String url)? onConfirmScriptFetch;
+  /// Callback fired when the webview tries to navigate to a non-webview
+  /// URL (`intent://`, `tel:`, `mailto:`, custom app schemes). The
+  /// webview always cancels such navigations; the host UI decides
+  /// whether to launch the target app after confirming with the user.
+  final Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
   /// Per-site geolocation mode. [LocationMode.spoof] injects a shim that
@@ -320,6 +326,7 @@ class WebViewConfig {
     this.onConsoleMessage,
     this.userScripts = const [],
     this.onConfirmScriptFetch,
+    this.onExternalSchemeUrl,
     this.pullToRefreshController,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -1441,6 +1448,25 @@ class WebViewFactory {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
+        // External app schemes (intent://, tel:, mailto:, market:, custom
+        // app schemes) can't be rendered in a webview — flutter_inappwebview
+        // returns ERR_UNKNOWN_URL_SCHEME. Cancel and hand the URL to the
+        // host UI, which confirms with the user before calling url_launcher.
+        // Don't call controller.stopLoading() here — chromium has crashed
+        // with a dangling raw_ptr when stopLoading runs concurrently with
+        // a synchronous CANCEL path. The CANCEL alone aborts the
+        // navigation; if Android still paints ERR_UNKNOWN_URL_SCHEME,
+        // onReceivedError handles recovery.
+        final externalInfo = ExternalUrlParser.parse(url);
+        if (externalInfo != null) {
+          LogService.instance.log('WebView',
+              'External scheme intercepted: scheme=${externalInfo.scheme} '
+              'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url');
+          if (config.onExternalSchemeUrl != null) {
+            config.onExternalSchemeUrl!(url, externalInfo);
+          }
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
         // DNS blocklist check + record navigation for stats. Record for
         // every http navigation so the per-site log works even when no
         // blocklist is populated; isBlocked is a cheap set lookup.
@@ -1489,6 +1515,20 @@ class WebViewFactory {
           if (config.onWindowRequested != null && windowId != null) {
             await config.onWindowRequested!(windowId, url);
             return true;
+          }
+          return false;
+        }
+
+        // target="_blank" links can carry external app schemes too (e.g.
+        // a `<a target="_blank" href="intent://...">`). Route them through
+        // the same confirmation path as direct navigations.
+        final externalInfo = ExternalUrlParser.parse(url);
+        if (externalInfo != null) {
+          LogService.instance.log('WebView',
+              'External scheme intercepted (onCreateWindow): '
+              'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url');
+          if (config.onExternalSchemeUrl != null) {
+            config.onExternalSchemeUrl!(url, externalInfo);
           }
           return false;
         }
@@ -1621,6 +1661,66 @@ class WebViewFactory {
       },
       onConsoleMessage: (controller, consoleMessage) {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
+      },
+      onReceivedError: (controller, request, error) async {
+        // For non-internal schemes (intent://, custom app schemes) Android
+        // sometimes hands the URL straight to onReceivedError without
+        // calling shouldOverrideUrlLoading first — observed every time on
+        // Google Maps' window.location='intent://...' redirect. Without
+        // routing through the dialog path here, the user never sees the
+        // confirmation, suppression is never marked, and the previous
+        // "reload lastStableUrl" recovery looped forever (every reload
+        // re-renders the page that re-fires the same intent).
+        //
+        // New flow:
+        //   * already suppressed → silent no-op (lets the page sit on
+        //     whatever it managed to render before redirecting).
+        //   * external scheme + host UI hooked up → fire the dialog
+        //     callback; the helper guards against duplicate prompts and
+        //     marks suppression on the user's choice.
+        //   * external scheme + no host UI → best-effort reload.
+        if (request.isForMainFrame != true) return;
+        final reqUrl = request.url.toString();
+        final externalInfo = ExternalUrlParser.parse(reqUrl);
+        if (externalInfo == null) return;
+        if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
+          LogService.instance.log('WebView',
+              'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)');
+          // The fallback page actually loaded (HtmlCache shows
+          // multi-MB saves); Android then painted chrome-error://
+          // chromewebdata over it because the page's JS retried the
+          // intent we cancelled. about:blank clears the error visibly
+          // without walking back through history (controller.goBack
+          // dropped users out of the webview entirely). The
+          // suppression already prevents another dialog if the page
+          // tries again.
+          Future.microtask(() async {
+            try {
+              await controller.loadUrl(
+                urlRequest: inapp.URLRequest(url: inapp.WebUri('about:blank')),
+              );
+            } catch (_) {}
+          });
+          return;
+        }
+        if (config.onExternalSchemeUrl != null) {
+          LogService.instance.log('WebView',
+              'onReceivedError: type=${error.type} url=$reqUrl '
+              '— routing to external-scheme dialog');
+          config.onExternalSchemeUrl!(reqUrl, externalInfo);
+          return;
+        }
+        final recovery = lastStableUrl ?? config.initialUrl;
+        LogService.instance.log('WebView',
+            'onReceivedError: type=${error.type} url=$reqUrl '
+            '— no host UI, scheduling reload of $recovery');
+        Future.microtask(() async {
+          try {
+            await controller.loadUrl(
+              urlRequest: inapp.URLRequest(url: inapp.WebUri(recovery)),
+            );
+          } catch (_) {}
+        });
       },
       onDownloadStartRequest: (controller, downloadStartRequest) async {
         // onUrlChanged / onUpdateVisitedHistory has likely already fired

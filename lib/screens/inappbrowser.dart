@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/widgets/download_button.dart';
+import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -315,6 +316,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   });
                 },
                 onWindowRequested: _showPopupWindow,
+                onExternalSchemeUrl: (url, info) async {
+                  if (!mounted) return;
+                  await confirmAndLaunchExternalUrl(context, info);
+                },
               ),
               onControllerCreated: (controller) {
                 _controller = controller;
