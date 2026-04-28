@@ -1,0 +1,75 @@
+diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppWebView/InAppWebView.swift
+--- a/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 01:32:41.076565559 +0000
++++ b/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 01:32:41.278565487 +0000
+@@ -261,6 +261,16 @@
+             } else if settings.cacheEnabled {
+                 configuration.websiteDataStore = WKWebsiteDataStore.default()
+             }
++            // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++            // Persistent per-site partitioning via WKWebsiteDataStore(forIdentifier:).
++            // Mirrors the iOS fork's patch in shape and constraints (see PROF-005).
++            // Incognito wins; runtime gate handles macOS <14.
++            if !settings.incognito,
++               let profile = settings.webspaceProfile, !profile.isEmpty,
++               #available(macOS 14.0, *) {
++                configuration.websiteDataStore =
++                    WKWebsiteDataStore(forIdentifier: WebSpaceProfile.uuid(for: profile))
++            }
+             if !settings.applicationNameForUserAgent.isEmpty {
+                 if let applicationNameForUserAgent = configuration.applicationNameForUserAgent {
+                     configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
+diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classes/InAppWebView/InAppWebViewSettings.swift
+--- a/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 01:32:41.078565559 +0000
++++ b/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 01:32:41.276565488 +0000
+@@ -28,6 +28,11 @@
+     var interceptOnlyAsyncAjaxRequests = true
+     var useShouldInterceptFetchRequest = false
+     var incognito = false
++    // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++    // Same shape as the iOS fork's webspaceProfile field; macOS 14+
++    // shares the same `WKWebsiteDataStore(forIdentifier:)` API. See
++    // PROF-005 in openspec/specs/per-site-profiles/spec.md.
++    var webspaceProfile: String? = nil
+     var cacheEnabled = true
+     var transparentBackground = false
+     var supportZoom = true
+diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InAppWebView/WebSpaceProfile.swift
+--- a/macos/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
++++ b/macos/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 01:32:41.276565488 +0000
+@@ -0,0 +1,36 @@
++//
++// WebSpaceProfile.swift
++//
++// [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++//
++// Sister copy of the iOS fork's WebSpaceProfile helper. The two
++// platform packages don't share a Swift module so the helper is
++// duplicated; the byte-level definition stays identical so the
++// derived UUID for a given profile name is the same on both
++// platforms (a macOS user signing into a site, then logging into
++// the same iCloud sync on iOS, would otherwise have to re-attach to
++// a different on-disk store).
++//
++// Keep the SHA-256 logic byte-identical to
++// third_party/flutter_inappwebview_ios/ios/Classes/InAppWebView/WebSpaceProfile.swift.
++
++import CommonCrypto
++import Foundation
++
++@available(macOS 14.0, *)
++public enum WebSpaceProfile {
++    public static func uuid(for profileName: String) -> UUID {
++        let data = Data(profileName.utf8)
++        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
++        data.withUnsafeBytes { bytes in
++            _ = CC_SHA256(bytes.baseAddress, CC_LONG(data.count), &digest)
++        }
++        let bytes = (
++            digest[0], digest[1], digest[2], digest[3],
++            digest[4], digest[5], digest[6], digest[7],
++            digest[8], digest[9], digest[10], digest[11],
++            digest[12], digest[13], digest[14], digest[15]
++        )
++        return UUID(uuid: bytes)
++    }
++}

@@ -80,7 +80,22 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
-      - name: Get dependencies
+      - name: Populate pub cache (so the patch script can find upstream sources)
+        # Initial resolve before patching cannot use --enforce-lockfile
+        # because .dart_tool/webspace_patched_plugins/ doesn't exist
+        # yet on a fresh runner; the lockfile-pinned override paths
+        # would fail to resolve. Run a permissive resolve, then patch,
+        # then re-resolve with the lockfile enforced.
+        run: fvm flutter pub get
+
+      - name: Apply WebSpace plugin patches
+        # See third_party/PATCHES.md. Copies stock upstream from
+        # pub-cache into .dart_tool/webspace_patched_plugins/<plugin>/
+        # and applies the per-plugin .patch file. The dependency_overrides
+        # in pubspec.yaml resolve to those generated paths.
+        run: fvm dart run scripts/apply_plugin_patches.dart
+
+      - name: Resolve patched plugins
         run: fvm flutter pub get --enforce-lockfile
 
       - name: Run tests
@@ -270,7 +285,22 @@ jobs:
           restore-keys: |
             pods-${{ runner.os }}-
 
-      - name: Get dependencies
+      - name: Populate pub cache (so the patch script can find upstream sources)
+        # Initial resolve before patching cannot use --enforce-lockfile
+        # because .dart_tool/webspace_patched_plugins/ doesn't exist
+        # yet on a fresh runner; the lockfile-pinned override paths
+        # would fail to resolve. Run a permissive resolve, then patch,
+        # then re-resolve with the lockfile enforced.
+        run: fvm flutter pub get
+
+      - name: Apply WebSpace plugin patches
+        # See third_party/PATCHES.md. Copies stock upstream from
+        # pub-cache into .dart_tool/webspace_patched_plugins/<plugin>/
+        # and applies the per-plugin .patch file. The dependency_overrides
+        # in pubspec.yaml resolve to those generated paths.
+        run: fvm dart run scripts/apply_plugin_patches.dart
+
+      - name: Resolve patched plugins
         run: fvm flutter pub get --enforce-lockfile
 
       - name: Run tests

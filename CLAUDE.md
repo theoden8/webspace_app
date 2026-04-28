@@ -67,10 +67,21 @@ fvm dart run flutter_launcher_icons
 
 ### Key Patterns
 - **Per-site cookie isolation (two engines, runtime-selected)**: Two engines coexist; `_WebSpacePageState` caches `bool _useProfiles = await ProfileNative.isSupported()` at startup and gates the entire isolation code path on it.
-  - **Profile path** (Android, System WebView 110+): each `siteId` maps to a native `androidx.webkit.Profile` named `ws-<siteId>` that owns its own cookies, `localStorage`, IDB, ServiceWorkers, and HTTP cache. Same-base-domain sites can be loaded concurrently; no conflict-unload, no capture-nuke-restore. Engine: [`ProfileIsolationEngine`](lib/services/profile_isolation_engine.dart). Native bridge: [`ProfileNative`](lib/services/profile_native.dart) → [`WebSpaceProfilePlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceProfilePlugin.kt). Spec: [openspec/specs/per-site-profiles/spec.md](openspec/specs/per-site-profiles/spec.md).
+  - **Profile path** (Android, System WebView 110+): each `siteId` maps to a native `androidx.webkit.Profile` named `ws-<siteId>` that owns its own cookies, `localStorage`, IDB, ServiceWorkers, and HTTP cache. Same-base-domain sites can be loaded concurrently; no conflict-unload, no capture-nuke-restore. Engine: [`ProfileIsolationEngine`](lib/services/profile_isolation_engine.dart). Native bridge: [`ProfileNative`](lib/services/profile_native.dart) → [`WebSpaceProfilePlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceProfilePlugin.kt). The native bind itself happens inside the patched `InAppWebView.prepare()` — see the **vendored fork** at [third_party/flutter_inappwebview_android/PATCHES.md](third_party/flutter_inappwebview_android/PATCHES.md) (pinned via `dependency_overrides` in pubspec.yaml). Spec: [openspec/specs/per-site-profiles/spec.md](openspec/specs/per-site-profiles/spec.md).
   - **Legacy path** (iOS, macOS, Android System WebView <110): sites with matching base domains cannot be loaded simultaneously; switching unloads the conflicting site and runs capture-nuke-restore on the shared cookie jar. Engine: [`CookieIsolationEngine`](lib/services/cookie_isolation.dart). Spec: [openspec/specs/per-site-cookie-isolation/spec.md](openspec/specs/per-site-cookie-isolation/spec.md).
 - **Lazy webview loading**: Webviews only created when visited (`_loadedIndices` tracks loaded sites)
 - **Demo mode**: `isDemoMode` flag prevents persistence, uses seeded demo data
+
+### Patched flutter_inappwebview plugins (`third_party/*.patch`)
+
+Per-site profile isolation requires patches to all three
+flutter_inappwebview platform plugins (`_android`, `_ios`,
+`_macos`). The patches are not vendored — they live as `.patch`
+files in `third_party/`, applied at build time by [`scripts/apply_plugin_patches.dart`](scripts/apply_plugin_patches.dart). The script copies stock upstream from `~/.pub-cache/` into `.dart_tool/webspace_patched_plugins/<plugin>/` and applies the diff there; `dependency_overrides` in [pubspec.yaml](pubspec.yaml) point at the generated paths. `.dart_tool/` is gitignored, so the patched copies never enter the repo.
+
+Workflow on a clean checkout: `flutter pub get` (populates pub-cache) → `dart run scripts/apply_plugin_patches.dart` → `flutter pub get` (resolves the override paths). CI follows the same three-step sequence; see [.github/workflows/build-and-test.yml](.github/workflows/build-and-test.yml).
+
+Every patched line is marked with a `// [WebSpace fork patch]` comment so `grep -rn '\[WebSpace fork patch\]' .dart_tool/webspace_patched_plugins/` lists the surface area after a build. Full rationale, upgrade procedure (when the upstream version moves), and removal procedure (if upstream merges native profile support) live in [third_party/PATCHES.md](third_party/PATCHES.md). Read it before bumping the `flutter_inappwebview` pubspec version or any of the version pins in `apply_plugin_patches.dart`.
 
 ### State Persistence
 All state persisted via SharedPreferences (sites, webspaces, theme). Cookies stored separately in secure storage keyed by `siteId`.

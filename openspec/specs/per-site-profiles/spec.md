@@ -1,16 +1,33 @@
 # Per-Site Profiles
 
 ## Status
-**Implemented (Android only). iOS / macOS: stub returning `isSupported() == false`.**
+**Implemented on Android (System WebView 110+) and iOS / macOS (iOS 17+ /
+macOS 14+). Older OS / WebView versions fall through to
+[`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md).**
 
 ## Purpose
 
 Engine-level cookie + storage isolation between sites in WebSpace.
-Replaces the cookie-only capture-nuke-restore engine on Android System
-WebView 110+ with native named profiles (`androidx.webkit.Profile`).
-Each `WebViewModel.siteId` maps 1:1 to a profile `ws-<siteId>` that
-owns its own cookie jar, `localStorage`, `IndexedDB`,
-`ServiceWorkerController`, and HTTP cache directory.
+Replaces the cookie-only capture-nuke-restore engine on platforms with
+native per-site data-store primitives:
+
+- **Android**, System WebView 110+: `androidx.webkit.Profile`. Each
+  site maps to a named profile `ws-<siteId>`.
+- **iOS 17+ / macOS 14+**: `WKWebsiteDataStore(forIdentifier: UUID)`.
+  The siteId string is hashed via SHA-256 to produce a deterministic
+  UUID (`WebSpaceProfile.uuid(for:)` — added by the iOS / macOS
+  plugin patches; see
+  [`third_party/PATCHES.md`](../../../third_party/PATCHES.md))
+  and that UUID identifies the per-site data store.
+
+Each `WebViewModel.siteId` owns its own cookie jar, `localStorage`,
+`IndexedDB`, `ServiceWorkerController`, and HTTP cache. **Profile mode
+supersedes (not supplements) the legacy ISO-001 mutex** from
+[per-site-cookie-isolation](../per-site-cookie-isolation/spec.md): when
+`_useProfiles == true` the conflict-find / unload code path is skipped
+entirely, so sites that share a base domain (e.g. two `github.com`
+accounts) can be loaded concurrently without unloading each other —
+this applies to every webspace, including the special "All" webspace.
 
 ## Problem Statement
 
@@ -64,20 +81,32 @@ The system SHALL select between `ProfileIsolationEngine` and
 `CookieIsolationEngine` based on a single `ProfileNative.isSupported()`
 check resolved at app startup.
 
-#### Scenario: Profile API supported
+#### Scenario: Profile API supported on Android
 
 **Given** the app is launching on Android with System WebView 110+
+  (`WebViewFeature.MULTI_PROFILE` true)
 **When** `_restoreAppState` runs
 **Then** `_useProfiles` resolves to `true`
 **And** every subsequent `_setCurrentIndex(index)` skips
   `SiteActivationEngine.findDomainConflict` and the capture-nuke-
-  restore cycle
+  restore cycle — superseding the legacy
+  [ISO-001](../per-site-cookie-isolation/spec.md) mutex
 **And** `_setCurrentIndex(index)` calls
   `ProfileIsolationEngine.ensureProfile(target.siteId)` instead
 
+#### Scenario: Profile API supported on iOS / macOS
+
+**Given** the app is launching on iOS 17+ or macOS 14+
+**When** `_restoreAppState` runs
+**Then** the native plugin reports `isSupported() == true`
+**And** `_useProfiles` resolves to `true`
+**And** the same conflict-skip / engine-selection behavior as Android
+  applies — sites with shared base domains can coexist
+
 #### Scenario: Profile API not supported
 
-**Given** the app is launching on iOS, macOS, or Android System WebView <110
+**Given** the app is launching on Android System WebView <110, or
+  iOS <17, or macOS <14, or Linux / Windows
 **When** `_restoreAppState` runs
 **Then** `_useProfiles` resolves to `false`
 **And** `_setCurrentIndex` runs the existing capture-nuke-restore flow
@@ -169,58 +198,90 @@ The system SHALL sweep profiles whose owning site no longer exists.
 **Then** no profile is deleted
 **And** the call returns 0
 
-### Requirement: PROF-005 — Bind Before First Load
+### Requirement: PROF-005 — Native-Side Bind Before Construction
 
-The construction path SHALL bind the profile before the first
-navigation. `WebViewCompat.setProfile` rejects WebViews that have
-already performed a session-bound operation (`loadUrl`,
-`evaluateJavascript`, …), so when `ProfileNative.cachedSupported`
-is true and a `siteId` is set, the `InAppWebView` is constructed
-with `initialUrlRequest: null`, the bind runs *synchronously*
-inside `onWebViewCreated`, and only then does Dart call
-`controller.loadUrl(initialUrl)`. Cached-HTML loads use
-`initialData` (which is processed during platform-view construction
-without entering session-bound state) and remain unaffected.
+The Profile API binding SHALL run before any session-bound operation
+on the WebView, on both Android and iOS / macOS. The constraints
+differ in shape but are equivalent in effect:
 
-#### Scenario: Bind precedes the first navigation
+- **Android.** `WebViewCompat.setProfile` throws
+  `IllegalStateException` if the WebView has already done `loadUrl`,
+  `evaluateJavascript`, `addJavascriptInterface`,
+  `addDocumentStartJavaScript`, or
+  `CookieManager.setAcceptThirdPartyCookies(webView, ...)`. Stock
+  `InAppWebView.prepare()` runs all of those synchronously inside
+  `FlutterWebViewFactory.create()`, before `onWebViewCreated` fires
+  Dart-side. So the bind has to happen at the top of `prepare()`.
+- **iOS / macOS.** `WKWebViewConfiguration.websiteDataStore` is
+  copied at `WKWebView(frame: configuration:)` and frozen — there is
+  no `setWebsiteDataStore(_:)` on a live WKWebView. So the bind has
+  to happen during `preWKWebViewConfiguration(settings:)`, before the
+  configuration reaches the WKWebView constructor.
 
-**Given** profile mode is supported and a fresh site is being
-  activated
-**When** the InAppWebView is constructed
-**Then** no `initialUrlRequest` is passed — `webView.loadUrl(...)`
-  does NOT run inside `FlutterWebViewFactory.create()`
-**And** `onWebViewCreated` fires
-**And** Dart awaits `getOrCreateProfile` then `bindProfileToWebView`
-  before issuing `controller.loadUrl(initialUrl)`
-**And** every cookie / storage write that follows is partitioned to
-  the bound profile
+In both cases, a post-hoc bind from `onWebViewCreated` is too late.
+The patches that close this gap live as `.patch` files under
+[`third_party/`](../../../third_party/PATCHES.md) and are applied
+to the upstream pub-cache copy of each plugin at build time by
+[`scripts/apply_plugin_patches.dart`](../../../scripts/apply_plugin_patches.dart):
 
-#### Scenario: Re-bind after WebView reload is idempotent
+- `third_party/flutter_inappwebview_android.patch`:
+  adds `webspaceProfile: String?` to `InAppWebViewSettings`, binds it
+  via `ProfileStore.getOrCreateProfile` + `WebViewCompat.setProfile`
+  at the very top of `prepare()`.
+- `third_party/flutter_inappwebview_ios.patch`:
+  adds the same `webspaceProfile` field on the Swift side, sets
+  `configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier:
+  WebSpaceProfile.uuid(for: profileName))` in
+  `preWKWebViewConfiguration` before
+  `WKWebView(frame: configuration:)` runs. The UUID is derived
+  deterministically from the profile name via SHA-256 (Apple's API
+  requires a UUID; our siteIds are opaque strings).
+- `third_party/flutter_inappwebview_macos.patch`: same shape as the
+  iOS patch, applied to the macOS plugin.
 
-**Given** a WebView is already bound to the correct profile
-**When** `bindProfileToWebView` is called again with the same siteId
-**Then** the native side detects the matching profile via
-  `WebViewCompat.getProfile` and skips the re-set
-**And** the bound count includes the already-bound WebView
+From Dart, the
+[`WebSpaceInAppWebViewSettings`](../../../lib/services/webview.dart)
+subclass overrides `toMap()` to inject the `webspaceProfile` key
+into the settings map sent to native — the patched plugins on each
+platform pick it up by KVC reflection (iOS) or explicit case match
+(Android).
 
-#### Scenario: Sibling webview is left untouched
+#### Scenario: Bind happens during `prepare()`
 
-**Given** site B's webview is loaded and bound to `ws-B`
-**And** site A is being activated for the first time
-**When** the native bind walks the activity view tree
-**Then** site B's webview (current profile = `ws-B`, ≠ default)
-  is skipped — no `setProfile` call, no exception, no profile swap
+**Given** profile mode is supported, a `siteId` is set, and the
+  patched plugin is installed (resolved via `dependency_overrides` in
+  `pubspec.yaml`)
+**When** the `InAppWebView` is constructed
+**Then** `InAppWebView.prepare()` reads
+  `customSettings.webspaceProfile` and calls
+  `ProfileStore.getOrCreateProfile` followed by
+  `WebViewCompat.setProfile(this, profileName)` BEFORE
+  `addJavascriptInterface`, `addDocumentStartJavaScript`,
+  `setAcceptThirdPartyCookies`, or any other session-bound op
+**And** the subsequent `webView.loadUrl(initialUrlRequest)` runs
+  under the bound profile
+**And** every cookie / `localStorage` / IDB / ServiceWorker / cache
+  write throughout the WebView's lifetime is partitioned to that
+  profile
 
-#### Scenario: Defensive race log
+#### Scenario: Stock plugin (or `webspaceProfile == null`) is unaffected
 
-**Given** a `setProfile` call still throws `IllegalStateException`
-  despite the deferred-load contract (e.g. a future code path
-  queued an early load)
-**When** the native side catches the exception
-**Then** the surfaced log line records `raceLost > 0` for that
-  bind so the regression is observable in
-  `LogService` / `adb logcat -s WebSpaceProfilePlugin`
-**And** Dart sees no exception
+**Given** the `webspaceProfile` field is null (iOS, macOS, legacy
+  Android with `cachedSupported == false`, or any code path that
+  does not opt in)
+**When** `prepare()` runs
+**Then** the patched bind block early-returns and `prepare()`
+  proceeds unchanged
+**And** behavior matches stock upstream `flutter_inappwebview_android`
+
+#### Scenario: Same-base-domain sites coexist with isolated state
+
+**Given** sites A (`github.com/personal`) and B (`github.com/work`)
+  are both loaded and have completed `prepare()`
+**When** A writes a session cookie via JS
+**Then** B's cookie jar (read via JS or `getCookies(B.url)`) does
+  NOT contain A's cookie — partitioning is enforced by the native
+  Profile, not by Dart-level capture-nuke-restore
 
 ### Requirement: PROF-006 — No GMS in Shipped Artifacts
 
@@ -280,34 +341,35 @@ live view hierarchy.
 
 ### Per-WebView Bind Site
 
-The flutter_inappwebview Android plugin issues
-`webView.loadUrl(initialUrlRequest)` inside
-`FlutterWebViewFactory.create()` *before* `onWebViewCreated` fires
-Dart-side. A bind queued via `Future.microtask` after
-`onWebViewCreated` therefore always loses the race against the
-first navigation and the WebView leaks into the default profile.
 [`WebViewFactory.createWebView`](../../../lib/services/webview.dart)
-solves this by **deferring the initial URL load** when profile mode
-is active:
+constructs a `WebSpaceInAppWebViewSettings` (subclass of
+`InAppWebViewSettings`) with the desired profile name in
+`webspaceProfile`. The subclass overrides `toMap()` to inject that
+key into the settings dict sent to native. The build-time-patched
+plugins (see
+[`third_party/PATCHES.md`](../../../third_party/PATCHES.md))
+read it during construction and bind the WebView:
 
 ```dart
-final useProfileBind = Platform.isAndroid &&
-    ProfileNative.instance.cachedSupported &&
-    config.siteId != null;
-final deferInitialLoad = useProfileBind && !usesCachedHtml;
+final webspaceProfile = (Platform.isAndroid &&
+        ProfileNative.instance.cachedSupported &&
+        config.siteId != null)
+    ? 'ws-${config.siteId}'
+    : null;
+
+final settings = WebSpaceInAppWebViewSettings(webspaceProfile: webspaceProfile)
+  ..javaScriptEnabled = config.javascriptEnabled
+  ..userAgent = config.userAgent
+  ..thirdPartyCookiesEnabled = config.thirdPartyCookiesEnabled
+  // … other fields …
+  ..isInspectable = kDebugMode;
 
 return inapp.InAppWebView(
-  initialUrlRequest: (usesCachedHtml || deferInitialLoad) ? null : ...,
-  ...
+  initialSettings: settings,
+  initialUrlRequest: ...,
   onWebViewCreated: (controller) async {
-    ...
-    if (useProfileBind) {
-      await ProfileNative.instance.getOrCreateProfile(siteId);
-      await ProfileNative.instance.bindProfileToWebView(siteId);
-      if (deferInitialLoad) {
-        await controller.loadUrl(urlRequest: inapp.URLRequest(...));
-      }
-    }
+    // Profile is already bound natively by the time this fires.
+    // No Dart-side bind step needed.
     ...
   },
 );
@@ -316,15 +378,20 @@ return inapp.InAppWebView(
 `cachedSupported` is the synchronous getter on
 [`ProfileNative`](../../../lib/services/profile_native.dart),
 populated during `_restoreAppState` (the same pass that resolves
-`_useProfiles`). It defaults to `false` until the first async
-resolution completes, so the first webview a process ever
-constructs (before `_restoreAppState` runs to completion) takes the
-non-deferred path — but by then no site has been activated yet, so
-this case never fires in practice.
+`_useProfiles`). The first webview a process ever constructs
+(before `_restoreAppState` runs to completion) sees
+`cachedSupported == false` and takes the non-profile path — but by
+then no site has been activated yet, so this case never fires in
+practice.
 
-`Future.microtask` is still used for `WebInterceptNative.attachToWebViews`,
-which is race-insensitive (the ContentBlockerHandler can be set
-post-load).
+The legacy [`ProfileNative.bindProfileToWebView`](../../../lib/services/profile_native.dart)
+post-hoc bind method remains in the engine for diagnostics and the
+mock used by tests, but the production webview-construction path no
+longer calls it; the native plugin does the bind during `prepare()`.
+
+`Future.microtask` is still used for
+`WebInterceptNative.attachToWebViews`, which is race-insensitive
+(the ContentBlockerHandler can be set post-load).
 
 ### Per-Site Settings Still Apply
 

@@ -71,6 +71,32 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
 
+# Per-site profile isolation requires patches to the
+# flutter_inappwebview platform plugins. The patches live as `.patch`
+# files at `third_party/flutter_inappwebview_*.patch`; running
+# `dart run scripts/apply_plugin_patches.dart` copies stock upstream
+# from `~/.pub-cache/` into `.dart_tool/webspace_patched_plugins/<plugin>/`
+# and applies the diff there. The dependency_overrides below point at
+# those generated paths.
+#
+# First-time / clean-checkout workflow:
+#   1. `flutter pub get`  (populates pub-cache with stock upstream)
+#   2. `dart run scripts/apply_plugin_patches.dart`
+#   3. `flutter pub get`  (resolves the override paths now that they exist)
+#
+# Each patch teaches its plugin to honor a `webspaceProfile` settings
+# field and bind the WebView to a per-site profile / WKWebsiteDataStore
+# BEFORE any session-bound op locks it to the default. Full rationale,
+# upgrade procedure, and `[WebSpace fork patch]` marker convention are
+# in `third_party/PATCHES.md`. Spec: openspec/specs/per-site-profiles/spec.md.
+dependency_overrides:
+  flutter_inappwebview_android:
+    path: .dart_tool/webspace_patched_plugins/flutter_inappwebview_android
+  flutter_inappwebview_ios:
+    path: .dart_tool/webspace_patched_plugins/flutter_inappwebview_ios
+  flutter_inappwebview_macos:
+    path: .dart_tool/webspace_patched_plugins/flutter_inappwebview_macos
+
 flutter:
   uses-material-design: true
   assets:

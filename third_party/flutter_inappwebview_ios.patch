@@ -1,0 +1,98 @@
+diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebView/InAppWebView.swift
+--- a/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 01:32:40.373565810 +0000
++++ b/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 01:32:40.601565729 +0000
+@@ -617,6 +617,19 @@
+                 } else if settings.cacheEnabled {
+                     configuration.websiteDataStore = WKWebsiteDataStore.default()
+                 }
++                // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++                // Persistent per-site partitioning via WKWebsiteDataStore(forIdentifier:).
++                // Override the default/nonPersistent store assigned above when a
++                // per-site profile name is supplied AND the runtime supports
++                // identifier-based stores (iOS 17+, macOS 14+). Incognito wins
++                // (we don't want to materialize a persistent profile for an
++                // incognito site); same for ephemeral configs.
++                if !settings.incognito,
++                   let profile = settings.webspaceProfile, !profile.isEmpty,
++                   #available(iOS 17.0, macOS 14.0, *) {
++                    configuration.websiteDataStore =
++                        WKWebsiteDataStore(forIdentifier: WebSpaceProfile.uuid(for: profile))
++                }
+                 if !settings.applicationNameForUserAgent.isEmpty {
+                     if let applicationNameForUserAgent = configuration.applicationNameForUserAgent {
+                         configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
+diff -urN a/ios/Classes/InAppWebView/InAppWebViewSettings.swift b/ios/Classes/InAppWebView/InAppWebViewSettings.swift
+--- a/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 01:32:40.375565810 +0000
++++ b/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 01:32:40.602565729 +0000
+@@ -30,6 +30,16 @@
+     var interceptOnlyAsyncAjaxRequests = true
+     var useShouldInterceptFetchRequest = false
+     var incognito = false
++    // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++    // Persistent per-site profile name. When set on iOS 17+ / macOS 14+,
++    // `preWKWebViewConfiguration(settings:)` derives a deterministic UUID
++    // from this string and assigns
++    // `configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier:)`,
++    // partitioning cookies / localStorage / IDB / ServiceWorkers /
++    // HTTP cache for the rest of the WebView's lifetime. Must be set
++    // before `WKWebView(frame:configuration:)` runs — the data store
++    // is frozen at construction.
++    var webspaceProfile: String? = nil
+     var cacheEnabled = true
+     var transparentBackground = false
+     var disableVerticalScroll = false
+diff -urN a/ios/Classes/InAppWebView/WebSpaceProfile.swift b/ios/Classes/InAppWebView/WebSpaceProfile.swift
+--- a/ios/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
++++ b/ios/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 01:32:40.599565730 +0000
+@@ -0,0 +1,51 @@
++//
++// WebSpaceProfile.swift
++//
++// [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++//
++// Deterministic UUID derivation for per-site WKWebsiteDataStore
++// identifiers. Apple's `WKWebsiteDataStore(forIdentifier:)` requires a
++// UUID; our app uses opaque siteId strings. We need:
++//
++//   - **Stability across launches.** Restarting the app must yield the
++//     same UUID for the same siteId so the on-disk data store is
++//     re-attached, not re-created.
++//   - **Stability across builds.** Reinstalling the app shouldn't lose
++//     a user's logged-in session.
++//   - **No network identity leak.** The UUID is derived from the
++//     siteId only; nothing identifying about the device.
++//
++// Implementation: SHA-256 over the UTF-8 bytes of the siteId, take the
++// first 16 bytes, format as a UUID. Not RFC 4122 v5 (we don't bother
++// setting version/variant bits — Apple's API doesn't validate them and
++// every value we produce is a valid UUID byte pattern). Collision
++// probability is the same as any 128-bit hash digest: cryptographically
++// negligible for the number of sites a user can plausibly create.
++//
++// The plugin's `preWKWebViewConfiguration` and the app's
++// `WebSpaceProfilePlugin.swift` both call this so the UUID stays
++// consistent across the bind / delete / enumerate path.
++
++import CommonCrypto
++import Foundation
++
++@available(iOS 17.0, macOS 14.0, *)
++public enum WebSpaceProfile {
++    /// Derive the canonical `WKWebsiteDataStore` identifier for a
++    /// site profile name (typically `"ws-<siteId>"`, but any stable
++    /// string works).
++    public static func uuid(for profileName: String) -> UUID {
++        let data = Data(profileName.utf8)
++        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
++        data.withUnsafeBytes { bytes in
++            _ = CC_SHA256(bytes.baseAddress, CC_LONG(data.count), &digest)
++        }
++        let bytes = (
++            digest[0], digest[1], digest[2], digest[3],
++            digest[4], digest[5], digest[6], digest[7],
++            digest[8], digest[9], digest[10], digest[11],
++            digest[12], digest[13], digest[14], digest[15]
++        )
++        return UUID(uuid: bytes)
++    }
++}

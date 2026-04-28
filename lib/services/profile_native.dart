@@ -53,8 +53,19 @@ abstract class ProfileNative {
 
   /// Default singleton routed to the platform-appropriate impl. Tests
   /// inject a mock directly into the engine instead.
+  ///
+  /// Both Android and iOS / macOS take the MethodChannel path: the
+  /// vendored forks under `third_party/` patch each plugin's WebView
+  /// construction to set the per-site profile / data store before
+  /// any session-bound op. The native side answers `isSupported()`
+  /// based on a runtime check (Android: `WebViewFeature.MULTI_PROFILE`;
+  /// iOS: `#available(iOS 17.0, macOS 14.0, *)`); engine selection
+  /// in `_WebSpacePageState` falls through to `CookieIsolationEngine`
+  /// when that returns false.
   static final ProfileNative instance =
-      Platform.isAndroid ? _MethodChannelProfileNative() : _StubProfileNative();
+      (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)
+          ? _MethodChannelProfileNative()
+          : _StubProfileNative();
 }
 
 class _MethodChannelProfileNative implements ProfileNative {

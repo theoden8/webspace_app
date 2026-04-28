@@ -1,0 +1,82 @@
+diff -urN a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebView.java b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebView.java
+--- a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebView.java	2026-04-28 01:32:39.641566072 +0000
++++ b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebView.java	2026-04-28 01:32:39.841566001 +0000
+@@ -61,6 +61,8 @@
+ import androidx.webkit.WebSettingsCompat;
+ import androidx.webkit.WebViewCompat;
+ import androidx.webkit.WebViewFeature;
++// [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++import androidx.webkit.ProfileStore;
+ 
+ import com.pichillilorenzo.flutter_inappwebview_android.InAppWebViewFlutterPlugin;
+ import com.pichillilorenzo.flutter_inappwebview_android.R;
+@@ -238,6 +240,30 @@
+ 
+   @SuppressLint("RestrictedApi")
+   public void prepare() {
++    // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++    // The Profile API requires WebViewCompat.setProfile to run BEFORE any
++    // session-bound operation on the WebView. Stock prepare() calls
++    // addJavascriptInterface, addDocumentStartJavaScript, and
++    // CookieManager.setAcceptThirdPartyCookies a few lines below — each
++    // of which locks the WebView to whichever profile is current
++    // (default), making the post-construction bind path the user-app
++    // tried (`ProfileNative.bindProfileToWebView` walking the view tree
++    // from `onWebViewCreated`) silently no-op with IllegalStateException.
++    //
++    // Doing the bind here, before anything else in prepare(), partitions
++    // cookies / localStorage / IDB / ServiceWorkers / HTTP cache for the
++    // rest of the WebView's lifetime.
++    if (customSettings.webspaceProfile != null
++        && WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
++      try {
++        ProfileStore.getInstance().getOrCreateProfile(customSettings.webspaceProfile);
++        WebViewCompat.setProfile(this, customSettings.webspaceProfile);
++      } catch (Throwable t) {
++        android.util.Log.w(LOG_TAG,
++            "WebSpace fork: setProfile(" + customSettings.webspaceProfile + ") failed: " + t);
++      }
++    }
++
+     if (plugin != null) {
+       webViewAssetLoaderExt = WebViewAssetLoaderExt.fromMap(customSettings.webViewAssetLoader, plugin, getContext());
+     }
+diff -urN a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebViewSettings.java b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebViewSettings.java
+--- a/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebViewSettings.java	2026-04-28 01:32:39.646566070 +0000
++++ b/android/src/main/java/com/pichillilorenzo/flutter_inappwebview_android/webview/in_app_webview/InAppWebViewSettings.java	2026-04-28 01:32:39.845565999 +0000
+@@ -101,6 +101,15 @@
+   public String standardFontFamily = "sans-serif";
+   public Boolean saveFormData = true;
+   public Boolean thirdPartyCookiesEnabled = true;
++  // [WebSpace fork patch] — see third_party/PATCHES.md in the WebSpace repo
++  // Name of the androidx.webkit Profile to bind this WebView to before any
++  // session-bound operation. When non-null, InAppWebView.prepare() will call
++  // ProfileStore.getOrCreateProfile + WebViewCompat.setProfile at the very
++  // top, before addJavascriptInterface / addDocumentStartJavaScript /
++  // setAcceptThirdPartyCookies — all of which lock the WebView to whichever
++  // profile is current and would otherwise pin it to "Default".
++  @Nullable
++  public String webspaceProfile = null;
+   public Boolean hardwareAcceleration = true;
+   public Boolean supportMultipleWindows = false;
+   public String regexToCancelSubFramesLoading;
+@@ -337,6 +346,10 @@
+         case "thirdPartyCookiesEnabled":
+           thirdPartyCookiesEnabled = (Boolean) value;
+           break;
++        case "webspaceProfile":
++          // [WebSpace fork patch]
++          webspaceProfile = (String) value;
++          break;
+         case "hardwareAcceleration":
+           hardwareAcceleration = (Boolean) value;
+           break;
+@@ -486,6 +499,8 @@
+     settings.put("standardFontFamily", standardFontFamily);
+     settings.put("saveFormData", saveFormData);
+     settings.put("thirdPartyCookiesEnabled", thirdPartyCookiesEnabled);
++    // [WebSpace fork patch]
++    settings.put("webspaceProfile", webspaceProfile);
+     settings.put("hardwareAcceleration", hardwareAcceleration);
+     settings.put("supportMultipleWindows", supportMultipleWindows);
+     settings.put("regexToCancelSubFramesLoading", regexToCancelSubFramesLoading);
