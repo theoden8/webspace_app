@@ -183,7 +183,7 @@ Future<void> confirmAndLaunchExternalUrl(
       case _ExternalUrlChoice.openInBrowser:
         LogService.instance.log('ExternalUrl', 'user chose: open in browser → $cleanedFallback');
         ExternalUrlSuppressor.mark(info);
-        await fallbackController!.loadUrl(cleanedFallback);
+        await _safeLoadUrl(fallbackController, cleanedFallback, label: 'browser fallback');
         return;
       case _ExternalUrlChoice.openInApp:
         LogService.instance.log('ExternalUrl', 'user chose: open in app → $cleanedLaunchUrl');
@@ -193,6 +193,34 @@ Future<void> confirmAndLaunchExternalUrl(
     }
   } finally {
     _isConfirming = false;
+  }
+}
+
+/// loadUrl wrapper that surfaces failures in the in-app log instead of
+/// silently dropping them. The dialog is sometimes triggered while the
+/// webview is parked on `chrome-error://chromewebdata` (when the dialog
+/// came from `onReceivedError`); deferring to a microtask gives chromium
+/// a chance to settle before we issue the navigation.
+Future<void> _safeLoadUrl(
+  WebViewController? controller,
+  String url, {
+  required String label,
+}) async {
+  if (controller == null) {
+    LogService.instance.log('ExternalUrl', '$label: controller is null, dropping load $url');
+    return;
+  }
+  if (url.isEmpty) {
+    LogService.instance.log('ExternalUrl', '$label: url is empty, nothing to load');
+    return;
+  }
+  LogService.instance.log('ExternalUrl', '$label: scheduling loadUrl($url)');
+  await Future<void>.delayed(Duration.zero);
+  try {
+    await controller.loadUrl(url);
+    LogService.instance.log('ExternalUrl', '$label: loadUrl returned for $url');
+  } catch (e, st) {
+    LogService.instance.log('ExternalUrl', '$label: loadUrl threw for $url — $e\n$st');
   }
 }
 
@@ -220,7 +248,7 @@ Future<void> _launchInApp(
 
   if (cleanedFallback.isNotEmpty && fallbackController != null) {
     LogService.instance.log('ExternalUrl', 'launch failed, loading fallback: $cleanedFallback');
-    await fallbackController.loadUrl(cleanedFallback);
+    await _safeLoadUrl(fallbackController, cleanedFallback, label: 'in-app fallback');
     return;
   }
   rootScaffoldMessengerKey.currentState?.showSnackBar(
