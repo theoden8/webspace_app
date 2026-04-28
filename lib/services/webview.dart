@@ -427,13 +427,6 @@ class WebViewConfig {
   /// webview always cancels such navigations; the host UI decides
   /// whether to launch the target app after confirming with the user.
   final Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl;
-  /// Callback fired when an iOS-only Universal Link URL is detected
-  /// (Google Maps and friends — see [IosUniversalLinkBypass]). The
-  /// webview cancels the navigation; the host UI shows a prompt and
-  /// either drops, reissues programmatically (via [continueHere]),
-  /// or hands the URL to `url_launcher`. Always null on Android.
-  final void Function(String url, VoidCallback continueHere)?
-      onIosUniversalLinkUrl;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
   /// Per-site geolocation mode. [LocationMode.spoof] injects a shim that
@@ -492,7 +485,6 @@ class WebViewConfig {
     this.userScripts = const [],
     this.onConfirmScriptFetch,
     this.onExternalSchemeUrl,
-    this.onIosUniversalLinkUrl,
     this.pullToRefreshController,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -1545,10 +1537,10 @@ class WebViewFactory {
     // that this branch has been chasing.
     var navigationGen = 0;
 
-    // iOS Universal Link prompt-gate state (per-WebView). Tracks URLs
-    // the user just approved to "Continue here" so the reissued
-    // programmatic load passes through this gate without re-prompting.
-    // See lib/services/ios_universal_link_bypass.dart.
+    // iOS Universal Link bypass state (per-WebView). Tracks URLs we
+    // just cancelled-and-reissued so the second-pass shouldOverrideUrlLoading
+    // call (the reissued programmatic load landing here again) doesn't
+    // loop. See lib/services/ios_universal_link_bypass.dart.
     final iosUlBypass = IosUniversalLinkBypass();
 
     // Profile API binding. Stock flutter_inappwebview's `prepare()` does
@@ -1927,47 +1919,45 @@ class WebViewFactory {
           final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
           if (!allow) return inapp.NavigationActionPolicy.CANCEL;
         }
-        // iOS Universal Link prompt gate. WKWebView auto-routes
-        // user-tap navigations (and redirect chains rooted in a tap)
-        // to the native app for URLs whose host+path matches an
-        // installed app's AASA — even when the user explicitly added
-        // the site to WebSpace. For known offenders (Google Maps),
-        // cancel the navigation and surface a confirmation dialog
-        // (matching the existing Android `intent://` prompt UX). The
-        // user picks Cancel / Continue here / Open in app.
+        // iOS Universal Link bypass. WKWebView auto-routes user-tap
+        // navigations (and redirect chains rooted in a tap) to the
+        // native app for URLs whose host matches an installed app's
+        // AASA — even when the user explicitly added the site to
+        // WebSpace. iOS exposes no public API to detect AASA matches,
+        // so the bypass treats every gesture-rooted main-frame
+        // http(s) navigation as at-risk: cancel + reissue via
+        // `loadUrl`. WebKit treats programmatic loads as navigation
+        // type `.other` and skips AASA matching, keeping the page
+        // inside the webview regardless of which apps are installed.
+        // The reissued nav fires `shouldOverrideUrlLoading` again;
+        // the per-URL memo passes that second pass through.
         //
-        // Gate on `hasGesture` so only `.linkActivated` /
-        // `.formSubmitted` navigations (and their server-redirect
-        // chains) get prompted — those are the only ones iOS routes
-        // via AASA. Pure programmatic loads (initial nav, pushState,
-        // some redirects) skip the prompt and load silently.
+        // Pure programmatic navigations (initial nav, server
+        // redirects without a tap origin, pushState) carry no user
+        // gesture — they don't activate AASA in the first place and
+        // are passed through here without interception.
         if (Platform.isIOS &&
             isMainFrame &&
-            IosUniversalLinkBypass.isUniversalLinkUrl(url)) {
-          if (iosUlBypass.consumeApproval(url)) {
+            url.startsWith('http') &&
+            _hasUserGesture(navigationAction)) {
+          if (iosUlBypass.shouldCancelAndReissue(url)) {
             LogService.instance.log('WebView',
-                '  -> ALLOW (iOS UL: user approved Continue here, reissued nav passing through)');
-            return inapp.NavigationActionPolicy.ALLOW;
-          }
-          if (_hasUserGesture(navigationAction)) {
-            LogService.instance.log('WebView',
-                '  -> CANCEL (iOS UL: prompting user) $url');
-            if (config.onIosUniversalLinkUrl != null) {
-              // Forward original headers so per-site Accept-Language
-              // survives a Continue-here reissue. The host UI calls
-              // `continueHere` if the user picks that option.
-              final originalUrl = navigationAction.request.url;
-              final originalHeaders = navigationAction.request.headers;
-              config.onIosUniversalLinkUrl!(url, () {
-                iosUlBypass.markApprovedContinue(url);
-                controller.loadUrl(urlRequest: inapp.URLRequest(
-                  url: originalUrl,
-                  headers: originalHeaders,
-                ));
-              });
-            }
+                '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url');
+            // Forward original headers so per-site Accept-Language
+            // survives the reissue. POST body is dropped — POSTs
+            // that match AASA are rare and the existing flow lost
+            // them anyway when iOS short-circuited to the native
+            // app.
+            final originalUrl = navigationAction.request.url;
+            final originalHeaders = navigationAction.request.headers;
+            controller.loadUrl(urlRequest: inapp.URLRequest(
+              url: originalUrl,
+              headers: originalHeaders,
+            ));
             return inapp.NavigationActionPolicy.CANCEL;
           }
+          LogService.instance.log('WebView',
+              '  -> ALLOW (iOS UL bypass: reissued nav passing through)');
         }
         return inapp.NavigationActionPolicy.ALLOW;
       },

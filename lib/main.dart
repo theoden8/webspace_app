@@ -61,7 +61,6 @@ import 'package:webspace/utils/url_utils.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
-import 'package:webspace/widgets/ios_universal_link_prompt.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 
 // Accent color enum
@@ -3357,11 +3356,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;
                                     await confirmAndLaunchExternalUrl(context, info);
-                                  },
-                                  onIosUniversalLinkUrl: (url, continueHere) {
-                                    if (!mounted) return;
-                                    confirmIosUniversalLinkUrl(context, url,
-                                        continueHere: continueHere);
                                   },
                                 ),
                               ),

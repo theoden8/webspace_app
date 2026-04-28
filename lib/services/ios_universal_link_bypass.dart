@@ -1,4 +1,4 @@
-/// iOS Universal Link prompt gate.
+/// iOS Universal Link bypass.
 ///
 /// `WKWebView` honors apple-app-site-association entries: when the
 /// user taps a link (or follows a redirect chain rooted in a tap)
@@ -7,17 +7,19 @@
 /// without a prompt, and even when the user explicitly added the
 /// site to WebSpace and is using the webview on purpose.
 ///
-/// Fix: on iOS, intercept navigations to known auto-launch URLs,
-/// CANCEL them so iOS can't route to the app, and surface a
-/// confirmation dialog (like the existing `intent://` prompt on
-/// Android). The user picks:
-///   * Continue here  — programmatic reload in the webview;
-///     marked via [markApprovedContinue] so the reissued nav
-///     passes through this gate without re-prompting.
-///   * Open in app    — `url_launcher` external launch; iOS routes
-///     it to the native app via Universal Links.
-///   * Cancel         — drop the navigation; user stays where they
-///     were.
+/// Generic fix: on iOS, for every main-frame http(s) navigation that
+/// has a user gesture (`.linkActivated` / `.formSubmitted`), cancel
+/// the navigation and reissue it via `controller.loadUrl`. WebKit
+/// treats programmatic loads as navigation type `.other` and skips
+/// AASA matching, so the URL renders inside the webview regardless
+/// of which apps are installed. Pure programmatic navigations
+/// (initial nav, server redirects without a tap origin, pushState)
+/// don't activate AASA in the first place and are passed through
+/// without interception.
+///
+/// No domain/path list. iOS exposes no public API to ask "does this
+/// URL match an installed app's AASA?", so the bypass treats every
+/// gesture-rooted main-frame nav as at-risk and reissues it.
 ///
 /// Scope: iOS only. Android's WebView doesn't auto-launch installed
 /// apps for plain http(s) URLs — `intent://` schemes are handled
@@ -25,86 +27,38 @@
 class IosUniversalLinkBypass {
   IosUniversalLinkBypass();
 
-  /// Match rules for hosts whose AASA aggressively activates Universal
-  /// Links from WKWebView. Each rule is `host` + optional `pathPrefix`:
-  ///   * pathPrefix == null  → any path on this host matches.
-  ///   * pathPrefix != null  → only paths that start with this prefix
-  ///     match (e.g. `www.google.com/maps*` matches but
-  ///     `www.google.com/search` doesn't).
+  /// Per-WebView memo: URL → timestamp of the cancel-and-reissue.
+  /// After we reissue programmatically the same URL fires
+  /// `shouldOverrideUrlLoading` again; the memo flips that second
+  /// pass to ALLOW so we don't bounce in a loop.
+  final Map<String, DateTime> _recentBypass = {};
+
+  /// Memo TTL. Long enough that the reissued navigation arrives and
+  /// resolves; short enough that a future re-navigation to the same
+  /// URL gets bypassed again.
+  static const Duration _memoWindow = Duration(seconds: 2);
+
+  /// Decide whether the caller should cancel-and-reissue this
+  /// navigation. Returns:
+  ///   * `true` on the first pass (caller cancels the navigation
+  ///     and reissues via `loadUrl`),
+  ///   * `false` on the second pass — the reissued nav landing in
+  ///     `shouldOverrideUrlLoading` again — so the caller allows
+  ///     it through.
   ///
-  /// Hosts also match their subdomains (`*.host`).
-  static const List<_Rule> _rules = [
-    // Google Maps: maps.google.com on any path. Triggers the Maps iOS
-    // app even when the user explicitly added Google Maps to WebSpace
-    // and is browsing the webview.
-    _Rule('maps.google.com'),
-    // Google Maps short links resolve to maps.google.com via 302.
-    _Rule('maps.app.goo.gl'),
-    // Google's own redirect after the consent flow lands on
-    // www.google.com/maps (NOT maps.google.com), and that path on
-    // www.google.com / google.com is also covered by the Maps AASA —
-    // observed in user logs after accepting cookie consent.
-    _Rule('www.google.com', pathPrefix: '/maps'),
-    _Rule('google.com', pathPrefix: '/maps'),
-  ];
-
-  /// Per-WebView memo of URLs the user just approved to "continue
-  /// here". Entries TTL out so a future re-navigation to the same URL
-  /// re-prompts instead of silently passing through.
-  final Map<String, DateTime> _approvedContinue = {};
-
-  static const Duration _approvalWindow = Duration(seconds: 5);
-
-  /// True when [url] should be intercepted and routed through the
-  /// confirmation prompt. Pure function; callers should still gate
-  /// on `Platform.isIOS`.
-  static bool isUniversalLinkUrl(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return false;
-    final host = uri.host.toLowerCase();
-    if (host.isEmpty) return false;
-    final path = uri.path;
-    for (final rule in _rules) {
-      final hostMatches = host == rule.host || host.endsWith('.${rule.host}');
-      if (!hostMatches) continue;
-      if (rule.pathPrefix == null) return true;
-      if (path == rule.pathPrefix ||
-          path.startsWith('${rule.pathPrefix!}/') ||
-          path.startsWith('${rule.pathPrefix!}?')) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// Called when the user picks "Continue here" — the next
-  /// shouldOverrideUrlLoading for [url] within [_approvalWindow] is
-  /// allowed through without prompting.
-  void markApprovedContinue(String url, {DateTime? now}) {
-    _approvedContinue[url] = now ?? DateTime.now();
-  }
-
-  /// True if the user just approved [url] to "continue here". Consumes
-  /// the memo entry so a fresh navigation to the same URL later still
-  /// triggers a prompt.
-  bool consumeApproval(String url, {DateTime? now}) {
+  /// The memo entry is consumed on the second pass, so a fresh
+  /// navigation to the same URL later still triggers the bypass.
+  bool shouldCancelAndReissue(String url, {DateTime? now}) {
     final t = now ?? DateTime.now();
-    final last = _approvedContinue[url];
-    if (last == null) return false;
-    if (t.difference(last) > _approvalWindow) {
-      _approvedContinue.remove(url);
+    final last = _recentBypass[url];
+    if (last != null && t.difference(last) < _memoWindow) {
+      _recentBypass.remove(url);
       return false;
     }
-    _approvedContinue.remove(url);
+    _recentBypass[url] = t;
     return true;
   }
 
   /// Test hook.
-  void clear() => _approvedContinue.clear();
-}
-
-class _Rule {
-  final String host;
-  final String? pathPrefix;
-  const _Rule(this.host, {this.pathPrefix});
+  void clear() => _recentBypass.clear();
 }
