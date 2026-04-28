@@ -1,46 +1,51 @@
 //
 // WebSpaceProfilePlugin.swift
 //
-// Per-site Profile API plugin (iOS / macOS counterpart to Android's
-// WebSpaceProfilePlugin.kt). Each `WebViewModel.siteId` maps to a
-// persistent `WKWebsiteDataStore(forIdentifier:)` whose UUID is
-// derived deterministically from `ws-<siteId>` via SHA-256 (see
+// Per-site Profile API plugin shared by the iOS and macOS Runners
+// (Android counterpart: WebSpaceProfilePlugin.kt). Each
+// `WebViewModel.siteId` maps to a persistent
+// `WKWebsiteDataStore(forIdentifier:)` whose UUID is derived
+// deterministically from `ws-<siteId>` via SHA-256 (see
 // `WebSpaceProfile.uuid(for:)` in the vendored
-// flutter_inappwebview_ios fork).
+// flutter_inappwebview_{ios,macos} forks).
 //
 // The bind itself happens inside the patched
 // `InAppWebView.preWKWebViewConfiguration(settings:)` — that's the
-// only place we can set `websiteDataStore` before `WKWebView(frame:
-// configuration:)` freezes it. This plugin handles the lifecycle
-// surface around that:
+// only place we can set `websiteDataStore` before
+// `WKWebView(frame:configuration:)` freezes it. This plugin handles
+// the lifecycle surface around that:
 //
 //   - isSupported(): runtime check for iOS 17 / macOS 14.
 //   - getOrCreateProfile(siteId): record the siteId in our local
 //     index (UserDefaults) so listProfiles() can enumerate. Apple's
 //     WKWebsiteDataStore API has no enumeration that maps back to
 //     siteId, so we maintain the index ourselves.
-//   - bindProfileToWebView(siteId): no-op on iOS — the bind is at
+//   - bindProfileToWebView(siteId): no-op on Apple — the bind is at
 //     construction. Returns 0 to keep the cross-platform interface
-//     happy; production code path doesn't depend on this on iOS.
+//     uniform; the production code path doesn't depend on this here.
 //   - deleteProfile(siteId): WKWebsiteDataStore.remove(forIdentifier:)
 //     plus index removal.
 //   - listProfiles(): index-based enumeration, then on first call
 //     each session, sync against `fetchAllDataStoreIdentifiers` to
-//     drop entries whose underlying UUID was already removed (and
-//     log any orphan UUIDs that don't match a tracked siteId — the
-//     engine layer will sweep those when it sees them).
+//     drop entries whose underlying UUID was already removed.
+//
+// This single file is referenced from both `ios/Runner.xcodeproj`
+// and `macos/Runner.xcodeproj` via cross-target file inclusion (see
+// the PBXFileReference entries — `path = ../shared/...`,
+// `sourceTree = SOURCE_ROOT`). The two platform-specific imports
+// are gated by `#if os(iOS)` / `#elseif os(macOS)`. Everything else
+// is shared.
 
+#if os(iOS)
 import Flutter
+import flutter_inappwebview_ios
+#elseif os(macOS)
+import FlutterMacOS
+import flutter_inappwebview_macos
+#endif
+
 import Foundation
 import WebKit
-
-import flutter_inappwebview_ios
-
-@available(iOS 17.0, macOS 14.0, *)
-private let _profilePrefix = "ws-"
-
-@available(iOS 17.0, macOS 14.0, *)
-private let _indexUserDefaultsKey = "WebSpaceProfileSiteIdIndex"
 
 public class WebSpaceProfilePlugin {
     private let channel: FlutterMethodChannel
@@ -83,7 +88,7 @@ public class WebSpaceProfilePlugin {
             }
 
         case "bindProfileToWebView":
-            // No-op on iOS — the bind is locked in at WKWebView
+            // No-op on Apple — the bind is locked in at WKWebView
             // construction by the patched plugin. This method exists
             // only to keep the cross-platform Dart interface uniform.
             result(0)
@@ -111,9 +116,8 @@ public class WebSpaceProfilePlugin {
                 // Sync the local index against the live UUID set:
                 // drop any siteId whose derived UUID isn't in the live
                 // set (data was wiped externally — e.g. user cleared
-                // app storage) and log unknown live UUIDs (engine
-                // handles them by recreating a delete request when it
-                // sees an unknown entry).
+                // app storage). The engine layer handles unknown live
+                // UUIDs separately when it sweeps orphans.
                 WKWebsiteDataStore.fetchAllDataStoreIdentifiers { liveUUIDs in
                     let liveSet = Set(liveUUIDs)
                     let stored = self.readIndex()
@@ -147,7 +151,7 @@ public class WebSpaceProfilePlugin {
 
     private func profileName(_ siteId: String) -> String { "ws-\(siteId)" }
 
-    // MARK: - UserDefaults-backed index
+    // MARK: - UserDefaults-backed siteId index
 
     private func readIndex() -> [String] {
         UserDefaults.standard.array(forKey: "WebSpaceProfileSiteIdIndex") as? [String] ?? []
