@@ -35,7 +35,7 @@ import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/profile_isolation_engine.dart';
 import 'package:webspace/services/profile_native.dart';
-import 'package:webspace/services/site_cookie_ops.dart';
+import 'package:webspace/services/profile_cookie_manager.dart';
 import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
@@ -580,15 +580,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     profileNative: ProfileNative.instance,
   );
 
-  /// Per-site cookie operations used by [WebViewModel]'s cookie
-  /// blocking and "clear cookies for site" paths. Mutually exclusive
-  /// with the engine selection: when `_useProfiles == true` the
-  /// blocking delete must JS-eval inside the bound WebView (the
-  /// per-site profile context); when false the global jar is the
-  /// only jar so a direct `inapp.CookieManager` delete is correct.
-  /// Resolved alongside `_useProfiles` in `_restoreAppState` so
-  /// both branches stay tied to the same runtime decision.
-  late final SiteCookieOps _cookieOps;
+  /// Profile-mode cookie manager. Non-null when `_useProfiles ==
+  /// true`; null in legacy mode (the existing `_cookieManager` covers
+  /// that path). Resolved alongside `_useProfiles` in
+  /// `_restoreAppState` so the branches stay tied to the same
+  /// runtime decision. The WebViewModel cookie-blocking path branches
+  /// on `profileCookieManager != null`.
+  late final ProfileCookieManager? _profileCookieManager;
 
   /// Cached result of [ProfileNative.isSupported] resolved during
   /// `_restoreAppState`. When true, the app uses native per-site profiles
@@ -1162,14 +1160,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // (engine selection in _setCurrentIndex, deletion path, save/restore).
     // Returns false on iOS/macOS and on Android System WebView <110.
     _useProfiles = await ProfileNative.instance.isSupported();
-    _cookieOps = _useProfiles
-        ? ProfileSiteCookieOps()
-        : LegacySiteCookieOps(_cookieManager);
+    _profileCookieManager = _useProfiles ? ProfileCookieManager() : null;
     LogService.instance.log(
       'Profile',
       _useProfiles
-          ? 'Profile API supported — using ProfileIsolationEngine + ProfileSiteCookieOps'
-          : 'Profile API not supported — using CookieIsolationEngine + LegacySiteCookieOps',
+          ? 'Profile API supported — using ProfileIsolationEngine + ProfileCookieManager'
+          : 'Profile API not supported — using CookieIsolationEngine + (legacy) CookieManager',
     );
 
     // Startup GC: sweep orphaned per-siteId encrypted storage and HTML cache
@@ -1668,7 +1664,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if(_currentIndex == null) {
       return null;
     }
-    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieOps, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _profileCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
   }
 
   /// Update _canGoBack from the current webview's controller.
@@ -2009,7 +2005,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         },
                         onScriptsChanged: _resetCurrentSiteWebView,
                         onClearCookies: () {
-                          _webViewModels[_currentIndex!].deleteCookies(_cookieOps);
+                          _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _profileCookieManager);
                           _saveWebViewModels();
                           getController()?.reload();
                         },
@@ -2241,7 +2237,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           UrlBar(
             currentUrl: model.currentUrl,
             onUrlSubmitted: (url) async {
-              final controller = model.getController(launchUrl, _cookieOps, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+              final controller = model.getController(launchUrl, _cookieManager, _profileCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
               if (controller != null) {
                 await controller.loadUrl(url, language: model.language);
                 if (!mounted) return;
@@ -2404,7 +2400,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   },
                   onScriptsChanged: _resetCurrentSiteWebView,
                   onClearCookies: () {
-                    _webViewModels[_currentIndex!].deleteCookies(_cookieOps);
+                    _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _profileCookieManager);
                     _saveWebViewModels();
                     getController()?.reload();
                   },
@@ -3211,7 +3207,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               Expanded(
                                 child: webViewModel.getWebView(
                                   launchUrl,
-                                  _cookieOps,
+                                  _cookieManager,
+                                  _profileCookieManager,
                                   _saveWebViewModels,
                                   onWindowRequested: _showPopupWindow,
                                   language: webViewModel.language,

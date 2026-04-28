@@ -17,7 +17,7 @@ import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/profile_native.dart';
-import 'package:webspace/services/site_cookie_ops.dart';
+import 'package:webspace/services/profile_cookie_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -286,16 +286,18 @@ class WebViewConfig {
   final String? language;
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
-  /// SiteCookieOps used to read cookies from the right jar inside
-  /// [_onLoadStop] before invoking [onCookiesChanged]. Optional —
-  /// falls back to the global `CookieManager.getCookies(url:)` when
-  /// null. Plumbed through here (rather than via a top-level
-  /// singleton) because the choice is per-engine and lives on
-  /// `_WebSpacePageState._cookieOps`.
-  final SiteCookieOps? cookieOps;
-  /// siteId of the owning [WebViewModel]. Used to scope per-site
-  /// cookie reads through [cookieOps]; ignored by the legacy impl.
-  final String? cookieOpsSiteId;
+  /// Cookie reader used inside [_onLoadStop] before invoking
+  /// [onCookiesChanged]. Exactly one of these is non-null per
+  /// `_WebSpacePageState`'s `_useProfiles` decision: legacy mode
+  /// passes [cookieManager] (global default jar); profile mode
+  /// passes [profileCookieManager] (the patched plugin routes through
+  /// the bound profile via `webViewController:`).
+  final CookieManager? cookieManager;
+  final ProfileCookieManager? profileCookieManager;
+  /// siteId of the owning [WebViewModel]. Required when
+  /// [profileCookieManager] is set so per-site reads route through
+  /// the bound WebView's profile.
+  final String? cookieSiteId;
   final Function(int activeMatch, int totalMatches)? onFindResult;
   final Function(String url, bool hasGesture)? shouldOverrideUrlLoading;
   /// Callback for when a popup window is requested (e.g., Cloudflare challenges).
@@ -362,8 +364,9 @@ class WebViewConfig {
     this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onCookiesChanged,
-    this.cookieOps,
-    this.cookieOpsSiteId,
+    this.cookieManager,
+    this.profileCookieManager,
+    this.cookieSiteId,
     this.onFindResult,
     this.shouldOverrideUrlLoading,
     this.onWindowRequested,
@@ -402,9 +405,8 @@ abstract class WebViewController {
   Future<String?> getHtml();
   Future<void> evaluateJavascript(String source);
   /// Evaluate [source] and return whatever the JS expression produced,
-  /// JSON-decoded by the platform plugin into a Dart `dynamic`. Used
-  /// by [ProfileSiteCookieOps.getCookies] to read `document.cookie`
-  /// from the per-site profile context. Distinct from
+  /// JSON-decoded by the platform plugin into a Dart `dynamic`.
+  /// Distinct from
   /// [evaluateJavascript] which suffixes the source with `null;` to
   /// neutralize WebKit's "unsupported return type" errors and so
   /// always resolves to `null`.
@@ -1717,24 +1719,29 @@ class WebViewFactory {
             DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
         config.onUrlChanged?.call(urlStr);
         if (config.onCookiesChanged != null) {
-          assert(
-            config.cookieOps != null && config.cookieOpsSiteId != null,
-            'onCookiesChanged requires cookieOps + cookieOpsSiteId; '
-            "the WebViewConfig that set onCookiesChanged must also "
-            'pass through the SiteCookieOps from _WebSpacePageState. '
-            'See lib/services/site_cookie_ops.dart for the contract.',
-          );
-          // Read cookies through SiteCookieOps so the snapshot
-          // reflects the per-site profile in profile mode (JS-eval
-          // `document.cookie` on the bound WebView) and the global
-          // jar in legacy mode. controller here is the raw
-          // inapp.InAppWebViewController from the onLoadStop
-          // signature; wrap it for the ops API.
-          final cookies = await config.cookieOps!.getCookies(
-            controller: _WebViewController(controller),
-            siteId: config.cookieOpsSiteId!,
-            url: Uri.parse(urlStr),
-          );
+          // Read cookies from the right jar — exactly one of the two
+          // managers is non-null per the engine selection on
+          // `_WebSpacePageState`. profileCookieManager routes through
+          // the patched plugin's `webViewController:` to the bound
+          // profile's cookie store; cookieManager hits the global
+          // default jar.
+          final List<Cookie> cookies;
+          if (config.profileCookieManager != null && config.cookieSiteId != null) {
+            cookies = await config.profileCookieManager!.getCookies(
+              controller: _WebViewController(controller),
+              siteId: config.cookieSiteId!,
+              url: Uri.parse(urlStr),
+            );
+          } else {
+            assert(
+              config.cookieManager != null,
+              'onCookiesChanged requires cookieManager (legacy mode) '
+              'or profileCookieManager + cookieSiteId (profile mode).',
+            );
+            cookies = await config.cookieManager!.getCookies(
+              url: Uri.parse(urlStr),
+            );
+          }
           config.onCookiesChanged!(cookies);
         }
         // Inject full cosmetic script: MutationObserver + text-based hiding
