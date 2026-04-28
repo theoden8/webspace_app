@@ -5,6 +5,45 @@
 macOS 14+). Older OS / WebView versions fall through to
 [`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md).**
 
+## Platform Support Matrix
+
+The three native primitives this engine binds to all landed within
+seven months of each other in 2023, so the floor for the Profile
+path is roughly "anything that can run the September-2023 OS cohort
+or later". Older devices keep working via the legacy
+[`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md)
+fallback — `_useProfiles` resolves to `false` at startup and the
+existing capture-nuke-restore code path runs unchanged.
+
+### Profile mode (engine-level isolation)
+
+| Platform | Minimum OS | Native primitive | Earliest devices | Released |
+|----------|------------|------------------|------------------|----------|
+| Android  | Lollipop (API 21) **AND** System WebView 110+ | [`androidx.webkit.Profile`](https://developer.android.com/reference/androidx/webkit/Profile) via [`WebViewCompat.setProfile`](https://developer.android.com/reference/androidx/webkit/WebViewCompat#setProfile) | Anything that can update System WebView via Play Store; in practice Android 7.0+ (Nougat) keeps WebView fresh on most devices | Feb 2023 (WebView 110) |
+| iOS      | 17.0 | [`WKWebsiteDataStore(forIdentifier:)`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)) | iPhone XS / XR (2018) and newer; iPad Pro 11" 1st-gen / 12.9" 3rd-gen / iPad Air 3 / iPad mini 5 / iPad 7 and newer — anything with the A12 Bionic or newer | Sept 2023 |
+| macOS    | 14.0 Sonoma | Same as iOS (`WKWebsiteDataStore(forIdentifier:)`) | iMac 2019+, iMac Pro 2017+, MacBook Air 2018+, MacBook Pro 2018+, Mac mini 2018+, Mac Pro 2019+, Mac Studio 2022+ | Sept 2023 |
+
+The runtime check that decides Profile vs. legacy engine is in
+[`ProfileNative.isSupported`](../../../lib/services/profile_native.dart):
+
+- **Android.** Native side checks `WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)`.
+  This catches the device + WebView combination correctly (e.g. an
+  Android 6 device with an outdated System WebView returns false
+  even though `androidx.webkit` is present in the build).
+- **iOS / macOS.** Native side checks
+  `if #available(iOS 17.0, macOS 14.0, *)`.
+
+### Legacy fallback (CookieIsolationEngine)
+
+Anything older than the rows above falls through to
+capture-nuke-restore. Practical app-runs-at-all floor is whatever
+`flutter_inappwebview` itself requires — Android API 21 / iOS 12 /
+macOS 10.14 — so a 2014-era Android tablet or a 2014 MacBook Pro
+still launches the app, but won't get engine-level isolation. The
+mutex from [ISO-001](../per-site-cookie-isolation/spec.md#requirement-iso-001---mutual-exclusion)
+applies on those devices: at most one webview per second-level
+domain may be active.
+
 ## Purpose
 
 Engine-level cookie + storage isolation between sites in WebSpace.
