@@ -1,6 +1,6 @@
 diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebView/InAppWebView.swift
---- a/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 01:32:40.373565810 +0000
-+++ b/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 01:32:40.601565729 +0000
+--- a/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-25 20:26:04.000000000 +0000
++++ b/ios/Classes/InAppWebView/InAppWebView.swift	2026-04-28 03:32:38.681956785 +0000
 @@ -617,6 +617,19 @@
                  } else if settings.cacheEnabled {
                      configuration.websiteDataStore = WKWebsiteDataStore.default()
@@ -22,8 +22,8 @@ diff -urN a/ios/Classes/InAppWebView/InAppWebView.swift b/ios/Classes/InAppWebVi
                      if let applicationNameForUserAgent = configuration.applicationNameForUserAgent {
                          configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
 diff -urN a/ios/Classes/InAppWebView/InAppWebViewSettings.swift b/ios/Classes/InAppWebView/InAppWebViewSettings.swift
---- a/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 01:32:40.375565810 +0000
-+++ b/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 01:32:40.602565729 +0000
+--- a/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-25 20:26:03.000000000 +0000
++++ b/ios/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 03:32:38.683956785 +0000
 @@ -30,6 +30,16 @@
      var interceptOnlyAsyncAjaxRequests = true
      var useShouldInterceptFetchRequest = false
@@ -43,7 +43,7 @@ diff -urN a/ios/Classes/InAppWebView/InAppWebViewSettings.swift b/ios/Classes/In
      var disableVerticalScroll = false
 diff -urN a/ios/Classes/InAppWebView/WebSpaceProfile.swift b/ios/Classes/InAppWebView/WebSpaceProfile.swift
 --- a/ios/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
-+++ b/ios/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 01:32:40.599565730 +0000
++++ b/ios/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 03:32:38.684956785 +0000
 @@ -0,0 +1,51 @@
 +//
 +// WebSpaceProfile.swift
@@ -96,3 +96,196 @@ diff -urN a/ios/Classes/InAppWebView/WebSpaceProfile.swift b/ios/Classes/InAppWe
 +        return UUID(uuid: bytes)
 +    }
 +}
+diff -urN a/ios/Classes/MyCookieManager.swift b/ios/Classes/MyCookieManager.swift
+--- a/ios/Classes/MyCookieManager.swift	2026-04-25 20:26:04.000000000 +0000
++++ b/ios/Classes/MyCookieManager.swift	2026-04-28 03:38:02.114907689 +0000
+@@ -6,6 +6,7 @@
+ //
+ 
+ import Foundation
++import UIKit
+ import WebKit
+ 
+ @available(iOS 11.0, *)
+@@ -13,6 +14,71 @@
+     static let METHOD_CHANNEL_NAME = "com.pichillilorenzo/flutter_inappwebview_cookiemanager"
+     static let httpCookieStore = WKWebsiteDataStore.default().httpCookieStore
+ 
++    // [WebSpace fork patch] — see third_party/PATCHES.md
++    // Resolve the per-profile httpCookieStore for the WebView
++    // identified by [webViewId] (the platform-view int passed from
++    // Dart as the `webViewId` arg). Stock upstream uses the
++    // `default()` data store unconditionally, which only sees the
++    // global jar; in profile mode each WKWebView is bound to its own
++    // `WKWebsiteDataStore(forIdentifier:)` whose cookie store is
++    // distinct. Fall back to default when:
++    //   - webViewId is nil (caller didn't scope the op),
++    //   - InAppWebView with that id isn't in the live window hierarchy,
++    //   - WKWebsiteDataStore identifiers aren't supported (iOS <17).
++    // Stock callers (no webViewController) hit the default store
++    // path identically to upstream.
++    static func httpCookieStoreForWebView(_ webViewId: Any?) -> WKHTTPCookieStore {
++        if let webViewId = webViewId,
++           let webView = findInAppWebViewById(webViewId) {
++            return webView.configuration.websiteDataStore.httpCookieStore
++        }
++        return WKWebsiteDataStore.default().httpCookieStore
++    }
++
++    // [WebSpace fork patch]
++    // Recursive search through every connected window's view tree
++    // for an InAppWebView whose `id` matches [webViewId]. Same
++    // enumeration pattern as the Android Java side.
++    private static func findInAppWebViewById(_ webViewId: Any) -> InAppWebView? {
++        // Sweep through every scene's windows (iOS 13+ supports
++        // multiple windows per app via UIWindowScene).
++        for scene in UIApplication.shared.connectedScenes {
++            guard let windowScene = scene as? UIWindowScene else { continue }
++            for window in windowScene.windows {
++                if let found = findInAppWebViewByIdRecursive(window, webViewId) {
++                    return found
++                }
++            }
++        }
++        return nil
++    }
++
++    // [WebSpace fork patch]
++    private static func findInAppWebViewByIdRecursive(_ view: UIView, _ webViewId: Any) -> InAppWebView? {
++        if let webView = view as? InAppWebView,
++           let viewId = webView.id,
++           anyEqual(viewId, webViewId) {
++            return webView
++        }
++        for subview in view.subviews {
++            if let found = findInAppWebViewByIdRecursive(subview, webViewId) {
++                return found
++            }
++        }
++        return nil
++    }
++
++    // [WebSpace fork patch]
++    // Compare two `Any` ids — they may be Int or String depending on
++    // whether the WebView was created with a keepAliveId.
++    private static func anyEqual(_ a: Any, _ b: Any) -> Bool {
++        if let ai = a as? Int, let bi = b as? Int { return ai == bi }
++        if let as_ = a as? String, let bs = b as? String { return as_ == bs }
++        // Method-channel ints often arrive as Int64/NSNumber; coerce.
++        if let an = a as? NSNumber, let bn = b as? NSNumber { return an == bn }
++        return false
++    }
++
+     private var plugin: SwiftFlutterPlugin?
+     
+     init(plugin: SwiftFlutterPlugin) {
+@@ -54,7 +120,11 @@
+                 break
+             case "getCookies":
+                 let url = arguments!["url"] as! String
+-                MyCookieManager.getCookies(url: url, result: result)
++                // [WebSpace fork patch] — see third_party/PATCHES.md
++                MyCookieManager.getCookies(
++                    url: url,
++                    webViewId: arguments?["webViewId"],
++                    result: result)
+                 break
+             case "getAllCookies":
+                 MyCookieManager.getAllCookies(result: result)
+@@ -64,7 +134,11 @@
+                 let name = arguments!["name"] as! String
+                 let path = arguments!["path"] as! String
+                 let domain = arguments!["domain"] as? String
+-                MyCookieManager.deleteCookie(url: url, name: name, path: path, domain: domain, result: result)
++                // [WebSpace fork patch]
++                MyCookieManager.deleteCookie(
++                    url: url, name: name, path: path, domain: domain,
++                    webViewId: arguments?["webViewId"],
++                    result: result)
+                 break
+             case "deleteCookies":
+                 let url = arguments!["url"] as! String
+@@ -143,10 +217,17 @@
+     }
+     
+     public static func getCookies(url: String, result: @escaping FlutterResult) {
++        getCookies(url: url, webViewId: nil, result: result)
++    }
++
++    // [WebSpace fork patch] — webViewId-scoped overload routes through
++    // the bound profile's WKHTTPCookieStore when webViewId is set;
++    // nil webViewId is identical to the stock default-store path.
++    public static func getCookies(url: String, webViewId: Any?, result: @escaping FlutterResult) {
+         var cookieList: [[String: Any?]] = []
+-        
++
+         if let urlHost = URL(string: url)?.host {
+-            MyCookieManager.httpCookieStore.getAllCookies { (cookies) in
++            httpCookieStoreForWebView(webViewId).getAllCookies { (cookies) in
+                 for cookie in cookies {
+                     if urlHost.hasSuffix(cookie.domain) || ".\(urlHost)".hasSuffix(cookie.domain) {
+                         var sameSite: String? = nil
+@@ -220,8 +301,22 @@
+     }
+     
+     public static func deleteCookie(url: String, name: String, path: String, domain: String?, result: @escaping FlutterResult) {
++        deleteCookie(url: url, name: name, path: path, domain: domain, webViewId: nil, result: result)
++    }
++
++    // [WebSpace fork patch] — webViewId-scoped overload routes through
++    // the bound profile's WKHTTPCookieStore when webViewId is set;
++    // nil webViewId is identical to the stock default-store path.
++    public static func deleteCookie(url: String, name: String, path: String, domain: String?,
++                                    webViewId: Any?,
++                                    result: @escaping FlutterResult) {
+         var domain = domain
+-        MyCookieManager.httpCookieStore.getAllCookies { (cookies) in
++        // [WebSpace fork patch] — capture the resolved store once so the
++        // inner `.delete(...)` call below targets the SAME jar we
++        // enumerated. Otherwise the delete would land on the default
++        // store while the read came from the per-site profile.
++        let store = httpCookieStoreForWebView(webViewId)
++        store.getAllCookies { (cookies) in
+             for cookie in cookies {
+                 var originURL = url
+                 if cookie.properties![.originURL] is String {
+@@ -238,7 +333,7 @@
+                     }
+                 }
+                 if let domain = domain, cookie.domain == domain, cookie.name == name, cookie.path == path {
+-                    MyCookieManager.httpCookieStore.delete(cookie, completionHandler: {
++                    store.delete(cookie, completionHandler: {
+                         result(true)
+                     })
+                     return
+diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
+--- a/lib/src/cookie_manager.dart	2026-04-25 20:26:00.000000000 +0000
++++ b/lib/src/cookie_manager.dart	2026-04-28 03:38:41.551901994 +0000
+@@ -183,6 +183,14 @@
+ 
+     Map<String, dynamic> args = <String, dynamic>{};
+     args.putIfAbsent('url', () => url.toString());
++    // [WebSpace fork patch] — see third_party/PATCHES.md.
++    // Forwarding the controller id lets the patched Swift side route
++    // through the bound profile's WKHTTPCookieStore (when one is set).
++    // Stock upstream ignores the parameter; the patched plugin honors
++    // it to fix per-site reads in profile mode.
++    if (webViewController?.id != null) {
++      args.putIfAbsent('webViewId', () => webViewController!.id);
++    }
+     List<dynamic> cookieListMap =
+         await channel?.invokeMethod<List>('getCookies', args) ?? [];
+     cookieListMap = cookieListMap.cast<Map<dynamic, dynamic>>();
+@@ -335,6 +343,12 @@
+     args.putIfAbsent('name', () => name);
+     args.putIfAbsent('domain', () => domain);
+     args.putIfAbsent('path', () => path);
++    // [WebSpace fork patch] — see third_party/PATCHES.md.
++    // Routes the delete through the bound profile's WKHTTPCookieStore
++    // when webViewController is supplied; identical to stock when not.
++    if (webViewController?.id != null) {
++      args.putIfAbsent('webViewId', () => webViewController!.id);
++    }
+     return await channel?.invokeMethod<bool>('deleteCookie', args) ?? false;
+   }
+ 

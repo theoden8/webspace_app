@@ -386,6 +386,14 @@ class WebViewConfig {
 
 /// Controller interface for webview operations
 abstract class WebViewController {
+  /// The underlying `inapp.InAppWebViewController` this wrapper is
+  /// bound to. Exposed so per-site code paths can pass it as the
+  /// `webViewController:` argument to `inapp.CookieManager` methods,
+  /// which the patched plugin uses to resolve the WebView's bound
+  /// profile and route cookie ops to its per-site jar (see
+  /// `third_party/PATCHES.md`).
+  inapp.InAppWebViewController get nativeController;
+
   Future<void> loadUrl(String url, {String? language});
   Future<void> loadHtmlString(String html, {String? baseUrl});
   Future<void> reload();
@@ -428,6 +436,9 @@ abstract class WebViewController {
 class _WebViewController implements WebViewController {
   final inapp.InAppWebViewController _c;
   _WebViewController(this._c);
+
+  @override
+  inapp.InAppWebViewController get nativeController => _c;
 
   @override
   Future<void> loadUrl(String url, {String? language}) {

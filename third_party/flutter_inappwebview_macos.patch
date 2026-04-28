@@ -1,6 +1,31 @@
+diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
+--- a/lib/src/cookie_manager.dart	2026-04-25 20:26:02.000000000 +0000
++++ b/lib/src/cookie_manager.dart	2026-04-28 03:40:57.990882290 +0000
+@@ -183,6 +183,10 @@
+ 
+     Map<String, dynamic> args = <String, dynamic>{};
+     args.putIfAbsent('url', () => url.toString());
++    // [WebSpace fork patch] — see third_party/PATCHES.md.
++    if (webViewController?.id != null) {
++      args.putIfAbsent('webViewId', () => webViewController!.id);
++    }
+     List<dynamic> cookieListMap =
+         await channel?.invokeMethod<List>('getCookies', args) ?? [];
+     cookieListMap = cookieListMap.cast<Map<dynamic, dynamic>>();
+@@ -335,6 +339,10 @@
+     args.putIfAbsent('name', () => name);
+     args.putIfAbsent('domain', () => domain);
+     args.putIfAbsent('path', () => path);
++    // [WebSpace fork patch] — see third_party/PATCHES.md.
++    if (webViewController?.id != null) {
++      args.putIfAbsent('webViewId', () => webViewController!.id);
++    }
+     return await channel?.invokeMethod<bool>('deleteCookie', args) ?? false;
+   }
+ 
 diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppWebView/InAppWebView.swift
---- a/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 01:32:41.076565559 +0000
-+++ b/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 01:32:41.278565487 +0000
+--- a/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-25 20:26:07.000000000 +0000
++++ b/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 03:32:39.212956702 +0000
 @@ -261,6 +261,16 @@
              } else if settings.cacheEnabled {
                  configuration.websiteDataStore = WKWebsiteDataStore.default()
@@ -19,8 +44,8 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
                  if let applicationNameForUserAgent = configuration.applicationNameForUserAgent {
                      configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
 diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classes/InAppWebView/InAppWebViewSettings.swift
---- a/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 01:32:41.078565559 +0000
-+++ b/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 01:32:41.276565488 +0000
+--- a/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-25 20:26:07.000000000 +0000
++++ b/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 03:32:39.214956702 +0000
 @@ -28,6 +28,11 @@
      var interceptOnlyAsyncAjaxRequests = true
      var useShouldInterceptFetchRequest = false
@@ -35,7 +60,7 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classe
      var supportZoom = true
 diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InAppWebView/WebSpaceProfile.swift
 --- a/macos/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
-+++ b/macos/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 01:32:41.276565488 +0000
++++ b/macos/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 03:32:39.217956701 +0000
 @@ -0,0 +1,36 @@
 +//
 +// WebSpaceProfile.swift
@@ -73,3 +98,147 @@ diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InA
 +        return UUID(uuid: bytes)
 +    }
 +}
+diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.swift
+--- a/macos/Classes/MyCookieManager.swift	2026-04-25 20:26:07.000000000 +0000
++++ b/macos/Classes/MyCookieManager.swift	2026-04-28 03:40:26.258886873 +0000
+@@ -5,6 +5,7 @@
+ //  Created by Lorenzo on 26/10/18.
+ //
+ 
++import AppKit
+ import Foundation
+ import WebKit
+ import FlutterMacOS
+@@ -14,6 +15,55 @@
+     static let METHOD_CHANNEL_NAME = "com.pichillilorenzo/flutter_inappwebview_cookiemanager"
+     var plugin: InAppWebViewFlutterPlugin?
+     static var httpCookieStore = WKWebsiteDataStore.default().httpCookieStore
++
++    // [WebSpace fork patch] — see third_party/PATCHES.md
++    // Sister of the iOS patch — same intent, AppKit-flavoured window
++    // enumeration. Resolves the per-profile WKHTTPCookieStore for the
++    // WebView identified by `webViewId` (the platform-view int from
++    // Dart) by walking every NSApplication window's view hierarchy.
++    // Falls back to the default store on a miss, so unscoped callers
++    // are byte-identical to upstream.
++    static func httpCookieStoreForWebView(_ webViewId: Any?) -> WKHTTPCookieStore {
++        if let webViewId = webViewId,
++           let webView = findInAppWebViewById(webViewId) {
++            return webView.configuration.websiteDataStore.httpCookieStore
++        }
++        return WKWebsiteDataStore.default().httpCookieStore
++    }
++
++    // [WebSpace fork patch]
++    private static func findInAppWebViewById(_ webViewId: Any) -> InAppWebView? {
++        for window in NSApplication.shared.windows {
++            if let cv = window.contentView,
++               let found = findInAppWebViewByIdRecursive(cv, webViewId) {
++                return found
++            }
++        }
++        return nil
++    }
++
++    // [WebSpace fork patch]
++    private static func findInAppWebViewByIdRecursive(_ view: NSView, _ webViewId: Any) -> InAppWebView? {
++        if let webView = view as? InAppWebView,
++           let viewId = webView.id,
++           anyEqual(viewId, webViewId) {
++            return webView
++        }
++        for subview in view.subviews {
++            if let found = findInAppWebViewByIdRecursive(subview, webViewId) {
++                return found
++            }
++        }
++        return nil
++    }
++
++    // [WebSpace fork patch]
++    private static func anyEqual(_ a: Any, _ b: Any) -> Bool {
++        if let ai = a as? Int, let bi = b as? Int { return ai == bi }
++        if let as_ = a as? String, let bs = b as? String { return as_ == bs }
++        if let an = a as? NSNumber, let bn = b as? NSNumber { return an == bn }
++        return false
++    }
+     
+     init(plugin: InAppWebViewFlutterPlugin) {
+         super.init(channel: FlutterMethodChannel(name: MyCookieManager.METHOD_CHANNEL_NAME, binaryMessenger: plugin.registrar!.messenger))
+@@ -54,7 +104,11 @@
+                 break
+             case "getCookies":
+                 let url = arguments!["url"] as! String
+-                MyCookieManager.getCookies(url: url, result: result)
++                // [WebSpace fork patch] — see third_party/PATCHES.md
++                MyCookieManager.getCookies(
++                    url: url,
++                    webViewId: arguments?["webViewId"],
++                    result: result)
+                 break
+             case "getAllCookies":
+                 MyCookieManager.getAllCookies(result: result)
+@@ -64,7 +118,11 @@
+                 let name = arguments!["name"] as! String
+                 let path = arguments!["path"] as! String
+                 let domain = arguments!["domain"] as? String
+-                MyCookieManager.deleteCookie(url: url, name: name, path: path, domain: domain, result: result)
++                // [WebSpace fork patch]
++                MyCookieManager.deleteCookie(
++                    url: url, name: name, path: path, domain: domain,
++                    webViewId: arguments?["webViewId"],
++                    result: result)
+                 break;
+             case "deleteCookies":
+                 let url = arguments!["url"] as! String
+@@ -142,10 +200,17 @@
+     }
+     
+     public static func getCookies(url: String, result: @escaping FlutterResult) {
++        getCookies(url: url, webViewId: nil, result: result)
++    }
++
++    // [WebSpace fork patch] — webViewId-scoped overload routes through
++    // the bound profile's WKHTTPCookieStore when webViewId is set;
++    // nil webViewId is identical to the stock default-store path.
++    public static func getCookies(url: String, webViewId: Any?, result: @escaping FlutterResult) {
+         var cookieList: [[String: Any?]] = []
+-        
++
+         if let urlHost = URL(string: url)?.host {
+-            MyCookieManager.httpCookieStore.getAllCookies { (cookies) in
++            httpCookieStoreForWebView(webViewId).getAllCookies { (cookies) in
+                 for cookie in cookies {
+                     if urlHost.hasSuffix(cookie.domain) || ".\(urlHost)".hasSuffix(cookie.domain) {
+                         var sameSite: String? = nil
+@@ -219,8 +284,20 @@
+     }
+     
+     public static func deleteCookie(url: String, name: String, path: String, domain: String?, result: @escaping FlutterResult) {
++        deleteCookie(url: url, name: name, path: path, domain: domain, webViewId: nil, result: result)
++    }
++
++    // [WebSpace fork patch] — webViewId-scoped overload routes through
++    // the bound profile's WKHTTPCookieStore when webViewId is set;
++    // nil webViewId is identical to the stock default-store path.
++    public static func deleteCookie(url: String, name: String, path: String, domain: String?,
++                                    webViewId: Any?,
++                                    result: @escaping FlutterResult) {
+         var domain = domain
+-        MyCookieManager.httpCookieStore.getAllCookies { (cookies) in
++        // [WebSpace fork patch] — capture the resolved store once so the
++        // inner `.delete(...)` targets the SAME jar we enumerated.
++        let store = httpCookieStoreForWebView(webViewId)
++        store.getAllCookies { (cookies) in
+             for cookie in cookies {
+                 var originURL = url
+                 if cookie.properties![.originURL] is String {
+@@ -233,7 +310,7 @@
+                     domain = domainUrl.host
+                 }
+                 if let domain = domain, cookie.domain == domain, cookie.name == name, cookie.path == path {
+-                    MyCookieManager.httpCookieStore.delete(cookie, completionHandler: {
++                    store.delete(cookie, completionHandler: {
+                         result(true)
+                     })
+                     return

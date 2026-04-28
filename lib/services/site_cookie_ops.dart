@@ -1,16 +1,18 @@
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
 
 /// Mutually-exclusive abstraction for per-site cookie operations.
 ///
-/// `inapp.CookieManager.instance()` is a process-wide singleton that
-/// only ever sees the **default** profile's cookie jar. In legacy
-/// (capture-nuke-restore) mode that's the only jar there is, so
-/// targeting it is correct. In profile mode each WebView is bound to
-/// its own [`WKWebsiteDataStore`](../../third_party/flutter_inappwebview_ios/PATCHES.md)
-/// or [`androidx.webkit.Profile`](../../third_party/flutter_inappwebview_android/PATCHES.md)
-/// — invisible to the global manager — and a global-jar delete
-/// silently misses, breaking ISO-011 (per-site cookie blocking).
+/// `inapp.CookieManager.instance()` is a process-wide singleton. In
+/// **legacy mode** (capture-nuke-restore) it targets the global
+/// default jar — the only jar there is — so unscoped calls are
+/// correct. In **profile mode** each WebView is bound to its own
+/// [`WKWebsiteDataStore`](../../third_party/flutter_inappwebview_ios.patch)
+/// or [`androidx.webkit.Profile`](../../third_party/flutter_inappwebview_android.patch);
+/// to target a per-site jar, the call must pass
+/// `webViewController:` so the patched plugin can route through that
+/// WebView's bound profile.
 ///
 /// `SiteCookieOps` is the seam: every per-site cookie operation goes
 /// through this interface, and `_WebSpacePageState` picks one impl
@@ -26,17 +28,17 @@ import 'package:webspace/services/webview.dart';
 /// cookies in and out of the singleton); plumbing it through a
 /// per-site abstraction would only obscure intent.
 abstract class SiteCookieOps {
-  /// Read the cookies visible to the page at [url] in [siteId]'s
-  /// jar. In legacy mode this routes through the global
-  /// `CookieManager.getCookies(url:)`. In profile mode it
-  /// JS-evaluates `document.cookie` inside the bound WebView and
-  /// parses the `name=value; ...` form into [Cookie] objects.
+  /// Read the cookies the page at [url] can see in [siteId]'s jar.
   ///
-  /// Caveat in profile mode: `document.cookie` returns only
-  /// non-HttpOnly cookies; HttpOnly cookies (typical session
-  /// tokens) are visible to neither read nor write here. The
-  /// per-site profile is the source of truth — these reads reflect
-  /// what the page itself can see.
+  /// Both impls go through `inapp.CookieManager.instance().getCookies(...)`.
+  /// Legacy passes no `webViewController:`, so the call hits the
+  /// global default jar. Profile mode passes
+  /// `webViewController: controller!.nativeController`; the patched
+  /// plugin walks to that WebView's bound profile and reads from its
+  /// `httpCookieStore` / per-profile `CookieManager` instead.
+  ///
+  /// HttpOnly cookies are returned in both modes (the native cookie
+  /// store sees them, unlike `document.cookie`).
   Future<List<Cookie>> getCookies({
     WebViewController? controller,
     required String siteId,
@@ -45,15 +47,12 @@ abstract class SiteCookieOps {
 
   /// Delete a cookie matching `(name, domain, path)` for [siteId].
   ///
-  /// In legacy mode, [controller] and [siteId] are ignored; the
-  /// delete routes through the global `CookieManager`.
+  /// Same routing as [getCookies]: legacy hits the global default
+  /// jar; profile mode hits the per-site profile via the patched
+  /// plugin's `webViewController:` parameter.
   ///
-  /// In profile mode, the delete runs as a `document.cookie =
-  /// '<name>=; expires=Thu, 01 Jan 1970 …; path=…; domain=…';`
-  /// JS write inside the bound WebView, which executes in the
-  /// per-site profile context. Caveat: JS cannot delete HttpOnly
-  /// cookies; tracking cookies (the typical cookie-blocking target)
-  /// are JS-readable so this matches user expectations in practice.
+  /// HttpOnly cookies are deletable in both modes (this calls into
+  /// the native cookie store, not `document.cookie`).
   Future<void> deleteCookie({
     WebViewController? controller,
     required String siteId,
@@ -100,14 +99,19 @@ class LegacySiteCookieOps implements SiteCookieOps {
 }
 
 /// Per-site cookie ops that target the bound WebView's profile via
-/// JS evaluation. Used when `_useProfiles == true`.
+/// the **patched** `inapp.CookieManager`. Each call passes
+/// `webViewController: controller!.nativeController`; the patched
+/// plugin (see `third_party/flutter_inappwebview_*.patch`) walks to
+/// the WebView's profile and routes the operation to its per-profile
+/// cookie store.
 ///
-/// We intentionally do NOT route through `inapp.CookieManager`'s
-/// `webViewController:` parameter (which on iOS scopes operations to
-/// a WebView's data store) because Android's CookieManager is
-/// unconditionally global; using JS uniformly across platforms
-/// keeps the behaviour identical.
+/// This is what the previous JS-`document.cookie` workaround should
+/// have been from the start: same surface, native fidelity (HttpOnly
+/// included), no string-escape concerns, no main-thread JS hop per
+/// delete.
 class ProfileSiteCookieOps implements SiteCookieOps {
+  final inapp.CookieManager _native = inapp.CookieManager.instance();
+
   @override
   Future<List<Cookie>> getCookies({
     WebViewController? controller,
@@ -115,33 +119,30 @@ class ProfileSiteCookieOps implements SiteCookieOps {
     required Uri url,
   }) async {
     if (controller == null) return const [];
-    // `document.cookie` returns the cookies the document can read —
-    // i.e. the per-profile non-HttpOnly cookies for the current
-    // origin. Format: `name1=value1; name2=value2; …`. We parse it
-    // and synthesize Cookie objects with name + value populated and
-    // host/path inferred from the request URL. Domain/expires/secure
-    // attributes are not exposed by `document.cookie` and stay null.
-    final raw = await controller.evaluateJavascriptReturning(
-      "document.cookie",
-    );
-    if (raw == null) return const [];
-    final str = raw.toString();
-    if (str.isEmpty) return const [];
-
-    final out = <Cookie>[];
-    for (final piece in str.split(';')) {
-      final trimmed = piece.trim();
-      if (trimmed.isEmpty) continue;
-      final eq = trimmed.indexOf('=');
-      if (eq <= 0) continue;
-      out.add(Cookie(
-        name: trimmed.substring(0, eq),
-        value: trimmed.substring(eq + 1),
-        domain: url.host,
-        path: '/',
-      ));
+    try {
+      final raw = await _native.getCookies(
+        url: inapp.WebUri(url.toString()),
+        webViewController: controller.nativeController,
+      );
+      return raw
+          .map((c) => Cookie(
+                name: c.name,
+                value: c.value,
+                domain: c.domain,
+                path: c.path,
+                expiresDate: c.expiresDate,
+                isSecure: c.isSecure,
+                isHttpOnly: c.isHttpOnly,
+              ))
+          .toList(growable: false);
+    } catch (e) {
+      LogService.instance.log(
+        'CookieOps',
+        'getCookies($siteId, ${url.host}) failed: $e',
+        level: LogLevel.error,
+      );
+      return const [];
     }
-    return out;
   }
 
   @override
@@ -162,34 +163,21 @@ class ProfileSiteCookieOps implements SiteCookieOps {
       // with a live controller).
       return;
     }
-    final pathClause = "; path=${path ?? '/'}";
-    // `domain=` is only emitted when the cookie was set with a
-    // Domain attribute (cookie.domain != null/empty). For host-only
-    // cookies, omitting Domain makes the JS write target the same
-    // host the document is on, which matches the original cookie's
-    // scope.
-    final domainClause = (domain != null && domain.isNotEmpty)
-        ? "; domain=$domain"
-        : '';
-    final js = "document.cookie = '"
-        "${_escape(name)}=; expires=Thu, 01 Jan 1970 00:00:00 UTC"
-        "$pathClause$domainClause"
-        "';";
     try {
-      await controller.evaluateJavascript(js);
+      await _native.deleteCookie(
+        url: inapp.WebUri(url.toString()),
+        name: name,
+        domain: domain ?? '',
+        path: path ?? '/',
+        webViewController: controller.nativeController,
+      );
     } catch (e) {
       LogService.instance.log(
         'CookieOps',
-        'JS delete failed for ${name}@${domain ?? url.host} '
-            '(siteId=$siteId): $e',
+        'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
+            'failed: $e',
         level: LogLevel.error,
       );
     }
   }
-
-  /// Backslash-escape single quotes so the JS string literal stays
-  /// well-formed for cookie names like `foo'bar`. Cookie names per
-  /// RFC 6265 are tokens that should never contain quotes, but
-  /// defending against malformed input here is cheap.
-  static String _escape(String s) => s.replaceAll(r"\", r"\\").replaceAll("'", r"\'");
 }
