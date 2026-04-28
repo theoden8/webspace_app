@@ -1559,18 +1559,20 @@ class WebViewFactory {
         if (externalInfo == null) return;
         if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
           LogService.instance.log('WebView',
-              'onReceivedError: suppressed — calling goBack to drop error commit (url=$reqUrl)');
-          // The fallback page loaded successfully and got cached; the
-          // intent:// redirect that Android painted over it as
-          // chrome-error://chromewebdata is just one entry on top in the
-          // back stack. Pop it so the user lands on the fallback page
-          // they actually wanted to see. Defer to a microtask for the
-          // same chromium-bookkeeping reason as the recovery path below.
+              'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)');
+          // The fallback page actually loaded (HtmlCache shows
+          // multi-MB saves); Android then painted chrome-error://
+          // chromewebdata over it because the page's JS retried the
+          // intent we cancelled. about:blank clears the error visibly
+          // without walking back through history (controller.goBack
+          // dropped users out of the webview entirely). The
+          // suppression already prevents another dialog if the page
+          // tries again.
           Future.microtask(() async {
             try {
-              if (await controller.canGoBack()) {
-                await controller.goBack();
-              }
+              await controller.loadUrl(
+                urlRequest: inapp.URLRequest(url: inapp.WebUri('about:blank')),
+              );
             } catch (_) {}
           });
           return;
