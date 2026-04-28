@@ -15,13 +15,13 @@
 
 ## 3. NotificationService
 
-- [ ] 3.1 Add `flutter_local_notifications` to `pubspec.yaml`.
-- [ ] 3.2 Create `lib/services/notification_service.dart` as a singleton wrapper around `FlutterLocalNotificationsPlugin`.
-- [ ] 3.3 Implement `NotificationService.init()` — initialize the plugin, set up a single notification channel (`webspace_web_notifications`), register the tap handler that decodes payload `{siteId: ...}` and calls a Dart callback.
-- [ ] 3.4 Implement `NotificationService.show(siteId, title, body, iconUrl?, tag?)` — display a notification with `siteId` in the payload, tagged with `tag` (or `siteId` as fallback) for OS-level deduplication.
-- [ ] 3.5 Wire the notification icon: prefer the cached site favicon from `IconService` for the site identified by `siteId`; fall back to app icon if unavailable. (Per design Q5, ignore site-provided `options.icon` for v1.)
-- [ ] 3.6 Add `NotificationService.requestPermission()` for explicit OS-permission gate; called lazily on first notification.
-- [ ] 3.7 Unit tests with a mock plugin: verify `show()` calls the plugin with the right channel and payload, `init()` registers handlers exactly once.
+- [x] 3.1 Add `flutter_local_notifications` to `pubspec.yaml`.
+- [x] 3.2 Create `lib/services/notification_service.dart` as a singleton wrapper around `FlutterLocalNotificationsPlugin`.
+- [x] 3.3 Implement `NotificationService.init()` — initialize the plugin, set up a single notification channel (`webspace_web_notifications`), register the tap handler that decodes payload `{siteId: ...}` and calls a Dart callback.
+- [x] 3.4 Implement `NotificationService.show(siteId, title, body, iconUrl?, tag?)` — display a notification with `siteId` in the payload, tagged with `tag` (or `siteId` as fallback) for OS-level deduplication.
+- [x] 3.5 Wire the notification icon: prefer the cached site favicon from `IconService` for the site identified by `siteId`; fall back to app icon if unavailable. (Per design Q5, ignore site-provided `options.icon` for v1.)
+- [x] 3.6 Add `NotificationService.requestPermission()` for explicit OS-permission gate; called lazily on first notification.
+- [x] 3.7 Unit tests with a mock plugin: verify `show()` calls the plugin with the right channel and payload, `init()` registers handlers exactly once.
 
 ## 4. JavaScript handler registration
 
