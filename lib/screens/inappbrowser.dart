@@ -302,11 +302,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
                 onWindowRequested: _showPopupWindow,
                 onExternalSchemeUrl: (url, info) async {
                   if (!mounted) return;
-                  await confirmAndLaunchExternalUrl(
-                    context,
-                    info,
-                    fallbackController: _controller,
-                  );
+                  await confirmAndLaunchExternalUrl(context, info);
                 },
               ),
               onControllerCreated: (controller) {

@@ -3149,11 +3149,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   },
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;
-                                    await confirmAndLaunchExternalUrl(
-                                      context,
-                                      info,
-                                      fallbackController: webViewModel.controller,
-                                    );
+                                    await confirmAndLaunchExternalUrl(context, info);
                                   },
                                 ),
                               ),
