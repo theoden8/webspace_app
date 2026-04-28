@@ -52,14 +52,60 @@ class WebSpaceInAppWebViewSettings extends inapp.InAppWebViewSettings {
   /// profile bind. The patched native side gates on `!= null`.
   String? webspaceProfile;
 
-  WebSpaceInAppWebViewSettings({this.webspaceProfile});
+  /// Per-site proxy applied to the WebView's data store at construction.
+  /// Honored only by the patched iOS / macOS plugins on iOS 17+ / macOS 14+
+  /// (see [`WebSpaceProxy.swift`](../../third_party/PATCHES.md)). On Android
+  /// the field is silently ignored — Android proxy still flows through the
+  /// global [`inapp.ProxyController`].
+  ///
+  /// Map shape (must match `WebSpaceProxy.configurations(from:)` Swift-side):
+  /// ```
+  /// {
+  ///   'type':     'http' | 'https' | 'socks5',
+  ///   'host':     'proxy.example.com',
+  ///   'port':     8080,
+  ///   'username': 'optional',
+  ///   'password': 'optional',
+  /// }
+  /// ```
+  Map<String, dynamic>? webspaceProxy;
+
+  WebSpaceInAppWebViewSettings({this.webspaceProfile, this.webspaceProxy});
 
   @override
   Map<String, dynamic> toMap() {
     final map = super.toMap();
     map['webspaceProfile'] = webspaceProfile;
+    map['webspaceProxy'] = webspaceProxy;
     return map;
   }
+}
+
+/// Translate [UserProxySettings] into the dictionary shape consumed by the
+/// patched iOS / macOS `WebSpaceProxy.configurations(from:)`. Returns null
+/// for `ProxyType.DEFAULT` or invalid configs (so the native side clears
+/// any previously-set proxy on the data store).
+Map<String, dynamic>? _proxySettingsToWebspaceProxy(UserProxySettings settings) {
+  if (settings.type == ProxyType.DEFAULT) return null;
+  final address = settings.address;
+  if (address == null || address.isEmpty) return null;
+  final parts = address.split(':');
+  if (parts.length != 2) return null;
+  final host = parts[0];
+  final port = int.tryParse(parts[1]);
+  if (host.isEmpty || port == null || port <= 0 || port > 65535) return null;
+  final type = switch (settings.type) {
+    ProxyType.HTTPS => 'https',
+    ProxyType.SOCKS5 => 'socks5',
+    _ => 'http',
+  };
+  return <String, dynamic>{
+    'type': type,
+    'host': host,
+    'port': port,
+    if (settings.hasCredentials) 'username': settings.username,
+    if (settings.hasCredentials) 'password': settings.password,
+  };
 }
 
 /// Extension to add JSON serialization to inapp.Cookie
@@ -197,7 +243,21 @@ class FindMatchesResult {
 /// Theme preference for webviews
 enum WebViewTheme { light, dark, system }
 
-/// Proxy manager singleton
+/// Proxy manager singleton.
+///
+/// Two delivery paths coexist behind a single API:
+///
+///   * **Android.** Routes through `inapp.ProxyController` — a process-wide
+///     singleton override (`PROXY_OVERRIDE` WebViewFeature). Per-site config
+///     in the data model is fictional under profile mode: with multiple
+///     same-base-domain sites loaded concurrently, the last applied proxy
+///     wins for every WebView. See PROXY-008.
+///   * **iOS 17+ / macOS 14+.** Genuine per-site proxy via
+///     `WKWebsiteDataStore.proxyConfigurations` on the per-site data store
+///     created by the patched `preWKWebViewConfiguration` (see
+///     [`third_party/PATCHES.md`](../../third_party/PATCHES.md)). The proxy
+///     ships with the [WebSpaceInAppWebViewSettings] map at WebView
+///     construction; this class is a no-op on those platforms.
 class ProxyManager {
   static final ProxyManager _instance = ProxyManager._internal();
   factory ProxyManager() => _instance;
@@ -205,6 +265,15 @@ class ProxyManager {
 
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) return;
+
+    // iOS / macOS: proxy travels through the patched
+    // `WebSpaceInAppWebViewSettings.webspaceProxy` field at WebView
+    // construction. Nothing to do at the global ProxyController level —
+    // upstream `inapp.ProxyController` doesn't even ship a non-Android
+    // implementation in our pinned plugin version. Runtime updates of the
+    // per-site proxy require the WebView to be rebuilt by the caller (see
+    // [WebViewModel.updateProxySettings]).
+    if (Platform.isIOS || Platform.isMacOS) return;
 
     final controller = inapp.ProxyController.instance();
 
@@ -248,15 +317,29 @@ class ProxyManager {
 
   Future<void> clearProxy() async {
     if (!PlatformInfo.isProxySupported) return;
+    if (Platform.isIOS || Platform.isMacOS) return;
     await inapp.ProxyController.instance().clearProxyOverride();
   }
 }
 
-/// Platform info - proxy support detection
+/// Platform info - proxy support detection.
+///
+/// Returns true on:
+/// - Android, when the System WebView reports `PROXY_OVERRIDE` support.
+/// - iOS / macOS, unconditionally — the patched
+///   `preWKWebViewConfiguration` gates internally on iOS 17+ / macOS 14+.
+///   Below that floor, the per-site proxy block silently no-ops and the
+///   site uses system default routing (matches `ProxyType.DEFAULT`).
 class PlatformInfo {
   static bool? _isProxySupportedCached;
 
   static Future<void> initialize() async {
+    if (Platform.isIOS || Platform.isMacOS) {
+      // The native side gates per-version (`#available(iOS 17.0, macOS 14.0, *)`);
+      // surface the toggle in the UI on every iOS / macOS build.
+      _isProxySupportedCached = true;
+      return;
+    }
     try {
       _isProxySupportedCached = await inapp.WebViewFeature.isFeatureSupported(
         inapp.WebViewFeature.PROXY_OVERRIDE,
@@ -348,6 +431,15 @@ class WebViewConfig {
   final bool spoofTimezoneFromLocation;
   /// WebRTC policy — prevents real-IP leak that bypasses HTTP(S)/SOCKS proxies.
   final WebRtcPolicy webRtcPolicy;
+  /// Per-site proxy. On iOS 17+ / macOS 14+ this is honored at WebView
+  /// construction via [WebSpaceInAppWebViewSettings.webspaceProxy] and
+  /// each site genuinely uses its own proxy (the patched native side
+  /// attaches it to the per-site `WKWebsiteDataStore`). On Android the
+  /// per-site config still exists in the data model but the underlying
+  /// `inapp.ProxyController` is a process-wide singleton, so the
+  /// last-applied proxy wins for every site loaded concurrently — see
+  /// PROXY-008 in [openspec/specs/proxy/spec.md] for the asymmetry.
+  final UserProxySettings? proxySettings;
 
   WebViewConfig({
     this.key,
@@ -384,6 +476,7 @@ class WebViewConfig {
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
+    this.proxySettings,
   });
 }
 
@@ -1288,9 +1381,21 @@ class WebViewFactory {
         ? 'ws-${config.siteId}'
         : null;
 
-    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} webspaceProfile=$webspaceProfile');
+    // Per-site proxy delivery: only iOS / macOS honor the settings-borne
+    // map (the patched `preWKWebViewConfiguration` reads it). On Android
+    // the global `inapp.ProxyController` path runs from
+    // `WebViewModel._applyProxySettings` instead, so leave `webspaceProxy`
+    // null and avoid sending a no-op map to the native side.
+    final webspaceProxy = (Platform.isIOS || Platform.isMacOS) && config.proxySettings != null
+        ? _proxySettingsToWebspaceProxy(config.proxySettings!)
+        : null;
 
-    final settings = WebSpaceInAppWebViewSettings(webspaceProfile: webspaceProfile)
+    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} webspaceProfile=$webspaceProfile webspaceProxy=${webspaceProxy != null}');
+
+    final settings = WebSpaceInAppWebViewSettings(
+      webspaceProfile: webspaceProfile,
+      webspaceProxy: webspaceProxy,
+    )
       ..javaScriptEnabled = config.javascriptEnabled
       ..userAgent = config.userAgent
       ..thirdPartyCookiesEnabled = config.thirdPartyCookiesEnabled

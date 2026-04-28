@@ -1,13 +1,24 @@
 # `third_party/` — patched flutter_inappwebview plugins
 
-WebSpace requires per-site cookie + storage isolation. The native
-primitives are:
+WebSpace requires two per-site primitives that stock
+`flutter_inappwebview` does not expose:
 
-- **Android**: `androidx.webkit.Profile` (System WebView 110+).
-  Bound via `WebViewCompat.setProfile(webView, profileName)`.
-- **iOS / macOS**: `WKWebsiteDataStore(forIdentifier: UUID)` (iOS
-  17+ / macOS 14+). Set on `WKWebViewConfiguration.websiteDataStore`
-  before `WKWebView(frame: configuration:)` runs.
+1. **Per-site cookie + storage isolation**:
+   - **Android**: `androidx.webkit.Profile` (System WebView 110+).
+     Bound via `WebViewCompat.setProfile(webView, profileName)`.
+   - **iOS / macOS**: `WKWebsiteDataStore(forIdentifier: UUID)` (iOS
+     17+ / macOS 14+). Set on `WKWebViewConfiguration.websiteDataStore`
+     before `WKWebView(frame: configuration:)` runs.
+
+2. **Per-site proxy** (iOS 17+ / macOS 14+ only):
+   `WKWebsiteDataStore.proxyConfigurations`, attached to the per-site
+   data store from item 1 inside the same `preWKWebViewConfiguration`
+   block. This is the only Apple API that scopes a proxy to a single
+   `WKWebView`. We deliberately diverge from upstream PR #2671 (which
+   would route every view through the global `nonPersistent()` store
+   and defeat per-site isolation); see
+   [`openspec/specs/proxy/spec.md`](../openspec/specs/proxy/spec.md)
+   PROXY-008 for the rationale and the Android asymmetry it documents.
 
 Stock `flutter_inappwebview` does not expose either. Worse, both
 platforms freeze the data-store decision before Dart can intercept:
@@ -155,20 +166,31 @@ per-site profile API:
 
 ## Patch contents (cheat-sheet)
 
-Each patch touches the minimum needed: a new `webspaceProfile` field
-on the plugin's settings type, the bind block at the
-construction-time injection point, and (on iOS / macOS) a small
-`WebSpaceProfile.swift` helper that derives a deterministic UUID
-from the profile name via SHA-256 — Apple's
-`WKWebsiteDataStore(forIdentifier:)` requires a UUID and our siteIds
-are opaque strings.
+Each patch touches the minimum needed:
+
+- a new `webspaceProfile` field on the plugin's settings type,
+- the bind block at the construction-time injection point,
+- (iOS / macOS) a `webspaceProxy` field on the same settings type +
+  a sibling block in `preWKWebViewConfiguration` that sets
+  `proxyConfigurations` on the per-site data store, +
+  a `WebSpaceProxy.swift` helper that builds
+  `[Network.ProxyConfiguration]` from the dict,
+- (iOS / macOS) a `WebSpaceProfile.swift` helper that derives a
+  deterministic UUID from the profile name via SHA-256 — Apple's
+  `WKWebsiteDataStore(forIdentifier:)` requires a UUID and our siteIds
+  are opaque strings,
+- (iOS / macOS) `MyCookieManager` is rerouted to look up the WebView's
+  per-site `WKHTTPCookieStore` via `webViewId` so DevTools cookie ops
+  hit the bound profile instead of the default jar.
 
 | Plugin | Files touched | Total LOC added |
 |---|---|---|
 | flutter_inappwebview_android | InAppWebView.java, InAppWebViewSettings.java | ~25 |
-| flutter_inappwebview_ios     | InAppWebView.swift, InAppWebViewSettings.swift, WebSpaceProfile.swift (new) | ~30 |
-| flutter_inappwebview_macos   | InAppWebView.swift, InAppWebViewSettings.swift, WebSpaceProfile.swift (new) | ~30 |
+| flutter_inappwebview_ios     | InAppWebView.swift, InAppWebViewSettings.swift, WebSpaceProfile.swift (new), WebSpaceProxy.swift (new), MyCookieManager.swift, lib/src/cookie_manager.dart | ~140 |
+| flutter_inappwebview_macos   | InAppWebView.swift, InAppWebViewSettings.swift, WebSpaceProfile.swift (new), WebSpaceProxy.swift (new), MyCookieManager.swift, lib/src/cookie_manager.dart | ~140 |
 
-Spec: [`openspec/specs/per-site-profiles/spec.md`](../openspec/specs/per-site-profiles/spec.md).
+Specs:
+- [`openspec/specs/per-site-profiles/spec.md`](../openspec/specs/per-site-profiles/spec.md)
+- [`openspec/specs/proxy/spec.md`](../openspec/specs/proxy/spec.md) (PROXY-008 covers the Android↔iOS asymmetry)
 
 License: upstream is Apache 2.0; our patches are also Apache 2.0.
