@@ -579,6 +579,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     profileNative: ProfileNative.instance,
   );
 
+  /// Per-site cookie operations used by [WebViewModel]'s cookie
+  /// blocking and "clear cookies for site" paths. Mutually exclusive
+  /// with the engine selection: when `_useProfiles == true` the
+  /// blocking delete must JS-eval inside the bound WebView (the
+  /// per-site profile context); when false the global jar is the
+  /// only jar so a direct `inapp.CookieManager` delete is correct.
+  /// Resolved alongside `_useProfiles` in `_restoreAppState` so
+  /// both branches stay tied to the same runtime decision.
+  late final SiteCookieOps _cookieOps;
+
   /// Cached result of [ProfileNative.isSupported] resolved during
   /// `_restoreAppState`. When true, the app uses native per-site profiles
   /// (Android, System WebView 110+); same-base-domain sites can be loaded
@@ -1151,11 +1161,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // (engine selection in _setCurrentIndex, deletion path, save/restore).
     // Returns false on iOS/macOS and on Android System WebView <110.
     _useProfiles = await ProfileNative.instance.isSupported();
+    _cookieOps = _useProfiles
+        ? ProfileSiteCookieOps()
+        : LegacySiteCookieOps(_cookieManager);
     LogService.instance.log(
       'Profile',
       _useProfiles
-          ? 'Profile API supported — using ProfileIsolationEngine'
-          : 'Profile API not supported — using CookieIsolationEngine fallback',
+          ? 'Profile API supported — using ProfileIsolationEngine + ProfileSiteCookieOps'
+          : 'Profile API not supported — using CookieIsolationEngine + LegacySiteCookieOps',
     );
 
     // Startup GC: sweep orphaned per-siteId encrypted storage and HTML cache
@@ -1654,7 +1667,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if(_currentIndex == null) {
       return null;
     }
-    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+    return _webViewModels[_currentIndex!].getController(launchUrl, _cookieOps, _saveWebViewModels, globalUserScripts: _globalUserScripts);
   }
 
   /// Update _canGoBack from the current webview's controller.
@@ -1995,7 +2008,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         },
                         onScriptsChanged: _resetCurrentSiteWebView,
                         onClearCookies: () {
-                          _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                          _webViewModels[_currentIndex!].deleteCookies(_cookieOps);
                           _saveWebViewModels();
                           getController()?.reload();
                         },
@@ -2227,7 +2240,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           UrlBar(
             currentUrl: model.currentUrl,
             onUrlSubmitted: (url) async {
-              final controller = model.getController(launchUrl, _cookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
+              final controller = model.getController(launchUrl, _cookieOps, _saveWebViewModels, globalUserScripts: _globalUserScripts);
               if (controller != null) {
                 await controller.loadUrl(url, language: model.language);
                 if (!mounted) return;
@@ -2390,7 +2403,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   },
                   onScriptsChanged: _resetCurrentSiteWebView,
                   onClearCookies: () {
-                    _webViewModels[_currentIndex!].deleteCookies(_cookieManager);
+                    _webViewModels[_currentIndex!].deleteCookies(_cookieOps);
                     _saveWebViewModels();
                     getController()?.reload();
                   },
@@ -3197,7 +3210,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               Expanded(
                                 child: webViewModel.getWebView(
                                   launchUrl,
-                                  _cookieManager,
+                                  _cookieOps,
                                   _saveWebViewModels,
                                   onWindowRequested: _showPopupWindow,
                                   language: webViewModel.language,

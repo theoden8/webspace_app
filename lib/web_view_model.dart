@@ -7,6 +7,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show Pu
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
+import 'package:webspace/services/site_cookie_ops.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -450,7 +451,7 @@ class WebViewModel {
 
   Widget getWebView(
     Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy}) launchUrlFunc,
-    CookieManager cookieManager,
+    SiteCookieOps cookieOps,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
@@ -652,7 +653,9 @@ class WebViewModel {
               final blocked = newCookies.where((c) => isCookieBlocked(c.name, c.domain)).toList();
               final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
               for (final c in blocked) {
-                await cookieManager.deleteCookie(
+                await cookieOps.deleteCookie(
+                  controller: controller,
+                  siteId: siteId,
                   url: url,
                   name: c.name,
                   domain: c.domain,
@@ -701,13 +704,13 @@ class WebViewModel {
 
   WebViewController? getController(
     Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy}) launchUrlFunc,
-    CookieManager cookieManager,
+    SiteCookieOps cookieOps,
     Function saveFunc, {
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
       // Create webview with current language setting
-      webview = getWebView(launchUrlFunc, cookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts);
+      webview = getWebView(launchUrlFunc, cookieOps, saveFunc, language: language, globalUserScripts: globalUserScripts);
     }
     if (controller != null) {
       setController();
@@ -715,10 +718,13 @@ class WebViewModel {
     return controller;
   }
 
-  Future<void> deleteCookies(CookieManager cookieManager) async {
+  Future<void> deleteCookies(SiteCookieOps cookieOps) async {
+    final url = Uri.parse(initUrl);
     for (final Cookie cookie in cookies) {
-      await cookieManager.deleteCookie(
-        url: Uri.parse(initUrl),
+      await cookieOps.deleteCookie(
+        controller: controller,
+        siteId: siteId,
+        url: url,
         name: cookie.name,
         domain: cookie.domain,
         path: cookie.path ?? "/",
