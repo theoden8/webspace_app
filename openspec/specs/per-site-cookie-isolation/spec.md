@@ -463,6 +463,14 @@ The system SHALL clean up all cookie-related data when a site is deleted.
 
 The system SHALL allow blocking specific cookies by name + domain on a per-site basis. Blocked cookies are deleted from the webview cookie jar after each page load and skipped during cookie restoration.
 
+> **Profile mode note.** This requirement applies in legacy mode
+> (`_useProfiles == false`); the delete routes through the global
+> `CookieManager`. In profile mode the same scenarios are satisfied
+> by [PROF-006 — Cookie Ops via ProfileCookieManager](../per-site-profiles/spec.md#requirement-prof-006--cookie-ops-via-profilecookiemanager),
+> which does the delete via the patched `inapp.CookieManager`'s
+> `webViewController:` parameter so the per-site profile's cookie
+> store is targeted (HttpOnly cookies included).
+
 #### Scenario: Block a cookie from the cookie inspector
 
 **Given** Site A has cookies including `_ga` on `.google.com`

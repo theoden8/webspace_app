@@ -9,6 +9,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:share_plus/share_plus.dart';
 
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/profile_cookie_manager.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -19,6 +20,13 @@ typedef VoidAsyncCallback = Future<void> Function();
 class DevToolsScreen extends StatefulWidget {
   final WebViewModel? webViewModel;
   final CookieManager cookieManager;
+  /// Profile-mode counterpart of [cookieManager]; non-null when
+  /// `_useProfiles` is true. The cookie inspector reads/deletes
+  /// through this so the UI reflects the per-site profile's jar
+  /// instead of the (unused, likely empty) default jar in profile
+  /// mode. Same branching pattern as the WebView construction and
+  /// onCookiesChanged sites.
+  final ProfileCookieManager? profileCookieManager;
   final VoidAsyncCallback? onSave;
   final List<UserScriptConfig> globalUserScripts;
 
@@ -26,6 +34,7 @@ class DevToolsScreen extends StatefulWidget {
     super.key,
     this.webViewModel,
     required this.cookieManager,
+    this.profileCookieManager,
     this.onSave,
     this.globalUserScripts = const [],
   });
@@ -560,7 +569,18 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (url.isEmpty) return;
     setState(() => _loadingCookies = true);
     try {
-      final cookies = await widget.cookieManager.getCookies(url: Uri.parse(url));
+      final List<Cookie> cookies;
+      final profile = widget.profileCookieManager;
+      final controller = widget.webViewModel!.controller;
+      if (profile != null && controller != null) {
+        cookies = await profile.getCookies(
+          controller: controller,
+          siteId: widget.webViewModel!.siteId,
+          url: Uri.parse(url),
+        );
+      } else {
+        cookies = await widget.cookieManager.getCookies(url: Uri.parse(url));
+      }
       if (mounted) {
         widget.webViewModel!.cookies = cookies;
         setState(() => _loadingCookies = false);
@@ -574,12 +594,25 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Future<void> _deleteCookie(Cookie cookie) async {
     final url = Uri.parse(widget.webViewModel!.currentUrl);
-    await widget.cookieManager.deleteCookie(
-      url: url,
-      name: cookie.name,
-      domain: cookie.domain,
-      path: cookie.path ?? '/',
-    );
+    final profile = widget.profileCookieManager;
+    final controller = widget.webViewModel!.controller;
+    if (profile != null && controller != null) {
+      await profile.deleteCookie(
+        controller: controller,
+        siteId: widget.webViewModel!.siteId,
+        url: url,
+        name: cookie.name,
+        domain: cookie.domain,
+        path: cookie.path ?? '/',
+      );
+    } else {
+      await widget.cookieManager.deleteCookie(
+        url: url,
+        name: cookie.name,
+        domain: cookie.domain,
+        path: cookie.path ?? '/',
+      );
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Deleted cookie "${cookie.name}"')),

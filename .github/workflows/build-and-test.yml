@@ -108,7 +108,7 @@ jobs:
           fi
 
       - name: Verify APK is free of Google Mobile Services
-        # Per openspec/specs/per-site-profiles/spec.md PROF-006, no shipped
+        # Per openspec/specs/per-site-profiles/spec.md PROF-007, no shipped
         # artifact may contain com.google.android.gms.* / firebase / play
         # classes. Scans the *built* APK because clean Gradle deps can
         # transitively pull GMS through AARs, vendored jars, or codegen —

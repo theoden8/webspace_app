@@ -2085,6 +2085,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         builder: (context) => DevToolsScreen(
                           webViewModel: _webViewModels[_currentIndex!],
                           cookieManager: _cookieManager,
+                          profileCookieManager: _profileCookieManager,
                           onSave: _saveWebViewModels,
                           globalUserScripts: _globalUserScripts,
                         ),
@@ -2480,6 +2481,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   builder: (context) => DevToolsScreen(
                     webViewModel: _webViewModels[_currentIndex!],
                     cookieManager: _cookieManager,
+                    profileCookieManager: _profileCookieManager,
                     onSave: _saveWebViewModels,
                     globalUserScripts: _globalUserScripts,
                   ),

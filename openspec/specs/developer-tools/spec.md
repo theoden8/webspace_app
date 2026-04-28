@@ -39,7 +39,8 @@ The app SHALL capture JS console messages (log, warn, error) from webviews and d
 
 ### Requirement: DEVTOOLS-002 - Cookie Inspector
 
-The app SHALL display cookies for the current site with security flag details.
+The app SHALL display cookies for the current site with security flag
+details, reading from the same jar the WebView itself uses.
 
 #### Scenario: View cookies with security flags
 
@@ -51,11 +52,34 @@ The app SHALL display cookies for the current site with security flag details.
   - `isHttpOnly` as green "HttpOnly" chip (only if true)
   - `sameSite` as colored chip (Strict=green, Lax=blue, None=amber)
 
+#### Scenario: Cookie inspector reads from the right jar
+
+**Given** the app is running in profile mode (`_useProfiles == true`)
+**When** the user opens the Cookies tab on Site A
+**Then** `_refreshCookies` calls
+  `ProfileCookieManager.getCookies(controller: ..., siteId: ..., url: ...)`
+  which routes through the patched `inapp.CookieManager`'s
+  `webViewController:` parameter
+**And** the returned cookies are Site A's per-profile jar
+  (`androidx.webkit.Profile.getCookieManager()` on Android, the
+  WebView's `WKWebsiteDataStore.httpCookieStore` on iOS / macOS)
+**And** the listed cookies match what the page itself sees, NOT the
+  global default jar (which in profile mode is unused)
+
+**Given** the app is running in legacy mode (`_useProfiles == false`)
+**When** the user opens the Cookies tab on Site A
+**Then** `_refreshCookies` calls `cookieManager.getCookies(url: ...)`
+**And** the returned cookies come from the global jar — the only
+  jar there is in legacy mode
+
 #### Scenario: Delete a cookie
 
 **Given** the Cookies tab shows cookies
 **When** the user expands a cookie and taps "Delete"
-**Then** the cookie is removed from the CookieManager
+**Then** the cookie is removed from the cookie jar that backs the
+  inspector — `ProfileCookieManager.deleteCookie` in profile mode,
+  `cookieManager.deleteCookie` in legacy mode (same branch as
+  `_refreshCookies`)
 **And** the cookie list refreshes
 
 #### Scenario: Refresh and copy cookies

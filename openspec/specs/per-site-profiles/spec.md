@@ -322,7 +322,69 @@ platform pick it up by KVC reflection (iOS) or explicit case match
   NOT contain A's cookie — partitioning is enforced by the native
   Profile, not by Dart-level capture-nuke-restore
 
-### Requirement: PROF-006 — No GMS in Shipped Artifacts
+### Requirement: PROF-006 — Cookie Ops via ProfileCookieManager
+
+Every per-site cookie operation (read, delete, block) SHALL route
+through [`ProfileCookieManager`](../../../lib/services/profile_cookie_manager.dart)
+in profile mode, which calls
+`inapp.CookieManager.instance().{getCookies,deleteCookie}` with
+`webViewController: controller.nativeController`. The vendored
+forks (`third_party/flutter_inappwebview_*.patch`) honor that
+parameter on every platform: Android's `MyCookieManager.java`
+walks to the bound `androidx.webkit.Profile.getCookieManager()`;
+iOS/macOS's `MyCookieManager.swift` walks to the WebView's
+`WKWebsiteDataStore.httpCookieStore`. `ProfileCookieManager` is the
+peer of [`CookieManager`](../../../lib/services/webview.dart) — the
+two are siblings in `_WebSpacePageState`, never composed; exactly
+one is non-null per the engine selection.
+
+This subsumes [ISO-011](../per-site-cookie-isolation/spec.md#requirement-iso-011---per-site-cookie-blocking)
+in profile mode. HttpOnly cookies, which the prior JS-eval
+(`document.cookie = ...`) approach could not touch, are now
+deletable because the operation happens in the native cookie store.
+
+#### Scenario: Cookie blocking targets the per-site profile
+
+**Given** profile mode is active and Site A has `_ga` blocked via
+  `BlockedCookie(name: "_ga", domain: ".google.com")`
+**When** the page sets `_ga` and `onCookiesChanged` fires
+**Then** `ProfileCookieManager.deleteCookie(controller: ...,
+  siteId: "<A.siteId>", url: A.currentUrl, name: "_ga", domain:
+  ".google.com")` runs
+**And** the patched plugin routes the delete to A's profile cookie
+  store via `webViewController:`
+**And** Site B's profile is unaffected — its own `_ga` (if any) is
+  still there
+
+#### Scenario: HttpOnly cookies are deletable
+
+**Given** Site A blocks an HttpOnly cookie (typical: a server-set
+  session token)
+**When** `ProfileCookieManager.deleteCookie` runs
+**Then** the cookie is removed from the profile's cookie store —
+  the delete reaches the native cookie manager, not
+  `document.cookie` (which can't see HttpOnly entries)
+
+#### Scenario: DevTools cookie inspector shows the per-site jar
+
+**Given** profile mode is active and Site A is the current site
+**When** the user opens DevTools → Cookies tab
+**Then** `_refreshCookies` calls
+  `ProfileCookieManager.getCookies(controller: ..., siteId: ...,
+  url: ...)` (per [DEVTOOLS-002](../developer-tools/spec.md#requirement-devtools-002---cookie-inspector))
+**And** the listed cookies match Site A's per-profile jar — what
+  the page itself sees, including HttpOnly entries — not the
+  global default jar (which in profile mode is unused)
+
+#### Scenario: Legacy mode is unchanged
+
+**Given** legacy mode (`_useProfiles == false`)
+**When** any cookie op runs (blocking, DevTools delete, etc.)
+**Then** `_profileCookieManager` is null and the call branches to
+  the existing `CookieManager` path, byte-identical to
+  pre-Profile-API behaviour
+
+### Requirement: PROF-007 — No GMS in Shipped Artifacts
 
 The Profile API plugin SHALL NOT introduce any
 `com.google.android.gms.*`, `com.google.firebase.*`, or
