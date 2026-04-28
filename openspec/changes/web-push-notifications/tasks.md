@@ -8,10 +8,10 @@
 
 ## 2. JavaScript Notification API polyfill
 
-- [ ] 2.1 Add a constant `_notificationPolyfillScript` template string in `lib/services/webview.dart` matching the polyfill in design D1, with `__PER_SITE_PERMISSION__` and `__SITE_ID__` placeholders.
-- [ ] 2.2 In `WebViewFactory.createWebView`, build the polyfill script by substituting placeholders from `config.siteId` and `config.notificationsEnabled`. Add as `inapp.UserScript` with `injectionTime: AT_DOCUMENT_START` and `forMainFrameOnly: false`.
-- [ ] 2.3 Pass `notificationsEnabled` through `WebViewConfig` and the `getWebView` parameter list (also update `launchUrl` and `InAppWebViewScreen` per CLAUDE.md "per-site settings MUST apply to nested webviews").
-- [ ] 2.4 Add a unit test in `test/notification_polyfill_test.dart` that verifies the substitution: given `siteId="abc"` and `notificationsEnabled=true`, the rendered script contains `'granted'` and `'abc'` and not the placeholders.
+- [x] 2.1 Add a constant `_notificationPolyfillScript` template string in `lib/services/webview.dart` matching the polyfill in design D1, with `__PER_SITE_PERMISSION__` and `__SITE_ID__` placeholders.
+- [x] 2.2 In `WebViewFactory.createWebView`, build the polyfill script by substituting placeholders from `config.siteId` and `config.notificationsEnabled`. Add as `inapp.UserScript` with `injectionTime: AT_DOCUMENT_START` and `forMainFrameOnly: false`.
+- [x] 2.3 Pass `notificationsEnabled` through `WebViewConfig` and the `getWebView` parameter list (also update `launchUrl` and `InAppWebViewScreen` per CLAUDE.md "per-site settings MUST apply to nested webviews").
+- [x] 2.4 Add a unit test in `test/notification_polyfill_test.dart` that verifies the substitution: given `siteId="abc"` and `notificationsEnabled=true`, the rendered script contains `'granted'` and `'abc'` and not the placeholders.
 
 ## 3. NotificationService
 

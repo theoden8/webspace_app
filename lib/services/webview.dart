@@ -475,6 +475,7 @@ class WebViewConfig {
   ///   `resolveEffectiveProxy` so [ProxyType.DEFAULT] falls through to
   ///   the app-global outbound proxy.
   final UserProxySettings? proxySettings;
+  final bool notificationsEnabled;
 
   WebViewConfig({
     this.key,
@@ -514,6 +515,7 @@ class WebViewConfig {
     this.spoofTimezoneFromLocation = false,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.proxySettings,
+    this.notificationsEnabled = false,
   });
 }
 
@@ -943,6 +945,37 @@ const String _webGlKillSwitchScript = r'''
 /// JavaScript that intercepts clipboard writes and Web Share API calls to clean
 /// tracking parameters from URLs before they leave the webview. Sends URLs to
 /// Dart via the 'clearUrl' handler for cleaning with ClearURLs rules.
+String _notificationPolyfillScript({
+  required String siteId,
+  required bool notificationsEnabled,
+}) {
+  final permission = notificationsEnabled ? 'granted' : 'denied';
+  return '''
+(function() {
+  var permission = '$permission';
+  function Notification(title, options) {
+    options = options || {};
+    if (permission !== 'granted') return;
+    window.flutter_inappwebview.callHandler('webNotification', {
+      title: String(title),
+      body: String(options.body || ''),
+      icon: String(options.icon || ''),
+      tag: String(options.tag || ''),
+      siteId: '$siteId'
+    });
+  }
+  Notification.permission = permission;
+  Notification.requestPermission = function(cb) {
+    var p = window.flutter_inappwebview.callHandler('webNotificationRequestPermission', {siteId: '$siteId'})
+      .then(function(result) { permission = result; Notification.permission = result; return result; });
+    if (typeof cb === 'function') p.then(cb);
+    return p;
+  };
+  Object.defineProperty(window, 'Notification', { value: Notification, writable: false, configurable: false });
+})();
+;null;''';
+}
+
 const String _clearUrlShareScript = r'''
 (function() {
   const URL_RE = /^https?:\/\//i;
@@ -1325,6 +1358,18 @@ class WebViewFactory {
       userScripts.add(inapp.UserScript(
         groupName: 'system_text_zoom',
         source: '${_textSizeAdjustScript(textZoom)}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
+
+    if (config.siteId != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'notification_polyfill',
+        source: _notificationPolyfillScript(
+          siteId: config.siteId!,
+          notificationsEnabled: config.notificationsEnabled,
+        ),
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));

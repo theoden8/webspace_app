@@ -1710,6 +1710,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
     required List<UserScriptConfig> userScripts,
     UserProxySettings? proxySettings,
+    bool notificationsEnabled = false,
   }) async {
     await Navigator.push(
       context,
@@ -1735,6 +1736,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
           proxySettings: proxySettings,
+          notificationsEnabled: notificationsEnabled,
         ),
       ),
     );
