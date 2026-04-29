@@ -139,6 +139,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | webview-hints | Webview theme hints (color-scheme, matchMedia, cache theme prelude) |
 | webview-pause-lifecycle | Per-instance vs process-global webview pause; "paused != frozen" caveat |
 | fullscreen-mode | Full screen mode: hide app bar/tab strip/system UI, per-site auto-fullscreen setting |
+| desktop-mode | Desktop layout inferred from per-site UA (no toggle); JS shim for navigator.userAgentData / maxTouchPoints / pointer-media / `<meta name=viewport>` rewrite |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
 
