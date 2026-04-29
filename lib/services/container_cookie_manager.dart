@@ -2,31 +2,30 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
 
-/// Per-site cookie operations that target the bound WebView's profile
-/// via the **patched** `inapp.CookieManager`.
+/// Per-site cookie operations that target the bound WebView's container
+/// via the WebSpace fork's `inapp.CookieManager`.
 ///
 /// Sibling of [`CookieManager`](webview.dart) — never composed, never
 /// mixed. `_WebSpacePageState` instantiates exactly one based on
-/// `_useProfiles`:
+/// `_useContainers`:
 ///
-///   - `_useProfiles == false`: `CookieManager` (global default jar)
+///   - `_useContainers == false`: `CookieManager` (global default jar)
 ///     drives every per-site cookie op. The legacy
 ///     `CookieIsolationEngine` capture-nuke-restore cycle uses the
 ///     same instance.
-///   - `_useProfiles == true`: `ProfileCookieManager` is created;
-///     each call passes `webViewController:` so the patched plugin
-///     (see `third_party/flutter_inappwebview_*.patch`) walks to the
-///     WebView's bound profile and routes the operation to its
-///     per-profile cookie store. HttpOnly cookies are deletable too;
-///     `getCookies` returns full attributes
-///     (domain/path/expiresDate/isSecure/isHttpOnly).
+///   - `_useContainers == true`: `ContainerCookieManager` is created;
+///     each call passes `webViewController:` so the WebSpace fork of
+///     `flutter_inappwebview` walks to the WebView's bound container
+///     and routes the operation to its per-container cookie store.
+///     HttpOnly cookies are deletable too; `getCookies` returns full
+///     attributes (domain/path/expiresDate/isSecure/isHttpOnly).
 ///
 /// There is intentionally no shared base class — call sites branch
 /// explicitly on which manager is non-null. With only two real impls
 /// and one of them being the existing thin `CookieManager` wrapper
 /// over `inapp.CookieManager.instance()`, an interface here would be
 /// indirection without payoff.
-class ProfileCookieManager {
+class ContainerCookieManager {
   final inapp.CookieManager _native = inapp.CookieManager.instance();
 
   /// Read the cookies the page at [url] can see in [siteId]'s jar.
@@ -55,7 +54,7 @@ class ProfileCookieManager {
           .toList(growable: false);
     } catch (e) {
       LogService.instance.log(
-        'ProfileCookieManager',
+        'ContainerCookieManager',
         'getCookies($siteId, ${url.host}) failed: $e',
         level: LogLevel.error,
       );
@@ -88,7 +87,7 @@ class ProfileCookieManager {
       );
     } catch (e) {
       LogService.instance.log(
-        'ProfileCookieManager',
+        'ContainerCookieManager',
         'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
             'failed: $e',
         level: LogLevel.error,

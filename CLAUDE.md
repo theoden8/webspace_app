@@ -66,28 +66,17 @@ fvm dart run flutter_launcher_icons
 - **webview.dart** - CookieManager wrapper around flutter_inappwebview, WebViewTheme enum
 
 ### Key Patterns
-- **Per-site cookie isolation (two engines, runtime-selected)**: Two engines coexist; `_WebSpacePageState` caches `bool _useProfiles = await ProfileNative.isSupported()` at startup and gates the entire isolation code path on it.
-  - **Profile path** (Android, System WebView 110+): each `siteId` maps to a native `androidx.webkit.Profile` named `ws-<siteId>` that owns its own cookies, `localStorage`, IDB, ServiceWorkers, and HTTP cache. Same-base-domain sites can be loaded concurrently; no conflict-unload, no capture-nuke-restore. Engine: [`ProfileIsolationEngine`](lib/services/profile_isolation_engine.dart). Native bridge: [`ProfileNative`](lib/services/profile_native.dart) → [`WebSpaceProfilePlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceProfilePlugin.kt). The native bind itself happens inside the patched `InAppWebView.prepare()` — see the **vendored fork** at [third_party/flutter_inappwebview_android/PATCHES.md](third_party/flutter_inappwebview_android/PATCHES.md) (pinned via `dependency_overrides` in pubspec.yaml). Spec: [openspec/specs/per-site-profiles/spec.md](openspec/specs/per-site-profiles/spec.md).
+- **Per-site cookie isolation (two engines, runtime-selected)**: Two engines coexist; `_WebSpacePageState` caches `bool _useContainers = await ContainerNative.isSupported()` at startup and gates the entire isolation code path on it.
+  - **Container path** (Android System WebView 110+, iOS 17+, macOS 14+): each `siteId` maps to a native container (`androidx.webkit.Profile` on Android, `WKWebsiteDataStore(forIdentifier:)` on Apple) named `ws-<siteId>` that owns its own cookies, `localStorage`, IDB, ServiceWorkers, and HTTP cache. Same-base-domain sites can be loaded concurrently; no conflict-unload, no capture-nuke-restore. Engine: [`ContainerIsolationEngine`](lib/services/container_isolation_engine.dart). Native bridge: [`ContainerNative`](lib/services/container_native.dart). All lifecycle ops (delete, list) route through the fork's [`inapp.ContainerController`]; only the `MULTI_PROFILE` runtime feature gate on Android lives in our [`WebSpaceContainerPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceContainerPlugin.kt). The bind happens during `InAppWebView.prepare()` / `preWKWebViewConfiguration`, driven by the stock [`inapp.InAppWebViewSettings.containerId`] field set by `WebViewFactory.createWebView` (see `dependency_overrides` in [pubspec.yaml](pubspec.yaml)). Spec: [openspec/specs/per-site-containers/spec.md](openspec/specs/per-site-containers/spec.md).
   - **Legacy path** (iOS, macOS, Android System WebView <110): sites with matching base domains cannot be loaded simultaneously; switching unloads the conflicting site and runs capture-nuke-restore on the shared cookie jar. Engine: [`CookieIsolationEngine`](lib/services/cookie_isolation.dart). Spec: [openspec/specs/per-site-cookie-isolation/spec.md](openspec/specs/per-site-cookie-isolation/spec.md).
 - **Lazy webview loading**: Webviews only created when visited (`_loadedIndices` tracks loaded sites)
 - **Demo mode**: `isDemoMode` flag prevents persistence, uses seeded demo data
 
-### Patched flutter_inappwebview plugins (`third_party/*.patch`)
+### flutter_inappwebview fork
 
-Per-site profile isolation requires patches to all three
-flutter_inappwebview platform plugins (`_android`, `_ios`,
-`_macos`). The patches are not vendored — they live as `.patch`
-files in `third_party/`, applied at build time by [`scripts/apply_plugin_patches.dart`](scripts/apply_plugin_patches.dart). The script copies stock upstream from `~/.pub-cache/` (or downloads it from pub.dev on cache miss) into `.dart_tool/webspace_patched_plugins/<plugin>/` and applies the diff there; `dependency_overrides` in [pubspec.yaml](pubspec.yaml) point at the generated paths. `.dart_tool/` is gitignored, so the patched copies never enter the repo.
+Per-site profile isolation and per-site iOS/macOS proxy require APIs not present in upstream `flutter_inappwebview`. We pull a fork that adds them as a first-class "containers" API. The fork's monorepo lives at <https://github.com/theoden8/flutter_inappwebview>; `dependency_overrides` in [pubspec.yaml](pubspec.yaml) pin every platform plugin (and `_platform_interface`) to the same git ref. `flutter pub get` resolves the fork like any other git dependency — no bootstrap step, no patches to apply. Pub caches the checkout under `~/.pub-cache/git/`.
 
-**Run once after every clone (and after any change to a patch file or version pin):**
-
-```bash
-dart run scripts/apply_plugin_patches.dart
-```
-
-The script bootstraps the patched plugin paths *and* runs `flutter pub get` for you, so a plain `flutter pub get` would fail beforehand with `could not find package flutter_inappwebview_macos at .dart_tool/...` (the exit-66 chicken-and-egg). After the script runs, future `flutter pub get` invocations work normally.
-
-Every patched line is marked with a `// [WebSpace fork patch]` comment so `grep -rn '\[WebSpace fork patch\]' .dart_tool/webspace_patched_plugins/` lists the surface area after a build. Full rationale, upgrade procedure (when the upstream version moves), and removal procedure (if upstream merges native profile support) live in [third_party/PATCHES.md](third_party/PATCHES.md). Read it before bumping the `flutter_inappwebview` pubspec version or any of the version pins in `apply_plugin_patches.dart`.
+The fork ref is currently a mutable branch; tag it before each release and pin `ref:` to the tag so CI builds don't drift. Surface area touched in the fork is searchable in the cached checkout via `grep -rn '\[WebSpace fork patch\]' ~/.pub-cache/git/flutter_inappwebview-*/`.
 
 ### State Persistence
 All state persisted via SharedPreferences (sites, webspaces, theme). Cookies stored separately in secure storage keyed by `siteId`.
@@ -128,7 +117,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | navigation | Back gesture, home button, drawer swipe, pull-to-refresh, platform quirks, race condition guards |
 | nested-url-blocking | Cross-domain navigation control: nested InAppBrowser, gesture-based auto-redirect blocking |
 | per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage (legacy / fallback engine) |
-| per-site-profiles | Native per-site profiles via `androidx.webkit.Profile` (Android, System WebView 110+); supersedes per-site-cookie-isolation when supported |
+| per-site-containers | Native per-site containers via `androidx.webkit.Profile` (Android, System WebView 110+) and `WKWebsiteDataStore(forIdentifier:)` (iOS 17+ / macOS 14+); supersedes per-site-cookie-isolation when supported |
 | per-site-location | Per-site geolocation spoofing, IANA timezone override, WebRTC leak lockdown |
 | platform-support | Platform abstraction layer for iOS, Android, macOS |
 | proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |

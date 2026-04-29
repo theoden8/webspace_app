@@ -1,4 +1,4 @@
-# Per-Site Profiles
+# Per-Site Containers
 
 ## Status
 **Implemented on Android (System WebView 110+) and iOS / macOS (iOS 17+ /
@@ -12,7 +12,7 @@ seven months of each other in 2023, so the floor for the Profile
 path is roughly "anything that can run the September-2023 OS cohort
 or later". Older devices keep working via the legacy
 [`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md)
-fallback — `_useProfiles` resolves to `false` at startup and the
+fallback — `_useContainers` resolves to `false` at startup and the
 existing capture-nuke-restore code path runs unchanged.
 
 ### Profile mode (engine-level isolation)
@@ -24,7 +24,7 @@ existing capture-nuke-restore code path runs unchanged.
 | macOS    | 14.0 Sonoma | Same as iOS (`WKWebsiteDataStore(forIdentifier:)`) | iMac 2019+, iMac Pro 2017+, MacBook Air 2018+, MacBook Pro 2018+, Mac mini 2018+, Mac Pro 2019+, Mac Studio 2022+ | Sept 2023 |
 
 The runtime check that decides Profile vs. legacy engine is in
-[`ProfileNative.isSupported`](../../../lib/services/profile_native.dart):
+[`ContainerNative.isSupported`](../../../lib/services/container_native.dart):
 
 - **Android.** Native side checks `WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)`.
   This catches the device + WebView combination correctly (e.g. an
@@ -54,16 +54,15 @@ native per-site data-store primitives:
   site maps to a named profile `ws-<siteId>`.
 - **iOS 17+ / macOS 14+**: `WKWebsiteDataStore(forIdentifier: UUID)`.
   The siteId string is hashed via SHA-256 to produce a deterministic
-  UUID (`WebSpaceProfile.uuid(for:)` — added by the iOS / macOS
-  plugin patches; see
-  [`third_party/PATCHES.md`](../../../third_party/PATCHES.md))
-  and that UUID identifies the per-site data store.
+  UUID (`WebSpaceProfile.uuid(for:)` — added by the WebSpace fork's
+  iOS / macOS plugins) and that UUID identifies the per-site data
+  store.
 
 Each `WebViewModel.siteId` owns its own cookie jar, `localStorage`,
 `IndexedDB`, `ServiceWorkerController`, and HTTP cache. **Profile mode
 supersedes (not supplements) the legacy ISO-001 mutex** from
 [per-site-cookie-isolation](../per-site-cookie-isolation/spec.md): when
-`_useProfiles == true` the conflict-find / unload code path is skipped
+`_useContainers == true` the conflict-find / unload code path is skipped
 entirely, so sites that share a base domain (e.g. two `github.com`
 accounts) can be loaded concurrently without unloading each other —
 this applies to every webspace, including the special "All" webspace.
@@ -101,23 +100,23 @@ Each site gets a named profile. Lifecycle:
 
 | Event | Action |
 |---|---|
-| App startup, after restoring sites | Cache `ProfileNative.isSupported()` once. Sweep profiles whose owning site no longer exists (`ProfileIsolationEngine.garbageCollectOrphans`). |
-| Site activated | `ProfileIsolationEngine.ensureProfile(siteId)` (idempotent). |
-| WebView created (`onWebViewCreated`) | `ProfileNative.bindProfileToWebView(siteId)` — native side walks the activity view tree and calls `WebViewCompat.setProfile` on every flutter_inappwebview WebView for that siteId. |
-| Site deleted | `ProfileIsolationEngine.onSiteDeleted(siteId)` after `disposeWebView`. |
-| Profile API not supported (iOS, macOS, legacy Android) | `_useProfiles` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
+| App startup, after restoring sites | Cache `ContainerNative.isSupported()` once. Sweep profiles whose owning site no longer exists (`ContainerIsolationEngine.garbageCollectOrphans`). |
+| Site activated | `ContainerIsolationEngine.ensureContainer(siteId)` (idempotent). |
+| WebView created (`onWebViewCreated`) | `ContainerNative.bindContainerToWebView(siteId)` — native side walks the activity view tree and calls `WebViewCompat.setProfile` on every flutter_inappwebview WebView for that siteId. |
+| Site deleted | `ContainerIsolationEngine.onSiteDeleted(siteId)` after `disposeWebView`. |
+| Profile API not supported (iOS, macOS, legacy Android) | `_useContainers` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
 
 The engine selection lives in
 [`_WebSpacePageState`](../../../lib/main.dart) — a single
-`bool _useProfiles` cached at startup gates the whole capture-nuke-
+`bool _useContainers` cached at startup gates the whole capture-nuke-
 restore code path. There is no per-call branching beyond that.
 
 ## Requirements
 
-### Requirement: PROF-001 — Engine Selection
+### Requirement: CONT-001 — Engine Selection
 
-The system SHALL select between `ProfileIsolationEngine` and
-`CookieIsolationEngine` based on a single `ProfileNative.isSupported()`
+The system SHALL select between `ContainerIsolationEngine` and
+`CookieIsolationEngine` based on a single `ContainerNative.isSupported()`
 check resolved at app startup.
 
 #### Scenario: Profile API supported on Android
@@ -125,20 +124,20 @@ check resolved at app startup.
 **Given** the app is launching on Android with System WebView 110+
   (`WebViewFeature.MULTI_PROFILE` true)
 **When** `_restoreAppState` runs
-**Then** `_useProfiles` resolves to `true`
+**Then** `_useContainers` resolves to `true`
 **And** every subsequent `_setCurrentIndex(index)` skips
   `SiteActivationEngine.findDomainConflict` and the capture-nuke-
   restore cycle — superseding the legacy
   [ISO-001](../per-site-cookie-isolation/spec.md) mutex
 **And** `_setCurrentIndex(index)` calls
-  `ProfileIsolationEngine.ensureProfile(target.siteId)` instead
+  `ContainerIsolationEngine.ensureContainer(target.siteId)` instead
 
 #### Scenario: Profile API supported on iOS / macOS
 
 **Given** the app is launching on iOS 17+ or macOS 14+
 **When** `_restoreAppState` runs
 **Then** the native plugin reports `isSupported() == true`
-**And** `_useProfiles` resolves to `true`
+**And** `_useContainers` resolves to `true`
 **And** the same conflict-skip / engine-selection behavior as Android
   applies — sites with shared base domains can coexist
 
@@ -147,13 +146,13 @@ check resolved at app startup.
 **Given** the app is launching on Android System WebView <110, or
   iOS <17, or macOS <14, or Linux / Windows
 **When** `_restoreAppState` runs
-**Then** `_useProfiles` resolves to `false`
+**Then** `_useContainers` resolves to `false`
 **And** `_setCurrentIndex` runs the existing capture-nuke-restore flow
   unchanged
-**And** `ProfileIsolationEngine.bindForSite` is a no-op (returns 0
+**And** `ContainerIsolationEngine.bindForSite` is a no-op (returns 0
   without touching ProfileStore)
 
-### Requirement: PROF-002 — Profile Lifecycle
+### Requirement: CONT-002 — Profile Lifecycle
 
 Each `siteId` SHALL map 1:1 to a native profile named `ws-<siteId>`.
 The profile is created on demand and deleted when the site is deleted.
@@ -162,7 +161,7 @@ The profile is created on demand and deleted when the site is deleted.
 
 **Given** site A has never been activated in profile mode
 **When** the user activates site A
-**Then** `ProfileStore.getOrCreateProfile("ws-<siteA.siteId>")` is
+**Then** `ProfileStore.getOrCreateContainer("ws-<siteA.siteId>")` is
   called (idempotent — pre-existing profiles are reused)
 **And** the named profile exists in
   `ProfileStore.allProfileNames` after the call
@@ -182,14 +181,14 @@ The profile is created on demand and deleted when the site is deleted.
 
 **Given** site A exists with profile `ws-<siteA.siteId>`
 **When** the user deletes site A
-**Then** `ProfileIsolationEngine.onSiteDeleted` is called
-**And** `ProfileStore.deleteProfile("ws-<siteA.siteId>")` removes the
+**Then** `ContainerIsolationEngine.onSiteDeleted` is called
+**And** `ProfileStore.deleteContainer("ws-<siteA.siteId>")` removes the
   profile and all of its on-disk data
 **And** the legacy `CookieIsolationEngine.preDeleteCookieCleanup` is
   NOT called (would be a no-op since cookies live in the profile, but
   skipping it makes the deletion path cleaner)
 
-### Requirement: PROF-003 — Same-Base-Domain Sites Coexist
+### Requirement: CONT-003 — Same-Base-Domain Sites Coexist
 
 In profile mode, two sites that share a base domain SHALL be able to
 load and run concurrently with fully isolated cookies, `localStorage`,
@@ -214,7 +213,7 @@ load and run concurrently with fully isolated cookies, `localStorage`,
 **Then** site A's session is intact — no re-login, no reload, no
   capture-nuke-restore cycle ran
 
-### Requirement: PROF-004 — Orphan Garbage Collection
+### Requirement: CONT-004 — Orphan Garbage Collection
 
 The system SHALL sweep profiles whose owning site no longer exists.
 
@@ -225,7 +224,7 @@ The system SHALL sweep profiles whose owning site no longer exists.
   in a previous session before profile mode was enabled, or via a
   crash mid-deletion)
 **When** the app launches and `_restoreAppState` runs
-**Then** `ProfileIsolationEngine.garbageCollectOrphans({A, C})` is
+**Then** `ContainerIsolationEngine.garbageCollectOrphans({A, C})` is
   invoked
 **And** profile `ws-B` is deleted
 **And** profile `ws-A` and `ws-C` are preserved
@@ -237,7 +236,7 @@ The system SHALL sweep profiles whose owning site no longer exists.
 **Then** no profile is deleted
 **And** the call returns 0
 
-### Requirement: PROF-005 — Native-Side Bind Before Construction
+### Requirement: CONT-005 — Native-Side Bind Before Construction
 
 The Profile API binding SHALL run before any session-bound operation
 on the WebView, on both Android and iOS / macOS. The constraints
@@ -258,42 +257,42 @@ differ in shape but are equivalent in effect:
   configuration reaches the WKWebView constructor.
 
 In both cases, a post-hoc bind from `onWebViewCreated` is too late.
-The patches that close this gap live as `.patch` files under
-[`third_party/`](../../../third_party/PATCHES.md) and are applied
-to the upstream pub-cache copy of each plugin at build time by
-[`scripts/apply_plugin_patches.dart`](../../../scripts/apply_plugin_patches.dart):
+The fix lives in the WebSpace fork of `flutter_inappwebview`
+(monorepo at <https://github.com/theoden8/flutter_inappwebview>,
+pinned by `dependency_overrides` in
+[`pubspec.yaml`](../../../pubspec.yaml)). Per-platform changes:
 
-- `third_party/flutter_inappwebview_android.patch`:
-  adds `webspaceProfile: String?` to `InAppWebViewSettings`, binds it
-  via `ProfileStore.getOrCreateProfile` + `WebViewCompat.setProfile`
-  at the very top of `prepare()`.
-- `third_party/flutter_inappwebview_ios.patch`:
-  adds the same `webspaceProfile` field on the Swift side, sets
+- `flutter_inappwebview_android`: adds `containerId: String?`
+  to `InAppWebViewSettings`, binds it via
+  `ProfileStore.getOrCreateContainer` + `WebViewCompat.setProfile` at
+  the very top of `prepare()`.
+- `flutter_inappwebview_ios`: adds the same `containerId` field
+  on the Swift side, sets
   `configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier:
   WebSpaceProfile.uuid(for: profileName))` in
   `preWKWebViewConfiguration` before
   `WKWebView(frame: configuration:)` runs. The UUID is derived
   deterministically from the profile name via SHA-256 (Apple's API
   requires a UUID; our siteIds are opaque strings).
-- `third_party/flutter_inappwebview_macos.patch`: same shape as the
-  iOS patch, applied to the macOS plugin.
+- `flutter_inappwebview_macos`: same shape as the iOS change,
+  applied to the macOS plugin.
 
-From Dart, the
-[`WebSpaceInAppWebViewSettings`](../../../lib/services/webview.dart)
-subclass overrides `toMap()` to inject the `webspaceProfile` key
-into the settings map sent to native — the patched plugins on each
-platform pick it up by KVC reflection (iOS) or explicit case match
-(Android).
+From Dart, [`WebViewFactory.createWebView`](../../../lib/services/webview.dart)
+sets the stock [`inapp.InAppWebViewSettings.containerId`] field to
+`ws-<siteId>` whenever container mode is supported. The fork
+serializes that field through its standard `toMap()` and the native
+side picks it up directly — there is no WebSpace-side subclass of
+`InAppWebViewSettings` anymore.
 
 #### Scenario: Bind happens during `prepare()`
 
 **Given** profile mode is supported, a `siteId` is set, and the
-  patched plugin is installed (resolved via `dependency_overrides` in
-  `pubspec.yaml`)
+  WebSpace fork is resolved via `dependency_overrides` in
+  `pubspec.yaml`
 **When** the `InAppWebView` is constructed
 **Then** `InAppWebView.prepare()` reads
-  `customSettings.webspaceProfile` and calls
-  `ProfileStore.getOrCreateProfile` followed by
+  `settings.containerId` and calls
+  `ProfileStore.getOrCreateContainer` followed by
   `WebViewCompat.setProfile(this, profileName)` BEFORE
   `addJavascriptInterface`, `addDocumentStartJavaScript`,
   `setAcceptThirdPartyCookies`, or any other session-bound op
@@ -303,13 +302,13 @@ platform pick it up by KVC reflection (iOS) or explicit case match
   write throughout the WebView's lifetime is partitioned to that
   profile
 
-#### Scenario: Stock plugin (or `webspaceProfile == null`) is unaffected
+#### Scenario: Stock plugin (or `containerId == null`) is unaffected
 
-**Given** the `webspaceProfile` field is null (iOS, macOS, legacy
+**Given** the `containerId` field is null (iOS, macOS, legacy
   Android with `cachedSupported == false`, or any code path that
   does not opt in)
 **When** `prepare()` runs
-**Then** the patched bind block early-returns and `prepare()`
+**Then** the fork's bind block early-returns and `prepare()`
   proceeds unchanged
 **And** behavior matches stock upstream `flutter_inappwebview_android`
 
@@ -322,18 +321,18 @@ platform pick it up by KVC reflection (iOS) or explicit case match
   NOT contain A's cookie — partitioning is enforced by the native
   Profile, not by Dart-level capture-nuke-restore
 
-### Requirement: PROF-006 — Cookie Ops via ProfileCookieManager
+### Requirement: CONT-006 — Cookie Ops via ContainerCookieManager
 
 Every per-site cookie operation (read, delete, block) SHALL route
-through [`ProfileCookieManager`](../../../lib/services/profile_cookie_manager.dart)
+through [`ContainerCookieManager`](../../../lib/services/container_cookie_manager.dart)
 in profile mode, which calls
 `inapp.CookieManager.instance().{getCookies,deleteCookie}` with
-`webViewController: controller.nativeController`. The vendored
-forks (`third_party/flutter_inappwebview_*.patch`) honor that
-parameter on every platform: Android's `MyCookieManager.java`
-walks to the bound `androidx.webkit.Profile.getCookieManager()`;
-iOS/macOS's `MyCookieManager.swift` walks to the WebView's
-`WKWebsiteDataStore.httpCookieStore`. `ProfileCookieManager` is the
+`webViewController: controller.nativeController`. The WebSpace
+fork honors that parameter on every platform: Android's
+`MyCookieManager.java` walks to the bound
+`androidx.webkit.Profile.getCookieManager()`; iOS/macOS's
+`MyCookieManager.swift` walks to the WebView's
+`WKWebsiteDataStore.httpCookieStore`. `ContainerCookieManager` is the
 peer of [`CookieManager`](../../../lib/services/webview.dart) — the
 two are siblings in `_WebSpacePageState`, never composed; exactly
 one is non-null per the engine selection.
@@ -348,7 +347,7 @@ deletable because the operation happens in the native cookie store.
 **Given** profile mode is active and Site A has `_ga` blocked via
   `BlockedCookie(name: "_ga", domain: ".google.com")`
 **When** the page sets `_ga` and `onCookiesChanged` fires
-**Then** `ProfileCookieManager.deleteCookie(controller: ...,
+**Then** `ContainerCookieManager.deleteCookie(controller: ...,
   siteId: "<A.siteId>", url: A.currentUrl, name: "_ga", domain:
   ".google.com")` runs
 **And** the patched plugin routes the delete to A's profile cookie
@@ -360,7 +359,7 @@ deletable because the operation happens in the native cookie store.
 
 **Given** Site A blocks an HttpOnly cookie (typical: a server-set
   session token)
-**When** `ProfileCookieManager.deleteCookie` runs
+**When** `ContainerCookieManager.deleteCookie` runs
 **Then** the cookie is removed from the profile's cookie store —
   the delete reaches the native cookie manager, not
   `document.cookie` (which can't see HttpOnly entries)
@@ -370,7 +369,7 @@ deletable because the operation happens in the native cookie store.
 **Given** profile mode is active and Site A is the current site
 **When** the user opens DevTools → Cookies tab
 **Then** `_refreshCookies` calls
-  `ProfileCookieManager.getCookies(controller: ..., siteId: ...,
+  `ContainerCookieManager.getCookies(controller: ..., siteId: ...,
   url: ...)` (per [DEVTOOLS-002](../developer-tools/spec.md#requirement-devtools-002---cookie-inspector))
 **And** the listed cookies match Site A's per-profile jar — what
   the page itself sees, including HttpOnly entries — not the
@@ -378,13 +377,13 @@ deletable because the operation happens in the native cookie store.
 
 #### Scenario: Legacy mode is unchanged
 
-**Given** legacy mode (`_useProfiles == false`)
+**Given** legacy mode (`_useContainers == false`)
 **When** any cookie op runs (blocking, DevTools delete, etc.)
 **Then** `_profileCookieManager` is null and the call branches to
   the existing `CookieManager` path, byte-identical to
   pre-Profile-API behaviour
 
-### Requirement: PROF-007 — No GMS in Shipped Artifacts
+### Requirement: CONT-007 — No GMS in Shipped Artifacts
 
 The Profile API plugin SHALL NOT introduce any
 `com.google.android.gms.*`, `com.google.firebase.*`, or
@@ -407,29 +406,29 @@ runs against the built F-Droid APK and fails the build on any hit.
 
 ### Logic Engines
 
-- [`ProfileIsolationEngine`](../../../lib/services/profile_isolation_engine.dart)
-  — pure-Dart engine. Methods: `ensureProfile(siteId)`,
+- [`ContainerIsolationEngine`](../../../lib/services/container_isolation_engine.dart)
+  — pure-Dart engine. Methods: `ensureContainer(siteId)`,
   `bindForSite(siteId)`, `onSiteDeleted(siteId)`,
   `garbageCollectOrphans(activeSiteIds)`. No Flutter imports, no
-  `setState`, no `context`. Constructor takes a [`ProfileNative`]
+  `setState`, no `context`. Constructor takes a [`ContainerNative`]
   instance so tests can inject a mock.
 - [`CookieIsolationEngine`](../../../lib/services/cookie_isolation.dart)
   — unchanged. Used as the fallback engine when
-  `ProfileNative.isSupported()` is false.
+  `ContainerNative.isSupported()` is false.
 - Engine selection lives in
   [`_WebSpacePageState`](../../../lib/main.dart) as a single cached
-  `bool _useProfiles`, resolved during `_restoreAppState`.
+  `bool _useContainers`, resolved during `_restoreAppState`.
 
 ### Native Bridge
 
-[`ProfileNative`](../../../lib/services/profile_native.dart) is an
+[`ContainerNative`](../../../lib/services/container_native.dart) is an
 abstract Dart interface with two implementations:
 
-- `_MethodChannelProfileNative` (Android) — talks to
-  [`WebSpaceProfilePlugin.kt`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceProfilePlugin.kt)
+- `_MethodChannelContainerNative` (Android) — talks to
+  [`WebSpaceContainerPlugin.kt`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceContainerPlugin.kt)
   via `MethodChannel('org.codeberg.theoden8.webspace/profile')`.
   `isSupported()` is cached after the first call.
-- `_StubProfileNative` (iOS, macOS, fallback) — every method is a
+- `_StubContainerNative` (iOS, macOS, fallback) — every method is a
   no-op; `isSupported()` returns `false`.
 
 The Android plugin uses the same view-tree-walk pattern as
@@ -443,22 +442,19 @@ live view hierarchy.
 ### Per-WebView Bind Site
 
 [`WebViewFactory.createWebView`](../../../lib/services/webview.dart)
-constructs a `WebSpaceInAppWebViewSettings` (subclass of
-`InAppWebViewSettings`) with the desired profile name in
-`webspaceProfile`. The subclass overrides `toMap()` to inject that
-key into the settings dict sent to native. The build-time-patched
-plugins (see
-[`third_party/PATCHES.md`](../../../third_party/PATCHES.md))
-read it during construction and bind the WebView:
+constructs the stock [`inapp.InAppWebViewSettings`] with the desired
+container name in the `containerId` field. The WebSpace fork
+(resolved via `dependency_overrides` in
+[`pubspec.yaml`](../../../pubspec.yaml)) reads that field during
+construction and binds the WebView:
 
 ```dart
-final webspaceProfile = (Platform.isAndroid &&
-        ProfileNative.instance.cachedSupported &&
+final containerId = (ContainerNative.instance.cachedSupported &&
         config.siteId != null)
     ? 'ws-${config.siteId}'
     : null;
 
-final settings = WebSpaceInAppWebViewSettings(webspaceProfile: webspaceProfile)
+final settings = inapp.InAppWebViewSettings(containerId: containerId)
   ..javaScriptEnabled = config.javascriptEnabled
   ..userAgent = config.userAgent
   ..thirdPartyCookiesEnabled = config.thirdPartyCookiesEnabled
@@ -477,15 +473,15 @@ return inapp.InAppWebView(
 ```
 
 `cachedSupported` is the synchronous getter on
-[`ProfileNative`](../../../lib/services/profile_native.dart),
+[`ContainerNative`](../../../lib/services/container_native.dart),
 populated during `_restoreAppState` (the same pass that resolves
-`_useProfiles`). The first webview a process ever constructs
+`_useContainers`). The first webview a process ever constructs
 (before `_restoreAppState` runs to completion) sees
 `cachedSupported == false` and takes the non-profile path — but by
 then no site has been activated yet, so this case never fires in
 practice.
 
-The legacy [`ProfileNative.bindProfileToWebView`](../../../lib/services/profile_native.dart)
+The legacy [`ContainerNative.bindContainerToWebView`](../../../lib/services/container_native.dart)
 post-hoc bind method remains in the engine for diagnostics and the
 mock used by tests, but the production webview-construction path no
 longer calls it; the native plugin does the bind during `prepare()`.
@@ -512,31 +508,31 @@ JS gets injected*.
 ### Modified
 - `android/app/build.gradle` — adds `androidx.webkit:webkit:1.12.1`
 - `android/app/src/main/kotlin/.../MainActivity.kt` —
-  instantiates `WebSpaceProfilePlugin`
-- `lib/main.dart` — caches `_useProfiles`, gates engine selection in
+  instantiates `WebSpaceContainerPlugin`
+- `lib/main.dart` — caches `_useContainers`, gates engine selection in
   `_setCurrentIndex` and `_deleteSite`, runs orphan GC in
   `_restoreAppState`
 - `lib/services/webview.dart` — calls
-  `ProfileNative.instance.getOrCreateProfile + bindProfileToWebView`
+  `ContainerNative.instance.getOrCreateContainer + bindContainerToWebView`
   in `onWebViewCreated`
 
 ### Created
-- `android/app/src/main/kotlin/.../WebSpaceProfilePlugin.kt` —
+- `android/app/src/main/kotlin/.../WebSpaceContainerPlugin.kt` —
   native plugin
-- `lib/services/profile_native.dart` — Dart interface + Android
+- `lib/services/container_native.dart` — Dart interface + Android
   MethodChannel impl + iOS / macOS stub
-- `lib/services/profile_isolation_engine.dart` — pure-Dart engine
-- `test/profile_isolation_engine_test.dart` — engine unit tests with
-  `MockProfileNative`
+- `lib/services/container_isolation_engine.dart` — pure-Dart engine
+- `test/container_isolation_engine_test.dart` — engine unit tests with
+  `MockContainerNative`
 - `scripts/check_no_gms.sh` — GMS scanner script
 - `test/gms_freedom_test.dart` — CI-tagged test that shells out to
   the scanner
-- `openspec/specs/per-site-profiles/spec.md` — this specification
+- `openspec/specs/per-site-containers/spec.md` — this specification
 
 ## iOS / macOS Path Forward (Not This Spec)
 
 The Dart interface in
-[`lib/services/profile_native.dart`](../../../lib/services/profile_native.dart)
+[`lib/services/container_native.dart`](../../../lib/services/container_native.dart)
 is cross-platform from day one. The iOS/macOS implementation is
 gated behind a flutter_inappwebview enhancement: the plugin's
 `InAppWebViewSettings` does not yet expose `websiteDataStoreId`, and
@@ -567,17 +563,17 @@ Three tracked options when the iOS work is scheduled:
 
 When iOS plumbing lands:
 
-1. Replace `_StubProfileNative` in `profile_native.dart` with a
+1. Replace `_StubContainerNative` in `container_native.dart` with a
    MethodChannel impl on iOS/macOS, and switch
-   `ProfileNative.instance` selection to include
+   `ContainerNative.instance` selection to include
    `Platform.isIOS || Platform.isMacOS`.
-2. Add `WebSpaceProfilePlugin.swift` registered via the shared
+2. Add `WebSpaceContainerPlugin.swift` registered via the shared
    runner.
 3. Adjust the bind call site: iOS needs the data store assigned to
    `WKWebViewConfiguration` *before* construction, so the
    Dart-side path threads `websiteDataStoreId` into
    `InAppWebViewSettings` rather than calling
-   `bindProfileToWebView` after the fact. The engine's
+   `bindContainerToWebView` after the fact. The engine's
    `bindForSite` API absorbs this — only the platform impl differs.
 4. iOS-specific test: verify `websiteDataStoreId` is threaded into
    the settings dict for activation paths.
@@ -587,7 +583,7 @@ When iOS plumbing lands:
 ### Unit Tests
 
 ```bash
-fvm flutter test test/profile_isolation_engine_test.dart
+fvm flutter test test/container_isolation_engine_test.dart
 ```
 
 Engine tests cover:
@@ -649,6 +645,6 @@ Legacy hardware (Android System WebView <110):
 
 iOS / macOS:
 
-- Behavior is unchanged. `_useProfiles` is `false`, the legacy
+- Behavior is unchanged. `_useContainers` is `false`, the legacy
   engine handles isolation. Run the
   per-site-cookie-isolation manual tests.

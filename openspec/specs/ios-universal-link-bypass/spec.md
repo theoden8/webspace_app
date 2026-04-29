@@ -293,7 +293,7 @@ Unit tests in [`test/ios_universal_link_bypass_test.dart`](../../../test/ios_uni
 
 - [`navigation`](../navigation/spec.md) — main navigation orchestration.
 - [`nested-url-blocking`](../nested-url-blocking/spec.md) — cross-domain navigation blocking; the bypass runs after this engine has decided the URL should load.
-- [`per-site-cookie-isolation`](../per-site-cookie-isolation/spec.md) and [`per-site-profiles`](../per-site-profiles/spec.md) — the storage-isolation reason a user wants navigations to stay inside the WebSpace webview in the first place.
+- [`per-site-cookie-isolation`](../per-site-cookie-isolation/spec.md) and [`per-site-containers`](../per-site-containers/spec.md) — the storage-isolation reason a user wants navigations to stay inside the WebSpace webview in the first place.
 
 ## Future Work
 

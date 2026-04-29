@@ -4,7 +4,6 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   private var locationPlugin: LocationPlugin?
-  private var profilePlugin: WebSpaceProfilePlugin?
 
   override func application(
     _ application: UIApplication,
@@ -13,7 +12,6 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       locationPlugin = LocationPlugin(messenger: controller.binaryMessenger)
-      profilePlugin = WebSpaceProfilePlugin(messenger: controller.binaryMessenger)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }

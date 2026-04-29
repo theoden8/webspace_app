@@ -19,8 +19,8 @@ jobs:
       - name: Validate metadata
         run: ./scripts/validate_fastlane_metadata.sh
 
-  build-android-linux:
-    name: Build Android & Linux
+  build-android:
+    name: Build Android
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
@@ -40,11 +40,6 @@ jobs:
         with:
           ruby-version: '3.3'
           bundler-cache: true
-
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev
 
       - name: Setup Flutter (for Dart SDK)
         uses: subosito/flutter-action@v2
@@ -80,16 +75,6 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
-      - name: Apply WebSpace plugin patches
-        # See third_party/PATCHES.md. The script materializes patched
-        # copies of flutter_inappwebview_{android,ios,macos} under
-        # .dart_tool/webspace_patched_plugins/<plugin>/, downloading
-        # upstream from pub.dev when ~/.pub-cache is cold. Must run
-        # BEFORE the first `pub get` because pub validates path:
-        # dependency targets exist (exit 66 otherwise) and
-        # dependency_overrides in pubspec.yaml point at those paths.
-        run: fvm dart run scripts/apply_plugin_patches.dart
-
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
@@ -124,9 +109,6 @@ jobs:
           for apk in "${apks[@]}"; do
             bash scripts/check_no_gms.sh "$apk"
           done
-
-      - name: Build Linux
-        run: fvm flutter build linux --release
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
@@ -218,6 +200,88 @@ jobs:
           path: screenshots/android/*.png
           if-no-files-found: warn
 
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    # Run inside Debian Sid because libwpewebkit-2.0-dev needs to be at
+    # least 2.50: flutter_inappwebview_linux 0.1.0-beta.1 calls
+    # webkit_navigation_action_is_for_main_frame (added in 2.50) and
+    # webkit_web_view_get_theme_color (also 2.50). Trixie ships 2.48
+    # which is too old; Ubuntu Noble has no WPE packages at all; Jammy
+    # is 2.36. Sid has 2.52.3. Sid is technically "unstable" but the
+    # WPE WebKit toolchain there has been the most stable path; if
+    # anything else in the apt set breaks we'll surface the package
+    # name and pin if needed. The Android job stays untouched on the
+    # ubuntu-latest host runner — only Linux is in this container.
+    container:
+      image: debian:sid-slim
+    steps:
+      - name: Install container base + Flutter Linux + WPE WebKit deps
+        # debian:sid-slim ships nothing — Actions need git/curl/unzip
+        # just to function. Flutter desktop linux needs gtk/lzma/secret/
+        # epoxy. The plugin needs libwpewebkit-2.0-dev plus libwpe-1.0-dev
+        # and libwpebackend-fdo-1.0-dev (legacy fallback path; harmless
+        # to install even though the plugin prefers WPEPlatform).
+        run: |
+          set -x
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl wget git unzip xz-utils sudo \
+            build-essential clang lld llvm cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
+            libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev
+          rm -rf /var/lib/apt/lists/*
+          pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
+          pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          # GitHub Actions sets HOME=/github/home inside container jobs
+          # (not /root, even though the container runs as root). fvm
+          # install script v2.0.0+ caches Flutter SDKs under $HOME/fvm/versions.
+          path: ~/fvm/versions
+          key: fvm-debian-sid-${{ hashFiles('**/.fvmrc') }}
+          restore-keys: |
+            fvm-debian-sid-
+
+      - name: Install fvm (standalone binary)
+        # fvm.app/install.sh v2 installs the binary to $HOME/fvm/bin/fvm.
+        # GitHub Actions overrides HOME to /github/home in container jobs,
+        # so the binary lands at /github/home/fvm/bin/fvm. Append it to
+        # GITHUB_PATH for subsequent steps. fvm itself manages Flutter SDK
+        # installs — no Dart bootstrap needed.
+        run: |
+          set -x
+          curl -fsSL https://fvm.app/install.sh | bash
+          ls -la "$HOME/fvm/bin/"
+          echo "$HOME/fvm/bin" >> "$GITHUB_PATH"
+          "$HOME/fvm/bin/fvm" --version
+
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            /root/.pub-cache
+            .dart_tool
+          key: pub-debian-sid-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-debian-sid-
+
+      - name: Get dependencies
+        run: fvm flutter pub get --enforce-lockfile
+
+      - name: Build Linux
+        run: fvm flutter build linux --release
+
   build-apple:
     name: Build iOS & macOS
     runs-on: macos-latest
@@ -279,16 +343,6 @@ jobs:
           key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock', 'macos/Podfile.lock') }}
           restore-keys: |
             pods-${{ runner.os }}-
-
-      - name: Apply WebSpace plugin patches
-        # See third_party/PATCHES.md. The script materializes patched
-        # copies of flutter_inappwebview_{android,ios,macos} under
-        # .dart_tool/webspace_patched_plugins/<plugin>/, downloading
-        # upstream from pub.dev when ~/.pub-cache is cold. Must run
-        # BEFORE the first `pub get` because pub validates path:
-        # dependency targets exist (exit 66 otherwise) and
-        # dependency_overrides in pubspec.yaml point at those paths.
-        run: fvm dart run scripts/apply_plugin_patches.dart
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
@@ -379,7 +433,7 @@ jobs:
 
   release-summary:
     name: Release Summary
-    needs: [build-android-linux, build-apple]
+    needs: [build-android, build-linux, build-apple]
     runs-on: ubuntu-latest
     if: success()
     steps:
