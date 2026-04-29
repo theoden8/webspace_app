@@ -34,7 +34,7 @@
 
 - [x] 5.1 In the per-site settings screen (`lib/screens/site_settings.dart` or wherever per-site toggles live), add `SwitchListTile` for `notificationsEnabled`. Subtitle: "Allow this site to show system notifications."
 - [x] 5.2 Add `SwitchListTile` for `backgroundPoll`. Subtitle (iOS): "Check for updates periodically (~15-30 min between checks while app is closed)." Subtitle (Android proxy-eligible): "Keep checking for updates while app is backgrounded." Subtitle (Android proxy-conflict): "Cannot enable: another site with a different proxy is already polling in background." Disable in the conflict case.
-- [x] 5.3 Gate visibility of both toggles on `_useProfiles` (passed in or read via a getter on `_WebSpacePageState`). When `_useProfiles == false`, do not render either tile.
+- [x] 5.3 Gate visibility of both toggles on `_useContainers` (passed in or read via a getter on `_WebSpacePageState`). When `_useContainers == false`, do not render either tile.
 - [x] 5.4 Persist toggle changes via `setState` + `_saveAppState()`.
 - [ ] 5.5 On enabling `backgroundPoll`, call `NotificationService.requestPermission()` so the OS dialog appears at a moment of clear user intent (rather than waiting for the first notification).
 
@@ -124,7 +124,7 @@
 - [ ] 17.1 Build for iOS, install on iOS 17+ device.
 - [ ] 17.2 Import `test/fixtures/notification_test.html` as a site (via "Import HTML file").
 - [ ] 17.3 Walk through all "Manual Test Procedure" entries in the spec — polyfill, permission, display, tap, foreground refresh, iOS grace flush, BGAppRefreshTask, multiple sites, edge cases, legacy device.
-- [ ] 17.4 Repeat on Android with profile mode (System WebView 110+).
+- [ ] 17.4 Repeat on Android with container mode (System WebView 110+).
 
 ## 18. Documentation
 

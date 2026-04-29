@@ -4,11 +4,11 @@
 
 ### Requirement: NOTIF-001 - Notification Permission Handling
 
-The system SHALL handle JavaScript `Notification.requestPermission()` calls from web pages and grant or deny based on the per-site notification toggle. Requires profile mode (`_useProfiles == true`) — iOS 17+ or Android with System WebView 110+.
+The system SHALL handle JavaScript `Notification.requestPermission()` calls from web pages and grant or deny based on the per-site notification toggle. Requires container mode (`_useContainers == true`) — iOS 17+ or Android with System WebView 110+.
 
 #### Scenario: Site requests notification permission with toggle enabled
 
-**Given** profile mode is active
+**Given** container mode is active
 **And** a site has `notificationsEnabled` set to `true`
 **When** the site calls `Notification.requestPermission()`
 **Then** the polyfill calls the `webNotificationRequestPermission` JS handler
@@ -23,7 +23,7 @@ The system SHALL handle JavaScript `Notification.requestPermission()` calls from
 
 #### Scenario: Notification toggles hidden on legacy devices
 
-**Given** profile mode is NOT active (`_useProfiles == false`)
+**Given** container mode is NOT active (`_useContainers == false`)
 **When** the user opens site settings
 **Then** the `notificationsEnabled` and `backgroundPoll` toggles are not shown
 
@@ -56,7 +56,7 @@ The system SHALL inject a JavaScript polyfill at `DOCUMENT_START` (with `forMain
 
 ### Requirement: NOTIF-003 - Notification Tap Navigation
 
-The system SHALL navigate to the originating site when the user taps a notification. This routes through `_setCurrentIndex`. In profile mode, no domain conflicts occur — the target site simply becomes active.
+The system SHALL navigate to the originating site when the user taps a notification. This routes through `_setCurrentIndex`. In container mode, no domain conflicts occur — the target site simply becomes active.
 
 #### Scenario: User taps a notification for a loaded site
 
@@ -78,7 +78,7 @@ The system SHALL navigate to the originating site when the user taps a notificat
 
 ### Requirement: NOTIF-004 - Per-Site Notification Toggle
 
-The system SHALL provide a per-site toggle to control whether the site is allowed to show notifications. Defaults to off (opt-in). Only visible when profile mode is active.
+The system SHALL provide a per-site toggle to control whether the site is allowed to show notifications. Defaults to off (opt-in). Only visible when container mode is active.
 
 #### Scenario: User enables notifications for a site
 
@@ -96,7 +96,7 @@ The system SHALL provide a per-site toggle to control whether the site is allowe
 
 ### Requirement: NOTIF-005 - Per-Site Background Poll Toggle
 
-The system SHALL provide a per-site toggle that opts the site into background polling. Only visible when profile mode is active. In profile mode, there are no domain conflicts, so all background-poll sites stay loaded concurrently with their own isolated profiles. Background behavior is platform-dependent — see NOTIF-005-I (iOS) and NOTIF-005-A (Android).
+The system SHALL provide a per-site toggle that opts the site into background polling. Only visible when container mode is active. In container mode, there are no domain conflicts, so all background-poll sites stay loaded concurrently with their own isolated profiles. Background behavior is platform-dependent — see NOTIF-005-I (iOS) and NOTIF-005-A (Android).
 
 #### Scenario: App enters background without background-poll sites
 
@@ -108,7 +108,7 @@ The system SHALL provide a per-site toggle that opts the site into background po
 
 **Given** Site A (`github.com/personal`) has `backgroundPoll` set to `true`
 **And** Site B (`github.com/work`) has `backgroundPoll` set to `true`
-**And** profile mode is active
+**And** container mode is active
 **When** both sites are loaded
 **Then** both stay loaded concurrently (PROF-003 — no domain conflict)
 
@@ -251,7 +251,7 @@ The system SHALL request OS-level notification permission before displaying the 
 
 ## Manual Test Procedure
 
-Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it via "Import HTML file" on the Add Site screen. **Requires profile mode support** (iOS 17+ or Android with System WebView 110+).
+Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it via "Import HTML file" on the Add Site screen. **Requires container mode support** (iOS 17+ or Android with System WebView 110+).
 
 ### Test: Polyfill is injected (NOTIF-002)
 1. Import `notification_test.html` as a site
@@ -328,7 +328,7 @@ Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it v
 3. On Site A, tap "Send Delayed Notifications", then switch to Site B
 4. On Site B, tap "Send Delayed Notifications"
 5. Keep app in foreground
-6. **Expected**: Notifications from both sites arrive (profile mode — no conflicts)
+6. **Expected**: Notifications from both sites arrive (container mode — no conflicts)
 
 ### Test: Edge cases
 1. Tap "Send 5 Rapid Notifications" — all 5 should appear as native notifications
@@ -337,6 +337,6 @@ Use the HTML test fixture at `test/fixtures/notification_test.html`. Import it v
 4. Disable `notificationsEnabled`, tap "Send Without Permission" — no notification should display
 
 ### Test: Legacy device
-1. On a device without profile mode support
+1. On a device without container mode support
 2. Open site settings
 3. **Expected**: `notificationsEnabled` and `backgroundPoll` toggles are NOT shown

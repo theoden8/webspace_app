@@ -86,7 +86,7 @@ class SettingsScreen extends StatefulWidget {
   /// user script. Parent should dispose this site's webview so the next
   /// render recreates it with the updated [initialUserScripts].
   final VoidCallback? onScriptsChanged;
-  final bool useProfiles;
+  final bool useContainers;
 
   SettingsScreen({
     required this.webViewModel,
@@ -96,7 +96,7 @@ class SettingsScreen extends StatefulWidget {
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onScriptsChanged,
-    this.useProfiles = false,
+    this.useContainers = false,
   });
 
   @override
@@ -1146,7 +1146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
-          if (widget.useProfiles)
+          if (widget.useContainers)
             SwitchListTile(
               title: const Text('Notifications'),
               subtitle: const Text('Allow this site to show system notifications'),
@@ -1157,7 +1157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
-          if (widget.useProfiles)
+          if (widget.useContainers)
             SwitchListTile(
               title: const Text('Background polling'),
               subtitle: Text(

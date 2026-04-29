@@ -10,9 +10,15 @@ Users want notifications from web apps loaded in WebSpace — typically lower-fr
 - **Foreground active polling**: While the app is open, a 5-minute timer triggers a reload on each background-poll site that isn't the currently active site, so sites that throttle polling when not visible still get a chance to check for new content.
 - **Native notification display + tap routing**: Use `flutter_local_notifications` to display, tag with `siteId`, and route taps through `_setCurrentIndex` to switch back to the originating site.
 
-## Scope: iOS + Android, Profile Mode Only
+## Scope: Container Mode Only
 
-This feature targets **iOS 17+** (per-site profiles via `WKWebsiteDataStore(forIdentifier:)`) and **Android with System WebView 110+** (per-site profiles via `androidx.webkit.Profile`). Profile mode eliminates domain conflicts (PROF-003), so background-poll sites just stay loaded with isolated cookie jars, localStorage, and ServiceWorkers. On legacy devices, the notification and background-poll toggles are hidden.
+This feature targets all platforms with per-site container support:
+- **iOS 17+** via `WKWebsiteDataStore(forIdentifier:)`
+- **macOS 14+** via `WKWebsiteDataStore(forIdentifier:)`
+- **Android** with System WebView 110+ via `androidx.webkit.Profile`
+- **Linux** via the `flutter_inappwebview_linux` fork
+
+Container mode eliminates domain conflicts, so background-poll sites just stay loaded with isolated cookie jars, localStorage, and ServiceWorkers. On legacy devices (older OS / older System WebView), the notification and background-poll toggles are hidden.
 
 ## Implementation Strategy: JavaScript Polyfill (both platforms)
 
@@ -96,10 +102,10 @@ Real-time iOS background notifications would require a server that subscribes to
 ## Capabilities
 
 ### New Capabilities
-- `web-push-notifications`: JavaScript Notification API polyfill, native notification display, per-site toggles (notifications, background-poll), foreground 5-min refresh timer, iOS grace-period flush + opportunistic `BGAppRefreshTask`, Android foreground service for proxy-free sites + proxy-conflict toggle gating, auto-loading of background-poll sites on startup, notification-tap deep linking. Profile mode only.
+- `web-push-notifications`: JavaScript Notification API polyfill, native notification display, per-site toggles (notifications, background-poll), foreground 5-min refresh timer, iOS grace-period flush + opportunistic `BGAppRefreshTask`, Android foreground service for proxy-free sites + proxy-conflict toggle gating, auto-loading of background-poll sites on startup, notification-tap deep linking. Container mode only.
 
 ### Modified Capabilities
-- `lazy-webview-loading`: Sites marked as background-poll are auto-loaded on app startup (added to `_loadedIndices`) without requiring a manual visit first. In profile mode there are no domain-conflict restrictions, so all background-poll sites auto-load freely.
+- `lazy-webview-loading`: Sites marked as background-poll are auto-loaded on app startup (added to `_loadedIndices`) without requiring a manual visit first. In container mode there are no domain-conflict restrictions, so all background-poll sites auto-load freely.
 
 ## Impact
 
@@ -122,7 +128,7 @@ Real-time iOS background notifications would require a server that subscribes to
   - Android: start/stop foreground service based on whether any proxy-eligible background-poll site is loaded.
   - Auto-load background-poll sites on startup.
   - Notification tap handler routes through `_setCurrentIndex`.
-  - Toggle visibility gated on `_useProfiles`; on Android, additionally gated on the proxy constraint.
+  - Toggle visibility gated on `_useContainers`; on Android, additionally gated on the proxy constraint.
 - **New service files**:
   - `lib/services/notification_service.dart` — channel setup, display, tap routing
   - `lib/services/background_refresh_service.dart` — iOS `BGTaskScheduler` registration + Android foreground service control

@@ -3,8 +3,8 @@
 WebSpace currently ignores all `Notification.requestPermission()` calls and pauses every webview when the app enters the background. Users who load communication-heavy sites (email, RSS, GitHub) get zero notifications.
 
 Current architecture:
-- Per-site profiles ([per-site-profiles spec](specs/per-site-profiles/spec.md)) on iOS 17+ and Android System WebView 110+ provide engine-level isolation. Same-domain sites coexist with isolated cookie jars, localStorage, IndexedDB, ServiceWorkers, and HTTP cache.
-- `_useProfiles` is cached at startup as a single boolean.
+- Per-site profiles ([per-site-containers spec](specs/per-site-containers/spec.md)) on iOS 17+ and Android System WebView 110+ provide engine-level isolation. Same-domain sites coexist with isolated cookie jars, localStorage, IndexedDB, ServiceWorkers, and HTTP cache.
+- `_useContainers` is cached at startup as a single boolean.
 - Lazy loading: webviews are created only when sites are first visited (`_loadedIndices`).
 - Lifecycle: `didChangeAppLifecycleState` pauses all webviews on background entry.
 
@@ -32,7 +32,7 @@ Stakeholders: end users (issue #192), the maintainer (theoden8), F-Droid reviewe
 - Real-time iOS background notifications. Out of scope by design — the only path is APNs server relay, which violates the privacy model and F-Droid constraints.
 - Web Push API (`navigator.serviceWorker.pushManager`, VAPID). Sites that gate notifications on Push API support will fall back to in-app messaging. Future work, not v1.
 - Slack / Teams / Telegram real-time chat. Users should use those apps' native iOS/Android apps. The proposal (issue #192) explicitly relaxes this — the requester accepts non-real-time delivery.
-- Legacy device support (`_useProfiles == false`). Toggles are hidden; the feature is unavailable.
+- Legacy device support (`_useContainers == false`). Toggles are hidden; the feature is unavailable.
 - macOS support. Out of scope until the iOS work proves stable; macOS reuses most of the iOS code path with `NSAppNapPriority` instead of `BGAppRefreshTask`.
 - Cross-app notification deduplication, grouping, or thread management. Each notification is tagged with `siteId`; OS-level grouping is whatever the OS provides by default.
 
@@ -108,9 +108,9 @@ Proxy conflict UI: if the user tries to enable `backgroundPoll` on Site B whose 
 - *Use WorkManager periodic tasks instead of foreground service.* Rejected — Android imposes 15 min minimum interval and may delay heavily; we lose the real-time delivery that's Android's main advantage over iOS.
 - *Patch ProxyController to be per-WebView.* Rejected — would require forking flutter_inappwebview and Chromium-side changes; way out of scope.
 
-### D6: Toggles gated on `_useProfiles`
+### D6: Toggles gated on `_useContainers`
 
-`notificationsEnabled` and `backgroundPoll` toggles are visible only when profile mode is active (iOS 17+ or Android with WebView 110+). On legacy devices the feature is hidden entirely.
+`notificationsEnabled` and `backgroundPoll` toggles are visible only when container mode is active (iOS 17+ or Android with WebView 110+). On legacy devices the feature is hidden entirely.
 
 **Why:**
 - In legacy mode (CookieIsolation engine), domain conflicts dispose webviews and `deleteAllCookies()` clears the singleton CookieManager. A backgrounded "background-poll" site would lose its session the moment any other same-domain site activates. Reliable notifications are infeasible.
@@ -121,7 +121,7 @@ Proxy conflict UI: if the user tries to enable `backgroundPoll` on Site B whose 
 
 ### D7: Notification tap routes through `_setCurrentIndex`
 
-When the user taps a notification, the platform-native tap handler fires our Dart callback with the `siteId`. We look up the index for that `siteId` in `_webViewModels` and call `_setCurrentIndex(index)`. In profile mode there are no domain conflicts, so this is a normal site activation.
+When the user taps a notification, the platform-native tap handler fires our Dart callback with the `siteId`. We look up the index for that `siteId` in `_webViewModels` and call `_setCurrentIndex(index)`. In container mode there are no domain conflicts, so this is a normal site activation.
 
 **Why:**
 - Existing path. No new orchestration. Lazy loading and profile binding both happen via the standard `_setCurrentIndex` flow.
@@ -133,7 +133,7 @@ On `_restoreAppState`, after sites are restored, iterate over those with `backgr
 
 **Why:**
 - A background-poll site that was never visited can't deliver notifications. Auto-loading at startup lets the polyfill register immediately.
-- Profile mode means there's no domain-conflict cost to having multiple sites loaded simultaneously.
+- Container mode means there's no domain-conflict cost to having multiple sites loaded simultaneously.
 
 **Alternatives considered:**
 - *Lazy-load on first BGAppRefreshTask fire.* Rejected — we'd miss in-foreground polling and the 30s grace flush. Auto-load is simpler.
