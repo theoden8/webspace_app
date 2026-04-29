@@ -16,6 +16,7 @@ import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
+import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/profile_native.dart';
 import 'package:webspace/services/profile_cookie_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
@@ -1536,6 +1537,12 @@ class WebViewFactory {
     // that this branch has been chasing.
     var navigationGen = 0;
 
+    // iOS Universal Link bypass state (per-WebView). Tracks URLs we
+    // just cancelled-and-reissued so the second-pass shouldOverrideUrlLoading
+    // call (the reissued programmatic load landing here again) doesn't
+    // loop. See lib/services/ios_universal_link_bypass.dart.
+    final iosUlBypass = IosUniversalLinkBypass();
+
     // Profile API binding. Stock flutter_inappwebview's `prepare()` does
     // session-bound ops (addJavascriptInterface, addDocumentStartJavaScript,
     // setAcceptThirdPartyCookies) BEFORE `onWebViewCreated` fires, which
@@ -1909,9 +1916,48 @@ class WebViewFactory {
         }
         if (config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(navigationAction);
-          return config.shouldOverrideUrlLoading!(url, hasGesture)
-              ? inapp.NavigationActionPolicy.ALLOW
-              : inapp.NavigationActionPolicy.CANCEL;
+          final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
+          if (!allow) return inapp.NavigationActionPolicy.CANCEL;
+        }
+        // iOS Universal Link bypass. WKWebView auto-routes user-tap
+        // navigations (and redirect chains rooted in a tap) to the
+        // native app for URLs whose host matches an installed app's
+        // AASA — even when the user explicitly added the site to
+        // WebSpace. iOS exposes no public API to detect AASA matches,
+        // so the bypass treats every gesture-rooted main-frame
+        // http(s) navigation as at-risk: cancel + reissue via
+        // `loadUrl`. WebKit treats programmatic loads as navigation
+        // type `.other` and skips AASA matching, keeping the page
+        // inside the webview regardless of which apps are installed.
+        // The reissued nav fires `shouldOverrideUrlLoading` again;
+        // the per-URL memo passes that second pass through.
+        //
+        // Pure programmatic navigations (initial nav, server
+        // redirects without a tap origin, pushState) carry no user
+        // gesture — they don't activate AASA in the first place and
+        // are passed through here without interception.
+        if (Platform.isIOS &&
+            isMainFrame &&
+            url.startsWith('http') &&
+            _hasUserGesture(navigationAction)) {
+          if (iosUlBypass.shouldCancelAndReissue(url)) {
+            LogService.instance.log('WebView',
+                '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url');
+            // Forward original headers so per-site Accept-Language
+            // survives the reissue. POST body is dropped — POSTs
+            // that match AASA are rare and the existing flow lost
+            // them anyway when iOS short-circuited to the native
+            // app.
+            final originalUrl = navigationAction.request.url;
+            final originalHeaders = navigationAction.request.headers;
+            controller.loadUrl(urlRequest: inapp.URLRequest(
+              url: originalUrl,
+              headers: originalHeaders,
+            ));
+            return inapp.NavigationActionPolicy.CANCEL;
+          }
+          LogService.instance.log('WebView',
+              '  -> ALLOW (iOS UL bypass: reissued nav passing through)');
         }
         return inapp.NavigationActionPolicy.ALLOW;
       },
