@@ -2,7 +2,7 @@
 • Native per-site containers
 • Per-site HTTP/SOCKS5 proxy on all platforms except Android
 • Per-site geolocation spoof + timezone + WebRTC lockdown
-• Convincing desktop mode: UA picker + viewport/navigator shims
+• Desktop mode ships UA picker, viewport rewrite, pointer/touch shims
 • Cross-app intent handling
 
 🔧 Improvements:
