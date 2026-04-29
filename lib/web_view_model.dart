@@ -7,7 +7,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show Pu
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
-import 'package:webspace/services/profile_cookie_manager.dart';
+import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -435,7 +435,7 @@ class WebViewModel {
   ///
   /// iOS / macOS: no-op — the per-site proxy is bound to the per-site
   /// `WKWebsiteDataStore` at WebView construction (via
-  /// `WebSpaceInAppWebViewSettings.webspaceProxy`). To pick up a runtime
+  /// `inapp.InAppWebViewSettings.proxySettings`). To pick up a runtime
   /// change, the WebView must be rebuilt; see [updateProxySettings].
   Future<void> _applyProxySettings() async {
     final proxyManager = ProxyManager();
@@ -486,7 +486,7 @@ class WebViewModel {
   /// On iOS / macOS, the proxy is sealed into the per-site
   /// `WKWebsiteDataStore` at WebView construction time. To pick up the
   /// new value, the live WebView is discarded so the next render
-  /// reconstructs it with the new `WebSpaceInAppWebViewSettings.webspaceProxy`
+  /// reconstructs it with the new `inapp.InAppWebViewSettings.proxySettings`
   /// dictionary. The caller MUST trigger a rebuild (typically via
   /// `setState`) so the IndexedStack actually re-creates the slot.
   Future<void> updateProxySettings(UserProxySettings newSettings) async {
@@ -501,7 +501,7 @@ class WebViewModel {
   Widget getWebView(
     Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings}) launchUrlFunc,
     CookieManager cookieManager,
-    ProfileCookieManager? profileCookieManager,
+    ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
@@ -733,11 +733,11 @@ class WebViewModel {
             await saveFunc();
           },
           // Route the post-load cookie read through whichever
-          // manager is active for this engine. Profile mode hits the
-          // per-site profile via the patched plugin's
-          // `webViewController:`; legacy mode hits the global jar.
+          // manager is active for this engine. Container mode hits the
+          // per-site container via the fork's `webViewController:`;
+          // legacy mode hits the global jar.
           cookieManager: cookieManager,
-          profileCookieManager: profileCookieManager,
+          containerCookieManager: containerCookieManager,
           cookieSiteId: siteId,
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar
@@ -745,8 +745,8 @@ class WebViewModel {
               final blocked = newCookies.where((c) => isCookieBlocked(c.name, c.domain)).toList();
               final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
               for (final c in blocked) {
-                if (profileCookieManager != null) {
-                  await profileCookieManager.deleteCookie(
+                if (containerCookieManager != null) {
+                  await containerCookieManager.deleteCookie(
                     controller: controller,
                     siteId: siteId,
                     url: url,
@@ -807,13 +807,13 @@ class WebViewModel {
   WebViewController? getController(
     Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings}) launchUrlFunc,
     CookieManager cookieManager,
-    ProfileCookieManager? profileCookieManager,
+    ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
       // Create webview with current language setting
-      webview = getWebView(launchUrlFunc, cookieManager, profileCookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts);
+      webview = getWebView(launchUrlFunc, cookieManager, containerCookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts);
     }
     if (controller != null) {
       setController();
@@ -822,11 +822,11 @@ class WebViewModel {
   }
 
   Future<void> deleteCookies(CookieManager cookieManager,
-      ProfileCookieManager? profileCookieManager) async {
+      ContainerCookieManager? containerCookieManager) async {
     final url = Uri.parse(initUrl);
     for (final Cookie cookie in cookies) {
-      if (profileCookieManager != null) {
-        await profileCookieManager.deleteCookie(
+      if (containerCookieManager != null) {
+        await containerCookieManager.deleteCookie(
           controller: controller,
           siteId: siteId,
           url: url,

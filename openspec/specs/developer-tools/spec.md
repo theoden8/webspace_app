@@ -57,7 +57,7 @@ details, reading from the same jar the WebView itself uses.
 **Given** the app is running in profile mode (`_useProfiles == true`)
 **When** the user opens the Cookies tab on Site A
 **Then** `_refreshCookies` calls
-  `ProfileCookieManager.getCookies(controller: ..., siteId: ..., url: ...)`
+  `ContainerCookieManager.getCookies(controller: ..., siteId: ..., url: ...)`
   which routes through the patched `inapp.CookieManager`'s
   `webViewController:` parameter
 **And** the returned cookies are Site A's per-profile jar
@@ -77,7 +77,7 @@ details, reading from the same jar the WebView itself uses.
 **Given** the Cookies tab shows cookies
 **When** the user expands a cookie and taps "Delete"
 **Then** the cookie is removed from the cookie jar that backs the
-  inspector — `ProfileCookieManager.deleteCookie` in profile mode,
+  inspector — `ContainerCookieManager.deleteCookie` in profile mode,
   `cookieManager.deleteCookie` in legacy mode (same branch as
   `_refreshCookies`)
 **And** the cookie list refreshes

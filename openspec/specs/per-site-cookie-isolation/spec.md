@@ -4,11 +4,11 @@
 **Implemented (legacy / fallback path).**
 
 > **Note:** This is the fallback engine, used when
-> [`ProfileNative.isSupported()`](../../../lib/services/profile_native.dart)
+> [`ContainerNative.isSupported()`](../../../lib/services/container_native.dart)
 > is `false` — i.e. iOS, macOS, and Android System WebView <110. On
 > Android System WebView 110+, the app uses native per-site profiles
 > instead; see
-> [openspec/specs/per-site-profiles/spec.md](../per-site-profiles/spec.md).
+> [openspec/specs/per-site-containers/spec.md](../per-site-containers/spec.md).
 > Engine selection is a single cached `bool _useProfiles` in
 > [`_WebSpacePageState`](../../../lib/main.dart) resolved at startup;
 > none of the requirements below apply when `_useProfiles == true`
@@ -466,7 +466,7 @@ The system SHALL allow blocking specific cookies by name + domain on a per-site 
 > **Profile mode note.** This requirement applies in legacy mode
 > (`_useProfiles == false`); the delete routes through the global
 > `CookieManager`. In profile mode the same scenarios are satisfied
-> by [PROF-006 — Cookie Ops via ProfileCookieManager](../per-site-profiles/spec.md#requirement-prof-006--cookie-ops-via-profilecookiemanager),
+> by [CONT-006 — Cookie Ops via ContainerCookieManager](../per-site-containers/spec.md#requirement-cont-006--cookie-ops-via-containercookiemanager),
 > which does the delete via the patched `inapp.CookieManager`'s
 > `webViewController:` parameter so the per-site profile's cookie
 > store is targeted (HttpOnly cookies included).

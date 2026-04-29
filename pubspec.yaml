@@ -72,7 +72,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
 
-# Per-site profile isolation requires APIs not present in upstream
+# Per-site container isolation requires APIs not present in upstream
 # flutter_inappwebview. We maintain a fork that adds a first-class
 # "containers" API (per-site Android Profile / WKWebsiteDataStore
 # binding + per-site iOS/macOS proxy). The overrides below pull the
@@ -82,7 +82,7 @@ dev_dependencies:
 # instead of a branch (current branch is mutable; CI builds will drift
 # if the fork branch is force-pushed).
 #
-# Spec: openspec/specs/per-site-profiles/spec.md
+# Spec: openspec/specs/per-site-containers/spec.md
 dependency_overrides:
   flutter_inappwebview:
     git:

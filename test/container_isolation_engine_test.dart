@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/profile_isolation_engine.dart';
-import 'package:webspace/services/profile_native.dart';
+import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/container_native.dart';
 
 /// In-memory model of the native Profile API: a set of named profiles
-/// each owning its own cookie jar, with `bindProfileToWebView` simulated
+/// each owning its own cookie jar, with `bindContainerToWebView` simulated
 /// as a binding registry. Mirrors the [MockCookieManager] pattern in
 /// [test/cookie_isolation_integration_test.dart] — the engine is unaware
 /// it is talking to a fake.
@@ -11,7 +11,7 @@ import 'package:webspace/services/profile_native.dart';
 /// Cookies aren't modeled directly here (the engine doesn't manipulate
 /// them; that's the native plugin's job). The test surface is the
 /// orchestration: which profiles are created, bound, deleted, and listed.
-class MockProfileNative implements ProfileNative {
+class MockContainerNative implements ContainerNative {
   bool supported;
 
   /// `siteId` -> profile name (`ws-<siteId>`).
@@ -24,7 +24,7 @@ class MockProfileNative implements ProfileNative {
   /// Records every method call so tests can assert sequencing.
   final List<String> calls = [];
 
-  MockProfileNative({this.supported = true});
+  MockContainerNative({this.supported = true});
 
   @override
   bool get cachedSupported => supported;
@@ -36,19 +36,19 @@ class MockProfileNative implements ProfileNative {
   }
 
   @override
-  Future<String> getOrCreateProfile(String siteId) async {
-    calls.add('getOrCreateProfile($siteId)');
+  Future<String> getOrCreateContainer(String siteId) async {
+    calls.add('getOrCreateContainer($siteId)');
     final name = 'ws-$siteId';
     profiles[siteId] = name;
     return name;
   }
 
   @override
-  Future<int> bindProfileToWebView(String siteId) async {
-    calls.add('bindProfileToWebView($siteId)');
+  Future<int> bindContainerToWebView(String siteId) async {
+    calls.add('bindContainerToWebView($siteId)');
     if (!profiles.containsKey(siteId)) {
       throw StateError(
-        'bind called before getOrCreateProfile($siteId) — '
+        'bind called before getOrCreateContainer($siteId) — '
         'production engine must always create-then-bind',
       );
     }
@@ -56,33 +56,33 @@ class MockProfileNative implements ProfileNative {
   }
 
   @override
-  Future<void> deleteProfile(String siteId) async {
-    calls.add('deleteProfile($siteId)');
+  Future<void> deleteContainer(String siteId) async {
+    calls.add('deleteContainer($siteId)');
     profiles.remove(siteId);
     webviewsForSite.remove(siteId);
   }
 
   @override
-  Future<List<String>> listProfiles() async {
-    calls.add('listProfiles');
+  Future<List<String>> listContainers() async {
+    calls.add('listContainers');
     return profiles.keys.toList();
   }
 }
 
 void main() {
-  group('ProfileIsolationEngine — unsupported platform fall-through', () {
+  group('ContainerIsolationEngine — unsupported platform fall-through', () {
     test('every method short-circuits when isSupported() returns false', () async {
-      final native = MockProfileNative(supported: false);
-      final engine = ProfileIsolationEngine(profileNative: native);
+      final native = MockContainerNative(supported: false);
+      final engine = ContainerIsolationEngine(containerNative: native);
 
-      await engine.ensureProfile('site-A');
+      await engine.ensureContainer('site-A');
       final bound = await engine.bindForSite('site-A');
       await engine.onSiteDeleted('site-A');
       final gced = await engine.garbageCollectOrphans({'site-A'});
 
       expect(bound, 0);
       expect(gced, 0);
-      // No profile state was touched — not even getOrCreateProfile, so
+      // No profile state was touched — not even getOrCreateContainer, so
       // the call site can be trusted to be a true no-op on iOS / macOS /
       // legacy Android.
       expect(native.profiles, isEmpty);
@@ -94,10 +94,10 @@ void main() {
     });
   });
 
-  group('ProfileIsolationEngine — bindForSite', () {
+  group('ContainerIsolationEngine — bindForSite', () {
     test('creates the profile then binds in that order', () async {
-      final native = MockProfileNative();
-      final engine = ProfileIsolationEngine(profileNative: native);
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
 
       final bound = await engine.bindForSite('site-A');
 
@@ -107,18 +107,18 @@ void main() {
       // on the native side (setProfile requires the profile to exist).
       final keyCalls = native.calls
           .where((c) =>
-              c.startsWith('getOrCreateProfile') ||
-              c.startsWith('bindProfileToWebView'))
+              c.startsWith('getOrCreateContainer') ||
+              c.startsWith('bindContainerToWebView'))
           .toList();
       expect(keyCalls, [
-        'getOrCreateProfile(site-A)',
-        'bindProfileToWebView(site-A)',
+        'getOrCreateContainer(site-A)',
+        'bindContainerToWebView(site-A)',
       ]);
     });
 
     test('is idempotent — repeated calls reuse the same profile', () async {
-      final native = MockProfileNative();
-      final engine = ProfileIsolationEngine(profileNative: native);
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
 
       await engine.bindForSite('site-A');
       await engine.bindForSite('site-A');
@@ -126,17 +126,17 @@ void main() {
 
       expect(native.profiles.keys, ['site-A']);
       expect(
-        native.calls.where((c) => c == 'getOrCreateProfile(site-A)').length,
+        native.calls.where((c) => c == 'getOrCreateContainer(site-A)').length,
         3,
         reason: 'idempotent on the native side, not memoized in Dart',
       );
     });
   });
 
-  group('ProfileIsolationEngine — onSiteDeleted', () {
+  group('ContainerIsolationEngine — onSiteDeleted', () {
     test('drops only the named site\'s profile', () async {
-      final native = MockProfileNative();
-      final engine = ProfileIsolationEngine(profileNative: native);
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
       await engine.bindForSite('site-A');
       await engine.bindForSite('site-B');
 
@@ -147,8 +147,8 @@ void main() {
 
     test('no-op when site has no profile (unloaded before profile mode)',
         () async {
-      final native = MockProfileNative();
-      final engine = ProfileIsolationEngine(profileNative: native);
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
 
       // Should not throw — production deletion path runs even for sites
       // that never got a profile bound (e.g. a stale legacy site).
@@ -158,10 +158,10 @@ void main() {
     });
   });
 
-  group('ProfileIsolationEngine — garbageCollectOrphans', () {
+  group('ContainerIsolationEngine — garbageCollectOrphans', () {
     test('deletes profiles whose owning site no longer exists', () async {
-      final native = MockProfileNative();
-      final engine = ProfileIsolationEngine(profileNative: native);
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
       await engine.bindForSite('site-A');
       await engine.bindForSite('site-B');
       await engine.bindForSite('site-C');
@@ -176,8 +176,8 @@ void main() {
     });
 
     test('returns 0 when every profile has a live owner', () async {
-      final native = MockProfileNative();
-      final engine = ProfileIsolationEngine(profileNative: native);
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
       await engine.bindForSite('site-A');
       await engine.bindForSite('site-B');
 
@@ -189,8 +189,8 @@ void main() {
     });
 
     test('handles the empty-active-set case (all sites deleted)', () async {
-      final native = MockProfileNative();
-      final engine = ProfileIsolationEngine(profileNative: native);
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
       await engine.bindForSite('site-A');
       await engine.bindForSite('site-B');
 

@@ -19,8 +19,8 @@ import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/ios_universal_link_bypass.dart';
-import 'package:webspace/services/profile_native.dart';
-import 'package:webspace/services/profile_cookie_manager.dart';
+import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -34,62 +34,21 @@ import 'package:webspace/widgets/root_messenger.dart';
 // Re-export inapp.Cookie as Cookie for convenience
 typedef Cookie = inapp.Cookie;
 
-/// Subclass of [inapp.InAppWebViewSettings] that smuggles a
-/// `webspaceProfile` key into the settings map sent to the native
-/// plugin. The WebSpace fork of `flutter_inappwebview_android`
-/// (pinned via `dependency_overrides` in pubspec.yaml) reads this
-/// key in `InAppWebViewSettings.parse()` and binds the WebView to
-/// the named profile via `WebViewCompat.setProfile` at the very top
-/// of `InAppWebView.prepare()`, before any session-bound op locks
-/// the WebView to the default profile.
+/// Translate WebSpace's [UserProxySettings] into the fork's
+/// [`inapp.ProxySettings`] type, which the fork's
+/// `preWKWebViewConfiguration` reads and applies to the per-WebView
+/// `WKWebsiteDataStore.proxyConfigurations` (iOS 17+ / macOS 14+ only).
+/// Returns null for `ProxyType.DEFAULT` or invalid configs so the
+/// native side leaves any previously-set proxy in place; callers that
+/// need to *clear* a proxy should pass an empty `ProxySettings`.
 ///
-/// Stock plugin builds (iOS, macOS) ignore the unknown map key.
-///
-/// We extend `InAppWebViewSettings` rather than wrapping it because
-/// `flutter_inappwebview_android`'s Dart layer reads the
-/// `useHybridComposition` field directly (and mutates other fields
-/// via `_inferInitialSettings`); a forwarding adapter would have to
-/// proxy every field. Subclassing inherits all 100+ fields for free
-/// and lets `super.toMap()` serialize them.
-class WebSpaceInAppWebViewSettings extends inapp.InAppWebViewSettings {
-  /// Native profile name (e.g. `ws-<siteId>`), or null to skip the
-  /// profile bind. The patched native side gates on `!= null`.
-  String? webspaceProfile;
-
-  /// Per-site proxy applied to the WebView's data store at construction.
-  /// Honored only by the WebSpace fork's iOS / macOS plugins on iOS 17+ /
-  /// macOS 14+ (see `WebSpaceProxy.swift` in the fork). On Android the
-  /// field is silently ignored — Android proxy still flows through the
-  /// global [`inapp.ProxyController`].
-  ///
-  /// Map shape (must match `WebSpaceProxy.configurations(from:)` Swift-side):
-  /// ```
-  /// {
-  ///   'type':     'http' | 'https' | 'socks5',
-  ///   'host':     'proxy.example.com',
-  ///   'port':     8080,
-  ///   'username': 'optional',
-  ///   'password': 'optional',
-  /// }
-  /// ```
-  Map<String, dynamic>? webspaceProxy;
-
-  WebSpaceInAppWebViewSettings({this.webspaceProfile, this.webspaceProxy});
-
-  @override
-  Map<String, dynamic> toMap({inapp.EnumMethod? enumMethod}) {
-    final map = super.toMap(enumMethod: enumMethod);
-    map['webspaceProfile'] = webspaceProfile;
-    map['webspaceProxy'] = webspaceProxy;
-    return map;
-  }
-}
-
-/// Translate [UserProxySettings] into the dictionary shape consumed by the
-/// patched iOS / macOS `WebSpaceProxy.configurations(from:)`. Returns null
-/// for `ProxyType.DEFAULT` or invalid configs (so the native side clears
-/// any previously-set proxy on the data store).
-Map<String, dynamic>? _proxySettingsToWebspaceProxy(UserProxySettings settings) {
+/// Credentials, when present, are embedded in the proxy URL
+/// (`scheme://user:pass@host:port`). Apple's
+/// `WKWebsiteDataStore.proxyConfigurations` does not expose a separate
+/// auth API in the public surface; the URL-embedded form is what the
+/// underlying `Network.framework` honors when the proxy server
+/// challenges with `407 Proxy Authentication Required`.
+inapp.ProxySettings? _userProxyToInappProxy(UserProxySettings settings) {
   if (settings.type == ProxyType.DEFAULT) return null;
   final address = settings.address;
   if (address == null || address.isEmpty) return null;
@@ -98,18 +57,18 @@ Map<String, dynamic>? _proxySettingsToWebspaceProxy(UserProxySettings settings) 
   final host = parts[0];
   final port = int.tryParse(parts[1]);
   if (host.isEmpty || port == null || port <= 0 || port > 65535) return null;
-  final type = switch (settings.type) {
+  final scheme = switch (settings.type) {
     ProxyType.HTTPS => 'https',
     ProxyType.SOCKS5 => 'socks5',
     _ => 'http',
   };
-  return <String, dynamic>{
-    'type': type,
-    'host': host,
-    'port': port,
-    if (settings.hasCredentials) 'username': settings.username,
-    if (settings.hasCredentials) 'password': settings.password,
-  };
+  final auth = settings.hasCredentials
+      ? '${Uri.encodeComponent(settings.username!)}:'
+          '${Uri.encodeComponent(settings.password!)}@'
+      : '';
+  return inapp.ProxySettings(
+    proxyRules: [inapp.ProxyRule(url: '$scheme://$auth$host:$port')],
+  );
 }
 
 /// Extension to add JSON serialization to inapp.Cookie
@@ -253,14 +212,14 @@ enum WebViewTheme { light, dark, system }
 ///
 ///   * **Android.** Routes through `inapp.ProxyController` — a process-wide
 ///     singleton override (`PROXY_OVERRIDE` WebViewFeature). Per-site config
-///     in the data model is fictional under profile mode: with multiple
+///     in the data model is fictional under container mode: with multiple
 ///     same-base-domain sites loaded concurrently, the last applied proxy
 ///     wins for every WebView. See PROXY-008.
 ///   * **iOS 17+ / macOS 14+.** Genuine per-site proxy via
-///     `WKWebsiteDataStore.proxyConfigurations` on the per-site data store,
-///     created by the WebSpace fork's `preWKWebViewConfiguration` hook.
-///     The proxy ships with the [WebSpaceInAppWebViewSettings] map at
-///     WebView construction; this class is a no-op on those platforms.
+///     `WKWebsiteDataStore.proxyConfigurations` on the per-container data
+///     store, created by the WebSpace fork's `preWKWebViewConfiguration`
+///     hook. The proxy ships with [`inapp.InAppWebViewSettings.proxySettings`]
+///     at WebView construction; this class is a no-op on those platforms.
 class ProxyManager {
   static final ProxyManager _instance = ProxyManager._internal();
   factory ProxyManager() => _instance;
@@ -269,11 +228,10 @@ class ProxyManager {
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) return;
 
-    // iOS / macOS: proxy travels through the patched
-    // `WebSpaceInAppWebViewSettings.webspaceProxy` field at WebView
+    // iOS / macOS: proxy travels through the fork's
+    // `inapp.InAppWebViewSettings.proxySettings` field at WebView
     // construction. Nothing to do at the global ProxyController level —
-    // upstream `inapp.ProxyController` doesn't even ship a non-Android
-    // implementation in our pinned plugin version. Runtime updates of the
+    // `inapp.ProxyController` is Android-only. Runtime updates of the
     // per-site proxy require the WebView to be rebuilt by the caller (see
     // [WebViewModel.updateProxySettings]).
     if (Platform.isIOS || Platform.isMacOS) return;
@@ -335,7 +293,7 @@ class ProxyManager {
 ///
 /// Returns true on:
 /// - Android, when the System WebView reports `PROXY_OVERRIDE` support.
-/// - iOS / macOS, unconditionally — the patched
+/// - iOS / macOS, unconditionally — the fork's
 ///   `preWKWebViewConfiguration` gates internally on iOS 17+ / macOS 14+.
 ///   Below that floor, the per-site proxy block silently no-ops and the
 ///   site uses system default routing (matches `ProxyType.DEFAULT`).
@@ -380,15 +338,15 @@ class WebViewConfig {
   final Function(List<Cookie> cookies)? onCookiesChanged;
   /// Cookie reader used inside [_onLoadStop] before invoking
   /// [onCookiesChanged]. Exactly one of these is non-null per
-  /// `_WebSpacePageState`'s `_useProfiles` decision: legacy mode
-  /// passes [cookieManager] (global default jar); profile mode
-  /// passes [profileCookieManager] (the patched plugin routes through
-  /// the bound profile via `webViewController:`).
+  /// `_WebSpacePageState`'s `_useContainers` decision: legacy mode
+  /// passes [cookieManager] (global default jar); container mode
+  /// passes [containerCookieManager] (the fork's plugin routes through
+  /// the bound container via `webViewController:`).
   final CookieManager? cookieManager;
-  final ProfileCookieManager? profileCookieManager;
+  final ContainerCookieManager? containerCookieManager;
   /// siteId of the owning [WebViewModel]. Required when
-  /// [profileCookieManager] is set so per-site reads route through
-  /// the bound WebView's profile.
+  /// [containerCookieManager] is set so per-site reads route through
+  /// the bound WebView's container.
   final String? cookieSiteId;
   final Function(int activeMatch, int totalMatches)? onFindResult;
   final Function(String url, bool hasGesture)? shouldOverrideUrlLoading;
@@ -457,10 +415,10 @@ class WebViewConfig {
   /// Per-site proxy. Carried into:
   ///
   /// - The native webview proxy: on iOS 17+ / macOS 14+ via
-  ///   [WebSpaceInAppWebViewSettings.webspaceProxy] (per-site
+  ///   [`inapp.InAppWebViewSettings.proxySettings`] (per-container
   ///   `WKWebsiteDataStore.proxyConfigurations`); on Android via the
   ///   process-wide `inapp.ProxyController` (last-write-wins under
-  ///   profile mode — see PROXY-008 in
+  ///   container mode — see PROXY-008 in
   ///   [openspec/specs/proxy/spec.md] for the asymmetry).
   /// - Every Dart-side outbound call originating from this site
   ///   (downloads, user-script fetches), where it resolves through
@@ -485,7 +443,7 @@ class WebViewConfig {
     this.onLoadingChanged,
     this.onCookiesChanged,
     this.cookieManager,
-    this.profileCookieManager,
+    this.containerCookieManager,
     this.cookieSiteId,
     this.onFindResult,
     this.shouldOverrideUrlLoading,
@@ -515,7 +473,7 @@ abstract class WebViewController {
   /// bound to. Exposed so per-site code paths can pass it as the
   /// `webViewController:` argument to `inapp.CookieManager` methods,
   /// which the WebSpace fork uses to resolve the WebView's bound
-  /// profile and route cookie ops to its per-site jar.
+  /// container and route cookie ops to its per-container jar.
   inapp.InAppWebViewController get nativeController;
 
   Future<void> loadUrl(String url, {String? language});
@@ -1575,46 +1533,44 @@ class WebViewFactory {
     // loop. See lib/services/ios_universal_link_bypass.dart.
     final iosUlBypass = IosUniversalLinkBypass();
 
-    // Profile API binding. Stock flutter_inappwebview's `prepare()` does
-    // session-bound ops (addJavascriptInterface, addDocumentStartJavaScript,
-    // setAcceptThirdPartyCookies) BEFORE `onWebViewCreated` fires, which
-    // locks the WebView to the default profile and made our earlier
-    // post-hoc-bind approach silently leak across sites. The WebSpace
-    // fork of `flutter_inappwebview_android` adds a `webspaceProfile`
-    // field to `InAppWebViewSettings` and binds it via
-    // `WebViewCompat.setProfile` at the very top of `prepare()`, before
-    // any session-bound op runs. Pass the profile name via
-    // `webspaceProfile` and the fork's native side handles the bind.
-    // `cachedSupported` is already platform-aware (the iOS / macOS stub
-    // returns false on platforms where the fork doesn't ship a bind);
-    // no extra Platform.isAndroid gate needed. Pre-iOS-fork code
-    // had `Platform.isAndroid &&` here which silently wedged macOS/iOS at
-    // `webspaceProfile=null` even though the native side was ready —
-    // see git history of this line for the user-reported bug.
-    final webspaceProfile = (ProfileNative.instance.cachedSupported &&
+    // Container API binding. Stock flutter_inappwebview's `prepare()`
+    // does session-bound ops (addJavascriptInterface,
+    // addDocumentStartJavaScript, setAcceptThirdPartyCookies) BEFORE
+    // `onWebViewCreated` fires, which locks the WebView to the default
+    // store and made our earlier post-hoc-bind approach silently leak
+    // across sites. The WebSpace fork's `containerId` field on
+    // `InAppWebViewSettings` is read by `prepare()` /
+    // `preWKWebViewConfiguration` and binds the WebView to the named
+    // container before any session-bound op runs. `cachedSupported` is
+    // already platform-aware (Linux / Windows / web fall through to the
+    // stub which returns false); no extra Platform gate needed.
+    final containerId = (ContainerNative.instance.cachedSupported &&
             config.siteId != null)
         ? 'ws-${config.siteId}'
         : null;
 
-    // Per-site proxy delivery: only iOS / macOS honor the settings-borne
-    // map (the patched `preWKWebViewConfiguration` reads it). On Android
-    // the global `inapp.ProxyController` path runs from
-    // `WebViewModel._applyProxySettings` instead, so leave `webspaceProxy`
-    // null and avoid sending a no-op map to the native side.
-    // resolveEffectiveProxy keeps the iOS/macOS WebView in sync with the
-    // Dart-side and Android paths: per-site DEFAULT falls through to the
-    // app-global outbound proxy, so a site the user hasn't customized
-    // still inherits a global Tor / corporate proxy. Explicit per-site
-    // values win.
-    final webspaceProxy = (Platform.isIOS || Platform.isMacOS) && config.proxySettings != null
-        ? _proxySettingsToWebspaceProxy(resolveEffectiveProxy(config.proxySettings!))
+    // Per-site proxy delivery: only iOS 17+ / macOS 14+ honor the
+    // per-WebView `proxySettings` field (which the fork's
+    // `preWKWebViewConfiguration` writes onto
+    // `WKWebsiteDataStore.proxyConfigurations`). On Android the global
+    // `inapp.ProxyController` path runs from
+    // `WebViewModel._applyProxySettings` instead, so leave
+    // `proxySettings` null and avoid sending a no-op object to the
+    // native side. resolveEffectiveProxy keeps the iOS/macOS WebView in
+    // sync with the Dart-side and Android paths: per-site DEFAULT falls
+    // through to the app-global outbound proxy, so a site the user
+    // hasn't customized still inherits a global Tor / corporate proxy.
+    // Explicit per-site values win.
+    final inappProxy = (Platform.isIOS || Platform.isMacOS) &&
+            config.proxySettings != null
+        ? _userProxyToInappProxy(resolveEffectiveProxy(config.proxySettings!))
         : null;
 
-    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} webspaceProfile=$webspaceProfile webspaceProxy=${webspaceProxy != null}');
+    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}');
 
-    final settings = WebSpaceInAppWebViewSettings(
-      webspaceProfile: webspaceProfile,
-      webspaceProxy: webspaceProxy,
+    final settings = inapp.InAppWebViewSettings(
+      containerId: containerId,
+      proxySettings: inappProxy,
     )
       ..javaScriptEnabled = config.javascriptEnabled
       ..userAgent = config.userAgent
@@ -1858,12 +1814,12 @@ class WebViewFactory {
         // which on Android System WebView trips a dangling-raw_ptr in the
         // renderer process at `partition_alloc_support.cc:770`.
         //
-        // Profile API bind happens natively inside the WebSpace fork's
-        // `InAppWebView.prepare()`, driven by the `webspaceProfile` we
-        // set on `InAppWebViewSettings` above. By the time
-        // `onWebViewCreated` fires, the WebView is already bound to its
-        // per-site profile and every cookie / IDB / ServiceWorker / cache
-        // write that follows is partitioned to that profile.
+        // Container API bind happens natively inside the WebSpace fork's
+        // `InAppWebView.prepare()`, driven by the `containerId` we set on
+        // `InAppWebViewSettings` above. By the time `onWebViewCreated`
+        // fires, the WebView is already bound to its per-site container
+        // and every cookie / IDB / ServiceWorker / cache write that
+        // follows is partitioned to that container.
         // Attach native interceptor (DNS blocking + LocalCDN serving) once
         // the view is in the hierarchy. Always attach on Android — the
         // handler no-ops cheaply when neither blocklist nor CDN cache are
@@ -2165,13 +2121,12 @@ class WebViewFactory {
         if (config.onCookiesChanged != null) {
           // Read cookies from the right jar — exactly one of the two
           // managers is non-null per the engine selection on
-          // `_WebSpacePageState`. profileCookieManager routes through
-          // the patched plugin's `webViewController:` to the bound
-          // profile's cookie store; cookieManager hits the global
-          // default jar.
+          // `_WebSpacePageState`. containerCookieManager routes through
+          // the fork's `webViewController:` to the bound container's
+          // cookie store; cookieManager hits the global default jar.
           final List<Cookie> cookies;
-          if (config.profileCookieManager != null && config.cookieSiteId != null) {
-            cookies = await config.profileCookieManager!.getCookies(
+          if (config.containerCookieManager != null && config.cookieSiteId != null) {
+            cookies = await config.containerCookieManager!.getCookies(
               controller: _WebViewController(controller),
               siteId: config.cookieSiteId!,
               url: Uri.parse(urlStr),
@@ -2180,7 +2135,7 @@ class WebViewFactory {
             assert(
               config.cookieManager != null,
               'onCookiesChanged requires cookieManager (legacy mode) '
-              'or profileCookieManager + cookieSiteId (profile mode).',
+              'or containerCookieManager + cookieSiteId (container mode).',
             );
             cookies = await config.cookieManager!.getCookies(
               url: Uri.parse(urlStr),

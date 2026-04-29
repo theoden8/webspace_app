@@ -61,7 +61,7 @@ restored on app restart.
 
 **Given** Site A and Site B exist on iOS 17+ / macOS 14+
 **And** Site A and Site B share a base domain (so both can be loaded
-concurrently under [profile mode](../per-site-profiles/spec.md))
+concurrently under [container mode](../per-site-containers/spec.md))
 **When** the user configures Site A with SOCKS5 proxy "localhost:9050"
 **And** configures Site B with HTTP proxy "proxy.company.com:8080"
 **Then** Site A routes traffic through the SOCKS5 proxy
@@ -99,7 +99,7 @@ Users SHALL be able to change proxy settings without restarting the app.
 **Then** the live `WKWebView` is discarded by
 `WebViewModel.updateProxySettings` (which calls `disposeWebView`)
 **And** the next render reconstructs the WebView with the new
-`webspaceProxy` map applied to the per-site `WKWebsiteDataStore`
+`proxySettings` map applied to the per-site `WKWebsiteDataStore`
 **And** subsequent requests route through the new proxy
 **And** no app restart is required
 
@@ -142,9 +142,9 @@ The system SHALL validate proxy addresses before applying them.
 
 #### Scenario: Native side rejects malformed maps
 
-**Given** the iOS / macOS path receives a `webspaceProxy` map missing
+**Given** the iOS / macOS path receives a `proxySettings` map missing
 required keys (`type`, `host`, `port`) or with an out-of-range port
-**Then** `WebSpaceProxy.configurations(from:)` returns an empty array
+**Then** `inapp.ProxySettings.fromMap` returns an empty array
 **And** the per-site data store's `proxyConfigurations` is cleared
 **And** the site falls back to system default routing
 
@@ -169,7 +169,7 @@ Proxy configuration UI SHALL only be displayed on supported platforms.
 
 `PlatformInfo.isProxySupported` returns true unconditionally on iOS and
 macOS — the version gate (`#available(iOS 17.0, macOS 14.0, *)`) lives
-inside the patched native code. On older OS versions the per-site proxy
+inside the fork's native code. On older OS versions the per-site proxy
 block silently no-ops; the UI shows the controls but the site will route
 through system default.
 
@@ -198,11 +198,11 @@ CONNECT and SOCKS5 proxies).
 
 The system SHALL behave differently on Android and iOS when multiple
 sites share a base domain and are loaded concurrently under
-[per-site profile mode](../per-site-profiles/spec.md).
+[per-site container mode](../per-site-containers/spec.md).
 
 #### Scenario: iOS / macOS — true per-site proxy
 
-**Given** profile mode is active on iOS 17+ / macOS 14+
+**Given** container mode is active on iOS 17+ / macOS 14+
 **And** Site A (`accountA.example.com`) and Site B (`accountB.example.com`)
 are both loaded
 **When** Site A is configured with proxy P1 and Site B with proxy P2
@@ -212,7 +212,7 @@ which is partitioned per `siteId`
 
 #### Scenario: Android — global last-write-wins
 
-**Given** profile mode is active on Android (System WebView 110+)
+**Given** container mode is active on Android (System WebView 110+)
 **And** Site A and Site B share a base domain and are both loaded
 **When** Site A is configured with proxy P1 and Site B with proxy P2
 **Then** the underlying `inapp.ProxyController.setProxyOverride` applies
@@ -239,7 +239,7 @@ the global `ProxyController` state
 When a site's [ProxyType] is `DEFAULT`, the effective proxy SHALL fall
 through to the app-global outbound proxy configured in App Settings →
 Outbound proxy. This applies in both directions: webview navigation
-(`ProxyManager.setProxySettings` on Android, `webspaceProxy` on
+(`ProxyManager.setProxySettings` on Android, `proxySettings` on
 iOS / macOS via `resolveEffectiveProxy`) and Dart-side outbound HTTP via
 the `outboundHttp` factory.
 
@@ -278,7 +278,7 @@ class UserProxySettings {
 
 ### iOS / macOS wire format
 
-When passed through `WebSpaceInAppWebViewSettings.webspaceProxy`, the
+When passed through `inapp.InAppWebViewSettings.proxySettings`, the
 settings are translated by `_proxySettingsToWebspaceProxy` in
 [lib/services/webview.dart](../../../lib/services/webview.dart) into:
 
@@ -293,7 +293,7 @@ settings are translated by `_proxySettingsToWebspaceProxy` in
 ```
 
 `ProxyType.DEFAULT`, missing addresses, or malformed entries return
-`null`, which the patched native side interprets as "clear proxy on this
+`null`, which the fork's native side interprets as "clear proxy on this
 data store".
 
 ---
@@ -308,7 +308,7 @@ lib/settings/proxy.dart
 lib/services/webview.dart
 ├── PlatformInfo.isProxySupported          (Android: feature-flag; iOS/macOS: always true)
 ├── ProxyManager.setProxySettings           (Android: ProxyController; iOS/macOS: no-op)
-├── WebSpaceInAppWebViewSettings.webspaceProxy
+├── inapp.InAppWebViewSettings.proxySettings
 └── _proxySettingsToWebspaceProxy
 
 lib/web_view_model.dart
@@ -322,8 +322,8 @@ lib/screens/settings.dart
 flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 ├── flutter_inappwebview_ios
 └── flutter_inappwebview_macos
-    └── webspaceProxy field + preWKWebViewConfiguration block
-        + WebSpaceProxy.swift helper (NWEndpoint / ProxyConfiguration builder)
+    └── proxySettings field + preWKWebViewConfiguration block
+        + the fork's ProxySettings handling helper (NWEndpoint / ProxyConfiguration builder)
 ```
 
 ---
@@ -347,11 +347,11 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 - `test/proxy_test.dart` - Unit tests
 - `test/proxy_integration_test.dart` - Integration tests
 - WebSpace fork of `flutter_inappwebview` (github.com/theoden8/flutter_inappwebview) -
-  per-site `webspaceProxy` field on `flutter_inappwebview_ios` /
-  `flutter_inappwebview_macos`, plus `WebSpaceProxy.swift` helper
+  per-site `proxySettings` field on `flutter_inappwebview_ios` /
+  `flutter_inappwebview_macos`, plus `the fork's ProxySettings handling` helper
 
 ### Modified
-- `lib/services/webview.dart` - `WebSpaceInAppWebViewSettings.webspaceProxy`, ProxyManager iOS no-op, PlatformInfo iOS gate
+- `lib/services/webview.dart` - `inapp.InAppWebViewSettings.proxySettings`, ProxyManager iOS no-op, PlatformInfo iOS gate
 - `lib/web_view_model.dart` - per-site proxy passed into `WebViewConfig`; iOS rebuild on update
 - `lib/screens/settings.dart` - cross-site proxy sync gated to Android only
 
@@ -366,7 +366,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
    SOCKS5 proxy `127.0.0.1:9050` (run two local proxies of different
    shapes — `mitmproxy` and `dante`, for example).
 3. Open Site A: requests must show up in `mitmproxy` only.
-4. Switch to Site B without unloading Site A (profile mode allows both
+4. Switch to Site B without unloading Site A (container mode allows both
    to be loaded simultaneously): requests must show up in `dante` only.
 5. Both proxies should remain active for their respective sites.
 
