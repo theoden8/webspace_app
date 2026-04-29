@@ -43,7 +43,7 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 - 🔒 Per-site cookie isolation with secure storage
 - 🌍 Per-site language preferences (30+ languages)
 - 💾 Import/export settings for backup
-- 🔄 Proxy support with authentication (Android)
+- 🔄 Proxy support with authentication (Android, iOS 17+, macOS 14+, Linux)
 - 🧹 ClearURLs tracking parameter removal
 - 🛡️ Hagezi DNS blocklist domain blocking (5 severity levels)
 - 🚫 Content blocker with EasyList/EasyPrivacy ad & tracker filtering
@@ -78,7 +78,7 @@ fvm flutter pub get
 | iOS | ✅ Supported | Target |
 | Android | ✅ Supported | Target |
 | macOS | ✅ Supported | Development |
-| Linux | ⏳ Pending flutter_inappwebview support | Development |
+| Linux | ✅ Supported | Development |
 
 ## Tech Stack
 

@@ -5,8 +5,15 @@
 The proxy feature allows users to configure HTTP, HTTPS, and SOCKS5 proxies
 for their web views on supported platforms. Two delivery paths coexist:
 
-- **Android** — global override via `inapp.ProxyController` (a process-wide
-  WebView singleton).
+- **Android** — global override via `inapp.ProxyController` (a
+  process-wide WebView singleton).
+- **Linux** — global override via `inapp.ProxyController`. The fork's
+  `flutter_inappwebview_linux` ProxyManager fans the override out
+  across the default `WebKitNetworkSession` AND every cached
+  container session (one per `siteId`), so a contained site honors
+  the global proxy too. Behavior still matches Android in the
+  per-site sense (last-write-wins — there is no per-site proxy on
+  Linux), but contained sites no longer silently bypass it.
 - **iOS 17+ / macOS 14+** — true per-site override via
   `WKWebsiteDataStore.proxyConfigurations`, set on the per-site data store
   created by the WebSpace fork's `preWKWebViewConfiguration` hook
@@ -25,8 +32,9 @@ that adds a new outbound seam MUST be reflected there.
 ## Status
 
 - **Status**: Completed
-- **Platforms**: Android (global override), iOS 17+ / macOS 14+ (true per-site);
-  Linux, Windows (system default — UI hidden).
+- **Platforms**: Android (global override), iOS 17+ / macOS 14+ (true per-site),
+  Linux (global override via WebKitNetworkSession);
+  Windows (system default — UI hidden).
 
 ---
 
@@ -156,14 +164,14 @@ Proxy configuration UI SHALL only be displayed on supported platforms.
 
 #### Scenario: Hide proxy UI on unsupported platforms
 
-**Given** the app is running on Linux
+**Given** the app is running on Windows
 **When** the user opens site settings
 **Then** the proxy configuration options are not displayed
 **And** the site uses system default proxy automatically
 
 #### Scenario: Show proxy UI on supported platforms
 
-**Given** the app is running on Android, iOS, or macOS
+**Given** the app is running on Android, iOS, macOS, or Linux
 **When** the user opens site settings
 **Then** the proxy type dropdown and address field are displayed
 
@@ -306,8 +314,8 @@ lib/settings/proxy.dart
 └── UserProxySettings class
 
 lib/services/webview.dart
-├── PlatformInfo.isProxySupported          (Android: feature-flag; iOS/macOS: always true)
-├── ProxyManager.setProxySettings           (Android: ProxyController; iOS/macOS: no-op)
+├── PlatformInfo.isProxySupported          (Android: feature-flag; iOS/macOS/Linux: always true)
+├── ProxyManager.setProxySettings           (Android/Linux: ProxyController; iOS/macOS: no-op)
 ├── inapp.InAppWebViewSettings.proxySettings
 └── _proxySettingsToWebspaceProxy
 
@@ -321,9 +329,14 @@ lib/screens/settings.dart
 
 flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 ├── flutter_inappwebview_ios
-└── flutter_inappwebview_macos
-    └── proxySettings field + preWKWebViewConfiguration block
-        + the fork's ProxySettings handling helper (NWEndpoint / ProxyConfiguration builder)
+├── flutter_inappwebview_macos
+│   └── proxySettings field + preWKWebViewConfiguration block
+│       + the fork's ProxySettings handling helper (NWEndpoint / ProxyConfiguration builder)
+└── flutter_inappwebview_linux
+    └── ProxyManager method channel
+        ├── webkit_network_session_set_proxy_settings(WEBKIT_NETWORK_PROXY_MODE_CUSTOM)
+        └── fan-out across default + every cached container session
+            (sessions_to_apply_proxy_to() / container_session_cache())
 ```
 
 ---
@@ -335,7 +348,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 | Android  | Full (global override) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; per-site config in data model is sync'd globally on save (PROXY-008) |
 | iOS      | Full (per-site, iOS 17+) | Shown unconditionally | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; iOS <17 silently routes through system default |
 | macOS    | Full (per-site, macOS 14+) | Shown unconditionally | Same pattern as iOS; macOS <14 silently routes through system default |
-| Linux    | None         | Hidden        | DEFAULT proxy forced, UI hidden |
+| Linux    | Full (global override, fan-out) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager applies `webkit_network_session_set_proxy_settings` to the default session AND every cached container session, so contained sites honor the global proxy too; per-site is still last-write-wins (no per-site proxy primitive on Linux) |
 | Windows  | Limited      | Conditional   | Shown only if `PROXY_OVERRIDE` supported |
 
 ---

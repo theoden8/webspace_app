@@ -10,7 +10,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WebSpace is a Flutter app for managing multiple websites in a single interface with per-site cookie isolation. It uses flutter_inappwebview for webview functionality. Platforms: iOS, Android, macOS (Linux pending flutter_inappwebview support).
+WebSpace is a Flutter app for managing multiple websites in a single interface with per-site cookie isolation. It uses flutter_inappwebview for webview functionality. Platforms: iOS, Android, macOS, Linux (WPE WebKit via the WebSpace fork).
+
+## Sandbox bootstrap
+
+Fresh sandboxes (Claude Code on the web, ephemeral CI runners) ship without `fvm`/Flutter and may not have `nvm`/Node either. Bootstrap before running any of the commands below — none of them work without the toolchain.
+
+```bash
+# fvm — required (project pins Flutter via .fvmrc)
+curl -fsSL https://fvm.app/install.sh | bash
+export PATH="$HOME/fvm/bin:$PATH"   # also append to ~/.bashrc
+fvm install                         # honors .fvmrc (Flutter 3.38.6)
+
+# nvm + Node — only if a script under scripts/ or tool/ needs Node and `node` isn't already on PATH
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm install --lts
+```
+
+If `command -v fvm` already prints a path, skip the fvm block. Same for `command -v node`. Don't reinstall on every turn — the cache survives.
 
 ## Build & Development Commands
 
@@ -67,8 +86,8 @@ fvm dart run flutter_launcher_icons
 
 ### Key Patterns
 - **Per-site cookie isolation (two engines, runtime-selected)**: Two engines coexist; `_WebSpacePageState` caches `bool _useContainers = await ContainerNative.isSupported()` at startup and gates the entire isolation code path on it.
-  - **Container path** (Android System WebView 110+, iOS 17+, macOS 14+): each `siteId` maps to a native container (`androidx.webkit.Profile` on Android, `WKWebsiteDataStore(forIdentifier:)` on Apple) named `ws-<siteId>` that owns its own cookies, `localStorage`, IDB, ServiceWorkers, and HTTP cache. Same-base-domain sites can be loaded concurrently; no conflict-unload, no capture-nuke-restore. Engine: [`ContainerIsolationEngine`](lib/services/container_isolation_engine.dart). Native bridge: [`ContainerNative`](lib/services/container_native.dart). All lifecycle ops (delete, list) route through the fork's [`inapp.ContainerController`]; only the `MULTI_PROFILE` runtime feature gate on Android lives in our [`WebSpaceContainerPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceContainerPlugin.kt). The bind happens during `InAppWebView.prepare()` / `preWKWebViewConfiguration`, driven by the stock [`inapp.InAppWebViewSettings.containerId`] field set by `WebViewFactory.createWebView` (see `dependency_overrides` in [pubspec.yaml](pubspec.yaml)). Spec: [openspec/specs/per-site-containers/spec.md](openspec/specs/per-site-containers/spec.md).
-  - **Legacy path** (iOS, macOS, Android System WebView <110): sites with matching base domains cannot be loaded simultaneously; switching unloads the conflicting site and runs capture-nuke-restore on the shared cookie jar. Engine: [`CookieIsolationEngine`](lib/services/cookie_isolation.dart). Spec: [openspec/specs/per-site-cookie-isolation/spec.md](openspec/specs/per-site-cookie-isolation/spec.md).
+  - **Container path** (Android System WebView 110+, iOS 17+, macOS 14+, Linux WPE WebKit 2.40+): each `siteId` maps to a native container (`androidx.webkit.Profile` on Android, `WKWebsiteDataStore(forIdentifier:)` on Apple, `WebKitNetworkSession` cached per id under `<XDG_DATA_HOME>/flutter_inappwebview/containers/ws-<siteId>/` on Linux) named `ws-<siteId>` that owns its own cookies, `localStorage`, IDB, ServiceWorkers, and HTTP cache. Same-base-domain sites can be loaded concurrently; no conflict-unload, no capture-nuke-restore. Engine: [`ContainerIsolationEngine`](lib/services/container_isolation_engine.dart). Native bridge: [`ContainerNative`](lib/services/container_native.dart). All lifecycle ops (delete, list) route through the fork's [`inapp.ContainerController`]; only the `MULTI_PROFILE` runtime feature gate on Android lives in our [`WebSpaceContainerPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceContainerPlugin.kt). The bind happens during `InAppWebView.prepare()` / `preWKWebViewConfiguration` / Linux's `webkit_web_view_set_property("network-session", ...)`, driven by the stock [`inapp.InAppWebViewSettings.containerId`] field set by `WebViewFactory.createWebView` (see `dependency_overrides` in [pubspec.yaml](pubspec.yaml)). Spec: [openspec/specs/per-site-containers/spec.md](openspec/specs/per-site-containers/spec.md).
+  - **Legacy path** (Windows, web, or any platform where the fork's `ContainerController.isClassSupported` returns false): sites with matching base domains cannot be loaded simultaneously; switching unloads the conflicting site and runs capture-nuke-restore on the shared cookie jar. Engine: [`CookieIsolationEngine`](lib/services/cookie_isolation.dart). Spec: [openspec/specs/per-site-cookie-isolation/spec.md](openspec/specs/per-site-cookie-isolation/spec.md).
 - **Lazy webview loading**: Webviews only created when visited (`_loadedIndices` tracks loaded sites)
 - **Demo mode**: `isDemoMode` flag prevents persistence, uses seeded demo data
 

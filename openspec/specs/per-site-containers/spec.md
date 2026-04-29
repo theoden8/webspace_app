@@ -1,9 +1,10 @@
 # Per-Site Containers
 
 ## Status
-**Implemented on Android (System WebView 110+) and iOS / macOS (iOS 17+ /
-macOS 14+). Older OS / WebView versions fall through to
-[`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md).**
+**Implemented on Android (System WebView 110+), iOS / macOS (iOS 17+ /
+macOS 14+) and Linux (WPE WebKit 2.40+ via the WebSpace fork's
+`flutter_inappwebview_linux`). Older OS / WebView versions fall
+through to [`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md).**
 
 ## Platform Support Matrix
 
@@ -22,6 +23,7 @@ existing capture-nuke-restore code path runs unchanged.
 | Android  | Lollipop (API 21) **AND** System WebView 110+ | [`androidx.webkit.Profile`](https://developer.android.com/reference/androidx/webkit/Profile) via [`WebViewCompat.setProfile`](https://developer.android.com/reference/androidx/webkit/WebViewCompat#setProfile) | Anything that can update System WebView via Play Store; in practice Android 7.0+ (Nougat) keeps WebView fresh on most devices | Feb 2023 (WebView 110) |
 | iOS      | 17.0 | [`WKWebsiteDataStore(forIdentifier:)`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)) | iPhone XS / XR (2018) and newer; iPad Pro 11" 1st-gen / 12.9" 3rd-gen / iPad Air 3 / iPad mini 5 / iPad 7 and newer — anything with the A12 Bionic or newer | Sept 2023 |
 | macOS    | 14.0 Sonoma | Same as iOS (`WKWebsiteDataStore(forIdentifier:)`) | iMac 2019+, iMac Pro 2017+, MacBook Air 2018+, MacBook Pro 2018+, Mac mini 2018+, Mac Pro 2019+, Mac Studio 2022+ | Sept 2023 |
+| Linux    | WPE WebKit 2.40 | Per-container `WebKitNetworkSession` cached in `container_session_cache` (fork's `flutter_inappwebview_linux`); cookies routed via `webkit_web_view_get_network_session(webview)`; proxy fan-out across default + cached container sessions | Ubuntu 23.10+, Fedora 38+, Debian trixie | Mar 2023 (WPE 2.40) |
 
 The runtime check that decides Profile vs. legacy engine is in
 [`ContainerNative.isSupported`](../../../lib/services/container_native.dart):
@@ -32,6 +34,11 @@ The runtime check that decides Profile vs. legacy engine is in
   even though `androidx.webkit` is present in the build).
 - **iOS / macOS.** Native side checks
   `if #available(iOS 17.0, macOS 14.0, *)`.
+- **Linux.** Build-time check via
+  `inapp.ContainerController.isClassSupported(platform: TargetPlatform.linux)`.
+  The fork's CMakeLists already gates compilation on
+  `webkit_network_session_new` (WPE 2.40+); below that the plugin
+  doesn't link.
 
 ### Legacy fallback (CookieIsolationEngine)
 
@@ -57,6 +64,15 @@ native per-site data-store primitives:
   UUID (`WebSpaceProfile.uuid(for:)` — added by the WebSpace fork's
   iOS / macOS plugins) and that UUID identifies the per-site data
   store.
+- **Linux**, WPE WebKit 2.40+: per-container `WebKitNetworkSession`
+  with on-disk roots under
+  `<XDG_DATA_HOME>/flutter_inappwebview/containers/ws-<siteId>/data`
+  and `<XDG_CACHE_HOME>/flutter_inappwebview/containers/ws-<siteId>/cache`.
+  The fork's `cookie_manager.cc` resolves cookie ops to the
+  per-WebView session via `webkit_web_view_get_network_session(webview)`
+  when a `webViewController:` is supplied; global ops fan out across
+  the default and every cached container session, and the same
+  fan-out drives `ProxyManager.setProxyOverride`.
 
 Each `WebViewModel.siteId` owns its own cookie jar, `localStorage`,
 `IndexedDB`, `ServiceWorkerController`, and HTTP cache. **Profile mode
@@ -141,10 +157,23 @@ check resolved at app startup.
 **And** the same conflict-skip / engine-selection behavior as Android
   applies — sites with shared base domains can coexist
 
+#### Scenario: Profile API supported on Linux
+
+**Given** the app is launching on Linux against the WebSpace fork's
+  `flutter_inappwebview_linux` (WPE WebKit 2.40+)
+**When** `_restoreAppState` runs
+**Then** `inapp.ContainerController.isClassSupported(platform: TargetPlatform.linux)`
+  returns true
+**And** `_useContainers` resolves to `true`
+**And** the WebView is constructed against its per-site
+  `WebKitNetworkSession` via `InAppWebViewSettings.containerId`
+**And** sites with shared base domains can coexist
+
 #### Scenario: Profile API not supported
 
 **Given** the app is launching on Android System WebView <110, or
-  iOS <17, or macOS <14, or Linux / Windows
+  iOS <17, or macOS <14, or Windows / web (or Linux without the fork
+  override resolved)
 **When** `_restoreAppState` runs
 **Then** `_useContainers` resolves to `false`
 **And** `_setCurrentIndex` runs the existing capture-nuke-restore flow

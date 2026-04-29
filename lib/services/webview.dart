@@ -297,13 +297,23 @@ class ProxyManager {
 ///   `preWKWebViewConfiguration` gates internally on iOS 17+ / macOS 14+.
 ///   Below that floor, the per-site proxy block silently no-ops and the
 ///   site uses system default routing (matches `ProxyType.DEFAULT`).
+/// - Linux, unconditionally — the fork's `flutter_inappwebview_linux`
+///   ProxyManager calls `webkit_network_session_set_proxy_settings` on
+///   the active session. WebKitGTK / WPE has shipped the proxy API
+///   since 2.26; the fork builds against ≥ 2.40 (matching our pubspec
+///   override floor) so no runtime feature probe is needed.
 class PlatformInfo {
   static bool? _isProxySupportedCached;
 
   static Future<void> initialize() async {
-    if (Platform.isIOS || Platform.isMacOS) {
-      // The native side gates per-version (`#available(iOS 17.0, macOS 14.0, *)`);
-      // surface the toggle in the UI on every iOS / macOS build.
+    if (Platform.isIOS || Platform.isMacOS || Platform.isLinux) {
+      // iOS / macOS: native side gates per-version
+      // (`#available(iOS 17.0, macOS 14.0, *)`); surface the toggle
+      // unconditionally and let the per-site proxy block silently
+      // no-op on older OS releases.
+      // Linux: the fork's ProxyController binds via
+      // `webkit_network_session_set_proxy_settings`, available on
+      // every WebKitGTK / WPE build we support.
       _isProxySupportedCached = true;
       return;
     }
@@ -1542,8 +1552,8 @@ class WebViewFactory {
     // `InAppWebViewSettings` is read by `prepare()` /
     // `preWKWebViewConfiguration` and binds the WebView to the named
     // container before any session-bound op runs. `cachedSupported` is
-    // already platform-aware (Linux / Windows / web fall through to the
-    // stub which returns false); no extra Platform gate needed.
+    // already platform-aware (Windows / web fall through to the stub
+    // which returns false); no extra Platform gate needed.
     final containerId = (ContainerNative.instance.cachedSupported &&
             config.siteId != null)
         ? 'ws-${config.siteId}'

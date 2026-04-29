@@ -43,14 +43,27 @@ The system SHALL use a platform abstraction layer to hide platform differences.
 
 ### Requirement: PLATFORM-003 - Linux Support Status
 
-Linux desktop SHALL be pending flutter_inappwebview Linux support.
+Linux desktop SHALL run on the WebSpace fork of `flutter_inappwebview_linux`
+(WPE WebKit, ≥ 2.40), pinned via `dependency_overrides` in
+[`pubspec.yaml`](../../../pubspec.yaml). Webview, per-site containers,
+cookies, and proxy all work — the fork's Linux side resolves cookie ops
+to the per-WebView `WebKitNetworkSession` via
+`webkit_web_view_get_network_session(webview)` and fans the proxy
+override out across the default session and every cached container
+session.
 
 #### Scenario: Handle Linux platform
 
-**Given** the app is running on Linux
-**When** webview functionality is requested
-**Then** the app shows appropriate messaging about limited support
-**And** UI, settings, and persistence continue to work
+**Given** the app is running on Linux with the fork resolved
+**When** the user opens a site
+**Then** the webview loads inside its per-site
+`WebKitNetworkSession` container
+**And** cookies, localStorage, IndexedDB, ServiceWorkers and the HTTP
+cache are isolated per site
+**And** any configured proxy is applied to every loaded container's
+session via `webkit_network_session_set_proxy_settings`
+**And** UI, settings, and persistence work as on the other supported
+platforms
 
 ---
 
@@ -87,11 +100,11 @@ When Flutter's webview_flutter adds Linux support, migration SHALL require:
 
 | Feature | iOS | Android | macOS | Linux |
 |---------|-----|---------|-------|-------|
-| Webview | flutter_inappwebview | flutter_inappwebview | flutter_inappwebview | Pending |
-| Cookies | Full | Full | Full | Limited |
-| Proxy | Full | Full | Limited | System only |
-| Find-in-page | Yes | Yes | Yes | No |
-| Theme injection | Yes | Yes | Yes | No |
+| Webview | flutter_inappwebview | flutter_inappwebview | flutter_inappwebview | flutter_inappwebview (WPE WebKit, fork) |
+| Cookies | Full (per-site container) | Full (per-site container, SDK ≥110) | Full (per-site container) | Full (per-site container, WPE ≥ 2.40) |
+| Proxy | Full (per-site) | Full (global override) | Full (per-site) | Full (fan-out across default + every container session) |
+| Find-in-page | Yes | Yes | Yes | Yes |
+| Theme injection | Yes | Yes | Yes | Yes |
 
 ---
 
