@@ -248,7 +248,7 @@ packages:
     description:
       path: flutter_inappwebview
       ref: "claude/improve-inappwebview-isolation-2mUko"
-      resolved-ref: "97233927aa62b0aa1842c261b7e70cf2b2fe2e0b"
+      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -257,7 +257,7 @@ packages:
     description:
       path: flutter_inappwebview_android
       ref: "claude/improve-inappwebview-isolation-2mUko"
-      resolved-ref: "97233927aa62b0aa1842c261b7e70cf2b2fe2e0b"
+      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -274,7 +274,7 @@ packages:
     description:
       path: flutter_inappwebview_ios
       ref: "claude/improve-inappwebview-isolation-2mUko"
-      resolved-ref: "97233927aa62b0aa1842c261b7e70cf2b2fe2e0b"
+      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -291,7 +291,7 @@ packages:
     description:
       path: flutter_inappwebview_macos
       ref: "claude/improve-inappwebview-isolation-2mUko"
-      resolved-ref: "97233927aa62b0aa1842c261b7e70cf2b2fe2e0b"
+      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -300,7 +300,7 @@ packages:
     description:
       path: flutter_inappwebview_platform_interface
       ref: "claude/improve-inappwebview-isolation-2mUko"
-      resolved-ref: "97233927aa62b0aa1842c261b7e70cf2b2fe2e0b"
+      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
