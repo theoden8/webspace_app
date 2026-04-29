@@ -3,10 +3,10 @@
 • Per-site HTTP/SOCKS5 proxy on all platforms except Android
 • Per-site geolocation spoof + timezone + WebRTC lockdown
 • Convincing desktop mode: UA picker + viewport/navigator shims
-• iOS Universal Link bypass
+• Cross-app intent handling on iOS + Android
 
 🔧 Improvements:
-• Dart-side HTTP via proxy (no IP leak); navigator.language; intent:// prompt
+• Dart-side HTTP via proxy (no IP leak); navigator.language
 
 🐛 Bug Fixes:
 • JS timer pause; cross-domain URL leak; nested-webview scripts; HTML cache skips stopped pages; dark UA icons
