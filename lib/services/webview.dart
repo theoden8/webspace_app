@@ -344,9 +344,15 @@ class PlatformInfo {
   static bool? _isProxySupportedCached;
 
   static Future<void> initialize() async {
-    if (Platform.isIOS || Platform.isMacOS) {
-      // The native side gates per-version (`#available(iOS 17.0, macOS 14.0, *)`);
-      // surface the toggle in the UI on every iOS / macOS build.
+    if (Platform.isIOS || Platform.isMacOS || Platform.isLinux) {
+      // iOS / macOS native side gates per-version
+      // (`#available(iOS 17.0, macOS 14.0, *)`); surface the toggle
+      // in the UI on every iOS / macOS build.
+      // Linux uses WebKitNetworkSession's
+      // webkit_network_session_set_proxy_settings() which exists in
+      // libwpewebkit-2.0 from 2.40+; pkg_check_modules in the patched
+      // plugin's CMake enforces that floor at compile time, so a
+      // started binary implies API presence.
       _isProxySupportedCached = true;
       return;
     }
@@ -1599,17 +1605,20 @@ class WebViewFactory {
         ? 'ws-${config.siteId}'
         : null;
 
-    // Per-site proxy delivery: only iOS / macOS honor the settings-borne
-    // map (the patched `preWKWebViewConfiguration` reads it). On Android
-    // the global `inapp.ProxyController` path runs from
-    // `WebViewModel._applyProxySettings` instead, so leave `webspaceProxy`
-    // null and avoid sending a no-op map to the native side.
-    // resolveEffectiveProxy keeps the iOS/macOS WebView in sync with the
-    // Dart-side and Android paths: per-site DEFAULT falls through to the
-    // app-global outbound proxy, so a site the user hasn't customized
-    // still inherits a global Tor / corporate proxy. Explicit per-site
-    // values win.
-    final webspaceProxy = (Platform.isIOS || Platform.isMacOS) && config.proxySettings != null
+    // Per-site proxy delivery: iOS / macOS / Linux honor the
+    // settings-borne map (the patched plugins read it at WebView
+    // construction). On Android the global `inapp.ProxyController`
+    // path runs from `WebViewModel._applyProxySettings` instead, so
+    // leave `webspaceProxy` null on Android and avoid sending a no-op
+    // map to the native side. resolveEffectiveProxy keeps the per-
+    // session WebView in sync with the Dart-side and Android paths:
+    // per-site DEFAULT falls through to the app-global outbound
+    // proxy, so a site the user hasn't customized still inherits a
+    // global Tor / corporate proxy. Explicit per-site values win.
+    final webspaceProxy = (Platform.isIOS ||
+                Platform.isMacOS ||
+                Platform.isLinux) &&
+            config.proxySettings != null
         ? _proxySettingsToWebspaceProxy(resolveEffectiveProxy(config.proxySettings!))
         : null;
 

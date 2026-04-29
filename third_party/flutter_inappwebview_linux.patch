@@ -1,6 +1,6 @@
 diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.cc modified/linux/in_app_webview/in_app_webview.cc
 --- flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.cc	2026-02-02 00:20:48.000000000 +0000
-+++ modified/linux/in_app_webview/in_app_webview.cc	2026-04-29 02:27:46.492801538 +0000
++++ modified/linux/in_app_webview/in_app_webview.cc	2026-04-29 02:54:10.330735484 +0000
 @@ -17,6 +17,8 @@
  #include <filesystem>
  #include <limits>
@@ -10,7 +10,7 @@ diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.c
  #include <random>
  #include <set>
  #include <unordered_set>
-@@ -126,6 +128,42 @@
+@@ -126,6 +128,84 @@
  
  namespace {
  
@@ -49,11 +49,53 @@ diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.c
 +  return session;
 +}
 +
++// [WebSpace fork patch] — apply (or clear) a per-site proxy on the
++// supplied session. Mirrors WebSpaceProxy.swift's
++// `configurations(from:)` translation on iOS / macOS, just adapted
++// for WebKitNetworkSession's single-URI API instead of Apple's
++// nw_proxy_config_t array. We re-apply on every WebView
++// construction so runtime proxy edits (handled Dart-side by
++// WebViewModel.updateProxySettings → reconstruct webview) propagate
++// to the cached session. Dict shape comes from
++// lib/services/webview.dart::_proxySettingsToWebspaceProxy.
++void WebspaceApplyProxyToSession(
++    WebKitNetworkSession* session,
++    const InAppWebViewSettings::WebspaceProxy& proxy) {
++  if (session == nullptr) return;
++  if (!proxy.isSet()) {
++    // Reset to default routing — the previous WebView for this
++    // profile may have set a custom proxy that we now want to clear.
++    webkit_network_session_set_proxy_settings(
++        session, WEBKIT_NETWORK_PROXY_MODE_DEFAULT, nullptr);
++    return;
++  }
++  // Build "<scheme>://[user:pass@]host:port".
++  std::string uri = proxy.type + "://";
++  if (!proxy.username.empty() || !proxy.password.empty()) {
++    g_autofree gchar* user_esc =
++        g_uri_escape_string(proxy.username.c_str(), nullptr, FALSE);
++    g_autofree gchar* pass_esc =
++        g_uri_escape_string(proxy.password.c_str(), nullptr, FALSE);
++    uri += user_esc;
++    uri += ":";
++    uri += pass_esc;
++    uri += "@";
++  }
++  uri += proxy.host;
++  uri += ":";
++  uri += std::to_string(proxy.port);
++  WebKitNetworkProxySettings* native_settings =
++      webkit_network_proxy_settings_new(uri.c_str(), nullptr);
++  webkit_network_session_set_proxy_settings(
++      session, WEBKIT_NETWORK_PROXY_MODE_CUSTOM, native_settings);
++  webkit_network_proxy_settings_free(native_settings);
++}
++
 +
  // WPE modifier mask - matches wpe_input_modifier enum from wpe/input.h
  // Control = bit 0 (1), Shift = bit 1 (2), Alt = bit 2 (4), Meta = bit 3 (8)
  // These are not used directly in C++ code - modifiers come from Dart already in WPE format
-@@ -670,6 +708,16 @@
+@@ -670,6 +750,20 @@
    if (useIncognito) {
      networkSession = webkit_network_session_new_ephemeral();
      debugLog("InAppWebView: Creating WebView with ephemeral (incognito) network session");
@@ -61,16 +103,20 @@ diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.c
 +             !params.initialSettings->webspaceProfile.empty()) {
 +    // [WebSpace fork patch] — bind to the process-wide cached
 +    // per-profile WebKitNetworkSession. See WebspaceGetOrCreateSession
-+    // at top of file for why caching is required.
++    // at top of file for why caching is required. Apply (or
++    // clear) the per-site proxy on the session every time so
++    // runtime proxy edits propagate.
 +    networkSession =
 +        WebspaceGetOrCreateSession(params.initialSettings->webspaceProfile);
++    WebspaceApplyProxyToSession(networkSession,
++                                params.initialSettings->webspaceProxy);
 +    debugLog(("InAppWebView: Bound to cached per-site session for "
 +              + params.initialSettings->webspaceProfile)
 +                 .c_str());
    }
    
    WebKitWebContext* webContext = params.webContext;
-@@ -832,6 +880,16 @@
+@@ -832,6 +926,20 @@
      if (useIncognito) {
        networkSession = webkit_network_session_new_ephemeral();
        debugLog("InAppWebView: Creating WebView with ephemeral (incognito) network session");
@@ -78,9 +124,13 @@ diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.c
 +               !params.initialSettings->webspaceProfile.empty()) {
 +      // [WebSpace fork patch] — bind to the process-wide cached
 +      // per-profile WebKitNetworkSession. See WebspaceGetOrCreateSession
-+      // at top of file for why caching is required.
++      // at top of file for why caching is required. Apply (or
++      // clear) the per-site proxy on the session every time so
++      // runtime proxy edits propagate.
 +      networkSession =
 +          WebspaceGetOrCreateSession(params.initialSettings->webspaceProfile);
++      WebspaceApplyProxyToSession(networkSession,
++                                  params.initialSettings->webspaceProxy);
 +      debugLog(("InAppWebView: Bound to cached per-site session for "
 +                + params.initialSettings->webspaceProfile)
 +                   .c_str());
@@ -89,8 +139,8 @@ diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.c
      // Check if a custom WebKitWebContext is provided
 diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_settings.cc modified/linux/in_app_webview/in_app_webview_settings.cc
 --- flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_settings.cc	2026-01-24 00:39:37.000000000 +0000
-+++ modified/linux/in_app_webview/in_app_webview_settings.cc	2026-04-29 02:27:46.476270259 +0000
-@@ -206,6 +206,11 @@
++++ modified/linux/in_app_webview/in_app_webview_settings.cc	2026-04-29 02:54:10.312327514 +0000
+@@ -206,6 +206,31 @@
    // === Incognito mode ===
    incognito = get_fl_map_value(map, "incognito", incognito);
  
@@ -99,13 +149,33 @@ diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_s
 +  webspaceProfile =
 +      get_fl_map_value<std::string>(map, "webspaceProfile", "");
 +
++  // [WebSpace fork patch] — per-site proxy. See header docstring and
++  // InAppWebView constructor for the apply logic. Wire format matches
++  // lib/services/webview.dart::_proxySettingsToWebspaceProxy.
++  if (fl_map_contains_not_null(map, "webspaceProxy")) {
++    FlValue* proxyMap = fl_value_lookup_string(map, "webspaceProxy");
++    if (proxyMap != nullptr &&
++        fl_value_get_type(proxyMap) == FL_VALUE_TYPE_MAP) {
++      webspaceProxy.type =
++          get_fl_map_value<std::string>(proxyMap, "type", "");
++      webspaceProxy.host =
++          get_fl_map_value<std::string>(proxyMap, "host", "");
++      webspaceProxy.port =
++          get_fl_map_value<int64_t>(proxyMap, "port", 0);
++      webspaceProxy.username =
++          get_fl_map_value<std::string>(proxyMap, "username", "");
++      webspaceProxy.password =
++          get_fl_map_value<std::string>(proxyMap, "password", "");
++    }
++  }
++
    // === CORS allowlist ===
    if (fl_map_contains_not_null(map, "corsAllowlist")) {
      corsAllowlist =
 diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_settings.h modified/linux/in_app_webview/in_app_webview_settings.h
 --- flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_settings.h	2026-01-24 00:39:37.000000000 +0000
-+++ modified/linux/in_app_webview/in_app_webview_settings.h	2026-04-29 02:27:46.462615773 +0000
-@@ -141,6 +141,25 @@
++++ modified/linux/in_app_webview/in_app_webview_settings.h	2026-04-29 02:54:10.297968007 +0000
+@@ -141,6 +141,54 @@
    // When true, creates an ephemeral network session (no persistent storage)
    bool incognito = false;
  
@@ -127,6 +197,35 @@ diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_s
 +  // i.e. upstream behavior (every webview shares one cookie jar).
 +  // Drop this field if upstream merges native per-site session support.
 +  std::string webspaceProfile;
++
++  // [WebSpace fork patch] — per-site proxy. Mirrors iOS
++  // `webspaceProxy` (`WKWebsiteDataStore.proxyConfigurations` over
++  // there). When non-null, the InAppWebView constructor calls
++  // webkit_network_session_set_proxy_settings() on the per-site
++  // session with a single CUSTOM proxy URI built from these fields:
++  //   type:     "http" | "https" | "socks5"
++  //   host:     host name or IP
++  //   port:     1-65535
++  //   username: optional
++  //   password: optional
++  //
++  // Null / unset → default WebKitNetworkProxyMode (system routing).
++  // The same proxy is re-applied every time a WebView for this
++  // profile is constructed, so runtime proxy edits propagate via the
++  // standard WebViewModel.updateProxySettings reconstruction path.
++  // See lib/services/webview.dart::_proxySettingsToWebspaceProxy for
++  // the dict shape on the Dart side.
++  struct WebspaceProxy {
++    std::string type;
++    std::string host;
++    int64_t port = 0;
++    std::string username;
++    std::string password;
++    bool isSet() const {
++      return !type.empty() && !host.empty() && port > 0;
++    }
++  };
++  WebspaceProxy webspaceProxy;
 +
    // === CORS allowlist ===
    // List of URI patterns for which CORS checks are disabled

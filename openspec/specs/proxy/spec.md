@@ -3,7 +3,7 @@
 ## Purpose
 
 The proxy feature allows users to configure HTTP, HTTPS, and SOCKS5 proxies
-for their web views on supported platforms. Two delivery paths coexist:
+for their web views on supported platforms. Three delivery paths coexist:
 
 - **Android** — global override via `inapp.ProxyController` (a process-wide
   WebView singleton).
@@ -11,6 +11,15 @@ for their web views on supported platforms. Two delivery paths coexist:
   `WKWebsiteDataStore.proxyConfigurations`, set on the per-site data store
   created by the patched `preWKWebViewConfiguration`. See
   [`third_party/PATCHES.md`](../../../third_party/PATCHES.md).
+- **Linux (development)** — true per-site override via
+  `webkit_network_session_set_proxy_settings(session, MODE_CUSTOM, …)`,
+  applied to the per-site `WebKitNetworkSession` returned by the patched
+  plugin's `WebspaceGetOrCreateSession`. The session is shared across every
+  WebView for the same `webspaceProfile`, so changing the proxy for a site
+  re-applies on the next WebView reconstruction (the same path
+  `WebViewModel.updateProxySettings` already uses on iOS / macOS). Same
+  shape as iOS / macOS, just translates the `webspaceProxy` dict to a
+  single CUSTOM proxy URI instead of an `nw_proxy_config_t` array.
 
 This asymmetry is observable to the user; see
 [PROXY-008](#requirement-proxy-008---android-iOS-isolation-asymmetry-under-profile-mode).
@@ -23,9 +32,13 @@ that adds a new outbound seam MUST be reflected there.
 
 ## Status
 
-- **Status**: Completed
-- **Platforms**: Android (global override), iOS 17+ / macOS 14+ (true per-site);
-  Linux, Windows (system default — UI hidden).
+- **Status**: Completed (Android, iOS 17+, macOS 14+, Linux dev)
+- **Platforms**: Android (global override), iOS 17+ / macOS 14+ (true
+  per-site via `WKWebsiteDataStore.proxyConfigurations`), Linux
+  (development; true per-site via
+  `webkit_network_session_set_proxy_settings()` on the patched
+  `flutter_inappwebview_linux` 0.1.0-beta.1 fork), Windows (system
+  default — UI hidden).
 
 ---
 
