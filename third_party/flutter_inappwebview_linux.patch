@@ -1,0 +1,133 @@
+diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.cc modified/linux/in_app_webview/in_app_webview.cc
+--- flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview.cc	2026-02-02 00:20:48.000000000 +0000
++++ modified/linux/in_app_webview/in_app_webview.cc	2026-04-29 02:27:46.492801538 +0000
+@@ -17,6 +17,8 @@
+ #include <filesystem>
+ #include <limits>
+ #include <nlohmann/json.hpp>
++#include <map>
++#include <mutex>
+ #include <random>
+ #include <set>
+ #include <unordered_set>
+@@ -126,6 +128,42 @@
+ 
+ namespace {
+ 
++// [WebSpace fork patch] — process-wide cache of persistent
++// WebKitNetworkSession objects keyed by profile name.
++// webkit_network_session_new() spawns its own WPENetworkProcess on
++// first use; rapid create/destroy of webviews (e.g. lazy-loading
++// where a placeholder is built and immediately torn down) was racing
++// the spawn against the session destructor and aborting with
++// std::system_error: Invalid argument from a thread join inside the
++// session teardown. Caching gives us iOS-WKWebsiteDataStore-like
++// semantics: same profile name always returns the same session, and
++// sessions are never destroyed during the app lifetime. Sites that
++// share a profile name share the underlying jar — exactly what
++// per-site profiles want. The g_object_ref() at insertion pins the
++// session so it survives every webview that owns it.
++WebKitNetworkSession* WebspaceGetOrCreateSession(
++    const std::string& profile_name) {
++  static std::map<std::string, WebKitNetworkSession*>* cache =
++      new std::map<std::string, WebKitNetworkSession*>();
++  static std::mutex* mu = new std::mutex();
++  std::lock_guard<std::mutex> lock(*mu);
++  auto it = cache->find(profile_name);
++  if (it != cache->end()) return it->second;
++  g_autofree gchar* dataDir = g_build_filename(
++      g_get_user_data_dir(), "webspace", "profiles",
++      profile_name.c_str(), "data", nullptr);
++  g_autofree gchar* cacheDir = g_build_filename(
++      g_get_user_cache_dir(), "webspace", "profiles",
++      profile_name.c_str(), "cache", nullptr);
++  g_mkdir_with_parents(dataDir, 0700);
++  g_mkdir_with_parents(cacheDir, 0700);
++  WebKitNetworkSession* session = webkit_network_session_new(dataDir, cacheDir);
++  g_object_ref(session);  // pin: outlive any webview that owns it
++  (*cache)[profile_name] = session;
++  return session;
++}
++
++
+ // WPE modifier mask - matches wpe_input_modifier enum from wpe/input.h
+ // Control = bit 0 (1), Shift = bit 1 (2), Alt = bit 2 (4), Meta = bit 3 (8)
+ // These are not used directly in C++ code - modifiers come from Dart already in WPE format
+@@ -670,6 +708,16 @@
+   if (useIncognito) {
+     networkSession = webkit_network_session_new_ephemeral();
+     debugLog("InAppWebView: Creating WebView with ephemeral (incognito) network session");
++  } else if (params.initialSettings &&
++             !params.initialSettings->webspaceProfile.empty()) {
++    // [WebSpace fork patch] — bind to the process-wide cached
++    // per-profile WebKitNetworkSession. See WebspaceGetOrCreateSession
++    // at top of file for why caching is required.
++    networkSession =
++        WebspaceGetOrCreateSession(params.initialSettings->webspaceProfile);
++    debugLog(("InAppWebView: Bound to cached per-site session for "
++              + params.initialSettings->webspaceProfile)
++                 .c_str());
+   }
+   
+   WebKitWebContext* webContext = params.webContext;
+@@ -832,6 +880,16 @@
+     if (useIncognito) {
+       networkSession = webkit_network_session_new_ephemeral();
+       debugLog("InAppWebView: Creating WebView with ephemeral (incognito) network session");
++    } else if (params.initialSettings &&
++               !params.initialSettings->webspaceProfile.empty()) {
++      // [WebSpace fork patch] — bind to the process-wide cached
++      // per-profile WebKitNetworkSession. See WebspaceGetOrCreateSession
++      // at top of file for why caching is required.
++      networkSession =
++          WebspaceGetOrCreateSession(params.initialSettings->webspaceProfile);
++      debugLog(("InAppWebView: Bound to cached per-site session for "
++                + params.initialSettings->webspaceProfile)
++                   .c_str());
+     }
+ 
+     // Check if a custom WebKitWebContext is provided
+diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_settings.cc modified/linux/in_app_webview/in_app_webview_settings.cc
+--- flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_settings.cc	2026-01-24 00:39:37.000000000 +0000
++++ modified/linux/in_app_webview/in_app_webview_settings.cc	2026-04-29 02:27:46.476270259 +0000
+@@ -206,6 +206,11 @@
+   // === Incognito mode ===
+   incognito = get_fl_map_value(map, "incognito", incognito);
+ 
++  // [WebSpace fork patch] — per-site profile name. See header docstring
++  // and InAppWebView constructor for the bind logic.
++  webspaceProfile =
++      get_fl_map_value<std::string>(map, "webspaceProfile", "");
++
+   // === CORS allowlist ===
+   if (fl_map_contains_not_null(map, "corsAllowlist")) {
+     corsAllowlist =
+diff -urN flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_settings.h modified/linux/in_app_webview/in_app_webview_settings.h
+--- flutter_inappwebview_linux-fresh/linux/in_app_webview/in_app_webview_settings.h	2026-01-24 00:39:37.000000000 +0000
++++ modified/linux/in_app_webview/in_app_webview_settings.h	2026-04-29 02:27:46.462615773 +0000
+@@ -141,6 +141,25 @@
+   // When true, creates an ephemeral network session (no persistent storage)
+   bool incognito = false;
+ 
++  // [WebSpace fork patch] — per-site profile name. When non-empty AND
++  // incognito is false, the InAppWebView constructor binds this
++  // WebView to a process-wide cached, persistent WebKitNetworkSession
++  // whose dataDirectory + cacheDirectory are derived from this name.
++  // Each unique value maps to its own cookies, localStorage,
++  // IndexedDB, ServiceWorkers, HTTP cache, ITP state, and credentials
++  // — the GLib equivalent of iOS WKWebsiteDataStore(forIdentifier:)
++  // and Android androidx.webkit.Profile. See third_party/PATCHES.md.
++  //
++  // Paths follow XDG conventions and a fixed "webspace" namespace
++  // (matches linux/web_space_profile_plugin.cc lifecycle ops):
++  //   data:  g_get_user_data_dir()/webspace/profiles/<name>/data
++  //   cache: g_get_user_cache_dir()/webspace/profiles/<name>/cache
++  //
++  // Empty (default) → use the default shared WebKitNetworkSession,
++  // i.e. upstream behavior (every webview shares one cookie jar).
++  // Drop this field if upstream merges native per-site session support.
++  std::string webspaceProfile;
++
+   // === CORS allowlist ===
+   // List of URI patterns for which CORS checks are disabled
+   // Pattern format: [protocol]://[host]:[port]

@@ -1,7 +1,7 @@
-diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
---- a/lib/src/cookie_manager.dart	2026-04-28 05:25:58.506949888 +0000
-+++ b/lib/src/cookie_manager.dart	2026-04-28 05:25:58.525143347 +0000
-@@ -183,6 +183,10 @@
+diff -urN flutter_inappwebview_macos/lib/src/cookie_manager.dart rebase_macos/lib/src/cookie_manager.dart
+--- flutter_inappwebview_macos/lib/src/cookie_manager.dart	2026-01-26 12:06:53.000000000 +0000
++++ rebase_macos/lib/src/cookie_manager.dart	2026-04-28 14:47:29.576067745 +0000
+@@ -206,6 +206,10 @@
  
      Map<String, dynamic> args = <String, dynamic>{};
      args.putIfAbsent('url', () => url.toString());
@@ -12,7 +12,7 @@ diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
      List<dynamic> cookieListMap =
          await channel?.invokeMethod<List>('getCookies', args) ?? [];
      cookieListMap = cookieListMap.cast<Map<dynamic, dynamic>>();
-@@ -335,6 +339,10 @@
+@@ -372,6 +376,10 @@
      args.putIfAbsent('name', () => name);
      args.putIfAbsent('domain', () => domain);
      args.putIfAbsent('path', () => path);
@@ -23,9 +23,9 @@ diff -urN a/lib/src/cookie_manager.dart b/lib/src/cookie_manager.dart
      return await channel?.invokeMethod<bool>('deleteCookie', args) ?? false;
    }
  
-diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppWebView/InAppWebView.swift
---- a/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 05:25:58.510235898 +0000
-+++ b/macos/Classes/InAppWebView/InAppWebView.swift	2026-04-28 05:31:22.906387074 +0000
+diff -urN flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/InAppWebView.swift rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/InAppWebView.swift
+--- flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/InAppWebView.swift	2026-02-02 17:22:16.000000000 +0000
++++ rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/InAppWebView.swift	2026-04-28 14:47:44.283334075 +0000
 @@ -7,6 +7,11 @@
  
  import FlutterMacOS
@@ -35,7 +35,7 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
 +// WKWebsiteDataStore on macOS 14+. The framework ships in macOS 10.14+, well
 +// below our deployment target, so importing it unconditionally is fine.
 +import Network
- import WebKit
+ @preconcurrency import WebKit
  
  public class InAppWebView: WKWebView, WKUIDelegate,
 @@ -15,6 +20,42 @@
@@ -81,7 +81,7 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
      var id: Any? // viewId
      var plugin: InAppWebViewFlutterPlugin?
      var windowId: Int64?
-@@ -63,8 +104,20 @@
+@@ -69,8 +110,20 @@
          self.initialUserScripts = userScripts
          uiDelegate = self
          navigationDelegate = self
@@ -103,7 +103,7 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
      required public init(coder aDecoder: NSCoder) {
          super.init(coder: aDecoder)!
      }
-@@ -261,6 +314,29 @@
+@@ -280,6 +333,29 @@
              } else if settings.cacheEnabled {
                  configuration.websiteDataStore = WKWebsiteDataStore.default()
              }
@@ -133,10 +133,10 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebView.swift b/macos/Classes/InAppW
              if !settings.applicationNameForUserAgent.isEmpty {
                  if let applicationNameForUserAgent = configuration.applicationNameForUserAgent {
                      configuration.applicationNameForUserAgent = applicationNameForUserAgent + " " + settings.applicationNameForUserAgent
-diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classes/InAppWebView/InAppWebViewSettings.swift
---- a/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 05:25:58.510217734 +0000
-+++ b/macos/Classes/InAppWebView/InAppWebViewSettings.swift	2026-04-28 05:31:29.962387493 +0000
-@@ -28,6 +28,16 @@
+diff -urN flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/InAppWebViewSettings.swift rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/InAppWebViewSettings.swift
+--- flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/InAppWebViewSettings.swift	2026-02-02 17:22:16.000000000 +0000
++++ rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/InAppWebViewSettings.swift	2026-04-28 14:47:29.577903169 +0000
+@@ -30,6 +30,16 @@
      var interceptOnlyAsyncAjaxRequests = true
      var useShouldInterceptFetchRequest = false
      var incognito = false
@@ -153,9 +153,9 @@ diff -urN a/macos/Classes/InAppWebView/InAppWebViewSettings.swift b/macos/Classe
      var cacheEnabled = true
      var transparentBackground = false
      var supportZoom = true
-diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InAppWebView/WebSpaceProfile.swift
---- a/macos/Classes/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
-+++ b/macos/Classes/InAppWebView/WebSpaceProfile.swift	2026-04-28 05:25:58.526674942 +0000
+diff -urN flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/WebSpaceProfile.swift rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/WebSpaceProfile.swift
+--- flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/WebSpaceProfile.swift	1970-01-01 00:00:00.000000000 +0000
++++ rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/WebSpaceProfile.swift	2026-04-28 14:47:29.578562104 +0000
 @@ -0,0 +1,36 @@
 +//
 +// WebSpaceProfile.swift
@@ -193,9 +193,9 @@ diff -urN a/macos/Classes/InAppWebView/WebSpaceProfile.swift b/macos/Classes/InA
 +        return UUID(uuid: bytes)
 +    }
 +}
-diff -urN a/macos/Classes/InAppWebView/WebSpaceProxy.swift b/macos/Classes/InAppWebView/WebSpaceProxy.swift
---- a/macos/Classes/InAppWebView/WebSpaceProxy.swift	1970-01-01 00:00:00.000000000 +0000
-+++ b/macos/Classes/InAppWebView/WebSpaceProxy.swift	2026-04-28 05:31:40.190388101 +0000
+diff -urN flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/WebSpaceProxy.swift rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/WebSpaceProxy.swift
+--- flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/WebSpaceProxy.swift	1970-01-01 00:00:00.000000000 +0000
++++ rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/InAppWebView/WebSpaceProxy.swift	2026-04-28 14:47:29.579104732 +0000
 @@ -0,0 +1,49 @@
 +//
 +// WebSpaceProxy.swift
@@ -246,9 +246,9 @@ diff -urN a/macos/Classes/InAppWebView/WebSpaceProxy.swift b/macos/Classes/InApp
 +        return [config]
 +    }
 +}
-diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.swift
---- a/macos/Classes/MyCookieManager.swift	2026-04-28 05:25:58.510567047 +0000
-+++ b/macos/Classes/MyCookieManager.swift	2026-04-28 05:25:58.526786888 +0000
+diff -urN flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/MyCookieManager.swift rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/MyCookieManager.swift
+--- flutter_inappwebview_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/MyCookieManager.swift	2026-02-02 17:22:16.000000000 +0000
++++ rebase_macos/macos/flutter_inappwebview_macos/Sources/flutter_inappwebview_macos/MyCookieManager.swift	2026-04-28 14:47:29.579432379 +0000
 @@ -5,6 +5,7 @@
  //  Created by Lorenzo on 26/10/18.
  //
@@ -280,7 +280,7 @@ diff -urN a/macos/Classes/MyCookieManager.swift b/macos/Classes/MyCookieManager.
 +    }
      
      init(plugin: InAppWebViewFlutterPlugin) {
-         super.init(channel: FlutterMethodChannel(name: MyCookieManager.METHOD_CHANNEL_NAME, binaryMessenger: plugin.registrar!.messenger))
+         super.init(channel: FlutterMethodChannel(name: MyCookieManager.METHOD_CHANNEL_NAME, binaryMessenger: plugin.registrar.messenger))
 @@ -54,7 +72,11 @@
                  break
              case "getCookies":

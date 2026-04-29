@@ -46,9 +46,20 @@ import 'dart:io';
 /// version each patch was generated against. Bump in lockstep with
 /// the patch file.
 const _plugins = <String, String>{
-  'flutter_inappwebview_android': '1.1.3',
-  'flutter_inappwebview_ios': '1.1.2',
-  'flutter_inappwebview_macos': '1.1.2',
+  // flutter_inappwebview 6.2.0-beta.3 line. Android/iOS/macOS patches
+  // were rebased against 1.2.0-beta.3 in lockstep; iOS/macOS source
+  // layout migrated upstream from ios/Classes/ to
+  // ios/flutter_inappwebview_ios/Sources/...
+  //
+  // The Linux variant (0.1.0-beta.1, the first upstream release with
+  // any Linux platform plugin) is patched to add a `webspaceProfile`
+  // setting and bind it to a persistent `webkit_network_session_new()`
+  // at WebView construction — the WPE WebKit equivalent of
+  // `WKWebsiteDataStore(forIdentifier:)`.
+  'flutter_inappwebview_android': '1.2.0-beta.3',
+  'flutter_inappwebview_ios': '1.2.0-beta.3',
+  'flutter_inappwebview_macos': '1.2.0-beta.3',
+  'flutter_inappwebview_linux': '0.1.0-beta.1',
 };
 
 const _outDir = '.dart_tool/webspace_patched_plugins';

@@ -53,9 +53,13 @@ We do **not** vendor the plugin source into the repo. Instead:
 1. The diffs against the upstream pub.dev tarballs live as
    `.patch` files in this directory:
 
-   - `flutter_inappwebview_android.patch` — pinned to upstream 1.1.3
-   - `flutter_inappwebview_ios.patch`     — pinned to upstream 1.1.2
-   - `flutter_inappwebview_macos.patch`   — pinned to upstream 1.1.2
+   - `flutter_inappwebview_android.patch` — pinned to upstream 1.2.0-beta.3
+   - `flutter_inappwebview_ios.patch`     — pinned to upstream 1.2.0-beta.3
+   - `flutter_inappwebview_macos.patch`   — pinned to upstream 1.2.0-beta.3
+   - `flutter_inappwebview_linux.patch`   — pinned to upstream 0.1.0-beta.1
+     (per-site profile binding via `webkit_network_session_new(dataDir,
+     cacheDir)`. See cheat-sheet below. Drop when upstream adds a
+     native `webspaceProfile` setting.)
 
    Pinning lives in
    [`scripts/apply_plugin_patches.dart`](../scripts/apply_plugin_patches.dart),
@@ -188,6 +192,36 @@ Each patch touches the minimum needed:
 | flutter_inappwebview_android | InAppWebView.java, InAppWebViewSettings.java | ~25 |
 | flutter_inappwebview_ios     | InAppWebView.swift, InAppWebViewSettings.swift, WebSpaceProfile.swift (new), WebSpaceProxy.swift (new), MyCookieManager.swift, lib/src/cookie_manager.dart | ~140 |
 | flutter_inappwebview_macos   | InAppWebView.swift, InAppWebViewSettings.swift, WebSpaceProfile.swift (new), WebSpaceProxy.swift (new), MyCookieManager.swift, lib/src/cookie_manager.dart | ~140 |
+| flutter_inappwebview_linux   | linux/in_app_webview/in_app_webview.cc, in_app_webview_settings.{h,cc} | ~60 |
+
+The Linux patch adds a `webspaceProfile: String` field to
+`InAppWebViewSettings` and, when non-empty AND not in incognito mode,
+swaps the default shared `WebKitNetworkSession` for
+`webkit_network_session_new(dataDir, cacheDir)` at WebView
+construction. Each `webspaceProfile` value (`ws-<siteId>` from the
+Dart engine layer) maps to a fixed XDG directory pair under
+`$XDG_DATA_HOME/webspace/profiles/<name>/data` and
+`$XDG_CACHE_HOME/webspace/profiles/<name>/cache`. The runner-side
+`linux/web_space_profile_plugin.cc` handles the lifecycle channel
+(create/delete/list) using the same path convention — keep them in
+sync if the convention ever changes.
+
+The patch covers BOTH WPE backend variants the upstream plugin
+supports: the modern `HAVE_WPE_PLATFORM` branch (~line 670) and the
+legacy `HAVE_WPE_BACKEND_LEGACY` branch (~line 832, nested in an
+`else` block — note the four-space indentation).
+
+Stock upstream's main-frame detection in `decide-policy` uses a
+frame-name heuristic that misclassifies unnamed iframe navigations.
+The natural fix would be
+`webkit_navigation_action_is_for_main_frame(nav_action)`, but that
+function doesn't exist in WebKit's public C API (verified against
+`Source/WebKit/UIProcess/API/glib/WebKitNavigationAction.cpp` on
+WebKit `main`). We accept the misclassification because once
+per-site profiles bind, every webview gets its own jar regardless of
+which frame is navigating — iframes inherit the parent webview's
+profile by design, which is the correct behavior. Revisit only if
+upstream WebKit eventually exposes a source-frame accessor.
 
 Specs:
 - [`openspec/specs/per-site-profiles/spec.md`](../openspec/specs/per-site-profiles/spec.md)

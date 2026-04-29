@@ -1,8 +1,9 @@
 # Per-Site Profiles
 
 ## Status
-**Implemented on Android (System WebView 110+) and iOS / macOS (iOS 17+ /
-macOS 14+). Older OS / WebView versions fall through to
+**Implemented on Android (System WebView 110+), iOS / macOS (iOS 17+ /
+macOS 14+), and Linux (libwpewebkit-2.0 ≥ 2.40, i.e. Debian Sid /
+Trixie+ and Fedora ≥ 39). Older OS / WebView versions fall through to
 [`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md).**
 
 ## Platform Support Matrix
@@ -22,6 +23,7 @@ existing capture-nuke-restore code path runs unchanged.
 | Android  | Lollipop (API 21) **AND** System WebView 110+ | [`androidx.webkit.Profile`](https://developer.android.com/reference/androidx/webkit/Profile) via [`WebViewCompat.setProfile`](https://developer.android.com/reference/androidx/webkit/WebViewCompat#setProfile) | Anything that can update System WebView via Play Store; in practice Android 7.0+ (Nougat) keeps WebView fresh on most devices | Feb 2023 (WebView 110) |
 | iOS      | 17.0 | [`WKWebsiteDataStore(forIdentifier:)`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)) | iPhone XS / XR (2018) and newer; iPad Pro 11" 1st-gen / 12.9" 3rd-gen / iPad Air 3 / iPad mini 5 / iPad 7 and newer — anything with the A12 Bionic or newer | Sept 2023 |
 | macOS    | 14.0 Sonoma | Same as iOS (`WKWebsiteDataStore(forIdentifier:)`) | iMac 2019+, iMac Pro 2017+, MacBook Air 2018+, MacBook Pro 2018+, Mac mini 2018+, Mac Pro 2019+, Mac Studio 2022+ | Sept 2023 |
+| Linux    | libwpewebkit-2.0 ≥ 2.40 | [`webkit_network_session_new(dataDir, cacheDir)`](https://webkitgtk.org/reference/wpe-webkit-2.0/stable/method.NetworkSession.new.html) bound at WebView construction via the `network-session` GObject property | Debian Trixie / Sid, Fedora ≥ 39, Arch (rolling); CI builds and ships in `debian:sid-slim` runner image because Ubuntu Noble dropped WPE WebKit and Jammy ships 2.36 (too old) | Mar 2023 |
 
 The runtime check that decides Profile vs. legacy engine is in
 [`ProfileNative.isSupported`](../../../lib/services/profile_native.dart):
@@ -32,6 +34,13 @@ The runtime check that decides Profile vs. legacy engine is in
   even though `androidx.webkit` is present in the build).
 - **iOS / macOS.** Native side checks
   `if #available(iOS 17.0, macOS 14.0, *)`.
+- **Linux.** Native side returns `true` unconditionally — the patched
+  flutter_inappwebview_linux fork links against
+  `webkit-web-process-extension-2.0` / `wpe-webkit-2.0` ≥ 2.40 via
+  `pkg_check_modules`, so if the binary linked at all, the
+  `WebKitNetworkSession` API is present. There's no fallback: if a
+  user's Linux system is missing libwpewebkit-2.0 the binary won't
+  start, so a runtime check would never see it.
 
 ### Legacy fallback (CookieIsolationEngine)
 
@@ -58,6 +67,14 @@ native per-site data-store primitives:
   plugin patches; see
   [`third_party/PATCHES.md`](../../../third_party/PATCHES.md))
   and that UUID identifies the per-site data store.
+- **Linux** (WPE WebKit 2.40+): `webkit_network_session_new(dataDir,
+  cacheDir)` — the GLib analog of `WKWebsiteDataStore(forIdentifier:)`.
+  Each `ws-<siteId>` maps to a fixed XDG path pair under
+  `$XDG_DATA_HOME/webspace/profiles/ws-<siteId>/data` and
+  `$XDG_CACHE_HOME/webspace/profiles/ws-<siteId>/cache`. The session
+  is bound to the `WebKitWebView` at construction time via the
+  `network-session` GObject property — added by the Linux plugin
+  patch; see [`third_party/PATCHES.md`](../../../third_party/PATCHES.md).
 
 Each `WebViewModel.siteId` owns its own cookie jar, `localStorage`,
 `IndexedDB`, `ServiceWorkerController`, and HTTP cache. **Profile mode
@@ -142,10 +159,22 @@ check resolved at app startup.
 **And** the same conflict-skip / engine-selection behavior as Android
   applies — sites with shared base domains can coexist
 
+#### Scenario: Profile API supported on Linux
+
+**Given** the app is launching on a Linux system with libwpewebkit-2.0
+  ≥ 2.40 (the binary loaded at all, which is the runtime guarantee)
+**When** `_restoreAppState` runs
+**Then** the runner-side `web_space_profile_plugin` reports
+  `isSupported() == true` unconditionally — see the Runtime Detection
+  section above
+**And** `_useProfiles` resolves to `true`
+**And** every `_setCurrentIndex(index)` skips the conflict-find /
+  capture-nuke-restore flow, same as Android and iOS / macOS
+
 #### Scenario: Profile API not supported
 
 **Given** the app is launching on Android System WebView <110, or
-  iOS <17, or macOS <14, or Linux / Windows
+  iOS <17, or macOS <14, or Windows / web
 **When** `_restoreAppState` runs
 **Then** `_useProfiles` resolves to `false`
 **And** `_setCurrentIndex` runs the existing capture-nuke-restore flow

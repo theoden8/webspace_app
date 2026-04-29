@@ -3,12 +3,21 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:webspace/services/log_service.dart';
 
-/// Cross-platform Dart-side bridge to the native Profile API. On Android
-/// (System WebView 110+, androidx.webkit 1.9+) maps each `WebViewModel.siteId`
-/// to a named native profile (`ws-<siteId>`) that owns its own cookies,
-/// localStorage, IndexedDB, ServiceWorkers, and HTTP cache. On iOS / macOS
-/// this currently returns `isSupported() == false` — see
-/// [openspec/specs/per-site-profiles/spec.md] for why and the path forward.
+/// Cross-platform Dart-side bridge to the native Profile API. Maps each
+/// [WebViewModel.siteId] to a named native profile (`ws-<siteId>`) that
+/// owns its own cookies, localStorage, IndexedDB, ServiceWorkers, and
+/// HTTP cache:
+///
+///   - Android (System WebView 110+, androidx.webkit 1.9+):
+///     `androidx.webkit.Profile`.
+///   - iOS 17+ / macOS 14+: `WKWebsiteDataStore(forIdentifier:)`.
+///   - Linux (libwpewebkit-2.0 ≥ 2.40): `WebKitNetworkSession` with
+///     persistent dataDirectory + cacheDirectory, scoped under
+///     `$XDG_DATA_HOME/webspace/profiles/ws-<siteId>/{data,cache}`.
+///
+/// See [openspec/specs/per-site-profiles/spec.md] for the per-platform
+/// details and the legacy [CookieIsolationEngine] fallback used when
+/// `isSupported()` returns false.
 ///
 /// The interface is abstract so the engine ([ProfileIsolationEngine]) can
 /// be exercised headlessly with an in-memory mock that models per-profile
@@ -54,18 +63,24 @@ abstract class ProfileNative {
   /// Default singleton routed to the platform-appropriate impl. Tests
   /// inject a mock directly into the engine instead.
   ///
-  /// Both Android and iOS / macOS take the MethodChannel path: the
-  /// vendored forks under `third_party/` patch each plugin's WebView
-  /// construction to set the per-site profile / data store before
-  /// any session-bound op. The native side answers `isSupported()`
-  /// based on a runtime check (Android: `WebViewFeature.MULTI_PROFILE`;
-  /// iOS: `#available(iOS 17.0, macOS 14.0, *)`); engine selection
-  /// in `_WebSpacePageState` falls through to `CookieIsolationEngine`
-  /// when that returns false.
-  static final ProfileNative instance =
-      (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)
-          ? _MethodChannelProfileNative()
-          : _StubProfileNative();
+  /// Android, iOS / macOS, and Linux all take the MethodChannel path:
+  /// the vendored forks under `third_party/` patch each plugin's
+  /// WebView construction to set the per-site profile / data store
+  /// before any session-bound op. The native side answers
+  /// `isSupported()` based on a runtime check:
+  ///   - Android: `WebViewFeature.MULTI_PROFILE`
+  ///   - iOS / macOS: `#available(iOS 17.0, macOS 14.0, *)`
+  ///   - Linux: always TRUE — the patched plugin links against
+  ///     libwpewebkit-2.0 ≥ 2.40 (`WebKitNetworkSession` API), which
+  ///     `pkg_check_modules` enforces at compile time.
+  /// Engine selection in `_WebSpacePageState` falls through to
+  /// `CookieIsolationEngine` when `isSupported()` returns false.
+  static final ProfileNative instance = (Platform.isAndroid ||
+          Platform.isIOS ||
+          Platform.isMacOS ||
+          Platform.isLinux)
+      ? _MethodChannelProfileNative()
+      : _StubProfileNative();
 }
 
 class _MethodChannelProfileNative implements ProfileNative {
@@ -147,12 +162,11 @@ class _MethodChannelProfileNative implements ProfileNative {
   }
 }
 
-/// iOS / macOS / Linux / desktop: Profile API not yet wired (the Apple
-/// equivalent `WKWebsiteDataStore(forIdentifier:)` exists since iOS 17 but
-/// flutter_inappwebview does not yet expose `websiteDataStoreId` on
-/// `InAppWebViewSettings`). Returns `isSupported() == false`; engine
-/// selection in [_WebSpacePageState] then falls through to
-/// [CookieIsolationEngine].
+/// Fallback for unsupported platforms (Windows / web / future targets).
+/// Returns `isSupported() == false`; engine selection in
+/// [_WebSpacePageState] falls through to [CookieIsolationEngine] in
+/// that case. Android / iOS / macOS / Linux all use
+/// [_MethodChannelProfileNative].
 class _StubProfileNative implements ProfileNative {
   @override
   bool get cachedSupported => false;

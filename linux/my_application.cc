@@ -6,6 +6,7 @@
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
+#include "web_space_profile_plugin.h"
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -58,6 +59,14 @@ static void my_application_activate(GApplication* application) {
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  // WebSpace per-site profile plugin. Linux counterpart of the
+  // Android WebSpaceProfilePlugin.kt and shared/WebSpaceProfilePlugin.swift
+  // (iOS/macOS). Backs the Dart-side ProfileNative MethodChannel so
+  // the engine can create/delete/list per-site WebKitNetworkSession
+  // directory trees.
+  web_space_profile_plugin_register(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)));
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }

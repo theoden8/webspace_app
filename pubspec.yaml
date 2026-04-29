@@ -43,8 +43,10 @@ dependencies:
   html: ^0.15.4
 
   # Webview packages
-  # Android/mobile: flutter_inappwebview (stable, feature-rich)
-  flutter_inappwebview: ^6.1.0+1
+  # Android/mobile: flutter_inappwebview (stable, feature-rich).
+  # On the 6.2.0-beta line so we can use flutter_inappwebview_linux,
+  # which was added in 6.2.0-beta.3 (no stable release ships Linux yet).
+  flutter_inappwebview: 6.2.0-beta.3
 
   url_launcher: ^6.1.10
   uuid: ^4.5.1
@@ -101,6 +103,8 @@ dependency_overrides:
     path: .dart_tool/webspace_patched_plugins/flutter_inappwebview_ios
   flutter_inappwebview_macos:
     path: .dart_tool/webspace_patched_plugins/flutter_inappwebview_macos
+  flutter_inappwebview_linux:
+    path: .dart_tool/webspace_patched_plugins/flutter_inappwebview_linux
 
 flutter:
   uses-material-design: true
