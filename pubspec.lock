@@ -279,13 +279,14 @@ packages:
     source: git
     version: "1.2.0-beta.3"
   flutter_inappwebview_linux:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: flutter_inappwebview_linux
-      sha256: "2e1a3b09bb911fb5a8bb155cb7f1eb1428a19b6e20363b9db48beef428b8cef5"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.0-beta.1"
+      path: flutter_inappwebview_linux
+      ref: "v6.2.0-beta.3-containers-v1"
+      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
+      url: "https://github.com/theoden8/flutter_inappwebview"
+    source: git
+    version: "0.1.0-beta.2"
   flutter_inappwebview_macos:
     dependency: "direct overridden"
     description:

@@ -43,13 +43,22 @@ The system SHALL use a platform abstraction layer to hide platform differences.
 
 ### Requirement: PLATFORM-003 - Linux Support Status
 
-Linux desktop SHALL be pending flutter_inappwebview Linux support.
+Linux desktop SHALL run on the WebSpace fork of `flutter_inappwebview_linux`
+(WPE WebKit, ≥ 2.40), pinned via `dependency_overrides` in
+[`pubspec.yaml`](../../../pubspec.yaml). Webview, cookies, and global proxy
+work; per-site cookie isolation falls through to the legacy
+[`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md) (the fork's
+container API exists for Linux but the proxy override only binds to the
+default `WebKitNetworkSession`, so combining containers + proxy on Linux
+would silently bypass the proxy on contained sites).
 
 #### Scenario: Handle Linux platform
 
-**Given** the app is running on Linux
-**When** webview functionality is requested
-**Then** the app shows appropriate messaging about limited support
+**Given** the app is running on Linux with the fork resolved
+**When** the user opens a site
+**Then** the webview loads, cookies persist, and the proxy override (if
+configured) is applied process-wide via
+`webkit_network_session_set_proxy_settings`
 **And** UI, settings, and persistence continue to work
 
 ---
@@ -87,11 +96,11 @@ When Flutter's webview_flutter adds Linux support, migration SHALL require:
 
 | Feature | iOS | Android | macOS | Linux |
 |---------|-----|---------|-------|-------|
-| Webview | flutter_inappwebview | flutter_inappwebview | flutter_inappwebview | Pending |
-| Cookies | Full | Full | Full | Limited |
-| Proxy | Full | Full | Limited | System only |
-| Find-in-page | Yes | Yes | Yes | No |
-| Theme injection | Yes | Yes | Yes | No |
+| Webview | flutter_inappwebview | flutter_inappwebview | flutter_inappwebview | flutter_inappwebview (WPE WebKit, fork) |
+| Cookies | Full (per-site container) | Full (per-site container, SDK ≥110) | Full (per-site container) | Full (legacy `CookieIsolationEngine`) |
+| Proxy | Full (per-site) | Full (global override) | Full (per-site) | Full (global override) |
+| Find-in-page | Yes | Yes | Yes | Yes |
+| Theme injection | Yes | Yes | Yes | Yes |
 
 ---
 

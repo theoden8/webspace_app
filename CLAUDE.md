@@ -10,7 +10,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WebSpace is a Flutter app for managing multiple websites in a single interface with per-site cookie isolation. It uses flutter_inappwebview for webview functionality. Platforms: iOS, Android, macOS (Linux pending flutter_inappwebview support).
+WebSpace is a Flutter app for managing multiple websites in a single interface with per-site cookie isolation. It uses flutter_inappwebview for webview functionality. Platforms: iOS, Android, macOS, Linux (WPE WebKit via the WebSpace fork).
+
+## Sandbox bootstrap
+
+Fresh sandboxes (Claude Code on the web, ephemeral CI runners) ship without `fvm`/Flutter and may not have `nvm`/Node either. Bootstrap before running any of the commands below — none of them work without the toolchain.
+
+```bash
+# fvm — required (project pins Flutter via .fvmrc)
+curl -fsSL https://fvm.app/install.sh | bash
+export PATH="$HOME/fvm/bin:$PATH"   # also append to ~/.bashrc
+fvm install                         # honors .fvmrc (Flutter 3.38.6)
+
+# nvm + Node — only if a script under scripts/ or tool/ needs Node and `node` isn't already on PATH
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm install --lts
+```
+
+If `command -v fvm` already prints a path, skip the fvm block. Same for `command -v node`. Don't reinstall on every turn — the cache survives.
 
 ## Build & Development Commands
 

@@ -104,6 +104,11 @@ dependency_overrides:
       url: https://github.com/theoden8/flutter_inappwebview
       ref: v6.2.0-beta.3-containers-v1
       path: flutter_inappwebview_macos
+  flutter_inappwebview_linux:
+    git:
+      url: https://github.com/theoden8/flutter_inappwebview
+      ref: v6.2.0-beta.3-containers-v1
+      path: flutter_inappwebview_linux
   flutter_inappwebview_platform_interface:
     git:
       url: https://github.com/theoden8/flutter_inappwebview
