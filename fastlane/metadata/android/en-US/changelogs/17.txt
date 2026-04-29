@@ -3,7 +3,7 @@
 • Per-site HTTP/SOCKS5 proxy on all platforms except Android
 • Per-site geolocation spoof + timezone + WebRTC lockdown
 • Convincing desktop mode: UA picker + viewport/navigator shims
-• Cross-app intent handling on iOS + Android
+• Cross-app intent handling
 
 🔧 Improvements:
 • Dart-side HTTP via proxy (no IP leak); navigator.language
