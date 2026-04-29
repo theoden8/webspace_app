@@ -77,8 +77,8 @@ class WebSpaceInAppWebViewSettings extends inapp.InAppWebViewSettings {
   WebSpaceInAppWebViewSettings({this.webspaceProfile, this.webspaceProxy});
 
   @override
-  Map<String, dynamic> toMap() {
-    final map = super.toMap();
+  Map<String, dynamic> toMap({inapp.EnumMethod? enumMethod}) {
+    final map = super.toMap(enumMethod: enumMethod);
     map['webspaceProfile'] = webspaceProfile;
     map['webspaceProxy'] = webspaceProxy;
     return map;
