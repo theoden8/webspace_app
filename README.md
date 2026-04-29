@@ -78,7 +78,7 @@ fvm flutter pub get
 | iOS | ✅ Supported | Target |
 | Android | ✅ Supported | Target |
 | macOS | ✅ Supported | Development |
-| Linux | ✅ Supported (WPE WebKit 2.40+, via the WebSpace fork of `flutter_inappwebview_linux`) | Development |
+| Linux | ✅ Supported | Development |
 
 ## Tech Stack
 
