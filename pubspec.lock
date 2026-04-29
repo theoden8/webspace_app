@@ -248,7 +248,7 @@ packages:
     description:
       path: flutter_inappwebview
       ref: "v6.2.0-beta.3-containers-v1"
-      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
+      resolved-ref: "0abc7f00d7f44f8dd776289f2560d7d59cacc654"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -257,7 +257,7 @@ packages:
     description:
       path: flutter_inappwebview_android
       ref: "v6.2.0-beta.3-containers-v1"
-      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
+      resolved-ref: "0abc7f00d7f44f8dd776289f2560d7d59cacc654"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -274,7 +274,7 @@ packages:
     description:
       path: flutter_inappwebview_ios
       ref: "v6.2.0-beta.3-containers-v1"
-      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
+      resolved-ref: "0abc7f00d7f44f8dd776289f2560d7d59cacc654"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -283,7 +283,7 @@ packages:
     description:
       path: flutter_inappwebview_linux
       ref: "v6.2.0-beta.3-containers-v1"
-      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
+      resolved-ref: "0abc7f00d7f44f8dd776289f2560d7d59cacc654"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "0.1.0-beta.2"
@@ -292,7 +292,7 @@ packages:
     description:
       path: flutter_inappwebview_macos
       ref: "v6.2.0-beta.3-containers-v1"
-      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
+      resolved-ref: "0abc7f00d7f44f8dd776289f2560d7d59cacc654"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -301,7 +301,7 @@ packages:
     description:
       path: flutter_inappwebview_platform_interface
       ref: "v6.2.0-beta.3-containers-v1"
-      resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
+      resolved-ref: "0abc7f00d7f44f8dd776289f2560d7d59cacc654"
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
@@ -436,10 +436,10 @@ packages:
     dependency: transitive
     description:
       name: hooks
-      sha256: e79ed1e8e1929bc6ecb6ec85f0cb519c887aa5b423705ded0d0f2d9226def388
+      sha256: "025f060e86d2d4c3c47b56e33caf7f93bf9283340f26d23424ebcfccf34f621e"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.2"
+    version: "1.0.3"
   html:
     dependency: "direct main"
     description:
@@ -789,6 +789,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  record_use:
+    dependency: transitive
+    description:
+      name: record_use
+      sha256: "2551bd8eecfe95d14ae75f6021ad0248be5c27f138c2ec12fcb52b500b3ba1ed"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.6.0"
   rxdart:
     dependency: transitive
     description:
@@ -902,10 +910,10 @@ packages:
     dependency: transitive
     description:
       name: sqflite
-      sha256: e2297b1da52f127bc7a3da11439985d9b536f75070f3325e62ada69a5c585d03
+      sha256: "564cfed0746fe53140c23b70b308e045c3b31f17778f2f326ccb7d804ea0250a"
       url: "https://pub.dev"
     source: hosted
-    version: "2.4.2"
+    version: "2.4.2+1"
   sqflite_android:
     dependency: transitive
     description:
@@ -918,10 +926,10 @@ packages:
     dependency: transitive
     description:
       name: sqflite_common
-      sha256: "6ef422a4525ecc601db6c0a2233ff448c731307906e92cabc9ba292afaae16a6"
+      sha256: "5e8377564d95166761a968ed96104e0569b6b6cc611faac92a36ab8a169112c3"
       url: "https://pub.dev"
     source: hosted
-    version: "2.5.6"
+    version: "2.5.6+1"
   sqflite_darwin:
     dependency: transitive
     description:
@@ -1086,10 +1094,10 @@ packages:
     dependency: transitive
     description:
       name: vector_graphics
-      sha256: "81da85e9ca8885ade47f9685b953cb098970d11be4821ac765580a6607ea4373"
+      sha256: "6409a25046024f0f8c5d8a59fec314081e81f9d436b66ca4015a8b49772bf445"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.21"
+    version: "1.2.0"
   vector_graphics_codec:
     dependency: transitive
     description:
@@ -1118,10 +1126,10 @@ packages:
     dependency: transitive
     description:
       name: vm_service
-      sha256: "45caa6c5917fa127b5dbcfbd1fa60b14e583afdc08bfc96dda38886ca252eb60"
+      sha256: "0016aef94fc66495ac78af5859181e3f3bf2026bd8eecc72b9565601e19ab360"
       url: "https://pub.dev"
     source: hosted
-    version: "15.0.2"
+    version: "15.2.0"
   web:
     dependency: transitive
     description:

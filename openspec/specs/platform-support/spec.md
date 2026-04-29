@@ -45,21 +45,25 @@ The system SHALL use a platform abstraction layer to hide platform differences.
 
 Linux desktop SHALL run on the WebSpace fork of `flutter_inappwebview_linux`
 (WPE WebKit, ≥ 2.40), pinned via `dependency_overrides` in
-[`pubspec.yaml`](../../../pubspec.yaml). Webview, cookies, and global proxy
-work; per-site cookie isolation falls through to the legacy
-[`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md) (the fork's
-container API exists for Linux but the proxy override only binds to the
-default `WebKitNetworkSession`, so combining containers + proxy on Linux
-would silently bypass the proxy on contained sites).
+[`pubspec.yaml`](../../../pubspec.yaml). Webview, per-site containers,
+cookies, and proxy all work — the fork's Linux side resolves cookie ops
+to the per-WebView `WebKitNetworkSession` via
+`webkit_web_view_get_network_session(webview)` and fans the proxy
+override out across the default session and every cached container
+session.
 
 #### Scenario: Handle Linux platform
 
 **Given** the app is running on Linux with the fork resolved
 **When** the user opens a site
-**Then** the webview loads, cookies persist, and the proxy override (if
-configured) is applied process-wide via
-`webkit_network_session_set_proxy_settings`
-**And** UI, settings, and persistence continue to work
+**Then** the webview loads inside its per-site
+`WebKitNetworkSession` container
+**And** cookies, localStorage, IndexedDB, ServiceWorkers and the HTTP
+cache are isolated per site
+**And** any configured proxy is applied to every loaded container's
+session via `webkit_network_session_set_proxy_settings`
+**And** UI, settings, and persistence work as on the other supported
+platforms
 
 ---
 
@@ -97,8 +101,8 @@ When Flutter's webview_flutter adds Linux support, migration SHALL require:
 | Feature | iOS | Android | macOS | Linux |
 |---------|-----|---------|-------|-------|
 | Webview | flutter_inappwebview | flutter_inappwebview | flutter_inappwebview | flutter_inappwebview (WPE WebKit, fork) |
-| Cookies | Full (per-site container) | Full (per-site container, SDK ≥110) | Full (per-site container) | Full (legacy `CookieIsolationEngine`) |
-| Proxy | Full (per-site) | Full (global override) | Full (per-site) | Full (global override) |
+| Cookies | Full (per-site container) | Full (per-site container, SDK ≥110) | Full (per-site container) | Full (per-site container, WPE ≥ 2.40) |
+| Proxy | Full (per-site) | Full (global override) | Full (per-site) | Full (fan-out across default + every container session) |
 | Find-in-page | Yes | Yes | Yes | Yes |
 | Theme injection | Yes | Yes | Yes | Yes |
 

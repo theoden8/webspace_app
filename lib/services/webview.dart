@@ -1552,8 +1552,8 @@ class WebViewFactory {
     // `InAppWebViewSettings` is read by `prepare()` /
     // `preWKWebViewConfiguration` and binds the WebView to the named
     // container before any session-bound op runs. `cachedSupported` is
-    // already platform-aware (Linux / Windows / web fall through to the
-    // stub which returns false); no extra Platform gate needed.
+    // already platform-aware (Windows / web fall through to the stub
+    // which returns false); no extra Platform gate needed.
     final containerId = (ContainerNative.instance.cachedSupported &&
             config.siteId != null)
         ? 'ws-${config.siteId}'

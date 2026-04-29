@@ -5,11 +5,15 @@
 The proxy feature allows users to configure HTTP, HTTPS, and SOCKS5 proxies
 for their web views on supported platforms. Two delivery paths coexist:
 
-- **Android, Linux** — global override via `inapp.ProxyController` (a
-  process-wide WebView singleton). On Linux the fork's
-  `flutter_inappwebview_linux` ProxyManager calls
-  `webkit_network_session_set_proxy_settings` on the active
-  `WebKitNetworkSession`; behavior matches Android (last-write-wins).
+- **Android** — global override via `inapp.ProxyController` (a
+  process-wide WebView singleton).
+- **Linux** — global override via `inapp.ProxyController`. The fork's
+  `flutter_inappwebview_linux` ProxyManager fans the override out
+  across the default `WebKitNetworkSession` AND every cached
+  container session (one per `siteId`), so a contained site honors
+  the global proxy too. Behavior still matches Android in the
+  per-site sense (last-write-wins — there is no per-site proxy on
+  Linux), but contained sites no longer silently bypass it.
 - **iOS 17+ / macOS 14+** — true per-site override via
   `WKWebsiteDataStore.proxyConfigurations`, set on the per-site data store
   created by the WebSpace fork's `preWKWebViewConfiguration` hook
@@ -330,7 +334,9 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 │       + the fork's ProxySettings handling helper (NWEndpoint / ProxyConfiguration builder)
 └── flutter_inappwebview_linux
     └── ProxyManager method channel
-        + webkit_network_session_set_proxy_settings(WEBKIT_NETWORK_PROXY_MODE_CUSTOM)
+        ├── webkit_network_session_set_proxy_settings(WEBKIT_NETWORK_PROXY_MODE_CUSTOM)
+        └── fan-out across default + every cached container session
+            (sessions_to_apply_proxy_to() / container_session_cache())
 ```
 
 ---
@@ -342,7 +348,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 | Android  | Full (global override) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; per-site config in data model is sync'd globally on save (PROXY-008) |
 | iOS      | Full (per-site, iOS 17+) | Shown unconditionally | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; iOS <17 silently routes through system default |
 | macOS    | Full (per-site, macOS 14+) | Shown unconditionally | Same pattern as iOS; macOS <14 silently routes through system default |
-| Linux    | Full (global override) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager calls `webkit_network_session_set_proxy_settings`; behaves like Android (last-write-wins, applied to the active session) |
+| Linux    | Full (global override, fan-out) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager applies `webkit_network_session_set_proxy_settings` to the default session AND every cached container session, so contained sites honor the global proxy too; per-site is still last-write-wins (no per-site proxy primitive on Linux) |
 | Windows  | Limited      | Conditional   | Shown only if `PROXY_OVERRIDE` supported |
 
 ---

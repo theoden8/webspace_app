@@ -13,6 +13,15 @@ import 'package:webspace/services/log_service.dart';
 ///   - Android (System WebView 110+, androidx.webkit 1.9+):
 ///     `androidx.webkit.Profile`.
 ///   - iOS 17+ / macOS 14+: `WKWebsiteDataStore(forIdentifier:)`.
+///   - Linux (WPE WebKit 2.40+): per-container `WebKitNetworkSession`
+///     with on-disk dirs under
+///     `[XDG_DATA_HOME]/flutter_inappwebview/containers/[id]/`. The
+///     fork's `cookie_manager.cc` resolves the per-WebView session
+///     via `webkit_web_view_get_network_session` when a
+///     `webViewController:` is supplied, and global ops
+///     (`deleteAllCookies`, `getAllCookies`) plus
+///     `ProxyManager.setProxyOverride` fan out across the default
+///     session and every cached container session.
 ///
 /// All container lifecycle ops (delete, list) route through the
 /// WebSpace fork's [`inapp.ContainerController`], which already
@@ -82,7 +91,10 @@ abstract class ContainerNative {
   /// Default singleton routed to the platform-appropriate impl. Tests
   /// inject a mock directly into the engine instead.
   static final ContainerNative instance =
-      (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)
+      (Platform.isAndroid ||
+              Platform.isIOS ||
+              Platform.isMacOS ||
+              Platform.isLinux)
           ? _ContainerNative()
           : _StubContainerNative();
 }
@@ -109,7 +121,7 @@ class _ContainerNative implements ContainerNative {
         final supported =
             await _androidProbe.invokeMethod<bool>('isSupported');
         _supportedCache = supported ?? false;
-      } else if (Platform.isIOS || Platform.isMacOS) {
+      } else if (Platform.isIOS || Platform.isMacOS || Platform.isLinux) {
         // The fork's `isClassSupported` answers based on the build-time
         // platform; for iOS / macOS the underlying `WKWebsiteDataStore
         // (forIdentifier:)` API is `@available(iOS 17.0, macOS 14.0, *)`,
@@ -117,6 +129,13 @@ class _ContainerNative implements ContainerNative {
         // build-time check is enough here because iOS 17 / macOS 14 are
         // our runtime floor too (set in the project pbxproj). If the
         // floor changes, gate this behind an OS-version probe.
+        // On Linux the fork's `containerId` join requires WPE WebKit
+        // 2.40+ (where `webkit_network_session_new` exists); below
+        // that the fork transparently falls back to the default
+        // shared session, which is functionally equivalent to the
+        // legacy `CookieIsolationEngine` path. Build-time check is
+        // again sufficient — distros below 2.40 aren't supported by
+        // the fork's CMakeLists either.
         _supportedCache = inapp.ContainerController.isClassSupported(
           platform: defaultTargetPlatform,
         );
@@ -174,7 +193,7 @@ class _ContainerNative implements ContainerNative {
   }
 }
 
-/// Fallback for unsupported platforms (Linux / Windows / web / future
+/// Fallback for unsupported platforms (Windows / web / future
 /// targets). Returns `isSupported() == false`; engine selection in
 /// [_WebSpacePageState] falls through to [CookieIsolationEngine] in
 /// that case.
