@@ -28,6 +28,10 @@ import 'package:html/parser.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart';
 
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/proxy.dart';
+
 // Signatures from https://en.wikipedia.org/wiki/List_of_file_signatures
 const ICO_SIG = [0, 0, 1, 0];
 const PNG_SIG = [137, 80, 78, 71, 13, 10, 26, 10];
@@ -66,15 +70,34 @@ class Favicon implements Comparable<Favicon> {
 }
 
 class FaviconFinder {
+  /// Fetch a list of favicons for [url].
+  ///
+  /// [proxy] is the per-site proxy of the site whose favicon is being
+  /// fetched, resolved through the per-site → global precedence ladder.
+  /// When null, the app-global outbound proxy applies. When the resolved
+  /// proxy cannot be honored from Dart-side (e.g. SOCKS5), every network
+  /// step is short-circuited and an empty list is returned — falling back
+  /// to a direct connection would defeat the proxy and leak the IP.
   static Future<List<Favicon>> getAll(
     String url, {
     List<String>? suffixes,
+    UserProxySettings? proxy,
   }) async {
     var favicons = <Favicon>[];
     var iconUrls = <String>[];
 
+    final effectiveProxy = proxy == null
+        ? GlobalOutboundProxy.current
+        : resolveEffectiveProxy(proxy);
+    final clientResult = outboundHttp.clientFor(effectiveProxy);
+    if (clientResult is! OutboundClientReady) {
+      return favicons; // proxy could not be honored — fail closed
+    }
+    final client = clientResult.client;
+
+    try {
     var uri = Uri.parse(url);
-    var document = parse((await http.get(uri)).body);
+    var document = parse((await client.get(uri)).body);
 
     // Look for icons in tags
     for (var rel in ['icon', 'shortcut icon']) {
@@ -101,7 +124,7 @@ class FaviconFinder {
           iconUrl = iconUrl.split('?').first;
 
           // Verify so the icon actually exists
-          if (await _verifyImage(iconUrl)) {
+          if (await _verifyImage(iconUrl, client)) {
             iconUrls.add(iconUrl);
           }
         }
@@ -110,7 +133,7 @@ class FaviconFinder {
 
     // Look for icon by predefined URL
     var iconUrl = uri.scheme + '://' + uri.host + '/favicon.ico';
-    if (await _verifyImage(iconUrl)) {
+    if (await _verifyImage(iconUrl, client)) {
       iconUrls.add(iconUrl);
     }
 
@@ -137,7 +160,7 @@ class FaviconFinder {
         continue;
       }
 
-      var image = decodeImage((await http.get(Uri.parse(iconUrl))).bodyBytes);
+      var image = decodeImage((await client.get(Uri.parse(iconUrl))).bodyBytes);
       if (image != null) {
         favicons
             .add(Favicon(iconUrl, width: image.width, height: image.height));
@@ -145,15 +168,23 @@ class FaviconFinder {
     }
 
     return favicons..sort();
+    } finally {
+      client.close();
+    }
   }
 
-  static Future<Favicon?> getBest(String url, {List<String>? suffixes}) async {
-    List<Favicon> favicons = await getAll(url, suffixes: suffixes);
+  static Future<Favicon?> getBest(
+    String url, {
+    List<String>? suffixes,
+    UserProxySettings? proxy,
+  }) async {
+    List<Favicon> favicons =
+        await getAll(url, suffixes: suffixes, proxy: proxy);
     return favicons.isNotEmpty ? favicons.first : null;
   }
 
-  static Future<bool> _verifyImage(String url) async {
-    var response = await http.get(Uri.parse(url));
+  static Future<bool> _verifyImage(String url, http.Client client) async {
+    var response = await client.get(Uri.parse(url));
 
     var contentType = response.headers['content-type'];
     if (contentType == null || !contentType.contains('image')) return false;

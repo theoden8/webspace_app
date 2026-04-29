@@ -1,7 +1,8 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
-import 'package:http/http.dart' as http;
 
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 
 /// JavaScript shim that intercepts <script src="..."> DOM insertions and
@@ -179,6 +180,10 @@ class UserScriptService {
   final bool hasScripts;
   final List<UserScriptConfig> _scripts;
   final Future<bool> Function(String url)? _onConfirmScriptFetch;
+  /// Per-site proxy of the site this service belongs to. Resolved through
+  /// the per-site → global precedence ladder when the JS handlers fetch
+  /// external script/resource URLs.
+  final UserProxySettings _proxy;
 
   UserScriptService._({
     required this.shimScript,
@@ -187,15 +192,18 @@ class UserScriptService {
     required this.hasScripts,
     required List<UserScriptConfig> scripts,
     required Future<bool> Function(String url)? onConfirmScriptFetch,
+    required UserProxySettings proxy,
   })  : _scriptHandlerName = scriptHandlerName,
         _fetchHandlerName = fetchHandlerName,
         _scripts = scripts,
-        _onConfirmScriptFetch = onConfirmScriptFetch;
+        _onConfirmScriptFetch = onConfirmScriptFetch,
+        _proxy = proxy;
 
   /// Create a service instance for the given user scripts.
   factory UserScriptService({
     required List<UserScriptConfig> scripts,
     Future<bool> Function(String url)? onConfirmScriptFetch,
+    UserProxySettings? proxy,
   }) {
     final hasScripts = scripts.any((s) => s.enabled && s.fullSource.isNotEmpty);
     final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
@@ -218,6 +226,7 @@ class UserScriptService {
       hasScripts: hasScripts,
       scripts: scripts,
       onConfirmScriptFetch: onConfirmScriptFetch,
+      proxy: proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
     );
   }
 
@@ -298,8 +307,17 @@ class UserScriptService {
         }
       }
       LogService.instance.log('UserScript', 'Fetching external script: $url');
+      final clientResult = outboundHttp.clientFor(resolveEffectiveProxy(_proxy));
+      if (clientResult is OutboundClientBlocked) {
+        LogService.instance.log(
+          'UserScript',
+          'Blocked external script fetch: ${clientResult.reason}',
+        );
+        return false;
+      }
+      final client = (clientResult as OutboundClientReady).client;
       try {
-        final response = await http.get(Uri.parse(url));
+        final response = await client.get(Uri.parse(url));
         if (response.statusCode == 200) {
           if (response.body.length > _maxFetchBytes) {
             LogService.instance.log('UserScript', 'Rejected: response too large (${response.body.length} bytes, max $_maxFetchBytes)');
@@ -312,6 +330,8 @@ class UserScriptService {
         LogService.instance.log('UserScript', 'Fetch failed: HTTP ${response.statusCode}');
       } catch (e) {
         LogService.instance.log('UserScript', 'Fetch failed: $e');
+      } finally {
+        client.close();
       }
       return false;
     });
@@ -327,8 +347,17 @@ class UserScriptService {
         LogService.instance.log('UserScript', 'Blocked resource fetch: $url');
         return {'status': 403};
       }
+      final clientResult = outboundHttp.clientFor(resolveEffectiveProxy(_proxy));
+      if (clientResult is OutboundClientBlocked) {
+        LogService.instance.log(
+          'UserScript',
+          'Blocked resource fetch: ${clientResult.reason}',
+        );
+        return {'status': 403};
+      }
+      final client = (clientResult as OutboundClientReady).client;
       try {
-        final response = await http.get(Uri.parse(url));
+        final response = await client.get(Uri.parse(url));
         if (response.body.length > _maxFetchBytes) {
           LogService.instance.log('UserScript', 'Resource too large: ${response.body.length} bytes');
           return {'status': 413};
@@ -342,6 +371,8 @@ class UserScriptService {
       } catch (e) {
         LogService.instance.log('UserScript', 'Resource fetch failed: $e');
         return {'status': 500};
+      } finally {
+        client.close();
       }
     });
   }

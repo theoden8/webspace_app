@@ -15,6 +15,12 @@ for their web views on supported platforms. Two delivery paths coexist:
 This asymmetry is observable to the user; see
 [PROXY-008](#requirement-proxy-008---android-iOS-isolation-asymmetry-under-profile-mode).
 
+The integrity contract for which traffic actually flows through the
+configured proxy — per-site vs. app-global, fail-closed-on-SOCKS5 from
+Dart, WebRTC lockdown, DNS leak posture — lives in
+[`openspec/specs/ip-leakage/spec.md`](../ip-leakage/spec.md). Any code
+that adds a new outbound seam MUST be reflected there.
+
 ## Status
 
 - **Status**: Completed
@@ -224,6 +230,29 @@ per-site proxies
 **Then** both per-site values are preserved in the data model
 **And** whichever site is opened most recently (or saved last) drives
 the global `ProxyController` state
+
+---
+
+### Requirement: PROXY-009 - Per-site DEFAULT inherits global
+
+When a site's [ProxyType] is `DEFAULT`, the effective proxy SHALL fall
+through to the app-global outbound proxy configured in App Settings →
+Outbound proxy. This applies in both directions: webview navigation
+(`ProxyManager.setProxySettings` on Android, `webspaceProxy` on
+iOS / macOS via `resolveEffectiveProxy`) and Dart-side outbound HTTP via
+the `outboundHttp` factory.
+
+See [LEAK-001](../ip-leakage/spec.md) for the full precedence ladder and
+fail-closed semantics.
+
+#### Scenario: Site with DEFAULT inherits global HTTP proxy
+
+**Given** the app-global outbound proxy is `HTTP 10.0.0.1:8080`
+**And** site "Acme" has Proxy Type `DEFAULT`
+**When** the user opens "Acme"
+**Then** webview navigation routes through `HTTP 10.0.0.1:8080`
+**And** any per-site Dart-side fetch (favicon, download) routes through
+`HTTP 10.0.0.1:8080` as well
 
 ---
 

@@ -2,7 +2,37 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/proxy.dart';
 import '../third_party/favicon/favicon.dart';
+
+/// Resolve the proxy a favicon fetch should use. When the caller passes
+/// nothing (e.g. unattributed search-suggestion thumbnails), the app-global
+/// outbound proxy applies. When the caller passes a per-site setting, it is
+/// resolved through [resolveEffectiveProxy] so DEFAULT falls through to
+/// the global proxy.
+UserProxySettings _resolve(UserProxySettings? perSite) {
+  if (perSite == null) return GlobalOutboundProxy.current;
+  return resolveEffectiveProxy(perSite);
+}
+
+/// Acquire an HTTP client honoring [proxy], or null when the proxy cannot
+/// be honored (e.g. malformed address). Callers MUST treat null as "abort
+/// the request" — falling back to the default `http` client would leak the
+/// device IP and defeat the proxy the user configured.
+http.Client? _proxiedClient(UserProxySettings proxy) {
+  final result = outboundHttp.clientFor(proxy);
+  if (result is OutboundClientReady) return result.client;
+  if (result is OutboundClientBlocked) {
+    LogService.instance.log(
+      'Icon',
+      'Outbound blocked: ${result.reason}',
+      level: LogLevel.warning,
+    );
+  }
+  return null;
+}
 
 /// Icon Service - Handles favicon fetching with quality scoring
 ///
@@ -34,7 +64,14 @@ final Map<String, String> _svgContentCache = {};
 Future<void> Function(String url, String content)? onSvgContentCached;
 
 /// Get cached SVG content for a URL, or fetch and cache it.
-Future<String?> getSvgContent(String svgUrl, {String? persistedContent}) async {
+///
+/// [proxy] is the per-site proxy of the *site* the icon belongs to. When
+/// null, the app-global outbound proxy applies.
+Future<String?> getSvgContent(
+  String svgUrl, {
+  String? persistedContent,
+  UserProxySettings? proxy,
+}) async {
   if (_svgContentCache.containsKey(svgUrl)) {
     return _svgContentCache[svgUrl];
   }
@@ -43,8 +80,10 @@ Future<String?> getSvgContent(String svgUrl, {String? persistedContent}) async {
     _svgContentCache[svgUrl] = persistedContent;
     return persistedContent;
   }
+  final client = _proxiedClient(_resolve(proxy));
+  if (client == null) return null;
   try {
-    final response = await http.get(Uri.parse(svgUrl)).timeout(
+    final response = await client.get(Uri.parse(svgUrl)).timeout(
       const Duration(seconds: 5),
     );
     if (response.statusCode == 200) {
@@ -54,6 +93,8 @@ Future<String?> getSvgContent(String svgUrl, {String? persistedContent}) async {
     }
   } catch (e) {
     LogService.instance.log('Icon', 'Failed to fetch SVG content: $e', level: LogLevel.error);
+  } finally {
+    client.close();
   }
   return null;
 }
@@ -115,13 +156,16 @@ class _IconCandidate {
   _IconCandidate(this.url, this.quality);
 }
 
-Future<bool> _verifyIconUrl(String iconUrl) async {
+Future<bool> _verifyIconUrl(String iconUrl, UserProxySettings proxy) async {
   if (_verifiedUrls.contains(iconUrl)) {
     return true;
   }
 
+  final client = _proxiedClient(proxy);
+  if (client == null) return false;
+
   try {
-    final response = await http.head(Uri.parse(iconUrl)).timeout(
+    final response = await client.head(Uri.parse(iconUrl)).timeout(
       Duration(milliseconds: 8000),
       onTimeout: () => http.Response('', 408),
     );
@@ -133,6 +177,8 @@ Future<bool> _verifyIconUrl(String iconUrl) async {
     return isValid;
   } catch (e) {
     return false;
+  } finally {
+    client.close();
   }
 }
 
@@ -141,9 +187,11 @@ Future<bool> _verifyIconUrl(String iconUrl) async {
 // (e.g. theme-aware icons with `<style>` blocks toggling `display: none`),
 // since flutter_svg's limited CSS support renders all groups simultaneously
 // and those SVGs end up with overlay rectangles obscuring the actual icon.
-Future<bool> _isSvgColored(String svgUrl) async {
+Future<bool> _isSvgColored(String svgUrl, UserProxySettings proxy) async {
+  final client = _proxiedClient(proxy);
+  if (client == null) return false;
   try {
-    final response = await http.get(Uri.parse(svgUrl)).timeout(
+    final response = await client.get(Uri.parse(svgUrl)).timeout(
       Duration(seconds: 2),
     );
     if (response.statusCode != 200) return false;
@@ -213,6 +261,8 @@ Future<bool> _isSvgColored(String svgUrl) async {
   } catch (e) {
     LogService.instance.log('Icon', 'Failed to check SVG color: $e', level: LogLevel.error);
     return false;
+  } finally {
+    client.close();
   }
 }
 
@@ -246,8 +296,9 @@ int _compareFavicons(Favicon a, Favicon b, Map<String, bool> svgColorCache) {
   return a.compareTo(b);
 }
 
-Future<Favicon?> _findBestIcon(String url) async {
-  final favicons = await FaviconFinder.getAll(url);
+// ignore: unused_element
+Future<Favicon?> _findBestIcon(String url, UserProxySettings proxy) async {
+  final favicons = await FaviconFinder.getAll(url, proxy: proxy);
   LogService.instance.log('Icon', 'Favicons: ${favicons.map((f) => '${f.url} (width: ${f.width}, height: ${f.height})').join(', ')}');
   if (favicons.isEmpty) return null;
 
@@ -256,7 +307,7 @@ Future<Favicon?> _findBestIcon(String url) async {
   // Check SVG colors in parallel
   await Future.wait(
     favicons.where((f) => f.url.endsWith('.svg')).map((f) async {
-      svgColorCache[f.url] = await _isSvgColored(f.url);
+      svgColorCache[f.url] = await _isSvgColored(f.url, proxy);
     })
   );
 
@@ -272,7 +323,7 @@ Future<Favicon?> _findBestIcon(String url) async {
 /// - 128: Google 128px
 /// - 64: DuckDuckGo
 /// - 50: favicon package (HTML parsing + favicon.ico)
-Future<String?> getFaviconUrl(String url) async {
+Future<String?> getFaviconUrl(String url, {UserProxySettings? proxy}) async {
   // Check cache first
   if (_faviconCache.containsKey(url)) {
     LogService.instance.log('Icon', 'Using cached icon for $url');
@@ -291,7 +342,7 @@ Future<String?> getFaviconUrl(String url) async {
   LogService.instance.log('Icon', 'Starting request for $url (active: $_activeRequests, queued: ${_requestQueue.length})');
 
   try {
-    return await _fetchFaviconUrlInternal(url);
+    return await _fetchFaviconUrlInternal(url, _resolve(proxy));
   } finally {
     _activeRequests--;
     LogService.instance.log('Icon', 'Finished request for $url (active: $_activeRequests, queued: ${_requestQueue.length})');
@@ -313,11 +364,13 @@ Future<String?> getFaviconUrl(String url) async {
 ///
 /// Each emission only occurs if it's better quality than the previous.
 /// The final emission has isFinal=true.
-Stream<IconUpdate> getFaviconUrlStream(String url) async* {
+Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) async* {
   Uri? uri = Uri.tryParse(url);
   if (uri == null || uri.host.isEmpty) {
     return;
   }
+
+  final effectiveProxy = _resolve(proxy);
 
   String domain = _applyDomainSubstitution(uri.host);
   int bestQuality = 0;
@@ -340,7 +393,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
   // Phase 1 & 2: Public icon services (only for HTTPS + non-IP addresses)
   if (usePublicServices) {
     // Phase 1: Quick sources (DuckDuckGo) - typically responds fast
-    final ddgResult = await _tryDuckDuckGo(domain);
+    final ddgResult = await _tryDuckDuckGo(domain, effectiveProxy);
     if (ddgResult != null) {
       bestUrl = ddgResult;
       bestQuality = 64;
@@ -350,8 +403,8 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
 
     // Phase 2: Google services in parallel (128px and 256px)
     final googleResults = await Future.wait([
-      _tryGoogleFavicon(domain, 128),
-      _tryGoogleFavicon(domain, 256),
+      _tryGoogleFavicon(domain, 128, effectiveProxy),
+      _tryGoogleFavicon(domain, 256, effectiveProxy),
     ]);
 
     // Emit Google 128px if better
@@ -372,7 +425,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
   }
 
   // Phase 3: Favicon package (slowest but can find high-res site-specific icons)
-  final faviconResult = await _tryFaviconPackage(url);
+  final faviconResult = await _tryFaviconPackage(url, effectiveProxy);
   if (faviconResult != null && faviconResult.quality > bestQuality) {
     bestUrl = faviconResult.url;
     bestQuality = faviconResult.quality;
@@ -390,7 +443,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url) async* {
   LogService.instance.log('Icon', 'Stream: Completed for $url, best quality: $bestQuality');
 }
 
-Future<String?> _fetchFaviconUrlInternal(String url) async {
+Future<String?> _fetchFaviconUrlInternal(String url, UserProxySettings proxy) async {
   Uri? uri = Uri.tryParse(url);
   if (uri == null || uri.host.isEmpty) {
     _faviconCache[url] = null;
@@ -410,16 +463,16 @@ Future<String?> _fetchFaviconUrlInternal(String url) async {
 
     if (usePublicServices) {
       futures.addAll([
-        _tryGoogleFavicon(domain, 256).then((url) =>
+        _tryGoogleFavicon(domain, 256, proxy).then((url) =>
           url != null ? _IconCandidate(url, 256) : null),
-        _tryGoogleFavicon(domain, 128).then((url) =>
+        _tryGoogleFavicon(domain, 128, proxy).then((url) =>
           url != null ? _IconCandidate(url, 128) : null),
-        _tryDuckDuckGo(domain).then((url) =>
+        _tryDuckDuckGo(domain, proxy).then((url) =>
           url != null ? _IconCandidate(url, 64) : null),
       ]);
     }
 
-    futures.add(_tryFaviconPackage(url));
+    futures.add(_tryFaviconPackage(url, proxy));
 
     final results = await Future.wait(futures).timeout(
       Duration(seconds: 15),
@@ -457,10 +510,10 @@ Future<String?> _fetchFaviconUrlInternal(String url) async {
   return null;
 }
 
-Future<String?> _tryGoogleFavicon(String domain, int size) async {
+Future<String?> _tryGoogleFavicon(String domain, int size, UserProxySettings proxy) async {
   try {
     final googleUrl = 'https://www.google.com/s2/favicons?domain=$domain&sz=$size';
-    if (await _verifyIconUrl(googleUrl)) {
+    if (await _verifyIconUrl(googleUrl, proxy)) {
       LogService.instance.log('Icon', 'Found Google favicon at ${size}px for $domain');
       return googleUrl;
     }
@@ -470,10 +523,10 @@ Future<String?> _tryGoogleFavicon(String domain, int size) async {
   return null;
 }
 
-Future<String?> _tryDuckDuckGo(String domain) async {
+Future<String?> _tryDuckDuckGo(String domain, UserProxySettings proxy) async {
   try {
     final ddgUrl = 'https://icons.duckduckgo.com/ip3/$domain.ico';
-    if (await _verifyIconUrl(ddgUrl)) {
+    if (await _verifyIconUrl(ddgUrl, proxy)) {
       LogService.instance.log('Icon', 'Found DuckDuckGo favicon for $domain');
       return ddgUrl;
     }
@@ -483,9 +536,17 @@ Future<String?> _tryDuckDuckGo(String domain) async {
   return null;
 }
 
-Future<_IconCandidate?> _tryFaviconPackage(String url) async {
+Future<_IconCandidate?> _tryFaviconPackage(String url, UserProxySettings proxy) async {
+  // Internal schemes (chrome://, about:, file:, data:, blob:) have no
+  // favicon reachable over the network — sending them through any proxy
+  // (let alone SOCKS5) yields a confusing connection error from the
+  // remote side. Skip the fetch entirely.
+  final uri = Uri.tryParse(url);
+  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+    return null;
+  }
   try {
-    final favicons = await FaviconFinder.getAll(url).timeout(Duration(seconds: 15));
+    final favicons = await FaviconFinder.getAll(url, proxy: proxy).timeout(Duration(seconds: 15));
     if (favicons.isEmpty) return null;
 
     LogService.instance.log('Icon', 'Favicons: ${favicons.map((f) => '${f.url} (width: ${f.width}, height: ${f.height})').join(', ')}');
@@ -495,7 +556,7 @@ Future<_IconCandidate?> _tryFaviconPackage(String url) async {
     // Check SVG colors in parallel ONCE
     await Future.wait(
       favicons.where((f) => f.url.endsWith('.svg')).map((f) async {
-        svgColorCache[f.url] = await _isSvgColored(f.url);
+        svgColorCache[f.url] = await _isSvgColored(f.url, proxy);
       })
     );
 
@@ -504,7 +565,7 @@ Future<_IconCandidate?> _tryFaviconPackage(String url) async {
 
     final best = favicons.first;
 
-    if (await _verifyIconUrl(best.url)) {
+    if (await _verifyIconUrl(best.url, proxy)) {
       int quality;
 
       if (best.url.endsWith('.svg')) {

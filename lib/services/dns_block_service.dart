@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -380,12 +381,27 @@ class DnsBlockService {
     final filePath = _levelFiles[level];
     if (filePath == null) return false;
 
+    // Route through the app-global outbound proxy (HTTP/HTTPS findProxy on
+    // dart:io's HttpClient, or the SOCKS5 tunnel from socks5_proxy when the
+    // user picks SOCKS5). Fail-closed on a malformed config rather than
+    // leaking the IP via direct.
+    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
+    if (clientResult is OutboundClientBlocked) {
+      LogService.instance.log(
+        'DnsBlock',
+        'Skipped download: ${clientResult.reason}',
+        level: LogLevel.warning,
+      );
+      return false;
+    }
+    final client = (clientResult as OutboundClientReady).client;
+    try {
     for (final baseUrl in _mirrorBaseUrls) {
       try {
         final url = '$baseUrl$filePath';
         LogService.instance.log('DnsBlock', 'Trying mirror: $url');
 
-        final response = await http.get(Uri.parse(url)).timeout(
+        final response = await client.get(Uri.parse(url)).timeout(
           const Duration(seconds: 15),
         );
 
@@ -421,6 +437,9 @@ class DnsBlockService {
 
     LogService.instance.log('DnsBlock', 'All mirrors failed for level $level', level: LogLevel.error);
     return false;
+    } finally {
+      client.close();
+    }
   }
 
   /// Check if a URL should be blocked. Synchronous hot path.

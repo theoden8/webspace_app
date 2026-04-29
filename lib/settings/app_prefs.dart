@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/settings/global_outbound_proxy.dart';
+
 /// Registry of global app-level preferences that are round-tripped through
 /// settings export/import.
 ///
@@ -17,7 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Per-site settings (javascriptEnabled, userAgent, proxy, ...) live on
 /// `WebViewModel` and are exported via the `sites` array; they do not belong
 /// here.
-const Map<String, Object> kExportedAppPrefs = <String, Object>{
+final Map<String, Object> kExportedAppPrefs = <String, Object>{
   'showUrlBar': false,
   'showTabStrip': false,
   'showStatsBanner': true,
@@ -25,6 +27,12 @@ const Map<String, Object> kExportedAppPrefs = <String, Object>{
   // the user explicitly taps "Load map" on the picker — no requests happen
   // from normal app use.
   'osmTileUrl': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  // App-global outbound proxy applied to every Dart-side HTTP call that is
+  // not tied to a specific site (DNS blocklist, ClearURLs, content blocker,
+  // LocalCDN, OSM tiles, etc.). Per-site DEFAULT also resolves through this
+  // value via `resolveEffectiveProxy`. Stored as a JSON-encoded
+  // UserProxySettings; round-trips through backup/restore as a String.
+  kGlobalOutboundProxyKey: kGlobalOutboundProxyDefault,
 };
 
 /// Read every registered pref from [prefs] into a map suitable for embedding

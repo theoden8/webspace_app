@@ -14,6 +14,8 @@ import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -74,6 +76,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   DateTime? _timezonesLastUpdated;
   int _timezoneZoneCount = 0;
 
+  // Global outbound proxy state. Mirrors the per-site proxy UI in
+  // [lib/screens/settings.dart] but applies to *every* Dart-side outbound
+  // call (DNS blocklist downloads, ClearURLs rules, content blocker rules,
+  // LocalCDN catalog, OSM map tiles in the location picker, etc.) and
+  // also acts as the fallthrough for any per-site proxy whose type is
+  // [ProxyType.DEFAULT].
+  late UserProxySettings _outboundProxy;
+  late TextEditingController _outboundProxyAddressController;
+  late TextEditingController _outboundProxyUsernameController;
+  late TextEditingController _outboundProxyPasswordController;
+  bool _outboundProxyShowCredentials = false;
+  bool _outboundProxyObscurePassword = true;
+
   // DNS Blocklist state
   bool _isDownloadingBlocklist = false;
   DateTime? _blocklistLastUpdated;
@@ -100,6 +115,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _showStatsBanner = widget.showStatsBanner;
     _osmTileUrlController = TextEditingController();
     _loadOsmTileUrl();
+    _outboundProxy = UserProxySettings(
+      type: GlobalOutboundProxy.current.type,
+      address: GlobalOutboundProxy.current.address,
+      username: GlobalOutboundProxy.current.username,
+      password: GlobalOutboundProxy.current.password,
+    );
+    _outboundProxyAddressController = TextEditingController(
+      text: _outboundProxy.address ?? '',
+    );
+    _outboundProxyUsernameController = TextEditingController(
+      text: _outboundProxy.username ?? '',
+    );
+    _outboundProxyPasswordController = TextEditingController(
+      text: _outboundProxy.password ?? '',
+    );
+    _outboundProxyShowCredentials = _outboundProxy.hasCredentials;
     _spinController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -154,8 +185,58 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   @override
   void dispose() {
     _osmTileUrlController.dispose();
+    _outboundProxyAddressController.dispose();
+    _outboundProxyUsernameController.dispose();
+    _outboundProxyPasswordController.dispose();
     _spinController.dispose();
     super.dispose();
+  }
+
+  String? _validateOutboundProxyAddress(String value) {
+    if (_outboundProxy.type == ProxyType.DEFAULT) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return 'Proxy address is required';
+    final parts = trimmed.split(':');
+    if (parts.length != 2 || parts[0].isEmpty || parts[1].isEmpty) {
+      return 'Format: host:port';
+    }
+    final port = int.tryParse(parts[1]);
+    if (port == null || port < 1 || port > 65535) {
+      return 'Invalid port number';
+    }
+    return null;
+  }
+
+  Future<void> _saveOutboundProxy() async {
+    final address = _outboundProxyAddressController.text.trim();
+    if (_outboundProxy.type != ProxyType.DEFAULT) {
+      final err = _validateOutboundProxyAddress(address);
+      if (err != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+        return;
+      }
+    }
+    final settings = UserProxySettings(
+      type: _outboundProxy.type,
+      address: _outboundProxy.type == ProxyType.DEFAULT ? null : address,
+      username: _outboundProxyShowCredentials &&
+              _outboundProxy.type != ProxyType.DEFAULT
+          ? _outboundProxyUsernameController.text
+          : null,
+      password: _outboundProxyShowCredentials &&
+              _outboundProxy.type != ProxyType.DEFAULT
+          ? _outboundProxyPasswordController.text
+          : null,
+    );
+    await GlobalOutboundProxy.update(settings);
+    setState(() {
+      _outboundProxy = settings;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Outbound proxy updated')),
+      );
+    }
   }
 
   Future<void> _loadBlocklistState() async {
@@ -516,6 +597,126 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               widget.onShowStatsBannerChanged(value);
             },
           ),
+          const Divider(height: 32),
+          // Global outbound proxy section
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Text(
+                  'Outbound proxy',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const HintButton(
+                  title: 'Outbound proxy',
+                  description:
+                      'Proxy applied to every Dart-side network call the '
+                      'app makes — DNS blocklist downloads, ClearURLs '
+                      'rules, content blocker rules, LocalCDN catalog, '
+                      'favicon lookups (DuckDuckGo / Google / site '
+                      'parsing) and OSM map tiles in the location picker. '
+                      '\n\nPer-site proxy precedence: a site whose Proxy '
+                      'Type is DEFAULT inherits this proxy; explicit '
+                      'per-site HTTP/HTTPS/SOCKS5 overrides win.\n\n'
+                      'SOCKS5 cannot be tunneled through Dart-side HTTP. '
+                      'When SOCKS5 is selected, app-level fetches '
+                      'fail-closed instead of leaking the device IP via a '
+                      'direct fallback. Webview navigation still uses '
+                      'SOCKS5 normally on Android/iOS.',
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            title: const Text('Proxy Type'),
+            trailing: DropdownButton<ProxyType>(
+              value: _outboundProxy.type,
+              onChanged: (newValue) {
+                if (newValue == null) return;
+                setState(() {
+                  _outboundProxy.type = newValue;
+                });
+                _saveOutboundProxy();
+              },
+              items: ProxyType.values
+                  .map((v) => DropdownMenuItem(
+                        value: v,
+                        child: Text(v.toString().split('.').last),
+                      ))
+                  .toList(),
+            ),
+          ),
+          if (_outboundProxy.type != ProxyType.DEFAULT) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0, vertical: 8.0),
+              child: TextFormField(
+                controller: _outboundProxyAddressController,
+                decoration: const InputDecoration(
+                  labelText: 'Proxy Address',
+                  hintText: 'host:port (e.g., 127.0.0.1:8080)',
+                  helperText: 'Format: host:port',
+                  border: OutlineInputBorder(),
+                ),
+                onFieldSubmitted: (_) => _saveOutboundProxy(),
+                onEditingComplete: _saveOutboundProxy,
+              ),
+            ),
+            CheckboxListTile(
+              title: const Text('Proxy requires authentication'),
+              value: _outboundProxyShowCredentials,
+              onChanged: (v) {
+                setState(() {
+                  _outboundProxyShowCredentials = v ?? false;
+                });
+                _saveOutboundProxy();
+              },
+              controlAffinity: ListTileControlAffinity.leading,
+            ),
+            if (_outboundProxyShowCredentials) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 8.0),
+                child: TextFormField(
+                  controller: _outboundProxyUsernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Proxy Username',
+                    border: OutlineInputBorder(),
+                  ),
+                  onFieldSubmitted: (_) => _saveOutboundProxy(),
+                  onEditingComplete: _saveOutboundProxy,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 8.0),
+                child: TextFormField(
+                  controller: _outboundProxyPasswordController,
+                  obscureText: _outboundProxyObscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Proxy Password',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(_outboundProxyObscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off),
+                      onPressed: () {
+                        setState(() {
+                          _outboundProxyObscurePassword =
+                              !_outboundProxyObscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                  onFieldSubmitted: (_) => _saveOutboundProxy(),
+                  onEditingComplete: _saveOutboundProxy,
+                ),
+              ),
+            ],
+          ],
+
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Row(

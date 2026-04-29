@@ -55,6 +55,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
@@ -561,6 +562,10 @@ void main() async {
   // before navigation starts, not after an awaited disk read.
   await HtmlCacheService.instance.preloadCache();
 
+  // Load the global outbound proxy from SharedPreferences. Synchronous
+  // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
+  // GlobalOutboundProxy.current after this.
+  await GlobalOutboundProxy.initialize();
   runApp(WebSpaceApp());
 }
 
@@ -1260,6 +1265,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     bool spoofTimezoneFromLocation = false,
     WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
     required List<UserScriptConfig> userScripts,
+    UserProxySettings? proxySettings,
   }) async {
     await Navigator.push(
       context,
@@ -1284,6 +1290,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           webRtcPolicy: webRtcPolicy,
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
+          proxySettings: proxySettings,
         ),
       ),
     );
@@ -2261,6 +2268,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           UnifiedFaviconImage(
                             url: siteModel.initUrl,
                             size: 16,
+                            proxy: siteModel.proxySettings,
                           ),
                           SizedBox(width: 6),
                           Flexible(
@@ -3087,6 +3095,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               child: UnifiedFaviconImage(
                                 url: _webViewModels[index].initUrl,
                                 size: 28,
+                                proxy: _webViewModels[index].proxySettings,
                               ),
                             ),
                           ),
@@ -3128,6 +3137,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                               child: UnifiedFaviconImage(
                                 url: _webViewModels[index].initUrl,
                                 size: 36,
+                                proxy: _webViewModels[index].proxySettings,
                               ),
                             ),
                           ),
@@ -3179,6 +3189,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         child: UnifiedFaviconImage(
                           url: _webViewModels[index].initUrl,
                           size: 28,
+                          proxy: _webViewModels[index].proxySettings,
                         ),
                       ),
                     ),
@@ -3220,6 +3231,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         child: UnifiedFaviconImage(
                           url: _webViewModels[index].initUrl,
                           size: 36,
+                          proxy: _webViewModels[index].proxySettings,
                         ),
                       ),
                     ),

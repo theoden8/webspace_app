@@ -9,6 +9,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show extractDomain;
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, IconUpdate;
+import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
 
 /// Persistent cache for favicon URLs and SVG content
@@ -74,11 +75,17 @@ class UnifiedFaviconImage extends StatefulWidget {
   final String url;
   final double size;
   final String? domain;
+  /// Per-site proxy of the site this favicon belongs to. When null (e.g. for
+  /// search-suggestion thumbnails with no specific site context), the
+  /// app-global outbound proxy applies. When set, [resolveEffectiveProxy]
+  /// chooses per-site if explicit, or global if the per-site type is DEFAULT.
+  final UserProxySettings? proxy;
 
   const UnifiedFaviconImage({
     required this.url,
     required this.size,
     this.domain,
+    this.proxy,
   });
 
   @override
@@ -143,7 +150,11 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
   Future<void> _fetchSvgContent(String url) async {
     final persisted = FaviconUrlCache.getSvg(url);
-    final content = await getSvgContent(url, persistedContent: persisted);
+    final content = await getSvgContent(
+      url,
+      persistedContent: persisted,
+      proxy: widget.proxy,
+    );
     if (mounted) {
       setState(() {
         _svgContent = content;
@@ -152,7 +163,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   }
 
   void _startIconStream() {
-    _iconStream = getFaviconUrlStream(widget.url);
+    _iconStream = getFaviconUrlStream(widget.url, proxy: widget.proxy);
     _iconStream!.listen(
       (update) {
         if (mounted && update.quality > _currentQuality) {

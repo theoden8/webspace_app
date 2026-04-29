@@ -137,6 +137,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
                           secondary: UnifiedFaviconImage(
                             url: site.initUrl,
                             size: 32,
+                            proxy: site.proxySettings,
                           ),
                           title: Text(site.getDisplayName()),
                           subtitle: Text(extractDomain(site.initUrl)),

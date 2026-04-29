@@ -5,6 +5,9 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/proxy.dart';
+
 /// Result of a successful download fetch.
 class DownloadResult {
   final Uint8List bytes;
@@ -29,10 +32,21 @@ class DownloadException implements Exception {
 /// Fetches an HTTP(S) URL with optional forwarded cookies and user-agent,
 /// returning the response body as bytes plus a derived filename. I/O goes
 /// through an injectable [http.Client] so tests can supply a fake.
+///
+/// When [proxy] is provided, the client routes through it via the global
+/// [outboundHttp] factory (HTTP/HTTPS via dart:io's findProxy, SOCKS5 via
+/// the socks5_proxy package's TCP tunnel). If the proxy address is
+/// malformed, [fetch] throws [DownloadException] rather than fall back to
+/// direct, which would leak the device IP.
 class DownloadEngine {
   final http.Client _client;
+  final OutboundClient? _outboundResult;
 
-  DownloadEngine({http.Client? client}) : _client = client ?? _defaultClient();
+  DownloadEngine({http.Client? client, UserProxySettings? proxy})
+      : _client = client ?? _defaultClient(proxy),
+        _outboundResult = client == null && proxy != null
+            ? outboundHttp.clientFor(resolveEffectiveProxy(proxy))
+            : null;
 
   /// Default HTTP client with gzip auto-decompression DISABLED so the
   /// server's Content-Length survives to the caller. When
@@ -40,7 +54,23 @@ class DownloadEngine {
   /// `Accept-Encoding: gzip` and then strips Content-Length from the
   /// response headers after decompression — leaving the progress ring
   /// indeterminate even for servers that know how big the download is.
-  static http.Client _defaultClient() {
+  ///
+  /// When [proxy] is non-null and non-DEFAULT (or when the caller-provided
+  /// `proxy` resolves through the global to non-DEFAULT), the client routes
+  /// through that proxy via [outboundHttp]. If the proxy address is
+  /// malformed, a stub client is returned that will fail any subsequent
+  /// request — see [_blockedClient] / [fetch].
+  static http.Client _defaultClient(UserProxySettings? proxy) {
+    if (proxy != null) {
+      final resolved = resolveEffectiveProxy(proxy);
+      if (resolved.type != ProxyType.DEFAULT) {
+        final result = outboundHttp.clientFor(resolved);
+        if (result is OutboundClientReady) return result.client;
+        if (result is OutboundClientBlocked) {
+          return _BlockedHttpClient(result.reason);
+        }
+      }
+    }
     final httpClient = HttpClient();
     httpClient.autoUncompress = false;
     return IOClient(httpClient);
@@ -91,6 +121,14 @@ class DownloadEngine {
     String? mimeTypeHint,
     void Function(int bytesDone, int? bytesTotal)? onProgress,
   }) async {
+    final outboundResult = _outboundResult;
+    if (outboundResult is OutboundClientBlocked) {
+      throw DownloadException(outboundResult.reason);
+    }
+    final client = _client;
+    if (client is _BlockedHttpClient) {
+      throw DownloadException(client.reason);
+    }
     final Uri uri;
     try {
       uri = Uri.parse(url);
@@ -283,5 +321,19 @@ class DownloadEngine {
         return null;
     }
     return null;
+  }
+}
+
+/// Sentinel client returned by [DownloadEngine._defaultClient] when the
+/// configured proxy cannot be honored from Dart-side. Any request through
+/// it raises [DownloadException] before touching the network so we never
+/// leak the device IP via a direct fallback.
+class _BlockedHttpClient extends http.BaseClient {
+  final String reason;
+  _BlockedHttpClient(this.reason);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    throw DownloadException(reason);
   }
 }
