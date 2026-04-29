@@ -247,7 +247,7 @@ packages:
     dependency: "direct main"
     description:
       path: flutter_inappwebview
-      ref: "claude/improve-inappwebview-isolation-2mUko"
+      ref: "v6.2.0-beta.3-containers-v1"
       resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -256,7 +256,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_android
-      ref: "claude/improve-inappwebview-isolation-2mUko"
+      ref: "v6.2.0-beta.3-containers-v1"
       resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -273,7 +273,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_ios
-      ref: "claude/improve-inappwebview-isolation-2mUko"
+      ref: "v6.2.0-beta.3-containers-v1"
       resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -290,7 +290,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_macos
-      ref: "claude/improve-inappwebview-isolation-2mUko"
+      ref: "v6.2.0-beta.3-containers-v1"
       resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
@@ -299,7 +299,7 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_platform_interface
-      ref: "claude/improve-inappwebview-isolation-2mUko"
+      ref: "v6.2.0-beta.3-containers-v1"
       resolved-ref: d1994d78051c6186bbd2ceadf1e5f18129c5158d
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
