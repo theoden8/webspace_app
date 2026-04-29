@@ -1,5 +1,5 @@
 ✨ New Features:
-• Native per-site containers (Android, iOS 17+, macOS 14+)
+• Native per-site containers
 • Per-site HTTP/SOCKS5 proxy on iOS 17+, macOS 14+, Linux
 • Per-site geolocation spoof + timezone + WebRTC lockdown
 • Desktop mode via per-site UA picker
