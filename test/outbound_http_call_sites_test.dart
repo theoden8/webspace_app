@@ -130,6 +130,25 @@ void main() {
       expect(fake.queries, isNotEmpty);
       expect(fake.lastQuery!.type, ProxyType.SOCKS5);
     });
+
+    test('non-http(s) site URLs never reach the outbound HTTP factory',
+        () async {
+      // `chrome://flags`, `about:blank`, `file:///...`, `data:...` have no
+      // favicon reachable over the network. Sending the URL itself through
+      // a configured proxy would yield a confusing connection error (e.g.
+      // SOCKS5 returning `serverError` for chrome://). icon_service must
+      // bail before ever asking the outbound factory for a client.
+      final fake = RecordingFactory();
+      outboundHttp = fake;
+
+      final schemes = ['chrome://flags', 'about:blank', 'file:///tmp/x.html'];
+      for (final url in schemes) {
+        final updates = await getFaviconUrlStream(url).toList();
+        expect(updates, isEmpty, reason: 'no IconUpdate for $url');
+      }
+      expect(fake.queries, isEmpty,
+          reason: 'icon_service must not query outboundHttp for non-http(s) URLs');
+    });
   });
 
   group('global services use global outbound proxy', () {
