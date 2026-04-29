@@ -1,0 +1,18 @@
+✨ New Features:
+• Native per-site containers on Android, iOS 17+, macOS 14+ — same-domain sites coexist without cookie shuffling
+• Per-site HTTP/SOCKS5 proxy on iOS 17+, macOS 14+, Linux
+• Per-site geolocation spoofing with timezone override and WebRTC leak lockdown
+• Desktop mode via per-site UA picker (Linux/macOS/Windows)
+• iOS Universal Link bypass keeps http links in-app
+
+🔧 Improvements:
+• Dart-side outbound HTTP routed through the active proxy (no icon/HTML IP leak)
+• Override navigator.language so SPAs honor per-site language
+• Confirm prompt before launching intent:// and other external-app URLs
+• Plus: "use current location" picker button, system text scale respected, preserve chrome://, about://, file:// in URL bar, hide Home Shortcut when already pinned
+
+🐛 Bug Fixes:
+• Per-site pause no longer freezes JS timers process-globally
+• onUrlChanged no longer leaks cross-domain URLs into site state
+• User scripts now propagate into nested webviews
+• Android file chooser FileProvider declared; user-agent icons adapt to dark theme
