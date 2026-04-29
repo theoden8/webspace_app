@@ -1,6 +1,6 @@
 ✨ New Features:
 • Native per-site containers
-• Per-site HTTP/SOCKS5 proxy on iOS 17+, macOS 14+, Linux
+• Per-site HTTP/SOCKS5 proxy on all platforms except Android
 • Per-site geolocation spoof + timezone + WebRTC lockdown
 • Desktop mode via per-site UA picker
 • iOS Universal Link bypass
@@ -9,4 +9,4 @@
 • Dart-side HTTP via proxy (no IP leak); navigator.language; intent:// prompt
 
 🐛 Bug Fixes:
-• JS timer pause; cross-domain URL leak; nested-webview scripts; dark UA icons
+• JS timer pause; cross-domain URL leak; nested-webview scripts; HTML cache no longer saves stopped pages; dark UA icons
