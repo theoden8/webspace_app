@@ -9,8 +9,9 @@ for their web views on supported platforms. Two delivery paths coexist:
   WebView singleton).
 - **iOS 17+ / macOS 14+** — true per-site override via
   `WKWebsiteDataStore.proxyConfigurations`, set on the per-site data store
-  created by the patched `preWKWebViewConfiguration`. See
-  [`third_party/PATCHES.md`](../../../third_party/PATCHES.md).
+  created by the WebSpace fork's `preWKWebViewConfiguration` hook
+  (resolved via `dependency_overrides` in
+  [`pubspec.yaml`](../../../pubspec.yaml)).
 
 This asymmetry is observable to the user; see
 [PROXY-008](#requirement-proxy-008---android-iOS-isolation-asymmetry-under-profile-mode).
@@ -318,10 +319,11 @@ lib/web_view_model.dart
 lib/screens/settings.dart
 └── Proxy configuration UI; cross-site sync gated to Android only
 
-third_party/flutter_inappwebview_ios.patch
-third_party/flutter_inappwebview_macos.patch
-└── webspaceProxy field + preWKWebViewConfiguration block
-    + WebSpaceProxy.swift helper (NWEndpoint / ProxyConfiguration builder)
+flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
+├── flutter_inappwebview_ios
+└── flutter_inappwebview_macos
+    └── webspaceProxy field + preWKWebViewConfiguration block
+        + WebSpaceProxy.swift helper (NWEndpoint / ProxyConfiguration builder)
 ```
 
 ---
@@ -331,7 +333,7 @@ third_party/flutter_inappwebview_macos.patch
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
 | Android  | Full (global override) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; per-site config in data model is sync'd globally on save (PROXY-008) |
-| iOS      | Full (per-site, iOS 17+) | Shown unconditionally | Patched plugin attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; iOS <17 silently routes through system default |
+| iOS      | Full (per-site, iOS 17+) | Shown unconditionally | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; iOS <17 silently routes through system default |
 | macOS    | Full (per-site, macOS 14+) | Shown unconditionally | Same pattern as iOS; macOS <14 silently routes through system default |
 | Linux    | None         | Hidden        | DEFAULT proxy forced, UI hidden |
 | Windows  | Limited      | Conditional   | Shown only if `PROXY_OVERRIDE` supported |
@@ -344,8 +346,9 @@ third_party/flutter_inappwebview_macos.patch
 - `lib/settings/proxy.dart` - Proxy types and settings model
 - `test/proxy_test.dart` - Unit tests
 - `test/proxy_integration_test.dart` - Integration tests
-- `third_party/flutter_inappwebview_ios.patch` - per-site `webspaceProxy` field, `WebSpaceProxy.swift`
-- `third_party/flutter_inappwebview_macos.patch` - sister copy
+- WebSpace fork of `flutter_inappwebview` (github.com/theoden8/flutter_inappwebview) -
+  per-site `webspaceProxy` field on `flutter_inappwebview_ios` /
+  `flutter_inappwebview_macos`, plus `WebSpaceProxy.swift` helper
 
 ### Modified
 - `lib/services/webview.dart` - `WebSpaceInAppWebViewSettings.webspaceProxy`, ProxyManager iOS no-op, PlatformInfo iOS gate

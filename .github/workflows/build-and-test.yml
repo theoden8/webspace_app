@@ -80,16 +80,6 @@ jobs:
           restore-keys: |
             pub-${{ runner.os }}-
 
-      - name: Apply WebSpace plugin patches
-        # See third_party/PATCHES.md. The script materializes patched
-        # copies of flutter_inappwebview_{android,ios,macos} under
-        # .dart_tool/webspace_patched_plugins/<plugin>/, downloading
-        # upstream from pub.dev when ~/.pub-cache is cold. Must run
-        # BEFORE the first `pub get` because pub validates path:
-        # dependency targets exist (exit 66 otherwise) and
-        # dependency_overrides in pubspec.yaml point at those paths.
-        run: fvm dart run scripts/apply_plugin_patches.dart
-
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
@@ -279,16 +269,6 @@ jobs:
           key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock', 'macos/Podfile.lock') }}
           restore-keys: |
             pods-${{ runner.os }}-
-
-      - name: Apply WebSpace plugin patches
-        # See third_party/PATCHES.md. The script materializes patched
-        # copies of flutter_inappwebview_{android,ios,macos} under
-        # .dart_tool/webspace_patched_plugins/<plugin>/, downloading
-        # upstream from pub.dev when ~/.pub-cache is cold. Must run
-        # BEFORE the first `pub get` because pub validates path:
-        # dependency targets exist (exit 66 otherwise) and
-        # dependency_overrides in pubspec.yaml point at those paths.
-        run: fvm dart run scripts/apply_plugin_patches.dart
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile

@@ -36,12 +36,12 @@ typedef Cookie = inapp.Cookie;
 
 /// Subclass of [inapp.InAppWebViewSettings] that smuggles a
 /// `webspaceProfile` key into the settings map sent to the native
-/// plugin. The vendored fork at
-/// `third_party/flutter_inappwebview_android/` reads this key in
-/// `InAppWebViewSettings.parse()` and binds the WebView to the named
-/// profile via `WebViewCompat.setProfile` at the very top of
-/// `InAppWebView.prepare()`, before any session-bound op locks the
-/// WebView to the default profile.
+/// plugin. The WebSpace fork of `flutter_inappwebview_android`
+/// (pinned via `dependency_overrides` in pubspec.yaml) reads this
+/// key in `InAppWebViewSettings.parse()` and binds the WebView to
+/// the named profile via `WebViewCompat.setProfile` at the very top
+/// of `InAppWebView.prepare()`, before any session-bound op locks
+/// the WebView to the default profile.
 ///
 /// Stock plugin builds (iOS, macOS) ignore the unknown map key.
 ///
@@ -57,9 +57,9 @@ class WebSpaceInAppWebViewSettings extends inapp.InAppWebViewSettings {
   String? webspaceProfile;
 
   /// Per-site proxy applied to the WebView's data store at construction.
-  /// Honored only by the patched iOS / macOS plugins on iOS 17+ / macOS 14+
-  /// (see [`WebSpaceProxy.swift`](../../third_party/PATCHES.md)). On Android
-  /// the field is silently ignored — Android proxy still flows through the
+  /// Honored only by the WebSpace fork's iOS / macOS plugins on iOS 17+ /
+  /// macOS 14+ (see `WebSpaceProxy.swift` in the fork). On Android the
+  /// field is silently ignored — Android proxy still flows through the
   /// global [`inapp.ProxyController`].
   ///
   /// Map shape (must match `WebSpaceProxy.configurations(from:)` Swift-side):
@@ -257,11 +257,10 @@ enum WebViewTheme { light, dark, system }
 ///     same-base-domain sites loaded concurrently, the last applied proxy
 ///     wins for every WebView. See PROXY-008.
 ///   * **iOS 17+ / macOS 14+.** Genuine per-site proxy via
-///     `WKWebsiteDataStore.proxyConfigurations` on the per-site data store
-///     created by the patched `preWKWebViewConfiguration` (see
-///     [`third_party/PATCHES.md`](../../third_party/PATCHES.md)). The proxy
-///     ships with the [WebSpaceInAppWebViewSettings] map at WebView
-///     construction; this class is a no-op on those platforms.
+///     `WKWebsiteDataStore.proxyConfigurations` on the per-site data store,
+///     created by the WebSpace fork's `preWKWebViewConfiguration` hook.
+///     The proxy ships with the [WebSpaceInAppWebViewSettings] map at
+///     WebView construction; this class is a no-op on those platforms.
 class ProxyManager {
   static final ProxyManager _instance = ProxyManager._internal();
   factory ProxyManager() => _instance;
@@ -515,9 +514,8 @@ abstract class WebViewController {
   /// The underlying `inapp.InAppWebViewController` this wrapper is
   /// bound to. Exposed so per-site code paths can pass it as the
   /// `webViewController:` argument to `inapp.CookieManager` methods,
-  /// which the patched plugin uses to resolve the WebView's bound
-  /// profile and route cookie ops to its per-site jar (see
-  /// `third_party/PATCHES.md`).
+  /// which the WebSpace fork uses to resolve the WebView's bound
+  /// profile and route cookie ops to its per-site jar.
   inapp.InAppWebViewController get nativeController;
 
   Future<void> loadUrl(String url, {String? language});
@@ -1581,16 +1579,15 @@ class WebViewFactory {
     // session-bound ops (addJavascriptInterface, addDocumentStartJavaScript,
     // setAcceptThirdPartyCookies) BEFORE `onWebViewCreated` fires, which
     // locks the WebView to the default profile and made our earlier
-    // post-hoc-bind approach silently leak across sites. The vendored
-    // fork at `third_party/flutter_inappwebview_android/` (see
-    // PATCHES.md there) adds a `webspaceProfile` field to
-    // `InAppWebViewSettings` and binds it via `WebViewCompat.setProfile`
-    // at the very top of `prepare()`, before any session-bound op runs.
-    // Pass the profile name via `webspaceProfile` and the patched native
-    // side handles the bind.
+    // post-hoc-bind approach silently leak across sites. The WebSpace
+    // fork of `flutter_inappwebview_android` adds a `webspaceProfile`
+    // field to `InAppWebViewSettings` and binds it via
+    // `WebViewCompat.setProfile` at the very top of `prepare()`, before
+    // any session-bound op runs. Pass the profile name via
+    // `webspaceProfile` and the fork's native side handles the bind.
     // `cachedSupported` is already platform-aware (the iOS / macOS stub
-    // returns false on platforms where the patched plugin doesn't ship a
-    // bind); no extra Platform.isAndroid gate needed. Pre-iOS-fork code
+    // returns false on platforms where the fork doesn't ship a bind);
+    // no extra Platform.isAndroid gate needed. Pre-iOS-fork code
     // had `Platform.isAndroid &&` here which silently wedged macOS/iOS at
     // `webspaceProfile=null` even though the native side was ready —
     // see git history of this line for the user-reported bug.
@@ -1861,14 +1858,12 @@ class WebViewFactory {
         // which on Android System WebView trips a dangling-raw_ptr in the
         // renderer process at `partition_alloc_support.cc:770`.
         //
-        // Profile API bind happens natively inside the patched
-        // `InAppWebView.prepare()` (see vendored fork at
-        // third_party/flutter_inappwebview_android/PATCHES.md), driven
-        // by the `webspaceProfile` we set on `InAppWebViewSettings`
-        // above. By the time `onWebViewCreated` fires, the WebView is
-        // already bound to its per-site profile and every cookie / IDB /
-        // ServiceWorker / cache write that follows is partitioned to
-        // that profile.
+        // Profile API bind happens natively inside the WebSpace fork's
+        // `InAppWebView.prepare()`, driven by the `webspaceProfile` we
+        // set on `InAppWebViewSettings` above. By the time
+        // `onWebViewCreated` fires, the WebView is already bound to its
+        // per-site profile and every cookie / IDB / ServiceWorker / cache
+        // write that follows is partitioned to that profile.
         // Attach native interceptor (DNS blocking + LocalCDN serving) once
         // the view is in the hierarchy. Always attach on Android — the
         // handler no-ops cheaply when neither blocklist nor CDN cache are

@@ -54,10 +54,9 @@ native per-site data-store primitives:
   site maps to a named profile `ws-<siteId>`.
 - **iOS 17+ / macOS 14+**: `WKWebsiteDataStore(forIdentifier: UUID)`.
   The siteId string is hashed via SHA-256 to produce a deterministic
-  UUID (`WebSpaceProfile.uuid(for:)` — added by the iOS / macOS
-  plugin patches; see
-  [`third_party/PATCHES.md`](../../../third_party/PATCHES.md))
-  and that UUID identifies the per-site data store.
+  UUID (`WebSpaceProfile.uuid(for:)` — added by the WebSpace fork's
+  iOS / macOS plugins) and that UUID identifies the per-site data
+  store.
 
 Each `WebViewModel.siteId` owns its own cookie jar, `localStorage`,
 `IndexedDB`, `ServiceWorkerController`, and HTTP cache. **Profile mode
@@ -258,38 +257,38 @@ differ in shape but are equivalent in effect:
   configuration reaches the WKWebView constructor.
 
 In both cases, a post-hoc bind from `onWebViewCreated` is too late.
-The patches that close this gap live as `.patch` files under
-[`third_party/`](../../../third_party/PATCHES.md) and are applied
-to the upstream pub-cache copy of each plugin at build time by
-[`scripts/apply_plugin_patches.dart`](../../../scripts/apply_plugin_patches.dart):
+The fix lives in the WebSpace fork of `flutter_inappwebview`
+(monorepo at <https://github.com/theoden8/flutter_inappwebview>,
+pinned by `dependency_overrides` in
+[`pubspec.yaml`](../../../pubspec.yaml)). Per-platform changes:
 
-- `third_party/flutter_inappwebview_android.patch`:
-  adds `webspaceProfile: String?` to `InAppWebViewSettings`, binds it
-  via `ProfileStore.getOrCreateProfile` + `WebViewCompat.setProfile`
-  at the very top of `prepare()`.
-- `third_party/flutter_inappwebview_ios.patch`:
-  adds the same `webspaceProfile` field on the Swift side, sets
+- `flutter_inappwebview_android`: adds `webspaceProfile: String?`
+  to `InAppWebViewSettings`, binds it via
+  `ProfileStore.getOrCreateProfile` + `WebViewCompat.setProfile` at
+  the very top of `prepare()`.
+- `flutter_inappwebview_ios`: adds the same `webspaceProfile` field
+  on the Swift side, sets
   `configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier:
   WebSpaceProfile.uuid(for: profileName))` in
   `preWKWebViewConfiguration` before
   `WKWebView(frame: configuration:)` runs. The UUID is derived
   deterministically from the profile name via SHA-256 (Apple's API
   requires a UUID; our siteIds are opaque strings).
-- `third_party/flutter_inappwebview_macos.patch`: same shape as the
-  iOS patch, applied to the macOS plugin.
+- `flutter_inappwebview_macos`: same shape as the iOS change,
+  applied to the macOS plugin.
 
 From Dart, the
 [`WebSpaceInAppWebViewSettings`](../../../lib/services/webview.dart)
 subclass overrides `toMap()` to inject the `webspaceProfile` key
-into the settings map sent to native — the patched plugins on each
+into the settings map sent to native — the fork's plugins on each
 platform pick it up by KVC reflection (iOS) or explicit case match
 (Android).
 
 #### Scenario: Bind happens during `prepare()`
 
 **Given** profile mode is supported, a `siteId` is set, and the
-  patched plugin is installed (resolved via `dependency_overrides` in
-  `pubspec.yaml`)
+  WebSpace fork is resolved via `dependency_overrides` in
+  `pubspec.yaml`
 **When** the `InAppWebView` is constructed
 **Then** `InAppWebView.prepare()` reads
   `customSettings.webspaceProfile` and calls
@@ -309,7 +308,7 @@ platform pick it up by KVC reflection (iOS) or explicit case match
   Android with `cachedSupported == false`, or any code path that
   does not opt in)
 **When** `prepare()` runs
-**Then** the patched bind block early-returns and `prepare()`
+**Then** the fork's bind block early-returns and `prepare()`
   proceeds unchanged
 **And** behavior matches stock upstream `flutter_inappwebview_android`
 
@@ -328,11 +327,11 @@ Every per-site cookie operation (read, delete, block) SHALL route
 through [`ProfileCookieManager`](../../../lib/services/profile_cookie_manager.dart)
 in profile mode, which calls
 `inapp.CookieManager.instance().{getCookies,deleteCookie}` with
-`webViewController: controller.nativeController`. The vendored
-forks (`third_party/flutter_inappwebview_*.patch`) honor that
-parameter on every platform: Android's `MyCookieManager.java`
-walks to the bound `androidx.webkit.Profile.getCookieManager()`;
-iOS/macOS's `MyCookieManager.swift` walks to the WebView's
+`webViewController: controller.nativeController`. The WebSpace
+fork honors that parameter on every platform: Android's
+`MyCookieManager.java` walks to the bound
+`androidx.webkit.Profile.getCookieManager()`; iOS/macOS's
+`MyCookieManager.swift` walks to the WebView's
 `WKWebsiteDataStore.httpCookieStore`. `ProfileCookieManager` is the
 peer of [`CookieManager`](../../../lib/services/webview.dart) — the
 two are siblings in `_WebSpacePageState`, never composed; exactly
@@ -446,10 +445,10 @@ live view hierarchy.
 constructs a `WebSpaceInAppWebViewSettings` (subclass of
 `InAppWebViewSettings`) with the desired profile name in
 `webspaceProfile`. The subclass overrides `toMap()` to inject that
-key into the settings dict sent to native. The build-time-patched
-plugins (see
-[`third_party/PATCHES.md`](../../../third_party/PATCHES.md))
-read it during construction and bind the WebView:
+key into the settings dict sent to native. The WebSpace fork's
+plugins (resolved via `dependency_overrides` in
+[`pubspec.yaml`](../../../pubspec.yaml)) read it during construction
+and bind the WebView:
 
 ```dart
 final webspaceProfile = (Platform.isAndroid &&

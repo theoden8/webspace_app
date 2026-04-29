@@ -14,11 +14,10 @@ import 'package:webspace/services/webview.dart';
 ///     `CookieIsolationEngine` capture-nuke-restore cycle uses the
 ///     same instance.
 ///   - `_useProfiles == true`: `ProfileCookieManager` is created;
-///     each call passes `webViewController:` so the patched plugin
-///     (see `third_party/flutter_inappwebview_*.patch`) walks to the
-///     WebView's bound profile and routes the operation to its
-///     per-profile cookie store. HttpOnly cookies are deletable too;
-///     `getCookies` returns full attributes
+///     each call passes `webViewController:` so the WebSpace fork of
+///     `flutter_inappwebview` walks to the WebView's bound profile and
+///     routes the operation to its per-profile cookie store. HttpOnly
+///     cookies are deletable too; `getCookies` returns full attributes
 ///     (domain/path/expiresDate/isSecure/isHttpOnly).
 ///
 /// There is intentionally no shared base class — call sites branch
