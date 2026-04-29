@@ -537,6 +537,14 @@ Future<String?> _tryDuckDuckGo(String domain, UserProxySettings proxy) async {
 }
 
 Future<_IconCandidate?> _tryFaviconPackage(String url, UserProxySettings proxy) async {
+  // Internal schemes (chrome://, about:, file:, data:, blob:) have no
+  // favicon reachable over the network — sending them through any proxy
+  // (let alone SOCKS5) yields a confusing connection error from the
+  // remote side. Skip the fetch entirely.
+  final uri = Uri.tryParse(url);
+  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+    return null;
+  }
   try {
     final favicons = await FaviconFinder.getAll(url, proxy: proxy).timeout(Duration(seconds: 15));
     if (favicons.isEmpty) return null;
