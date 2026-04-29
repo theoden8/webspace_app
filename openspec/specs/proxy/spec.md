@@ -257,6 +257,44 @@ fail-closed semantics.
 
 ---
 
+### Requirement: PROXY-008 - Tor Network Support
+
+The system SHALL support Tor network access via SOCKS5 proxy configuration. Since Tor exposes a local SOCKS5 proxy (typically `localhost:9050` for the Tor daemon or `localhost:9150` for Tor Browser), no additional protocol handling is required — the existing SOCKS5 proxy support works out of the box.
+
+#### Scenario: Browse via Tor using SOCKS5 proxy
+
+**Given** the user has a Tor daemon running on their device (e.g., Orbot on Android)
+**When** the user opens site settings
+**And** selects "SOCKS5" from the Proxy Type dropdown
+**And** enters "localhost:9050" as the address
+**And** saves settings
+**Then** all traffic for that site is routed through the Tor network
+**And** the site sees the Tor exit node's IP address
+
+#### Scenario: Access .onion sites via Tor proxy
+
+**Given** a site is configured with SOCKS5 proxy "localhost:9050"
+**When** the user navigates to a `.onion` URL (e.g., `http://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion`)
+**Then** the webview resolves the `.onion` address through the Tor network
+**And** the page loads successfully
+
+#### Scenario: Use Orbot on Android for Tor access
+
+**Given** the user has Orbot installed and running on Android
+**When** Orbot is started and shows "Connected"
+**And** the user configures a site with SOCKS5 proxy "localhost:9050"
+**Then** the site's traffic is routed through Orbot's Tor connection
+
+#### Notes
+
+- **Android**: Users can install [Orbot](https://guardianproject.info/apps/orbot/) which provides a local SOCKS5 proxy on port 9050.
+- **iOS**: Orbot is also available on iOS and exposes the same SOCKS5 interface.
+- **Desktop**: Users can run the Tor daemon directly (`tor` command) which listens on `localhost:9050` by default.
+- **DNS resolution**: When using SOCKS5, DNS queries are resolved by the proxy (remote DNS), ensuring `.onion` addresses and DNS privacy work correctly.
+- **No special protocol handling needed**: `.onion` URLs use standard HTTP/HTTPS over the SOCKS5 tunnel — the app treats them like any other URL.
+
+---
+
 ## Data Model
 
 ### ProxyType Enum
