@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:socks5_proxy/socks_client.dart' as socks5;
 
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -60,8 +61,10 @@ abstract class OutboundHttpFactory {
 ///
 /// - DEFAULT  → direct client (system proxy, if any, is honored by dart:io)
 /// - HTTP/HTTPS → [HttpClient.findProxy] override pointing at the host:port
-/// - SOCKS5  → [OutboundClientBlocked] (dart:io has no SOCKS5 support;
-///            falling back to direct would leak the IP, so fail-closed)
+/// - SOCKS5  → connection factory tunnels every request via the
+///            [socks5_proxy] package; the SOCKS5 server resolves the
+///            destination hostname, so the user's local resolver never
+///            sees it (matches Tor's `dns_proxy` semantics).
 class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   const DefaultOutboundHttpFactory();
 
@@ -101,11 +104,85 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
         return OutboundClientReady(IOClient(inner));
 
       case ProxyType.SOCKS5:
-        return const OutboundClientBlocked(
-          'SOCKS5 is configured. Dart-side HTTP cannot tunnel through SOCKS5, '
-          'so the request was blocked to avoid leaking the device IP.',
+        final addr = settings.address;
+        if (addr == null || addr.isEmpty) {
+          return OutboundClientReady(http.Client());
+        }
+        final hostPort = parseHostPort(addr);
+        if (hostPort == null) {
+          return OutboundClientBlocked(
+            'Invalid SOCKS5 proxy address "$addr". Outbound request blocked '
+            'to avoid leaking the device IP via a direct fallback.',
+          );
+        }
+        return _socks5Client(
+          host: hostPort.$1,
+          port: hostPort.$2,
+          username: settings.hasCredentials ? settings.username : null,
+          password: settings.hasCredentials ? settings.password : null,
         );
     }
+  }
+
+  /// Builds an [http.Client] whose `connectionFactory` tunnels each request
+  /// through the SOCKS5 server at [host]:[port]. The destination hostname is
+  /// passed through to the SOCKS5 server (`InternetAddressType.unix`), so
+  /// the local resolver never learns where the user is browsing.
+  static OutboundClient _socks5Client({
+    required String host,
+    required int port,
+    String? username,
+    String? password,
+  }) {
+    final inner = HttpClient();
+    inner.connectionFactory = (uri, proxyHost, proxyPort) async {
+      final InternetAddress proxyAddr;
+      if (_isIpLiteral(host)) {
+        proxyAddr = InternetAddress(host);
+      } else {
+        // Hostname: do a one-time lookup. The SOCKS5 server itself is
+        // reached via plain DNS — only the user's *destination* hostnames
+        // are tunneled through SOCKS5. For the typical Tor setup
+        // (`127.0.0.1:9050`) this branch is never taken.
+        final addrs = await InternetAddress.lookup(host);
+        if (addrs.isEmpty) {
+          throw const SocketException('SOCKS5 proxy host did not resolve');
+        }
+        proxyAddr = addrs.first;
+      }
+      final proxies = [
+        socks5.ProxySettings(proxyAddr, port,
+            username: username, password: password),
+      ];
+      final socket = socks5.SocksTCPClient.connect(
+        proxies,
+        InternetAddress(uri.host, type: InternetAddressType.unix),
+        uri.port,
+      );
+      if (uri.scheme == 'https') {
+        final secure = (await socket).secure(uri.host);
+        return ConnectionTask.fromSocket(
+          secure,
+          () async => (await secure).close().ignore(),
+        );
+      }
+      return ConnectionTask.fromSocket(
+        socket,
+        () async => (await socket).close().ignore(),
+      );
+    };
+    return OutboundClientReady(IOClient(inner));
+  }
+}
+
+/// Whether [host] looks like an IPv4 / IPv6 literal — i.e. safe to pass
+/// directly to [InternetAddress] without a DNS lookup.
+bool _isIpLiteral(String host) {
+  try {
+    InternetAddress(host);
+    return true;
+  } catch (_) {
+    return false;
   }
 }
 

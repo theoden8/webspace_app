@@ -381,8 +381,10 @@ class DnsBlockService {
     final filePath = _levelFiles[level];
     if (filePath == null) return false;
 
-    // Route through the app-global outbound proxy. SOCKS5 cannot be honored
-    // from Dart-side, so fail-closed rather than leak the IP via direct.
+    // Route through the app-global outbound proxy (HTTP/HTTPS findProxy on
+    // dart:io's HttpClient, or the SOCKS5 tunnel from socks5_proxy when the
+    // user picks SOCKS5). Fail-closed on a malformed config rather than
+    // leaking the IP via direct.
     final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
     if (clientResult is OutboundClientBlocked) {
       LogService.instance.log(

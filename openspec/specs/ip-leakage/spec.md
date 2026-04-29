@@ -119,43 +119,39 @@ came from `outboundHttp.clientFor(HTTP 10.0.0.1:8080)`
 
 ---
 
-### Requirement: LEAK-003 - Fail-closed on un-tunnelable proxies
+### Requirement: LEAK-003 - SOCKS5 tunneling and fail-closed posture
 
-Every Dart-side outbound seam SHALL fail-closed when the resolved proxy cannot be honored from Dart-side (currently any `SOCKS5`, since `dart:io` lacks SOCKS5 support and Chromium's SOCKS5 plumbing is webview-only): the seam MUST skip the request entirely rather than fall back to a direct connection, since falling back would leak the device IP to the very party the user picked SOCKS5 to hide it from.
+Every Dart-side outbound seam SHALL route SOCKS5 traffic through the [`socks5_proxy`](https://pub.dev/packages/socks5_proxy) package's TCP tunnel — both the destination's TCP connection and its hostname resolution travel through the SOCKS5 server, so the local resolver never sees the user's destination — and SHALL fail-closed (skip the request entirely, never fall back to a direct connection) when the proxy is malformed or otherwise un-tunnelable, since falling back would leak the device IP to the very party the user picked the proxy to hide it from.
 
-Webview navigation continues to use SOCKS5 normally — the webview's proxy
-controller does support SOCKS5 on Android/iOS.
+Webview navigation continues to use SOCKS5 via its native channel — the
+patched iOS / macOS plugins' `WKWebsiteDataStore.proxyConfigurations` and
+Android's `inapp.ProxyController` — independently of the Dart-side path.
 
-#### Scenario: SOCKS5 favicon attempt is blocked
+#### Scenario: SOCKS5 favicon fetch tunnels through the SOCKS5 server
 
 **Given** site "Acme" has proxy `SOCKS5 127.0.0.1:9050`
 **When** the favicon stream runs for "Acme"
-**Then** `outboundHttp.clientFor` returns `OutboundClientBlocked`
-**And** the favicon callbacks complete without ever opening a TCP socket
+**Then** `outboundHttp.clientFor` returns `OutboundClientReady`
+**And** the resulting `http.Client`'s `connectionFactory` opens a TCP
+connection to `127.0.0.1:9050`
+**And** the destination hostname is sent to the SOCKS5 server (not
+resolved locally)
 
-#### Scenario: SOCKS5 download is rejected without a network call
+#### Scenario: SOCKS5 download tunnels through the SOCKS5 server
 
 **Given** site "Acme" has proxy `SOCKS5 127.0.0.1:9050`
 **When** the user initiates an HTTP download from a page on "Acme"
-**Then** `DownloadEngine.fetch` throws `DownloadException` before any
-socket is opened
-**And** the failure is surfaced to the user via `DownloadsService.fail`
+**Then** `DownloadEngine.fetch` opens its TCP connection via the SOCKS5
+tunnel
+**And** the response body is delivered through the tunnel
 
-#### Scenario: SOCKS5 global proxy skips app-global downloads
+#### Scenario: SOCKS5 with a malformed address fails closed
 
-**Given** the app-global outbound proxy is `SOCKS5 127.0.0.1:9050`
-**When** the user taps "Update DNS blocklist" / "Update ClearURLs rules" /
-"Download content-blocker list" / "Pre-cache LocalCDN resources"
-**Then** the corresponding `download*` method returns `false`
-**And** the failure is logged at `LogLevel.warning` with the reason
-
-#### Scenario: SOCKS5 disables the location-picker map
-
-**Given** the app-global outbound proxy is `SOCKS5 127.0.0.1:9050`
-**When** the user taps "Load map" on the location picker
-**Then** the picker remains in placeholder mode
-**And** a snackbar surfaces the SOCKS5 reason
-**And** no tile request is emitted
+**Given** site "Acme" has proxy `SOCKS5 not-a-valid-address`
+**When** the favicon stream runs for "Acme"
+**Then** `outboundHttp.clientFor` returns `OutboundClientBlocked`
+**And** the favicon callbacks complete without ever opening a TCP socket
+**And** no fallback to a direct `http.Client` is attempted
 
 ---
 
@@ -236,7 +232,7 @@ details and nested-iframe coverage.)
 
 ### Requirement: LEAK-006 - DNS leakage posture
 
-The implementation MUST NOT emit local DNS lookups on the user's behalf for any Dart-side outbound call once a non-DEFAULT proxy is resolved. Under HTTP/HTTPS proxies, `dart:io`'s `CONNECT host:port` flow already keeps the local resolver out of the loop. Under SOCKS5, the fail-closed behavior in LEAK-003 prevents Dart-side traffic — and therefore Dart-side DNS — from being emitted at all.
+The implementation MUST NOT emit local DNS lookups on the user's behalf for any Dart-side outbound call once a non-DEFAULT proxy is resolved. Under HTTP/HTTPS proxies, `dart:io`'s `CONNECT host:port` flow already keeps the local resolver out of the loop. Under SOCKS5, the destination hostname is sent to the SOCKS5 server with `InternetAddressType.unix` (the [`socks5_proxy`](https://pub.dev/packages/socks5_proxy) package's idiom for "don't pre-resolve"), so the SOCKS5 server resolves it — matches Tor's `dns_proxy` semantics.
 
 For *webview* navigation, the platform webview does the right thing on
 Android (HTTP/HTTPS) and iOS — the proxy receives the hostname and the
@@ -252,12 +248,12 @@ documented gap that the implementation already avoids leaking through.
 **Then** `dart:io` issues `CONNECT example.com:443` to the proxy
 **And** the local resolver is **not** asked to resolve `example.com`
 
-#### Scenario: SOCKS5 — no Dart-side traffic at all
+#### Scenario: SOCKS5 + Dart-side fetch — no DNS leak
 
 **Given** the app-global outbound proxy is `SOCKS5 127.0.0.1:9050`
-**When** any Dart-side outbound seam is invoked
-**Then** the seam fails closed before any DNS lookup is attempted
-(per LEAK-003)
+**When** any Dart-side outbound seam connects to a destination
+**Then** the destination hostname is sent through the SOCKS5 server
+**And** the local resolver is **not** asked to resolve it
 
 ---
 
@@ -313,7 +309,9 @@ spec violation.
 │    DefaultOutboundHttpFactory:                                     │
 │     ─ DEFAULT          → http.Client() (system / direct)           │
 │     ─ HTTP/HTTPS       → IOClient(HttpClient..findProxy = …)       │
-│     ─ SOCKS5           → OutboundClientBlocked  (fail-closed)      │
+│     ─ SOCKS5           → IOClient(HttpClient..connectionFactory =  │
+│                          socks5_proxy SocksTCPClient.connect(…))   │
+│     ─ malformed addr   → OutboundClientBlocked  (fail-closed)      │
 │    Tests inject a RecordingFactory that records every settings     │
 │    object passed in, so call-site coverage is unit-testable.       │
 └────────────────────────────────────────────────────────────────────┘
@@ -350,7 +348,8 @@ spec violation.
   `lib/services/dns_block_service.dart`,
   `lib/services/content_blocker_service.dart`,
   `lib/services/localcdn_service.dart` — global download paths route
-  through `outboundHttp` and fail-closed on SOCKS5.
+  through `outboundHttp` (SOCKS5 included via the `socks5_proxy`
+  package's TCP tunnel; malformed configs still fail-closed).
 - `lib/services/user_script_service.dart` — accepts per-site proxy and
   uses it for `__ws_s_*` / `__ws_f_*` handlers.
 - `lib/services/download_engine.dart` — accepts per-site proxy; throws
@@ -378,12 +377,6 @@ spec violation.
   `webRtcPolicy = defaultPolicy` can still leak the device IP via STUN.
   The defense is to flip the per-site `webRtcPolicy` to `relayOnly` /
   `disabled`. The settings UI hints at this when a proxy is configured.
-- **SOCKS5 is "webview-only"**: when the user picks SOCKS5 (commonly for
-  Tor), Dart-side features (favicon discovery, downloads, blocklist
-  refreshes, OSM tiles) become inert rather than leaking. Users get the
-  privacy they asked for but lose the convenience features. This is the
-  intended trade-off; building a Dart-side SOCKS5 client is tracked as
-  future work.
 - **The app's own update / metrics**: WebSpace does not phone home, so
   there's no app-level analytics path to proxy. If telemetry is ever
   added, it MUST land in this matrix or be explicitly exempted with a

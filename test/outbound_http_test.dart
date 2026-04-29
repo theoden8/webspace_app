@@ -107,15 +107,31 @@ void main() {
       expect(result, isA<OutboundClientBlocked>());
     });
 
-    test('SOCKS5 always returns Blocked (Dart-side cannot tunnel)', () {
+    test('SOCKS5 with valid address returns a Ready client (tunnels via socks5_proxy)', () {
       final result = factory.clientFor(
         UserProxySettings(
           type: ProxyType.SOCKS5,
           address: '127.0.0.1:9050',
         ),
       );
+      expect(result, isA<OutboundClientReady>());
+      (result as OutboundClientReady).client.close();
+    });
+
+    test('SOCKS5 with malformed address returns Blocked (no direct fallback)', () {
+      final result = factory.clientFor(
+        UserProxySettings(type: ProxyType.SOCKS5, address: 'no-port'),
+      );
       expect(result, isA<OutboundClientBlocked>());
       expect((result as OutboundClientBlocked).reason, contains('SOCKS5'));
+    });
+
+    test('SOCKS5 with empty address returns a Ready client (no override)', () {
+      final result = factory.clientFor(
+        UserProxySettings(type: ProxyType.SOCKS5, address: ''),
+      );
+      expect(result, isA<OutboundClientReady>());
+      (result as OutboundClientReady).client.close();
     });
   });
 

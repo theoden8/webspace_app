@@ -65,9 +65,9 @@ class ClearUrlService {
   /// Returns true on success, false on failure.
   ///
   /// The download is routed through the app-global outbound proxy
-  /// ([GlobalOutboundProxy.current]). When the configured proxy cannot be
-  /// honored from Dart-side (e.g. SOCKS5), this returns false without making
-  /// the request — falling back to direct would leak the device IP.
+  /// ([GlobalOutboundProxy.current]). When the configured proxy is
+  /// malformed and cannot be honored, this returns false without making the
+  /// request — falling back to direct would leak the device IP.
   Future<bool> downloadRules() async {
     final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
     if (clientResult is OutboundClientBlocked) {

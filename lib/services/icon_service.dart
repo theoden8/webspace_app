@@ -18,9 +18,9 @@ UserProxySettings _resolve(UserProxySettings? perSite) {
 }
 
 /// Acquire an HTTP client honoring [proxy], or null when the proxy cannot
-/// be honored (e.g. SOCKS5 from Dart-side). Callers MUST treat null as
-/// "abort the request" — falling back to the default `http` client would
-/// leak the device IP and defeat the proxy the user configured.
+/// be honored (e.g. malformed address). Callers MUST treat null as "abort
+/// the request" — falling back to the default `http` client would leak the
+/// device IP and defeat the proxy the user configured.
 http.Client? _proxiedClient(UserProxySettings proxy) {
   final result = outboundHttp.clientFor(proxy);
   if (result is OutboundClientReady) return result.client;

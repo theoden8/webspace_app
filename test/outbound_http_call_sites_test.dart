@@ -109,7 +109,10 @@ void main() {
       expect(fake.lastQuery!.address, '127.0.0.1:9999');
     });
 
-    test('SOCKS5 fails closed — no SVG fetched, no leak', () async {
+    test('OutboundClientBlocked is handled — no SVG fetched, no leak', () async {
+      // Simulate the factory rejecting SOCKS5 (e.g. malformed address) and
+      // verify icon_service treats the Blocked result as "skip the request"
+      // rather than falling back to a direct http.Client.
       final fake = RecordingFactory();
       outboundHttp = fake;
 
@@ -119,11 +122,11 @@ void main() {
       );
       // Use a unique URL so the in-memory cache doesn't short-circuit us.
       final result = await getSvgContent(
-        'https://example.com/socks5-blocked-icon.svg',
+        'https://example.com/blocked-by-fake-icon.svg',
         proxy: perSite,
       );
       expect(result, isNull,
-          reason: 'SOCKS5 should fail closed instead of leaking via direct');
+          reason: 'Blocked client must not be replaced by a direct fallback');
       expect(fake.queries, isNotEmpty);
       expect(fake.lastQuery!.type, ProxyType.SOCKS5);
     });
@@ -152,22 +155,24 @@ void main() {
       expect(fake.lastQuery!.address, '10.0.0.1:8080');
     });
 
-    test('ClearURLs.downloadRules with SOCKS5 returns false without leaking',
+    test('ClearURLs.downloadRules: Blocked client returns false without leaking',
         () async {
       GlobalOutboundProxy.setForTest(UserProxySettings(
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       ));
+      // RecordingFactory blocks SOCKS5 by default — simulates a malformed
+      // proxy config the real factory would also block on.
       final fake = RecordingFactory();
       outboundHttp = fake;
 
       final ok = await ClearUrlService.instance.downloadRules();
       expect(ok, isFalse,
-          reason: 'SOCKS5 must short-circuit before any HTTP request');
+          reason: 'Blocked client must short-circuit before any HTTP request');
       expect(fake.queries.last.type, ProxyType.SOCKS5);
     });
 
-    test('DnsBlockService.downloadList(SOCKS5) returns false without leaking',
+    test('DnsBlockService.downloadList: Blocked client returns false without leaking',
         () async {
       GlobalOutboundProxy.setForTest(UserProxySettings(
         type: ProxyType.SOCKS5,
@@ -191,8 +196,11 @@ void main() {
   });
 
   group('DownloadEngine respects per-site proxy', () {
-    test('SOCKS5 per-site proxy: fetch throws DownloadException, no network',
+    test('Blocked proxy: fetch throws DownloadException, no network',
         () async {
+      // RecordingFactory rejects SOCKS5 — stand-in for the real factory's
+      // malformed-config Blocked path. Verifies DownloadEngine doesn't
+      // fall back to a direct connection.
       final fake = RecordingFactory();
       outboundHttp = fake;
 

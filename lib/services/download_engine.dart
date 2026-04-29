@@ -34,10 +34,10 @@ class DownloadException implements Exception {
 /// through an injectable [http.Client] so tests can supply a fake.
 ///
 /// When [proxy] is provided, the client routes through it via the global
-/// [outboundHttp] factory (so the per-site proxy *and* SOCKS5-fail-closed
-/// behavior apply uniformly across the app). When the proxy cannot be
-/// honored from Dart-side, [fetch] throws [DownloadException] rather than
-/// fall back to direct, which would leak the device IP.
+/// [outboundHttp] factory (HTTP/HTTPS via dart:io's findProxy, SOCKS5 via
+/// the socks5_proxy package's TCP tunnel). If the proxy address is
+/// malformed, [fetch] throws [DownloadException] rather than fall back to
+/// direct, which would leak the device IP.
 class DownloadEngine {
   final http.Client _client;
   final OutboundClient? _outboundResult;
@@ -57,9 +57,9 @@ class DownloadEngine {
   ///
   /// When [proxy] is non-null and non-DEFAULT (or when the caller-provided
   /// `proxy` resolves through the global to non-DEFAULT), the client routes
-  /// through that proxy via [outboundHttp]. If the proxy can't be honored
-  /// (SOCKS5 from Dart-side), a stub client is returned that will fail any
-  /// subsequent request — see [_blockedClient] / [fetch].
+  /// through that proxy via [outboundHttp]. If the proxy address is
+  /// malformed, a stub client is returned that will fail any subsequent
+  /// request — see [_blockedClient] / [fetch].
   static http.Client _defaultClient(UserProxySettings? proxy) {
     if (proxy != null) {
       final resolved = resolveEffectiveProxy(proxy);
