@@ -506,41 +506,65 @@ The per-site settings screen SHALL display a compact DNS stats summary below the
 
 ---
 
-### Requirement: DNS-016 - Global Domain Decision Cache
+### Requirement: DNS-016 - Host Decision Caches
 
-The system SHALL maintain a single global cache of blocked/allowed decisions
-keyed by host, shared across all sites and persisted across app restarts.
-Trackers and CDN domains appear on many sites — one site's learning benefits
-all sites. The cache SHALL be invalidated when the blocklist changes.
+The system SHALL maintain two host-decision caches with distinct
+lifecycles. Both SHALL be bounded at 5000 entries with FIFO eviction
+on insert, and cap-enforced on load (corrupted or oversized prefs blobs
+SHALL NOT be allowed to load past the cap).
+
+**Merged cache** (`_domainCache`): keyed by host, value is the merged
+DNS ∪ ABP decision. Populated by `recordRequest` from webview hooks
+after the caller has combined both signals. Persisted to
+SharedPreferences under `dns_domain_cache`, write-debounced. Shipped
+to the iOS JS interceptor on webview creation as `cache` field of
+`getBlockBloom`. Invalidated when **either** the DNS blocklist **or**
+the ABP rule set changes.
+
+**DNS-only hot-path cache** (`_dnsBlockCache`): keyed by host, value
+is the DNS-only block decision. Read and written by `isBlocked()`.
+In-memory only, ring-buffer-backed for O(1) eviction without iterator
+allocation. Invalidated when the DNS blocklist changes.
 
 #### Scenario: Cached decision reused across sites
 
 **Given** site A's webview has previously checked `cdn.example.com` and
 Dart recorded it as allowed
 **When** site B's webview later encounters `cdn.example.com`
-**Then** the decision is served from the global cache without re-checking
+**Then** the decision is served from the merged cache without re-checking
 **And** no Dart roundtrip or Bloom filter check is needed on the JS side
 
-#### Scenario: Cache survives app restart
+#### Scenario: Merged cache survives app restart
 
-**Given** the global domain cache contains decisions
+**Given** the merged domain cache contains decisions
 **When** the app is restarted
 **Then** the cache is loaded from SharedPreferences (`dns_domain_cache`)
 **And** is available to new webviews on creation
+**And** loading stops at the 5000-entry cap even if the on-disk blob is larger
 
-#### Scenario: Cache invalidated on blocklist update
+#### Scenario: Both caches invalidated on blocklist update
 
 **Given** the user downloads a new blocklist level
 **When** the download completes
-**Then** the global domain cache is cleared
-**And** SharedPreferences key `dns_domain_cache` is removed
+**Then** the merged cache is cleared and `dns_domain_cache` is removed
+**And** the DNS-only hot-path cache is cleared
 **Because** previously cached decisions may be invalidated by the new list
+
+#### Scenario: Merged cache invalidated on ABP rule change
+
+**Given** the user toggles or downloads a content-blocker filter list
+**When** `ContentBlockerService` notifies its listeners
+**Then** the merged cache is cleared via `invalidateMergedBloom`
+**And** the DNS-only hot-path cache is left intact
+**Because** ABP changes do not affect DNS-only decisions
 
 #### Scenario: Cache size capped
 
-**Given** the cache has grown to 5000 entries
-**When** a new entry is added
+**Given** either cache has grown to 5000 entries
+**When** a new distinct host is inserted
 **Then** the oldest (first-inserted) entry is evicted (FIFO)
+**And** repeated inserts under load complete in O(1) time per insert
+(no iterator allocation per evict on the hot path)
 
 #### Scenario: Persistence is write-debounced
 
@@ -548,6 +572,7 @@ Dart recorded it as allowed
 **When** `recordRequest` is called repeatedly
 **Then** SharedPreferences is written once after a 2-second idle window
 **And** individual writes do not block the recording path
+**And** the DNS-only hot-path cache, being in-memory, is not affected
 
 ---
 
@@ -627,22 +652,79 @@ malware.evil.org
 
 ### Domain Hierarchy Matching
 
+The hot path uses a hand-rolled host extractor (skipping `Uri.parse`'s
+full RFC 3986 validation), a substring-based hierarchy walk (no per-step
+`sublist+join` allocations), and a bounded DNS-only host-decision cache:
+
 ```dart
 bool isBlocked(String url) {
-  final host = Uri.tryParse(url)?.host;
+  if (_blockedDomains.isEmpty) return false;
+
+  final host = _fastHost(url);  // scheme://host[:port] without Uri.parse
   if (host == null || host.isEmpty) return false;
 
-  // Exact match
-  if (_blockedDomains.contains(host)) return true;
+  final cached = _dnsBlockCache[host];
+  if (cached != null) return cached;
 
-  // Walk up: sub.tracker.net → tracker.net (but NOT mytracker.net)
-  final parts = host.split('.');
-  for (int i = 1; i < parts.length - 1; i++) {
-    if (_blockedDomains.contains(parts.sublist(i).join('.'))) return true;
+  final result = _hostIsBlocked(host);
+  _dnsBlockCache.put(host, result);
+  return result;
+}
+
+bool _hostIsBlocked(String host) {
+  if (_blockedDomains.contains(host)) return true;
+  // Walk up: sub.tracker.net → tracker.net (but NOT mytracker.net).
+  // indexOf-based slicing avoids per-step list/string allocations.
+  int dot = host.indexOf('.');
+  while (dot >= 0 && dot < host.length - 1) {
+    final parent = host.substring(dot + 1);
+    if (!parent.contains('.')) break;  // stop at eTLD label
+    if (_blockedDomains.contains(parent)) return true;
+    dot = host.indexOf('.', dot + 1);
   }
   return false;
 }
 ```
+
+`_fastHost` handles `scheme://[user[:pass]@]host[:port][/...]` and IPv6
+literals (`[2001:db8::1]:443`), case-folds the host (matching `Uri.host`
+semantics per RFC 3986), and returns `null` for inputs without `://` so
+that `data:`, `about:`, `javascript:`, and relative URLs short-circuit
+to "not blocked", matching the previous `Uri.tryParse` behavior.
+
+### Caches
+
+Two parallel host-decision caches with distinct lifecycles:
+
+**`_dnsBlockCache`** (DNS-only, in-memory, hot path)
+
+Read by `isBlocked()`. Populated on first miss. Backed by a ring buffer
+rather than `LinkedHashMap` because `Map.keys.first` allocates an
+iterator on every FIFO eviction (~830 ns/call when the working set
+exceeds the cap); `_HostFifoCache` evicts via `_ring[head++ % cap]`,
+zero allocation per evict. Cleared whenever `_blockedDomains` changes
+(via `_notifyBlocklistChanged`). Not persisted: cold-cache cost after
+restart is one cheap walk per first-seen host, and skipping persistence
+keeps `isBlocked()` purely synchronous.
+
+**`_domainCache`** (merged DNS ∪ ABP, persisted, iOS JS hydration)
+
+Populated by `recordRequest` from `webview.dart` after the caller has
+combined DNS and ABP signals. Kept as a `Map<String, bool>` because
+it's exposed via `getDomainCache()` and shipped to the iOS JS
+interceptor's `allowedCache`/`blockedCache` on webview creation.
+Persisted to SharedPreferences under `dns_domain_cache`,
+write-debounced 2 seconds. Cleared when **either** the DNS blocklist
+**or** the ABP rule set changes, since merged decisions go stale on
+both inputs.
+
+Both caches share the same cap (`_maxDomainCacheEntries = 5000`) and
+defensive cap on load (`_loadDomainCache` stops loading after the cap
+is reached, in case a previous version or tampered prefs blob wrote
+past it). `isBlocked()` does not read or write `_domainCache`: the
+merged cache holds DNS∪ABP decisions, and using it in a DNS-specific
+check would conflate ABP-only blocks with DNS blocks and break per-site
+`dnsBlockEnabled` gating.
 
 ### Mirror Fallback
 

@@ -92,5 +92,93 @@ void main() {
       expect(dnsBlockLevelNames[4], equals('Pro++'));
       expect(dnsBlockLevelNames[5], equals('Ultimate'));
     });
+
+    test('isBlocked() result is invalidated when blocklist reloads', () {
+      // Cache holds true for tracker.net via the first lookup.
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://tracker.net/'), isTrue);
+
+      // Reload with a different list. _notifyBlocklistChanged must clear
+      // the DNS host cache so a stale `true` doesn't survive.
+      service.loadDomainsFromString('other.net');
+      expect(service.isBlocked('https://tracker.net/'), isFalse,
+          reason: 'cache must be cleared when _blockedDomains changes');
+      expect(service.isBlocked('https://other.net/'), isTrue);
+    });
+
+    test('isBlocked() result is invalidated when blocklist clears', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://tracker.net/'), isTrue);
+
+      // Clear: should not still report blocked.
+      service.loadDomainsFromString('');
+      expect(service.isBlocked('https://tracker.net/'), isFalse);
+    });
+
+    test('isBlocked() cache is bounded — many distinct hosts do not blow memory', () {
+      service.loadDomainsFromString('tracker.net');
+      // Hammer the cache with 20K distinct *unblocked* hosts. The cap is
+      // 5000, so the cache must FIFO-evict and never grow past it. We can't
+      // read the private cache, but we can assert the function still
+      // answers correctly under the load and that it stays fast (a runaway
+      // unbounded cache would either OOM or slow to a crawl).
+      final sw = Stopwatch()..start();
+      for (int i = 0; i < 20000; i++) {
+        service.isBlocked('https://host$i.example.test/');
+      }
+      sw.stop();
+      // Generous bound: 20K bounded-cache lookups should finish well under
+      // a second on any machine that runs this test suite.
+      expect(sw.elapsedMilliseconds, lessThan(2000),
+          reason: 'cache eviction path must be O(1)');
+      // Sanity: still answers correctly after the churn.
+      expect(service.isBlocked('https://tracker.net/'), isTrue);
+      expect(service.isBlocked('https://host999999.example.test/'), isFalse);
+    });
+
+    test('host extraction is case-insensitive', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://Tracker.NET/path'), isTrue);
+      expect(service.isBlocked('https://SUB.TRACKER.NET/'), isTrue);
+      expect(service.isBlocked('HTTPS://tracker.net/'), isTrue);
+    });
+
+    test('host extraction strips port', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://tracker.net:8443/'), isTrue);
+      expect(service.isBlocked('https://tracker.net:443'), isTrue);
+    });
+
+    test('host extraction strips userinfo', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://user:pass@tracker.net/'), isTrue);
+      expect(service.isBlocked('https://user@tracker.net:8080/'), isTrue);
+    });
+
+    test('host extraction handles IPv6 literals', () {
+      service.loadDomainsFromString('[2001:db8::1]');
+      expect(service.isBlocked('https://[2001:db8::1]/'), isTrue);
+      expect(service.isBlocked('https://[2001:db8::1]:443/'), isTrue);
+      // Different IPv6 host must not match.
+      expect(service.isBlocked('https://[2001:db8::2]/'), isFalse);
+    });
+
+    test('URLs with no scheme://host are not blocked', () {
+      service.loadDomainsFromString('tracker.net');
+      // about:, data:, javascript:, plain text — none have ://host
+      expect(service.isBlocked('about:blank'), isFalse);
+      expect(service.isBlocked('data:text/html,<p>hi</p>'), isFalse);
+      expect(service.isBlocked('javascript:void(0)'), isFalse);
+      expect(service.isBlocked('tracker.net/path'), isFalse);
+      // file:// has scheme but empty host.
+      expect(service.isBlocked('file:///etc/hosts'), isFalse);
+    });
+
+    test('URLs with no path still extract host correctly', () {
+      service.loadDomainsFromString('tracker.net');
+      expect(service.isBlocked('https://tracker.net'), isTrue);
+      expect(service.isBlocked('https://tracker.net?q=1'), isTrue);
+      expect(service.isBlocked('https://tracker.net#frag'), isTrue);
+    });
   });
 }
