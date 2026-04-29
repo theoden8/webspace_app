@@ -78,7 +78,7 @@ fvm flutter pub get
 | iOS | ✅ Supported | Target |
 | Android | ✅ Supported | Target |
 | macOS | ✅ Supported | Development |
-| Linux | ⏳ Pending flutter_inappwebview support | Development |
+| Linux | 🧪 Development only — WPE WebKit via patched `flutter_inappwebview_linux`. Per-site profiles + per-site proxy via `WebKitNetworkSession`. Requires WPE WebKit ≥ 2.50 (Debian Sid / Trixie+). | Development |
 
 ## Tech Stack
 

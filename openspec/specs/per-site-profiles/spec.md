@@ -1,10 +1,15 @@
 # Per-Site Profiles
 
 ## Status
-**Implemented on Android (System WebView 110+), iOS / macOS (iOS 17+ /
-macOS 14+), and Linux (libwpewebkit-2.0 ≥ 2.40, i.e. Debian Sid /
-Trixie+ and Fedora ≥ 39). Older OS / WebView versions fall through to
-[`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md).**
+**Production: Android (System WebView 110+), iOS / macOS (iOS 17+ /
+macOS 14+). Development-only: Linux (libwpewebkit-2.0 ≥ 2.50, i.e.
+Debian Sid / Fedora ≥ 39 — Trixie's 2.48 is too old for the plugin's
+`webkit_web_view_get_theme_color` API). Older OS / WebView versions
+fall through to
+[`CookieIsolationEngine`](../per-site-cookie-isolation/spec.md). The
+Linux build is wired through but not advertised as a release artifact;
+see [platform-support PLATFORM-003](../platform-support/spec.md#requirement-platform-003---linux-support-status-development-only)
+for the dev-only contract.**
 
 ## Platform Support Matrix
 
@@ -23,7 +28,7 @@ existing capture-nuke-restore code path runs unchanged.
 | Android  | Lollipop (API 21) **AND** System WebView 110+ | [`androidx.webkit.Profile`](https://developer.android.com/reference/androidx/webkit/Profile) via [`WebViewCompat.setProfile`](https://developer.android.com/reference/androidx/webkit/WebViewCompat#setProfile) | Anything that can update System WebView via Play Store; in practice Android 7.0+ (Nougat) keeps WebView fresh on most devices | Feb 2023 (WebView 110) |
 | iOS      | 17.0 | [`WKWebsiteDataStore(forIdentifier:)`](https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)) | iPhone XS / XR (2018) and newer; iPad Pro 11" 1st-gen / 12.9" 3rd-gen / iPad Air 3 / iPad mini 5 / iPad 7 and newer — anything with the A12 Bionic or newer | Sept 2023 |
 | macOS    | 14.0 Sonoma | Same as iOS (`WKWebsiteDataStore(forIdentifier:)`) | iMac 2019+, iMac Pro 2017+, MacBook Air 2018+, MacBook Pro 2018+, Mac mini 2018+, Mac Pro 2019+, Mac Studio 2022+ | Sept 2023 |
-| Linux    | libwpewebkit-2.0 ≥ 2.40 | [`webkit_network_session_new(dataDir, cacheDir)`](https://webkitgtk.org/reference/wpe-webkit-2.0/stable/method.NetworkSession.new.html) bound at WebView construction via the `network-session` GObject property | Debian Trixie / Sid, Fedora ≥ 39, Arch (rolling); CI builds and ships in `debian:sid-slim` runner image because Ubuntu Noble dropped WPE WebKit and Jammy ships 2.36 (too old) | Mar 2023 |
+| Linux **(dev only)** | libwpewebkit-2.0 ≥ 2.50 | [`webkit_network_session_new(dataDir, cacheDir)`](https://webkitgtk.org/reference/wpe-webkit-2.0/stable/method.NetworkSession.new.html) bound at WebView construction via the `network-session` GObject property; sessions are cached process-wide by profile name and pinned with `g_object_ref` so the WPENetworkProcess child doesn't race the session destructor on rapid lazy-load create/destroy | Debian Sid (libwpewebkit-2.0 2.52+), Fedora ≥ 39, Arch (rolling). Trixie's 2.48 lacks `webkit_web_view_get_theme_color`; Ubuntu Noble dropped WPE WebKit; Jammy ships 2.36. CI builds in `debian:sid-slim` for that reason. | Mar 2023 (API), Aug 2025 (2.50 floor) |
 
 The runtime check that decides Profile vs. legacy engine is in
 [`ProfileNative.isSupported`](../../../lib/services/profile_native.dart):

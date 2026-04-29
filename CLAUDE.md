@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WebSpace is a Flutter app for managing multiple websites in a single interface with per-site cookie isolation. It uses flutter_inappwebview for webview functionality. Platforms: iOS, Android, macOS (Linux pending flutter_inappwebview support).
+WebSpace is a Flutter app for managing multiple websites in a single interface with per-site cookie isolation. It uses flutter_inappwebview for webview functionality. Platforms: iOS, Android, macOS (production); **Linux is in development** — wired up via `flutter_inappwebview_linux` 0.1.0-beta.1 + a vendored fork patch that adds per-site `WebKitNetworkSession` profiles + per-site proxy. CI builds Linux in a `debian:sid-slim` container because Ubuntu's archives don't ship a recent enough WPE WebKit. Treat the Linux build as pre-release: missing surface includes the per-site cookie inspector dev-tools (uses the default jar, not the per-profile one) and the screenshot pipeline.
 
 ## Build & Development Commands
 
@@ -130,7 +130,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage (legacy / fallback engine) |
 | per-site-profiles | Native per-site profiles via `androidx.webkit.Profile` (Android, System WebView 110+); supersedes per-site-cookie-isolation when supported |
 | per-site-location | Per-site geolocation spoofing, IANA timezone override, WebRTC leak lockdown |
-| platform-support | Platform abstraction layer for iOS, Android, macOS |
+| platform-support | Platform abstraction layer for iOS, Android, macOS (production) and Linux (development) |
 | proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
 | screenshots | Automated screenshot generation via integration tests |
 | settings-backup | JSON import/export of all settings |
