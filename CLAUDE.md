@@ -152,6 +152,10 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
 
+## Fastlane changelogs
+
+Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` (and the sibling `short_description.txt` / `full_description.txt`) are subject to Play Store / F-Droid length caps: **changelog and full description max 500 bytes, short description max 80 bytes (no trailing dot)**. Always run [scripts/validate_fastlane_metadata.sh](scripts/validate_fastlane_metadata.sh) before committing any change to those files — an oversize changelog will silently break F-Droid metadata sync. The script exits non-zero on any violation.
+
 ## Adding a new global app setting
 
 Any user-facing global toggle/preference persisted to `SharedPreferences` MUST be routed through the export/import registry, otherwise it silently drops out of user backups.
