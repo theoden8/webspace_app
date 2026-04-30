@@ -53,11 +53,18 @@ The imported HTML file SHALL be added as a new site.
 **When** the site is created
 **Then** the site name is `my-page` (filename without extension)
 
-#### Scenario: Site URL uses file:// scheme
+#### Scenario: Site URL uses file:/// scheme (three slashes)
 
 **Given** the user selects a file named `report.html`
 **When** the site is created
-**Then** the site's initUrl is `file://report.html`
+**Then** the site's initUrl is `file:///report.html`
+
+The three-slash form (empty authority) is required: the two-slash form
+`file://report.html` parses with `report.html` as the URL host and an
+empty path, which chromium rejects with `ERR_INVALID_URL` on any direct
+load (incognito mode, post-upgrade cache wipe, manual reload). Sites
+persisted before this fix are migrated on load via
+`migrateLegacyFileImportUrl` in [lib/utils/url_utils.dart](../../../lib/utils/url_utils.dart).
 
 #### Scenario: HTML content stored via HtmlCacheService
 
@@ -71,7 +78,10 @@ The imported HTML file SHALL be added as a new site.
 **Given** the user has incognito mode enabled
 **When** an HTML file is imported
 **Then** the HTML content is NOT persisted to HtmlCacheService
-**And** the webview still loads the content (via file:// URL or initialData)
+**And** the webview renders the "imported file unavailable" fallback
+(via `buildFileImportFallbackHtml`) instead of attempting to load the
+synthetic `file:///<filename>` URL — there's no real file on disk for
+the import, so a direct load would surface as `ERR_FILE_NOT_FOUND`.
 
 #### Scenario: No page title fetch
 
@@ -102,7 +112,8 @@ The imported HTML content SHALL render correctly in the webview.
 ## Data Model
 
 No new data models. Imported HTML sites use the existing `WebViewModel` with:
-- `initUrl`: `file://<filename>` (e.g., `file://page.html`)
+- `initUrl`: `file:///<filename>` (e.g., `file:///page.html`) — three
+  slashes; see IMPORT-003 above for why
 - `name`: Filename without extension
 - HTML content stored in `HtmlCacheService` keyed by `siteId`
 
@@ -113,6 +124,9 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 ### Modified
 - `lib/screens/add_site.dart` - Added `_importHtmlFile()` method and "Import HTML file" button
 - `lib/main.dart` - Updated `_addSite()` to handle `htmlContent` in result, save to `HtmlCacheService`
+- `lib/utils/url_utils.dart` - Added `migrateLegacyFileImportUrl` for legacy two-slash imports
+- `lib/web_view_model.dart` - Applies migration in `WebViewModel.fromJson` for `initUrl`/`currentUrl`
+- `lib/services/webview.dart` - Renders `buildFileImportFallbackHtml` when cache is missing for a file import
 
 ---
 

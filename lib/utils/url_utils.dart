@@ -25,3 +25,19 @@ final RegExp _authorityLessSchemeRegex =
 String ensureUrlScheme(String url) {
   return hasUrlScheme(url) ? url : 'https://$url';
 }
+
+/// Migrates legacy file-import URLs from `file://filename.html` to
+/// `file:///filename.html`. The two-slash form parses with `filename.html`
+/// as the URL host and an empty path, which chromium rejects with
+/// ERR_INVALID_URL on any direct load (incognito, post-upgrade cache wipe).
+/// The three-slash form has an empty authority and a real path, so it
+/// round-trips through Uri parsing without surprises.
+///
+/// Idempotent: a URL that already starts with `file:///` (or any non-file
+/// scheme) is returned unchanged.
+String migrateLegacyFileImportUrl(String url) {
+  if (!url.startsWith('file://') || url.startsWith('file:///')) {
+    return url;
+  }
+  return 'file:///${url.substring('file://'.length)}';
+}

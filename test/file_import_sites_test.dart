@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/webview.dart';
 
 /// Tests for the file-import-sites feature.
 ///
@@ -46,13 +47,13 @@ void main() {
     test('file import result contains required keys', () {
       // Simulates the Map returned by _importHtmlFile
       final result = <String, dynamic>{
-        'url': 'file://test.html',
+        'url': 'file:///test.html',
         'name': 'test',
         'incognito': false,
         'htmlContent': '<html><body>Hello</body></html>',
       };
 
-      expect(result['url'], startsWith('file://'));
+      expect(result['url'], startsWith('file:///'));
       expect(result['name'], isNotEmpty);
       expect(result['htmlContent'], isA<String>());
       expect((result['htmlContent'] as String).isNotEmpty, isTrue);
@@ -60,7 +61,7 @@ void main() {
 
     test('file import result with incognito mode', () {
       final result = <String, dynamic>{
-        'url': 'file://test.html',
+        'url': 'file:///test.html',
         'name': 'test',
         'incognito': true,
         'htmlContent': '<html><body>Hello</body></html>',
@@ -80,25 +81,67 @@ void main() {
       expect(result['htmlContent'], isNull);
     });
 
-    test('url for imported file uses file:// scheme', () {
+    test('url for imported file uses file:/// scheme (three slashes)', () {
       final fileName = 'report.html';
-      final url = 'file://$fileName';
+      final url = 'file:///$fileName';
 
-      expect(url, 'file://report.html');
-      expect(Uri.tryParse(url)?.scheme, 'file');
+      // Three-slash form: empty authority, real path. The two-slash
+      // form `file://report.html` parses with `report.html` as the
+      // host and chromium rejects it with ERR_INVALID_URL whenever the
+      // cached HTML is unavailable (incognito, post-upgrade wipe).
+      expect(url, 'file:///report.html');
+      final parsed = Uri.tryParse(url);
+      expect(parsed?.scheme, 'file');
+      expect(parsed?.host, isEmpty);
+      expect(parsed?.path, '/report.html');
+    });
+  });
+
+  group('Fallback HTML when cache is missing', () {
+    test('renders the filename without the file:// scheme prefix', () {
+      final html = buildFileImportFallbackHtml('file:///notifs.html');
+
+      expect(html, contains('<code>notifs.html</code>'));
+      expect(html, contains('Imported file unavailable'));
+      // Don't leak the synthetic URL scheme into user-visible copy.
+      expect(html, isNot(contains('file:///notifs.html')));
+    });
+
+    test('handles legacy two-slash URLs that survived migration', () {
+      // Defensive: even if a model snuck through without migrating, the
+      // fallback shouldn't render `//notifs.html` to the user.
+      final html = buildFileImportFallbackHtml('file://notifs.html');
+
+      expect(html, contains('<code>notifs.html</code>'));
+    });
+
+    test('handles chromium-normalised URLs with trailing slash', () {
+      final html = buildFileImportFallbackHtml('file://notifs.html/');
+
+      expect(html, contains('<code>notifs.html</code>'));
+    });
+
+    test('escapes HTML metacharacters in the filename', () {
+      // FilePicker doesn't normally allow these, but be defensive — a
+      // crafted filename from a sandbox bypass shouldn't inject markup
+      // into the fallback page.
+      final html = buildFileImportFallbackHtml('file:///<script>.html');
+
+      expect(html, isNot(contains('<script>.html')));
+      expect(html, contains('&lt;script&gt;.html'));
     });
   });
 
   group('URL type detection', () {
     test('file:// URLs are distinguishable from http(s)', () {
-      expect('file://page.html'.startsWith('file://'), isTrue);
+      expect('file:///page.html'.startsWith('file://'), isTrue);
       expect('https://example.com'.startsWith('file://'), isFalse);
       expect('http://example.com'.startsWith('file://'), isFalse);
     });
 
     test('htmlContent presence indicates file import', () {
       final fileResult = <String, dynamic>{
-        'url': 'file://page.html',
+        'url': 'file:///page.html',
         'name': 'page',
         'incognito': false,
         'htmlContent': '<html></html>',

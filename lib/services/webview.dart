@@ -1041,6 +1041,60 @@ String _languageOverrideScript(String language) {
 ''';
 }
 
+/// HTML rendered when a file-import site has no cached HTML available
+/// (incognito session, post-upgrade cache wipe, …). Loaded via
+/// `InAppWebViewInitialData` so chromium never tries to fetch the synthetic
+/// `file:///<filename>` URL — that would surface as `ERR_INVALID_URL` /
+/// `ERR_FILE_NOT_FOUND` since no real file exists on disk for the import.
+String buildFileImportFallbackHtml(String initialUrl) {
+  // initialUrl is `file:///filename.html` for new imports and
+  // `file://filename.html` (or `file://filename.html/`) for legacy data
+  // that hasn't been migrated yet. Strip the scheme + leading slashes
+  // for display.
+  final stripped = initialUrl.replaceFirst(RegExp(r'^file:/+'), '');
+  final fileName = stripped.endsWith('/')
+      ? stripped.substring(0, stripped.length - 1)
+      : stripped;
+  final escapedName = htmlEscape.convert(fileName);
+  return '''
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imported file unavailable</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 32em;
+    margin: 3em auto;
+    padding: 0 1em;
+    line-height: 1.5;
+  }
+  h1 { font-size: 1.4em; }
+  code {
+    background: rgba(127,127,127,0.18);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+  }
+  p { color: rgba(0,0,0,0.78); }
+  @media (prefers-color-scheme: dark) {
+    p { color: rgba(255,255,255,0.78); }
+  }
+</style>
+</head>
+<body>
+<h1>Imported file unavailable</h1>
+<p>The contents of <code>$escapedName</code> were imported as a local file
+and aren't cached on this device any more (incognito sessions don't
+persist, and the cache is cleared on app upgrade).</p>
+<p>Re-import the file from the "Add new site" screen to view it again.</p>
+</body>
+</html>
+''';
+}
+
 
 /// Factory for creating webviews
 class WebViewFactory {
@@ -1200,6 +1254,13 @@ class WebViewFactory {
     // Production users get the speed-up of cached first paint without
     // the dev-only crash.
     final isFileImport = config.initialUrl.startsWith('file://');
+    // When the cache is missing for a file import (incognito mode,
+    // post-upgrade cache wipe, …) we feed initialData with a synthetic
+    // "content unavailable" page rather than letting chromium attempt
+    // to load the synthetic file:// URL — there's no actual file on
+    // disk, so the load would surface as ERR_INVALID_URL or
+    // ERR_FILE_NOT_FOUND in the user's face.
+    final renderInitialData = config.initialHtml != null || isFileImport;
     final usesCachedHtml = config.initialHtml != null;
     // One-shot: when the cached HTML's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
@@ -1731,12 +1792,12 @@ class WebViewFactory {
 
     return inapp.InAppWebView(
       key: config.key,
-      initialUrlRequest: usesCachedHtml ? null : inapp.URLRequest(
+      initialUrlRequest: renderInitialData ? null : inapp.URLRequest(
         url: inapp.WebUri(config.initialUrl),
         headers: headers.isNotEmpty ? headers : null,
       ),
-      initialData: usesCachedHtml ? inapp.InAppWebViewInitialData(
-        data: config.initialHtml!,
+      initialData: renderInitialData ? inapp.InAppWebViewInitialData(
+        data: config.initialHtml ?? buildFileImportFallbackHtml(config.initialUrl),
         mimeType: 'text/html',
         encoding: 'utf-8',
         baseUrl: inapp.WebUri(config.initialUrl),
