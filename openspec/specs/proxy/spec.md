@@ -3,25 +3,29 @@
 ## Purpose
 
 The proxy feature allows users to configure HTTP, HTTPS, and SOCKS5 proxies
-for their web views on supported platforms. Two delivery paths coexist:
+for their web views on supported platforms. Three delivery paths coexist:
 
-- **Android** — global override via `inapp.ProxyController` (a
-  process-wide WebView singleton).
+- **Android** — process-wide override via `inapp.ProxyController` (a
+  WebView singleton). Per-site values live in the data model;
+  activating a site disposes any other loaded site whose effective
+  proxy differs before the global override flips, so per-site routing
+  is honored at the cost of cold-starting mismatched sites on switch.
 - **Linux** — global override via `inapp.ProxyController`. The fork's
   `flutter_inappwebview_linux` ProxyManager fans the override out
   across the default `WebKitNetworkSession` AND every cached
   container session (one per `siteId`), so a contained site honors
-  the global proxy too. Behavior still matches Android in the
-  per-site sense (last-write-wins — there is no per-site proxy on
-  Linux), but contained sites no longer silently bypass it.
-- **iOS 17+ / macOS 14+** — true per-site override via
+  the global proxy too. Per-site is still last-write-wins (no per-site
+  proxy primitive on Linux), but contained sites no longer silently
+  bypass it.
+- **iOS 17+ / macOS 14+** — true concurrent per-site override via
   `WKWebsiteDataStore.proxyConfigurations`, set on the per-site data store
   created by the WebSpace fork's `preWKWebViewConfiguration` hook
   (resolved via `dependency_overrides` in
   [`pubspec.yaml`](../../../pubspec.yaml)).
 
-This asymmetry is observable to the user; see
-[PROXY-008](#requirement-proxy-008---android-iOS-isolation-asymmetry-under-profile-mode).
+The Android serialisation vs. iOS/macOS concurrency difference is
+observable to the user; see
+[PROXY-008](#requirement-proxy-008---android--ios-concurrency-asymmetry).
 
 The integrity contract for which traffic actually flows through the
 configured proxy — per-site vs. app-global, fail-closed-on-SOCKS5 from
@@ -32,7 +36,8 @@ that adds a new outbound seam MUST be reflected there.
 ## Status
 
 - **Status**: Completed
-- **Platforms**: Android (global override), iOS 17+ / macOS 14+ (true per-site),
+- **Platforms**: Android (per-site via serialised global override),
+  iOS 17+ / macOS 14+ (concurrent per-site),
   Linux (global override via WebKitNetworkSession);
   Windows (system default — UI hidden).
 
@@ -80,9 +85,10 @@ concurrently under [container mode](../per-site-containers/spec.md))
 **Given** Site A and Site B exist on Android
 **When** the user configures Site A with SOCKS5 proxy "localhost:9050"
 **And** configures Site B with HTTP proxy "proxy.company.com:8080"
-**Then** the data model stores both per-site values
-**And** the implementation propagates the most recently saved value to
-every loaded site (see PROXY-008 for the underlying API constraint)
+**Then** the data model stores both per-site values independently
+**And** activating a site disposes any other loaded site whose effective
+proxy differs before the global override flips (see PROXY-008 for the
+underlying API constraint)
 
 ---
 
@@ -202,13 +208,16 @@ CONNECT and SOCKS5 proxies).
 
 ---
 
-### Requirement: PROXY-008 - Android / iOS Isolation Asymmetry under Profile Mode
+### Requirement: PROXY-008 - Android / iOS Concurrency Asymmetry
 
-The system SHALL behave differently on Android and iOS when multiple
-sites share a base domain and are loaded concurrently under
-[per-site container mode](../per-site-containers/spec.md).
+The system SHALL preserve per-site proxy semantics on every supported
+platform. The runtime mechanism differs: iOS 17+ / macOS 14+ MUST run
+distinct-proxy sites concurrently; Android MUST serialise them by
+disposing any loaded site whose effective proxy differs before the
+process-wide override flips, so per-site routing is honored at the cost
+of cold-starting mismatched sites on activation.
 
-#### Scenario: iOS / macOS — true per-site proxy
+#### Scenario: iOS / macOS — concurrent per-site proxy
 
 **Given** container mode is active on iOS 17+ / macOS 14+
 **And** Site A (`accountA.example.com`) and Site B (`accountB.example.com`)
@@ -218,36 +227,33 @@ are both loaded
 **Because** the proxy is attached to the per-site `WKWebsiteDataStore`,
 which is partitioned per `siteId`
 
-#### Scenario: Android — global last-write-wins
-
-**Given** container mode is active on Android (System WebView 110+)
-**And** Site A and Site B share a base domain and are both loaded
-**When** Site A is configured with proxy P1 and Site B with proxy P2
-**Then** the underlying `inapp.ProxyController.setProxyOverride` applies
-the most recently set proxy globally to every WebView in the process
-**And** the app's UI sync (`onProxySettingsChanged` in
-[lib/screens/settings.dart](../../../lib/screens/settings.dart)) copies
-the same proxy into every `WebViewModel.proxySettings` field on save —
-so the data model stays consistent with the runtime behavior, but the
-"per-site" promise of the UI is effectively reduced to "global".
-
 #### Scenario: Android — proxy-mismatch unload on activation
 
 **Given** Site A is loaded on Android with HTTP proxy P1
 **And** Site B is configured with SOCKS5 proxy P2
 **When** the user activates Site B
-**Then** Site A is unloaded *before* `ProxyController.setProxyOverride`
-applies P2 globally
-**Because** if A stayed loaded, its next outbound request (XHR, image
-fetch, ServiceWorker poll, …) would silently route through P2 — exactly
-the leak the user's per-site proxy choice was meant to prevent
+**Then** every loaded site whose effective proxy differs from Site B
+(including Site A) is disposed *before*
+`ProxyController.setProxyOverride` applies P2 globally
+**Because** if any of them stayed loaded, its next outbound request
+(XHR, image fetch, ServiceWorker poll, …) would silently route through
+P2 — exactly the leak the user's per-site proxy choice was meant to
+prevent
+**And** the data model preserves Site A's P1 setting; activating Site A
+again cold-starts it and flips the global override back to P1
 
 The mismatch detection lives in
 [`SiteUnloadEngine.indicesToUnloadForProxyMismatch`](../../../lib/services/site_unload_engine.dart);
 "different proxy" is computed via [`resolveEffectiveProxy`] so two sites
-both set to `DEFAULT` are equivalent (they share the global proxy).
-This is gated on `Platform.isAndroid` — iOS / macOS (true per-site
-proxy) and platforms without proxy support skip it.
+both set to `DEFAULT` are equivalent (they share the global proxy), as
+are two sites set to the same explicit proxy. This is gated on
+`Platform.isAndroid` — iOS / macOS skip it (true concurrent per-site
+proxy) and platforms without proxy support have nothing to enforce.
+
+The cost on Android is that switching between sites with mismatched
+proxies forces a cold-start of whichever side gets unloaded; on iOS /
+macOS the same two sites can be loaded concurrently. The data model is
+identical across platforms — only the runtime concurrency differs.
 
 #### Scenario: Mixing platforms via settings backup
 
@@ -255,8 +261,9 @@ proxy) and platforms without proxy support skip it.
 per-site proxies
 **When** the backup is imported on Android
 **Then** both per-site values are preserved in the data model
-**And** whichever site is opened most recently (or saved last) drives
-the global `ProxyController` state
+**And** whichever site is currently active drives the global
+`ProxyController` state; switching between them cold-starts the other
+under the proxy-mismatch unload rule above
 
 ---
 
@@ -343,7 +350,7 @@ lib/web_view_model.dart
 └── updateProxySettings()                              (Android: ProxyController; iOS/macOS: dispose+rebuild)
 
 lib/screens/settings.dart
-└── Proxy configuration UI; cross-site sync gated to Android only
+└── Proxy configuration UI (per-site; no cross-site sync)
 
 flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 ├── flutter_inappwebview_ios
@@ -363,7 +370,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
-| Android  | Full (global override) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; per-site config in data model is sync'd globally on save (PROXY-008) |
+| Android  | Full (per-site, serialised) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; data model is genuinely per-site, but mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
 | iOS      | Full (per-site, iOS 17+) | Shown unconditionally | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; iOS <17 silently routes through system default |
 | macOS    | Full (per-site, macOS 14+) | Shown unconditionally | Same pattern as iOS; macOS <14 silently routes through system default |
 | Linux    | Full (global override, fan-out) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager applies `webkit_network_session_set_proxy_settings` to the default session AND every cached container session, so contained sites honor the global proxy too; per-site is still last-write-wins (no per-site proxy primitive on Linux) |
@@ -384,13 +391,14 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 ### Modified
 - `lib/services/webview.dart` - `inapp.InAppWebViewSettings.proxySettings`, ProxyManager iOS no-op, PlatformInfo iOS gate
 - `lib/web_view_model.dart` - per-site proxy passed into `WebViewConfig`; iOS rebuild on update
-- `lib/screens/settings.dart` - cross-site proxy sync gated to Android only
+- `lib/screens/settings.dart` - per-site proxy UI (no cross-site sync)
+- `lib/services/site_unload_engine.dart` - `indicesToUnloadForProxyMismatch` enforces single-proxy-at-a-time on Android
 
 ---
 
 ## Manual Test Procedure
 
-### iOS / macOS true per-site proxy
+### iOS / macOS concurrent per-site proxy
 
 1. Add two sites that share a base domain (e.g. two `github.com` accounts).
 2. Configure Site A with HTTP proxy `127.0.0.1:8080` and Site B with
@@ -401,14 +409,19 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
    to be loaded simultaneously): requests must show up in `dante` only.
 5. Both proxies should remain active for their respective sites.
 
-### Android global last-write-wins
+### Android serialised per-site proxy
 
 1. Same setup as above on Android.
-2. Save Site A's config, then Site B's: every WebView (including Site A)
-   now routes through Site B's proxy.
-3. The settings UI's cross-site sync should also have copied Site B's
-   proxy into Site A's `proxySettings` — the data model and the runtime
-   behavior should match.
+2. Save Site A's config: per-site value is stored in Site A's
+   `proxySettings`. Save Site B's config: per-site value is stored in
+   Site B's `proxySettings`. Site A's stored value is unchanged.
+3. Open Site A: requests show up in `mitmproxy`.
+4. Switch to Site B: Site A is disposed by `indicesToUnloadForProxyMismatch`
+   *before* the global override flips to Site B's proxy; requests show
+   up in `dante` only. Site A's `proxySettings` still contains its
+   original value.
+5. Switch back to Site A: Site B is disposed; the global flips to Site
+   A's proxy; Site A cold-starts and routes through `mitmproxy`.
 
 ### Older OS fallback
 

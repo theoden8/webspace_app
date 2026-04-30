@@ -109,7 +109,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | per-site-containers | native containers (preferred when supported) |
 | per-site-location | geo + IANA tz override + WebRTC lockdown |
 | platform-support | platform abstraction layer |
-| proxy | per-site HTTP/HTTPS/SOCKS5 (Android) |
+| proxy | per-site HTTP/HTTPS/SOCKS5; Android serialises mismatched-proxy sites |
 | proxy-password-secure-storage | secrets in flutter_secure_storage; never in JSON |
 | screenshots | integration-test driven |
 | settings-backup | JSON import/export |

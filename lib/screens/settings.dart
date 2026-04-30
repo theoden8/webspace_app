@@ -72,8 +72,6 @@ String generateRandomUserAgent() {
 
 class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
-  /// Callback to sync proxy settings across all WebViewModels
-  final void Function(UserProxySettings)? onProxySettingsChanged;
   /// Callback when settings are saved (to trigger webview reload)
   final VoidCallback? onSettingsSaved;
   /// Callback to clear cookies for this site
@@ -90,7 +88,6 @@ class SettingsScreen extends StatefulWidget {
 
   SettingsScreen({
     required this.webViewModel,
-    this.onProxySettingsChanged,
     this.onSettingsSaved,
     this.onClearCookies,
     this.globalUserScripts = const [],
@@ -326,21 +323,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
         // Apply proxy settings immediately
         await widget.webViewModel.updateProxySettings(_proxySettings);
-
-        // On Android, `inapp.ProxyController` is a process-wide singleton:
-        // changing the proxy on one site silently changes it for every
-        // currently-loaded WebView, so the data model is sync'd to match.
-        // On iOS 17+ / macOS 14+, each site has its own
-        // `WKWebsiteDataStore.proxyConfigurations`, so per-site values
-        // are independent and the sync would clobber them. See PROXY-008.
-        if (Platform.isAndroid) {
-          LogService.instance.log(
-            'Proxy',
-            'Android: mirroring per-site proxy across all loaded models '
-                '(ProxyController is process-wide)',
-          );
-          widget.onProxySettingsChanged?.call(_proxySettings);
-        }
       } else {
         // Force DEFAULT proxy on unsupported platforms
         final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);

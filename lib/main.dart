@@ -2709,24 +2709,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           _saveWebViewModels();
                           getController()?.reload();
                         },
-                        onProxySettingsChanged: (newProxySettings) {
-                          LogService.instance.log(
-                            'Proxy',
-                            'Mirroring per-site proxy across '
-                                '${_webViewModels.length} model(s): '
-                                '${newProxySettings.describeForLogs()}',
-                            level: LogLevel.info,
-                          );
-                          setState(() {
-                            for (var model in _webViewModels) {
-                              // copy() preserves credentials — see its
-                              // docstring for why hand-rolling a fresh
-                              // UserProxySettings here was a footgun.
-                              model.proxySettings = newProxySettings.copy();
-                            }
-                          });
-                          _saveWebViewModels();
-                        },
                         onSettingsSaved: () async {
                           await _saveWebViewModels();
                           if (!mounted) return;
@@ -3126,24 +3108,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _containerCookieManager);
                     _saveWebViewModels();
                     getController()?.reload();
-                  },
-                  onProxySettingsChanged: (newProxySettings) {
-                    LogService.instance.log(
-                      'Proxy',
-                      'Mirroring per-site proxy across '
-                          '${_webViewModels.length} model(s): '
-                          '${newProxySettings.describeForLogs()}',
-                      level: LogLevel.info,
-                    );
-                    setState(() {
-                      for (var model in _webViewModels) {
-                        // copy() preserves credentials — see its
-                        // docstring for why hand-rolling a fresh
-                        // UserProxySettings here was a footgun.
-                        model.proxySettings = newProxySettings.copy();
-                      }
-                    });
-                    _saveWebViewModels();
                   },
                   onSettingsSaved: () async {
                     await _saveWebViewModels();
