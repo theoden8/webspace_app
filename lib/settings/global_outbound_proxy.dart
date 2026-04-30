@@ -17,8 +17,9 @@ import 'package:webspace/settings/proxy.dart';
 /// [ProxyPasswordSecureStorage.globalProxyKey], and is hydrated into the
 /// in-memory [_current] at app startup. The SharedPreferences key is still
 /// registered in [kExportedAppPrefs] so the non-secret fields round-trip
-/// through the settings backup format; the password is added to the export
-/// payload by [SettingsBackupService] (via `toJson(includePassword: true)`).
+/// through the settings backup format; the password is intentionally NOT
+/// included in the export (PWD-005) — same contract as `isSecure=true`
+/// cookies, see `openspec/specs/proxy-password-secure-storage/spec.md`.
 const String kGlobalOutboundProxyKey = 'globalOutboundProxy';
 
 /// Default-encoded value for [kGlobalOutboundProxyKey] (DEFAULT proxy type,

@@ -1630,20 +1630,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Export settings to a file
   Future<void> _exportSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    final globalPrefs = readExportedAppPrefs(prefs);
-    // Inject the global outbound-proxy password (held in secure storage,
-    // not in the prefs string the registry just read) so backups stay
-    // self-contained for cross-device restore. See
-    // `SettingsBackupService.createBackup` for the rationale.
-    globalPrefs[kGlobalOutboundProxyKey] = jsonEncode(
-      GlobalOutboundProxy.current.toJson(includePassword: true),
-    );
+    // The global proxy password is in secure storage, not in the prefs
+    // value `readExportedAppPrefs` reads — and per PWD-005 we do NOT
+    // re-inject it for export (same as secure cookies).
     await SettingsBackupService.exportAndSave(
       context,
       webViewModels: _webViewModels,
       webspaces: _webspaces,
       themeMode: _themeSettings.toStorageIndex(),
-      globalPrefs: globalPrefs,
+      globalPrefs: readExportedAppPrefs(prefs),
       selectedWebspaceId: _selectedWebspaceId,
       currentIndex: _currentIndex,
       suggestedSites: _suggestedSites
@@ -1766,32 +1761,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     // Save all settings. Global UI toggles go through the registry so
     // new entries in kExportedAppPrefs are automatically persisted.
+    // Per PWD-005 the backup file does not carry proxy passwords, so
+    // there's nothing to route into secure storage here — the user will
+    // re-enter passwords on the proxy settings screen, just like they
+    // re-log into sites whose secure cookies were stripped.
     final prefsToWrite = await SharedPreferences.getInstance();
-    // Strip the global proxy password out of `globalPrefs` before writing
-    // to plaintext SharedPreferences; route it through
-    // `GlobalOutboundProxy.update` so the password lands in secure
-    // storage. Without this dance, `writeExportedAppPrefs` would dump the
-    // backup's JSON-with-password verbatim into prefs and undo the
-    // secure-storage guarantee.
-    UserProxySettings? importedGlobalProxy;
-    final rawGlobalProxy = backup.globalPrefs[kGlobalOutboundProxyKey];
-    if (rawGlobalProxy is String && rawGlobalProxy.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(rawGlobalProxy);
-        if (decoded is Map<String, dynamic>) {
-          importedGlobalProxy = UserProxySettings.fromJson(decoded);
-          backup.globalPrefs[kGlobalOutboundProxyKey] =
-              jsonEncode(importedGlobalProxy.toJson());
-        }
-      } catch (_) {
-        // Fall through; leave the value as-is so the registry's default
-        // path handles it.
-      }
-    }
     await writeExportedAppPrefs(prefsToWrite, backup.globalPrefs);
-    if (importedGlobalProxy != null) {
-      await GlobalOutboundProxy.update(importedGlobalProxy);
-    }
+    // Hydrate the in-memory GlobalOutboundProxy from the (password-less)
+    // imported value so subsequent outbound calls pick up the new
+    // address/username without an app restart.
+    final reloadedPrefs = await SharedPreferences.getInstance();
+    await GlobalOutboundProxy.update(readGlobalOutboundProxy(reloadedPrefs));
     await _saveWebViewModels();
     await _saveWebspaces();
     await _saveThemeSettings();
@@ -1837,8 +1817,36 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     if (mounted) {
+      // Surface the strip-from-export contract (PWD-005) when the source
+      // device had a proxy username configured — a strong proxy for "had
+      // a proxy password too" (since the username is meaningless without
+      // one). Detected from the imported backup, not the live state, so
+      // the hint fires even if hydration from secure storage hasn't
+      // finished yet.
+      bool hasProxyUsername(Map<String, dynamic>? proxy) =>
+          proxy != null &&
+          proxy['username'] is String &&
+          (proxy['username'] as String).isNotEmpty;
+      final perSiteProxyAuth = backup.sites
+          .any((s) => hasProxyUsername(s['proxySettings'] as Map<String, dynamic>?));
+      Map<String, dynamic>? globalProxyJson;
+      try {
+        final raw = backup.globalPrefs[kGlobalOutboundProxyKey];
+        if (raw is String && raw.isNotEmpty) {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map<String, dynamic>) globalProxyJson = decoded;
+        }
+      } catch (_) {/* malformed global proxy entry → no hint */}
+      final globalProxyAuth = hasProxyUsername(globalProxyJson);
+      final stripped = perSiteProxyAuth || globalProxyAuth;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Settings imported successfully')),
+        SnackBar(
+          content: Text(stripped
+              ? 'Settings imported. Proxy passwords aren\'t included in '
+                  'backups — re-enter them in site / app settings.'
+              : 'Settings imported successfully'),
+          duration: Duration(seconds: stripped ? 6 : 4),
+        ),
       );
     }
   }

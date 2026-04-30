@@ -10,19 +10,17 @@ class UserProxySettings {
 
   /// Serialize to JSON.
   ///
-  /// [includePassword] defaults to false because the canonical store for the
-  /// password is `flutter_secure_storage` (see [ProxyPasswordSecureStorage]),
-  /// not plaintext SharedPreferences. The persistence path through
-  /// `_saveWebViewModels` / `writeGlobalOutboundProxy` MUST keep the default,
-  /// otherwise the password leaks back into prefs and the secure-storage
-  /// migration is undone. Pass `true` only when the destination is itself a
-  /// user-controlled secret carrier — currently only the export format
-  /// produced by `SettingsBackupService`.
-  Map<String, dynamic> toJson({bool includePassword = false}) => {
+  /// The password is intentionally never written to JSON. The canonical
+  /// store for it is `flutter_secure_storage` via
+  /// [ProxyPasswordSecureStorage]; both at-rest persistence
+  /// (SharedPreferences) and the user-controlled backup export format
+  /// strip it. After a backup restore the user re-enters proxy passwords
+  /// — same UX contract as secure cookies, which are also export-stripped.
+  /// See `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
+  Map<String, dynamic> toJson() => {
         'type': type.index,
         'address': address,
         'username': username,
-        if (includePassword) 'password': password,
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) => UserProxySettings(

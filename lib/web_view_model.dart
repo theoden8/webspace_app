@@ -928,20 +928,17 @@ class WebViewModel {
 
   // Serialization methods
   ///
-  /// [includeSecrets] propagates into [UserProxySettings.toJson]; when false
-  /// (the default) the proxy password is omitted, because the canonical
-  /// store for it is `flutter_secure_storage` (see
-  /// [ProxyPasswordSecureStorage]). Callers persisting to SharedPreferences
-  /// MUST keep the default; pass `true` only when serialising into a
-  /// user-controlled secret carrier such as a settings backup file.
-  Map<String, dynamic> toJson({bool includeSecrets = false}) => {
+  /// The proxy password is never serialised — same contract as
+  /// `isSecure=true` cookies, which are also stripped from exports. See
+  /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
+  Map<String, dynamic> toJson() => {
         'siteId': siteId,
         'initUrl': initUrl,
         'currentUrl': currentUrl,
         'name': name,
         'pageTitle': pageTitle,
         'cookies': cookies.map((cookie) => cookie.toJson()).toList(),
-        'proxySettings': proxySettings.toJson(includePassword: includeSecrets),
+        'proxySettings': proxySettings.toJson(),
         'javascriptEnabled': javascriptEnabled,
         'userAgent': userAgent,
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,

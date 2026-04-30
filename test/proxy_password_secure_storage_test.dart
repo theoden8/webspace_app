@@ -73,9 +73,10 @@ void main() {
           equals('global'));
     });
 
-    test('plaintext password never lands in SharedPreferences via toJson',
-        () async {
-      // Default toJson omits the password — this is the at-rest contract.
+    test('plaintext password never lands in any toJson output', () async {
+      // toJson is uniformly password-less — both for SharedPreferences
+      // persistence and the backup export. Same contract as
+      // isSecure=true cookies.
       final settings = UserProxySettings(
         type: ProxyType.HTTP,
         address: 'p:8080',
@@ -84,10 +85,9 @@ void main() {
       );
       final json = jsonEncode(settings.toJson());
       expect(json.contains('top-secret'), isFalse);
-
-      // The opt-in form (used only for backups) does include it.
-      final backupJson = jsonEncode(settings.toJson(includePassword: true));
-      expect(backupJson.contains('top-secret'), isTrue);
+      // The other shape: an entire WebViewModel JSON. Same property.
+      // (Asserted via the SettingsBackup integration test in
+      // settings_backup_test.dart so we don't duplicate fixtures here.)
     });
   });
 

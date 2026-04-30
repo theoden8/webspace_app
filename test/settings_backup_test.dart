@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
@@ -615,6 +616,55 @@ void main() {
       expect(restoredWs2, hasLength(2)); // All + New
       expect(imported2.themeMode, equals(1));
       expect(imported2.showUrlBar, equals(true));
+    });
+
+    test('proxy passwords never appear in exports (PWD-005)', () {
+      // Per `proxy-password-secure-storage` spec PWD-005, the export
+      // format is uniformly password-less. This is the regression guard
+      // — if a future contributor reintroduces an `includePassword`-style
+      // flag and toggles it on for the backup path, this test fails
+      // loudly. The substring check covers any encoding (`"password":`,
+      // base64, raw, etc.) since the actual password value is unique.
+      const perSitePwd = 'per-site-needle-7f3a';
+      const globalPwd = 'global-needle-c421';
+      final sites = [
+        WebViewModel(
+          initUrl: 'https://a.com',
+          proxySettings: UserProxySettings(
+            type: ProxyType.HTTP,
+            address: 'p:8080',
+            username: 'u1',
+            password: perSitePwd,
+          ),
+        ),
+      ];
+      // Mimic what `_exportSettings` would pass: globalPrefs holds a
+      // JSON-encoded UserProxySettings under kGlobalOutboundProxyKey.
+      // The whole point of PWD-005 is that even if a buggy caller
+      // happened to slip a password into that JSON, the export must not
+      // forward it — but we also assert the canonical case where prefs
+      // are already sanitised and the value is password-less.
+      final globalProxy = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'g:3128',
+        username: 'g1',
+        password: globalPwd,
+      );
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: sites,
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+        // Sanitised globalPrefs (the way _exportSettings actually feeds
+        // it) — globalProxy.toJson() is password-less by contract.
+        globalPrefs: <String, Object?>{
+          kGlobalOutboundProxyKey: jsonEncode(globalProxy.toJson()),
+        },
+      );
+      final exported = SettingsBackupService.exportToJson(backup);
+      expect(exported.contains(perSitePwd), isFalse,
+          reason: 'per-site proxy password leaked into exported JSON');
+      expect(exported.contains(globalPwd), isFalse,
+          reason: 'global proxy password leaked into exported JSON');
     });
 
     test('secure cookies never appear in export, non-secure cookies preserved', () {

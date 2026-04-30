@@ -4,11 +4,12 @@
 
 Per-site and global outbound proxy credentials include a password that is
 sensitive at rest. This spec defines the contract for where the password
-lives, how it round-trips through persistence and the settings backup
-format, and how legacy plaintext entries are migrated. It is the
-proxy-password sibling of [`cookie-secure-storage`](../cookie-secure-storage/spec.md);
-the two are independent storage paths but share the same threat model and
-the same `flutter_secure_storage` backend.
+lives, how it (does not) round-trip through the settings backup format,
+and how legacy plaintext entries are migrated. It is the proxy-password
+sibling of [`cookie-secure-storage`](../cookie-secure-storage/spec.md);
+the two are independent storage paths that share the same threat model,
+the same `flutter_secure_storage` backend, and the same
+"never serialise to a user-controlled JSON file" rule for exports.
 
 ## Status
 
@@ -54,7 +55,7 @@ vault token) is ever introduced, that is a separate spec.
 | Disk forensics on lost/stolen device    | Partial   | Backed by OS keystore; depends on lock posture |
 | Other apps on the device                | Yes       | OS sandboxing already covers this; secure storage adds defense in depth |
 | Memory inspection by attached debugger  | No        | Out of scope (Dart `String` everywhere downstream) |
-| User-controlled backup file the user shared | No    | Backups are secret carriers by design — see [BACKUP](#requirement-pwd-005---backup-format-passes-through-the-password) |
+| User-controlled backup file the user shared | Yes       | Passwords are stripped at export, same as `isSecure=true` cookies (PWD-005) |
 
 ---
 
@@ -178,50 +179,55 @@ contain that key
 
 ---
 
-### Requirement: PWD-005 - Backup Format Passes Through the Password
+### Requirement: PWD-005 - Passwords Are Stripped From Exports
 
-Settings backup files SHALL include proxy passwords. Backup files are
-themselves secret carriers; stripping the password would silently break
-cross-device restore (the user would have to re-enter every proxy
-credential post-import) which is a worse failure mode than the slight
-exposure of an explicit user-controlled export.
+Settings backup files SHALL NOT contain proxy passwords. The export
+format is a user-controlled JSON file that may be emailed, synced to
+cloud storage, or shared; the same "no secret rides along" rule that
+strips `isSecure=true` cookies (see `cookie-secure-storage` COOKIE-006)
+applies uniformly to proxy passwords. After import the user re-enters
+proxy passwords on the affected proxy settings screens.
 
-#### Scenario: Export inlines the password
+#### Scenario: Export omits per-site password
 
-**Given** a site has `proxySettings.password = "p1"` and the global
-proxy has `password = "p2"`
-**When** `SettingsBackupService.createBackup` is called and serialised
-via `exportToJson`
-**Then** the resulting JSON contains `"password": "p1"` for that site
-**And** `globalPrefs[kGlobalOutboundProxyKey]` decodes to a JSON object
-that contains `"password": "p2"`
+**Given** a site has `proxySettings.password = "p1"`
+**When** `SettingsBackupService.createBackup` is called and the result
+is serialised via `exportToJson`
+**Then** the resulting JSON does NOT contain `"p1"` anywhere
+**And** the site blob's `proxySettings` map does NOT contain a
+`password` key
 
-This requires:
-- `WebViewModel.toJson(includeSecrets: true)` for sites
-- `_exportSettings` overwriting `globalPrefs[kGlobalOutboundProxyKey]`
-  with a JSON-with-password from the in-memory `GlobalOutboundProxy.current`
+#### Scenario: Export omits global outbound password
 
-#### Scenario: Import routes passwords back to secure storage
+**Given** `GlobalOutboundProxy.current.password = "p2"`
+**When** the export is built
+**Then** `globalPrefs[kGlobalOutboundProxyKey]` decodes to a JSON object
+that does NOT contain a `password` key
 
-**Given** a backup file that includes per-site and global proxy passwords
-**When** the user imports it
-**Then** the per-site passwords land in secure storage via
-`_saveWebViewModels` (which does not write them to prefs)
-**And** the global password is extracted out of `backup.globalPrefs`
-**And** `backup.globalPrefs[kGlobalOutboundProxyKey]` is sanitised to
-JSON-without-password before `writeExportedAppPrefs`
-**And** `GlobalOutboundProxy.update` is called with the full settings,
-which routes the password into secure storage and JSON-without-password
-into prefs
+#### Scenario: Import does not write a password to secure storage
+
+**Given** the import path runs on a backup that has no proxy passwords
+**When** `_importSettings` finishes
+**Then** any pre-existing proxy passwords for the imported `siteId`s
+were swept by orphan cleanup (PWD-004) and no new ones are written
+
+#### Scenario: User is told to re-enter passwords
+
+**Given** the imported backup contains a per-site or global proxy with a
+non-empty `username` (a strong proxy for "had a password configured on
+the source device")
+**When** the import success snackbar is shown
+**Then** the snackbar mentions that proxy passwords aren't included in
+backups and need to be re-entered
+
+This avoids silently confusing the user when the proxy stops working
+post-restore.
 
 ---
 
 ### Requirement: PWD-006 - Graceful Degradation
 
-When `flutter_secure_storage` is unavailable on the platform (e.g.
-unsigned macOS dev build), the proxy feature SHALL continue to work for
-the current session but SHALL NOT silently fall back to writing the
-password into SharedPreferences.
+The system SHALL continue to function when `flutter_secure_storage` is unavailable, and SHALL NOT silently fall back to writing the password into SharedPreferences.
 
 #### Scenario: Secure storage unavailable on save
 
@@ -268,10 +274,11 @@ is restarted.
 
 | Step          | Per-site path                                | Global path                                                |
 |---------------|----------------------------------------------|------------------------------------------------------------|
-| Export build  | `model.toJson(includeSecrets: true)`         | `globalPrefs[kGlobalOutboundProxyKey] = jsonEncode(GlobalOutboundProxy.current.toJson(includePassword: true))` |
-| Export to disk| Backup file holds plaintext password         | Backup file holds plaintext password                       |
-| Import parse  | `WebViewModel.fromJson` reads `password`     | `UserProxySettings.fromJson` reads `password`              |
-| Import apply  | `_saveWebViewModels` strips password from prefs, writes to secure storage | Sanitise `backup.globalPrefs[kGlobalOutboundProxyKey]`, then `GlobalOutboundProxy.update` |
+| Export build  | `model.toJson()` (always password-less)      | `readExportedAppPrefs(prefs)` (already password-less since prefs are sanitised) |
+| Export to disk| Backup carries `address` / `username` only   | Backup carries `address` / `username` only                 |
+| Import parse  | `WebViewModel.fromJson` — `password` field is null | `readGlobalOutboundProxy` — `password` field is null  |
+| Import apply  | `_saveWebViewModels` writes prefs, no password to migrate | `GlobalOutboundProxy.update` with the password-less settings |
+| Post-import   | UI snackbar tells the user to re-enter passwords if a `username` was present in the backup |
 
 ---
 
@@ -284,15 +291,16 @@ is restarted.
   (extracted from `cookie_secure_storage_test.dart`)
 
 ### Modified
-- `lib/settings/proxy.dart` - `toJson({includePassword = false})`
+- `lib/settings/proxy.dart` - `toJson` always omits the password
 - `lib/settings/global_outbound_proxy.dart` - migrate + hydrate on
   `initialize`; route password to secure storage on `update`
-- `lib/web_view_model.dart` - `toJson({includeSecrets = false})`
-  propagates to `UserProxySettings.toJson`
+- `lib/web_view_model.dart` - `toJson` always omits the password
 - `lib/main.dart` - `_loadWebViewModels` / `_saveWebViewModels` /
-  `_exportSettings` / `_importSettings` / orphan cleanup paths
-- `lib/services/settings_backup.dart` - `createBackup` opts in via
-  `includeSecrets: true`
+  `_exportSettings` / `_importSettings` / orphan cleanup paths;
+  post-import snackbar surfaces the strip contract when a `username` was
+  present in the imported backup
+- `lib/services/settings_backup.dart` - documents the strip-from-export
+  contract; doesn't need to opt in to anything (default is safe)
 - `test/proxy_test.dart`, `test/outbound_http_test.dart`,
   `test/cookie_secure_storage_test.dart` - updated to the new contract
 
@@ -307,10 +315,10 @@ sensitive secret:
    `flutter_secure_storage` with the same options as
    `ProxyPasswordSecureStorage` (`encryptedSharedPreferences` on Android,
    `first_unlock` keychain accessibility on Apple).
-2. **Default to omitting it from `toJson`**: add an `includeSecrets` (or
-   field-specific opt-in) flag with `false` default. The persistence path
-   (`_saveWebViewModels` / `writeGlobalOutboundProxy`) MUST keep the
-   default; only the backup path opts in.
+2. **Never write it to JSON**. The `toJson` for the containing object
+   simply omits the field. There is intentionally no opt-in flag —
+   passwords are stripped uniformly across persistence and the backup
+   format, matching the rule for `isSecure=true` cookies.
 3. **Hydrate on load** at the same point we hydrate proxy passwords —
    `_loadWebViewModels` for per-site, `GlobalOutboundProxy.initialize`
    (or its analogue) for global.
@@ -321,10 +329,15 @@ sensitive secret:
    `_cookieSecureStorage.removeOrphanedCookies` and
    `_proxyPasswordStorage.removeOrphaned` calls in main.dart (three
    sites: startup GC, post-import GC, post-delete GC).
-6. **Add a regression test** asserting the secret never appears as a
-   substring in any `prefs.getKeys()` value after a save. The
+6. **Surface the strip-from-export contract in the import UI** so the
+   user knows to re-enter the secret after restoring from a backup. The
+   per-site / global proxy snackbar in `_importSettings` is the model.
+7. **Add a regression test** asserting the secret never appears as a
+   substring of `exportToJson(backup)` after a save. The
+   "no proxy password substring in exported JSON" test in
+   `settings_backup_test.dart` is the template, and the
    "password is stored in secure storage, not SharedPreferences" test in
-   `outbound_http_test.dart` is the template.
-7. **Update this spec** to add the new credential to the threat model
+   `outbound_http_test.dart` covers the at-rest side.
+8. **Update this spec** to add the new credential to the threat model
    and requirements, or split it into a sibling spec if the threat model
    diverges.

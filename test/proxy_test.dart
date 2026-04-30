@@ -438,18 +438,16 @@ void main() {
         password: 'testpass123',
       );
 
-      // Default toJson omits the password — it's stored separately in
-      // ProxyPasswordSecureStorage so plaintext SharedPreferences never
-      // sees it. Opting in (includePassword: true) is for backup files.
-      final defaultJson = proxy.toJson();
-      expect(defaultJson['username'], 'testuser');
-      expect(defaultJson.containsKey('password'), false);
+      // toJson never includes the password — same contract as
+      // isSecure=true cookies. The username/address still round-trip.
+      final json = proxy.toJson();
+      expect(json['username'], 'testuser');
+      expect(json.containsKey('password'), false);
 
-      final secretJson = proxy.toJson(includePassword: true);
-      expect(secretJson['username'], 'testuser');
-      expect(secretJson['password'], 'testpass123');
-
-      final restored = UserProxySettings.fromJson(secretJson);
+      // Hydrate password back via fromJson on a JSON map that DOES have it
+      // (legacy SharedPreferences blob being migrated, or hand-built).
+      final restored = UserProxySettings.fromJson(
+          {...json, 'password': 'testpass123'});
       expect(restored.username, 'testuser');
       expect(restored.password, 'testpass123');
       expect(restored.hasCredentials, true);
@@ -494,17 +492,12 @@ void main() {
         proxySettings: proxySettings,
       );
 
-      // Default toJson — destined for plaintext SharedPreferences — omits
-      // the password. The siteId acts as the secure-storage lookup key for
-      // hydrating it back at load time.
-      final persistJson = viewModel.toJson();
-      expect(persistJson['proxySettings']['username'], 'corpuser');
-      expect(persistJson['proxySettings'].containsKey('password'), false);
-
-      // Backup-format toJson (includeSecrets) inlines the password.
-      final backupJson = viewModel.toJson(includeSecrets: true);
-      expect(backupJson['proxySettings']['username'], 'corpuser');
-      expect(backupJson['proxySettings']['password'], 'corppass');
+      // toJson always omits the password — it's never serialised, both
+      // for plaintext SharedPreferences and for the backup export. The
+      // siteId acts as the secure-storage lookup key for hydration.
+      final json = viewModel.toJson();
+      expect(json['proxySettings']['username'], 'corpuser');
+      expect(json['proxySettings'].containsKey('password'), false);
     });
 
     test('WebViewModel deserializes proxy credentials', () {
@@ -539,8 +532,11 @@ void main() {
         password: 'p@ss:word/123',
       );
 
-      final json = proxy.toJson(includePassword: true);
-      final restored = UserProxySettings.fromJson(json);
+      // toJson omits password (PWD-005); fromJson can still rehydrate one
+      // when given a JSON that explicitly carries it (legacy migration
+      // path).
+      final restored = UserProxySettings.fromJson(
+          {...proxy.toJson(), 'password': 'p@ss:word/123'});
 
       expect(restored.username, 'user@domain.com');
       expect(restored.password, 'p@ss:word/123');
