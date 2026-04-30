@@ -48,7 +48,9 @@ jobs:
       # which is what we need to confirm CI is actually running the
       # browser tier rather than silently skipping it.
       - name: Install Puppeteer Chromium
-        run: npx puppeteer browsers install chromium
+        # `chrome` is the @puppeteer/browsers CLI name; `chromium` is
+        # rejected as an invalid positional and yargs exits 1 on CI.
+        run: npx puppeteer browsers install chrome
       # Real-Chromium tests for the blob_url_capture fix. jsdom can't
       # enforce CSP, so this is the only layer that proves
       # `connect-src` actually rejects fetch(blob:) AND that our shim
