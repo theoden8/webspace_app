@@ -43,6 +43,7 @@ import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
@@ -778,14 +779,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Without the in-flight guard, a re-activation of an already-
       // loaded site could be racing with this handler — disposing the
       // soon-to-be-active webview silently wipes its state.
-      final protected = <int>{
-        if (_currentIndex != null) _currentIndex!,
-        if (_activationInFlightIndex != null) _activationInFlightIndex!,
-        ..._notificationProtectedIndices(),
-      };
-      // Build the per-site state map snapshot for the cascade engine.
-      // Iterate _loadedIndices defensively in case _webViewModels
-      // shifted under us.
       final states = <int, SiteLifecycleState>{};
       for (final i in _loadedIndices) {
         if (i < 0 || i >= _webViewModels.length) continue;
@@ -794,8 +787,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       final victim = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: _loadedIndices,
         states: states,
-        protectedIndices: protected,
-        preferKeepIndices: _getFilteredSiteIndices().toSet(),
+        priorityOf: _siteRetentionPriority,
       );
       if (victim == null) return;
       if (victim < 0 || victim >= _webViewModels.length) return;
@@ -1183,11 +1175,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       targetIndex: index,
       loadedIndices: _loadedIndices,
       maxLoadedSites: kMaxLoadedSites,
-      protectedIndices: {
-        if (_currentIndex != null) _currentIndex!,
-        ..._notificationProtectedIndices(),
-      },
-      preferKeepIndices: _getFilteredSiteIndices().toSet(),
+      priorityOf: _siteRetentionPriority,
     );
     for (final i in lruEvict) {
       LogService.instance.log(
@@ -1216,11 +1204,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       loadedIndices: _loadedIndices,
       states: cacheClearStates,
       maxResidentSites: kMaxResidentSites,
-      protectedIndices: {
-        if (_activationInFlightIndex != null) _activationInFlightIndex!,
-        ..._notificationProtectedIndices(),
-      },
-      preferKeepIndices: _getFilteredSiteIndices().toSet(),
+      priorityOf: _siteRetentionPriority,
     );
     for (final i in cacheClearTargets) {
       // Defensive bounds check after the await below in case site
@@ -1714,14 +1698,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     );
   }
 
-  Set<int> _notificationProtectedIndices() {
-    final result = <int>{};
-    for (int i = 0; i < _webViewModels.length; i++) {
-      if (_webViewModels[i].backgroundPoll || _webViewModels[i].notificationsEnabled) {
-        result.add(i);
+  SiteRetentionPriority _siteRetentionPriority(int index) {
+    if (index == _currentIndex) return SiteRetentionPriority.active;
+    if (index == _activationInFlightIndex) return SiteRetentionPriority.activating;
+    if (index >= 0 && index < _webViewModels.length) {
+      final m = _webViewModels[index];
+      if (m.backgroundPoll || m.notificationsEnabled) {
+        return SiteRetentionPriority.notification;
       }
     }
-    return result;
+    final webspaceIndices = _getFilteredSiteIndices().toSet();
+    if (webspaceIndices.contains(index)) return SiteRetentionPriority.webspace;
+    return SiteRetentionPriority.loaded;
   }
 
   void _onForegroundPollTick() {

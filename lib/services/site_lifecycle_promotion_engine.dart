@@ -1,3 +1,16 @@
+import 'package:webspace/services/site_retention_priority.dart';
+
+SiteRetentionResolver _legacyPromotionResolver({
+  Set<int> protectedIndices = const <int>{},
+  Set<int> preferKeepIndices = const <int>{},
+}) {
+  return (int index) {
+    if (protectedIndices.contains(index)) return SiteRetentionPriority.active;
+    if (preferKeepIndices.contains(index)) return SiteRetentionPriority.webspace;
+    return SiteRetentionPriority.loaded;
+  };
+}
+
 /// Tiered lifecycle for loaded webviews under memory pressure.
 ///
 /// As OS memory pressure escalates, each `didHaveMemoryPressure` event
@@ -139,34 +152,35 @@ class SiteLifecyclePromotionEngine {
   static int? pickPromotionTarget({
     required Set<int> loadedIndices,
     required Map<int, SiteLifecycleState> states,
+    SiteRetentionResolver? priorityOf,
     Set<int> protectedIndices = const <int>{},
     Set<int> preferKeepIndices = const <int>{},
   }) {
-    // Walk tiers from least to most aggressive (excluding terminal).
+    final resolver = priorityOf ??
+        _legacyPromotionResolver(
+          protectedIndices: protectedIndices,
+          preferKeepIndices: preferKeepIndices,
+        );
     for (final tier in [
       SiteLifecycleState.resident,
       SiteLifecycleState.cacheCleared,
     ]) {
-      // Within a tier, partition into out-of-keep then in-keep so
-      // out-of-keep is exhausted first. Both lists preserve LRU order
-      // (iteration order of loadedIndices).
-      int? outOfKeepCandidate;
-      int? inKeepCandidate;
+      final candidates = <int>[];
       for (final i in loadedIndices) {
-        if (protectedIndices.contains(i)) continue;
+        final p = resolver(i);
+        if (p == SiteRetentionPriority.active ||
+            p == SiteRetentionPriority.activating) continue;
         final s = states[i] ?? SiteLifecycleState.resident;
         if (s != tier) continue;
-        if (preferKeepIndices.contains(i)) {
-          inKeepCandidate ??= i;
-        } else {
-          outOfKeepCandidate ??= i;
-          // Out-of-keep is the highest priority within this tier;
-          // can't beat the oldest one we already found.
-          break;
-        }
+        candidates.add(i);
       }
-      if (outOfKeepCandidate != null) return outOfKeepCandidate;
-      if (inKeepCandidate != null) return inKeepCandidate;
+      if (candidates.isEmpty) continue;
+      candidates.sort((a, b) {
+        final pa = resolver(a).index;
+        final pb = resolver(b).index;
+        return pb.compareTo(pa);
+      });
+      return candidates.first;
     }
     return null;
   }
@@ -193,6 +207,7 @@ class SiteLifecyclePromotionEngine {
     required Set<int> loadedIndices,
     required Map<int, SiteLifecycleState> states,
     required int maxResidentSites,
+    SiteRetentionResolver? priorityOf,
     Set<int> protectedIndices = const <int>{},
     Set<int> preferKeepIndices = const <int>{},
   }) {
@@ -204,29 +219,29 @@ class SiteLifecyclePromotionEngine {
     if (residentCount <= maxResidentSites) return const [];
     final excess = residentCount - maxResidentSites;
 
-    final outOfKeep = <int>[];
-    final inKeep = <int>[];
+    final resolver = priorityOf ??
+        _legacyPromotionResolver(
+          protectedIndices: protectedIndices,
+          preferKeepIndices: preferKeepIndices,
+        );
+    final candidates = <int>[];
     for (final i in loadedIndices) {
-      if (protectedIndices.contains(i)) continue;
+      final p = resolver(i);
+      if (p == SiteRetentionPriority.active ||
+          p == SiteRetentionPriority.activating) continue;
       final s = states[i] ?? SiteLifecycleState.resident;
       if (s != SiteLifecycleState.resident) continue;
-      if (preferKeepIndices.contains(i)) {
-        inKeep.add(i);
-      } else {
-        outOfKeep.add(i);
-      }
+      candidates.add(i);
     }
+    candidates.sort((a, b) {
+      final pa = resolver(a).index;
+      final pb = resolver(b).index;
+      return pb.compareTo(pa);
+    });
 
-    final result = <int>[];
-    for (final i in outOfKeep) {
-      if (result.length >= excess) return result;
-      result.add(i);
-    }
-    for (final i in inKeep) {
-      if (result.length >= excess) return result;
-      result.add(i);
-    }
-    return result;
+    return candidates.length <= excess
+        ? candidates
+        : candidates.sublist(0, excess);
   }
 
   /// Tier-count snapshot. The `active` count is whichever loaded
