@@ -94,6 +94,20 @@ function installBrowserPolyfills(window) {
     }
     window.RTCPeerConnection = RTCPeerConnection;
   }
+
+  // jsdom omits URL.createObjectURL / revokeObjectURL. The blob-url-capture
+  // shim wraps both — without these stubs it early-returns and the wrapping
+  // logic stays untested.
+  if (typeof window.URL.createObjectURL !== 'function') {
+    let counter = 0;
+    window.URL.createObjectURL = function createObjectURL(_obj) {
+      counter += 1;
+      return 'blob:' + (window.location && window.location.origin
+        ? window.location.origin
+        : 'https://example.com') + '/' + counter;
+    };
+    window.URL.revokeObjectURL = function revokeObjectURL(_url) {};
+  }
 }
 
 // Run the shim source inside the jsdom realm. window.eval is what makes

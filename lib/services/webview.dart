@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -1237,6 +1238,15 @@ class WebViewFactory {
         forMainFrameOnly: false,
       ));
     }
+
+    // Blob URL capture: bridge sites whose CSP `connect-src` rejects
+    // fetch(blob:) — the IIFE in `_handleBlobDownload` looks the Blob
+    // up directly and never opens a network handle.
+    userScripts.add(inapp.UserScript(
+      groupName: 'blob_url_capture',
+      source: '$blobUrlCaptureScript\n;null;',
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+    ));
 
     // Desktop-mode inference: a per-site UA without mobile markers
     // ("Android" / "iPhone" / "Mobile" etc) is treated as desktop, and
@@ -2506,8 +2516,12 @@ class WebViewFactory {
           : 'download',
       url: blobUrl,
     );
-    // IIFE: fetch the blob, read via FileReader, hand the base64 back to
-    // Dart. Result is delivered asynchronously through
+    // IIFE: prefer the Blob captured by the createObjectURL shim
+    // (`window.__webspaceBlobs`) and read it via FileReader. Fall back
+    // to fetch(blobUrl) only when the URL was minted before the shim
+    // ran or in another realm — fetch hits the page's CSP `connect-src`
+    // and fails on hosts like github.com that don't whitelist `blob:`.
+    // Result is delivered asynchronously through
     // _webspaceBlobDownload(filename, base64, mimeType). The taskId is
     // round-tripped through JS so the handler can resolve which task to
     // complete.
@@ -2520,44 +2534,52 @@ class WebViewFactory {
     window.flutter_inappwebview.callHandler(
       '_webspaceBlobProgress', taskId, done, total);
   }
-  try {
-    fetch(blobUrl).then(function(r) { return r.blob(); }).then(function(blob) {
-      var total = blob.size || 0;
-      progress(0, total);
-      var reader = new FileReader();
-      reader.onprogress = function(e) {
-        if (e && e.lengthComputable) {
-          progress(e.loaded, e.total);
-        }
-      };
-      reader.onload = function() {
-        progress(total, total);
-        var result = reader.result || '';
-        var comma = result.indexOf(',');
-        var base64 = comma === -1 ? '' : result.substring(comma + 1);
-        window.flutter_inappwebview.callHandler(
-          '_webspaceBlobDownload',
-          suggestedFilename,
-          base64,
-          blob.type || '',
-          taskId
-        );
-      };
-      reader.onerror = function() {
-        var msg = (reader.error && reader.error.message) || 'read error';
-        window.flutter_inappwebview.callHandler(
-          '_webspaceBlobDownloadError', msg, taskId);
-      };
-      reader.readAsDataURL(blob);
-    }).catch(function(err) {
-      window.flutter_inappwebview.callHandler(
-        '_webspaceBlobDownloadError',
-        (err && err.message) || String(err), taskId);
-    });
-  } catch (e) {
+  function reportError(err) {
     window.flutter_inappwebview.callHandler(
       '_webspaceBlobDownloadError',
-      (e && e.message) || String(e), taskId);
+      (err && err.message) || String(err), taskId);
+  }
+  function readBlob(blob) {
+    var total = blob.size || 0;
+    progress(0, total);
+    var reader = new FileReader();
+    reader.onprogress = function(e) {
+      if (e && e.lengthComputable) {
+        progress(e.loaded, e.total);
+      }
+    };
+    reader.onload = function() {
+      progress(total, total);
+      var result = reader.result || '';
+      var comma = result.indexOf(',');
+      var base64 = comma === -1 ? '' : result.substring(comma + 1);
+      window.flutter_inappwebview.callHandler(
+        '_webspaceBlobDownload',
+        suggestedFilename,
+        base64,
+        blob.type || '',
+        taskId
+      );
+    };
+    reader.onerror = function() {
+      var msg = (reader.error && reader.error.message) || 'read error';
+      window.flutter_inappwebview.callHandler(
+        '_webspaceBlobDownloadError', msg, taskId);
+    };
+    reader.readAsDataURL(blob);
+  }
+  try {
+    var captured = window.__webspaceBlobs &&
+      window.__webspaceBlobs.get(blobUrl);
+    if (captured) {
+      readBlob(captured);
+      return;
+    }
+    fetch(blobUrl).then(function(r) { return r.blob(); })
+      .then(readBlob)
+      .catch(reportError);
+  } catch (e) {
+    reportError(e);
   }
 })($blobJson, $fnJson, $idJson);
 ''';
