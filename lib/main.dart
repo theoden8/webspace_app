@@ -2671,17 +2671,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           setState(() {});
 
                           if (index != null && model != null && urlToLoad != null) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) async {
-                              for (int i = 0; i < 20; i++) {
-                                await Future.delayed(const Duration(milliseconds: 100));
-                                if (!mounted) return;
-                                if (model.controller != null) {
-                                  LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
-                                  await model.controller!.loadUrl(urlToLoad, language: languageToUse);
-                                  break;
+                            final isFileImport = urlToLoad.startsWith('file://');
+                            if (!isFileImport) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                                for (int i = 0; i < 20; i++) {
+                                  await Future.delayed(const Duration(milliseconds: 100));
+                                  if (!mounted) return;
+                                  if (model.controller != null) {
+                                    LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
+                                    await model.controller!.loadUrl(urlToLoad, language: languageToUse);
+                                    break;
+                                  }
                                 }
-                              }
-                            });
+                              });
+                            }
                           }
                         },
                       ),
