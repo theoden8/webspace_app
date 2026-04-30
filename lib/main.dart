@@ -839,14 +839,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
-      final hasBackgroundPollSite = _webViewModels.any((m) => m.backgroundPoll);
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
         if (!_webViewModels[_currentIndex!].backgroundPoll) {
-          if (hasBackgroundPollSite) {
-            _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseWebView();
-          } else {
-            _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
-          }
+          _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
         }
         final activeIdx = _currentIndex!;
         unawaited(_captureStateBytes(_webViewModels[activeIdx]));
@@ -869,12 +864,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
       if (!_webViewModels[_currentIndex!].backgroundPoll) {
-        final hasBackgroundPollSite = _webViewModels.any((m) => m.backgroundPoll);
-        if (hasBackgroundPollSite) {
-          await _webViewModels[_currentIndex!].resumeWebView();
-        } else {
-          await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
-        }
+        await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
       }
     }
     // Re-apply fullscreen system UI mode after resume
