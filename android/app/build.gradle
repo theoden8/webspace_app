@@ -279,8 +279,12 @@ dependencies {
     // openspec/specs/per-site-containers/spec.md. The MULTI_PROFILE
     // feature is gated at runtime via WebViewFeature.isFeatureSupported;
     // devices whose System WebView does not advertise it fall through
-    // to the legacy capture-nuke-restore engine.
-    implementation "androidx.webkit:webkit:1.12.1"
+    // to the legacy capture-nuke-restore engine. Also backs WebAuthn
+    // (setWebAuthenticationSupport) for passkey-support.
+    implementation "androidx.webkit:webkit:1.14.0"
+    // WebAuthn/Passkey support via Android Credential Manager
+    implementation "androidx.credentials:credentials:1.5.0"
+    implementation "androidx.credentials:credentials-play-services-auth:1.5.0"
     // WorkManager backs NOTIF-005-A: PeriodicWorkRequest schedules
     // ~15-min refreshes that wake the app to reload notification sites,
     // mirroring iOS BGAppRefreshTask without a foreground service.

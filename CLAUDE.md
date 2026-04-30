@@ -262,6 +262,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | navigation | back gesture, drawer swipe, refresh, race guards; URL-bar site info sheet (site + container) |
 | nested-url-blocking | nested InAppBrowser; gesture-less cross-domain hops blocked on every site (no switch); per-site external link mode (in app / browser / block), routing to other sites only in app |
 | page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
+| passkey-support | WebAuthn/passkeys on Android: JS polyfill bridges `navigator.credentials` to Credential Manager (iOS pending) |
 | per-site-cookie-isolation | legacy engine (fallback) |
 | per-site-containers | native containers (preferred when supported) |
 | per-site-location | geo + IANA tz override + WebRTC lockdown |
