@@ -151,12 +151,24 @@ of `text/plain` when absent is surfaced unchanged).
 
 ### Requirement: DL-005 — `blob:` URI downloads
 
-Blob URLs MUST be read via an injected JS IIFE that calls
-`fetch(blobUrl) → Blob → FileReader.readAsDataURL` and hands the base64
+Blob URLs MUST be read via an injected JS IIFE that hands the base64
 payload to a registered `JavaScriptHandler` named
 `_webspaceBlobDownload`. Errors MUST be reported via
 `_webspaceBlobDownloadError`. The `taskId` MUST be round-tripped
 through JS so the Dart handler can resolve the originating task.
+
+The IIFE MUST first try a side-channel lookup against the Blob captured
+by the `blob_url_capture` DOCUMENT_START shim
+([`lib/services/blob_url_capture.dart`](../../../lib/services/blob_url_capture.dart)),
+which wraps `URL.createObjectURL` and stores every minted Blob in a
+bounded map exposed as `window.__webspaceBlobs.get(url)`. Only when the
+URL is absent from that map (e.g. minted in a worker realm) MAY the IIFE
+fall back to `fetch(blobUrl) → Blob → FileReader.readAsDataURL`. The
+captured-Blob path is required because sites with strict CSP
+`connect-src` (e.g. github.com) reject `fetch(blob:…)` even when the
+blob is same-origin — the WebView enforces the directive where stock
+Chrome/Firefox internally exempt blob reads — and a fetch-only
+implementation silently breaks downloads on those sites.
 
 #### Scenario: Pairdrop WebRTC file transfer
 **Given** pairdrop.net produces an in-memory `Blob` and triggers a
@@ -165,6 +177,19 @@ through JS so the Dart handler can resolve the originating task.
 **Then** the IIFE reads the blob, ships base64 back over the handler,
   and Dart saves the decoded bytes via `FilePicker.saveFile`
 **And** the `DownloadTask` completes with the resolved file path
+
+#### Scenario: GitHub blob download under strict CSP
+**Given** the user clicks a link on github.com that triggers a download
+  of a `blob:https://github.com/…` URL minted by a same-origin call to
+  `URL.createObjectURL`
+**And** github.com's response `Content-Security-Policy` does not
+  whitelist `blob:` for `connect-src`
+**When** `onDownloadStartRequest` fires with scheme `blob`
+**Then** the IIFE looks the URL up in `window.__webspaceBlobs`, finds
+  the captured `Blob`, and reads it via `FileReader.readAsDataURL`
+  without invoking `fetch`
+**And** the `DownloadTask` completes successfully without producing a
+  CSP `connect-src` violation in the WebView console
 
 ---
 
@@ -205,6 +230,9 @@ task list is empty.
 - `lib/services/webview.dart` — wires settings, JS handlers, and
   `_handleDownloadRequest` (HTTP/data/blob dispatch, `stopLoading()`
   guard).
+- `lib/services/blob_url_capture.dart` — DOCUMENT_START shim wrapping
+  `URL.createObjectURL` / `URL.revokeObjectURL` so the blob-download
+  IIFE can read CSP-restricted blobs without calling `fetch()`.
 - `lib/widgets/download_button.dart` — app-bar action + bottom sheet.
 - `lib/main.dart`, `lib/screens/inappbrowser.dart` — place the button.
 - `android/app/src/main/AndroidManifest.xml` —
@@ -221,6 +249,35 @@ task list is empty.
 - `test/download_manager_test.dart` — task lifecycle (start /
   updateProgress / complete / fail / cancel / dismiss / clearCompleted),
   listener notification, unknown-id no-ops.
+- `test/blob_url_capture_test.dart` — Dart-side string assertions for
+  the shim and `buildBlobDownloadIife`: shim reentrance guard,
+  createObjectURL/revokeObjectURL wrap pair, instanceof Blob filter,
+  non-enumerable export, MAX=64 bound, registration in
+  WebViewFactory at AT_DOCUMENT_START, IIFE references the shim's
+  global, JSON-escaped substitution of inputs, both branches present,
+  handler argument shapes.
+- `test/js/blob_url_capture_shim.test.js` — jsdom behavioural test for
+  the createObjectURL wrapper: roundtrip Blob lookup, revoke clears the
+  entry, non-Blob arguments are not tracked, idempotent re-eval, MAX=64
+  bound evicts oldest, `__webspaceBlobs` is non-enumerable.
+- `test/js/blob_download_iife.test.js` — jsdom behavioural test for the
+  IIFE's branch selection: fast path reads captured Blob and avoids
+  fetch entirely, fallback calls fetch and routes the result through
+  the same FileReader path, fetch rejection routes through the error
+  handler with the original message, synchronous throws on the fast
+  path also reach the error handler.
+- `test/browser/blob_url_capture_csp.test.js` — Puppeteer test that
+  boots a headless Chromium against a tiny HTTP server serving
+  `Content-Security-Policy: connect-src 'none'`. Two scenarios:
+  (1) PREMISE — without the shim, fetch(blob:) is rejected by the
+  browser's CSP enforcer (proven via a `securitypolicyviolation`
+  event), and the IIFE reports the error; (2) FIX — with the shim
+  installed at DOCUMENT_START via Puppeteer's `evaluateOnNewDocument`,
+  the IIFE finds the captured Blob, never invokes fetch, and reports
+  success with the right base64 / mime / taskId. Auto-skips when
+  Puppeteer can't launch Chromium; opt-in via
+  `WEBSPACE_RUN_BROWSER_TESTS=1 ./scripts/test_all.sh` or
+  `npm run test:browser`.
 
 ### Manual verification
 
@@ -234,12 +291,26 @@ task list is empty.
    generated by a canvas). Expect instant save dialog.
 4. **Blob** — pairdrop.net: receive a file. Expect progress + save
    dialog + the downloads sheet showing the completed task.
+5. **Blob (CSP-restricted)** — open a github.com PR, trigger an attachment
+   download (e.g. "Download" on a CI run artifact, or any `<a download>`
+   pointing at a `blob:https://github.com/…` URL). Expect the same
+   progress + save dialog as pairdrop, with no
+   `Refused to connect because it violates the document's Content
+   Security Policy` line in the WebView console.
 
 ## Caveats / Known Limits
 
 - Blob `evaluateJavascript` runs in the top frame only. A blob created
   inside a cross-origin iframe cannot be fetched from the top frame;
   the shim surfaces a `TypeError` via `_webspaceBlobDownloadError`.
+- The `blob_url_capture` shim only sees Blobs minted by main-thread
+  `URL.createObjectURL` calls in the top frame. A Blob minted in a
+  Worker (and surfaced to the main thread only as a URL string) is
+  absent from `window.__webspaceBlobs`; the IIFE falls back to
+  `fetch(blobUrl)`, which still fails on hosts whose CSP `connect-src`
+  forbids `blob:`. No known consumer hits this corner case in
+  practice — the GitHub flow that motivated the shim mints the Blob in
+  the main thread.
 - The base64 round-trip buffers the whole payload in memory (plus ~33%
   base64 overhead). Multi-GB blob downloads will OOM; streaming is out
   of scope.

@@ -18,6 +18,7 @@
 
 import 'dart:io';
 
+import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -27,6 +28,16 @@ import 'package:webspace/settings/location.dart';
 /// to [fixturesRoot]; values are the JS that should be on disk at that path.
 Map<String, String> buildAllFixtures() {
   final fixtures = <String, String>{};
+
+  fixtures['blob_url_capture/shim.js'] = blobUrlCaptureScript;
+  // Pinned test triple — the Node-side test minds the polyfill so the
+  // first createObjectURL call returns 'blob:https://example.test/test-blob-1',
+  // matching the URL baked into this IIFE.
+  fixtures['blob_url_capture/download_iife.js'] = buildBlobDownloadIife(
+    blobUrl: 'blob:https://example.test/test-blob-1',
+    suggestedFilename: 'hello.txt',
+    taskId: 'task-fixture',
+  );
 
   fixtures['desktop_mode/linux.js'] =
       buildDesktopModeShim(firefoxLinuxDesktopUserAgent);
