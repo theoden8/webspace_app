@@ -64,14 +64,22 @@ void main() {
     // isDemoMode=true, the app boots straight into that screen.
     final settingsButton = find.byTooltip('App Settings');
     if (settingsButton.evaluate().isEmpty) {
-      // Self-diagnose: dump every Tooltip / IconButton text we see so
-      // the CI log explains why the find missed.
+      // Self-diagnose: dump every Tooltip / Text / IconButton we
+      // see so the CI log explains why the find missed.
       final tooltips = find.byType(Tooltip).evaluate().map((e) {
         final w = e.widget;
         return w is Tooltip ? w.message : '?';
       }).toList();
+      final texts = find.byType(Text).evaluate().map((e) {
+        final w = e.widget;
+        return w is Text ? w.data : '?';
+      }).where((s) => s != null).toList();
+      final icons = find.byType(IconButton).evaluate().length;
       // ignore: avoid_print
-      print('App Settings tooltip not found. Tooltips visible: $tooltips');
+      print('App Settings tooltip not found.\n'
+          '  Tooltips: $tooltips\n'
+          '  IconButtons: $icons\n'
+          '  ${texts.length} Texts: $texts');
     }
     expect(settingsButton, findsOneWidget,
       reason: 'App Settings icon should be visible on empty webspaces list');
