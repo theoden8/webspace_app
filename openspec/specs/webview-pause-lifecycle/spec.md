@@ -110,7 +110,7 @@ The `WebViewController` interface SHALL expose `pause()`/`resume()` and `pauseAl
 
 ---
 
-### Requirement: PAUSE-005 — Cascading Memory-Pressure Lifecycle
+### Requirement: PAUSE-006 — Cascading Memory-Pressure Lifecycle
 
 When the OS signals memory pressure via `WidgetsBindingObserver.didHaveMemoryPressure`, the system SHALL promote one loaded site by one tier per event, cascading through three states from least to most aggressive: `live` → `cacheCleared` → `savedForRestore`.
 
@@ -184,7 +184,7 @@ The `initialUrlRequest` (set to `currentUrl` on the model) kicks off a navigatio
 **Then** the picker excludes A from the candidate iteration
 **Because** `_setCurrentIndex` records its target in `_activationInFlightIndex` (set synchronously before any await), and `_handleMemoryPressure` includes that index in its hard-protected set alongside `_currentIndex`. Without the in-flight guard, mid-activation eviction would dispose A's about-to-be-built webview, leaving `restoreState` to no-op against a null controller.
 
-### Requirement: PAUSE-006 — State Capture on All Dispose Paths
+### Requirement: PAUSE-007 — State Capture on All Dispose Paths
 
 The system SHALL capture `controller.saveState()` bytes before disposing any non-incognito loaded site, regardless of which path triggered the disposal:
 
@@ -212,9 +212,9 @@ Site deletion is the only path that does NOT save state — it removes the entry
 **Then** the orphan sweep at the end of `_deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
 **And** A's state bytes are reaped (siteId no longer in active set)
 
-### Requirement: PAUSE-007 — State Storage Persists in Encrypted On-Disk Cache
+### Requirement: PAUSE-008 — State Storage Persists in Encrypted On-Disk Cache
 
-The default `WebViewStateStorage` implementation in production is `SecureWebViewStateStorage`, an AES-256 CBC on-disk cache modeled after `HtmlCacheService`:
+State bytes captured by `WebViewStateStorage` SHALL persist across cold starts and SHALL be encrypted at rest. The default production implementation is `SecureWebViewStateStorage`, an AES-256 CBC on-disk cache modeled after `HtmlCacheService`:
 
 - Encryption key (32-byte, base64-encoded) lives in `FlutterSecureStorage` (platform keychain on iOS/macOS, encrypted SharedPreferences on Android).
 - Per-site bytes live under `<documents>/webview_state/<siteId>.enc`, written via `writeAsString` of the base64-encoded ciphertext.
@@ -256,7 +256,7 @@ State bytes survive cold starts (unlike the in-memory `InMemoryWebViewStateStora
 **Then** `_stateStorage.removeOrphans({A, C})` is called
 **And** the file `B.enc` is deleted from disk
 
-### Requirement: PAUSE-008 — State Capture on Go-Home and App-Background
+### Requirement: PAUSE-009 — State Capture on Go-Home and App-Background
 
 The system SHALL capture `controller.saveState()` bytes opportunistically — without disposing the webview — at two additional lifecycle points beyond the dispose paths:
 
@@ -292,7 +292,7 @@ Neither path mutates the model's `lifecycleState` — the field stays at `live` 
 **And** `restoreState` re-populates the back/forward stack
 **And** the user can press the back gesture to return to `page2` and `home`
 
-### Requirement: PAUSE-009 — State Storage Garbage Collection
+### Requirement: PAUSE-010 — State Storage Garbage Collection
 
 State files SHALL be reaped when their owning site is deleted, not when the user merely navigates away. Leaving state for sites that still exist (via go-home, app-background, memory-pressure disposal) is the entire point of save/restore.
 
@@ -306,7 +306,7 @@ State files SHALL be reaped when their owning site is deleted, not when the user
 **Then** the orphan sweep at the end of `_deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
 **And** A's state file is reaped (siteId no longer in active set)
 
-### Requirement: PAUSE-010 — Race Protections for State Capture
+### Requirement: PAUSE-011 — Race Protections for State Capture
 
 Concurrent paths that may capture state for the same site SHALL coexist without corruption:
 
