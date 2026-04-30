@@ -40,10 +40,22 @@ jobs:
         run: npm ci
       - name: Validate OpenSpec
         run: npx openspec validate --no-interactive --all
+      # Idempotent: if the cache restored a matching Chromium, this
+      # step prints "already installed" and exits in <1s. Otherwise it
+      # downloads ~280 MB into ~/.cache/puppeteer. Running it as a
+      # discrete step (rather than relying on Puppeteer's npm
+      # postinstall) makes the install visible in the workflow log,
+      # which is what we need to confirm CI is actually running the
+      # browser tier rather than silently skipping it.
+      - name: Install Puppeteer Chromium
+        run: npx puppeteer browsers install chromium
       # Real-Chromium tests for the blob_url_capture fix. jsdom can't
       # enforce CSP, so this is the only layer that proves
       # `connect-src` actually rejects fetch(blob:) AND that our shim
       # bypasses it. See test/browser/ + openspec/specs/downloads/.
+      # process.env.CI=true (set by Actions) makes the test file
+      # hard-fail when Chromium can't launch — see requireBrowser() in
+      # test/browser/blob_url_capture_csp.test.js.
       - name: Run browser tests (CSP enforcement)
         run: npm run test:browser
 

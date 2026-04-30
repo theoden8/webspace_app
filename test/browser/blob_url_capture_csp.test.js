@@ -88,9 +88,19 @@ test.after(async () => {
 // node:test evaluates the `skip` option at test-registration time, which
 // is before `test.before` runs. Defer the check to the test body so the
 // browser/server state from `before` is observable.
+//
+// In CI (process.env.CI === 'true'), missing Chromium is a hard failure
+// — the whole point of running these tests in CI is to PROVE the fix
+// works on a real browser, so silently skipping defeats the purpose.
+// Locally the same condition skips gracefully so a dev without Chromium
+// installed isn't blocked.
 function requireBrowser(t) {
   if (browser && server) return true;
-  t.skip(`Puppeteer/Chromium not available: ${launchError ? launchError.message : 'unknown'}`);
+  const msg = `Puppeteer/Chromium not available: ${launchError ? launchError.message : 'unknown'}`;
+  if (process.env.CI === 'true') {
+    throw new Error(msg + ' (CI=true → hard fail; install via `npx puppeteer browsers install chromium`)');
+  }
+  t.skip(msg);
   return false;
 }
 
