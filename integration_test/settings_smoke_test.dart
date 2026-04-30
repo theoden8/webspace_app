@@ -79,9 +79,9 @@ void main() {
     await tester.tap(settingsButton);
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
-    // Dump every Text widget rendered after the navigation. If
-    // "Export Settings" isn't there, this shows what IS — a different
-    // route, an empty state, a loading spinner, etc.
+    // Dump every Text widget rendered after the navigation — useful
+    // diagnostic when expectations below fail because the target
+    // widget is below the viewport fold.
     final visibleTexts = find.byType(Text).evaluate().map((e) {
       final w = e.widget;
       return w is Text ? w.data : '?';
@@ -89,14 +89,22 @@ void main() {
     // ignore: avoid_print
     print('After Settings tap, ${visibleTexts.length} Text widgets: $visibleTexts');
 
-    // The settings screen renders an Export Settings + Import Settings
-    // pair. They're the entry points for the JSON backup flow that
-    // the recent proxy-auth-wipe fix (PR #266) touches indirectly via
-    // _exportSettings / _importSettings in main.dart.
+    // The Export Settings + Import Settings tiles live near the
+    // bottom of the AppSettingsScreen ListView, well below the
+    // viewport fold under the integration_test default viewport.
+    // ListView's SliverChildListDelegate culls offscreen children, so
+    // they aren't in the Element tree until scrolled into view.
+    // scrollUntilVisible scrolls the nearest Scrollable ancestor
+    // until the matcher resolves.
+    await tester.scrollUntilVisible(
+      find.text('Export Settings'),
+      300.0,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Export Settings'), findsOneWidget,
-      reason: 'Export Settings list tile should render');
+      reason: 'Export Settings list tile should render after scroll');
     expect(find.text('Import Settings'), findsOneWidget,
-      reason: 'Import Settings list tile should render');
+      reason: 'Import Settings list tile should render after scroll');
 
     // Verify we can scroll the settings screen — proves the
     // ListView/Scrollable inside the screen layouts correctly under
