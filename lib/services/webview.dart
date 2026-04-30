@@ -1970,7 +1970,9 @@ class WebViewFactory {
           controller.addJavaScriptHandler(
             handlerName: 'webNotificationRequestPermission',
             callback: (args) {
-              return config.notificationsEnabled ? 'granted' : 'denied';
+              final result = config.notificationsEnabled ? 'granted' : 'denied';
+              LogService.instance.log('Notification', 'requestPermission handler called, returning: $result');
+              return result;
             },
           );
         }
