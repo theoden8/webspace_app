@@ -5,7 +5,7 @@ void main() {
   group('SiteLifecyclePromotionEngine.nextState', () {
     test('live → cacheCleared', () {
       expect(
-        SiteLifecyclePromotionEngine.nextState(SiteLifecycleState.live),
+        SiteLifecyclePromotionEngine.nextState(SiteLifecycleState.resident),
         SiteLifecycleState.cacheCleared,
       );
     });
@@ -44,9 +44,9 @@ void main() {
       final result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: {
-          0: SiteLifecycleState.live,
-          1: SiteLifecycleState.live,
-          2: SiteLifecycleState.live,
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
         },
       );
       expect(result, 0);
@@ -79,7 +79,7 @@ void main() {
         states: {
           0: SiteLifecycleState.cacheCleared,
           1: SiteLifecycleState.cacheCleared,
-          2: SiteLifecycleState.live,
+          2: SiteLifecycleState.resident,
         },
       );
       expect(result, 2);
@@ -106,8 +106,8 @@ void main() {
       final result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: {
-          0: SiteLifecycleState.live,
-          1: SiteLifecycleState.live,
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
         },
         protectedIndices: {0},
       );
@@ -121,8 +121,8 @@ void main() {
       final result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: {
-          0: SiteLifecycleState.live,
-          1: SiteLifecycleState.live,
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
         },
         protectedIndices: {0, 1},
       );
@@ -136,8 +136,8 @@ void main() {
       final result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: {
-          0: SiteLifecycleState.live,
-          1: SiteLifecycleState.live,
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
         },
         preferKeepIndices: {0},
       );
@@ -155,7 +155,7 @@ void main() {
         loadedIndices: loaded,
         states: {
           0: SiteLifecycleState.cacheCleared,
-          1: SiteLifecycleState.live,
+          1: SiteLifecycleState.resident,
         },
         preferKeepIndices: {1},
       );
@@ -172,7 +172,7 @@ void main() {
         loadedIndices: loaded,
         states: {
           0: SiteLifecycleState.savedForRestore,
-          1: SiteLifecycleState.live,
+          1: SiteLifecycleState.resident,
         },
       );
       expect(result, 1);
@@ -199,10 +199,10 @@ void main() {
         loaded.add(i);
       }
       final states = <int, SiteLifecycleState>{
-        0: SiteLifecycleState.live,
-        1: SiteLifecycleState.live,
-        2: SiteLifecycleState.live,
-        3: SiteLifecycleState.live,
+        0: SiteLifecycleState.resident,
+        1: SiteLifecycleState.resident,
+        2: SiteLifecycleState.resident,
+        3: SiteLifecycleState.resident,
       };
       const protected = <int>{3};
       const preferKeep = <int>{1, 2, 3};
@@ -259,6 +259,223 @@ void main() {
     });
   });
 
+  group('SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets', () {
+    test('returns empty when count is at threshold', () {
+      final loaded = <int>{};
+      for (final i in [0, 1, 2]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 3,
+      );
+      expect(result, isEmpty);
+    });
+
+    test('returns empty when count is below threshold', () {
+      final loaded = <int>{};
+      for (final i in [0, 1]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 5,
+      );
+      expect(result, isEmpty);
+    });
+
+    test('picks oldest excess to bring count back to threshold', () {
+      // 5 resident sites, threshold 3 → excess 2, evict oldest 2.
+      final loaded = <int>{};
+      for (final i in [0, 1, 2, 3, 4]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
+          3: SiteLifecycleState.resident,
+          4: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 3,
+      );
+      expect(result, [0, 1]);
+    });
+
+    test('only counts resident-tier sites against the threshold', () {
+      // 3 resident + 2 cacheCleared, threshold 3 → resident count is
+      // 3, no excess. Returns empty.
+      final loaded = <int>{};
+      for (final i in [0, 1, 2, 3, 4]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.cacheCleared,
+          1: SiteLifecycleState.cacheCleared,
+          2: SiteLifecycleState.resident,
+          3: SiteLifecycleState.resident,
+          4: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 3,
+      );
+      expect(result, isEmpty);
+    });
+
+    test('skips already-cacheCleared sites in the result', () {
+      // 4 resident + 1 cacheCleared, threshold 2 → resident excess 2.
+      // Result picks 2 resident sites, never the already-cacheCleared.
+      final loaded = <int>{};
+      for (final i in [0, 1, 2, 3, 4]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.cacheCleared, // already cleared
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
+          3: SiteLifecycleState.resident,
+          4: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 2,
+      );
+      expect(result, [1, 2]);
+    });
+
+    test('skips protected indices', () {
+      final loaded = <int>{};
+      for (final i in [0, 1, 2, 3]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
+          3: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 2,
+        protectedIndices: {0},
+      );
+      // Protected (0) excluded; pick oldest 2 of {1, 2, 3} → [1, 2].
+      expect(result, [1, 2]);
+    });
+
+    test('prefers out-of-keep over in-keep within excess budget', () {
+      // 4 resident, threshold 2 → excess 2.
+      // Active webspace = {0, 2}. Out-of-keep: [1, 3]. In-keep:
+      // [0, 2]. Take 2 from out-of-keep → [1, 3].
+      final loaded = <int>{};
+      for (final i in [0, 1, 2, 3]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
+          3: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 2,
+        preferKeepIndices: {0, 2},
+      );
+      expect(result, [1, 3]);
+    });
+
+    test('falls through to in-keep when out-of-keep is exhausted', () {
+      // 4 resident, threshold 1 → excess 3.
+      // Active webspace = {1, 2, 3}. Out-of-keep: [0]. In-keep:
+      // [1, 2, 3]. Take 0, then 1, 2.
+      final loaded = <int>{};
+      for (final i in [0, 1, 2, 3]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
+          3: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 1,
+        preferKeepIndices: {1, 2, 3},
+      );
+      expect(result, [0, 1, 2]);
+    });
+
+    test('respects LRU access-order bumps', () {
+      // Loaded [0, 1, 2, 3]; bump 0 → [1, 2, 3, 0].
+      // Threshold 2 → excess 2. Picks oldest in post-bump order:
+      // [1, 2].
+      final loaded = <int>{};
+      for (final i in [0, 1, 2, 3]) {
+        loaded.add(i);
+      }
+      loaded.remove(0);
+      loaded.add(0);
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
+          3: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 2,
+      );
+      expect(result, [1, 2]);
+    });
+
+    test('treats missing state-map entries as resident', () {
+      // No state map provided — defaults to resident.
+      // Threshold 1, 3 loaded → excess 2 → pick oldest [0, 1].
+      final loaded = <int>{};
+      for (final i in [0, 1, 2]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: const {},
+        maxResidentSites: 1,
+      );
+      expect(result, [0, 1]);
+    });
+
+    test('all resident protected returns empty', () {
+      final loaded = <int>{};
+      for (final i in [0, 1, 2]) {
+        loaded.add(i);
+      }
+      final result = SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+        loadedIndices: loaded,
+        states: {
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
+          2: SiteLifecycleState.resident,
+        },
+        maxResidentSites: 1,
+        protectedIndices: {0, 1, 2},
+      );
+      expect(result, isEmpty);
+    });
+  });
+
   group('SiteLifecyclePromotionEngine.tierCounts', () {
     test('counts sites by tier with active accounted separately', () {
       final loaded = <int>{};
@@ -268,16 +485,16 @@ void main() {
       final counts = SiteLifecyclePromotionEngine.tierCounts(
         loadedIndices: loaded,
         states: {
-          0: SiteLifecycleState.live,
-          1: SiteLifecycleState.live,
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
           2: SiteLifecycleState.cacheCleared,
           3: SiteLifecycleState.cacheCleared,
-          4: SiteLifecycleState.live,
+          4: SiteLifecycleState.resident,
         },
         activeIndex: 4,
       );
       expect(counts.active, 1);
-      expect(counts.live, 2); // 0 and 1; 4 is active and excluded
+      expect(counts.resident, 2); // 0 and 1; 4 is active and excluded
       expect(counts.cacheCleared, 2);
       expect(counts.savedForRestore, 0);
     });
@@ -294,15 +511,15 @@ void main() {
       final counts = SiteLifecyclePromotionEngine.tierCounts(
         loadedIndices: loaded,
         states: {
-          0: SiteLifecycleState.live,
-          1: SiteLifecycleState.live,
+          0: SiteLifecycleState.resident,
+          1: SiteLifecycleState.resident,
           2: SiteLifecycleState.savedForRestore,
           3: SiteLifecycleState.savedForRestore,
         },
         activeIndex: null,
       );
       expect(counts.active, 0);
-      expect(counts.live, 2);
+      expect(counts.resident, 2);
       expect(counts.cacheCleared, 0);
       expect(counts.savedForRestore, 2);
     });
@@ -312,11 +529,11 @@ void main() {
       loaded.add(0);
       final counts = SiteLifecyclePromotionEngine.tierCounts(
         loadedIndices: loaded,
-        states: {0: SiteLifecycleState.live},
+        states: {0: SiteLifecycleState.resident},
         activeIndex: null,
       );
       expect(counts.active, 0);
-      expect(counts.live, 1);
+      expect(counts.resident, 1);
     });
   });
 }

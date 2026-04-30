@@ -989,12 +989,12 @@ class WebViewModel {
   }
 
   /// Current memory-tier state. Drives the
-  /// [SiteLifecyclePromotionEngine] cascade. Default [SiteLifecycleState.live]
+  /// [SiteLifecyclePromotionEngine] cascade. Default [SiteLifecycleState.resident]
   /// — active and paused-but-loaded sites both sit at this tier
   /// (the resume/pause distinction is orthogonal to memory tier).
   /// Promoted on memory pressure events; reset to `live` on
   /// re-activation when the webview is rebuilt.
-  SiteLifecycleState lifecycleState = SiteLifecycleState.live;
+  SiteLifecycleState lifecycleState = SiteLifecycleState.resident;
 
   /// Bytes from a prior `controller.saveState()`, queued by the
   /// activation flow when re-activating a [SiteLifecycleState.savedForRestore]

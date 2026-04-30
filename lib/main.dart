@@ -826,7 +826,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           // _captureStateForRestore inside that helper is what
           // updates the lifecycleState to savedForRestore.
           await _unloadSiteForOtherReason(victim);
-        case SiteLifecycleState.live:
+        case SiteLifecycleState.resident:
           // Promotion can never go back to live — defensive.
           break;
       }
@@ -1116,12 +1116,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               '(siteId: ${target.siteId})',
         );
       }
-      target.lifecycleState = SiteLifecycleState.live;
-    } else if (target.lifecycleState != SiteLifecycleState.live) {
+      target.lifecycleState = SiteLifecycleState.resident;
+    } else if (target.lifecycleState != SiteLifecycleState.resident) {
       // cacheCleared promoted back to live on activation — the user
       // is interacting with it again, so any subsequent memory
       // pressure starts the cascade fresh from the live tier.
-      target.lifecycleState = SiteLifecycleState.live;
+      target.lifecycleState = SiteLifecycleState.resident;
     }
 
     // Domain-conflict unload + capture-nuke-restore is only needed when
@@ -1192,6 +1192,50 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       );
       await _unloadSiteForOtherReason(i);
       if (version != _setCurrentIndexVersion) return;
+    }
+
+    // Proactive `resident → cacheCleared` promotion. Backstop for
+    // platforms where the OS doesn't reliably fire memory pressure
+    // (Linux/desktop), and for iOS where Jetsam is reactive (after
+    // memory is already tight). Once more than [kMaxResidentSites]
+    // sites are at the resident tier, the oldest excess get
+    // clearCache called eagerly. This is the proactive complement
+    // to the reactive _handleMemoryPressure cascade and uses the
+    // same priority hierarchy. The active site is hard-protected;
+    // sites in the active webspace are soft-keep.
+    final cacheClearStates = <int, SiteLifecycleState>{
+      for (final i in _loadedIndices)
+        if (i >= 0 && i < _webViewModels.length) i: _webViewModels[i].lifecycleState,
+    };
+    final cacheClearTargets =
+        SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+      loadedIndices: _loadedIndices,
+      states: cacheClearStates,
+      maxResidentSites: kMaxResidentSites,
+      protectedIndices: _activationInFlightIndex != null
+          ? <int>{_activationInFlightIndex!}
+          : const <int>{},
+      preferKeepIndices: _getFilteredSiteIndices().toSet(),
+    );
+    for (final i in cacheClearTargets) {
+      // Defensive bounds check after the await below in case site
+      // deletion shifted indices.
+      if (i < 0 || i >= _webViewModels.length) continue;
+      LogService.instance.log(
+        'SiteUnload',
+        'Proactive cacheClear (>$kMaxResidentSites resident) — '
+            'clearing cache for site $i: "${_webViewModels[i].name}"',
+      );
+      await _webViewModels[i].clearWebViewCache();
+      if (version != _setCurrentIndexVersion) return;
+      // Re-check membership in case a concurrent path (memory
+      // pressure handler, deletion) already promoted or evicted this
+      // index between the engine pick and the await resume.
+      if (i < _webViewModels.length &&
+          _loadedIndices.contains(i) &&
+          _webViewModels[i].lifecycleState == SiteLifecycleState.resident) {
+        _webViewModels[i].lifecycleState = SiteLifecycleState.cacheCleared;
+      }
     }
 
     // Pause the previously active webview to save resources
@@ -1320,7 +1364,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// disposing the webview should do that themselves (typically
   /// flipping to [SiteLifecycleState.savedForRestore]); callers that
   /// are *only* opportunistically persisting (go-home,
-  /// app-background) should leave the state at [SiteLifecycleState.live]
+  /// app-background) should leave the state at [SiteLifecycleState.resident]
   /// since the webview is still in memory.
   Future<bool> _captureStateBytes(WebViewModel model) async {
     if (model.incognito) return false;

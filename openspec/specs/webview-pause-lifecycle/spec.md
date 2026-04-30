@@ -112,11 +112,11 @@ The `WebViewController` interface SHALL expose `pause()`/`resume()` and `pauseAl
 
 ### Requirement: PAUSE-006 — Cascading Memory-Pressure Lifecycle
 
-When the OS signals memory pressure via `WidgetsBindingObserver.didHaveMemoryPressure`, the system SHALL promote one loaded site by one tier per event, cascading through three states from least to most aggressive: `live` → `cacheCleared` → `savedForRestore`.
+When the OS signals memory pressure via `WidgetsBindingObserver.didHaveMemoryPressure`, the system SHALL promote one loaded site by one tier per event, cascading through three states from least to most aggressive: `resident` → `cacheCleared` → `savedForRestore`.
 
 The cascade is owned by [`SiteLifecyclePromotionEngine`](../../../lib/services/site_lifecycle_promotion_engine.dart), a pure-Dart picker that:
 
-- Walks tiers from least to most aggressive (`live` first, then `cacheCleared`).
+- Walks tiers from least to most aggressive (`resident` first, then `cacheCleared`).
 - Within a tier, evicts out-of-active-webspace sites before in-webspace sites.
 - Within a (tier, keep) bucket, picks the LRU oldest first.
 - Never picks the active site (`_currentIndex`) or the in-flight activation target (`_activationInFlightIndex`).
@@ -126,18 +126,18 @@ The OS controls the curve: if pressure persists, the callback fires again and th
 
 #### Scenario: First memory pressure event clears cache without losing state
 
-**Given** the app has 5 loaded sites — one active and four backgrounded `live`
+**Given** the app has 5 loaded sites — one active and four backgrounded `resident`
 **When** `didHaveMemoryPressure` fires for the first time
-**Then** the LRU oldest non-active site is promoted from `live` to `cacheCleared`
+**Then** the LRU oldest non-active site is promoted from `resident` to `cacheCleared`
 **And** `controller.clearCache()` is called on it (frees ~10-50 MB without disposing)
 **And** the user's tab state, back/forward stack, and active site remain untouched
 
 #### Scenario: Sustained pressure cascades all loaded sites through clearCache before disposing any
 
-**Given** every loaded site is at the `live` tier
+**Given** every loaded site is at the `resident` tier
 **When** `didHaveMemoryPressure` fires N times in succession (where N is the number of non-active loaded sites)
 **Then** every non-active loaded site reaches `cacheCleared` before any reaches `savedForRestore`
-**Because** the picker walks tiers from lowest to highest — `live` is exhausted first, regardless of LRU age within other tiers
+**Because** the picker walks tiers from lowest to highest — `resident` is exhausted first, regardless of LRU age within other tiers
 
 #### Scenario: cacheCleared site disposes with state captured
 
@@ -154,7 +154,7 @@ The OS controls the curve: if pressure persists, the callback fires again and th
 **Given** site A is in `savedForRestore` (disposed, but its bytes are in `WebViewStateStorage`)
 **When** the user activates site A
 **Then** `_setCurrentIndex` reads the bytes from storage and queues them on the model via `schedulePendingRestoreState`
-**And** the model's `lifecycleState` is reset to `live`
+**And** the model's `lifecycleState` is reset to `resident`
 **And** the webview is rebuilt — `getWebView`'s `onControllerCreated` consumes the pending bytes and calls `controller.restoreState(bytes)`
 **And** the back/forward stack is restored on every supported platform:
   - **Android** via `WebView.restoreState(Bundle)`
@@ -186,6 +186,56 @@ The `initialUrlRequest` (set to `currentUrl` on the model) kicks off a navigatio
 **When** `didHaveMemoryPressure` fires
 **Then** the picker excludes A from the candidate iteration
 **Because** `_setCurrentIndex` records its target in `_activationInFlightIndex` (set synchronously before any await), and `_handleMemoryPressure` includes that index in its hard-protected set alongside `_currentIndex`. Without the in-flight guard, mid-activation eviction would dispose A's about-to-be-built webview, leaving `restoreState` to no-op against a null controller.
+
+### Requirement: PAUSE-012 — Proactive Cache-Clear Threshold
+
+The system SHALL proactively promote the oldest sites from `resident` to `cacheCleared` once the count of `resident`-tier sites exceeds [`kMaxResidentSites`](../../../lib/services/site_lifecycle_promotion_engine.dart) (currently 10), without waiting for an OS memory-pressure event. This is the proactive complement to the reactive `_handleMemoryPressure` cascade — both call into the same priority hierarchy ([`SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets`](../../../lib/services/site_lifecycle_promotion_engine.dart) for proactive picks; the same out-of-keep ↦ in-keep, oldest-LRU-first rule).
+
+Why proactive: `didHaveMemoryPressure` doesn't fire reliably on Linux/desktop (no equivalent OS signal in WebKitGTK / WPE), and on iOS Jetsam is reactive — by the time pressure is signaled the OS may already be reclaiming. The threshold ensures every platform sees consistent memory hygiene regardless of OS signaling fidelity.
+
+The proactive pass runs at the tail of `_setCurrentIndex` (after the LRU eviction step, before the resume), so a single user activation can both lift the new target into `resident` and demote stale residents to `cacheCleared` in the same race-protected window.
+
+#### Scenario: 11th loaded resident site triggers proactive clearCache on the oldest
+
+**Given** 10 sites are loaded at the `resident` tier (under the `kMaxResidentSites = 10` threshold)
+**When** the user activates an 11th site
+**Then** during the activation tail, the engine identifies that resident count would be 11 (one over)
+**And** the LRU oldest non-active resident site is promoted to `cacheCleared`
+**And** `controller.clearCache()` runs on it
+**And** the user's tab state is intact — only the in-memory cache was dropped
+
+#### Scenario: Active webspace soft-keep applies to proactive promotion
+
+**Given** the user is on webspace `Work` with 6 loaded sites in it (active=A) plus 5 loaded sites in `Personal`
+**And** all 11 are at the `resident` tier
+**When** activation runs the proactive cache-clear pass with threshold 10
+**Then** the LRU oldest *out-of-active-webspace* site (one of the `Personal` sites) is promoted first
+**Because** `preferKeepIndices` (= active webspace) is exhausted last within the same tier — same priority as the reactive memory-pressure cascade
+
+#### Scenario: Already-cacheCleared sites don't count toward threshold
+
+**Given** 8 sites at `resident` and 5 sites at `cacheCleared`
+**When** activation runs the proactive cache-clear pass with threshold 10
+**Then** the engine sees 8 resident (under threshold), returns empty
+**And** no clearCache call is made
+**Because** the threshold gates resident-tier sites; sites already at `cacheCleared` are accounted as "already mitigated"
+
+#### Scenario: Concurrent proactive pass and memory-pressure handler
+
+**Given** activation is mid-flight, awaiting `controller.clearCache()` on a proactive target
+**When** an OS `didHaveMemoryPressure` event fires
+**Then** the memory-pressure handler enters and reads the current state map (which may already show the in-flight target as still `resident` until the await resumes)
+**And** the handler picks a different victim (the next-oldest, since the in-flight target is in `_activationInFlightIndex` and therefore in protected)
+**And** both transitions complete without double-promoting any single site
+**Because** `_isHandlingMemoryPressure` and `_activationInFlightIndex` together ensure: (1) no concurrent memory-pressure invocations; (2) the current activation target is hard-protected from external promotion.
+
+#### Scenario: Activation race protects newly-cleared candidate
+
+**Given** activation is awaiting `controller.clearCache()` on site X (proactive promotion mid-flight)
+**When** a newer `_setCurrentIndex` call starts and bumps the version counter
+**Then** the in-flight activation aborts after the await via the version-mismatch check
+**And** site X's `lifecycleState` is NOT flipped to `cacheCleared` by the aborted activation
+**Because** the post-await guard re-checks `_loadedIndices.contains(i)` and `lifecycleState == resident` before mutating — a newer activation may have demoted, evicted, or promoted X by then
 
 ### Requirement: PAUSE-007 — State Capture on All Dispose Paths
 
@@ -266,7 +316,7 @@ The system SHALL capture `controller.saveState()` bytes opportunistically — wi
 1. **Go-home** (`_setCurrentIndex(null)`): when the user navigates to the home screen, the previously-active site's state is captured before its webview is paused. The webview stays loaded for fast resume; state is captured defensively in case the OS later reaps the app or the user comes back after a long delay.
 2. **App-background** (`didChangeAppLifecycleState(paused | inactive)`): the active site's state is captured fire-and-forget alongside the existing `pauseForAppLifecycle` call, so an OS-induced kill while we're backgrounded preserves restorable state.
 
-Neither path mutates the model's `lifecycleState` — the field stays at `live` because the webview is not actually disposed. Capture goes through `_captureStateBytes` (bytes-only) rather than `_captureStateForRestore` (bytes + flip-to-savedForRestore).
+Neither path mutates the model's `lifecycleState` — the field stays at `resident` because the webview is not actually disposed. Capture goes through `_captureStateBytes` (bytes-only) rather than `_captureStateForRestore` (bytes + flip-to-savedForRestore).
 
 #### Scenario: Go-home captures state for the previously-active site
 
@@ -275,7 +325,7 @@ Neither path mutates the model's `lifecycleState` — the field stays at `live` 
 **Then** `_captureStateBytes(A)` runs before A is paused
 **And** A's bytes are persisted to `WebViewStateStorage`
 **And** A's webview is NOT disposed — `_loadedIndices` still contains A
-**And** A's `lifecycleState` stays `live`
+**And** A's `lifecycleState` stays `resident`
 **And** later cold-starting the app and re-activating A re-hydrates from the bytes
 
 #### Scenario: App-background captures the active site asynchronously
