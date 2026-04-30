@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
@@ -184,34 +185,12 @@ class ContentBlockerService {
     return (selectors: selectors, textRules: textRules);
   }
 
-  String _buildCssText(List<String> selectors) {
-    final cssRules = StringBuffer();
-    for (final s in selectors) {
-      final escaped = s.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
-      cssRules.write('$escaped { display: none !important; } ');
-    }
-    return cssRules.toString();
-  }
-
   /// Get CSS-only JavaScript for early injection at DOCUMENT_START.
   /// Injects a <style> tag with display:none rules before content renders.
   /// Returns null if no CSS selectors apply.
   String? getEarlyCssScript(String pageUrl) {
     final rules = _collectRules(pageUrl);
-    if (rules.selectors.isEmpty) return null;
-
-    final cssText = _buildCssText(rules.selectors);
-
-    return '''
-(function() {
-  var ID = '_webspace_content_blocker_style';
-  if (document.getElementById(ID)) return;
-  var s = document.createElement('style');
-  s.id = ID;
-  s.textContent = '$cssText';
-  (document.head || document.documentElement || document).appendChild(s);
-})();
-''';
+    return buildContentBlockerEarlyCssShim(rules.selectors);
   }
 
   /// Get full JavaScript for injection after page load.
@@ -219,83 +198,12 @@ class ContentBlockerService {
   /// Returns null if no cosmetic rules apply.
   String? getCosmeticScript(String pageUrl) {
     final rules = _collectRules(pageUrl);
-    if (rules.selectors.isEmpty && rules.textRules.isEmpty) return null;
-
-    final cssText = _buildCssText(rules.selectors);
-
-    // Batch selectors for querySelectorAll resilience
-    final escapedForJs = rules.selectors
-        .map((s) => s.replaceAll('\\', '\\\\').replaceAll("'", "\\'"))
-        .toList();
-    final batches = <String>[];
-    for (var i = 0; i < escapedForJs.length; i += 20) {
-      final end = (i + 20 < escapedForJs.length) ? i + 20 : escapedForJs.length;
-      batches.add(escapedForJs.sublist(i, end).join(', '));
-    }
-    final batchArray = batches.map((b) => "'$b'").join(',');
-
-    // Build text-match rules array for JS
-    final textRulesJs = StringBuffer('[');
-    for (var i = 0; i < rules.textRules.length; i++) {
-      if (i > 0) textRulesJs.write(',');
-      final r = rules.textRules[i];
-      final sel = r.selector.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
-      final pats = r.textPatterns
-          .map((p) => "'${p.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'")
-          .join(',');
-      textRulesJs.write("{sel:'$sel',pats:[$pats]}");
-    }
-    textRulesJs.write(']');
-
-    return '''
-(function() {
-  var ID = '_webspace_content_blocker_style';
-  if (!document.getElementById(ID)) {
-    var s = document.createElement('style');
-    s.id = ID;
-    s.textContent = '$cssText';
-    (document.head || document.documentElement).appendChild(s);
-  }
-  var BATCHES = [$batchArray];
-  var TEXT_RULES = $textRulesJs;
-  function hideCSS() {
-    for (var i = 0; i < BATCHES.length; i++) {
-      try { document.querySelectorAll(BATCHES[i]).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}
-    }
-  }
-  function hideText() {
-    for (var i = 0; i < TEXT_RULES.length; i++) {
-      var r = TEXT_RULES[i];
-      try {
-        document.querySelectorAll(r.sel).forEach(function(el) {
-          var text = el.textContent || '';
-          for (var j = 0; j < r.pats.length; j++) {
-            if (text.indexOf(r.pats[j]) !== -1) {
-              el.style.display = 'none';
-              break;
-            }
-          }
-        });
-      } catch(e) {}
-    }
-  }
-  function hide() { hideCSS(); hideText(); }
-  hide();
-  var t = null;
-  var obs = new MutationObserver(function() {
-    if (t) clearTimeout(t);
-    t = setTimeout(hide, 50);
-  });
-  if (document.body) {
-    obs.observe(document.body, { childList: true, subtree: true });
-  } else {
-    document.addEventListener('DOMContentLoaded', function() {
-      hide();
-      if (document.body) obs.observe(document.body, { childList: true, subtree: true });
-    });
-  }
-})();
-''';
+    return buildContentBlockerCosmeticShim(
+      selectors: rules.selectors,
+      textRules: rules.textRules
+          .map((r) => (selector: r.selector, patterns: r.textPatterns))
+          .toList(),
+    );
   }
 
   /// Initialize: load list metadata from prefs, parse cached files for enabled lists.

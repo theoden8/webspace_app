@@ -282,7 +282,7 @@ jobs:
             build-essential clang lld llvm cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
             libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev \
-            xvfb dbus-x11
+            xvfb xauth dbus-x11
           rm -rf /var/lib/apt/lists/*
           pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
           pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
