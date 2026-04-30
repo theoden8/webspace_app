@@ -374,6 +374,16 @@ jobs:
       - name: Run Linux integration tests
         run: |
           set -x
+          # path_provider_linux resolves getApplicationDocumentsDirectory()
+          # to ~/Documents (or $XDG_DOCUMENTS_DIR). The Sid container
+          # ships with neither, so the app's HtmlImportStorage.initialize
+          # throws MissingPlatformDirectoryException at boot. Create the
+          # directory and pin XDG paths so every path_provider call has
+          # a writable location under the test runner's HOME.
+          mkdir -p "$HOME/Documents" "$HOME/.cache" "$HOME/.local/share"
+          export XDG_DOCUMENTS_DIR="$HOME/Documents"
+          export XDG_CACHE_HOME="$HOME/.cache"
+          export XDG_DATA_HOME="$HOME/.local/share"
           xvfb-run -a --server-args="-screen 0 1280x720x24" \
             dbus-launch --exit-with-session \
             fvm flutter test integration_test/settings_smoke_test.dart \
