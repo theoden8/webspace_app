@@ -7,12 +7,14 @@ import 'package:webspace/web_view_model.dart';
 /// container mode lets sites stay resident across webspace switches; without
 /// it, a heavy user could accumulate dozens of live native webviews.
 ///
-/// Sized for "more than the user is likely actively juggling, but well under
-/// what an OOM-prone device can carry". Loaded webviews each consume native
-/// resources (renderer process, decoded images, JS heap). 16 is comfortably
-/// above typical working sets and well below the point where mid-range
-/// Android devices start swapping.
-const int kMaxLoadedSites = 16;
+/// Sized for "more than the user is likely actively juggling, on a device
+/// with healthy headroom". Loaded webviews each consume native resources
+/// (renderer process, decoded images, JS heap), but the OS's own memory
+/// pressure signal is the real backstop — see
+/// [SiteUnloadEngine.indexToEvictForMemoryPressure] — so this cap can
+/// be generous. Per-event one-at-a-time eviction lets the OS clamp us
+/// down to whatever the device can carry.
+const int kMaxLoadedSites = 50;
 
 /// Pure-Dart unload policy engine.
 ///
@@ -155,6 +157,41 @@ class SiteUnloadEngine {
       evict.add(i);
     }
     return evict;
+  }
+
+  /// Picks one loaded site to unload in response to an OS memory pressure
+  /// signal. Returns null when there's nothing safe to evict (everything
+  /// loaded is in [protectedIndices], typically just the currently-active
+  /// site).
+  ///
+  /// Same two-tier policy as [indicesToEvictForLruCap]: out-of-preferKeep
+  /// candidates (oldest first), then in-preferKeep (oldest first). The
+  /// caller invokes this on each `didHaveMemoryPressure()` event — if
+  /// pressure persists, the OS fires the callback again and the next
+  /// victim is picked. This lets the device clamp us down to whatever
+  /// it can carry, instead of guessing a target up front.
+  ///
+  /// One-per-event matches the OS's signaling cadence. Trimming
+  /// aggressively in a single shot would over-evict on transient
+  /// pressure (e.g. another foregrounded app); trimming gradually lets
+  /// the system stabilize.
+  static int? indexToEvictForMemoryPressure({
+    required Set<int> loadedIndices,
+    Set<int> protectedIndices = const <int>{},
+    Set<int> preferKeepIndices = const <int>{},
+  }) {
+    // Tier 1: out-of-preferKeep candidates, in LRU order.
+    for (final i in loadedIndices) {
+      if (protectedIndices.contains(i)) continue;
+      if (preferKeepIndices.contains(i)) continue;
+      return i;
+    }
+    // Tier 2: in-preferKeep candidates, in LRU order.
+    for (final i in loadedIndices) {
+      if (protectedIndices.contains(i)) continue;
+      return i;
+    }
+    return null;
   }
 
   static bool _proxyEquivalent(UserProxySettings a, UserProxySettings b) {

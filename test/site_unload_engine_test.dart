@@ -794,7 +794,7 @@ void main() {
         expect(result, [1]);
       });
 
-      test('respects access-order within each tier', () {
+      test('respects access-order within each tier with target', () {
         // Loaded in order: 0 (out), 1 (in), 2 (out), 3 (in). Then 0
         // gets bumped (re-activation) → order becomes 1, 2, 3, 0.
         // Cap=2 with target=4 → overflow 3. Out-of-set in LRU order:
@@ -813,6 +813,128 @@ void main() {
         );
         expect(result, [2, 0, 1]);
       });
+    });
+  });
+
+  group('SiteUnloadEngine.indexToEvictForMemoryPressure', () {
+    test('returns null when nothing is loaded', () {
+      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: const {},
+      );
+      expect(result, isNull);
+    });
+
+    test('returns null when every loaded site is protected', () {
+      // Pathological: only the active site is loaded, can't evict it.
+      final loaded = <int>{};
+      loaded.add(0);
+      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: loaded,
+        protectedIndices: {0},
+      );
+      expect(result, isNull);
+    });
+
+    test('picks oldest non-protected site (single tier)', () {
+      // Loaded order: 0 (oldest), 1, 2 (newest, active). Pick 0.
+      final loaded = <int>{};
+      loaded.add(0);
+      loaded.add(1);
+      loaded.add(2);
+      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: loaded,
+        protectedIndices: {2},
+      );
+      expect(result, 0);
+    });
+
+    test('prefers out-of-keep over in-keep', () {
+      // Order: 0 (in), 1 (out), 2 (in, active). Active is protected.
+      // Out-of-keep candidate exists → pick 1, not the older 0.
+      final loaded = <int>{};
+      loaded.add(0);
+      loaded.add(1);
+      loaded.add(2);
+      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: loaded,
+        protectedIndices: {2},
+        preferKeepIndices: {0, 2},
+      );
+      expect(result, 1);
+    });
+
+    test('falls through to in-keep when no out-of-keep candidate', () {
+      // Order: 0, 1, 2. Active=2. Soft-keep covers everything left.
+      // Pick the oldest in-keep: 0.
+      final loaded = <int>{};
+      loaded.add(0);
+      loaded.add(1);
+      loaded.add(2);
+      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: loaded,
+        protectedIndices: {2},
+        preferKeepIndices: {0, 1, 2},
+      );
+      expect(result, 0);
+    });
+
+    test('respects LRU access order after re-activation bumps', () {
+      // Activations 0, 1, 2 then re-activate 0 → order is 1, 2, 0.
+      // Active = 2 (most recent of {1, 2}). Out-of-keep: {1}; pick 1.
+      final loaded = <int>{};
+      loaded.add(0);
+      loaded.add(1);
+      loaded.add(2);
+      // Re-activate 0.
+      loaded.remove(0);
+      loaded.add(0);
+      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: loaded,
+        protectedIndices: {0},
+        preferKeepIndices: {0, 2},
+      );
+      expect(result, 1);
+    });
+
+    test('successive calls evict one-by-one without re-evicting', () {
+      // Caller mutates loadedIndices on each evict. After three OS
+      // memory-pressure events, three different sites get picked, in
+      // LRU order. The fourth event has only the active site left;
+      // returns null.
+      final loaded = <int>{};
+      loaded.add(0);
+      loaded.add(1);
+      loaded.add(2);
+      loaded.add(3);
+      final picked = <int>[];
+      while (true) {
+        final v = SiteUnloadEngine.indexToEvictForMemoryPressure(
+          loadedIndices: loaded,
+          protectedIndices: {3},
+        );
+        if (v == null) break;
+        picked.add(v);
+        loaded.remove(v);
+      }
+      expect(picked, [0, 1, 2]);
+      expect(loaded, {3});
+    });
+
+    test('stable when activeIndex is also in preferKeep', () {
+      // Common production case: the active site is part of the
+      // currently-selected webspace (so it's in both protectedIndices
+      // and preferKeepIndices). Tier-2 fall-through must not double-
+      // count the protected site.
+      final loaded = <int>{};
+      loaded.add(0);
+      loaded.add(1);
+      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: loaded,
+        protectedIndices: {1},
+        preferKeepIndices: {0, 1},
+      );
+      // Only candidate is 0 (in-keep), since 1 is protected.
+      expect(result, 0);
     });
   });
 }

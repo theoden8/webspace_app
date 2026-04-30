@@ -721,6 +721,34 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   @override
+  void didHaveMemoryPressure() {
+    // OS is signaling memory pressure. Trim one loaded site per
+    // event so the system controls the curve — if pressure persists
+    // the callback fires again and we evict the next victim. The
+    // active site is hard-protected; sites in the active webspace
+    // are soft-keep (evicted only after every other candidate).
+    unawaited(_handleMemoryPressure());
+  }
+
+  Future<void> _handleMemoryPressure() async {
+    final victim = SiteUnloadEngine.indexToEvictForMemoryPressure(
+      loadedIndices: _loadedIndices,
+      protectedIndices:
+          _currentIndex != null ? <int>{_currentIndex!} : const <int>{},
+      preferKeepIndices: _getFilteredSiteIndices().toSet(),
+    );
+    if (victim == null) return;
+    LogService.instance.log(
+      'SiteUnload',
+      'Memory pressure — unloading site $victim: '
+          '"${_webViewModels[victim].name}"',
+      level: LogLevel.warning,
+    );
+    await _unloadSiteForOtherReason(victim);
+    if (mounted) setState(() {});
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       // App is backgrounding: pause active webview AND globally freeze JS
