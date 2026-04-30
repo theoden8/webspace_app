@@ -9,6 +9,7 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/services/web_intercept_native.dart';
@@ -257,7 +258,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     // never modified) so we don't churn webviews while the user is
     // tabbing through.
     if (changed) {
+      LogService.instance.log(
+        'Proxy',
+        'Outbound proxy changed; resetting all loaded webviews so the new '
+            'value is applied on next render',
+        level: LogLevel.info,
+      );
       widget.onOutboundProxyChanged?.call();
+    } else {
+      LogService.instance.log(
+        'Proxy',
+        'Outbound proxy save invoked but settings unchanged; skipping webview reset',
+      );
     }
     if (mounted && changed) {
       ScaffoldMessenger.of(context).showSnackBar(

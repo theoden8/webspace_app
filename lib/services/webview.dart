@@ -226,7 +226,11 @@ class ProxyManager {
   ProxyManager._internal();
 
   Future<void> setProxySettings(UserProxySettings settings) async {
-    if (!PlatformInfo.isProxySupported) return;
+    if (!PlatformInfo.isProxySupported) {
+      LogService.instance.log('Proxy',
+          'setProxySettings: platform does not support proxy override; no-op');
+      return;
+    }
 
     // iOS / macOS: proxy travels through the fork's
     // `inapp.InAppWebViewSettings.proxySettings` field at WebView
@@ -234,7 +238,11 @@ class ProxyManager {
     // `inapp.ProxyController` is Android-only. Runtime updates of the
     // per-site proxy require the WebView to be rebuilt by the caller (see
     // [WebViewModel.updateProxySettings]).
-    if (Platform.isIOS || Platform.isMacOS) return;
+    if (Platform.isIOS || Platform.isMacOS) {
+      LogService.instance.log('Proxy',
+          'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here');
+      return;
+    }
 
     final controller = inapp.ProxyController.instance();
 
@@ -243,24 +251,49 @@ class ProxyManager {
     // honoring the same proxy precedence: explicit per-site override wins,
     // otherwise the global applies, otherwise system/direct.
     final effective = resolveEffectiveProxy(settings);
+    final fellThrough = settings.type == ProxyType.DEFAULT &&
+        effective.type != ProxyType.DEFAULT;
 
     if (effective.type == ProxyType.DEFAULT) {
+      LogService.instance.log(
+        'Proxy',
+        'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
+        level: LogLevel.info,
+      );
       await controller.clearProxyOverride();
       return;
     }
 
     if (effective.address == null || effective.address!.isEmpty) {
+      LogService.instance.log(
+        'Proxy',
+        'Effective proxy missing address; aborting setProxyOverride. '
+            'Effective: ${effective.describeForLogs()}',
+        level: LogLevel.error,
+      );
       throw Exception('Proxy address is required');
     }
 
     final parts = effective.address!.split(':');
     if (parts.length != 2) {
+      LogService.instance.log(
+        'Proxy',
+        'Effective proxy address malformed (expected host:port). '
+            'Effective: ${effective.describeForLogs()}',
+        level: LogLevel.error,
+      );
       throw Exception('Proxy address must be in format host:port');
     }
 
     final host = parts[0];
     final port = int.tryParse(parts[1]);
     if (port == null) {
+      LogService.instance.log(
+        'Proxy',
+        'Effective proxy port is not numeric. '
+            'Effective: ${effective.describeForLogs()}',
+        level: LogLevel.error,
+      );
       throw Exception('Invalid port number');
     }
 
@@ -274,6 +307,13 @@ class ProxyManager {
         ? '$scheme://${Uri.encodeComponent(effective.username!)}:${Uri.encodeComponent(effective.password!)}@$host:$port'
         : '$scheme://$host:$port';
 
+    LogService.instance.log(
+      'Proxy',
+      'Applying Android proxy override (scheme=$scheme'
+          '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
+          'effective: ${effective.describeForLogs()})',
+      level: LogLevel.info,
+    );
     await controller.setProxyOverride(
       settings: inapp.ProxySettings(
         proxyRules: [inapp.ProxyRule(url: proxyUrl)],

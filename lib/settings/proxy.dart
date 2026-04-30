@@ -49,6 +49,18 @@ class UserProxySettings {
         password: password,
       );
 
+  /// PII-safe one-line summary suitable for [LogService] output that the
+  /// user may share publicly when debugging proxy issues. Type and address
+  /// are emitted verbatim (the address is `host:port`, not a secret), but
+  /// username and password are reported as booleans only — they may
+  /// identify the user or unlock the proxy and must never appear in logs.
+  String describeForLogs() {
+    final t = type.toString().split('.').last;
+    final a = address ?? '<none>';
+    return 'type=$t address=$a hasUsername=${username != null && username!.isNotEmpty} '
+        'hasPassword=${password != null && password!.isNotEmpty}';
+  }
+
   /// Returns true if credentials are provided
   bool get hasCredentials => username != null && username!.isNotEmpty && password != null && password!.isNotEmpty;
 }

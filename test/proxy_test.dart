@@ -567,6 +567,36 @@ void main() {
       expect(mirrored.hasCredentials, false);
     });
 
+    test('describeForLogs() never leaks username or password', () {
+      // Logs are surfaced via the Dev Tools "App Logs" screen and may be
+      // shared with maintainers (e.g. in a bug report) when proxy
+      // configuration misbehaves. The redacted summary MUST emit type and
+      // address verbatim (the user needs to see whether the right host
+      // and port reached the native layer) but never the username or
+      // password — the secret is the secret regardless of who set it.
+      final proxy = UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '127.0.0.1:1080',
+        username: 'topsecretuser',
+        password: 'p@ssw0rd!',
+      );
+
+      final described = proxy.describeForLogs();
+
+      expect(described, contains('SOCKS5'));
+      expect(described, contains('127.0.0.1:1080'));
+      expect(described, contains('hasUsername=true'));
+      expect(described, contains('hasPassword=true'));
+      expect(described, isNot(contains('topsecretuser')));
+      expect(described, isNot(contains('p@ssw0rd!')));
+    });
+
+    test('describeForLogs() reports missing credentials as false', () {
+      final proxy = UserProxySettings(type: ProxyType.DEFAULT);
+      expect(proxy.describeForLogs(), contains('hasUsername=false'));
+      expect(proxy.describeForLogs(), contains('hasPassword=false'));
+    });
+
     test('Proxy with special characters in credentials', () {
       final proxy = UserProxySettings(
         type: ProxyType.HTTP,

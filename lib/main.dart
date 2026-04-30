@@ -1548,12 +1548,25 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           .toList();
 
       // Hydrate per-site proxy passwords from secure storage.
+      var hydratedCount = 0;
+      var sitesWithCustomProxy = 0;
       for (final m in loadedWebViewModels) {
+        if (m.proxySettings.type != ProxyType.DEFAULT) {
+          sitesWithCustomProxy++;
+        }
         final pwd = secureProxyPasswords[m.siteId];
         if (pwd != null && pwd.isNotEmpty) {
           m.proxySettings.password = pwd;
+          hydratedCount++;
         }
       }
+      LogService.instance.log(
+        'Proxy',
+        'Hydrated proxy passwords for $hydratedCount of '
+            '${loadedWebViewModels.length} site(s); '
+            '$sitesWithCustomProxy site(s) have a non-DEFAULT per-site proxy',
+        level: LogLevel.info,
+      );
 
       // Load cookies from secure storage (keyed by siteId or legacy domain)
       final secureCookies = await _cookieSecureStorage.loadCookies();
@@ -2587,6 +2600,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           getController()?.reload();
                         },
                         onProxySettingsChanged: (newProxySettings) {
+                          LogService.instance.log(
+                            'Proxy',
+                            'Mirroring per-site proxy across '
+                                '${_webViewModels.length} model(s): '
+                                '${newProxySettings.describeForLogs()}',
+                            level: LogLevel.info,
+                          );
                           setState(() {
                             for (var model in _webViewModels) {
                               // copy() preserves credentials — see its
@@ -2994,6 +3014,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     getController()?.reload();
                   },
                   onProxySettingsChanged: (newProxySettings) {
+                    LogService.instance.log(
+                      'Proxy',
+                      'Mirroring per-site proxy across '
+                          '${_webViewModels.length} model(s): '
+                          '${newProxySettings.describeForLogs()}',
+                      level: LogLevel.info,
+                    );
                     setState(() {
                       for (var model in _webViewModels) {
                         // copy() preserves credentials — see its

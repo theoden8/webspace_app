@@ -10,6 +10,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/user_scripts.dart';
@@ -310,6 +311,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
 
         widget.webViewModel.proxySettings = _proxySettings;
+        LogService.instance.log(
+          'Proxy',
+          'Saving per-site proxy for siteId=${widget.webViewModel.siteId}: '
+              '${_proxySettings.describeForLogs()}',
+          level: LogLevel.info,
+        );
 
         // Apply proxy settings immediately
         await widget.webViewModel.updateProxySettings(_proxySettings);
@@ -321,12 +328,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // `WKWebsiteDataStore.proxyConfigurations`, so per-site values
         // are independent and the sync would clobber them. See PROXY-008.
         if (Platform.isAndroid) {
+          LogService.instance.log(
+            'Proxy',
+            'Android: mirroring per-site proxy across all loaded models '
+                '(ProxyController is process-wide)',
+          );
           widget.onProxySettingsChanged?.call(_proxySettings);
         }
       } else {
         // Force DEFAULT proxy on unsupported platforms
         final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
         widget.webViewModel.proxySettings = defaultProxy;
+        LogService.instance.log(
+          'Proxy',
+          'Per-site proxy unsupported on this platform; forcing DEFAULT for '
+              'siteId=${widget.webViewModel.siteId}',
+        );
         await widget.webViewModel.updateProxySettings(defaultProxy);
       }
 
