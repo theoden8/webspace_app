@@ -43,13 +43,36 @@ void main() {
     app.main();
     // pumpAndSettle drives the splash → first frame → first idle
     // sequence. 30s is generous for the slow CI runner; locally this
-    // settles in <1s.
-    await tester.pumpAndSettle(const Duration(seconds: 30));
+    // settles in <1s. If it times out, dump the current widget tree
+    // so the failure log shows what actually rendered rather than
+    // just "settled never returned".
+    try {
+      await tester.pumpAndSettle(const Duration(seconds: 30));
+    } catch (e) {
+      // ignore: avoid_print
+      print('pumpAndSettle threw: $e\n'
+          'Tree at timeout:\n${tester.allWidgets.length} widgets\n'
+          'Texts visible: ${find.byType(Text).evaluate().map((e) {
+        final w = e.widget;
+        return w is Text ? w.data : '?';
+      }).take(20).toList()}');
+      rethrow;
+    }
 
     // The App Settings icon button is rendered on the webspaces-list
     // screen (no site selected). With empty SharedPreferences and
     // isDemoMode=true, the app boots straight into that screen.
     final settingsButton = find.byTooltip('App Settings');
+    if (settingsButton.evaluate().isEmpty) {
+      // Self-diagnose: dump every Tooltip / IconButton text we see so
+      // the CI log explains why the find missed.
+      final tooltips = find.byType(Tooltip).evaluate().map((e) {
+        final w = e.widget;
+        return w is Tooltip ? w.message : '?';
+      }).toList();
+      // ignore: avoid_print
+      print('App Settings tooltip not found. Tooltips visible: $tooltips');
+    }
     expect(settingsButton, findsOneWidget,
       reason: 'App Settings icon should be visible on empty webspaces list');
 
@@ -67,10 +90,7 @@ void main() {
 
     // Verify we can scroll the settings screen — proves the
     // ListView/Scrollable inside the screen layouts correctly under
-    // the Linux desktop renderer's DPR. Without this, a regression
-    // that broke the layout (e.g. infinite-height ListView in a
-    // Column) would surface as an exception in pumpAndSettle but
-    // could be silently swallowed in less obvious ways.
+    // the Linux desktop renderer's DPR.
     final scrollable = find.byType(Scrollable).first;
     expect(scrollable, findsOneWidget);
     await tester.drag(scrollable, const Offset(0, -300));
