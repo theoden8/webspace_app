@@ -40,8 +40,10 @@ This project uses [FVM](https://fvm.app/) for Flutter version management. Always
 fvm flutter pub get
 
 # Run tests
-fvm flutter test                           # All tests
+fvm flutter test                           # All Dart tests
 fvm flutter test test/cookie_isolation_test.dart  # Single test file
+npm run test:js                            # Node-side JS shim tests
+./scripts/test_all.sh                      # Both layers (Dart + Node)
 
 # Static analysis
 fvm flutter analyze
@@ -130,6 +132,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | icon-fetching | Progressive favicon loading with fallbacks |
 | ios-universal-link-bypass | iOS-only: cancel + reissue gesture-rooted main-frame http(s) navigations to silently bypass apple-app-site-association auto-routing into native apps |
 | ip-leakage | Proxy coverage contract: every Dart-side outbound seam, fail-closed-on-SOCKS5, WebRTC + DNS posture |
+| js-shim-tests | Behavioural Node-side tests for injected JS shims (jsdom + node:test), with Dart drift check on dumped fixtures |
 | language | Per-site language: Accept-Language header + DOCUMENT_START navigator.language / Intl override |
 | lazy-webview-loading | On-demand webview creation, IndexedStack placeholders |
 | localcdn | LocalCDN - cache CDN resources locally to prevent CDN tracking (Android) |
@@ -151,6 +154,26 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | desktop-mode | Desktop layout inferred from per-site UA (no toggle); JS shim for navigator.userAgentData / maxTouchPoints / pointer-media / `<meta name=viewport>` rewrite |
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
+
+## JS shim tests (jsdom + node:test)
+
+JavaScript shims injected into webviews (desktop-mode, geolocation/timezone/WebRTC, etc.) have **two** test layers:
+
+- **Dart-side**: existing tests in `test/*_test.dart` assert the builder's *string output* (e.g. `expect(js, contains('Win32'))`). Cheap, but only catches absent substrings.
+- **Node-side**: `test/js/*.test.js` runs the dumped shim in jsdom and asserts the *post-injection JS state* (e.g. `navigator.platform === 'Linux x86_64'`, `new RTCPeerConnection({}).iceTransportPolicy === 'relay'`). Catches mistakes the string check misses (typos in property names, wrong defineProperty target, broken matchMedia wrapper).
+
+The two layers share fixtures under `test/js_fixtures/` — see [test/js_fixtures/README.md](test/js_fixtures/README.md). Workflow:
+
+1. Edit a shim builder in `lib/services/`.
+2. `fvm dart run tool/dump_shim_js.dart` regenerates fixtures.
+3. `fvm flutter test test/js_fixtures_drift_test.dart` proves committed fixtures match the builder.
+4. `npm run test:js` proves the shim actually mutates the JS surface.
+
+Both layers run in CI (`build-and-test.yml` — the Node tests run early in the `Build Linux` job before the Flutter build; the drift check runs as part of the regular `flutter test` step).
+
+To add a new shim to the Node-side suite: register it in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump_shim_js.dart), regenerate, then write a `*.test.js` against the new fixture. Builders that depend on Flutter widget imports (anything in `lib/main.dart` or `lib/screens/*`) can't be reached from the dumper as-is — extract the JS string into a pure-Dart helper first.
+
+jsdom does not implement canvas/WebGL/audio fingerprinting. Tests assert override **shape** (constructor replaced, getter defined), not real-engine behaviour. For end-to-end privacy proofing against a real fingerprint detector (CreepJS, fingerprintjs), a Playwright-based Tier 2 is the natural follow-up — not yet built.
 
 ## Fastlane changelogs
 
