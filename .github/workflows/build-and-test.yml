@@ -282,7 +282,7 @@ jobs:
             build-essential clang lld llvm cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
             libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev \
-            xvfb xauth dbus-x11
+            xvfb xauth dbus-x11 xdg-user-dirs
           rm -rf /var/lib/apt/lists/*
           pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
           pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
@@ -374,16 +374,31 @@ jobs:
       - name: Run Linux integration tests
         run: |
           set -x
-          # path_provider_linux resolves getApplicationDocumentsDirectory()
-          # to ~/Documents (or $XDG_DOCUMENTS_DIR). The Sid container
-          # ships with neither, so the app's HtmlImportStorage.initialize
-          # throws MissingPlatformDirectoryException at boot. Create the
-          # directory and pin XDG paths so every path_provider call has
-          # a writable location under the test runner's HOME.
-          mkdir -p "$HOME/Documents" "$HOME/.cache" "$HOME/.local/share"
-          export XDG_DOCUMENTS_DIR="$HOME/Documents"
-          export XDG_CACHE_HOME="$HOME/.cache"
-          export XDG_DATA_HOME="$HOME/.local/share"
+          # path_provider_linux's getApplicationDocumentsDirectory()
+          # calls `xdg-user-dir DOCUMENTS` (provided by the xdg-user-dirs
+          # package, installed in the deps step above). xdg-user-dir
+          # reads $XDG_CONFIG_HOME/user-dirs.dirs; if absent it falls
+          # back to $HOME/Documents. The Sid container ships with
+          # neither — populate ~/.config/user-dirs.dirs and create the
+          # target directory so the lookup returns a real path instead
+          # of throwing MissingPlatformDirectoryException at boot.
+          mkdir -p "$HOME/Documents" "$HOME/.cache" "$HOME/.local/share" \
+                   "$HOME/.config"
+          cat > "$HOME/.config/user-dirs.dirs" <<'EOF'
+          XDG_DESKTOP_DIR="$HOME/Desktop"
+          XDG_DOWNLOAD_DIR="$HOME/Downloads"
+          XDG_DOCUMENTS_DIR="$HOME/Documents"
+          XDG_PICTURES_DIR="$HOME/Pictures"
+          XDG_VIDEOS_DIR="$HOME/Videos"
+          XDG_MUSIC_DIR="$HOME/Music"
+          EOF
+          mkdir -p "$HOME/Desktop" "$HOME/Downloads" "$HOME/Pictures" \
+                   "$HOME/Videos" "$HOME/Music"
+          # Sanity: the test will fail with MissingPlatformDirectoryException
+          # if this command returns empty. Print it so the log shows the
+          # resolved path on success or the empty failure on a config
+          # mismatch.
+          xdg-user-dir DOCUMENTS
           xvfb-run -a --server-args="-screen 0 1280x720x24" \
             dbus-launch --exit-with-session \
             fvm flutter test integration_test/settings_smoke_test.dart \
