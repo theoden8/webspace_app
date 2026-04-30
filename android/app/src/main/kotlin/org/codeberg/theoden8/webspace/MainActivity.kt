@@ -14,9 +14,11 @@ import java.net.URL
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
+    private val WEBAUTHN_CHANNEL = "org.codeberg.theoden8.webspace/webauthn"
     private var webInterceptPlugin: WebInterceptPlugin? = null
     private var locationPlugin: LocationPlugin? = null
     private var webSpaceContainerPlugin: WebSpaceContainerPlugin? = null
+    private lateinit var webAuthnHandler: WebAuthnHandler
 
     override fun getFlutterShellArgs(): FlutterShellArgs {
         val args = FlutterShellArgs.fromIntent(intent)
@@ -35,6 +37,40 @@ class MainActivity: FlutterActivity() {
         webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
         locationPlugin = LocationPlugin(this, flutterEngine)
         webSpaceContainerPlugin = WebSpaceContainerPlugin(flutterEngine)
+        webAuthnHandler = WebAuthnHandler(this)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WEBAUTHN_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setupWebAuthn" -> {
+                    val info = webAuthnHandler.setupWebAuthn()
+                    result.success(info)
+                }
+                "create" -> {
+                    val requestJson = call.argument<String>("requestJson") ?: ""
+                    val origin = call.argument<String>("origin") ?: ""
+                    webAuthnHandler.handleCreate(requestJson, origin, object : WebAuthnHandler.WebAuthnResultCallback {
+                        override fun onSuccess(responseJson: String) {
+                            runOnUiThread { result.success(responseJson) }
+                        }
+                        override fun onError(errorType: String, errorMessage: String) {
+                            runOnUiThread { result.error(errorType, errorMessage, null) }
+                        }
+                    })
+                }
+                "get" -> {
+                    val requestJson = call.argument<String>("requestJson") ?: ""
+                    val origin = call.argument<String>("origin") ?: ""
+                    webAuthnHandler.handleGet(requestJson, origin, object : WebAuthnHandler.WebAuthnResultCallback {
+                        override fun onSuccess(responseJson: String) {
+                            runOnUiThread { result.success(responseJson) }
+                        }
+                        override fun onError(errorType: String, errorMessage: String) {
+                            runOnUiThread { result.error(errorType, errorMessage, null) }
+                        }
+                    })
+                }
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pinShortcut" -> {

@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -942,6 +943,219 @@ String _languageOverrideScript(String language) {
 }
 
 
+/// Method channel for WebAuthn/passkey support (Android only).
+const MethodChannel _webAuthnChannel =
+    MethodChannel('org.codeberg.theoden8.webspace/webauthn');
+
+/// JavaScript polyfill for WebAuthn/passkey support.
+///
+/// Injected at DOCUMENT_START on Android. The polyfill:
+///   - Defines `PublicKeyCredential` if it doesn't exist and always
+///     overrides its static methods (isUserVerifyingPlatformAuthenticatorAvailable
+///     returns true, isConditionalMediationAvailable returns false).
+///   - Saves originals of `navigator.credentials.create/get`.
+///   - Defines bridge functions that serialize options (ArrayBuffer to
+///     Base64URL) and call `window.flutter_inappwebview.callHandler('webauthn', ...)`
+///   - Overrides create/get to TRY NATIVE FIRST (call origCreate), and on
+///     failure fall back to bridge.
+///   - Uses `__webauthnPolyfilled` guard to prevent double-override of
+///     create/get (but detection methods are always set).
+const String _webAuthnPolyfillScript = r'''
+(function() {
+  // --- Detection: always override (no guard) ---
+  if (typeof PublicKeyCredential === 'undefined') {
+    window.PublicKeyCredential = function() {};
+    window.PublicKeyCredential.prototype = {};
+  }
+  PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = function() {
+    return Promise.resolve(true);
+  };
+  PublicKeyCredential.isConditionalMediationAvailable = function() {
+    return Promise.resolve(false);
+  };
+
+  // Guard create/get override
+  if (window.__webauthnPolyfilled) return;
+  window.__webauthnPolyfilled = true;
+
+  console.log('[WebAuthn polyfill] installing create/get overrides');
+
+  // --- Helpers ---
+  function bufferToBase64url(buffer) {
+    var bytes = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function base64urlToBuffer(base64url) {
+    var base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) base64 += '=';
+    var binary = atob(base64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function serializeCreateOptions(options) {
+    var pk = options.publicKey;
+    if (!pk) return JSON.stringify(options);
+    var obj = JSON.parse(JSON.stringify(pk, function(key, value) {
+      if (value && value.buffer instanceof ArrayBuffer) {
+        return bufferToBase64url(value);
+      }
+      if (value instanceof ArrayBuffer) {
+        return bufferToBase64url(value);
+      }
+      return value;
+    }));
+    if (pk.challenge) obj.challenge = bufferToBase64url(pk.challenge);
+    if (pk.user && pk.user.id) obj.user.id = bufferToBase64url(pk.user.id);
+    if (pk.excludeCredentials) {
+      obj.excludeCredentials = pk.excludeCredentials.map(function(c) {
+        var r = Object.assign({}, c);
+        if (c.id) r.id = bufferToBase64url(c.id);
+        return r;
+      });
+    }
+    return JSON.stringify(obj);
+  }
+
+  function serializeGetOptions(options) {
+    var pk = options.publicKey;
+    if (!pk) return JSON.stringify(options);
+    var obj = JSON.parse(JSON.stringify(pk, function(key, value) {
+      if (value && value.buffer instanceof ArrayBuffer) {
+        return bufferToBase64url(value);
+      }
+      if (value instanceof ArrayBuffer) {
+        return bufferToBase64url(value);
+      }
+      return value;
+    }));
+    if (pk.challenge) obj.challenge = bufferToBase64url(pk.challenge);
+    if (pk.allowCredentials) {
+      obj.allowCredentials = pk.allowCredentials.map(function(c) {
+        var r = Object.assign({}, c);
+        if (c.id) r.id = bufferToBase64url(c.id);
+        return r;
+      });
+    }
+    return JSON.stringify(obj);
+  }
+
+  // --- Bridge functions ---
+  function bridgeCreate(options) {
+    console.log('[WebAuthn polyfill] bridge create');
+    var requestJson = serializeCreateOptions(options);
+    var origin = window.location.origin;
+    return window.flutter_inappwebview.callHandler('webauthn', 'create', requestJson, origin)
+      .then(function(responseJson) {
+        console.log('[WebAuthn polyfill] bridge create response received');
+        var resp = JSON.parse(responseJson);
+        var credential = {
+          id: resp.id || '',
+          rawId: resp.rawId ? base64urlToBuffer(resp.rawId) : new ArrayBuffer(0),
+          type: resp.type || 'public-key',
+          response: {
+            clientDataJSON: resp.response && resp.response.clientDataJSON
+              ? base64urlToBuffer(resp.response.clientDataJSON)
+              : new ArrayBuffer(0),
+            attestationObject: resp.response && resp.response.attestationObject
+              ? base64urlToBuffer(resp.response.attestationObject)
+              : new ArrayBuffer(0),
+            getTransports: function() { return resp.response && resp.response.transports || []; },
+            getAuthenticatorData: function() {
+              return resp.response && resp.response.authenticatorData
+                ? base64urlToBuffer(resp.response.authenticatorData)
+                : new ArrayBuffer(0);
+            },
+            getPublicKey: function() {
+              return resp.response && resp.response.publicKey
+                ? base64urlToBuffer(resp.response.publicKey)
+                : null;
+            },
+            getPublicKeyAlgorithm: function() {
+              return resp.response && resp.response.publicKeyAlgorithm || -7;
+            }
+          },
+          authenticatorAttachment: resp.authenticatorAttachment || 'platform',
+          getClientExtensionResults: function() { return resp.clientExtensionResults || {}; }
+        };
+        return credential;
+      });
+  }
+
+  function bridgeGet(options) {
+    console.log('[WebAuthn polyfill] bridge get');
+    var requestJson = serializeGetOptions(options);
+    var origin = window.location.origin;
+    return window.flutter_inappwebview.callHandler('webauthn', 'get', requestJson, origin)
+      .then(function(responseJson) {
+        console.log('[WebAuthn polyfill] bridge get response received');
+        var resp = JSON.parse(responseJson);
+        var credential = {
+          id: resp.id || '',
+          rawId: resp.rawId ? base64urlToBuffer(resp.rawId) : new ArrayBuffer(0),
+          type: resp.type || 'public-key',
+          response: {
+            clientDataJSON: resp.response && resp.response.clientDataJSON
+              ? base64urlToBuffer(resp.response.clientDataJSON)
+              : new ArrayBuffer(0),
+            authenticatorData: resp.response && resp.response.authenticatorData
+              ? base64urlToBuffer(resp.response.authenticatorData)
+              : new ArrayBuffer(0),
+            signature: resp.response && resp.response.signature
+              ? base64urlToBuffer(resp.response.signature)
+              : new ArrayBuffer(0),
+            userHandle: resp.response && resp.response.userHandle
+              ? base64urlToBuffer(resp.response.userHandle)
+              : null
+          },
+          authenticatorAttachment: resp.authenticatorAttachment || 'platform',
+          getClientExtensionResults: function() { return resp.clientExtensionResults || {}; }
+        };
+        return credential;
+      });
+  }
+
+  // --- Override create/get: try native first, fall back to bridge ---
+  var origCreate = navigator.credentials && navigator.credentials.create
+    ? navigator.credentials.create.bind(navigator.credentials) : null;
+  var origGet = navigator.credentials && navigator.credentials.get
+    ? navigator.credentials.get.bind(navigator.credentials) : null;
+
+  if (navigator.credentials) {
+    navigator.credentials.create = function(options) {
+      if (!options || !options.publicKey) {
+        return origCreate ? origCreate(options) : Promise.reject(new Error('No publicKey in options'));
+      }
+      if (origCreate) {
+        console.log('[WebAuthn polyfill] trying native create first');
+        return origCreate(options).catch(function(err) {
+          console.log('[WebAuthn polyfill] native create failed (' + err.message + '), falling back to bridge');
+          return bridgeCreate(options);
+        });
+      }
+      return bridgeCreate(options);
+    };
+    navigator.credentials.get = function(options) {
+      if (!options || !options.publicKey) {
+        return origGet ? origGet(options) : Promise.reject(new Error('No publicKey in options'));
+      }
+      if (origGet) {
+        console.log('[WebAuthn polyfill] trying native get first');
+        return origGet(options).catch(function(err) {
+          console.log('[WebAuthn polyfill] native get failed (' + err.message + '), falling back to bridge');
+          return bridgeGet(options);
+        });
+      }
+      return bridgeGet(options);
+    };
+  }
+})();
+''';
+
 /// Factory for creating webviews
 class WebViewFactory {
   /// System font scale → webview text zoom percent. Tracks the OS-level
@@ -1223,6 +1437,18 @@ class WebViewFactory {
       userScripts.add(inapp.UserScript(
         groupName: 'clearurl_share',
         source: '$_clearUrlShareScript\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
+    // WebAuthn/passkey polyfill (Android only). Injects a JS shim that
+    // overrides navigator.credentials.create/get to try the native WebAuthn
+    // path first, falling back to the Credential Manager bridge via
+    // flutter_inappwebview JS handler.
+    if (Platform.isAndroid) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'webauthn_polyfill',
+        source: '$_webAuthnPolyfillScript\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       ));
     }
@@ -1830,6 +2056,40 @@ class WebViewFactory {
         // fires, the WebView is already bound to its per-site container
         // and every cookie / IDB / ServiceWorker / cache write that
         // follows is partitioned to that container.
+        // WebAuthn/passkey: register JS handler and set up native WebAuthn
+        // support on Android. The handler bridges navigator.credentials
+        // create/get calls from the JS polyfill to the native Credential
+        // Manager via the platform channel.
+        if (Platform.isAndroid) {
+          controller.addJavaScriptHandler(
+            handlerName: 'webauthn',
+            callback: (args) async {
+              if (args.length < 3) return null;
+              final action = args[0] as String;
+              final requestJson = args[1] as String;
+              final origin = args[2] as String;
+              try {
+                final result = await _webAuthnChannel.invokeMethod(action, {
+                  'requestJson': requestJson,
+                  'origin': origin,
+                });
+                return result;
+              } on PlatformException catch (e) {
+                throw Exception('WebAuthn $action failed: ${e.code} ${e.message}');
+              }
+            },
+          );
+          // Set up native WebAuthn support on the WebView after it's
+          // been added to the view hierarchy.
+          Future.microtask(() async {
+            try {
+              final info = await _webAuthnChannel.invokeMethod('setupWebAuthn');
+              debugPrint('WebAuthn setup: $info');
+            } catch (e) {
+              debugPrint('WebAuthn setup failed: $e');
+            }
+          });
+        }
         // Attach native interceptor (DNS blocking + LocalCDN serving) once
         // the view is in the hierarchy. Always attach on Android — the
         // handler no-ops cheaply when neither blocklist nor CDN cache are
@@ -2067,6 +2327,13 @@ class WebViewFactory {
         }
         if (config.clearUrlEnabled) {
           earlyScripts.add(_clearUrlShareScript);
+        }
+        // Re-inject WebAuthn polyfill on each page load so the shim is
+        // in place before any site script runs. The DOCUMENT_START user
+        // script covers the initial load; this covers subsequent
+        // navigations within the same WebView instance.
+        if (Platform.isAndroid) {
+          earlyScripts.add(_webAuthnPolyfillScript);
         }
         if (earlyScripts.isNotEmpty && stillCurrent()) {
           try {

@@ -116,12 +116,10 @@ flutter {
 }
 
 dependencies {
-    // Profile API for per-site cookie/storage isolation. Used by the
-    // fork's flutter_inappwebview_android (ws-<siteId> containers) and
-    // by WebSpaceContainerPlugin's MULTI_PROFILE runtime probe — see
-    // openspec/specs/per-site-containers/spec.md. The MULTI_PROFILE
-    // feature is gated at runtime via WebViewFeature.isFeatureSupported;
-    // devices whose System WebView does not advertise it fall through
-    // to the legacy capture-nuke-restore engine.
-    implementation "androidx.webkit:webkit:1.12.1"
+    // AndroidX WebKit for per-site container isolation (Profile API) and
+    // WebAuthn/passkey support (setWebAuthenticationSupport API).
+    implementation "androidx.webkit:webkit:1.14.0"
+    // WebAuthn/Passkey support via Android Credential Manager
+    implementation "androidx.credentials:credentials:1.5.0"
+    implementation "androidx.credentials:credentials-play-services-auth:1.5.0"
 }
