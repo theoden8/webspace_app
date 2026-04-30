@@ -242,6 +242,59 @@ load and run concurrently with fully isolated cookies, `localStorage`,
 **Then** site A's session is intact — no re-login, no reload, no
   capture-nuke-restore cycle ran
 
+#### Scenario: Sites stay loaded across webspace switches
+
+**Given** profile mode is active
+**And** site A is in webspace `Work` and site B is in webspace `Personal`
+**And** both A and B have been loaded
+**When** the user switches webspace from `Work` to `Personal`
+**Then** site A is NOT unloaded (it remains in `_loadedIndices` and its
+  webview stays in the IndexedStack), even though it isn't part of the
+  newly-active webspace
+**Because** the per-site container isolates A's state from B's, so
+  keeping A resident is harmless and avoids the cost of re-creating
+  the webview if the user switches back
+
+The orchestration lives in
+[`SiteUnloadEngine.indicesToUnloadOnWebspaceSwitch`](../../../lib/services/site_unload_engine.dart),
+which returns `{}` when `useContainers == true` and delegates to the
+legacy `WebspaceSelectionEngine` otherwise. To prevent unbounded growth
+under this policy, two backstops apply:
+
+1. **LRU cap**
+   ([`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart),
+   currently 20). Activation evicts least-recently-used loaded sites
+   when adding the new site would exceed the cap. The two-tier
+   priority keeps the active site (hard-protected) and active-webspace
+   sites (soft-keep) loaded in preference to stale sites from other
+   webspaces.
+2. **OS memory pressure**
+   (`WidgetsBindingObserver.didHaveMemoryPressure`). Each event
+   evicts one site via
+   [`SiteUnloadEngine.indexToEvictForMemoryPressure`](../../../lib/services/site_unload_engine.dart).
+   The OS controls the curve: if pressure persists, the callback
+   fires again and the next victim is picked. One-per-event matches
+   the OS signaling cadence and avoids over-evicting on transient
+   pressure (e.g. another foregrounded app spike). Mirrors
+   Flutter's own `ImageCache` reactivity pattern.
+
+#### Scenario: Memory pressure during re-activation does not strand state
+
+**Given** profile mode is active
+**And** site A is loaded but not the currently-active site
+**When** the user activates A and the OS fires
+  `didHaveMemoryPressure` between the version bump and the eventual
+  webview resume
+**Then** A is NOT picked as the eviction victim
+**Because** `_setCurrentIndex` records its target in
+  `_activationInFlightIndex` (set in the try block, cleared in
+  finally); `_handleMemoryPressure` includes that index in its
+  hard-protected set alongside `_currentIndex`. Without the in-flight
+  guard, mid-activation eviction would dispose A's webview, leaving
+  `_setCurrentIndex` to call `resumeWebView()` on a null controller
+  (no-op) — the IndexedStack would re-create a fresh webview on next
+  paint, silently wiping the user's URL/scroll/session.
+
 ### Requirement: CONT-004 — Orphan Garbage Collection
 
 The system SHALL sweep profiles whose owning site no longer exists.

@@ -42,6 +42,10 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
+import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/services/webview_state_secure_storage.dart';
+import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
@@ -664,6 +668,35 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   int _setCurrentIndexVersion = 0;
   Completer<void>? _webspaceSwitchCompleter;
 
+  // Index currently being activated by an in-flight `_setCurrentIndex`
+  // call, or null when no activation is in progress. Read by
+  // `_handleMemoryPressure` so an OS pressure event during a
+  // re-activation can't dispose the soon-to-be-active site (which
+  // would silently wipe its state — the IndexedStack would re-create
+  // a fresh webview on next paint, losing scroll/URL/session).
+  int? _activationInFlightIndex;
+
+  // Drops concurrent `_handleMemoryPressure` invocations. The OS may
+  // fire `didHaveMemoryPressure` repeatedly under sustained pressure;
+  // the first handler runs to completion, then the next event picks up
+  // the new state. Without this, in legacy (non-container) mode the
+  // capture-then-dispose await window lets two handlers pick the same
+  // victim and double-write its captured cookies to storage.
+  bool _isHandlingMemoryPressure = false;
+
+  // AES-encrypted on-disk storage for per-site `controller.saveState()`
+  // bytes. The same encryption pattern as the HTML cache: a 256-bit
+  // AES key in `FlutterSecureStorage`, per-site files under
+  // `<docs>/webview_state/<siteId>.enc`. Bytes survive webspace
+  // switches, LRU evictions, memory-pressure disposals, AND cold
+  // starts (cleared on app-version upgrade alongside the key).
+  //
+  // Sites in [SiteLifecycleState.savedForRestore] have an entry here
+  // keyed by siteId; re-activation reads it and pre-populates the
+  // model's `_pendingRestoreState` so onControllerCreated can apply
+  // it to the freshly-built controller.
+  final WebViewStateStorage _stateStorage = SecureWebViewStateStorage();
+
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
   final Set<int> _loadedIndices = {};
@@ -720,12 +753,106 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   @override
+  void didHaveMemoryPressure() {
+    // OS is signaling memory pressure. Trim one loaded site per
+    // event so the system controls the curve — if pressure persists
+    // the callback fires again and we evict the next victim. The
+    // active site is hard-protected; sites in the active webspace
+    // are soft-keep (evicted only after every other candidate).
+    unawaited(_handleMemoryPressure());
+  }
+
+  Future<void> _handleMemoryPressure() async {
+    // Drop concurrent invocations: if the OS fires repeatedly while
+    // we're still applying the previous promotion's transition
+    // (clearCache, or saveState+dispose), we'd otherwise pick the
+    // same victim twice and re-apply the same transition.
+    if (_isHandlingMemoryPressure) return;
+    _isHandlingMemoryPressure = true;
+    try {
+      // Protect both the currently-active site and any site in the
+      // middle of being activated by an in-flight `_setCurrentIndex`.
+      // Without the in-flight guard, a re-activation of an already-
+      // loaded site could be racing with this handler — disposing the
+      // soon-to-be-active webview silently wipes its state.
+      final protected = <int>{
+        if (_currentIndex != null) _currentIndex!,
+        if (_activationInFlightIndex != null) _activationInFlightIndex!,
+      };
+      // Build the per-site state map snapshot for the cascade engine.
+      // Iterate _loadedIndices defensively in case _webViewModels
+      // shifted under us.
+      final states = <int, SiteLifecycleState>{};
+      for (final i in _loadedIndices) {
+        if (i < 0 || i >= _webViewModels.length) continue;
+        states[i] = _webViewModels[i].lifecycleState;
+      }
+      final victim = SiteLifecyclePromotionEngine.pickPromotionTarget(
+        loadedIndices: _loadedIndices,
+        states: states,
+        protectedIndices: protected,
+        preferKeepIndices: _getFilteredSiteIndices().toSet(),
+      );
+      if (victim == null) return;
+      if (victim < 0 || victim >= _webViewModels.length) return;
+      final model = _webViewModels[victim];
+      final from = model.lifecycleState;
+      final to = SiteLifecyclePromotionEngine.nextState(from);
+      if (to == null) return;
+
+      LogService.instance.log(
+        'SiteUnload',
+        'Memory pressure — promoting site $victim "${model.name}": '
+            '${from.name} → ${to.name}',
+        level: LogLevel.warning,
+      );
+
+      switch (to) {
+        case SiteLifecycleState.cacheCleared:
+          // live → cacheCleared: drop the in-memory cache. Webview
+          // stays loaded; tab state intact. Frees decoded image
+          // cache + HTTP response cache.
+          await model.clearWebViewCache();
+          if (!mounted) return;
+          model.lifecycleState = SiteLifecycleState.cacheCleared;
+        case SiteLifecycleState.savedForRestore:
+          // cacheCleared → savedForRestore: capture state, dispose
+          // webview, drop from _loadedIndices. Frees the renderer
+          // process. Re-activation hydrates from storage via the
+          // model's _pendingRestoreState hook.
+          //
+          // Routes through _unloadSiteForOtherReason so the legacy
+          // cookie capture (when not in container mode) runs too;
+          // _captureStateForRestore inside that helper is what
+          // updates the lifecycleState to savedForRestore.
+          await _unloadSiteForOtherReason(victim);
+        case SiteLifecycleState.resident:
+          // Promotion can never go back to live — defensive.
+          break;
+      }
+      if (!mounted) return;
+      setState(() {});
+    } finally {
+      _isHandlingMemoryPressure = false;
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       // App is backgrounding: pause active webview AND globally freeze JS
       // timers so loaded-but-inactive webviews stop too.
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
         _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
+        // Capture state for the active site so an OS-induced kill
+        // while we're backgrounded doesn't lose the back/forward
+        // stack and (Apple) form data. Best-effort, fire-and-forget;
+        // the webview stays loaded — disk capture is just defense
+        // in depth in case the OS reaps the app entirely. Bytes-
+        // only capture — lifecycleState stays `live` because the
+        // webview is not disposed.
+        final activeIdx = _currentIndex!;
+        unawaited(_captureStateBytes(_webViewModels[activeIdx]));
       }
     } else if (state == AppLifecycleState.resumed) {
       // Await any in-flight pause before resuming to prevent ordering inversion
@@ -939,8 +1066,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final version = ++_setCurrentIndexVersion;
 
     if (index == null || index < 0 || index >= _webViewModels.length) {
-      // Pause the previously active webview when navigating away
+      // Going home: opportunistically capture state for the
+      // previously-active site so a later cold start (or
+      // OS-killed-while-backgrounded scenario) can re-hydrate its
+      // back/forward stack and form data on re-activation. The
+      // webview stays loaded (pause-only, not disposed) so a
+      // near-immediate return to the same site keeps its in-memory
+      // tab. Bytes-only capture — `lifecycleState` stays `live`
+      // because the webview is not actually disposed.
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+        await _captureStateBytes(_webViewModels[_currentIndex!]);
+        if (version != _setCurrentIndexVersion) return;
         await _webViewModels[_currentIndex!].pauseWebView();
         if (version != _setCurrentIndexVersion) return;
       }
@@ -955,6 +1091,38 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     LogService.instance.log('CookieIsolation', 'Switching to site $index: "${target.name}" (siteId: ${target.siteId})');
     LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
     LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');
+
+    // Mark this site as activation-in-flight so concurrent OS memory
+    // pressure events can't pick it as a victim before _currentIndex
+    // is updated below — disposing the webview mid-activation would
+    // silently wipe its state from under the user.
+    _activationInFlightIndex = index;
+    try {
+
+    // If the target was disposed under memory pressure (lifecycleState
+    // == savedForRestore), fetch its captured navigation state and
+    // hand it to the model so the soon-to-be-built controller's
+    // onControllerCreated handler can apply restoreState. Resets the
+    // tier to live regardless — the about-to-be-resumed webview
+    // is back at the lowest tier.
+    if (target.lifecycleState == SiteLifecycleState.savedForRestore) {
+      final bytes = await _stateStorage.loadState(target.siteId);
+      if (version != _setCurrentIndexVersion) return;
+      if (bytes != null) {
+        target.schedulePendingRestoreState(bytes);
+        LogService.instance.log(
+          'WebViewState',
+          'Queued ${bytes.length} restore bytes for "${target.name}" '
+              '(siteId: ${target.siteId})',
+        );
+      }
+      target.lifecycleState = SiteLifecycleState.resident;
+    } else if (target.lifecycleState != SiteLifecycleState.resident) {
+      // cacheCleared promoted back to live on activation — the user
+      // is interacting with it again, so any subsequent memory
+      // pressure starts the cascade fresh from the live tier.
+      target.lifecycleState = SiteLifecycleState.resident;
+    }
 
     // Domain-conflict unload + capture-nuke-restore is only needed when
     // the native cookie jar is shared between sites. With the Container
@@ -974,6 +1142,99 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         );
         await _unloadSiteForDomainSwitch(conflictIndex);
         if (version != _setCurrentIndexVersion) return;
+      }
+    }
+
+    // Proxy-mismatch unload (Android only). The WebView proxy is
+    // process-global on Android (`inapp.ProxyController` last-write-wins);
+    // activating a site whose effective proxy differs from a currently-
+    // loaded site would silently re-route that site's next request through
+    // the new proxy. Unload conflicting sites so they can't leak.
+    final proxyMismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+      targetIndex: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+      proxyIsGlobal: Platform.isAndroid,
+    );
+    for (final i in proxyMismatch) {
+      LogService.instance.log(
+        'SiteUnload',
+        'Proxy mismatch — unloading site $i: "${_webViewModels[i].name}"',
+        level: LogLevel.warning,
+      );
+      await _unloadSiteForOtherReason(i);
+      if (version != _setCurrentIndexVersion) return;
+    }
+
+    // LRU cap. Bound the number of concurrently loaded webviews; under
+    // container mode the unload-on-webspace-switch step is skipped, so
+    // without a cap a heavy user could pile up dozens of live webviews.
+    // _loadedIndices is treated as access-ordered (re-added on each
+    // activation below), so iteration order is least-recently-used first.
+    //
+    // Sites in the currently-selected webspace are passed as soft-keep:
+    // membership in the user's active workspace is treated as "context
+    // relevance" and beats raw access recency, so a stale site in the
+    // active webspace stays loaded over a fresher site from a different
+    // webspace if both are eligible for eviction.
+    final lruEvict = SiteUnloadEngine.indicesToEvictForLruCap(
+      targetIndex: index,
+      loadedIndices: _loadedIndices,
+      maxLoadedSites: kMaxLoadedSites,
+      protectedIndices:
+          _currentIndex != null ? <int>{_currentIndex!} : const <int>{},
+      preferKeepIndices: _getFilteredSiteIndices().toSet(),
+    );
+    for (final i in lruEvict) {
+      LogService.instance.log(
+        'SiteUnload',
+        'LRU cap (>$kMaxLoadedSites) — unloading site $i: "${_webViewModels[i].name}"',
+      );
+      await _unloadSiteForOtherReason(i);
+      if (version != _setCurrentIndexVersion) return;
+    }
+
+    // Proactive `resident → cacheCleared` promotion. Backstop for
+    // platforms where the OS doesn't reliably fire memory pressure
+    // (Linux/desktop), and for iOS where Jetsam is reactive (after
+    // memory is already tight). Once more than [kMaxResidentSites]
+    // sites are at the resident tier, the oldest excess get
+    // clearCache called eagerly. This is the proactive complement
+    // to the reactive _handleMemoryPressure cascade and uses the
+    // same priority hierarchy. The active site is hard-protected;
+    // sites in the active webspace are soft-keep.
+    final cacheClearStates = <int, SiteLifecycleState>{
+      for (final i in _loadedIndices)
+        if (i >= 0 && i < _webViewModels.length) i: _webViewModels[i].lifecycleState,
+    };
+    final cacheClearTargets =
+        SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+      loadedIndices: _loadedIndices,
+      states: cacheClearStates,
+      maxResidentSites: kMaxResidentSites,
+      protectedIndices: _activationInFlightIndex != null
+          ? <int>{_activationInFlightIndex!}
+          : const <int>{},
+      preferKeepIndices: _getFilteredSiteIndices().toSet(),
+    );
+    for (final i in cacheClearTargets) {
+      // Defensive bounds check after the await below in case site
+      // deletion shifted indices.
+      if (i < 0 || i >= _webViewModels.length) continue;
+      LogService.instance.log(
+        'SiteUnload',
+        'Proactive cacheClear (>$kMaxResidentSites resident) — '
+            'clearing cache for site $i: "${_webViewModels[i].name}"',
+      );
+      await _webViewModels[i].clearWebViewCache();
+      if (version != _setCurrentIndexVersion) return;
+      // Re-check membership in case a concurrent path (memory
+      // pressure handler, deletion) already promoted or evicted this
+      // index between the engine pick and the await resume.
+      if (i < _webViewModels.length &&
+          _loadedIndices.contains(i) &&
+          _webViewModels[i].lifecycleState == SiteLifecycleState.resident) {
+        _webViewModels[i].lifecycleState = SiteLifecycleState.cacheCleared;
       }
     }
 
@@ -999,6 +1260,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (index >= _webViewModels.length) return;
 
     _currentIndex = index;
+    // Bump to end of insertion order so iteration over _loadedIndices is
+    // least-recently-used first (consumed by the LRU eviction above).
+    _loadedIndices.remove(index);
     _loadedIndices.add(index);
     _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
     _canGoBack = false; // Reset until async check completes
@@ -1006,6 +1270,34 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Resume the newly active webview
     await _webViewModels[index].resumeWebView();
     _updateCanGoBack();
+
+    // Defensive sweep: pause every other loaded webview so background
+    // sites don't run animations / GPS listeners / non-throttled
+    // raf callbacks when the user isn't looking at them. Steady state
+    // already has them paused (each becomes paused when it last lost
+    // active status above), but a path that adds to _loadedIndices
+    // without going through the previous-active pause would leave
+    // it unpaused. pauseWebView() is idempotent.
+    //
+    // unawaited: subsequent activation logic (fullscreen, logging)
+    // doesn't depend on these completing. Race-wise this is safe in
+    // Dart's single-threaded model: each pauseWebView dispatches on
+    // the platform channel synchronously up to its first await, and
+    // the channel preserves FIFO order — so the resumeWebView above
+    // is dispatched before any of these pauses. A subsequent
+    // _setCurrentIndex would also do its own resume after these
+    // pauses, so the latest target always ends up resumed.
+    //
+    // (Per-instance pause() doesn't stop JavaScript — see
+    // openspec/specs/webview-pause-lifecycle/spec.md. This is a
+    // CPU/battery optimization, not RAM. The LRU cap and OS memory
+    // pressure handler cover RAM.)
+    final loadedSnapshot = _loadedIndices.toList();
+    for (final i in loadedSnapshot) {
+      if (i == index) continue;
+      if (i < 0 || i >= _webViewModels.length) continue;
+      unawaited(_webViewModels[i].pauseWebView());
+    }
 
     // Auto-enter fullscreen if the site has fullscreenMode enabled
     if (target.fullscreenMode) {
@@ -1015,6 +1307,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
+    } finally {
+      // Clear the in-flight marker only if we still own it; a newer
+      // _setCurrentIndex caller will have already overwritten it with
+      // its own target.
+      if (_activationInFlightIndex == index) {
+        _activationInFlightIndex = null;
+      }
+    }
   }
 
   /// Unloads a site due to domain conflict with another site. Delegates to
@@ -1025,6 +1325,68 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       models: _webViewModels,
       loadedIndices: _loadedIndices,
     );
+  }
+
+  /// Unloads a site for non-domain-conflict reasons (proxy mismatch,
+  /// LRU cap, memory pressure). Under container mode the per-site
+  /// container partitions cookies/localStorage/IDB/etc., so disposing
+  /// the webview is enough. Under legacy mode, the cookie jar is
+  /// shared, so we run the same capture-then-dispose cycle the engine
+  /// uses for domain conflicts — otherwise the soon-to-run capture-
+  /// nuke-restore on activation of the target would wipe the unloaded
+  /// site's session out of the jar.
+  ///
+  /// Before disposing, captures `controller.saveState()` to the in-
+  /// memory state storage so re-activation can restore the back/
+  /// forward stack and (Apple) form data via `restoreState`. Skipped
+  /// for incognito sites (state is meant to be ephemeral).
+  Future<void> _unloadSiteForOtherReason(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    await _captureStateForRestore(model);
+    if (_useContainers) {
+      model.disposeWebView();
+      _loadedIndices.remove(index);
+      return;
+    }
+    await _cookieIsolation.unloadSiteForDomainSwitch(
+      index: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+    );
+  }
+
+  /// Capture [model]'s navigation state to encrypted on-disk storage.
+  /// Returns true if bytes were captured and persisted. No-op for
+  /// incognito sites or when there's nothing to save.
+  ///
+  /// Does NOT mutate `model.lifecycleState` — callers that are
+  /// disposing the webview should do that themselves (typically
+  /// flipping to [SiteLifecycleState.savedForRestore]); callers that
+  /// are *only* opportunistically persisting (go-home,
+  /// app-background) should leave the state at [SiteLifecycleState.resident]
+  /// since the webview is still in memory.
+  Future<bool> _captureStateBytes(WebViewModel model) async {
+    if (model.incognito) return false;
+    final bytes = await model.captureNavigationState();
+    if (bytes == null) return false;
+    await _stateStorage.saveState(model.siteId, bytes);
+    LogService.instance.log(
+      'WebViewState',
+      'Captured ${bytes.length} bytes for "${model.name}" (siteId: ${model.siteId})',
+    );
+    return true;
+  }
+
+  /// Capture state and flip the lifecycle to [SiteLifecycleState.savedForRestore].
+  /// Used by dispose paths (LRU eviction, memory-pressure cascade,
+  /// legacy webspace-switch unload) where the webview is about to be
+  /// torn down.
+  Future<void> _captureStateForRestore(WebViewModel model) async {
+    final ok = await _captureStateBytes(model);
+    if (ok) {
+      model.lifecycleState = SiteLifecycleState.savedForRestore;
+    }
   }
 
   /// Restores cookies for a site before activation. Delegates to the engine.
@@ -1292,6 +1654,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIdsAtStartup);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIdsAtStartup);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIdsAtStartup);
+    await _stateStorage.removeOrphans(activeSiteIdsAtStartup);
     await _cookieManager.deleteAllCookies();
     // Sweep containers whose owning site no longer exists. No-op when
     // the Container API is unsupported.
@@ -1569,7 +1932,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (!mounted || version != _selectWebspaceVersion) return;
 
       if (online) {
-        final indicesToUnload = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
+        // Under container mode, sites are isolated by their per-site
+        // container (cookies, localStorage, IDB, ServiceWorkers, HTTP
+        // cache) and stay resident across webspace switches — keeping
+        // them loaded is harmless and avoids the cost of re-creating the
+        // webview when the user switches back. The unload-on-switch only
+        // runs in legacy mode where the cookie jar is shared.
+        final indicesToUnload = SiteUnloadEngine.indicesToUnloadOnWebspaceSwitch(
+          useContainers: _useContainers,
           loadedIndices: _loadedIndices,
           previousWebspaceIndices: previousIndices,
           newWebspaceIndices: newIndices,
@@ -1577,6 +1947,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
         for (final index in indicesToUnload) {
           if (index >= 0 && index < _webViewModels.length) {
+            // Capture state before dispose so re-activation can
+            // restore the back/forward stack and (Apple) form data.
+            // Skipped for incognito sites inside the helper.
+            await _captureStateForRestore(_webViewModels[index]);
+            if (!mounted || version != _selectWebspaceVersion) return;
             _webViewModels[index].disposeWebView();
             _loadedIndices.remove(index);
             LogService.instance.log('WebspaceSwitch', 'Unloaded site $index: "${_webViewModels[index].name}"');
@@ -3040,6 +3415,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
+    await _stateStorage.removeOrphans(activeSiteIds);
 
     if (!mounted) return;
     Navigator.pop(context);

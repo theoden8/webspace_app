@@ -558,6 +558,37 @@ abstract class WebViewController {
   /// before queuing a follow-up navigation, shrinking the overlap
   /// between in-flight teardown and the next loadUrl.
   Future<void> stopLoading();
+
+  /// Drop the WebView's in-memory cache (decoded image cache + the
+  /// HTTP response cache). Tab state stays — the page keeps running,
+  /// the back/forward stack is intact. Idempotent: a second call
+  /// is a near no-op (the cache is already empty).
+  ///
+  /// Used by the [SiteLifecyclePromotionEngine] cacheCleared tier to
+  /// reclaim memory under OS pressure without losing tab state. Frees
+  /// roughly 10-50 MB per webview depending on what was cached.
+  Future<void> clearCache();
+
+  /// Capture the WebView's navigation state into a serializable byte
+  /// blob. Pair with [restoreState] on a freshly-created controller
+  /// to re-hydrate the back/forward stack and (on iOS 15+ / macOS
+  /// 12+) form-field values. Live JS heap and DOM are NOT preserved.
+  ///
+  /// Returns null when there's nothing to save (e.g. a webview that
+  /// never navigated).
+  ///
+  /// Platform mapping:
+  ///   - Android: `WebView.saveState(Bundle)` — back/forward + scroll.
+  ///   - iOS 15+ / macOS 12+: `WKWebView.interactionState` — back/
+  ///     forward + form-field values + scroll.
+  ///   - Linux (WebKitGTK / WPE): `webkit_web_view_get_session_state`
+  ///     + `webkit_web_view_session_state_serialize` — back/forward
+  ///     + scroll. Form-field values are NOT preserved (Apple-only).
+  Future<Uint8List?> saveState();
+
+  /// Apply [state] (previously returned by [saveState] on the same
+  /// site) to this controller. Returns true on success.
+  Future<bool> restoreState(Uint8List state);
 }
 
 /// InAppWebView controller wrapper
@@ -738,6 +769,35 @@ class _WebViewController implements WebViewController {
   @override
   Future<void> stopLoading() async {
     await _c.stopLoading();
+  }
+
+  @override
+  Future<void> clearCache() async {
+    try {
+      await _c.clearCache();
+    } catch (_) {
+      // Controller may have been disposed during memory pressure.
+    }
+  }
+
+  @override
+  Future<Uint8List?> saveState() async {
+    try {
+      return await _c.saveState();
+    } catch (_) {
+      // Disposed mid-call, or platform refused. Treat as "nothing
+      // to save" — re-activation will fall back to a fresh load.
+      return null;
+    }
+  }
+
+  @override
+  Future<bool> restoreState(Uint8List state) async {
+    try {
+      return await _c.restoreState(state);
+    } catch (_) {
+      return false;
+    }
   }
 }
 

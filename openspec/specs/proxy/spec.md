@@ -231,6 +231,24 @@ the same proxy into every `WebViewModel.proxySettings` field on save —
 so the data model stays consistent with the runtime behavior, but the
 "per-site" promise of the UI is effectively reduced to "global".
 
+#### Scenario: Android — proxy-mismatch unload on activation
+
+**Given** Site A is loaded on Android with HTTP proxy P1
+**And** Site B is configured with SOCKS5 proxy P2
+**When** the user activates Site B
+**Then** Site A is unloaded *before* `ProxyController.setProxyOverride`
+applies P2 globally
+**Because** if A stayed loaded, its next outbound request (XHR, image
+fetch, ServiceWorker poll, …) would silently route through P2 — exactly
+the leak the user's per-site proxy choice was meant to prevent
+
+The mismatch detection lives in
+[`SiteUnloadEngine.indicesToUnloadForProxyMismatch`](../../../lib/services/site_unload_engine.dart);
+"different proxy" is computed via [`resolveEffectiveProxy`] so two sites
+both set to `DEFAULT` are equivalent (they share the global proxy).
+This is gated on `Platform.isAndroid` — iOS / macOS (true per-site
+proxy) and platforms without proxy support skip it.
+
 #### Scenario: Mixing platforms via settings backup
 
 **Given** a settings backup is exported on iOS with two distinct
