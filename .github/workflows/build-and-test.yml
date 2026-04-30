@@ -51,14 +51,21 @@ jobs:
         # `chrome` is the @puppeteer/browsers CLI name; `chromium` is
         # rejected as an invalid positional and yargs exits 1 on CI.
         run: npx puppeteer browsers install chrome
-      # Real-Chromium tests for the blob_url_capture fix. jsdom can't
-      # enforce CSP, so this is the only layer that proves
-      # `connect-src` actually rejects fetch(blob:) AND that our shim
-      # bypasses it. See test/browser/ + openspec/specs/downloads/.
-      # process.env.CI=true (set by Actions) makes the test file
-      # hard-fail when Chromium can't launch — see requireBrowser() in
-      # test/browser/blob_url_capture_csp.test.js.
-      - name: Run browser tests (CSP enforcement)
+      # Tier 2 of the JS shim test pipeline: load each committed
+      # fixture into headless Chromium and assert behaviour the real
+      # engine produces (matchMedia against real CSS, Intl/Date
+      # timezone arithmetic, Geolocation callback path, RTCPeerConnection
+      # semantics, CSP enforcement of fetch(blob:)). jsdom cannot
+      # honestly answer any of those, so this is the only layer that
+      # proves the shim's effect end-to-end. See
+      # openspec/specs/js-shim-tests/spec.md (SHIM-TEST-005/006) and
+      # test/browser/.
+      #
+      # process.env.CI=true (set by Actions) makes the test files
+      # hard-fail when Chromium can't launch — silently skipping the
+      # tier on a misconfigured runner would defeat its purpose. See
+      # requireBrowser() in test/browser/helpers/launch.js.
+      - name: Run browser tests (real-Chromium shim tier)
         run: npm run test:browser
 
   build-android:

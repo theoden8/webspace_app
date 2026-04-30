@@ -30,21 +30,33 @@ The pipeline has three pieces, each with a separable responsibility:
 2. **Dumper** (`tool/dump_shim_js.dart`) — calls every builder with a
    curated set of scenarios and writes the resulting JS to
    `test/js_fixtures/<group>/<variant>.js`. Fixtures are committed.
-3. **Tests**, in two layers:
+3. **Tests**, in three layers:
    - **Drift check** (`test/js_fixtures_drift_test.dart`) — runs as
      part of `flutter test`, re-invokes the dumper's
      `buildAllFixtures()`, and fails if any committed fixture differs
      from the builder output. Forces fixtures to stay in lockstep with
      the builder.
-   - **Behavioural** (`test/js/*.test.js`) — loads the fixture via
+   - **Tier 1 — jsdom** (`test/js/*.test.js`) — loads the fixture via
      `helpers/load_shim.js`, runs it inside `jsdom`, and asserts the
      post-injection state of `navigator`, `window`, `Intl`, and the
-     wrapped constructors. Run with `npm run test:js`.
+     wrapped constructors. Cheap and fast; covers shim *shape*. Run
+     with `npm run test:js`.
+   - **Tier 2 — real Chromium** (`test/browser/*.test.js`) — loads
+     the same fixture into headless Chromium via Puppeteer's
+     `page.evaluateOnNewDocument` (mirroring DOCUMENT_START injection
+     in the production WebView) and asserts behaviour the real engine
+     produces: `matchMedia` against the live CSS engine, real
+     `Intl.DateTimeFormat` timezone arithmetic with DST,
+     `Date.prototype.getTimezoneOffset` for instants in different
+     halves of the year, real `Geolocation` callback-style API, real
+     `RTCPeerConnection` constructor semantics, and real CSP
+     enforcement of `connect-src`. Boots Chromium per file (~1-2s) and
+     adds ~5s wall time total. Run with `npm run test:browser`.
 
 The dumper is the only place a new shim has to be registered. Adding a
 new fixture adds a new test target automatically (via the drift check
-loop) and surfaces a new file for `*.test.js` authors to assert
-against.
+loop) and surfaces a new file for `*.test.js` and `*.test.js`-tier-2
+authors to assert against.
 
 ---
 
@@ -101,10 +113,11 @@ production webview sees, not a copy or paraphrase.
 
 ---
 
-### Requirement: SHIM-TEST-003 — Both layers gate CI
+### Requirement: SHIM-TEST-003 — All three layers gate CI
 
-CI MUST fail when either layer breaks: drift check (Dart) or
-behavioural test (Node).
+CI MUST fail when any of the three layers breaks: drift check (Dart),
+Tier 1 jsdom test (Node), or Tier 2 real-Chromium test (Node +
+Puppeteer).
 
 #### Scenario: Drift check runs as part of flutter test
 
@@ -122,6 +135,17 @@ behavioural test (Node).
 - **AND** the Node test step does not depend on the Flutter SDK or any
   WPE / GTK package being functional — only on Node, npm, and the
   jsdom dependency chain being installed
+
+#### Scenario: Real-Chromium tests run in the validate job
+
+- **GIVEN** the `validate` CI job has restored the Puppeteer Chromium
+  cache and run `npx puppeteer browsers install chrome`
+- **WHEN** it runs `npm run test:browser`
+- **THEN** every `test/browser/**/*.test.js` file boots Chromium via
+  Puppeteer and asserts post-injection state under the real engine
+- **AND** the test files set `requireBrowser` to hard-fail under
+  `CI=true` when Chromium cannot launch — silently skipping the tier
+  on a misconfigured runner would defeat its purpose
 
 ---
 
@@ -141,42 +165,155 @@ logic, or the npm script.
 - **AND** a new `test/js/<xyz>.test.js` can load and assert against
   the new fixture without changes to `helpers/load_shim.js` (unless a
   new browser API needs polyfilling)
+- **AND** a new `test/browser/<xyz>_real.test.js` can load the same
+  fixture via `readFixture(...)` from `test/browser/helpers/launch.js`
+  and run it against headless Chromium without touching the harness
+
+---
+
+### Requirement: SHIM-TEST-005 — Real-engine validation for engine-dependent surfaces
+
+Shims that wrap APIs whose behaviour jsdom cannot honestly simulate (real CSS `matchMedia`, `Intl.DateTimeFormat` arbitrary IANA timezones, `Date.prototype.getTimezoneOffset` DST arithmetic, `Date.prototype.toString` zone formatting, `Geolocation` callback path, `RTCPeerConnection` constructor and SDP semantics, real Content-Security-Policy `connect-src` enforcement) MUST also have a Tier 2 test under `test/browser/<shim>_real.test.js` that loads the **same committed fixture** and asserts post-injection state under headless Chromium. Tier 2 covers behaviours, not just shapes; if jsdom can produce the same answer, the assertion belongs in Tier 1.
+
+#### Scenario: matchMedia overrides asserted under the real CSS engine
+
+- **GIVEN** the desktop_mode shim is loaded into a Chromium page
+- **WHEN** the test queries `matchMedia('(pointer: coarse)')`
+- **THEN** the result is `{matches: false}` — the shim's forced
+  answer, not jsdom's permanent stub
+- **AND** `matchMedia('(min-width: 1000px)')` against a 1280px
+  viewport returns `{matches: true}` from the real engine because
+  the shim does NOT hijack non-pointer / non-hover queries
+
+#### Scenario: getTimezoneOffset returns DST-correct values
+
+- **GIVEN** the location_spoof shim is loaded with TZ "Europe/Paris"
+- **WHEN** the test calls `new Date('2024-01-15T12:00:00Z').getTimezoneOffset()`
+- **THEN** the result is `-60` (CET, winter)
+- **AND** `new Date('2024-07-15T12:00:00Z').getTimezoneOffset()`
+  returns `-120` (CEST, summer)
+
+#### Scenario: WebRTC relay branch rewrites configuration and SDP
+
+- **GIVEN** a fake `RTCPeerConnection` is installed via
+  `evaluateOnNewDocument` BEFORE the shim runs
+- **AND** the location_spoof shim's relay branch wraps it
+- **WHEN** the test creates a peer with
+  `{iceTransportPolicy: 'all'}` and calls `setLocalDescription` with
+  an SDP containing `a=candidate:` lines for both `typ host` and
+  `typ relay`
+- **THEN** the underlying fake's constructor receives
+  `iceTransportPolicy: 'relay'`
+- **AND** the SDP forwarded to the underlying `setLocalDescription`
+  contains only the relay candidate; host and srflx lines are
+  removed
+
+#### Scenario: Geolocation getCurrentPosition resolves to spoofed coords
+
+- **GIVEN** the location_spoof shim is loaded with
+  `(35.6762, 139.6503, 25.0)`
+- **WHEN** the test calls `navigator.geolocation.getCurrentPosition`
+  and awaits the success callback
+- **THEN** the position's `coords.latitude` and `coords.longitude`
+  are within the configured sub-meter jitter (`±0.00001`) of
+  `35.6762` and `139.6503`
+- **AND** `navigator.permissions.query({name: 'geolocation'})`
+  resolves to `{state: 'granted'}` so a site that gates on the
+  permission still calls `getCurrentPosition`
+
+#### Scenario: Function.prototype.toString hardening defeats native-stub probes
+
+- **GIVEN** the location_spoof shim is loaded
+- **WHEN** the test calls
+  `Function.prototype.toString.call(navigator.geolocation.getCurrentPosition)`
+- **THEN** the result is the string
+  `"function getCurrentPosition() { [native code] }"`, not the
+  shim's actual source — fingerprinters that probe via this method
+  see the override as native
+
+---
+
+### Requirement: SHIM-TEST-006 — Tier 2 boots a per-file Chromium with documented timing
+
+Tests under `test/browser/` MUST boot a fresh Chromium process per
+file via `setupBrowser()` and inject the fixture via
+`page.evaluateOnNewDocument`, which is the closest Puppeteer analogue
+to a production WebView's DOCUMENT_START injection point.
+
+#### Scenario: Per-file browser with shared launch harness
+
+- **GIVEN** a Tier 2 test file calls `setupBrowser()` at module load
+- **WHEN** node:test runs
+- **THEN** `before` launches a headless Chromium with
+  `--no-sandbox --disable-setuid-sandbox`
+- **AND** `after` closes it, so each test file is isolated from the
+  next
+
+#### Scenario: Pre-injection hooks run before the shim
+
+- **GIVEN** a test needs to observe what the shim's relay-branch
+  wrapper passes to the underlying `RTCPeerConnection`
+- **WHEN** the test passes a `preInit` script to `withShim(...)`
+- **THEN** the harness registers the pre-init script via
+  `page.evaluateOnNewDocument` BEFORE the shim, so the shim's
+  `_RealRTC = window.RTCPeerConnection` capture sees the test's fake
+  rather than Chromium's real `RTCPeerConnection`
+
+#### Scenario: Documented Puppeteer-vs-WebView timing mismatch
+
+- **GIVEN** the shim guards `MutationObserver.observe` on
+  `if (document.documentElement)`
+- **AND** Puppeteer's `evaluateOnNewDocument` fires before
+  `document.documentElement` is created (real WKWebView /
+  Android WebView Profile / WPE WebKit DOCUMENT_START runs after the
+  element exists, so production timing differs)
+- **WHEN** a Tier 2 test exercises the `MutationObserver` path under
+  Puppeteer
+- **THEN** it injects the shim post-`load` via `page.evaluate(...)`
+  rather than via `evaluateOnNewDocument`, so the rewrite logic can
+  be exercised without depending on the Puppeteer-specific
+  injection-time behaviour
+- **AND** a comment in the test acknowledges the difference so the
+  reason the test diverges from the production injection model is
+  not lost
 
 ---
 
 ## Limits and future work
 
-### Out of scope: real-engine fingerprinting
+### Out of scope: real-engine fingerprinting against detectors
 
-jsdom does not implement canvas, WebGL, audio context, or real CSS
-layout. Shims that touch those surfaces (the WebGL kill-switch, any
-future canvas-fingerprint defence) can only be tested for **shape** —
-that the override is in place — not for whether a real fingerprinter
-would be defeated.
-
-### Future tier: Playwright + open-source detector
-
-End-to-end privacy proofing belongs in a Playwright (or Puppeteer)
-tier that loads each shim into headless Chromium via
-`page.addInitScript()` and runs a real fingerprint detector
+Even Tier 2 only proves the shim *installs* and answers a curated
+set of probes correctly. End-to-end privacy proofing — running each
+shim against a real fingerprint detector
 ([CreepJS](https://github.com/abrahamjuliot/creepjs),
-[fingerprintjs](https://github.com/fingerprintjs/fingerprintjs))
-against it. That tier is not yet built; this spec covers Tier 1 only.
+[fingerprintjs](https://github.com/fingerprintjs/fingerprintjs)) and
+asserting the detector cannot tell the spoofed surface from a
+genuine browser — is a separate Tier 3 not yet built. Canvas, WebGL,
+and AudioContext fingerprint defences (none currently shipped) would
+need that tier.
 
 ---
 
 ## Files
 
-**Builders covered (Tier 1):**
-- `lib/services/desktop_mode_shim.dart` (3 UA variants)
-- `lib/services/location_spoof_service.dart` (5 configs)
+**Builders covered:**
+- `lib/services/desktop_mode_shim.dart` (3 UA variants) — Tier 1 + 2
+- `lib/services/location_spoof_service.dart` (5 configs) — Tier 1 + 2
+- `lib/services/blob_url_capture_shim.dart` — Tier 1 + 2 (CSP)
 
 **Pipeline:**
 - `tool/dump_shim_js.dart` — fixture generator
 - `test/js_fixtures/` — committed fixtures + README
 - `test/js_fixtures_drift_test.dart` — Dart drift check
-- `test/js/` — Node test files
+- `test/js/` — Tier 1 jsdom test files
 - `test/js/helpers/load_shim.js` — jsdom loader + polyfills
+- `test/browser/` — Tier 2 real-Chromium test files
+- `test/browser/helpers/launch.js` — Puppeteer harness +
+  `requireBrowser` hard-fail on CI
+- `test/browser/helpers/csp_server.js` — local HTTP server with
+  CSP headers for the blob-capture tier-2 test
 
 **CI:**
 - `.github/workflows/build-and-test.yml` — `js-shim-tests` job
+  (Tier 1) + `validate` job (Tier 2 via `npm run test:browser`)
