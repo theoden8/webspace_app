@@ -124,6 +124,13 @@ class SettingsBackupService {
   /// Create a backup from current app state
   /// Only non-secure cookies (isSecure=false) are included in the backup.
   /// Secure cookies are never exported for security reasons.
+  ///
+  /// Proxy passwords are intentionally included in the export. They live in
+  /// `flutter_secure_storage` at runtime, but a settings backup is itself a
+  /// user-controlled secret carrier — leaving them out would silently break
+  /// cross-device restore (the user would have to re-enter every proxy
+  /// password after import). The caller is responsible for the file's
+  /// disposition.
   static SettingsBackup createBackup({
     required List<WebViewModel> webViewModels,
     required List<Webspace> webspaces,
@@ -137,9 +144,11 @@ class SettingsBackupService {
     List<Map<String, dynamic>>? suggestedSites,
     List<Map<String, dynamic>>? globalUserScripts,
   }) {
-    // Convert sites to JSON, including only non-secure cookies
+    // Convert sites to JSON, including only non-secure cookies. Proxy
+    // passwords are inlined here via `includeSecrets: true` because the
+    // backup format is itself a secret carrier.
     final sitesJson = webViewModels.map((model) {
-      final json = model.toJson();
+      final json = model.toJson(includeSecrets: true);
       // Filter to only non-secure cookies (isSecure != true)
       final cookies = json['cookies'] as List<dynamic>;
       json['cookies'] = cookies
