@@ -86,6 +86,7 @@ class SettingsScreen extends StatefulWidget {
   /// user script. Parent should dispose this site's webview so the next
   /// render recreates it with the updated [initialUserScripts].
   final VoidCallback? onScriptsChanged;
+  final bool useContainers;
 
   SettingsScreen({
     required this.webViewModel,
@@ -95,6 +96,7 @@ class SettingsScreen extends StatefulWidget {
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onScriptsChanged,
+    this.useContainers = false,
   });
 
   @override
@@ -116,6 +118,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _fullscreenMode;
+  late bool _notificationsEnabled;
+  late bool _backgroundPoll;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -172,6 +176,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _localCdnEnabled = widget.webViewModel.localCdnEnabled;
     _blockAutoRedirects = widget.webViewModel.blockAutoRedirects;
     _fullscreenMode = widget.webViewModel.fullscreenMode;
+    _notificationsEnabled = widget.webViewModel.notificationsEnabled;
+    _backgroundPoll = widget.webViewModel.backgroundPoll;
     _selectedLanguage = widget.webViewModel.language;
     // locationMode is derived from whether coords are present at save time;
     // no separate UI state needed (see _buildLocationTile).
@@ -360,6 +366,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.fullscreenMode = _fullscreenMode;
+      widget.webViewModel.notificationsEnabled = _notificationsEnabled;
+      widget.webViewModel.backgroundPoll = _backgroundPoll;
       widget.webViewModel.language = _selectedLanguage;
       // locationMode is derived from the UI state:
       // - `_isLiveLocation` → live (real device GPS forwarded through the shim)
@@ -1138,6 +1146,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
           ),
+          if (widget.useContainers)
+            SwitchListTile(
+              title: const Text('Notifications'),
+              subtitle: const Text('Allow this site to show system notifications'),
+              value: _notificationsEnabled,
+              onChanged: (bool value) {
+                setState(() {
+                  _notificationsEnabled = value;
+                });
+              },
+            ),
+          if (widget.useContainers)
+            SwitchListTile(
+              title: const Text('Background polling'),
+              subtitle: Text(
+                Platform.isIOS
+                    ? 'Check for updates periodically (~15-30 min while app is closed)'
+                    : 'Keep checking for updates while app is backgrounded',
+              ),
+              value: _backgroundPoll,
+              onChanged: (bool value) {
+                setState(() {
+                  _backgroundPoll = value;
+                });
+              },
+            ),
           ..._buildLocationSection(),
           if (widget.onClearCookies != null)
             Padding(

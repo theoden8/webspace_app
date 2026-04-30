@@ -283,6 +283,8 @@ class WebViewModel {
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
+  bool notificationsEnabled; // Allow this site to show system notifications
+  bool backgroundPoll; // Keep checking for updates while app is backgrounded
   List<UserScriptConfig> userScripts; // Per-site user scripts
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -345,6 +347,8 @@ class WebViewModel {
     this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
     this.fullscreenMode = false,
+    this.notificationsEnabled = false,
+    this.backgroundPoll = false,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
@@ -503,7 +507,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -573,6 +577,7 @@ class WebViewModel {
           // PROXY-002 / PROXY-008). Android ignores this and routes
           // through the global `ProxyController` in `_applyProxySettings`.
           proxySettings: proxySettings,
+          notificationsEnabled: notificationsEnabled,
           userScripts: combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
           onExternalSchemeUrl: onExternalSchemeUrl,
@@ -611,7 +616,7 @@ class WebViewModel {
                 return false;
               case NavigationDecision.blockOpenNested:
                 LogService.instance.log('WebView', '  -> CANCEL (opening nested webview)');
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                 return false;
             }
           },
@@ -681,7 +686,7 @@ class WebViewModel {
                 case NavigationDecision.blockOpenNested:
                   LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                   }
                   return;
                 case NavigationDecision.allow:
@@ -837,7 +842,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -1045,6 +1050,8 @@ class WebViewModel {
         'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
         'fullscreenMode': fullscreenMode,
+        'notificationsEnabled': notificationsEnabled,
+        'backgroundPoll': backgroundPoll,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -1082,6 +1089,8 @@ class WebViewModel {
       localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       fullscreenMode: json['fullscreenMode'] ?? false,
+      notificationsEnabled: json['notificationsEnabled'] ?? false,
+      backgroundPoll: json['backgroundPoll'] ?? false,
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),

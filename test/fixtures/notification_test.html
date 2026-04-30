@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification Test Fixture</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 16px; max-width: 480px; }
+    button { display: block; width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
+    button:active { opacity: 0.7; }
+    .section { margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+    .section h3 { margin-top: 0; }
+    #log { font-family: monospace; font-size: 12px; white-space: pre-wrap; background: #f5f5f5; padding: 8px; border-radius: 4px; max-height: 300px; overflow-y: auto; }
+    .pass { color: green; }
+    .fail { color: red; }
+    .info { color: #666; }
+  </style>
+</head>
+<body>
+  <h2>Notification Test Fixture</h2>
+
+  <div class="section">
+    <h3>NOTIF-001: Permission Handling</h3>
+    <p>Current permission: <strong id="perm">checking...</strong></p>
+    <button onclick="testRequestPermission()">Request Permission</button>
+    <p class="info">Tests: permission grant/deny based on per-site toggle.</p>
+  </div>
+
+  <div class="section">
+    <h3>NOTIF-002: Notification Display</h3>
+    <button onclick="testBasicNotification()">Send Basic Notification</button>
+    <button onclick="testNotificationWithIcon()">Send Notification with Icon</button>
+    <button onclick="testNotificationWithOptions()">Send Notification with All Options</button>
+    <p class="info">Tests: JS Notification constructor → native notification bridge.</p>
+  </div>
+
+  <div class="section">
+    <h3>NOTIF-003: Tap Navigation</h3>
+    <button onclick="testTapNavigation()">Send Notification (then tap it)</button>
+    <p class="info">Tests: tapping the notification should bring you back to this site.
+    After sending, switch to another site or put app in background, then tap the notification.</p>
+  </div>
+
+  <div class="section">
+    <h3>NOTIF-005: Background Active</h3>
+    <button onclick="testBackgroundNotifications()">Send Delayed Notifications (5s, 10s, 15s)</button>
+    <p class="info">Tests: enable "background active" for this site, tap the button,
+    then put the app in background. You should receive 3 notifications over 15 seconds.</p>
+  </div>
+
+  <div class="section">
+    <h3>Periodic Notifications</h3>
+    <button onclick="togglePeriodic()" id="periodicBtn">Start Periodic (every 1 min)</button>
+    <p>Count: <strong id="periodicCount">0</strong> | Status: <strong id="periodicStatus">stopped</strong></p>
+    <p class="info">Fires a notification every 60 seconds. Use to test background polling — enable backgroundPoll, start periodic, then background the app.</p>
+  </div>
+
+  <div class="section">
+    <h3>Edge Cases</h3>
+    <button onclick="testRapidNotifications()">Send 5 Rapid Notifications</button>
+    <button onclick="testEmptyNotification()">Send Empty Notification (no body)</button>
+    <button onclick="testLongNotification()">Send Notification with Long Text</button>
+    <button onclick="testPermissionDenied()">Send Without Permission (should fail)</button>
+    <p class="info">Tests: edge cases for robustness.</p>
+  </div>
+
+  <div class="section">
+    <h3>Event Log</h3>
+    <button onclick="clearLog()">Clear Log</button>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    var logEl = document.getElementById('log');
+    var permEl = document.getElementById('perm');
+
+    function log(msg, cls) {
+      var ts = new Date().toLocaleTimeString();
+      var line = document.createElement('div');
+      line.className = cls || 'info';
+      line.textContent = '[' + ts + '] ' + msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function clearLog() {
+      logEl.innerHTML = '';
+    }
+
+    var periodicTimer = null;
+    var periodicCount = 0;
+
+    function togglePeriodic() {
+      var btn = document.getElementById('periodicBtn');
+      var statusEl = document.getElementById('periodicStatus');
+      if (periodicTimer) {
+        clearInterval(periodicTimer);
+        periodicTimer = null;
+        btn.textContent = 'Start Periodic (every 1 min)';
+        statusEl.textContent = 'stopped';
+        log('Periodic notifications stopped after ' + periodicCount + ' notifications');
+        return;
+      }
+      periodicCount = 0;
+      document.getElementById('periodicCount').textContent = '0';
+      statusEl.textContent = 'running';
+      btn.textContent = 'Stop Periodic';
+      log('Periodic notifications started (every 60s)', 'info');
+      firePeriodic();
+      periodicTimer = setInterval(firePeriodic, 60000);
+    }
+
+    function firePeriodic() {
+      periodicCount++;
+      document.getElementById('periodicCount').textContent = String(periodicCount);
+      try {
+        new Notification('Periodic #' + periodicCount, {
+          body: 'Fired at ' + new Date().toLocaleTimeString(),
+          tag: 'periodic-' + periodicCount
+        });
+        log('Periodic #' + periodicCount + ' sent', 'pass');
+      } catch (e) {
+        log('Periodic #' + periodicCount + ' failed: ' + e.message, 'fail');
+      }
+    }
+
+    function updatePermission() {
+      if (typeof Notification === 'undefined') {
+        permEl.textContent = 'Notification API not available';
+        log('Notification API is undefined — bridge not injected yet?', 'fail');
+        return;
+      }
+      permEl.textContent = Notification.permission;
+      log('Notification.permission = ' + Notification.permission);
+    }
+
+    // Check initial permission state
+    updatePermission();
+
+    function testRequestPermission() {
+      log('Calling Notification.requestPermission()...');
+      Notification.requestPermission().then(function(result) {
+        permEl.textContent = result;
+        if (result === 'granted') {
+          log('Permission GRANTED', 'pass');
+        } else if (result === 'denied') {
+          log('Permission DENIED — check that notificationsEnabled is on for this site', 'fail');
+        } else {
+          log('Permission result: ' + result);
+        }
+      }).catch(function(err) {
+        log('requestPermission() threw: ' + err, 'fail');
+      });
+    }
+
+    function testBasicNotification() {
+      log('Creating basic notification...');
+      try {
+        var n = new Notification('Test Notification', {
+          body: 'This is a basic test notification from the fixture.'
+        });
+        n.onclick = function() { log('Notification onclick fired', 'pass'); };
+        n.onerror = function() { log('Notification onerror fired', 'fail'); };
+        log('Notification created successfully', 'pass');
+      } catch (e) {
+        log('Error: ' + e.message, 'fail');
+      }
+    }
+
+    function testNotificationWithIcon() {
+      log('Creating notification with icon...');
+      try {
+        new Notification('Icon Test', {
+          body: 'This notification has an icon.',
+          icon: 'https://www.google.com/favicon.ico'
+        });
+        log('Notification with icon created', 'pass');
+      } catch (e) {
+        log('Error: ' + e.message, 'fail');
+      }
+    }
+
+    function testNotificationWithOptions() {
+      log('Creating notification with all options...');
+      try {
+        new Notification('Full Options Test', {
+          body: 'Body text here.',
+          icon: 'https://www.google.com/favicon.ico',
+          tag: 'test-tag-123',
+          silent: false
+        });
+        log('Notification with all options created', 'pass');
+      } catch (e) {
+        log('Error: ' + e.message, 'fail');
+      }
+    }
+
+    function testTapNavigation() {
+      log('Creating notification for tap test — switch away after sending...');
+      try {
+        new Notification('Tap Me!', {
+          body: 'Tap this notification to test navigation back to this site.',
+          tag: 'tap-test'
+        });
+        log('Notification sent. Now switch to another site or background the app, then tap it.', 'info');
+      } catch (e) {
+        log('Error: ' + e.message, 'fail');
+      }
+    }
+
+    function testBackgroundNotifications() {
+      log('Scheduling 3 delayed notifications (5s, 10s, 15s)...');
+      log('Put the app in background NOW to test background delivery.', 'info');
+      [5, 10, 15].forEach(function(delay, i) {
+        setTimeout(function() {
+          try {
+            new Notification('Background Test ' + (i + 1) + '/3', {
+              body: 'Delivered after ' + delay + 's delay.',
+              tag: 'bg-test-' + i
+            });
+            log('Notification ' + (i + 1) + ' sent at ' + delay + 's', 'pass');
+          } catch (e) {
+            log('Notification ' + (i + 1) + ' failed: ' + e.message, 'fail');
+          }
+        }, delay * 1000);
+      });
+    }
+
+    function testRapidNotifications() {
+      log('Sending 5 rapid notifications...');
+      for (var i = 1; i <= 5; i++) {
+        (function(idx) {
+          try {
+            new Notification('Rapid ' + idx + '/5', {
+              body: 'Rapid fire notification ' + idx,
+              tag: 'rapid-' + idx
+            });
+            log('Rapid notification ' + idx + ' created', 'pass');
+          } catch (e) {
+            log('Rapid notification ' + idx + ' failed: ' + e.message, 'fail');
+          }
+        })(i);
+      }
+    }
+
+    function testEmptyNotification() {
+      log('Creating notification with no body...');
+      try {
+        new Notification('Title Only');
+        log('Empty-body notification created', 'pass');
+      } catch (e) {
+        log('Error: ' + e.message, 'fail');
+      }
+    }
+
+    function testLongNotification() {
+      log('Creating notification with long text...');
+      var longBody = 'This is a very long notification body that tests how the native notification system handles overflow. '.repeat(5);
+      try {
+        new Notification('Long Notification', { body: longBody });
+        log('Long notification created (' + longBody.length + ' chars)', 'pass');
+      } catch (e) {
+        log('Error: ' + e.message, 'fail');
+      }
+    }
+
+    function testPermissionDenied() {
+      log('Attempting notification without checking permission...');
+      if (Notification.permission !== 'granted') {
+        log('Permission is "' + Notification.permission + '" — notification should fail or be suppressed', 'info');
+      }
+      try {
+        new Notification('Should Fail', { body: 'This should not display if permission is denied.' });
+        if (Notification.permission === 'granted') {
+          log('Notification created (permission was granted)', 'pass');
+        } else {
+          log('Notification constructor did not throw — bridge should suppress display', 'info');
+        }
+      } catch (e) {
+        log('Correctly threw: ' + e.message, 'pass');
+      }
+    }
+  </script>
+</body>
+</html>

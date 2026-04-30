@@ -44,6 +44,7 @@ import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
@@ -58,6 +59,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -767,6 +769,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Global user scripts (shared across all sites)
   List<UserScriptConfig> _globalUserScripts = [];
 
+  Timer? _foregroundPollTimer;
+
   // Guards lifecycle pause/resume against rapid state transitions.
   // Without this, a quick inactive→resumed sequence could let the resume
   // platform call complete before the pause call, leaving the webview stuck.
@@ -798,6 +802,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   @override
   void dispose() {
+    _foregroundPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -835,13 +840,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Without the in-flight guard, a re-activation of an already-
       // loaded site could be racing with this handler — disposing the
       // soon-to-be-active webview silently wipes its state.
-      final protected = <int>{
-        if (_currentIndex != null) _currentIndex!,
-        if (_activationInFlightIndex != null) _activationInFlightIndex!,
-      };
-      // Build the per-site state map snapshot for the cascade engine.
-      // Iterate _loadedIndices defensively in case _webViewModels
-      // shifted under us.
       final states = <int, SiteLifecycleState>{};
       for (final i in _loadedIndices) {
         if (i < 0 || i >= _webViewModels.length) continue;
@@ -850,8 +848,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       final victim = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: _loadedIndices,
         states: states,
-        protectedIndices: protected,
-        preferKeepIndices: _getFilteredSiteIndices().toSet(),
+        priorityOf: _siteRetentionPriority,
       );
       if (victim == null) return;
       if (victim < 0 || victim >= _webViewModels.length) return;
@@ -900,21 +897,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      // App is backgrounding: pause active webview AND globally freeze JS
-      // timers so loaded-but-inactive webviews stop too.
+      _foregroundPollTimer?.cancel();
+      _foregroundPollTimer = null;
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
-        // Capture state for the active site so an OS-induced kill
-        // while we're backgrounded doesn't lose the back/forward
-        // stack and (Apple) form data. Best-effort, fire-and-forget;
-        // the webview stays loaded — disk capture is just defense
-        // in depth in case the OS reaps the app entirely. Bytes-
-        // only capture — lifecycleState stays `live` because the
-        // webview is not disposed.
+        if (!_webViewModels[_currentIndex!].backgroundPoll) {
+          _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
+        }
         final activeIdx = _currentIndex!;
         unawaited(_captureStateBytes(_webViewModels[activeIdx]));
       }
     } else if (state == AppLifecycleState.resumed) {
+      _startForegroundPollTimer();
       // Await any in-flight pause before resuming to prevent ordering inversion
       _resumeAfterLifecyclePause();
       _handleShortcutIntent();
@@ -930,7 +923,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _lifecyclePauseFuture = null;
     }
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
+      if (!_webViewModels[_currentIndex!].backgroundPoll) {
+        await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
+      }
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
@@ -1241,9 +1236,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       targetIndex: index,
       loadedIndices: _loadedIndices,
       maxLoadedSites: kMaxLoadedSites,
-      protectedIndices:
-          _currentIndex != null ? <int>{_currentIndex!} : const <int>{},
-      preferKeepIndices: _getFilteredSiteIndices().toSet(),
+      priorityOf: _siteRetentionPriority,
     );
     for (final i in lruEvict) {
       LogService.instance.log(
@@ -1272,10 +1265,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       loadedIndices: _loadedIndices,
       states: cacheClearStates,
       maxResidentSites: kMaxResidentSites,
-      protectedIndices: _activationInFlightIndex != null
-          ? <int>{_activationInFlightIndex!}
-          : const <int>{},
-      preferKeepIndices: _getFilteredSiteIndices().toSet(),
+      priorityOf: _siteRetentionPriority,
     );
     for (final i in cacheClearTargets) {
       // Defensive bounds check after the await below in case site
@@ -1741,6 +1731,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       models: _webViewModels,
     );
 
+    // Auto-load background-poll sites so they start running immediately
+    for (int i = 0; i < _webViewModels.length; i++) {
+      if (_webViewModels[i].backgroundPoll) {
+        _loadedIndices.add(i);
+      }
+    }
+
     // Set current index (async for cookie restoration)
     await _setCurrentIndex(indexToRestore);
     if (!mounted) return;
@@ -1750,6 +1747,54 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
     for (var webViewModel in List.from(_webViewModels)) {
       await webViewModel.setTheme(webViewTheme);
+    }
+
+    _startForegroundPollTimer();
+
+    await NotificationService.instance.init();
+    NotificationService.instance.onNotificationTapped = _onNotificationTapped;
+  }
+
+  void _onNotificationTapped(String siteId) {
+    final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
+    if (index < 0) {
+      LogService.instance.log('Notification', 'Tap for unknown siteId: $siteId', level: LogLevel.warning);
+      return;
+    }
+    LogService.instance.log('Notification', 'Tap routing to site $index: "${_webViewModels[index].name}"');
+    _setCurrentIndex(index);
+    if (mounted) setState(() {});
+  }
+
+  void _startForegroundPollTimer() {
+    _foregroundPollTimer?.cancel();
+    _foregroundPollTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => _onForegroundPollTick(),
+    );
+  }
+
+  SiteRetentionPriority _siteRetentionPriority(int index) {
+    if (index == _currentIndex) return SiteRetentionPriority.active;
+    if (index == _activationInFlightIndex) return SiteRetentionPriority.activating;
+    if (index >= 0 && index < _webViewModels.length) {
+      final m = _webViewModels[index];
+      if (m.backgroundPoll || m.notificationsEnabled) {
+        return SiteRetentionPriority.notification;
+      }
+    }
+    final webspaceIndices = _getFilteredSiteIndices().toSet();
+    if (webspaceIndices.contains(index)) return SiteRetentionPriority.webspace;
+    return SiteRetentionPriority.loaded;
+  }
+
+  void _onForegroundPollTick() {
+    for (int i = 0; i < _webViewModels.length; i++) {
+      if (_webViewModels[i].backgroundPoll &&
+          i != _currentIndex &&
+          _loadedIndices.contains(i)) {
+        _webViewModels[i].controller?.reload();
+      }
     }
   }
 
@@ -1771,6 +1816,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
     required List<UserScriptConfig> userScripts,
     UserProxySettings? proxySettings,
+    bool notificationsEnabled = false,
   }) async {
     await Navigator.push(
       context,
@@ -1796,6 +1842,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
           proxySettings: proxySettings,
+          notificationsEnabled: notificationsEnabled,
         ),
       ),
     );
@@ -2649,6 +2696,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     MaterialPageRoute(
                       builder: (context) => SettingsScreen(
                         webViewModel: _webViewModels[_currentIndex!],
+                        useContainers: _useContainers,
                         globalUserScripts: _globalUserScripts,
                         onGlobalUserScriptsChanged: (scripts) {
                           _globalUserScripts = scripts;
@@ -2700,17 +2748,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           setState(() {});
 
                           if (index != null && model != null && urlToLoad != null) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) async {
-                              for (int i = 0; i < 20; i++) {
-                                await Future.delayed(const Duration(milliseconds: 100));
-                                if (!mounted) return;
-                                if (model.controller != null) {
-                                  LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
-                                  await model.controller!.loadUrl(urlToLoad, language: languageToUse);
-                                  break;
+                            final isFileImport = urlToLoad.startsWith('file://');
+                            if (!isFileImport) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                                for (int i = 0; i < 20; i++) {
+                                  await Future.delayed(const Duration(milliseconds: 100));
+                                  if (!mounted) return;
+                                  if (model.controller != null) {
+                                    LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
+                                    await model.controller!.loadUrl(urlToLoad, language: languageToUse);
+                                    break;
+                                  }
                                 }
-                              }
-                            });
+                              });
+                            }
                           }
                         },
                       ),
@@ -3063,6 +3114,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               MaterialPageRoute(
                 builder: (context) => SettingsScreen(
                   webViewModel: _webViewModels[_currentIndex!],
+                  useContainers: _useContainers,
                   globalUserScripts: _globalUserScripts,
                   onGlobalUserScriptsChanged: (scripts) {
                     _globalUserScripts = scripts;

@@ -27,6 +27,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -476,6 +477,7 @@ class WebViewConfig {
   ///   `resolveEffectiveProxy` so [ProxyType.DEFAULT] falls through to
   ///   the app-global outbound proxy.
   final UserProxySettings? proxySettings;
+  final bool notificationsEnabled;
 
   WebViewConfig({
     this.key,
@@ -515,6 +517,7 @@ class WebViewConfig {
     this.spoofTimezoneFromLocation = false,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.proxySettings,
+    this.notificationsEnabled = false,
   });
 }
 
@@ -944,6 +947,37 @@ const String _webGlKillSwitchScript = r'''
 /// JavaScript that intercepts clipboard writes and Web Share API calls to clean
 /// tracking parameters from URLs before they leave the webview. Sends URLs to
 /// Dart via the 'clearUrl' handler for cleaning with ClearURLs rules.
+String _notificationPolyfillScript({
+  required String siteId,
+  required bool notificationsEnabled,
+}) {
+  final permission = notificationsEnabled ? 'granted' : 'denied';
+  return '''
+(function() {
+  var permission = '$permission';
+  function Notification(title, options) {
+    options = options || {};
+    if (permission !== 'granted') return;
+    window.flutter_inappwebview.callHandler('webNotification', {
+      title: String(title),
+      body: String(options.body || ''),
+      icon: String(options.icon || ''),
+      tag: String(options.tag || ''),
+      siteId: '$siteId'
+    });
+  }
+  Notification.permission = permission;
+  Notification.requestPermission = function(cb) {
+    var p = window.flutter_inappwebview.callHandler('webNotificationRequestPermission', {siteId: '$siteId'})
+      .then(function(result) { permission = result; Notification.permission = result; return result; });
+    if (typeof cb === 'function') p.then(cb);
+    return p;
+  };
+  Object.defineProperty(window, 'Notification', { value: Notification, writable: false, configurable: false });
+})();
+;null;''';
+}
+
 const String _clearUrlShareScript = r'''
 (function() {
   const URL_RE = /^https?:\/\//i;
@@ -1335,6 +1369,18 @@ class WebViewFactory {
       userScripts.add(inapp.UserScript(
         groupName: 'system_text_zoom',
         source: '${_textSizeAdjustScript(textZoom)}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
+
+    if (config.siteId != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'notification_polyfill',
+        source: _notificationPolyfillScript(
+          siteId: config.siteId!,
+          notificationsEnabled: config.notificationsEnabled,
+        ),
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));
@@ -1908,6 +1954,37 @@ class WebViewFactory {
               return map;
             });
           }
+        }
+        if (config.siteId != null && config.notificationsEnabled) {
+          controller.addJavaScriptHandler(
+            handlerName: 'webNotification',
+            callback: (args) async {
+              if (args.isEmpty || args[0] is! Map) return null;
+              final data = Map<String, dynamic>.from(args[0] as Map);
+              final title = data['title'] as String? ?? '';
+              final body = data['body'] as String? ?? '';
+              final tag = data['tag'] as String?;
+              final siteId = data['siteId'] as String? ?? config.siteId!;
+              await NotificationService.instance.show(
+                siteId: siteId,
+                title: title,
+                body: body,
+                tag: tag,
+                siteUrl: config.initialUrl,
+              );
+              return null;
+            },
+          );
+        }
+        if (config.siteId != null) {
+          controller.addJavaScriptHandler(
+            handlerName: 'webNotificationRequestPermission',
+            callback: (args) {
+              final result = config.notificationsEnabled ? 'granted' : 'denied';
+              LogService.instance.log('Notification', 'requestPermission handler called, returning: $result');
+              return result;
+            },
+          );
         }
         userScriptService.registerHandlers(controller);
         // Blob download: JS reads the blob via FileReader and hands the

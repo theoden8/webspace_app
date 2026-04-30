@@ -43,6 +43,7 @@ class InAppWebViewScreen extends StatefulWidget {
   /// a proxied site stay proxied. Resolves through the global outbound
   /// proxy when type is DEFAULT.
   final UserProxySettings proxySettings;
+  final bool notificationsEnabled;
 
   InAppWebViewScreen({
     required this.url,
@@ -65,6 +66,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.userScripts = const [],
     this.onConfirmScriptFetch,
     UserProxySettings? proxySettings,
+    this.notificationsEnabled = false,
   }) : proxySettings = proxySettings ??
             UserProxySettings(type: ProxyType.DEFAULT);
 
@@ -133,6 +135,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         proxySettings: widget.proxySettings,
         userScripts: widget.userScripts,
         onConfirmScriptFetch: widget.onConfirmScriptFetch,
+        notificationsEnabled: widget.notificationsEnabled,
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {
           if (mounted) {

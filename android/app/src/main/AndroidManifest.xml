@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Optional, requested at runtime only when the user taps "Use current location"
          in the per-site location picker. Not used for any background/tracking. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
