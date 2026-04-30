@@ -65,14 +65,97 @@ void main() {
     });
 
     test('blob-download IIFE looks up the same global the shim exports', () {
-      // The shim and the IIFE in webview.dart are an implicit contract:
-      // both must agree on `window.__webspaceBlobs` as the export name.
-      // A refactor that renames either side silently disables the
-      // captured-blob fast path and falls back to fetch — which is what
-      // we just fixed.
-      final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
-      expect(webviewSrc, contains('window.__webspaceBlobs'));
-      expect(webviewSrc, contains('window.__webspaceBlobs.get(blobUrl)'));
+      // The shim and the IIFE are an implicit contract: both must agree
+      // on `window.__webspaceBlobs` as the export name. A refactor that
+      // renames either side silently disables the captured-blob fast
+      // path and falls back to fetch — which is what we just fixed.
+      final iife = buildBlobDownloadIife(
+        blobUrl: 'blob:https://example.test/x',
+        taskId: 't1',
+        suggestedFilename: 'f.bin',
+      );
+      expect(iife, contains('window.__webspaceBlobs'));
+      expect(iife, contains('window.__webspaceBlobs.get(blobUrl)'));
+      // The IIFE must call out to the shim's API with the same key the
+      // shim uses internally, otherwise the fast path is dead code.
+      expect(blobUrlCaptureScript, contains("'__webspaceBlobs'"));
+    });
+  });
+
+  group('buildBlobDownloadIife', () {
+    test('substitutes blobUrl, taskId, and suggestedFilename verbatim', () {
+      // jsonEncode is the only escaping the builder does. A refactor
+      // that switches to naive interpolation would break on URLs/names
+      // containing quotes or backslashes — guard against that by
+      // asserting the JSON-encoded form is present.
+      final iife = buildBlobDownloadIife(
+        blobUrl: 'blob:https://example.test/abc',
+        taskId: 'task-9',
+        suggestedFilename: 'doc with "quotes".pdf',
+      );
+      expect(iife, contains('"blob:https://example.test/abc"'));
+      expect(iife, contains('"task-9"'));
+      expect(iife, contains(r'"doc with \"quotes\".pdf"'));
+    });
+
+    test('null suggestedFilename becomes empty string, not "null"', () {
+      // The Dart handler treats empty string as "no suggested filename"
+      // and falls through to a mime-derived fallback. A literal "null"
+      // would propagate to the save dialog as the filename.
+      final iife = buildBlobDownloadIife(
+        blobUrl: 'blob:https://example.test/y',
+        taskId: 't2',
+      );
+      expect(iife, contains('""'));
+      expect(iife, isNot(contains('"null"')));
+    });
+
+    test('emits both fast-path and fetch-fallback branches', () {
+      // The whole point of the rewrite. If a future change accidentally
+      // drops the fast path the file would still parse but the CSP
+      // bypass would silently regress.
+      final iife = buildBlobDownloadIife(
+        blobUrl: 'blob:test', taskId: 't',
+      );
+      expect(iife, contains('window.__webspaceBlobs.get(blobUrl)'));
+      expect(iife, contains('readBlob(captured)'));
+      expect(iife, contains('fetch(blobUrl)'));
+    });
+
+    test('routes success through _webspaceBlobDownload with 4 args', () {
+      // filename, base64, mimeType, taskId — the Dart handler signature.
+      // Reordering or omitting one corrupts every blob download.
+      final iife = buildBlobDownloadIife(
+        blobUrl: 'blob:test', taskId: 't',
+      );
+      expect(iife, contains("'_webspaceBlobDownload'"));
+      // Argument order is positional — assert by surrounding context.
+      expect(iife, contains('suggestedFilename,'));
+      expect(iife, contains('base64,'));
+      expect(iife, contains("blob.type || '',"));
+      expect(iife, contains('taskId'));
+    });
+
+    test('routes errors through _webspaceBlobDownloadError with 2 args', () {
+      // Both the synchronous try/catch AND the fetch .catch must funnel
+      // through the same handler so the Dart side sees a single error
+      // shape. A divergent error-reporting shape gets dropped silently.
+      final iife = buildBlobDownloadIife(
+        blobUrl: 'blob:test', taskId: 't',
+      );
+      expect(iife, contains("'_webspaceBlobDownloadError'"));
+      expect(iife, contains('reader.onerror'));
+      expect(iife, contains('.catch(reportError)'));
+      expect(iife, contains('reportError(e)'));
+    });
+
+    test('reports progress through _webspaceBlobProgress', () {
+      final iife = buildBlobDownloadIife(
+        blobUrl: 'blob:test', taskId: 't',
+      );
+      expect(iife, contains("'_webspaceBlobProgress'"));
+      expect(iife, contains('reader.onprogress'));
+      expect(iife, contains('e.lengthComputable'));
     });
   });
 }

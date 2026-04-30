@@ -2516,73 +2516,11 @@ class WebViewFactory {
           : 'download',
       url: blobUrl,
     );
-    // IIFE: prefer the Blob captured by the createObjectURL shim
-    // (`window.__webspaceBlobs`) and read it via FileReader. Fall back
-    // to fetch(blobUrl) only when the URL was minted before the shim
-    // ran or in another realm — fetch hits the page's CSP `connect-src`
-    // and fails on hosts like github.com that don't whitelist `blob:`.
-    // Result is delivered asynchronously through
-    // _webspaceBlobDownload(filename, base64, mimeType). The taskId is
-    // round-tripped through JS so the handler can resolve which task to
-    // complete.
-    final blobJson = jsonEncode(blobUrl);
-    final fnJson = jsonEncode(suggestedFilename ?? '');
-    final idJson = jsonEncode(task.id);
-    final script = '''
-(function(blobUrl, suggestedFilename, taskId) {
-  function progress(done, total) {
-    window.flutter_inappwebview.callHandler(
-      '_webspaceBlobProgress', taskId, done, total);
-  }
-  function reportError(err) {
-    window.flutter_inappwebview.callHandler(
-      '_webspaceBlobDownloadError',
-      (err && err.message) || String(err), taskId);
-  }
-  function readBlob(blob) {
-    var total = blob.size || 0;
-    progress(0, total);
-    var reader = new FileReader();
-    reader.onprogress = function(e) {
-      if (e && e.lengthComputable) {
-        progress(e.loaded, e.total);
-      }
-    };
-    reader.onload = function() {
-      progress(total, total);
-      var result = reader.result || '';
-      var comma = result.indexOf(',');
-      var base64 = comma === -1 ? '' : result.substring(comma + 1);
-      window.flutter_inappwebview.callHandler(
-        '_webspaceBlobDownload',
-        suggestedFilename,
-        base64,
-        blob.type || '',
-        taskId
-      );
-    };
-    reader.onerror = function() {
-      var msg = (reader.error && reader.error.message) || 'read error';
-      window.flutter_inappwebview.callHandler(
-        '_webspaceBlobDownloadError', msg, taskId);
-    };
-    reader.readAsDataURL(blob);
-  }
-  try {
-    var captured = window.__webspaceBlobs &&
-      window.__webspaceBlobs.get(blobUrl);
-    if (captured) {
-      readBlob(captured);
-      return;
-    }
-    fetch(blobUrl).then(function(r) { return r.blob(); })
-      .then(readBlob)
-      .catch(reportError);
-  } catch (e) {
-    reportError(e);
-  }
-})($blobJson, $fnJson, $idJson);
-''';
+    final script = buildBlobDownloadIife(
+      blobUrl: blobUrl,
+      taskId: task.id,
+      suggestedFilename: suggestedFilename,
+    );
     try {
       await controller.evaluateJavascript(source: script);
     } catch (e, stack) {

@@ -30,6 +30,14 @@ Map<String, String> buildAllFixtures() {
   final fixtures = <String, String>{};
 
   fixtures['blob_url_capture/shim.js'] = blobUrlCaptureScript;
+  // Pinned test triple — the Node-side test minds the polyfill so the
+  // first createObjectURL call returns 'blob:https://example.test/test-blob-1',
+  // matching the URL baked into this IIFE.
+  fixtures['blob_url_capture/download_iife.js'] = buildBlobDownloadIife(
+    blobUrl: 'blob:https://example.test/test-blob-1',
+    suggestedFilename: 'hello.txt',
+    taskId: 'task-fixture',
+  );
 
   fixtures['desktop_mode/linux.js'] =
       buildDesktopModeShim(firefoxLinuxDesktopUserAgent);
