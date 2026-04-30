@@ -19,21 +19,6 @@ jobs:
       - name: Validate metadata
         run: ./scripts/validate_fastlane_metadata.sh
 
-  js-shim-tests:
-    name: JS Shim Tests (jsdom)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-      - name: Install npm dependencies
-        run: npm ci
-      - name: Run JS shim tests
-        run: npm run test:js
-
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
@@ -251,6 +236,23 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # Run the Node-side JS shim tests (jsdom + node:test) before the
+      # heavy Flutter steps so a shim regression fails fast without
+      # waiting on the Linux build. setup-node works inside the
+      # container as long as curl/tar/unzip are present (installed
+      # above).
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Run JS shim tests
+        run: npm run test:js
 
       - name: Cache fvm Flutter SDK
         uses: actions/cache@v4

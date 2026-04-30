@@ -101,7 +101,7 @@ production webview sees, not a copy or paraphrase.
 
 ---
 
-### Requirement: SHIM-TEST-003 — Two CI jobs gate the workflow
+### Requirement: SHIM-TEST-003 — Both layers gate CI
 
 CI MUST fail when either layer breaks: drift check (Dart) or
 behavioural test (Node).
@@ -112,12 +112,16 @@ behavioural test (Node).
 - **WHEN** the drift check fails for any fixture
 - **THEN** the job fails
 
-#### Scenario: Node job runs independently
+#### Scenario: Node tests run early in the Build Linux job
 
-- **GIVEN** the `JS Shim Tests (jsdom)` job
-- **WHEN** the job runs `npm ci && npm run test:js`
-- **THEN** it does not depend on Flutter or any platform SDK
-- **AND** it fails if any `test/js/*.test.js` test fails
+- **GIVEN** the `Build Linux` CI job
+- **WHEN** the job has finished container apt-install and checkout
+- **THEN** it runs `npm ci && npm run test:js` *before* the Flutter
+  build step, so a shim regression fails without waiting on
+  `flutter build linux`
+- **AND** the Node test step does not depend on the Flutter SDK or any
+  WPE / GTK package being functional — only on Node, npm, and the
+  jsdom dependency chain being installed
 
 ---
 

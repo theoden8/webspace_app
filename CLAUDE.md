@@ -167,7 +167,7 @@ The two layers share fixtures under `test/js_fixtures/` — see [test/js_fixture
 3. `fvm flutter test test/js_fixtures_drift_test.dart` proves committed fixtures match the builder.
 4. `npm run test:js` proves the shim actually mutates the JS surface.
 
-Both layers run in CI (`build-and-test.yml` → `js-shim-tests` job for Node, the regular `flutter test` step for the drift check).
+Both layers run in CI (`build-and-test.yml` — the Node tests run early in the `Build Linux` job before the Flutter build; the drift check runs as part of the regular `flutter test` step).
 
 To add a new shim to the Node-side suite: register it in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump_shim_js.dart), regenerate, then write a `*.test.js` against the new fixture. Builders that depend on Flutter widget imports (anything in `lib/main.dart` or `lib/screens/*`) can't be reached from the dumper as-is — extract the JS string into a pure-Dart helper first.
 
