@@ -49,6 +49,13 @@
   </div>
 
   <div class="section">
+    <h3>Periodic Notifications</h3>
+    <button onclick="togglePeriodic()" id="periodicBtn">Start Periodic (every 1 min)</button>
+    <p>Count: <strong id="periodicCount">0</strong> | Status: <strong id="periodicStatus">stopped</strong></p>
+    <p class="info">Fires a notification every 60 seconds. Use to test background polling — enable backgroundPoll, start periodic, then background the app.</p>
+  </div>
+
+  <div class="section">
     <h3>Edge Cases</h3>
     <button onclick="testRapidNotifications()">Send 5 Rapid Notifications</button>
     <button onclick="testEmptyNotification()">Send Empty Notification (no body)</button>
@@ -78,6 +85,43 @@
 
     function clearLog() {
       logEl.innerHTML = '';
+    }
+
+    var periodicTimer = null;
+    var periodicCount = 0;
+
+    function togglePeriodic() {
+      var btn = document.getElementById('periodicBtn');
+      var statusEl = document.getElementById('periodicStatus');
+      if (periodicTimer) {
+        clearInterval(periodicTimer);
+        periodicTimer = null;
+        btn.textContent = 'Start Periodic (every 1 min)';
+        statusEl.textContent = 'stopped';
+        log('Periodic notifications stopped after ' + periodicCount + ' notifications');
+        return;
+      }
+      periodicCount = 0;
+      document.getElementById('periodicCount').textContent = '0';
+      statusEl.textContent = 'running';
+      btn.textContent = 'Stop Periodic';
+      log('Periodic notifications started (every 60s)', 'info');
+      firePeriodic();
+      periodicTimer = setInterval(firePeriodic, 60000);
+    }
+
+    function firePeriodic() {
+      periodicCount++;
+      document.getElementById('periodicCount').textContent = String(periodicCount);
+      try {
+        new Notification('Periodic #' + periodicCount, {
+          body: 'Fired at ' + new Date().toLocaleTimeString(),
+          tag: 'periodic-' + periodicCount
+        });
+        log('Periodic #' + periodicCount + ' sent', 'pass');
+      } catch (e) {
+        log('Periodic #' + periodicCount + ' failed: ' + e.message, 'fail');
+      }
     }
 
     function updatePermission() {
