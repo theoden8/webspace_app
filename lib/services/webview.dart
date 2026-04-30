@@ -1948,14 +1948,14 @@ class WebViewFactory {
         if (config.siteId != null && config.notificationsEnabled) {
           controller.addJavaScriptHandler(
             handlerName: 'webNotification',
-            callback: (args) {
+            callback: (args) async {
               if (args.isEmpty || args[0] is! Map) return null;
               final data = Map<String, dynamic>.from(args[0] as Map);
               final title = data['title'] as String? ?? '';
               final body = data['body'] as String? ?? '';
               final tag = data['tag'] as String?;
               final siteId = data['siteId'] as String? ?? config.siteId!;
-              NotificationService.instance.show(
+              await NotificationService.instance.show(
                 siteId: siteId,
                 title: title,
                 body: body,

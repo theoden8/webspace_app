@@ -63,6 +63,14 @@ class NotificationService {
     }
   }
 
+  bool _permissionGranted = false;
+
+  Future<void> _ensurePermission() async {
+    if (_permissionGranted) return;
+    _permissionGranted = await requestPermission();
+    LogService.instance.log('Notification', 'OS permission: ${_permissionGranted ? "granted" : "denied"}');
+  }
+
   Future<void> show({
     required String siteId,
     required String title,
@@ -71,6 +79,11 @@ class NotificationService {
     String? siteUrl,
   }) async {
     if (!_initialized) await init();
+    await _ensurePermission();
+    if (!_permissionGranted) {
+      LogService.instance.log('Notification', 'Skipped "$title" — OS notification permission denied', level: LogLevel.warning);
+      return;
+    }
 
     final androidDetails = AndroidNotificationDetails(
       'webspace_web_notifications',
