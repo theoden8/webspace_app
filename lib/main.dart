@@ -1136,6 +1136,34 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _webViewModels[index].resumeWebView();
     _updateCanGoBack();
 
+    // Defensive sweep: pause every other loaded webview so background
+    // sites don't run animations / GPS listeners / non-throttled
+    // raf callbacks when the user isn't looking at them. Steady state
+    // already has them paused (each becomes paused when it last lost
+    // active status above), but a path that adds to _loadedIndices
+    // without going through the previous-active pause would leave
+    // it unpaused. pauseWebView() is idempotent.
+    //
+    // unawaited: subsequent activation logic (fullscreen, logging)
+    // doesn't depend on these completing. Race-wise this is safe in
+    // Dart's single-threaded model: each pauseWebView dispatches on
+    // the platform channel synchronously up to its first await, and
+    // the channel preserves FIFO order — so the resumeWebView above
+    // is dispatched before any of these pauses. A subsequent
+    // _setCurrentIndex would also do its own resume after these
+    // pauses, so the latest target always ends up resumed.
+    //
+    // (Per-instance pause() doesn't stop JavaScript — see
+    // openspec/specs/webview-pause-lifecycle/spec.md. This is a
+    // CPU/battery optimization, not RAM. The LRU cap and OS memory
+    // pressure handler cover RAM.)
+    final loadedSnapshot = _loadedIndices.toList();
+    for (final i in loadedSnapshot) {
+      if (i == index) continue;
+      if (i < 0 || i >= _webViewModels.length) continue;
+      unawaited(_webViewModels[i].pauseWebView());
+    }
+
     // Auto-enter fullscreen if the site has fullscreenMode enabled
     if (target.fullscreenMode) {
       _enterFullscreen();

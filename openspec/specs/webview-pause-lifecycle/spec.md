@@ -55,6 +55,24 @@ The system SHALL pause the previously active webview on site switch using the pe
 **And** A's controller does NOT receive `pauseAllJsTimers()`
 **And** B's JS timers are unaffected by A's pause
 
+#### Scenario: Sites loaded but never previously active also get paused
+
+**Given** sites A, B, C are all loaded under container mode (which lets sites stay
+  resident across webspace switches)
+**And** the user activates site B
+**When** the activation completes
+**Then** `pauseWebView()` is called on every loaded site that is NOT B
+**Because** steady state should already have them paused (each becomes paused
+  when it last lost active status), but a pause-all-inactive sweep guarantees
+  consistency even if a path adds to `_loadedIndices` without going through
+  the previous-active pause. `pauseWebView()` is idempotent — already-paused
+  or disposed-controller sites no-op.
+
+The sweep uses `unawaited` so subsequent activation logic doesn't block on it.
+This is race-safe because Dart's platform channel preserves FIFO order: the
+`resume()` for the new active site is dispatched before the loop's `pause()`
+calls, so the active site is never left paused.
+
 ---
 
 ### Requirement: PAUSE-002 — Process-Global Pause Only at App Lifecycle

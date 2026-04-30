@@ -1049,6 +1049,63 @@ void main() {
       expect(loaded, {2});
     });
 
+    test('user re-activates the site that would otherwise be next to evict',
+        () {
+      // Production scenario the user asked about: site 0 is the LRU
+      // front (oldest, would be next out under the cap) AND the user
+      // re-activates it. The engine excludes targetIndex from the
+      // candidate iteration, so 0 is never picked even though it's
+      // both the oldest AND in the soft-keep tier. Cap=3 with
+      // target=0 (re-activation) → projected stays at 4, overflow 1
+      // (we're already over cap). Eviction must spare target.
+      final loaded = <int>{};
+      for (final i in [0, 1, 2, 3]) {
+        loaded.add(i);
+      }
+      final result = SiteUnloadEngine.indicesToEvictForLruCap(
+        targetIndex: 0,
+        loadedIndices: loaded,
+        maxLoadedSites: 3,
+        // Previous active was 2 (different from target — common case
+        // when the user is switching sites, not just re-tapping the
+        // already-active one).
+        protectedIndices: {2},
+        // Active webspace contains the target plus one more.
+        preferKeepIndices: {0, 1},
+      );
+      // outOfKeep = [3] (1 in keep, 2 protected, 0 is target).
+      // inKeep = [1] (0 is target).
+      // overflow=1, take outOfKeep first → [3]. Target survives.
+      expect(result, [3]);
+    });
+
+    test('memory pressure during re-activation: in-flight target is protected',
+        () {
+      // Production scenario: _setCurrentIndex(target) is mid-flight
+      // (_activationInFlightIndex = target). User has the OLD active
+      // site in _currentIndex. _handleMemoryPressure passes both as
+      // protectedIndices. Target is the LRU front (oldest) and IS in
+      // the active webspace. Without the in-flight guard the engine
+      // would pick target and dispose its webview — silently wiping
+      // the user's state from the IndexedStack on next paint.
+      final loaded = <int>{};
+      for (final i in [0, 1, 2]) {
+        loaded.add(i);
+      }
+      // _currentIndex = 2 (active, oldest gets bumped to back on
+      // every activation, so 2 is most recent). Target = 0 (oldest).
+      // Both go in protected.
+      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: loaded,
+        protectedIndices: {0, 2},
+        preferKeepIndices: {0, 1, 2},
+      );
+      // Only candidate left is 1 (out-of-keep is empty since
+      // everything's in active webspace; in-keep with 0 and 2
+      // protected leaves just 1).
+      expect(result, 1);
+    });
+
     test('protected ∩ softKeep is the production case (active site is both)',
         () {
       // In production, _setCurrentIndex passes _currentIndex as
