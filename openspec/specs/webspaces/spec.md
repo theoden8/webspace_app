@@ -208,10 +208,23 @@ production):
     DEFAULT sites are equivalent regardless of the global value. Returns
     `{}` on platforms with true per-site proxy (iOS 17+ / macOS 14+).
   - `indicesToEvictForLruCap({targetIndex, loadedIndices, maxLoadedSites,
-    protectedIndices})` — bounds the number of concurrently loaded
-    webviews at [`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart);
-    treats `loadedIndices` as access-ordered (caller bumps to end on
-    activation) and returns the least-recently-used overflow.
+    protectedIndices, preferKeepIndices})` — bounds the number of
+    concurrently loaded webviews at
+    [`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart)
+    (currently 50); treats `loadedIndices` as access-ordered (caller
+    bumps to end on activation). Two-tier eviction: out-of-keep
+    candidates first (oldest first), then in-keep candidates (oldest
+    first), with `protectedIndices` (typically the active site)
+    excluded entirely. The caller passes the active webspace's site
+    indices as `preferKeepIndices`, so context-relevant sites are
+    evicted last.
+  - `indexToEvictForMemoryPressure({loadedIndices, protectedIndices,
+    preferKeepIndices})` — picks one site to evict in response to an
+    OS memory pressure signal (`didHaveMemoryPressure`). Same two-tier
+    policy as `indicesToEvictForLruCap`. One victim per event lets the
+    OS clamp the loaded count to whatever the device can carry,
+    instead of guessing a target up front; if pressure persists the
+    callback fires again and the next victim is picked.
 - [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart)
   — returns the rewritten `siteIndices` for every affected webspace
   when a site is removed from `_webViewModels`, implementing
