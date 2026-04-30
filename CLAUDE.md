@@ -40,8 +40,10 @@ This project uses [FVM](https://fvm.app/) for Flutter version management. Always
 fvm flutter pub get
 
 # Run tests
-fvm flutter test                           # All tests
+fvm flutter test                           # All Dart tests
 fvm flutter test test/cookie_isolation_test.dart  # Single test file
+npm run test:js                            # Node-side JS shim tests
+./scripts/test_all.sh                      # Both layers (Dart + Node)
 
 # Static analysis
 fvm flutter analyze
