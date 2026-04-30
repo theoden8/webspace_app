@@ -79,6 +79,16 @@ void main() {
     await tester.tap(settingsButton);
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
+    // Dump every Text widget rendered after the navigation. If
+    // "Export Settings" isn't there, this shows what IS — a different
+    // route, an empty state, a loading spinner, etc.
+    final visibleTexts = find.byType(Text).evaluate().map((e) {
+      final w = e.widget;
+      return w is Text ? w.data : '?';
+    }).where((s) => s != null).toList();
+    // ignore: avoid_print
+    print('After Settings tap, ${visibleTexts.length} Text widgets: $visibleTexts');
+
     // The settings screen renders an Export Settings + Import Settings
     // pair. They're the entry points for the JSON backup flow that
     // the recent proxy-auth-wipe fix (PR #266) touches indirectly via
