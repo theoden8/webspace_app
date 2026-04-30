@@ -242,6 +242,29 @@ load and run concurrently with fully isolated cookies, `localStorage`,
 **Then** site A's session is intact — no re-login, no reload, no
   capture-nuke-restore cycle ran
 
+#### Scenario: Sites stay loaded across webspace switches
+
+**Given** profile mode is active
+**And** site A is in webspace `Work` and site B is in webspace `Personal`
+**And** both A and B have been loaded
+**When** the user switches webspace from `Work` to `Personal`
+**Then** site A is NOT unloaded (it remains in `_loadedIndices` and its
+  webview stays in the IndexedStack), even though it isn't part of the
+  newly-active webspace
+**Because** the per-site container isolates A's state from B's, so
+  keeping A resident is harmless and avoids the cost of re-creating
+  the webview if the user switches back
+
+The orchestration lives in
+[`SiteUnloadEngine.indicesToUnloadOnWebspaceSwitch`](../../../lib/services/site_unload_engine.dart),
+which returns `{}` when `useContainers == true` and delegates to the
+legacy `WebspaceSelectionEngine` otherwise. To prevent unbounded growth
+under this policy, the same engine enforces an LRU cap
+([`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart)) on
+activation: when adding a site would exceed the cap, the
+least-recently-used loaded site (other than the currently-active one)
+is evicted.
+
 ### Requirement: CONT-004 — Orphan Garbage Collection
 
 The system SHALL sweep profiles whose owning site no longer exists.

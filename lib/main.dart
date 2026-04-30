@@ -42,6 +42,7 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
+import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
@@ -977,6 +978,48 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
     }
 
+    // Proxy-mismatch unload (Android only). The WebView proxy is
+    // process-global on Android (`inapp.ProxyController` last-write-wins);
+    // activating a site whose effective proxy differs from a currently-
+    // loaded site would silently re-route that site's next request through
+    // the new proxy. Unload conflicting sites so they can't leak.
+    final proxyMismatch = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+      targetIndex: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+      proxyIsGlobal: Platform.isAndroid,
+    );
+    for (final i in proxyMismatch) {
+      LogService.instance.log(
+        'SiteUnload',
+        'Proxy mismatch — unloading site $i: "${_webViewModels[i].name}"',
+        level: LogLevel.warning,
+      );
+      await _unloadSiteForOtherReason(i);
+      if (version != _setCurrentIndexVersion) return;
+    }
+
+    // LRU cap. Bound the number of concurrently loaded webviews; under
+    // container mode the unload-on-webspace-switch step is skipped, so
+    // without a cap a heavy user could pile up dozens of live webviews.
+    // _loadedIndices is treated as access-ordered (re-added on each
+    // activation below), so iteration order is least-recently-used first.
+    final lruEvict = SiteUnloadEngine.indicesToEvictForLruCap(
+      targetIndex: index,
+      loadedIndices: _loadedIndices,
+      maxLoadedSites: kMaxLoadedSites,
+      protectedIndices:
+          _currentIndex != null ? <int>{_currentIndex!} : const <int>{},
+    );
+    for (final i in lruEvict) {
+      LogService.instance.log(
+        'SiteUnload',
+        'LRU cap (>$kMaxLoadedSites) — unloading site $i: "${_webViewModels[i].name}"',
+      );
+      await _unloadSiteForOtherReason(i);
+      if (version != _setCurrentIndexVersion) return;
+    }
+
     // Pause the previously active webview to save resources
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
       await _webViewModels[_currentIndex!].pauseWebView();
@@ -999,6 +1042,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (index >= _webViewModels.length) return;
 
     _currentIndex = index;
+    // Bump to end of insertion order so iteration over _loadedIndices is
+    // least-recently-used first (consumed by the LRU eviction above).
+    _loadedIndices.remove(index);
     _loadedIndices.add(index);
     _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
     _canGoBack = false; // Reset until async check completes
@@ -1020,6 +1066,27 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// Unloads a site due to domain conflict with another site. Delegates to
   /// the isolation engine so the orchestration is shared with tests.
   Future<void> _unloadSiteForDomainSwitch(int index) async {
+    await _cookieIsolation.unloadSiteForDomainSwitch(
+      index: index,
+      models: _webViewModels,
+      loadedIndices: _loadedIndices,
+    );
+  }
+
+  /// Unloads a site for non-domain-conflict reasons (proxy mismatch,
+  /// LRU cap). Under container mode the per-site container partitions
+  /// cookies/localStorage/IDB/etc., so disposing the webview is enough.
+  /// Under legacy mode, the cookie jar is shared, so we run the same
+  /// capture-then-dispose cycle the engine uses for domain conflicts —
+  /// otherwise the soon-to-run capture-nuke-restore on activation of
+  /// the target would wipe the unloaded site's session out of the jar.
+  Future<void> _unloadSiteForOtherReason(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    if (_useContainers) {
+      _webViewModels[index].disposeWebView();
+      _loadedIndices.remove(index);
+      return;
+    }
     await _cookieIsolation.unloadSiteForDomainSwitch(
       index: index,
       models: _webViewModels,
@@ -1569,7 +1636,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (!mounted || version != _selectWebspaceVersion) return;
 
       if (online) {
-        final indicesToUnload = WebspaceSelectionEngine.indicesToUnloadOnWebspaceSwitch(
+        // Under container mode, sites are isolated by their per-site
+        // container (cookies, localStorage, IDB, ServiceWorkers, HTTP
+        // cache) and stay resident across webspace switches — keeping
+        // them loaded is harmless and avoids the cost of re-creating the
+        // webview when the user switches back. The unload-on-switch only
+        // runs in legacy mode where the cookie jar is shared.
+        final indicesToUnload = SiteUnloadEngine.indicesToUnloadOnWebspaceSwitch(
+          useContainers: _useContainers,
           loadedIndices: _loadedIndices,
           previousWebspaceIndices: previousIndices,
           newWebspaceIndices: newIndices,

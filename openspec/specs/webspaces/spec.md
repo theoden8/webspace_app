@@ -188,16 +188,38 @@ production):
     newWebspaceIndices})` — returns the loaded sites that leave the
     visible set on a webspace switch. The offline short-circuit
     (preserve-all-loaded when disconnected) is a policy decision owned
-    by the caller, not the engine.
+    by the caller, not the engine. The container-mode short-circuit
+    (sites stay resident across switches when isolated by their own
+    native container) lives in [`SiteUnloadEngine`](../../../lib/services/site_unload_engine.dart),
+    which delegates here in legacy mode.
   - `cleanupWebspaceIndices({webspaces, siteCount})` — strips
     out-of-bounds entries in place.
+- [`SiteUnloadEngine`](../../../lib/services/site_unload_engine.dart):
+  - `indicesToUnloadOnWebspaceSwitch({useContainers, ...})` — returns
+    `{}` under container mode (sites are isolated and stay loaded);
+    delegates to `WebspaceSelectionEngine` in legacy mode.
+  - `indicesToUnloadForProxyMismatch({targetIndex, models, loadedIndices,
+    proxyIsGlobal})` — on Android (process-global proxy), returns the
+    loaded sites whose effective proxy differs from the activating
+    site's. Their next request would silently route through the new
+    proxy (last-write-wins on `inapp.ProxyController`), so they are
+    force-unloaded on activation. Per-site DEFAULT resolves through the
+    app-global outbound proxy via `resolveEffectiveProxy`, so two
+    DEFAULT sites are equivalent regardless of the global value. Returns
+    `{}` on platforms with true per-site proxy (iOS 17+ / macOS 14+).
+  - `indicesToEvictForLruCap({targetIndex, loadedIndices, maxLoadedSites,
+    protectedIndices})` — bounds the number of concurrently loaded
+    webviews at [`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart);
+    treats `loadedIndices` as access-ordered (caller bumps to end on
+    activation) and returns the least-recently-used overflow.
 - [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart)
   — returns the rewritten `siteIndices` for every affected webspace
   when a site is removed from `_webViewModels`, implementing
   WEBSPACE-010. The rewrite drops the deleted index and shifts every
   `i > deletedIndex` down by one.
 
-Tests live in [test/webspace_selection_engine_test.dart](../../../test/webspace_selection_engine_test.dart)
+Tests live in [test/webspace_selection_engine_test.dart](../../../test/webspace_selection_engine_test.dart),
+[test/site_unload_engine_test.dart](../../../test/site_unload_engine_test.dart),
 and [test/site_lifecycle_engine_test.dart](../../../test/site_lifecycle_engine_test.dart).
 
 ---
