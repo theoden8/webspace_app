@@ -212,24 +212,125 @@ Site deletion is the only path that does NOT save state — it removes the entry
 **Then** the orphan sweep at the end of `_deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
 **And** A's state bytes are reaped (siteId no longer in active set)
 
-### Requirement: PAUSE-007 — Cold-Start State Storage Defaults to In-Memory
+### Requirement: PAUSE-007 — State Storage Persists in Encrypted On-Disk Cache
 
-The current default `WebViewStateStorage` implementation is in-memory (`InMemoryWebViewStateStorage`). State bytes survive webspace switches, LRU evictions, and memory-pressure disposals within a single app run, but are lost on cold start. A future on-disk implementation SHALL drop in without callers changing — the abstraction is documented at the `WebViewStateStorage` interface.
+The default `WebViewStateStorage` implementation in production is `SecureWebViewStateStorage`, an AES-256 CBC on-disk cache modeled after `HtmlCacheService`:
 
-#### Scenario: App restart loses captured state
+- Encryption key (32-byte, base64-encoded) lives in `FlutterSecureStorage` (platform keychain on iOS/macOS, encrypted SharedPreferences on Android).
+- Per-site bytes live under `<documents>/webview_state/<siteId>.enc`, written via `writeAsString` of the base64-encoded ciphertext.
+- IV is derived from the first 16 bytes of the AES key (deterministic per-key) — matches the HTML cache shape, threat model is "device compromise" not "ciphertext analysis".
+- App-version upgrades nuke the cache directory and rotate the AES key; old ciphertext wouldn't decrypt anyway.
 
-**Given** site A reached `savedForRestore` during the previous session
-**When** the app cold-starts
-**Then** `WebViewStateStorage` is empty
-**And** activating A loads from `currentUrl` as before, without `restoreState`
-**Because** in-memory storage doesn't persist across runs
+State bytes survive cold starts (unlike the in-memory `InMemoryWebViewStateStorage` which remains for tests). Re-activation after a kill or reboot can restore the back/forward stack and (Apple) form-field values.
+
+#### Scenario: State persists across cold starts
+
+**Given** site A is in `savedForRestore` with bytes in the encrypted cache
+**When** the user force-quits the app and reopens it
+**Then** the encrypted file at `<documents>/webview_state/<A.siteId>.enc` survives
+**And** activating A reads the bytes, decrypts them, and applies `restoreState` — back/forward stack and (Apple) form data are intact
+
+#### Scenario: App-version upgrade rotates the key and clears the cache
+
+**Given** state was written under app version `1.2.3`
+**When** the user installs version `1.2.4` and the new app starts
+**Then** `_clearCacheOnUpgrade` detects the version mismatch
+**And** the `<documents>/webview_state/` directory is deleted recursively
+**And** the AES key in `FlutterSecureStorage` is regenerated
+**Because** state captured by an older WebView build may not re-hydrate cleanly into the new build, and rotating the key prevents the new app from decrypting any stale leftovers
+
+#### Scenario: Corrupt entry on disk is reaped on load
+
+**Given** a state file at `<documents>/webview_state/foo.enc` has been corrupted (truncated, key mismatch, etc.)
+**When** the user activates site `foo` and `loadState` runs
+**Then** decryption fails
+**And** the corrupt file is deleted
+**And** `loadState` returns null
+**And** the activation falls back to a fresh load from `currentUrl`
 
 #### Scenario: Startup orphan sweep keeps state aligned with active sites
 
-**Given** the previous session had state for sites {A, B, C}, and B was deleted before app exit (but the deletion's removeOrphans race didn't reach state storage in time, or the storage was disk-backed)
+**Given** the previous session left state files for siteIds {A, B, C}
+**And** the user deleted site B before app exit (state file lingered)
 **When** the app starts and `_restoreAppState` runs the orphan sweep
 **Then** `_stateStorage.removeOrphans({A, C})` is called
-**And** any orphaned B entry is reaped
+**And** the file `B.enc` is deleted from disk
+
+### Requirement: PAUSE-008 — State Capture on Go-Home and App-Background
+
+The system SHALL capture `controller.saveState()` bytes opportunistically — without disposing the webview — at two additional lifecycle points beyond the dispose paths:
+
+1. **Go-home** (`_setCurrentIndex(null)`): when the user navigates to the home screen, the previously-active site's state is captured before its webview is paused. The webview stays loaded for fast resume; state is captured defensively in case the OS later reaps the app or the user comes back after a long delay.
+2. **App-background** (`didChangeAppLifecycleState(paused | inactive)`): the active site's state is captured fire-and-forget alongside the existing `pauseForAppLifecycle` call, so an OS-induced kill while we're backgrounded preserves restorable state.
+
+Neither path mutates the model's `lifecycleState` — the field stays at `live` because the webview is not actually disposed. Capture goes through `_captureStateBytes` (bytes-only) rather than `_captureStateForRestore` (bytes + flip-to-savedForRestore).
+
+#### Scenario: Go-home captures state for the previously-active site
+
+**Given** site A is the active site
+**When** the user taps the home / drawer button (triggering `_setCurrentIndex(null)`)
+**Then** `_captureStateBytes(A)` runs before A is paused
+**And** A's bytes are persisted to `WebViewStateStorage`
+**And** A's webview is NOT disposed — `_loadedIndices` still contains A
+**And** A's `lifecycleState` stays `live`
+**And** later cold-starting the app and re-activating A re-hydrates from the bytes
+
+#### Scenario: App-background captures the active site asynchronously
+
+**Given** site A is the active site
+**When** the app goes to background (`AppLifecycleState.paused`)
+**Then** `pauseForAppLifecycle(A)` is invoked synchronously
+**And** `_captureStateBytes(A)` runs fire-and-forget (`unawaited`) so the lifecycle handler returns promptly
+**And** the encrypted state file is updated in the background
+**Because** the OS may grant only a brief window before suspending the process; capture races against that deadline but is best-effort
+
+#### Scenario: Save and restore preserve back/forward across reopen
+
+**Given** the user navigated within site A from `home → page2 → page3`, then went home and force-quit the app
+**When** the app cold-starts and the user activates A
+**Then** A loads at `currentUrl` (= `page3`)
+**And** `restoreState` re-populates the back/forward stack
+**And** the user can press the back gesture to return to `page2` and `home`
+
+### Requirement: PAUSE-009 — State Storage Garbage Collection
+
+State files SHALL be reaped when their owning site is deleted, not when the user merely navigates away. Leaving state for sites that still exist (via go-home, app-background, memory-pressure disposal) is the entire point of save/restore.
+
+#### Scenario: Site deletion removes state, go-home does not
+
+**Given** site A is in storage
+**When** the user goes home (`_setCurrentIndex(null)`)
+**Then** A's state is *added* to storage (defensively captured) — not removed
+
+**When** the user later deletes site A from the site list
+**Then** the orphan sweep at the end of `_deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
+**And** A's state file is reaped (siteId no longer in active set)
+
+### Requirement: PAUSE-010 — Race Protections for State Capture
+
+Concurrent paths that may capture state for the same site SHALL coexist without corruption:
+
+- Two `_handleMemoryPressure` events firing rapidly: dropped via `_isHandlingMemoryPressure` flag (the first runs to completion, the next event picks up the new state).
+- App-background `unawaited(_captureStateBytes)` racing with `_setCurrentIndex`: each path operates on per-site state independently; storage writes are last-writer-wins per siteId, both produce valid bytes.
+- Re-activation of a `savedForRestore` site mid-fetch: the in-flight target is in `_activationInFlightIndex` (set sync before any await in `_setCurrentIndex`, cleared in finally); memory pressure includes that index in `protectedIndices`, so the picker excludes it.
+- Storage initialization concurrency: `if (!_initialized) await initialize()` may run twice on a cold race, but each invocation produces the same key from `FlutterSecureStorage` (existing key on read, generated once on first miss); the second call's redundant writes are no-ops.
+
+#### Scenario: Concurrent didHaveMemoryPressure events do not double-capture
+
+**Given** a memory pressure cascade is mid-flight (capturing state, awaiting `saveState()` on the target site)
+**When** the OS fires `didHaveMemoryPressure` again before the first handler completes
+**Then** the second invocation drops out at the `_isHandlingMemoryPressure` guard
+**And** no site is double-captured
+
+#### Scenario: HTML cache and state storage cover orthogonal concerns
+
+**Given** site A is loaded
+**When** A's `onLoadStop` fires after a navigation
+**Then** `HtmlCacheService.saveHtml` may run (debounced 10s, captures the rendered DOM for offline / fast-paint)
+**And** `WebViewStateStorage.saveState` does NOT run on `onLoadStop` — state capture is scoped to dispose paths + go-home + app-background
+**Because** state bytes can be tens of KB and capturing on every page load would generate platform-channel pressure for marginal benefit; the strategic capture points (going-to-be-evicted-or-killed) cover the realistic loss scenarios
+
+The two systems are complementary: HTML cache provides instant first-paint of the last rendered DOM; state storage restores the back/forward stack and (Apple) form data on top.
 
 ---
 

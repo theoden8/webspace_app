@@ -44,6 +44,7 @@ import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
@@ -683,14 +684,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // victim and double-write its captured cookies to storage.
   bool _isHandlingMemoryPressure = false;
 
-  // In-memory storage for per-site `controller.saveState()` bytes.
-  // Bytes survive webspace switches, LRU evictions, and memory-
-  // pressure disposals within a single app run; lost on cold start.
+  // AES-encrypted on-disk storage for per-site `controller.saveState()`
+  // bytes. The same encryption pattern as the HTML cache: a 256-bit
+  // AES key in `FlutterSecureStorage`, per-site files under
+  // `<docs>/webview_state/<siteId>.enc`. Bytes survive webspace
+  // switches, LRU evictions, memory-pressure disposals, AND cold
+  // starts (cleared on app-version upgrade alongside the key).
+  //
   // Sites in [SiteLifecycleState.savedForRestore] have an entry here
   // keyed by siteId; re-activation reads it and pre-populates the
   // model's `_pendingRestoreState` so onControllerCreated can apply
   // it to the freshly-built controller.
-  final WebViewStateStorage _stateStorage = InMemoryWebViewStateStorage();
+  final WebViewStateStorage _stateStorage = SecureWebViewStateStorage();
 
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
@@ -839,6 +844,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // timers so loaded-but-inactive webviews stop too.
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
         _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
+        // Capture state for the active site so an OS-induced kill
+        // while we're backgrounded doesn't lose the back/forward
+        // stack and (Apple) form data. Best-effort, fire-and-forget;
+        // the webview stays loaded — disk capture is just defense
+        // in depth in case the OS reaps the app entirely. Bytes-
+        // only capture — lifecycleState stays `live` because the
+        // webview is not disposed.
+        final activeIdx = _currentIndex!;
+        unawaited(_captureStateBytes(_webViewModels[activeIdx]));
       }
     } else if (state == AppLifecycleState.resumed) {
       // Await any in-flight pause before resuming to prevent ordering inversion
@@ -1052,8 +1066,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final version = ++_setCurrentIndexVersion;
 
     if (index == null || index < 0 || index >= _webViewModels.length) {
-      // Pause the previously active webview when navigating away
+      // Going home: opportunistically capture state for the
+      // previously-active site so a later cold start (or
+      // OS-killed-while-backgrounded scenario) can re-hydrate its
+      // back/forward stack and form data on re-activation. The
+      // webview stays loaded (pause-only, not disposed) so a
+      // near-immediate return to the same site keeps its in-memory
+      // tab. Bytes-only capture — `lifecycleState` stays `live`
+      // because the webview is not actually disposed.
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+        await _captureStateBytes(_webViewModels[_currentIndex!]);
+        if (version != _setCurrentIndexVersion) return;
         await _webViewModels[_currentIndex!].pauseWebView();
         if (version != _setCurrentIndexVersion) return;
       }
@@ -1289,20 +1312,37 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     );
   }
 
-  /// Capture [model]'s navigation state to in-memory storage so
-  /// re-activation can apply it. Updates `model.lifecycleState` to
-  /// [SiteLifecycleState.savedForRestore] on success. No-op for
+  /// Capture [model]'s navigation state to encrypted on-disk storage.
+  /// Returns true if bytes were captured and persisted. No-op for
   /// incognito sites or when there's nothing to save.
-  Future<void> _captureStateForRestore(WebViewModel model) async {
-    if (model.incognito) return;
+  ///
+  /// Does NOT mutate `model.lifecycleState` — callers that are
+  /// disposing the webview should do that themselves (typically
+  /// flipping to [SiteLifecycleState.savedForRestore]); callers that
+  /// are *only* opportunistically persisting (go-home,
+  /// app-background) should leave the state at [SiteLifecycleState.live]
+  /// since the webview is still in memory.
+  Future<bool> _captureStateBytes(WebViewModel model) async {
+    if (model.incognito) return false;
     final bytes = await model.captureNavigationState();
-    if (bytes == null) return;
+    if (bytes == null) return false;
     await _stateStorage.saveState(model.siteId, bytes);
-    model.lifecycleState = SiteLifecycleState.savedForRestore;
     LogService.instance.log(
       'WebViewState',
       'Captured ${bytes.length} bytes for "${model.name}" (siteId: ${model.siteId})',
     );
+    return true;
+  }
+
+  /// Capture state and flip the lifecycle to [SiteLifecycleState.savedForRestore].
+  /// Used by dispose paths (LRU eviction, memory-pressure cascade,
+  /// legacy webspace-switch unload) where the webview is about to be
+  /// torn down.
+  Future<void> _captureStateForRestore(WebViewModel model) async {
+    final ok = await _captureStateBytes(model);
+    if (ok) {
+      model.lifecycleState = SiteLifecycleState.savedForRestore;
+    }
   }
 
   /// Restores cookies for a site before activation. Delegates to the engine.
