@@ -32,6 +32,7 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
+import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
@@ -435,14 +436,71 @@ Future<String?> getPageTitle(String url) async {
   return null;
 }
 
+/// One-shot migration: copy file-import HTML out of [HtmlCacheService]
+/// into [HtmlImportStorage] before the cache wipes itself on app
+/// upgrade. Called from [HtmlCacheService.initialize] via the
+/// `beforeUpgradeWipe` hook — at that point the cache's encryption is
+/// initialized with the still-current key so [loadHtml] can decrypt.
+///
+/// On a fresh install the WebViewModels list is absent and this is a
+/// no-op. On every subsequent upgrade once imports stop landing in the
+/// cache (this version onward), the lookup finds nothing and returns
+/// silently — keeping the call wired keeps the path safe against
+/// future regressions without behavioral cost.
+Future<void> _migrateFileImportsToStorage() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList('webViewModels');
+    if (raw == null || raw.isEmpty) return;
+
+    var migrated = 0;
+    for (final entry in raw) {
+      try {
+        final m = jsonDecode(entry) as Map<String, dynamic>;
+        final initUrl = m['initUrl'] as String? ?? '';
+        if (!initUrl.startsWith('file://')) continue;
+        final siteId = m['siteId'] as String?;
+        if (siteId == null || siteId.isEmpty) continue;
+
+        if (await HtmlImportStorage.instance.hasImport(siteId)) continue;
+        final cached = await HtmlCacheService.instance.loadHtml(siteId);
+        if (cached == null) continue;
+        await HtmlImportStorage.instance.saveHtml(siteId, cached.$2, cached.$1);
+        migrated++;
+      } catch (_) {
+        // Skip malformed entries — the cache wipe is happening either way.
+      }
+    }
+    if (migrated > 0) {
+      LogService.instance.log('HtmlImport',
+          'Migrated $migrated file-import page(s) from cache to import storage',
+          level: LogLevel.info);
+    }
+  } catch (e) {
+    LogService.instance.log('HtmlImport',
+        'File-import migration failed: $e',
+        level: LogLevel.error);
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Clear image cache on app upgrade
   await ImageCacheService.clearCacheOnUpgrade();
 
-  // Initialize HTML cache (clears on app upgrade)
-  await HtmlCacheService.instance.initialize();
+  // Imported HTML files are the only copy of user-supplied content,
+  // so they live in their own persistent store and survive upgrades.
+  // Cached fetched-page snapshots stay in HtmlCacheService (re-fetchable,
+  // safe to drop on upgrade).
+  await HtmlImportStorage.instance.initialize();
+
+  // Initialize HTML cache (clears on app upgrade). The pre-wipe hook
+  // copies imports left in the legacy cache (from versions before the
+  // import store existed) into HtmlImportStorage before they're nuked.
+  await HtmlCacheService.instance.initialize(
+    beforeUpgradeWipe: _migrateFileImportsToStorage,
+  );
 
   // Initialize favicon URL cache
   await FaviconUrlCache.initialize();
@@ -566,6 +624,8 @@ void main() async {
   // `InAppWebViewInitialData` requires — chromium needs the bytes
   // before navigation starts, not after an awaited disk read.
   await HtmlCacheService.instance.preloadCache();
+  // Same reasoning as the line above, for imported HTML.
+  await HtmlImportStorage.instance.preloadAll();
 
   // Load the global outbound proxy from SharedPreferences. Synchronous
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
@@ -1667,6 +1727,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIdsAtStartup);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIdsAtStartup);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIdsAtStartup);
+    await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIdsAtStartup);
     await _stateStorage.removeOrphans(activeSiteIdsAtStartup);
     await _cookieManager.deleteAllCookies();
     // Sweep containers whose owning site no longer exists. No-op when
@@ -2197,6 +2258,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
+    await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
 
     // Apply theme to all webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
@@ -3164,10 +3226,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       model.pageTitle = pageTitle;
     }
 
-    // For imported HTML files, store the content in HtmlCacheService
-    // so the webview loads it via initialHtml on creation
+    // Imported HTML files are the only copy of the user's data, so they
+    // go into HtmlImportStorage (persistent) rather than HtmlCacheService
+    // (cleared on app upgrade). The webview reads from the import store
+    // for `initialHtml` on creation.
     if (htmlContent != null && !incognito) {
-      await HtmlCacheService.instance.saveHtml(model.siteId, htmlContent, url);
+      await HtmlImportStorage.instance.saveHtml(model.siteId, htmlContent, url);
     }
 
     setState(() {
@@ -3406,6 +3470,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       );
     }
     await HtmlCacheService.instance.deleteCache(deletedModel.siteId);
+    await HtmlImportStorage.instance.deleteImport(deletedModel.siteId);
     if (!mounted) return;
     final currentModelIndex = _webViewModels.indexOf(deletedModel);
     if (currentModelIndex == -1) return;
@@ -3443,6 +3508,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
+    await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
     await _stateStorage.removeOrphans(activeSiteIds);
 
     if (!mounted) return;
@@ -3836,23 +3902,31 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   onWindowRequested: _showPopupWindow,
                                   language: webViewModel.language,
                                   globalUserScripts: _globalUserScripts,
-                                  onHtmlLoaded: webViewModel.incognito ? null : (url, html) {
-                                    HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
-                                  },
+                                  // file:// imports are user data (only copy on device), not
+                                  // a re-fetchable snapshot — the canonical bytes live in
+                                  // HtmlImportStorage and never change after import, so
+                                  // skip the live-snapshot save path entirely.
+                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                      ? null
+                                      : (url, html) {
+                                          HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
+                                        },
                                   // Skip the per-onLoadStop getHtml() IPC into chromium when
                                   // a save would be debounced anyway. Drops the storm of
                                   // renderer-DOM-serializations that fired on every SPA pseudo-
                                   // navigation (8+ Saved events per page on LinkedIn) — each one
                                   // a candidate for racing chromium's frame-lifecycle teardown.
-                                  shouldFetchHtml: webViewModel.incognito
+                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
                                       ? null
                                       : () => HtmlCacheService.instance.shouldSave(webViewModel.siteId),
                                   initialHtml: webViewModel.incognito
                                       ? null
                                       : () {
-                                          // Always feed cached HTML when we have it (and we're not
-                                          // incognito). The webview factory uses it for instant
-                                          // first paint via `InAppWebViewInitialData` and then
+                                          // file:// imports come from HtmlImportStorage (the only
+                                          // copy of user-supplied content); URL sites come from
+                                          // HtmlCacheService (re-fetchable snapshot). The webview
+                                          // factory uses initialHtml for instant first paint via
+                                          // `InAppWebViewInitialData` and then — for URL sites —
                                           // swaps to a fresh live load via `controller.reload()`
                                           // once the cached parse settles. file:// imports skip
                                           // the swap (no live to fetch); offline cold starts skip
@@ -3870,7 +3944,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                           // cold-start UX cost for *every* online user to
                                           // protect *userdebug developers* from a chromium
                                           // self-test, which is the wrong trade.
-                                          final cached = HtmlCacheService.instance.getHtmlSync(webViewModel.siteId);
+                                          final cached = webViewModel.initUrl.startsWith('file://')
+                                              ? HtmlImportStorage.instance.getHtmlSync(webViewModel.siteId)
+                                              : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId);
                                           if (cached == null) return null;
                                           final isDark = webViewModel.currentTheme == WebViewTheme.dark ||
                                               (webViewModel.currentTheme == WebViewTheme.system &&

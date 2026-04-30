@@ -6,7 +6,7 @@ Allow users to add a site by importing a local HTML file (.html/.htm) from their
 
 ## Status
 
-- **Date**: 2026-04-13
+- **Date**: 2026-04-30
 - **Status**: Completed
 
 ---
@@ -66,18 +66,41 @@ load (incognito mode, post-upgrade cache wipe, manual reload). Sites
 persisted before this fix are migrated on load via
 `migrateLegacyFileImportUrl` in [lib/utils/url_utils.dart](../../../lib/utils/url_utils.dart).
 
-#### Scenario: HTML content stored via HtmlCacheService
+#### Scenario: HTML content stored via HtmlImportStorage
 
 **Given** the user selects an HTML file
 **When** the site is created (non-incognito)
-**Then** the file content is saved to HtmlCacheService for the new site's siteId
+**Then** the file content is saved to `HtmlImportStorage` for the new site's siteId
 **And** the webview loads the content via `initialHtml` on first display
+
+The import store ([lib/services/html_import_storage.dart](../../../lib/services/html_import_storage.dart))
+is distinct from `HtmlCacheService`. Imports are the only copy of the
+user-supplied content, so the store is **not** wiped on app upgrade —
+unlike the cache, which holds re-fetchable snapshots of remote pages.
+
+#### Scenario: Imports survive app upgrade
+
+**Given** the user previously imported an HTML file
+**When** the app is upgraded to a newer version
+**Then** the imported HTML is still available — `HtmlImportStorage`
+persists across upgrades.
+
+#### Scenario: Migration from legacy HtmlCacheService
+
+**Given** an installation from before HtmlImportStorage existed where
+imported HTML was held in `HtmlCacheService`
+**When** the new version starts up after the upgrade
+**Then** prior to the cache wipe, `_migrateFileImportsToStorage` (in
+[lib/main.dart](../../../lib/main.dart)) reads each file-import
+WebViewModel's siteId from SharedPreferences, decrypts its cache entry
+with the still-current key, and writes it into HtmlImportStorage. The
+subsequent cache wipe drops the now-redundant copy.
 
 #### Scenario: Incognito mode
 
 **Given** the user has incognito mode enabled
 **When** an HTML file is imported
-**Then** the HTML content is NOT persisted to HtmlCacheService
+**Then** the HTML content is NOT persisted to HtmlImportStorage
 **And** the webview renders the "imported file unavailable" fallback
 (via `buildFileImportFallbackHtml`) instead of attempting to load the
 synthetic `file:///<filename>` URL — there's no real file on disk for
@@ -115,18 +138,25 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 - `initUrl`: `file:///<filename>` (e.g., `file:///page.html`) — three
   slashes; see IMPORT-003 above for why
 - `name`: Filename without extension
-- HTML content stored in `HtmlCacheService` keyed by `siteId`
+- HTML content stored in `HtmlImportStorage` keyed by `siteId`. Persistent;
+  not wiped on app upgrade (the user's only copy of the file). Distinct
+  from `HtmlCacheService`, which holds re-fetchable page snapshots and
+  *is* wiped on upgrade.
 
 ---
 
 ## Files
 
+### Added
+- `lib/services/html_import_storage.dart` - Persistent AES-encrypted store for user-imported HTML, separate from the cache so imports survive app upgrades
+
 ### Modified
 - `lib/screens/add_site.dart` - Added `_importHtmlFile()` method and "Import HTML file" button
-- `lib/main.dart` - Updated `_addSite()` to handle `htmlContent` in result, save to `HtmlCacheService`
+- `lib/main.dart` - Updated `_addSite()` to handle `htmlContent` in result and save to `HtmlImportStorage`; init/preload of the import store; `_migrateFileImportsToStorage` pre-wipe hook copies legacy entries out of `HtmlCacheService`; orphan-cleanup and per-site delete touch both stores; the webview's `initialHtml` reads from `HtmlImportStorage` for `file://` sites and the snapshot save path skips them
+- `lib/services/html_cache_service.dart` - `initialize()` accepts a `beforeUpgradeWipe` callback that runs after key load but before the wipe, used to migrate file imports out
 - `lib/utils/url_utils.dart` - Added `migrateLegacyFileImportUrl` for legacy two-slash imports
 - `lib/web_view_model.dart` - Applies migration in `WebViewModel.fromJson` for `initUrl`/`currentUrl`
-- `lib/services/webview.dart` - Renders `buildFileImportFallbackHtml` when cache is missing for a file import
+- `lib/services/webview.dart` - Renders `buildFileImportFallbackHtml` when no import is on disk for a file-import site
 
 ---
 

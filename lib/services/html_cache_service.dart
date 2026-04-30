@@ -30,12 +30,23 @@ class HtmlCacheService {
   final _secureStorage = const FlutterSecureStorage();
 
   /// Initialize the cache service. Call on app startup.
-  Future<void> initialize() async {
+  ///
+  /// [beforeUpgradeWipe] runs once if an app-version upgrade is
+  /// detected, after the existing AES key has been loaded but before
+  /// any cache file is deleted and before the key is rotated. The
+  /// callee can read existing entries (encryption is live) and copy
+  /// data that should survive the wipe — used to migrate file-import
+  /// HTML into [HtmlImportStorage] before the cache is nuked.
+  Future<void> initialize({Future<void> Function()? beforeUpgradeWipe}) async {
     final appDir = await getApplicationDocumentsDirectory();
     _cacheDirectory = Directory('${appDir.path}/$_cacheDir');
 
     // Initialize encryption
     await _initEncryption();
+
+    if (beforeUpgradeWipe != null && await _isUpgradeDetected()) {
+      await beforeUpgradeWipe();
+    }
 
     // Clear cache on version upgrade
     await _clearCacheOnUpgrade();
@@ -51,6 +62,14 @@ class HtmlCacheService {
     // it. Done this way to keep the constructor cheap; preloadCache
     // is awaited up-front because [InAppWebViewInitialData] requires
     // synchronous access to the bytes.
+  }
+
+  Future<bool> _isUpgradeDetected() async {
+    final prefs = await SharedPreferences.getInstance();
+    final packageInfo = await PackageInfo.fromPlatform();
+    final currentVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+    final lastVersion = prefs.getString(_versionKey);
+    return lastVersion != null && lastVersion != currentVersion;
   }
 
   /// Decrypt every cache file on disk into [_memoryCache]. Called from
