@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
@@ -8,6 +10,7 @@ import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
+import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -798,6 +801,34 @@ class WebViewModel {
           LogService.instance.log('WebView', 'onControllerCreated for "$name" (siteId: $siteId)');
           controller = ctrl;
           setController();
+          // Apply any state queued by the activation flow when this
+          // model came back from SavedForRestore. The InAppWebView's
+          // `initialUrlRequest` already kicked off a navigation to
+          // `currentUrl` (which matches the most-recent saved URL);
+          // restoreState restores the back/forward stack on Android
+          // and (Apple 15+/12+) form-field values. The brief
+          // redundant initial-nav-then-restore on Apple is acceptable
+          // for the much-better re-activation UX.
+          //
+          // unawaited: subsequent webview-creation logic doesn't
+          // depend on the restore completing. Clear the field
+          // *before* awaiting so a back-to-back rebuild doesn't
+          // re-apply the same bytes.
+          final pending = _pendingRestoreState;
+          if (pending != null) {
+            _pendingRestoreState = null;
+            unawaited(() async {
+              try {
+                final ok = await ctrl.restoreState(pending);
+                LogService.instance.log('WebView',
+                    'restoreState for "$name" (siteId: $siteId): $ok');
+              } catch (_) {
+                // Restore is best-effort; on failure the page is
+                // already loading from `currentUrl` — user just loses
+                // the back/forward stack and form data.
+              }
+            }());
+          }
         },
       );
     }
@@ -919,6 +950,69 @@ class WebViewModel {
     LogService.instance.log('WebView', 'disposeWebView called for "$name" (siteId: $siteId)');
     webview = null;
     controller = null;
+  }
+
+  /// Drop the in-memory cache (decoded image cache + HTTP response
+  /// cache) without disposing the webview. Tab state stays. Used by
+  /// the [SiteLifecyclePromotionEngine] cacheCleared tier under OS
+  /// memory pressure. Idempotent. No-op when controller is null
+  /// (already disposed).
+  Future<void> clearWebViewCache() async {
+    if (controller == null) return;
+    try {
+      await controller!.clearCache();
+      LogService.instance.log('WebView',
+          'Cleared in-memory cache for "$name" (siteId: $siteId)');
+    } catch (_) {
+      // Controller may have been disposed mid-call.
+    }
+  }
+
+  /// Capture the WebView's navigation state as bytes. Returns null
+  /// when there's nothing to save (controller is null, page never
+  /// navigated, or the platform refused). Pair with the matching
+  /// `restoreState` on a freshly-created controller in
+  /// [getWebView]'s `onControllerCreated` handler to re-hydrate
+  /// the back/forward stack and (Apple only) form-field values.
+  ///
+  /// Live JS heap and DOM are NOT preserved.
+  Future<Uint8List?> captureNavigationState() async {
+    if (controller == null) return null;
+    if (incognito) return null;
+    try {
+      final state = await controller!.saveState();
+      if (state == null || state.isEmpty) return null;
+      return state;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Current memory-tier state. Drives the
+  /// [SiteLifecyclePromotionEngine] cascade. Default [SiteLifecycleState.live]
+  /// — active and paused-but-loaded sites both sit at this tier
+  /// (the resume/pause distinction is orthogonal to memory tier).
+  /// Promoted on memory pressure events; reset to `live` on
+  /// re-activation when the webview is rebuilt.
+  SiteLifecycleState lifecycleState = SiteLifecycleState.live;
+
+  /// Bytes from a prior `controller.saveState()`, queued by the
+  /// activation flow when re-activating a [SiteLifecycleState.savedForRestore]
+  /// site. Consumed once by [getWebView]'s `onControllerCreated`
+  /// handler and then cleared, so subsequent activations don't
+  /// re-apply stale state.
+  ///
+  /// Caller (typically `_setCurrentIndex` in `_WebSpacePageState`)
+  /// fetches bytes from [WebViewStateStorage] before letting the
+  /// webview rebuild, so the IndexedStack repaint and the
+  /// `restoreState` call land in the same render cycle.
+  Uint8List? _pendingRestoreState;
+
+  /// Schedule [state] to be applied to the next freshly-created
+  /// controller for this model. Cleared automatically once the
+  /// `onControllerCreated` callback consumes it.
+  void schedulePendingRestoreState(Uint8List state) {
+    _pendingRestoreState = state;
   }
 
   /// Get display name - uses the name field (which auto-updates from page title)

@@ -42,7 +42,9 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
+import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_unload_engine.dart';
+import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
@@ -681,6 +683,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // victim and double-write its captured cookies to storage.
   bool _isHandlingMemoryPressure = false;
 
+  // In-memory storage for per-site `controller.saveState()` bytes.
+  // Bytes survive webspace switches, LRU evictions, and memory-
+  // pressure disposals within a single app run; lost on cold start.
+  // Sites in [SiteLifecycleState.savedForRestore] have an entry here
+  // keyed by siteId; re-activation reads it and pre-populates the
+  // model's `_pendingRestoreState` so onControllerCreated can apply
+  // it to the freshly-built controller.
+  final WebViewStateStorage _stateStorage = InMemoryWebViewStateStorage();
+
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
   final Set<int> _loadedIndices = {};
@@ -748,9 +759,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   Future<void> _handleMemoryPressure() async {
     // Drop concurrent invocations: if the OS fires repeatedly while
-    // we're still capturing cookies for the previous victim (legacy
-    // mode), we'd otherwise pick the same site twice and double-write
-    // the same cookies to storage.
+    // we're still applying the previous promotion's transition
+    // (clearCache, or saveState+dispose), we'd otherwise pick the
+    // same victim twice and re-apply the same transition.
     if (_isHandlingMemoryPressure) return;
     _isHandlingMemoryPressure = true;
     try {
@@ -763,25 +774,57 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (_currentIndex != null) _currentIndex!,
         if (_activationInFlightIndex != null) _activationInFlightIndex!,
       };
-      final victim = SiteUnloadEngine.indexToEvictForMemoryPressure(
+      // Build the per-site state map snapshot for the cascade engine.
+      // Iterate _loadedIndices defensively in case _webViewModels
+      // shifted under us.
+      final states = <int, SiteLifecycleState>{};
+      for (final i in _loadedIndices) {
+        if (i < 0 || i >= _webViewModels.length) continue;
+        states[i] = _webViewModels[i].lifecycleState;
+      }
+      final victim = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: _loadedIndices,
+        states: states,
         protectedIndices: protected,
         preferKeepIndices: _getFilteredSiteIndices().toSet(),
       );
       if (victim == null) return;
-      // Race guard: the model array may have shifted between picking
-      // and the eventual await (rare, but possible if site deletion
-      // happened to interleave). The engine's own bounds check inside
-      // `_unloadSiteForOtherReason` would catch this too, but we want
-      // to avoid logging a stale name.
       if (victim < 0 || victim >= _webViewModels.length) return;
+      final model = _webViewModels[victim];
+      final from = model.lifecycleState;
+      final to = SiteLifecyclePromotionEngine.nextState(from);
+      if (to == null) return;
+
       LogService.instance.log(
         'SiteUnload',
-        'Memory pressure — unloading site $victim: '
-            '"${_webViewModels[victim].name}"',
+        'Memory pressure — promoting site $victim "${model.name}": '
+            '${from.name} → ${to.name}',
         level: LogLevel.warning,
       );
-      await _unloadSiteForOtherReason(victim);
+
+      switch (to) {
+        case SiteLifecycleState.cacheCleared:
+          // live → cacheCleared: drop the in-memory cache. Webview
+          // stays loaded; tab state intact. Frees decoded image
+          // cache + HTTP response cache.
+          await model.clearWebViewCache();
+          if (!mounted) return;
+          model.lifecycleState = SiteLifecycleState.cacheCleared;
+        case SiteLifecycleState.savedForRestore:
+          // cacheCleared → savedForRestore: capture state, dispose
+          // webview, drop from _loadedIndices. Frees the renderer
+          // process. Re-activation hydrates from storage via the
+          // model's _pendingRestoreState hook.
+          //
+          // Routes through _unloadSiteForOtherReason so the legacy
+          // cookie capture (when not in container mode) runs too;
+          // _captureStateForRestore inside that helper is what
+          // updates the lifecycleState to savedForRestore.
+          await _unloadSiteForOtherReason(victim);
+        case SiteLifecycleState.live:
+          // Promotion can never go back to live — defensive.
+          break;
+      }
       if (!mounted) return;
       setState(() {});
     } finally {
@@ -1033,6 +1076,31 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _activationInFlightIndex = index;
     try {
 
+    // If the target was disposed under memory pressure (lifecycleState
+    // == savedForRestore), fetch its captured navigation state and
+    // hand it to the model so the soon-to-be-built controller's
+    // onControllerCreated handler can apply restoreState. Resets the
+    // tier to live regardless — the about-to-be-resumed webview
+    // is back at the lowest tier.
+    if (target.lifecycleState == SiteLifecycleState.savedForRestore) {
+      final bytes = await _stateStorage.loadState(target.siteId);
+      if (version != _setCurrentIndexVersion) return;
+      if (bytes != null) {
+        target.schedulePendingRestoreState(bytes);
+        LogService.instance.log(
+          'WebViewState',
+          'Queued ${bytes.length} restore bytes for "${target.name}" '
+              '(siteId: ${target.siteId})',
+        );
+      }
+      target.lifecycleState = SiteLifecycleState.live;
+    } else if (target.lifecycleState != SiteLifecycleState.live) {
+      // cacheCleared promoted back to live on activation — the user
+      // is interacting with it again, so any subsequent memory
+      // pressure starts the cascade fresh from the live tier.
+      target.lifecycleState = SiteLifecycleState.live;
+    }
+
     // Domain-conflict unload + capture-nuke-restore is only needed when
     // the native cookie jar is shared between sites. With the Container
     // API, each site has its own jar; concurrent same-base-domain sites
@@ -1193,16 +1261,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   /// Unloads a site for non-domain-conflict reasons (proxy mismatch,
-  /// LRU cap). Under container mode the per-site container partitions
-  /// cookies/localStorage/IDB/etc., so disposing the webview is enough.
-  /// Under legacy mode, the cookie jar is shared, so we run the same
-  /// capture-then-dispose cycle the engine uses for domain conflicts —
-  /// otherwise the soon-to-run capture-nuke-restore on activation of
-  /// the target would wipe the unloaded site's session out of the jar.
+  /// LRU cap, memory pressure). Under container mode the per-site
+  /// container partitions cookies/localStorage/IDB/etc., so disposing
+  /// the webview is enough. Under legacy mode, the cookie jar is
+  /// shared, so we run the same capture-then-dispose cycle the engine
+  /// uses for domain conflicts — otherwise the soon-to-run capture-
+  /// nuke-restore on activation of the target would wipe the unloaded
+  /// site's session out of the jar.
+  ///
+  /// Before disposing, captures `controller.saveState()` to the in-
+  /// memory state storage so re-activation can restore the back/
+  /// forward stack and (Apple) form data via `restoreState`. Skipped
+  /// for incognito sites (state is meant to be ephemeral).
   Future<void> _unloadSiteForOtherReason(int index) async {
     if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    await _captureStateForRestore(model);
     if (_useContainers) {
-      _webViewModels[index].disposeWebView();
+      model.disposeWebView();
       _loadedIndices.remove(index);
       return;
     }
@@ -1210,6 +1286,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       index: index,
       models: _webViewModels,
       loadedIndices: _loadedIndices,
+    );
+  }
+
+  /// Capture [model]'s navigation state to in-memory storage so
+  /// re-activation can apply it. Updates `model.lifecycleState` to
+  /// [SiteLifecycleState.savedForRestore] on success. No-op for
+  /// incognito sites or when there's nothing to save.
+  Future<void> _captureStateForRestore(WebViewModel model) async {
+    if (model.incognito) return;
+    final bytes = await model.captureNavigationState();
+    if (bytes == null) return;
+    await _stateStorage.saveState(model.siteId, bytes);
+    model.lifecycleState = SiteLifecycleState.savedForRestore;
+    LogService.instance.log(
+      'WebViewState',
+      'Captured ${bytes.length} bytes for "${model.name}" (siteId: ${model.siteId})',
     );
   }
 
@@ -1478,6 +1570,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIdsAtStartup);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIdsAtStartup);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIdsAtStartup);
+    await _stateStorage.removeOrphans(activeSiteIdsAtStartup);
     await _cookieManager.deleteAllCookies();
     // Sweep containers whose owning site no longer exists. No-op when
     // the Container API is unsupported.
@@ -1770,6 +1863,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
         for (final index in indicesToUnload) {
           if (index >= 0 && index < _webViewModels.length) {
+            // Capture state before dispose so re-activation can
+            // restore the back/forward stack and (Apple) form data.
+            // Skipped for incognito sites inside the helper.
+            await _captureStateForRestore(_webViewModels[index]);
+            if (!mounted || version != _selectWebspaceVersion) return;
             _webViewModels[index].disposeWebView();
             _loadedIndices.remove(index);
             LogService.instance.log('WebspaceSwitch', 'Unloaded site $index: "${_webViewModels[index].name}"');
@@ -3233,6 +3331,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
+    await _stateStorage.removeOrphans(activeSiteIds);
 
     if (!mounted) return;
     Navigator.pop(context);
