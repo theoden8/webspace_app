@@ -271,6 +271,9 @@ jobs:
         # epoxy. The plugin needs libwpewebkit-2.0-dev plus libwpe-1.0-dev
         # and libwpebackend-fdo-1.0-dev (legacy fallback path; harmless
         # to install even though the plugin prefers WPEPlatform).
+        # xvfb is for the integration_test step further down — Flutter
+        # desktop linux apps need a display server, and Actions runners
+        # don't expose one in headless containers.
         run: |
           set -x
           apt-get update
@@ -278,7 +281,8 @@ jobs:
             ca-certificates curl wget git unzip xz-utils sudo \
             build-essential clang lld llvm cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
-            libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev
+            libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev \
+            xvfb dbus-x11
           rm -rf /var/lib/apt/lists/*
           pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
           pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
@@ -347,6 +351,33 @@ jobs:
 
       - name: Build Linux
         run: fvm flutter build linux --release
+
+      # Integration tests run after the production build so a clean
+      # build is verified independently first. The integration_test
+      # path drives the actual Flutter widget tree against the WPE
+      # WebKit + GTK runtime — a different test surface than the
+      # widget tests in `flutter test` (which use the shared-test
+      # binding, not a real display server).
+      #
+      # xvfb-run provides the X11 display the GTK app needs;
+      # dbus-launch provides the session bus libsecret + GTK helpers
+      # try to talk to. Without dbus-launch, libsecret prints scary
+      # warnings but tests still work; we wrap anyway because some
+      # GTK widgets fall back to broken layout on no-bus systems.
+      #
+      # Smoke test: settings_smoke_test.dart asserts the App Settings
+      # screen reaches a renderable state — proves the integration
+      # harness works end-to-end on Linux. Deeper scenarios (settings
+      # backup roundtrip, navigation race guards, drawer-flash) want
+      # this same harness extended; the smoke test pins the pipeline
+      # so they can land as follow-up tests without re-litigating CI.
+      - name: Run Linux integration tests
+        run: |
+          set -x
+          xvfb-run -a --server-args="-screen 0 1280x720x24" \
+            dbus-launch --exit-with-session \
+            fvm flutter test integration_test/settings_smoke_test.dart \
+              -d linux
 
   build-apple:
     name: Build iOS & macOS
