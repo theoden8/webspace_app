@@ -340,6 +340,19 @@ spec violation.
   parser, persistence, and `resolveEffectiveProxy`.
 - `test/outbound_http_call_sites_test.dart` — proves per-site, global, and
   fail-closed behavior reaches each call site.
+- `test/browser/proxy_baseline.test.js` — Tier 2 (real Chromium via
+  Puppeteer) sanity checks on the engine the production WebView shares
+  with Chrome: launches Chromium with `--proxy-server` + a Node-side
+  HTTP proxy harness, asserts every navigation and subresource flows
+  through the proxy log, that `page.authenticate` satisfies a 407
+  challenge, that wrong credentials never fall through to the origin
+  (the leak the recent Dart fix in PR #266 prevents at the higher
+  level), and a paired premise check that without `--proxy-server`
+  the same navigation hits the origin directly. Validates Chromium's
+  proxy contract our Dart layer relies on.
+- `test/browser/helpers/proxy_server.js` — Node HTTP/CONNECT proxy
+  with optional Basic auth, request log; used by the proxy_baseline
+  tier-2 test.
 
 ### Modified
 - `lib/services/icon_service.dart`, `lib/third_party/favicon/favicon.dart`

@@ -378,3 +378,66 @@ test('WRTC=relay — Function.prototype.toString hides the wrapper',
       assert.equal(s, 'function RTCPeerConnection() { [native code] }');
     }, { preInit: FAKE });
   });
+
+// ---------- IP-leakage premise: WebRTC without the shim ----------
+
+test('PREMISE: WITHOUT shim, WebRTC ICE gathers host candidates (LAN IP leak)',
+  async (t) => {
+    // ip-leakage spec LEAK-005: the real-network risk that
+    // motivates the WRTC=relay branch is that Chromium WebRTC
+    // bypasses HTTP/SOCKS proxies and gathers `typ host` ICE
+    // candidates revealing every LAN-side interface IP. This
+    // premise check asserts the leak IS observable in clean
+    // headless Chromium — if it ever stops being observable we
+    // need to revisit whether the relay shim still has a job.
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
+    try {
+      await page.goto('about:blank', { waitUntil: 'load' });
+      const candidates = await page.evaluate(() =>
+        new Promise((resolve) => {
+          const pc = new RTCPeerConnection({});
+          const seen = [];
+          pc.onicecandidate = (e) => {
+            if (e.candidate) {
+              seen.push(e.candidate.candidate);
+            } else {
+              // null candidate signals end-of-candidates
+              resolve(seen);
+            }
+          };
+          pc.createDataChannel('probe');
+          pc.createOffer().then((o) => pc.setLocalDescription(o));
+          // Fail-safe: if onicecandidate(null) doesn't fire within
+          // 3s, return what we have. Headless Chromium typically
+          // finishes host gathering in <500ms.
+          setTimeout(() => resolve(seen), 3000);
+        }));
+      const hostCands = candidates.filter(
+        (c) => c && c.includes(' typ host'));
+      assert.ok(hostCands.length >= 1,
+        `expected at least one typ-host candidate without the shim, ` +
+        `got: ${JSON.stringify(candidates)}`);
+    } finally {
+      await page.close();
+    }
+  });
+
+test('FIX: WITH WRTC=off shim, RTCPeerConnection construction throws',
+  async (t) => {
+    // Paired with the premise check above: when the shim's "off"
+    // policy is in force, no peer connection can be constructed at
+    // all, so no ICE gathering happens, so no IP leaks.
+    await withShim(t, WRTC_DISABLED, async (page) => {
+      const r = await page.evaluate(() => {
+        try {
+          new RTCPeerConnection({});
+          return { threw: false };
+        } catch (e) {
+          return { threw: true, message: e.message };
+        }
+      });
+      assert.equal(r.threw, true,
+        'WRTC=off must prevent any RTCPeerConnection from being constructed');
+    });
+  });
