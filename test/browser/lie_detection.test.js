@@ -29,6 +29,8 @@ const {
 
 const LINUX = readFixture('desktop_mode/linux.js');
 const FULL_COMBO = readFixture('location_spoof/full_combo.js');
+const THEME_DARK = readFixture('theme_color_scheme/dark.js');
+const BLOB_SHIM = readFixture('blob_url_capture/shim.js');
 
 const browser = setupBrowser();
 
@@ -205,4 +207,106 @@ test('location_spoof: Function.prototype.toString.toString is also stubbed',
       assert.match(src, /\[native code\]/,
         `Function.prototype.toString itself leaks source: ${src}`);
     });
+  });
+
+// ---------- location_spoof permissions own-property probe ----------
+
+test('location_spoof: Object.getOwnPropertyNames(navigator.permissions) is empty',
+  async (t) => {
+    // Clean Chromium has Object.getOwnPropertyNames(navigator.permissions)
+    // === [] — `query` lives only on Permissions.prototype. The hardened
+    // shim patches the prototype, so no own-property leaks on the
+    // permissions instance.
+    await withShim(t, FULL_COMBO, async (page) => {
+      const own = await page.evaluate(() =>
+        Object.getOwnPropertyNames(navigator.permissions));
+      assert.deepEqual(own, [],
+        `navigator.permissions own-properties: ${JSON.stringify(own)}`);
+    });
+  });
+
+test('location_spoof: Permissions.prototype.query is the override (not the instance)',
+  async (t) => {
+    await withShim(t, FULL_COMBO, async (page) => {
+      const r = await page.evaluate(() => {
+        const protoDesc = Object.getOwnPropertyDescriptor(
+          Permissions.prototype, 'query');
+        return {
+          src: Function.prototype.toString.call(protoDesc.value),
+          // The instance must NOT have its own query — clean Chromium
+          // resolves through the prototype.
+          instanceHasOwn: Object.prototype.hasOwnProperty.call(
+            navigator.permissions, 'query'),
+        };
+      });
+      assert.match(r.src, /\[native code\]/);
+      assert.equal(r.instanceHasOwn, false);
+    });
+  });
+
+// ---------- theme_color_scheme matchMedia probe ----------
+
+test('theme_color_scheme: window.matchMedia stringifies as native code',
+  async (t) => {
+    // Same hardening as desktop_mode + location_spoof — the WeakMap
+    // toString stub ported into theme_color_scheme means
+    // Function.prototype.toString.call(matchMedia) reads back as
+    // native instead of leaking the wrapper source.
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
+    try {
+      await page.goto('about:blank', { waitUntil: 'load' });
+      await page.evaluate(THEME_DARK);
+      const src = await page.evaluate(() =>
+        Function.prototype.toString.call(window.matchMedia));
+      assert.match(src, /\[native code\]/,
+        `matchMedia source leaks: ${src}`);
+    } finally {
+      await page.close();
+    }
+  });
+
+// ---------- blob_url_capture URL.* probes ----------
+
+test('blob_url_capture: URL.createObjectURL stringifies as native code',
+  async (t) => {
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(BLOB_SHIM);
+      await page.goto('about:blank', { waitUntil: 'load' });
+      const r = await page.evaluate(() => ({
+        create: Function.prototype.toString.call(URL.createObjectURL),
+        revoke: Function.prototype.toString.call(URL.revokeObjectURL),
+      }));
+      assert.match(r.create, /\[native code\]/,
+        `createObjectURL source leaks: ${r.create}`);
+      assert.match(r.revoke, /\[native code\]/,
+        `revokeObjectURL source leaks: ${r.revoke}`);
+    } finally {
+      await page.close();
+    }
+  });
+
+test('blob_url_capture: capture still works after the toString hardening',
+  async (t) => {
+    // Sanity: hardening must not break the actual capture machinery —
+    // a Blob minted via the wrapped createObjectURL must still appear
+    // in window.__webspaceBlobs.
+    if (!requireBrowser(browser, t)) return;
+    const page = await browser.browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(BLOB_SHIM);
+      await page.goto('about:blank', { waitUntil: 'load' });
+      const r = await page.evaluate(() => {
+        const blob = new Blob(['hello'], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const captured = window.__webspaceBlobs.get(url);
+        return { hit: captured === blob };
+      });
+      assert.equal(r.hit, true,
+        'wrapped createObjectURL must still register the Blob');
+    } finally {
+      await page.close();
+    }
   });

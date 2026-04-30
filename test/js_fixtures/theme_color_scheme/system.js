@@ -1,4 +1,25 @@
 (function() {
+  // --- Function.prototype.toString hardening (shared with the other shims
+  // via window.__wsFnStubs / __wsFnToStringPatched). Without it, a
+  // fingerprinter calling Function.prototype.toString on window.matchMedia
+  // would read back our wrapper source instead of "[native code]".
+  var _origFnToString = Function.prototype.toString;
+  var _stubs = window.__wsFnStubs || new WeakMap();
+  window.__wsFnStubs = _stubs;
+  function asNative(fn, name) {
+    _stubs.set(fn, 'function ' + name + '() { [native code] }');
+    return fn;
+  }
+  if (!window.__wsFnToStringPatched) {
+    window.__wsFnToStringPatched = true;
+    var patched = function toString() {
+      var stub = _stubs.get(this);
+      return stub !== undefined ? stub : _origFnToString.call(this);
+    };
+    _stubs.set(patched, 'function toString() { [native code] }');
+    try { Function.prototype.toString = patched; } catch (e) {}
+  }
+
   let actualTheme = 'system';
   if (actualTheme === 'system') {
     actualTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -7,7 +28,7 @@
   if (!window.__originalMatchMedia) {
     window.__originalMatchMedia = window.matchMedia.bind(window);
   }
-  window.matchMedia = function(query) {
+  var _patchedMM = function matchMedia(query) {
     const originalResult = window.__originalMatchMedia(query);
     if (query.includes('prefers-color-scheme')) {
       const isDarkQuery = query.includes('dark');
@@ -35,6 +56,8 @@
     }
     return originalResult;
   };
+  asNative(_patchedMM, 'matchMedia');
+  window.matchMedia = _patchedMM;
   let metaTag = document.querySelector('meta[name="color-scheme"]');
   if (!metaTag) {
     metaTag = document.createElement('meta');

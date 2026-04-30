@@ -343,11 +343,27 @@ Tier 3 MUST also include CreepJS-style probes under `test/browser/lie_detection.
   patches `Navigator.prototype`, not the instance) and the getter
   source returns `[native code]` (the shared
   `Function.prototype.toString` WeakMap stub from
-  `window.__wsFnStubs`, installed by both desktop_mode and
-  location_spoof, defeats the probe)
+  `window.__wsFnStubs`, installed by every shim that wraps a
+  function, defeats the probe)
 - **AND** `'ontouchstart' in window` is `false` (the shim deletes
   `ontouchstart` from `window` and `Window.prototype`, matching a
   genuine no-touch desktop browser)
+
+#### Scenario: location_spoof, theme_color_scheme, blob_url_capture survive native-code probes
+
+- **GIVEN** any of the location_spoof, theme_color_scheme, or
+  blob_url_capture shims is loaded
+- **WHEN** a fingerprinter calls `Function.prototype.toString` on
+  any wrapped function (`URL.createObjectURL`, `URL.revokeObjectURL`,
+  `window.matchMedia`, `Permissions.prototype.query`, every
+  `Geolocation.prototype.*`, `Date.prototype.getTimezoneOffset`,
+  `Intl.DateTimeFormat`)
+- **THEN** the result matches `[native code]` — every wrapper is
+  registered with `asNative(...)` against the shared WeakMap stub
+- **AND** the shim does not leak as an own-property: the
+  location_spoof shim patches `Permissions.prototype.query` (not
+  `navigator.permissions.query`), so
+  `Object.getOwnPropertyNames(navigator.permissions)` is `[]`
 
 ---
 
