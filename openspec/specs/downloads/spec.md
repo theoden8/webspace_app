@@ -249,10 +249,35 @@ task list is empty.
 - `test/download_manager_test.dart` — task lifecycle (start /
   updateProgress / complete / fail / cancel / dismiss / clearCompleted),
   listener notification, unknown-id no-ops.
+- `test/blob_url_capture_test.dart` — Dart-side string assertions for
+  the shim and `buildBlobDownloadIife`: shim reentrance guard,
+  createObjectURL/revokeObjectURL wrap pair, instanceof Blob filter,
+  non-enumerable export, MAX=64 bound, registration in
+  WebViewFactory at AT_DOCUMENT_START, IIFE references the shim's
+  global, JSON-escaped substitution of inputs, both branches present,
+  handler argument shapes.
 - `test/js/blob_url_capture_shim.test.js` — jsdom behavioural test for
   the createObjectURL wrapper: roundtrip Blob lookup, revoke clears the
   entry, non-Blob arguments are not tracked, idempotent re-eval, MAX=64
   bound evicts oldest, `__webspaceBlobs` is non-enumerable.
+- `test/js/blob_download_iife.test.js` — jsdom behavioural test for the
+  IIFE's branch selection: fast path reads captured Blob and avoids
+  fetch entirely, fallback calls fetch and routes the result through
+  the same FileReader path, fetch rejection routes through the error
+  handler with the original message, synchronous throws on the fast
+  path also reach the error handler.
+- `test/browser/blob_url_capture_csp.test.js` — Puppeteer test that
+  boots a headless Chromium against a tiny HTTP server serving
+  `Content-Security-Policy: connect-src 'none'`. Two scenarios:
+  (1) PREMISE — without the shim, fetch(blob:) is rejected by the
+  browser's CSP enforcer (proven via a `securitypolicyviolation`
+  event), and the IIFE reports the error; (2) FIX — with the shim
+  installed at DOCUMENT_START via Puppeteer's `evaluateOnNewDocument`,
+  the IIFE finds the captured Blob, never invokes fetch, and reports
+  success with the right base64 / mime / taskId. Auto-skips when
+  Puppeteer can't launch Chromium; opt-in via
+  `WEBSPACE_RUN_BROWSER_TESTS=1 ./scripts/test_all.sh` or
+  `npm run test:browser`.
 
 ### Manual verification
 

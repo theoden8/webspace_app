@@ -3,10 +3,12 @@
   "private": true,
   "description": "WebSpace app development tools",
   "scripts": {
-    "test:js": "node --test --test-reporter=spec 'test/js/**/*.test.js'"
+    "test:js": "node --test --test-reporter=spec 'test/js/**/*.test.js'",
+    "test:browser": "node --test --test-reporter=spec --test-timeout=30000 'test/browser/**/*.test.js'"
   },
   "devDependencies": {
     "@fission-ai/openspec": "latest",
-    "jsdom": "^25.0.1"
+    "jsdom": "^25.0.1",
+    "puppeteer": "^24.42.0"
   }
 }
