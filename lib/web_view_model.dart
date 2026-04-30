@@ -15,6 +15,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/utils/url_utils.dart';
 
 export 'package:webspace/settings/location.dart' show LocationMode, WebRtcPolicy;
 
@@ -1061,8 +1062,10 @@ class WebViewModel {
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
     return WebViewModel(
       siteId: json['siteId'], // May be null for legacy data, will auto-generate
-      initUrl: json['initUrl'],
-      currentUrl: json['currentUrl'],
+      initUrl: migrateLegacyFileImportUrl(json['initUrl'] as String),
+      currentUrl: json['currentUrl'] == null
+          ? null
+          : migrateLegacyFileImportUrl(json['currentUrl'] as String),
       name: json['name'],
       cookies: (json['cookies'] as List<dynamic>)
           .map((dynamic e) => cookieFromJson(e))

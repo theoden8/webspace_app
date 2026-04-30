@@ -414,8 +414,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       final fileName = file.name;
       final nameWithoutExt = fileName.replaceAll(RegExp(r'\.(html?|htm)$', caseSensitive: false), '');
 
+      // Three slashes (empty authority) — `file://name.html` would parse
+      // with `name.html` as the host and chromium then rejects it as
+      // ERR_INVALID_URL whenever the cached HTML is unavailable
+      // (incognito, post-upgrade cache wipe, etc).
       Navigator.pop(context, {
-        'url': 'file://$fileName',
+        'url': 'file:///$fileName',
         'name': nameWithoutExt,
         'incognito': _incognito,
         'htmlContent': htmlContent,

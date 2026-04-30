@@ -46,4 +46,37 @@ void main() {
       expect(ensureUrlScheme('https://example.com'), 'https://example.com');
     });
   });
+
+  group('migrateLegacyFileImportUrl', () {
+    test('rewrites legacy two-slash file:// URLs to three-slash form', () {
+      // Legacy `file://name.html` parses with `name.html` as the host;
+      // chromium rejects it with ERR_INVALID_URL on direct load.
+      expect(migrateLegacyFileImportUrl('file://notifs.html'),
+          'file:///notifs.html');
+      expect(migrateLegacyFileImportUrl('file://report.html'),
+          'file:///report.html');
+    });
+
+    test('preserves trailing slash that chromium adds when normalising', () {
+      // `currentUrl` saved off chromium's onUrlChanged for a legacy
+      // import is `file://name.html/` — host=name.html, path=/.
+      expect(migrateLegacyFileImportUrl('file://notifs.html/'),
+          'file:///notifs.html/');
+    });
+
+    test('leaves already-canonical file:/// URLs alone (idempotent)', () {
+      expect(migrateLegacyFileImportUrl('file:///tmp/x.html'),
+          'file:///tmp/x.html');
+      expect(migrateLegacyFileImportUrl('file:///notifs.html'),
+          'file:///notifs.html');
+    });
+
+    test('leaves non-file URLs alone', () {
+      expect(migrateLegacyFileImportUrl('https://example.com'),
+          'https://example.com');
+      expect(migrateLegacyFileImportUrl('about:blank'), 'about:blank');
+      expect(migrateLegacyFileImportUrl('chrome://flags'), 'chrome://flags');
+      expect(migrateLegacyFileImportUrl(''), '');
+    });
+  });
 }
