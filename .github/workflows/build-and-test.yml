@@ -282,7 +282,7 @@ jobs:
             build-essential clang lld llvm cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
             libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev \
-            xvfb xauth dbus-x11 xdg-user-dirs
+            xvfb xauth dbus-x11 xdg-user-dirs gnome-keyring
           rm -rf /var/lib/apt/lists/*
           pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
           pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
@@ -399,10 +399,32 @@ jobs:
           # resolved path on success or the empty failure on a config
           # mismatch.
           xdg-user-dir DOCUMENTS
+
+          # flutter_secure_storage on Linux talks to a freedesktop
+          # Secret Service provider (gnome-keyring-daemon). Without
+          # one the app's encryption services log
+          # `Libsecret error, Failed to unlock the keyring` for every
+          # store (HtmlImport, HtmlCache, ProxyPwdStore, WebViewState)
+          # and silently skip the encrypted path. To exercise the
+          # real flow, start gnome-keyring-daemon under the same
+          # session bus the test uses and unlock an empty keyring
+          # (login is the default keyring name; empty password is
+          # fine for an ephemeral CI runner).
+          #
+          # Run everything inside a single dbus-launch session so
+          # gnome-keyring and the Flutter test share the bus address.
+          # The keyring exports DBUS_SESSION_BUS_ADDRESS / SSH_AUTH_SOCK
+          # / GPG_AGENT_INFO / GNOME_KEYRING_CONTROL when started via
+          # --start; eval-ing those lines into the shell environment
+          # makes them visible to the integration test that follows.
           xvfb-run -a --server-args="-screen 0 1280x720x24" \
-            dbus-launch --exit-with-session \
-            fvm flutter test integration_test/settings_smoke_test.dart \
-              -d linux
+            dbus-run-session -- bash -c '
+              eval $(printf "\n" | gnome-keyring-daemon --start --unlock --components=secrets)
+              export GNOME_KEYRING_CONTROL
+              export SSH_AUTH_SOCK
+              fvm flutter test integration_test/settings_smoke_test.dart \
+                -d linux
+            '
 
   build-apple:
     name: Build iOS & macOS
