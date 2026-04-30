@@ -524,6 +524,49 @@ void main() {
       expect(viewModel.proxySettings.hasCredentials, true);
     });
 
+    test('copy() preserves credentials when mirroring across models', () {
+      // Regression test: the Android `onProxySettingsChanged` callback in
+      // _WebSpacePageState mirrors the just-saved per-site proxy across
+      // every loaded WebViewModel because `inapp.ProxyController` is
+      // process-wide (PROXY-008). Hand-rolling a fresh
+      // `UserProxySettings(type: x, address: y)` for the mirror silently
+      // dropped username/password, which (a) re-triggered 407 Proxy
+      // Authentication Required on the next navigation and (b) caused
+      // `_saveWebViewModels` to mirror an empty password into
+      // flutter_secure_storage, silently clearing the password the user
+      // just typed. `copy()` is the correct mirror constructor — assert
+      // that.
+      final source = UserProxySettings(
+        type: ProxyType.HTTP,
+        address: 'proxy.example.com:8080',
+        username: 'alice',
+        password: 's3cr3t',
+      );
+
+      final mirrored = source.copy();
+
+      expect(mirrored.type, ProxyType.HTTP);
+      expect(mirrored.address, 'proxy.example.com:8080');
+      expect(mirrored.username, 'alice');
+      expect(mirrored.password, 's3cr3t');
+      expect(mirrored.hasCredentials, true);
+
+      // Independent instance: mutating the copy must not affect the source.
+      mirrored.password = 'rotated';
+      expect(source.password, 's3cr3t');
+    });
+
+    test('copy() preserves null credentials for DEFAULT proxy', () {
+      final source = UserProxySettings(type: ProxyType.DEFAULT);
+      final mirrored = source.copy();
+
+      expect(mirrored.type, ProxyType.DEFAULT);
+      expect(mirrored.address, null);
+      expect(mirrored.username, null);
+      expect(mirrored.password, null);
+      expect(mirrored.hasCredentials, false);
+    });
+
     test('Proxy with special characters in credentials', () {
       final proxy = UserProxySettings(
         type: ProxyType.HTTP,

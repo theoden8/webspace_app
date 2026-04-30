@@ -2422,6 +2422,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       _saveGlobalUserScripts();
                       _resetAllWebViews();
                     },
+                    onOutboundProxyChanged: _resetAllWebViews,
                   ),
                 ),
               );
@@ -2588,10 +2589,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         onProxySettingsChanged: (newProxySettings) {
                           setState(() {
                             for (var model in _webViewModels) {
-                              model.proxySettings = UserProxySettings(
-                                type: newProxySettings.type,
-                                address: newProxySettings.address,
-                              );
+                              // copy() preserves credentials — see its
+                              // docstring for why hand-rolling a fresh
+                              // UserProxySettings here was a footgun.
+                              model.proxySettings = newProxySettings.copy();
                             }
                           });
                           _saveWebViewModels();
@@ -2995,10 +2996,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   onProxySettingsChanged: (newProxySettings) {
                     setState(() {
                       for (var model in _webViewModels) {
-                        model.proxySettings = UserProxySettings(
-                          type: newProxySettings.type,
-                          address: newProxySettings.address,
-                        );
+                        // copy() preserves credentials — see its
+                        // docstring for why hand-rolling a fresh
+                        // UserProxySettings here was a footgun.
+                        model.proxySettings = newProxySettings.copy();
                       }
                     });
                     _saveWebViewModels();

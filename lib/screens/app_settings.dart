@@ -43,6 +43,17 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onShowStatsBannerChanged;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
+  /// Fired after the global outbound proxy is updated. Parent should
+  /// dispose every loaded webview so the next render re-applies the new
+  /// proxy: on Android the singleton `inapp.ProxyController` only refreshes
+  /// when `setProxySettings` is called again (which happens in
+  /// [WebViewModel.setController]), and on iOS / macOS / Linux the proxy
+  /// is sealed into the per-site `WKWebsiteDataStore` /
+  /// `WebKitNetworkSession` at WebView construction. Without this the
+  /// "global proxy applies via DEFAULT fallthrough" contract advertised
+  /// in the UI hint silently doesn't take effect until the next app
+  /// restart.
+  final VoidCallback? onOutboundProxyChanged;
 
   const AppSettingsScreen({
     super.key,
@@ -56,6 +67,7 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onShowStatsBannerChanged,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
+    this.onOutboundProxyChanged,
   });
 
   @override
@@ -228,11 +240,26 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ? _outboundProxyPasswordController.text
           : null,
     );
+    final previous = GlobalOutboundProxy.current;
+    final changed = previous.type != settings.type ||
+        previous.address != settings.address ||
+        previous.username != settings.username ||
+        previous.password != settings.password;
     await GlobalOutboundProxy.update(settings);
     setState(() {
       _outboundProxy = settings;
     });
-    if (mounted) {
+    // Force every loaded webview to be rebuilt so the new global proxy
+    // takes effect immediately. Without this the change only applies to
+    // sites loaded after the next app restart — webview navigation keeps
+    // routing through the stale proxy bound at construction time.
+    // Skip the reset on no-op edits (e.g. focus leaves a field that was
+    // never modified) so we don't churn webviews while the user is
+    // tabbing through.
+    if (changed) {
+      widget.onOutboundProxyChanged?.call();
+    }
+    if (mounted && changed) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Outbound proxy updated')),
       );
