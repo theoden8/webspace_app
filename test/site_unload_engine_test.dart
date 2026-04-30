@@ -937,4 +937,142 @@ void main() {
       expect(result, 0);
     });
   });
+
+  group('SiteUnloadEngine eviction priority — full hierarchy', () {
+    // Canonical scenario for documenting and locking down the priority
+    // ordering. Five loaded sites in LRU order [0, 1, 2, 3, 4]:
+    //
+    //   index 0 → in soft-keep (active webspace), oldest
+    //   index 1 → standard, no flags
+    //   index 2 → hard-protected (currently-active site)
+    //   index 3 → standard, no flags
+    //   index 4 → in soft-keep, newest
+    //
+    // From most-likely-to-be-evicted to least:
+    //   tier A: standard, oldest first   → 1, 3
+    //   tier B: soft-keep, oldest first  → 0, 4
+    //   never:  hard-protected, target   → 2 (and any targetIndex)
+    Set<int> _baseLoaded() {
+      final s = <int>{};
+      for (final i in [0, 1, 2, 3, 4]) {
+        s.add(i);
+      }
+      return s;
+    }
+
+    const protected = <int>{2};
+    const softKeep = <int>{0, 2, 4};
+
+    test('LruCap evicts strictly in tier order (1, 3, 0, 4)', () {
+      // Cap=1 with target=5 → projected 6, overflow 5. The engine
+      // exhausts tier A (1, 3) then tier B (0, 4). Site 2 is
+      // hard-protected so it's never evicted, even though we'd need
+      // to drop more sites to actually fit the cap. Returns the four
+      // safely-evictable indices in the documented order.
+      final result = SiteUnloadEngine.indicesToEvictForLruCap(
+        targetIndex: 5,
+        loadedIndices: _baseLoaded(),
+        maxLoadedSites: 1,
+        protectedIndices: protected,
+        preferKeepIndices: softKeep,
+      );
+      expect(result, [1, 3, 0, 4]);
+    });
+
+    test('LruCap with overflow=1 takes the oldest tier-A site', () {
+      // Cap=4 with target=5 → projected 6, overflow 1. Pick index 1
+      // (oldest in tier A). Sites 3, 0, 4 stay; 2 is protected.
+      final result = SiteUnloadEngine.indicesToEvictForLruCap(
+        targetIndex: 5,
+        loadedIndices: _baseLoaded(),
+        maxLoadedSites: 5,
+        protectedIndices: protected,
+        preferKeepIndices: softKeep,
+      );
+      expect(result, [1]);
+    });
+
+    test('LruCap with overflow=3 reaches into tier B', () {
+      // Cap=2 with target=5 → projected 6, overflow 4 (need 4
+      // candidates). Tier A supplies [1, 3]; tier B supplies [0, 4].
+      // Result: [1, 3, 0, 4]. Same as the cap=1 case because tier A
+      // had only 2 candidates and protection takes the rest.
+      final result = SiteUnloadEngine.indicesToEvictForLruCap(
+        targetIndex: 5,
+        loadedIndices: _baseLoaded(),
+        maxLoadedSites: 2,
+        protectedIndices: protected,
+        preferKeepIndices: softKeep,
+      );
+      expect(result, [1, 3, 0, 4]);
+    });
+
+    test('MemoryPressure picks the same first victim as LruCap', () {
+      // Cross-method consistency: both methods derive the next victim
+      // from the same priority hierarchy, so on identical inputs the
+      // first index from indicesToEvictForLruCap should match the
+      // single index from indexToEvictForMemoryPressure.
+      final lruVictim = SiteUnloadEngine.indicesToEvictForLruCap(
+        targetIndex: 5,
+        loadedIndices: _baseLoaded(),
+        maxLoadedSites: 5,
+        protectedIndices: protected,
+        preferKeepIndices: softKeep,
+      ).first;
+      final memVictim = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: _baseLoaded(),
+        protectedIndices: protected,
+        preferKeepIndices: softKeep,
+      );
+      expect(memVictim, equals(lruVictim));
+      expect(memVictim, 1);
+    });
+
+    test('MemoryPressure walks the full hierarchy across successive events',
+        () {
+      // Each call picks one victim, caller mutates loaded, repeat
+      // until null. The sequence must equal the LruCap exhaust order
+      // [1, 3, 0, 4]; site 2 stays protected.
+      final loaded = _baseLoaded();
+      final picked = <int>[];
+      while (true) {
+        final v = SiteUnloadEngine.indexToEvictForMemoryPressure(
+          loadedIndices: loaded,
+          protectedIndices: protected,
+          preferKeepIndices: softKeep,
+        );
+        if (v == null) break;
+        picked.add(v);
+        loaded.remove(v);
+      }
+      expect(picked, [1, 3, 0, 4]);
+      expect(loaded, {2});
+    });
+
+    test('protected ∩ softKeep is the production case (active site is both)',
+        () {
+      // In production, _setCurrentIndex passes _currentIndex as
+      // protectedIndices and _getFilteredSiteIndices() as
+      // preferKeepIndices. The active site is typically in the active
+      // webspace, so the intersection is non-empty by design. The
+      // overlap must NOT cause double-counting or skip the site
+      // entirely from soft-keep semantics for *other* sites.
+      // Loaded LRU: [0, 1, 2]. Active = 1 (in active webspace).
+      // Active webspace = {0, 1}. Cap=2 with target=3 → overflow 2.
+      // Tier A: [2]; tier B: [0]; protected: 1. Take [2, 0] → 0 is
+      // demoted to last because it's in soft-keep.
+      final loaded = <int>{};
+      for (final i in [0, 1, 2]) {
+        loaded.add(i);
+      }
+      final result = SiteUnloadEngine.indicesToEvictForLruCap(
+        targetIndex: 3,
+        loadedIndices: loaded,
+        maxLoadedSites: 2,
+        protectedIndices: {1},
+        preferKeepIndices: {0, 1},
+      );
+      expect(result, [2, 0]);
+    });
+  });
 }

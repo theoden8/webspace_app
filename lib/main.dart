@@ -665,6 +665,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   int _setCurrentIndexVersion = 0;
   Completer<void>? _webspaceSwitchCompleter;
 
+  // Index currently being activated by an in-flight `_setCurrentIndex`
+  // call, or null when no activation is in progress. Read by
+  // `_handleMemoryPressure` so an OS pressure event during a
+  // re-activation can't dispose the soon-to-be-active site (which
+  // would silently wipe its state — the IndexedStack would re-create
+  // a fresh webview on next paint, losing scroll/URL/session).
+  int? _activationInFlightIndex;
+
+  // Drops concurrent `_handleMemoryPressure` invocations. The OS may
+  // fire `didHaveMemoryPressure` repeatedly under sustained pressure;
+  // the first handler runs to completion, then the next event picks up
+  // the new state. Without this, in legacy (non-container) mode the
+  // capture-then-dispose await window lets two handlers pick the same
+  // victim and double-write its captured cookies to storage.
+  bool _isHandlingMemoryPressure = false;
+
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
   final Set<int> _loadedIndices = {};
@@ -731,21 +747,46 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _handleMemoryPressure() async {
-    final victim = SiteUnloadEngine.indexToEvictForMemoryPressure(
-      loadedIndices: _loadedIndices,
-      protectedIndices:
-          _currentIndex != null ? <int>{_currentIndex!} : const <int>{},
-      preferKeepIndices: _getFilteredSiteIndices().toSet(),
-    );
-    if (victim == null) return;
-    LogService.instance.log(
-      'SiteUnload',
-      'Memory pressure — unloading site $victim: '
-          '"${_webViewModels[victim].name}"',
-      level: LogLevel.warning,
-    );
-    await _unloadSiteForOtherReason(victim);
-    if (mounted) setState(() {});
+    // Drop concurrent invocations: if the OS fires repeatedly while
+    // we're still capturing cookies for the previous victim (legacy
+    // mode), we'd otherwise pick the same site twice and double-write
+    // the same cookies to storage.
+    if (_isHandlingMemoryPressure) return;
+    _isHandlingMemoryPressure = true;
+    try {
+      // Protect both the currently-active site and any site in the
+      // middle of being activated by an in-flight `_setCurrentIndex`.
+      // Without the in-flight guard, a re-activation of an already-
+      // loaded site could be racing with this handler — disposing the
+      // soon-to-be-active webview silently wipes its state.
+      final protected = <int>{
+        if (_currentIndex != null) _currentIndex!,
+        if (_activationInFlightIndex != null) _activationInFlightIndex!,
+      };
+      final victim = SiteUnloadEngine.indexToEvictForMemoryPressure(
+        loadedIndices: _loadedIndices,
+        protectedIndices: protected,
+        preferKeepIndices: _getFilteredSiteIndices().toSet(),
+      );
+      if (victim == null) return;
+      // Race guard: the model array may have shifted between picking
+      // and the eventual await (rare, but possible if site deletion
+      // happened to interleave). The engine's own bounds check inside
+      // `_unloadSiteForOtherReason` would catch this too, but we want
+      // to avoid logging a stale name.
+      if (victim < 0 || victim >= _webViewModels.length) return;
+      LogService.instance.log(
+        'SiteUnload',
+        'Memory pressure — unloading site $victim: '
+            '"${_webViewModels[victim].name}"',
+        level: LogLevel.warning,
+      );
+      await _unloadSiteForOtherReason(victim);
+      if (!mounted) return;
+      setState(() {});
+    } finally {
+      _isHandlingMemoryPressure = false;
+    }
   }
 
   @override
@@ -985,6 +1026,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
     LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');
 
+    // Mark this site as activation-in-flight so concurrent OS memory
+    // pressure events can't pick it as a victim before _currentIndex
+    // is updated below — disposing the webview mid-activation would
+    // silently wipe its state from under the user.
+    _activationInFlightIndex = index;
+    try {
+
     // Domain-conflict unload + capture-nuke-restore is only needed when
     // the native cookie jar is shared between sites. With the Container
     // API, each site has its own jar; concurrent same-base-domain sites
@@ -1096,6 +1144,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
+    } finally {
+      // Clear the in-flight marker only if we still own it; a newer
+      // _setCurrentIndex caller will have already overwritten it with
+      // its own target.
+      if (_activationInFlightIndex == index) {
+        _activationInFlightIndex = null;
+      }
+    }
   }
 
   /// Unloads a site due to domain conflict with another site. Delegates to
