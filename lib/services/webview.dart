@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/language_shim.dart';
+import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/current_location_service.dart';
@@ -749,7 +751,7 @@ class _WebViewController implements WebViewController {
   @override
   Future<void> setThemePreference(WebViewTheme theme) async {
     final themeValue = theme == WebViewTheme.system ? 'system' : (theme == WebViewTheme.dark ? 'dark' : 'light');
-    await evaluateJavascript(_themeInjectionScript(themeValue));
+    await evaluateJavascript(buildThemeColorSchemeShim(themeValue));
   }
 
   @override
@@ -845,63 +847,6 @@ class _WebViewController implements WebViewController {
   }
 }
 
-String _themeInjectionScript(String themeValue) => '''
-(function() {
-  let actualTheme = '$themeValue';
-  if (actualTheme === 'system') {
-    actualTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  window.__appThemePreference = actualTheme;
-  if (!window.__originalMatchMedia) {
-    window.__originalMatchMedia = window.matchMedia.bind(window);
-  }
-  window.matchMedia = function(query) {
-    const originalResult = window.__originalMatchMedia(query);
-    if (query.includes('prefers-color-scheme')) {
-      const isDarkQuery = query.includes('dark');
-      const isLightQuery = query.includes('light');
-      const appIsDark = window.__appThemePreference === 'dark';
-      let matches = isDarkQuery ? appIsDark : (isLightQuery ? !appIsDark : false);
-      return {
-        matches: matches,
-        media: query,
-        onchange: null,
-        addEventListener: function(type, listener) {
-          if (type === 'change') {
-            window.__themeChangeListeners = window.__themeChangeListeners || [];
-            window.__themeChangeListeners.push({ query: query, listener: listener });
-          }
-        },
-        removeEventListener: function(type, listener) {
-          if (type === 'change' && window.__themeChangeListeners) {
-            window.__themeChangeListeners = window.__themeChangeListeners.filter(item => item.listener !== listener);
-          }
-        },
-        addListener: function(listener) { this.addEventListener('change', listener); },
-        removeListener: function(listener) { this.removeEventListener('change', listener); }
-      };
-    }
-    return originalResult;
-  };
-  let metaTag = document.querySelector('meta[name="color-scheme"]');
-  if (!metaTag) {
-    metaTag = document.createElement('meta');
-    metaTag.name = 'color-scheme';
-    document.head.appendChild(metaTag);
-  }
-  metaTag.content = actualTheme;
-  document.documentElement.style.colorScheme = actualTheme;
-  if (window.__themeChangeListeners) {
-    window.__themeChangeListeners.forEach(item => {
-      const isDarkQuery = item.query.includes('dark');
-      const isLightQuery = item.query.includes('light');
-      const appIsDark = window.__appThemePreference === 'dark';
-      let matches = isDarkQuery ? appIsDark : (isLightQuery ? !appIsDark : false);
-      try { item.listener({ matches: matches, media: item.query }); } catch (e) {}
-    });
-  }
-})();
-''';
 
 /// JavaScript that disables every entry-point JS has into WebGL context
 /// creation, so chromium never enters its WebGL-blocklist code path —
@@ -1043,38 +988,6 @@ const String _clearUrlShareScript = r'''
   };
 })();
 ''';
-
-/// JavaScript that overrides `navigator.language`, `navigator.languages`, and
-/// `Intl.DateTimeFormat().resolvedOptions().locale` so JS-side locale resolvers
-/// (React i18n, date formatters) see the per-site language instead of the OS
-/// locale. Must be injected at DOCUMENT_START to beat the page's own JS.
-String _languageOverrideScript(String language) {
-  // Use JSON encoding so the tag is safely escaped into the JS literal.
-  final encoded = jsonEncode(language);
-  return '''
-(function() {
-  try {
-    var lang = $encoded;
-    var langs = Object.freeze([lang]);
-    Object.defineProperty(Navigator.prototype, 'language', {
-      configurable: true, get: function() { return lang; }
-    });
-    Object.defineProperty(Navigator.prototype, 'languages', {
-      configurable: true, get: function() { return langs; }
-    });
-    if (typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
-      var proto = Intl.DateTimeFormat.prototype;
-      var orig = proto.resolvedOptions;
-      proto.resolvedOptions = function() {
-        var r = orig.apply(this, arguments);
-        r.locale = lang;
-        return r;
-      };
-    }
-  } catch (e) {}
-})();
-''';
-}
 
 /// HTML rendered when a file-import site has no cached HTML available
 /// (incognito session, post-upgrade cache wipe, …). Loaded via
@@ -1451,7 +1364,7 @@ class WebViewFactory {
     if (config.language != null) {
       userScripts.add(inapp.UserScript(
         groupName: 'language_override',
-        source: '${_languageOverrideScript(config.language!)}\n;null;',
+        source: '${buildLanguageShim(config.language!)}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       ));
     }

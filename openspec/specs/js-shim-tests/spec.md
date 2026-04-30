@@ -369,6 +369,8 @@ add an explicit anti-detection requirement to the spoofing specs.
 - `lib/services/desktop_mode_shim.dart` (3 UA variants) — Tier 1 + 2 + 3
 - `lib/services/location_spoof_service.dart` (5 configs) — Tier 1 + 2 + 3
 - `lib/services/blob_url_capture_shim.dart` — Tier 1 + 2 (CSP)
+- `lib/services/language_shim.dart` (3 lang codes) — Tier 1 + 2
+- `lib/services/theme_color_scheme_shim.dart` (3 theme values) — Tier 1 + 2
 
 **Pipeline:**
 - `tool/dump_shim_js.dart` — fixture generator

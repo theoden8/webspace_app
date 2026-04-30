@@ -20,7 +20,9 @@ import 'dart:io';
 
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
+import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/location_spoof_service.dart';
+import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/settings/location.dart';
 
@@ -90,6 +92,14 @@ Map<String, String> buildAllFixtures() {
     spoofTimezone: 'Europe/Paris',
     webRtcPolicy: WebRtcPolicy.relayOnly,
   )!;
+
+  fixtures['language/en.js'] = buildLanguageShim('en');
+  fixtures['language/fr_FR.js'] = buildLanguageShim('fr-FR');
+  fixtures['language/ja.js'] = buildLanguageShim('ja');
+
+  fixtures['theme_color_scheme/light.js'] = buildThemeColorSchemeShim('light');
+  fixtures['theme_color_scheme/dark.js'] = buildThemeColorSchemeShim('dark');
+  fixtures['theme_color_scheme/system.js'] = buildThemeColorSchemeShim('system');
 
   return fixtures;
 }
