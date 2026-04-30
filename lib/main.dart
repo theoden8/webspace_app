@@ -58,6 +58,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -1688,6 +1689,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     _startForegroundPollTimer();
+
+    await NotificationService.instance.init();
+    NotificationService.instance.onNotificationTapped = _onNotificationTapped;
+  }
+
+  void _onNotificationTapped(String siteId) {
+    final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
+    if (index < 0) {
+      LogService.instance.log('Notification', 'Tap for unknown siteId: $siteId', level: LogLevel.warning);
+      return;
+    }
+    LogService.instance.log('Notification', 'Tap routing to site $index: "${_webViewModels[index].name}"');
+    _setCurrentIndex(index);
+    if (mounted) setState(() {});
   }
 
   void _startForegroundPollTimer() {
