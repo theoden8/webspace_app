@@ -1,0 +1,122 @@
+// Dumps each JS shim to test/js_fixtures/<group>/<variant>.js so Node-side
+// tests can run the exact string the webview sees.
+//
+// Usage:
+//   fvm dart run tool/dump_shim_js.dart           # writes fixtures
+//   fvm dart run tool/dump_shim_js.dart --check   # exits 1 if anything drifts
+//
+// Add a new shim by:
+//   1. Importing the builder.
+//   2. Adding entries to [buildAllFixtures] — keyed by relative path under
+//      test/js_fixtures/, valued at the shim string the builder returns for
+//      that scenario.
+//   3. Re-running this script to commit the new fixture(s).
+//
+// The companion Dart test test/js_fixtures_drift_test.dart re-invokes
+// [buildAllFixtures] and compares against on-disk fixtures so a shim change
+// without a fixture refresh fails locally and in CI.
+
+import 'dart:io';
+
+import 'package:webspace/services/desktop_mode_shim.dart';
+import 'package:webspace/services/location_spoof_service.dart';
+import 'package:webspace/services/user_agent_classifier.dart';
+import 'package:webspace/settings/location.dart';
+
+/// Build every fixture this script knows about. Map keys are paths relative
+/// to [fixturesRoot]; values are the JS that should be on disk at that path.
+Map<String, String> buildAllFixtures() {
+  final fixtures = <String, String>{};
+
+  fixtures['desktop_mode/linux.js'] =
+      buildDesktopModeShim(firefoxLinuxDesktopUserAgent);
+  fixtures['desktop_mode/macos.js'] =
+      buildDesktopModeShim(firefoxMacosDesktopUserAgent);
+  fixtures['desktop_mode/windows.js'] =
+      buildDesktopModeShim(firefoxWindowsDesktopUserAgent);
+
+  fixtures['location_spoof/static_tokyo.js'] =
+      LocationSpoofService.buildScript(
+    locationMode: LocationMode.spoof,
+    spoofLatitude: 35.6762,
+    spoofLongitude: 139.6503,
+    spoofAccuracy: 25.0,
+    spoofTimezone: null,
+    webRtcPolicy: WebRtcPolicy.defaultPolicy,
+  )!;
+  fixtures['location_spoof/timezone_only_tokyo.js'] =
+      LocationSpoofService.buildScript(
+    locationMode: LocationMode.off,
+    spoofLatitude: null,
+    spoofLongitude: null,
+    spoofAccuracy: 50.0,
+    spoofTimezone: 'Asia/Tokyo',
+    webRtcPolicy: WebRtcPolicy.defaultPolicy,
+  )!;
+  fixtures['location_spoof/webrtc_relay.js'] =
+      LocationSpoofService.buildScript(
+    locationMode: LocationMode.off,
+    spoofLatitude: null,
+    spoofLongitude: null,
+    spoofAccuracy: 50.0,
+    spoofTimezone: null,
+    webRtcPolicy: WebRtcPolicy.relayOnly,
+  )!;
+  fixtures['location_spoof/webrtc_disabled.js'] =
+      LocationSpoofService.buildScript(
+    locationMode: LocationMode.off,
+    spoofLatitude: null,
+    spoofLongitude: null,
+    spoofAccuracy: 50.0,
+    spoofTimezone: null,
+    webRtcPolicy: WebRtcPolicy.disabled,
+  )!;
+  fixtures['location_spoof/full_combo.js'] = LocationSpoofService.buildScript(
+    locationMode: LocationMode.spoof,
+    spoofLatitude: 48.8566,
+    spoofLongitude: 2.3522,
+    spoofAccuracy: 30.0,
+    spoofTimezone: 'Europe/Paris',
+    webRtcPolicy: WebRtcPolicy.relayOnly,
+  )!;
+
+  return fixtures;
+}
+
+/// Resolves to `<repo>/test/js_fixtures` regardless of CWD when invoked.
+Directory get fixturesRoot {
+  // tool/dump_shim_js.dart sits one level below the repo root.
+  final scriptFile = File.fromUri(Platform.script);
+  final repoRoot = scriptFile.parent.parent;
+  return Directory('${repoRoot.path}/test/js_fixtures');
+}
+
+void main(List<String> args) {
+  final check = args.contains('--check');
+  final fixtures = buildAllFixtures();
+  final root = fixturesRoot;
+
+  var drift = 0;
+  for (final entry in fixtures.entries) {
+    final file = File('${root.path}/${entry.key}');
+    final expected = entry.value;
+
+    if (check) {
+      if (!file.existsSync() || file.readAsStringSync() != expected) {
+        stderr.writeln('drift: ${entry.key}');
+        drift++;
+      }
+      continue;
+    }
+
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync(expected);
+    stdout.writeln('wrote ${entry.key} (${expected.length} bytes)');
+  }
+
+  if (check && drift > 0) {
+    stderr.writeln(
+        '\n$drift fixture(s) out of date. Run `fvm dart run tool/dump_shim_js.dart` to refresh.');
+    exit(1);
+  }
+}

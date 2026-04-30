@@ -152,6 +152,26 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 
 Read the relevant spec before modifying a feature. Specs include file paths, data models, and manual test procedures.
 
+## JS shim tests (jsdom + node:test)
+
+JavaScript shims injected into webviews (desktop-mode, geolocation/timezone/WebRTC, etc.) have **two** test layers:
+
+- **Dart-side**: existing tests in `test/*_test.dart` assert the builder's *string output* (e.g. `expect(js, contains('Win32'))`). Cheap, but only catches absent substrings.
+- **Node-side**: `test/js/*.test.js` runs the dumped shim in jsdom and asserts the *post-injection JS state* (e.g. `navigator.platform === 'Linux x86_64'`, `new RTCPeerConnection({}).iceTransportPolicy === 'relay'`). Catches mistakes the string check misses (typos in property names, wrong defineProperty target, broken matchMedia wrapper).
+
+The two layers share fixtures under `test/js_fixtures/` — see [test/js_fixtures/README.md](test/js_fixtures/README.md). Workflow:
+
+1. Edit a shim builder in `lib/services/`.
+2. `fvm dart run tool/dump_shim_js.dart` regenerates fixtures.
+3. `fvm flutter test test/js_fixtures_drift_test.dart` proves committed fixtures match the builder.
+4. `npm run test:js` proves the shim actually mutates the JS surface.
+
+Both layers run in CI (`build-and-test.yml` → `js-shim-tests` job for Node, the regular `flutter test` step for the drift check).
+
+To add a new shim to the Node-side suite: register it in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump_shim_js.dart), regenerate, then write a `*.test.js` against the new fixture. Builders that depend on Flutter widget imports (anything in `lib/main.dart` or `lib/screens/*`) can't be reached from the dumper as-is — extract the JS string into a pure-Dart helper first.
+
+jsdom does not implement canvas/WebGL/audio fingerprinting. Tests assert override **shape** (constructor replaced, getter defined), not real-engine behaviour. For end-to-end privacy proofing against a real fingerprint detector (CreepJS, fingerprintjs), a Playwright-based Tier 2 is the natural follow-up — not yet built.
+
 ## Fastlane changelogs
 
 Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` (and the sibling `short_description.txt` / `full_description.txt`) are subject to Play Store / F-Droid length caps: **changelog and full description max 500 bytes, short description max 80 bytes (no trailing dot)**. Always run [scripts/validate_fastlane_metadata.sh](scripts/validate_fastlane_metadata.sh) before committing any change to those files — an oversize changelog will silently break F-Droid metadata sync. The script exits non-zero on any violation.

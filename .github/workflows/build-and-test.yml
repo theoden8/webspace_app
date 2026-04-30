@@ -19,6 +19,21 @@ jobs:
       - name: Validate metadata
         run: ./scripts/validate_fastlane_metadata.sh
 
+  js-shim-tests:
+    name: JS Shim Tests (jsdom)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Run JS shim tests
+        run: npm run test:js
+
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
