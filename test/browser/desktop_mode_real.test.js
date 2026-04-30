@@ -132,11 +132,21 @@ test('navigator.maxTouchPoints is forced to 0', async (t) => {
   });
 });
 
-test('window.ontouchstart is undefined after the shim runs', async (t) => {
+test('window.ontouchstart is removed entirely after the shim runs', async (t) => {
+  // Hardened shim: `'ontouchstart' in window` must be false too — a
+  // touch-detection library checking `in` (not just the value) sees
+  // the same answer as a real no-touch desktop browser.
   await withPage(t, LINUX, async (page) => {
-    assert.equal(
-      await page.evaluate(() => window.ontouchstart),
-      undefined);
+    const r = await page.evaluate(() => ({
+      value: window.ontouchstart,
+      inWindow: 'ontouchstart' in window,
+      onProto: 'ontouchstart' in Window.prototype,
+    }));
+    assert.equal(r.value, undefined);
+    assert.equal(r.inWindow, false,
+      "'ontouchstart' in window must be false on hardened shim");
+    assert.equal(r.onProto, false,
+      "'ontouchstart' must be deleted from Window.prototype too");
   });
 });
 

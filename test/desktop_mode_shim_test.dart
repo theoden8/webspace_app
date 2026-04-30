@@ -29,7 +29,8 @@ void main() {
       // the Client Hints API. Sites feature-detecting `userAgentData`
       // should see undefined — anything else is a tell.
       final js = buildDesktopModeShim(firefoxMacosDesktopUserAgent);
-      expect(js, contains("def(navigator, 'userAgentData', function() { return undefined; });"));
+      expect(js, contains(
+        "def('userAgentData', asNative(function() { return undefined; }, 'userAgentData'));"));
     });
 
     test('Linux UA emits "Linux x86_64" navigator.platform', () {

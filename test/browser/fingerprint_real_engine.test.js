@@ -105,20 +105,17 @@ test('FingerprintJS: touchSupport reports zero touch points', async (t) => {
   });
 });
 
-test({
-  name: 'FingerprintJS: touchSupport.touchStart should be false after ontouchstart redefine',
-  todo: 'shim does Object.defineProperty(window, "ontouchstart", {value: undefined}), '
-      + 'which creates the own-property — `"ontouchstart" in window` is still true. '
-      + 'Hardening: delete window.ontouchstart and trap re-additions, or override the '
-      + 'has trap via a proxy.',
-}, async (t) => {
-  await withShim(t, LINUX, async (page) => {
-    const c = await runFingerprintJS(page);
-    // FingerprintJS's touchStart probe uses `'ontouchstart' in window`
-    // which still returns true under the current shim.
-    assert.equal(c.touchSupport.touchStart, false);
+test('FingerprintJS: touchSupport.touchStart is false after ontouchstart removal',
+  async (t) => {
+    // FingerprintJS's touchStart probe uses `'ontouchstart' in window`.
+    // The hardened shim deletes ontouchstart from both window and
+    // Window.prototype, so the probe returns false (matches a
+    // genuine no-touch desktop browser).
+    await withShim(t, LINUX, async (page) => {
+      const c = await runFingerprintJS(page);
+      assert.equal(c.touchSupport.touchStart, false);
+    });
   });
-});
 
 // ---------- location_spoof ----------
 

@@ -307,7 +307,7 @@ Shims that target a fingerprintable surface (`navigator.platform`, `Intl` timezo
 
 ### Requirement: SHIM-TEST-008 — Lie-detection probes
 
-Tier 3 MUST also include CreepJS-style probes under `test/browser/lie_detection.test.js` that try to *detect that the surface was spoofed* — `Function.prototype.toString.call(fn)` reading the override's source, `Object.getOwnPropertyNames(navigator)` listing the override as an own-property, iframe-prototype escape, descriptor-getter inspection. Probes that the current shim withstands SHALL be encoded as live assertions; probes that the current shim fails SHALL be encoded with the `todo` flag and a comment documenting the hardening required to flip them to passing — so a future hardening pass converts the marker to a green test rather than rewriting the assertion.
+Tier 3 MUST also include CreepJS-style probes under `test/browser/lie_detection.test.js` that try to *detect that the surface was spoofed* — `Function.prototype.toString.call(fn)` reading the override's source, `Object.getOwnPropertyNames(navigator)` listing the override as an own-property, iframe-prototype escape, descriptor-getter inspection. Probes that the current shim withstands SHALL be encoded as live assertions. Probes that the current shim fails MAY be encoded with the `todo` flag and a comment documenting the hardening required to flip them to passing — so a future hardening pass converts the marker to a green test rather than rewriting the assertion. When the hardening lands, the `todo` flag SHALL be removed and any paired "premise check" test SHALL be deleted.
 
 #### Scenario: Native-code probe passes against location_spoof
 
@@ -332,20 +332,22 @@ Tier 3 MUST also include CreepJS-style probes under `test/browser/lie_detection.
   cannot escape the shim by minting a fresh iframe and reading
   through its contentWindow
 
-#### Scenario: Known leaks documented as todo
+#### Scenario: desktop_mode shim survives all lie probes
 
-- **GIVEN** the desktop_mode shim's `def(navigator, 'platform', getter)`
-  pattern creates an own-property on `navigator` (real navigators
-  carry `platform` only on `Navigator.prototype`)
-- **WHEN** the lie-detection test asserts
-  `Object.getOwnPropertyNames(navigator)` does NOT include `platform`
-- **THEN** the test is marked `todo` with a comment recording the
-  hardening required (target `Navigator.prototype` instead, or
-  proxy-trap the navigator)
-- **AND** a paired premise-check test asserts the leak IS currently
-  observable, so when a hardening pass flips the todo to passing,
-  the premise check fails simultaneously and signals "delete the
-  todo marker too"
+- **GIVEN** the desktop_mode shim is loaded
+- **WHEN** the test reads
+  `Object.getOwnPropertyNames(navigator)` and the
+  `Object.getOwnPropertyDescriptor(Navigator.prototype, 'platform').get`
+  source via `Function.prototype.toString`
+- **THEN** the navigator carries no own-property leak (the shim
+  patches `Navigator.prototype`, not the instance) and the getter
+  source returns `[native code]` (the shared
+  `Function.prototype.toString` WeakMap stub from
+  `window.__wsFnStubs`, installed by both desktop_mode and
+  location_spoof, defeats the probe)
+- **AND** `'ontouchstart' in window` is `false` (the shim deletes
+  `ontouchstart` from `window` and `Window.prototype`, matching a
+  genuine no-touch desktop browser)
 
 ---
 
@@ -386,7 +388,8 @@ add an explicit anti-detection requirement to the spoofing specs.
 - `test/browser/fingerprint_real_engine.test.js` — Tier 3
   fingerprintjs assertions
 - `test/browser/lie_detection.test.js` — Tier 3 CreepJS-style probes
-  with `todo` markers for known leaks
+  (Function.prototype.toString native-code, own-property enumeration,
+  iframe-prototype escape, descriptor inspection)
 
 **CI:**
 - `.github/workflows/build-and-test.yml` — `js-shim-tests` job

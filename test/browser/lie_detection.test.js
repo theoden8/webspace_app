@@ -76,55 +76,38 @@ test('location_spoof: every override stringifies as native code',
     });
   });
 
-test({
-  name: 'desktop_mode: navigator.platform getter stringifies as native code',
-  todo: 'desktop_mode shim has no Function.prototype.toString hardening; '
-      + 'getter source leaks. Port the WeakMap stub from location_spoof.',
-}, async (t) => {
-  await withShim(t, LINUX, async (page) => {
-    const src = await page.evaluate(() => {
-      const desc = Object.getOwnPropertyDescriptor(navigator, 'platform');
-      return Function.prototype.toString.call(desc.get);
+test('desktop_mode: navigator.platform getter stringifies as native code',
+  async (t) => {
+    // Shim's WeakMap-keyed Function.prototype.toString stub (shared
+    // with location_spoof via window.__wsFnStubs) makes the spoofed
+    // getter look native. Probe via the prototype descriptor — the
+    // shim now patches Navigator.prototype, not the navigator instance.
+    await withShim(t, LINUX, async (page) => {
+      const src = await page.evaluate(() => {
+        const desc = Object.getOwnPropertyDescriptor(
+          Navigator.prototype, 'platform');
+        return Function.prototype.toString.call(desc.get);
+      });
+      assert.match(src, /\[native code\]/,
+        `getter source leaks: ${src}`);
     });
-    assert.match(src, /\[native code\]/,
-      `getter source leaks: ${src}`);
   });
-});
 
 // ---------- Own-property enumeration leak ----------
 
-test({
-  name: 'desktop_mode: Object.getOwnPropertyNames(navigator) does not list overrides',
-  todo: 'shim uses Object.defineProperty(navigator, ...) which creates own '
-      + 'properties; a real navigator carries these on Navigator.prototype. '
-      + 'Hardening: target Navigator.prototype instead, or hide via Proxy.',
-}, async (t) => {
-  await withShim(t, LINUX, async (page) => {
-    const ownProps = await page.evaluate(() =>
-      Object.getOwnPropertyNames(navigator));
-    // Clean Chromium reports an empty array (or close to it). The
-    // shim's defineProperty calls add at least platform, userAgentData,
-    // maxTouchPoints. Each presence is a fingerprintable diff.
-    for (const k of ['platform', 'userAgentData', 'maxTouchPoints']) {
-      assert.equal(ownProps.includes(k), false,
-        `${k} leaks as own-property of navigator: ${JSON.stringify(ownProps)}`);
-    }
-  });
-});
-
-test('desktop_mode: own-property leak is reproducible (premise check)',
+test('desktop_mode: Object.getOwnPropertyNames(navigator) does not list overrides',
   async (t) => {
-    // Documents the current state so the todo above has a clear
-    // baseline. If the shim is hardened (and the todo flips to
-    // passing), this premise check will start failing — that's the
-    // signal to delete this premise check together with the todo
-    // marker.
+    // Clean Chromium reports an empty array. The shim now patches
+    // Navigator.prototype rather than the instance, so navigator
+    // stays clean — none of platform / userAgentData / maxTouchPoints
+    // leak as own-properties.
     await withShim(t, LINUX, async (page) => {
       const ownProps = await page.evaluate(() =>
         Object.getOwnPropertyNames(navigator));
-      assert.ok(ownProps.includes('platform'),
-        'expected current shim to leak platform as own-property; '
-        + 'if this fails the shim was hardened — flip the todo above');
+      for (const k of ['platform', 'userAgentData', 'maxTouchPoints']) {
+        assert.equal(ownProps.includes(k), false,
+          `${k} leaks as own-property of navigator: ${JSON.stringify(ownProps)}`);
+      }
     });
   });
 
