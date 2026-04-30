@@ -156,10 +156,13 @@ The OS controls the curve: if pressure persists, the callback fires again and th
 **Then** `_setCurrentIndex` reads the bytes from storage and queues them on the model via `schedulePendingRestoreState`
 **And** the model's `lifecycleState` is reset to `live`
 **And** the webview is rebuilt — `getWebView`'s `onControllerCreated` consumes the pending bytes and calls `controller.restoreState(bytes)`
-**And** the back/forward stack is restored
-**And** on iOS 15+ / macOS 12+, form-field values are restored too (via `WKWebView.interactionState`)
+**And** the back/forward stack is restored on every supported platform:
+  - **Android** via `WebView.restoreState(Bundle)`
+  - **iOS 15+ / macOS 12+** via `WKWebView.interactionState` (also restores form-field values + scroll)
+  - **Linux** (WebKitGTK / WPE) via `webkit_web_view_restore_session_state`
+**And** on iOS 15+ / macOS 12+ form-field values are restored too — Linux and Android only carry history + scroll
 
-The `initialUrlRequest` (set to `currentUrl` on the model) kicks off a navigation that lands at the most-recent saved URL; on Apple, `restoreState` may trigger a brief redundant nav (acceptable for the much-better re-activation UX). Live JS heap and DOM are not preserved — re-execution starts fresh.
+The `initialUrlRequest` (set to `currentUrl` on the model) kicks off a navigation that lands at the most-recent saved URL; on Apple, assigning `interactionState` may trigger a brief redundant nav (acceptable for the much-better re-activation UX). Live JS heap and DOM are not preserved on any platform — re-execution starts fresh.
 
 #### Scenario: Active webspace tier is preserved over stale workspace
 

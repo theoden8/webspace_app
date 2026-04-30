@@ -581,7 +581,9 @@ abstract class WebViewController {
   ///   - Android: `WebView.saveState(Bundle)` — back/forward + scroll.
   ///   - iOS 15+ / macOS 12+: `WKWebView.interactionState` — back/
   ///     forward + form-field values + scroll.
-  ///   - Linux (fork): equivalent navigation snapshot.
+  ///   - Linux (WebKitGTK / WPE): `webkit_web_view_get_session_state`
+  ///     + `webkit_web_view_session_state_serialize` — back/forward
+  ///     + scroll. Form-field values are NOT preserved (Apple-only).
   Future<Uint8List?> saveState();
 
   /// Apply [state] (previously returned by [saveState] on the same
