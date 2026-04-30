@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -66,6 +67,11 @@ class GlobalOutboundProxy {
     if (pwd != null && pwd.isNotEmpty) {
       _current.password = pwd;
     }
+    LogService.instance.log(
+      'Proxy',
+      'GlobalOutboundProxy initialized: ${_current.describeForLogs()}',
+      level: LogLevel.info,
+    );
   }
 
   /// Update both the in-memory cache and the persisted value.
@@ -76,6 +82,11 @@ class GlobalOutboundProxy {
     await _passwordStore.savePassword(
       ProxyPasswordSecureStorage.globalProxyKey,
       settings.password,
+    );
+    LogService.instance.log(
+      'Proxy',
+      'GlobalOutboundProxy updated: ${settings.describeForLogs()}',
+      level: LogLevel.info,
     );
   }
 
