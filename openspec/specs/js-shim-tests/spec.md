@@ -279,27 +279,95 @@ to a production WebView's DOCUMENT_START injection point.
 
 ---
 
+### Requirement: SHIM-TEST-007 — Real-fingerprinter validation
+
+Shims that target a fingerprintable surface (`navigator.platform`, `Intl` timezone, `navigator.maxTouchPoints`, etc.) MUST also have a Tier 3 test under `test/browser/fingerprint_real_engine.test.js` that loads a real, off-the-shelf fingerprint detector (`@fingerprintjs/fingerprintjs`) into the same Chromium and asserts the detector's `components` map reports the spoofed value. Tier 3 closes the loop between "shim installs the override" (Tier 1/2) and "a real fingerprinter would actually read what we forged".
+
+#### Scenario: FingerprintJS reads the spoofed platform
+
+- **GIVEN** the desktop_mode `windows` fixture is loaded into a
+  headless Chromium running on Linux
+- **WHEN** the test injects the FingerprintJS UMD bundle via
+  `page.addScriptTag` and calls `FingerprintJS.load().then(fp =>
+  fp.get())`
+- **THEN** `result.components.platform.value` is `"Win32"` — proving
+  the shim's value reaches the detector via the same code path a
+  fingerprinting site would use, not just our own `navigator.platform`
+  read
+
+#### Scenario: FingerprintJS reads the spoofed timezone
+
+- **GIVEN** the location_spoof `full_combo` fixture is loaded
+- **WHEN** the test runs FingerprintJS
+- **THEN** `result.components.timezone.value` is `"Europe/Paris"`
+- **AND** no `components.<spoofed-source>.error` is set — the shim
+  must not throw mid-source under FingerprintJS's code path
+
+---
+
+### Requirement: SHIM-TEST-008 — Lie-detection probes
+
+Tier 3 MUST also include CreepJS-style probes under `test/browser/lie_detection.test.js` that try to *detect that the surface was spoofed* — `Function.prototype.toString.call(fn)` reading the override's source, `Object.getOwnPropertyNames(navigator)` listing the override as an own-property, iframe-prototype escape, descriptor-getter inspection. Probes that the current shim withstands SHALL be encoded as live assertions; probes that the current shim fails SHALL be encoded with the `todo` flag and a comment documenting the hardening required to flip them to passing — so a future hardening pass converts the marker to a green test rather than rewriting the assertion.
+
+#### Scenario: Native-code probe passes against location_spoof
+
+- **GIVEN** the location_spoof shim is loaded
+- **WHEN** the test calls
+  `Function.prototype.toString.call(navigator.geolocation.getCurrentPosition)`
+- **THEN** the result matches `[native code]` — the shim's WeakMap-
+  keyed `Function.prototype.toString` patch defeats the probe
+- **AND** the same check passes for `Date.prototype.getTimezoneOffset`,
+  `Geolocation.prototype.getCurrentPosition`, `Intl.DateTimeFormat`,
+  and `Function.prototype.toString` itself
+
+#### Scenario: Iframe inherits the spoofed surface
+
+- **GIVEN** any shim is loaded via `evaluateOnNewDocument` (which
+  registers the script for every frame, mirroring
+  `forMainFrameOnly: false`)
+- **WHEN** the test creates a child iframe and reads
+  `iframe.contentWindow.navigator.platform` (or the timezone via
+  the iframe's `Intl`)
+- **THEN** the iframe-realm value matches the spoofed value — a site
+  cannot escape the shim by minting a fresh iframe and reading
+  through its contentWindow
+
+#### Scenario: Known leaks documented as todo
+
+- **GIVEN** the desktop_mode shim's `def(navigator, 'platform', getter)`
+  pattern creates an own-property on `navigator` (real navigators
+  carry `platform` only on `Navigator.prototype`)
+- **WHEN** the lie-detection test asserts
+  `Object.getOwnPropertyNames(navigator)` does NOT include `platform`
+- **THEN** the test is marked `todo` with a comment recording the
+  hardening required (target `Navigator.prototype` instead, or
+  proxy-trap the navigator)
+- **AND** a paired premise-check test asserts the leak IS currently
+  observable, so when a hardening pass flips the todo to passing,
+  the premise check fails simultaneously and signals "delete the
+  todo marker too"
+
+---
+
 ## Limits and future work
 
-### Out of scope: real-engine fingerprinting against detectors
+### Out of scope: canvas / WebGL / audio fingerprint defences
 
-Even Tier 2 only proves the shim *installs* and answers a curated
-set of probes correctly. End-to-end privacy proofing — running each
-shim against a real fingerprint detector
-([CreepJS](https://github.com/abrahamjuliot/creepjs),
-[fingerprintjs](https://github.com/fingerprintjs/fingerprintjs)) and
-asserting the detector cannot tell the spoofed surface from a
-genuine browser — is a separate Tier 3 not yet built. Canvas, WebGL,
-and AudioContext fingerprint defences (none currently shipped) would
-need that tier.
+Tier 3 covers fingerprinter-readable values for the surfaces our
+shims spoof. We do not currently ship canvas, WebGL, or AudioContext
+fingerprint defences; if those ship, Tier 3 must grow assertions
+against `result.components.canvas`, `webGlBasics`, and `audio`
+similarly. CreepJS's deeper "engineLies" detection (looking at
+prototype walks and getter source bytes) is out of scope unless we
+add an explicit anti-detection requirement to the spoofing specs.
 
 ---
 
 ## Files
 
 **Builders covered:**
-- `lib/services/desktop_mode_shim.dart` (3 UA variants) — Tier 1 + 2
-- `lib/services/location_spoof_service.dart` (5 configs) — Tier 1 + 2
+- `lib/services/desktop_mode_shim.dart` (3 UA variants) — Tier 1 + 2 + 3
+- `lib/services/location_spoof_service.dart` (5 configs) — Tier 1 + 2 + 3
 - `lib/services/blob_url_capture_shim.dart` — Tier 1 + 2 (CSP)
 
 **Pipeline:**
@@ -308,12 +376,16 @@ need that tier.
 - `test/js_fixtures_drift_test.dart` — Dart drift check
 - `test/js/` — Tier 1 jsdom test files
 - `test/js/helpers/load_shim.js` — jsdom loader + polyfills
-- `test/browser/` — Tier 2 real-Chromium test files
+- `test/browser/` — Tier 2 real-Chromium + Tier 3 fingerprint test files
 - `test/browser/helpers/launch.js` — Puppeteer harness +
   `requireBrowser` hard-fail on CI
 - `test/browser/helpers/csp_server.js` — local HTTP server with
   CSP headers for the blob-capture tier-2 test
+- `test/browser/fingerprint_real_engine.test.js` — Tier 3
+  fingerprintjs assertions
+- `test/browser/lie_detection.test.js` — Tier 3 CreepJS-style probes
+  with `todo` markers for known leaks
 
 **CI:**
 - `.github/workflows/build-and-test.yml` — `js-shim-tests` job
-  (Tier 1) + `validate` job (Tier 2 via `npm run test:browser`)
+  (Tier 1) + `validate` job (Tier 2 + 3 via `npm run test:browser`)

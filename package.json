@@ -7,6 +7,7 @@
     "test:browser": "node --test --test-reporter=spec --test-timeout=30000 'test/browser/**/*.test.js'"
   },
   "devDependencies": {
+    "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@fission-ai/openspec": "latest",
     "jsdom": "^25.0.1",
     "puppeteer": "^24.42.0"
