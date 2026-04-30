@@ -781,6 +781,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       final protected = <int>{
         if (_currentIndex != null) _currentIndex!,
         if (_activationInFlightIndex != null) _activationInFlightIndex!,
+        ..._notificationProtectedIndices(),
       };
       // Build the per-site state map snapshot for the cascade engine.
       // Iterate _loadedIndices defensively in case _webViewModels
@@ -1182,8 +1183,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       targetIndex: index,
       loadedIndices: _loadedIndices,
       maxLoadedSites: kMaxLoadedSites,
-      protectedIndices:
-          _currentIndex != null ? <int>{_currentIndex!} : const <int>{},
+      protectedIndices: {
+        if (_currentIndex != null) _currentIndex!,
+        ..._notificationProtectedIndices(),
+      },
       preferKeepIndices: _getFilteredSiteIndices().toSet(),
     );
     for (final i in lruEvict) {
@@ -1213,9 +1216,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       loadedIndices: _loadedIndices,
       states: cacheClearStates,
       maxResidentSites: kMaxResidentSites,
-      protectedIndices: _activationInFlightIndex != null
-          ? <int>{_activationInFlightIndex!}
-          : const <int>{},
+      protectedIndices: {
+        if (_activationInFlightIndex != null) _activationInFlightIndex!,
+        ..._notificationProtectedIndices(),
+      },
       preferKeepIndices: _getFilteredSiteIndices().toSet(),
     );
     for (final i in cacheClearTargets) {
@@ -1708,6 +1712,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       const Duration(minutes: 5),
       (_) => _onForegroundPollTick(),
     );
+  }
+
+  Set<int> _notificationProtectedIndices() {
+    final result = <int>{};
+    for (int i = 0; i < _webViewModels.length; i++) {
+      if (_webViewModels[i].backgroundPoll || _webViewModels[i].notificationsEnabled) {
+        result.add(i);
+      }
+    }
+    return result;
   }
 
   void _onForegroundPollTick() {
