@@ -263,7 +263,7 @@ under this policy, two backstops apply:
 
 1. **LRU cap**
    ([`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart),
-   currently 50). Activation evicts least-recently-used loaded sites
+   currently 20). Activation evicts least-recently-used loaded sites
    when adding the new site would exceed the cap. The two-tier
    priority keeps the active site (hard-protected) and active-webspace
    sites (soft-keep) loaded in preference to stale sites from other

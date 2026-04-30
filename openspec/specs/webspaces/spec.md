@@ -211,7 +211,7 @@ production):
     protectedIndices, preferKeepIndices})` — bounds the number of
     concurrently loaded webviews at
     [`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart)
-    (currently 50); treats `loadedIndices` as access-ordered (caller
+    (currently 20); treats `loadedIndices` as access-ordered (caller
     bumps to end on activation). Two-tier eviction: out-of-keep
     candidates first (oldest first), then in-keep candidates (oldest
     first), with `protectedIndices` (typically the active site)

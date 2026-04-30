@@ -14,7 +14,7 @@ import 'package:webspace/web_view_model.dart';
 /// [SiteUnloadEngine.indexToEvictForMemoryPressure] — so this cap can
 /// be generous. Per-event one-at-a-time eviction lets the OS clamp us
 /// down to whatever the device can carry.
-const int kMaxLoadedSites = 50;
+const int kMaxLoadedSites = 20;
 
 /// Pure-Dart unload policy engine.
 ///
