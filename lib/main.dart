@@ -1004,12 +1004,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // without a cap a heavy user could pile up dozens of live webviews.
     // _loadedIndices is treated as access-ordered (re-added on each
     // activation below), so iteration order is least-recently-used first.
+    //
+    // Sites in the currently-selected webspace are passed as soft-keep:
+    // membership in the user's active workspace is treated as "context
+    // relevance" and beats raw access recency, so a stale site in the
+    // active webspace stays loaded over a fresher site from a different
+    // webspace if both are eligible for eviction.
     final lruEvict = SiteUnloadEngine.indicesToEvictForLruCap(
       targetIndex: index,
       loadedIndices: _loadedIndices,
       maxLoadedSites: kMaxLoadedSites,
       protectedIndices:
           _currentIndex != null ? <int>{_currentIndex!} : const <int>{},
+      preferKeepIndices: _getFilteredSiteIndices().toSet(),
     );
     for (final i in lruEvict) {
       LogService.instance.log(

@@ -101,28 +101,58 @@ class SiteUnloadEngine {
   /// Treats [loadedIndices] as an access-ordered set: iteration order is
   /// least-recently-used first. The caller is responsible for bumping a
   /// site to the end of [loadedIndices] each time it becomes active (via
-  /// remove-then-add on a `LinkedHashSet`). [targetIndex] itself is never
-  /// evicted, and indices in [protectedIndices] (typically the currently-
-  /// active site, if not yet the target) are also kept resident.
+  /// remove-then-add on a `LinkedHashSet`).
   ///
-  /// Returns an empty list when the cap would not be exceeded.
+  /// Eviction priority is two-tier:
+  ///
+  ///   1. **Hard protected.** Indices in [protectedIndices] (typically the
+  ///      currently-active site, if not yet the target) are never evicted.
+  ///      [targetIndex] itself is also never evicted.
+  ///   2. **Soft kept.** Indices in [preferKeepIndices] (typically the
+  ///      sites in the active webspace) are evicted only after every
+  ///      out-of-set candidate is exhausted. This treats webspace
+  ///      membership as "context relevance" — a site in the user's
+  ///      current workspace that they haven't touched in five
+  ///      activations is still more likely to be needed soon than a
+  ///      stale site from a different workspace.
+  ///
+  /// Within each tier, oldest-accessed comes first. Returns an empty list
+  /// when the cap would not be exceeded.
   static List<int> indicesToEvictForLruCap({
     required int targetIndex,
     required Set<int> loadedIndices,
     required int maxLoadedSites,
     Set<int> protectedIndices = const <int>{},
+    Set<int> preferKeepIndices = const <int>{},
   }) {
     final projected = loadedIndices.contains(targetIndex)
         ? loadedIndices.length
         : loadedIndices.length + 1;
     if (projected <= maxLoadedSites) return const [];
     final overflow = projected - maxLoadedSites;
-    final evict = <int>[];
+
+    // Tier 1: out-of-preferKeep candidates, in LRU order.
+    final outOfKeep = <int>[];
+    final inKeep = <int>[];
     for (final i in loadedIndices) {
       if (i == targetIndex) continue;
       if (protectedIndices.contains(i)) continue;
+      if (preferKeepIndices.contains(i)) {
+        inKeep.add(i);
+      } else {
+        outOfKeep.add(i);
+      }
+    }
+
+    final evict = <int>[];
+    for (final i in outOfKeep) {
+      if (evict.length >= overflow) return evict;
       evict.add(i);
-      if (evict.length >= overflow) break;
+    }
+    // Tier 2: only used if tier 1 didn't supply enough overflow.
+    for (final i in inKeep) {
+      if (evict.length >= overflow) return evict;
+      evict.add(i);
     }
     return evict;
   }

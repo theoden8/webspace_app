@@ -664,5 +664,155 @@ void main() {
       // sites are evictable.
       expect(result, [0, 1]);
     });
+
+    group('preferKeepIndices (active-webspace soft-keep)', () {
+      test('out-of-set candidates are evicted before in-set candidates', () {
+        // Loaded LRU order: 0 (oldest), 1, 2, 3 (newest).
+        // Active webspace = {0, 2}; sites 1 and 3 are outside.
+        // Cap=4 with target=4 → overflow 1. Naive LRU would evict 0;
+        // soft-keep prefers to evict 1 (the oldest out-of-set).
+        final loaded = <int>{};
+        for (final i in [0, 1, 2, 3]) {
+          loaded.add(i);
+        }
+        final result = SiteUnloadEngine.indicesToEvictForLruCap(
+          targetIndex: 4,
+          loadedIndices: loaded,
+          maxLoadedSites: 4,
+          preferKeepIndices: {0, 2},
+        );
+        expect(result, [1]);
+      });
+
+      test('falls back to in-set when out-of-set is exhausted', () {
+        // Loaded: 0, 1, 2, 3. Active webspace = {0, 1, 2, 3} (everything).
+        // Cap=2 with target=4 → overflow 3. Out-of-set is empty, so the
+        // engine falls through to in-set in LRU order: evict 0, 1, 2.
+        final loaded = <int>{};
+        for (final i in [0, 1, 2, 3]) {
+          loaded.add(i);
+        }
+        final result = SiteUnloadEngine.indicesToEvictForLruCap(
+          targetIndex: 4,
+          loadedIndices: loaded,
+          maxLoadedSites: 2,
+          preferKeepIndices: {0, 1, 2, 3},
+        );
+        expect(result, [0, 1, 2]);
+      });
+
+      test('mixes tiers when out-of-set is too small', () {
+        // Loaded: 0 (out), 1 (in), 2 (out), 3 (in), 4 (in), 5 (in).
+        // Cap=3 with target=6 → overflow 4. Out-of-set = [0, 2] (2
+        // candidates), in-set = [1, 3, 4, 5]. Need 4 → take 0, 2,
+        // then 1, 3 from in-set.
+        final loaded = <int>{};
+        for (final i in [0, 1, 2, 3, 4, 5]) {
+          loaded.add(i);
+        }
+        final result = SiteUnloadEngine.indicesToEvictForLruCap(
+          targetIndex: 6,
+          loadedIndices: loaded,
+          maxLoadedSites: 3,
+          preferKeepIndices: {1, 3, 4, 5},
+        );
+        expect(result, [0, 2, 1, 3]);
+      });
+
+      test('protectedIndices wins over preferKeepIndices', () {
+        // Site 0 is hard-protected; site 1 is in soft-keep; sites 2, 3
+        // are out-of-set. Cap=3 with target=4 → overflow 2.
+        // Eviction: out-of-set first ([2, 3]) — exhausts overflow.
+        // Site 0 (protected) and site 1 (soft-keep) both stay.
+        final loaded = <int>{};
+        for (final i in [0, 1, 2, 3]) {
+          loaded.add(i);
+        }
+        final result = SiteUnloadEngine.indicesToEvictForLruCap(
+          targetIndex: 4,
+          loadedIndices: loaded,
+          maxLoadedSites: 3,
+          protectedIndices: {0},
+          preferKeepIndices: {1},
+        );
+        expect(result, [2, 3]);
+      });
+
+      test('a soft-keep site can still be evicted if hard-protected covers '
+          'the keep room', () {
+        // Loaded: 0 (out), 1 (in), 2 (out, hard-protected), 3 (in,
+        // hard-protected). Cap=2 with target=4 → overflow 2.
+        // Non-protected eligible: 0 (out), 1 (in). Out tier supplies
+        // [0]; need one more → in tier supplies [1].
+        final loaded = <int>{};
+        for (final i in [0, 1, 2, 3]) {
+          loaded.add(i);
+        }
+        final result = SiteUnloadEngine.indicesToEvictForLruCap(
+          targetIndex: 4,
+          loadedIndices: loaded,
+          maxLoadedSites: 2,
+          protectedIndices: {2, 3},
+          preferKeepIndices: {1, 3},
+        );
+        expect(result, [0, 1]);
+      });
+
+      test('empty preferKeepIndices == old single-tier behavior', () {
+        // Sanity check: when no soft-keep is provided, eviction order
+        // is pure LRU (oldest first) — backwards-compatible default.
+        // Cap=3 with target=3 (new) → overflow 1 → evict [0].
+        final loaded = <int>{};
+        for (final i in [0, 1, 2]) {
+          loaded.add(i);
+        }
+        final result = SiteUnloadEngine.indicesToEvictForLruCap(
+          targetIndex: 3,
+          loadedIndices: loaded,
+          maxLoadedSites: 3,
+        );
+        expect(result, [0]);
+      });
+
+      test('preferKeepIndices may include unloaded sites without effect', () {
+        // The active webspace can list site indices that aren't loaded
+        // yet (haven't been visited). Those don't affect eviction
+        // because the engine only iterates loadedIndices.
+        // Cap=3 with target=3 (new) → overflow 1.
+        final loaded = <int>{};
+        for (final i in [0, 1, 2]) {
+          loaded.add(i);
+        }
+        final result = SiteUnloadEngine.indicesToEvictForLruCap(
+          targetIndex: 3,
+          loadedIndices: loaded,
+          maxLoadedSites: 3,
+          preferKeepIndices: {0, 4, 5, 99},
+        );
+        // Site 0 is in soft-keep; sites 4/5/99 are noise. Out-of-set
+        // candidates: [1, 2]. Evict oldest: [1].
+        expect(result, [1]);
+      });
+
+      test('respects access-order within each tier', () {
+        // Loaded in order: 0 (out), 1 (in), 2 (out), 3 (in). Then 0
+        // gets bumped (re-activation) → order becomes 1, 2, 3, 0.
+        // Cap=2 with target=4 → overflow 3. Out-of-set in LRU order:
+        // [2, 0]. In-set in LRU order: [1, 3]. Need 3 → [2, 0, 1].
+        final loaded = <int>{};
+        for (final i in [0, 1, 2, 3]) {
+          loaded.add(i);
+        }
+        loaded.remove(0);
+        loaded.add(0);
+        final result = SiteUnloadEngine.indicesToEvictForLruCap(
+          targetIndex: 4,
+          loadedIndices: loaded,
+          maxLoadedSites: 2,
+          preferKeepIndices: {1, 3},
+        );
+        expect(result, [2, 0, 1]);
+      });
+    });
   });
 }
