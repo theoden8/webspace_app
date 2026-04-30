@@ -130,6 +130,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | icon-fetching | Progressive favicon loading with fallbacks |
 | ios-universal-link-bypass | iOS-only: cancel + reissue gesture-rooted main-frame http(s) navigations to silently bypass apple-app-site-association auto-routing into native apps |
 | ip-leakage | Proxy coverage contract: every Dart-side outbound seam, fail-closed-on-SOCKS5, WebRTC + DNS posture |
+| js-shim-tests | Behavioural Node-side tests for injected JS shims (jsdom + node:test), with Dart drift check on dumped fixtures |
 | language | Per-site language: Accept-Language header + DOCUMENT_START navigator.language / Intl override |
 | lazy-webview-loading | On-demand webview creation, IndexedStack placeholders |
 | localcdn | LocalCDN - cache CDN resources locally to prevent CDN tracking (Android) |
