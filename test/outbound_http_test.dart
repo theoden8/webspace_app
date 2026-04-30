@@ -4,8 +4,11 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+
+import 'helpers/mock_secure_storage.dart';
 
 /// Records every [UserProxySettings] passed to it so call-site tests can
 /// assert that a per-site proxy actually reaches [outboundHttp]. Returns
@@ -169,6 +172,15 @@ void main() {
   });
 
   group('GlobalOutboundProxy persistence', () {
+    setUp(() {
+      // The password component lives in flutter_secure_storage, which has
+      // no platform impl during unit tests. Inject an in-memory store so
+      // the round-trip exercises the real `update -> initialize` path.
+      GlobalOutboundProxy.setPasswordStoreForTest(
+        ProxyPasswordSecureStorage(secureStorage: MockFlutterSecureStorage()),
+      );
+    });
+
     test('initialize loads default when SharedPreferences is empty', () async {
       SharedPreferences.setMockInitialValues({});
       await GlobalOutboundProxy.initialize();
@@ -177,6 +189,9 @@ void main() {
 
     test('update writes to SharedPreferences and reloads on initialize', () async {
       SharedPreferences.setMockInitialValues({});
+      // Each call to setMockInitialValues hands out a fresh prefs instance,
+      // but the mock secure storage installed in setUp persists across the
+      // update -> reset -> initialize cycle, just like real Keychain would.
       await GlobalOutboundProxy.initialize();
       await GlobalOutboundProxy.update(UserProxySettings(
         type: ProxyType.HTTP,
@@ -191,6 +206,20 @@ void main() {
       expect(GlobalOutboundProxy.current.address, '192.168.1.10:8080');
       expect(GlobalOutboundProxy.current.username, 'alice');
       expect(GlobalOutboundProxy.current.password, 'secret');
+    });
+
+    test('password is stored in secure storage, not SharedPreferences', () async {
+      SharedPreferences.setMockInitialValues({});
+      await GlobalOutboundProxy.update(UserProxySettings(
+        type: ProxyType.HTTP,
+        address: '192.168.1.10:8080',
+        username: 'alice',
+        password: 'top-secret',
+      ));
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(kGlobalOutboundProxyKey)!;
+      expect(raw.contains('top-secret'), isFalse,
+          reason: 'plaintext password leaked into SharedPreferences');
     });
 
     test('readGlobalOutboundProxy falls back to default on malformed JSON', () async {

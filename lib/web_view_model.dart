@@ -927,6 +927,10 @@ class WebViewModel {
   }
 
   // Serialization methods
+  ///
+  /// The proxy password is never serialised — same contract as
+  /// `isSecure=true` cookies, which are also stripped from exports. See
+  /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
   Map<String, dynamic> toJson() => {
         'siteId': siteId,
         'initUrl': initUrl,

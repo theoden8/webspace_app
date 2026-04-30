@@ -27,6 +27,7 @@ openspec/
     ├── per-site-cookie-isolation/spec.md # Cookie isolation via domain conflict detection
     ├── platform-support/spec.md          # Platform abstraction layer
     ├── proxy/spec.md                     # HTTP/HTTPS/SOCKS5 proxy configuration
+    ├── proxy-password-secure-storage/spec.md # Encrypted proxy passwords; stripped from exports
     ├── screenshots/spec.md               # Automated screenshot generation
     ├── settings-backup/spec.md           # Import/export settings
     ├── site-editing/spec.md              # Edit site details and page titles

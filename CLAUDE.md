@@ -143,6 +143,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | per-site-location | Per-site geolocation spoofing, IANA timezone override, WebRTC leak lockdown |
 | platform-support | Platform abstraction layer for iOS, Android, macOS |
 | proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
+| proxy-password-secure-storage | Per-site & global proxy passwords held in flutter_secure_storage, never serialised to JSON; stripped from settings backups (parity with `isSecure=true` cookies) |
 | screenshots | Automated screenshot generation via integration tests |
 | settings-backup | JSON import/export of all settings |
 | site-editing | Edit site URLs and custom names |
@@ -190,6 +191,19 @@ Any user-facing global toggle/preference persisted to `SharedPreferences` MUST b
 - Per-site settings (anything serialized on `WebViewModel.toJson`) are carried via the `sites` array automatically — keep them on the model, not in the global registry.
 
 When you touch the export/import code path for any reason, re-run `flutter test test/settings_backup_test.dart` before committing.
+
+## Adding a new credential / secret field
+
+Anything that holds a credential, token, or other sensitive secret (proxy passwords, OAuth tokens, vault unlock material, …) MUST follow the contract documented in [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/proxy-password-secure-storage/spec.md). Short version:
+
+- **Storage**: live in `flutter_secure_storage` (Keychain / EncryptedSharedPrefs / libsecret), keyed by `siteId` for per-site fields and a fixed reserved key for global. Use `ProxyPasswordSecureStorage` as the template.
+- **Never serialise to JSON**: `toJson` on the containing object simply omits the field — no `includeSecrets`-style opt-in. Same rule as `isSecure=true` cookies, which are also stripped from exports. The export format is a user-controlled JSON file the user might email or sync to cloud storage; it must not carry secrets.
+- **Hydrate on load** alongside the existing per-site / global hydration in `_loadWebViewModels` and `GlobalOutboundProxy.initialize`.
+- **Migrate legacy plaintext** with the idempotent pre-pass pattern in `ProxyPasswordSecureStorage.migrateLegacyPassword` — read prefs, move secret to secure storage, rewrite prefs without it.
+- **Wire orphan cleanup** at the same three call sites that already sweep cookies + proxy passwords: startup GC, post-import GC, post-delete GC in [lib/main.dart](lib/main.dart).
+- **Tell the user post-import** if the source backup had the related non-secret field set (e.g. `username` for proxy auth) — the snackbar hint in `_importSettings` is the model. Otherwise the user is silently surprised when the restored proxy starts failing auth.
+- **Add a regression test** asserting the secret string never appears in `SettingsBackupService.exportToJson(...)` output. The "proxy passwords never appear in exports (PWD-005)" test in [test/settings_backup_test.dart](test/settings_backup_test.dart) is the template.
+- **Update the spec** (this one if it's another proxy-related secret, otherwise a sibling spec) and re-run `npx openspec validate --no-interactive --all` before committing.
 
 ## Per-site toggles that depend on downloaded data
 

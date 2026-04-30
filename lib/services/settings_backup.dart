@@ -121,9 +121,18 @@ class SettingsBackup {
 
 /// Service for exporting and importing app settings
 class SettingsBackupService {
-  /// Create a backup from current app state
-  /// Only non-secure cookies (isSecure=false) are included in the backup.
-  /// Secure cookies are never exported for security reasons.
+  /// Create a backup from current app state.
+  ///
+  /// Two classes of secrets are intentionally stripped from the export,
+  /// matching the rule "no secret rides along in a user-controlled JSON
+  /// file" applied uniformly across the app:
+  /// - `isSecure=true` cookies (see `cookie-secure-storage` spec, COOKIE-006)
+  /// - Proxy passwords, per-site and global (see
+  ///   `proxy-password-secure-storage` spec, PWD-005)
+  ///
+  /// After import the user re-logs in to sites whose secure cookies were
+  /// stripped, and re-enters proxy passwords on the proxy settings screen.
+  /// Both losses are explicit; both are the same UX contract.
   static SettingsBackup createBackup({
     required List<WebViewModel> webViewModels,
     required List<Webspace> webspaces,
@@ -137,7 +146,8 @@ class SettingsBackupService {
     List<Map<String, dynamic>>? suggestedSites,
     List<Map<String, dynamic>>? globalUserScripts,
   }) {
-    // Convert sites to JSON, including only non-secure cookies
+    // Convert sites to JSON. `model.toJson` already omits the proxy
+    // password (per PWD-005); we still need to strip secure cookies here.
     final sitesJson = webViewModels.map((model) {
       final json = model.toJson();
       // Filter to only non-secure cookies (isSecure != true)

@@ -8,11 +8,19 @@ class UserProxySettings {
 
   UserProxySettings({required this.type, this.address, this.username, this.password});
 
+  /// Serialize to JSON.
+  ///
+  /// The password is intentionally never written to JSON. The canonical
+  /// store for it is `flutter_secure_storage` via
+  /// [ProxyPasswordSecureStorage]; both at-rest persistence
+  /// (SharedPreferences) and the user-controlled backup export format
+  /// strip it. After a backup restore the user re-enters proxy passwords
+  /// — same UX contract as secure cookies, which are also export-stripped.
+  /// See `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
   Map<String, dynamic> toJson() => {
         'type': type.index,
         'address': address,
         'username': username,
-        'password': password,
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) => UserProxySettings(

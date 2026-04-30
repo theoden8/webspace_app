@@ -438,11 +438,16 @@ void main() {
         password: 'testpass123',
       );
 
+      // toJson never includes the password — same contract as
+      // isSecure=true cookies. The username/address still round-trip.
       final json = proxy.toJson();
       expect(json['username'], 'testuser');
-      expect(json['password'], 'testpass123');
+      expect(json.containsKey('password'), false);
 
-      final restored = UserProxySettings.fromJson(json);
+      // Hydrate password back via fromJson on a JSON map that DOES have it
+      // (legacy SharedPreferences blob being migrated, or hand-built).
+      final restored = UserProxySettings.fromJson(
+          {...json, 'password': 'testpass123'});
       expect(restored.username, 'testuser');
       expect(restored.password, 'testpass123');
       expect(restored.hasCredentials, true);
@@ -487,9 +492,12 @@ void main() {
         proxySettings: proxySettings,
       );
 
+      // toJson always omits the password — it's never serialised, both
+      // for plaintext SharedPreferences and for the backup export. The
+      // siteId acts as the secure-storage lookup key for hydration.
       final json = viewModel.toJson();
       expect(json['proxySettings']['username'], 'corpuser');
-      expect(json['proxySettings']['password'], 'corppass');
+      expect(json['proxySettings'].containsKey('password'), false);
     });
 
     test('WebViewModel deserializes proxy credentials', () {
@@ -524,8 +532,11 @@ void main() {
         password: 'p@ss:word/123',
       );
 
-      final json = proxy.toJson();
-      final restored = UserProxySettings.fromJson(json);
+      // toJson omits password (PWD-005); fromJson can still rehydrate one
+      // when given a JSON that explicitly carries it (legacy migration
+      // path).
+      final restored = UserProxySettings.fromJson(
+          {...proxy.toJson(), 'password': 'p@ss:word/123'});
 
       expect(restored.username, 'user@domain.com');
       expect(restored.password, 'p@ss:word/123');

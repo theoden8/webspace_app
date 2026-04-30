@@ -35,6 +35,7 @@ import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
+import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -619,6 +620,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   AppThemeSettings _themeSettings = const AppThemeSettings();
   final CookieManager _cookieManager = CookieManager();
   final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
+  final ProxyPasswordSecureStorage _proxyPasswordStorage =
+      ProxyPasswordSecureStorage();
   late final CookieIsolationEngine _cookieIsolation = CookieIsolationEngine(
     cookieManager: _cookieManager,
     storage: _cookieSecureStorage,
@@ -774,7 +777,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
     await _cookieSecureStorage.saveCookies(cookiesBySiteId);
 
-    // Save models to SharedPreferences (cookies will be empty in SharedPreferences)
+    // Mirror per-site proxy passwords into secure storage. The non-secret
+    // proxy fields ride along in the SharedPreferences JSON via
+    // `model.toJson()` (which omits password by default).
+    final existingPasswords = await _proxyPasswordStorage.loadAll();
+    final updatedPasswords = <String, String?>{...existingPasswords};
+    for (final m in _webViewModels) {
+      updatedPasswords[m.siteId] = m.proxySettings.password;
+    }
+    await _proxyPasswordStorage.saveAll(updatedPasswords);
+
+    // Save models to SharedPreferences (cookies will be empty in
+    // SharedPreferences; proxy password is omitted by `toJson()` default —
+    // it lives in secure storage).
     List<String> webViewModelsJson = _webViewModels.map((webViewModel) {
       final json = webViewModel.toJson();
       json['cookies'] = []; // Don't store cookies in SharedPreferences
@@ -1125,9 +1140,58 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     List<String>? webViewModelsJson = prefs.getStringList('webViewModels');
 
     if (webViewModelsJson != null) {
-      List<WebViewModel> loadedWebViewModels = webViewModelsJson
+      // Pre-pass: legacy data may carry a plaintext `password` field inside
+      // each site's `proxySettings` blob. Move them into secure storage and
+      // strip from the in-memory JSON before constructing models, so the
+      // post-migration `_saveWebViewModels` writes the cleaned form back.
+      final secureProxyPasswords = await _proxyPasswordStorage.loadAll();
+      final legacyMigrations = <String, String>{};
+      final cleanedJsonStrings = <String>[];
+      for (final raw in webViewModelsJson) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final proxy = decoded['proxySettings'];
+        if (proxy is Map<String, dynamic>) {
+          final pwd = proxy['password'];
+          if (pwd is String && pwd.isNotEmpty) {
+            final siteId = decoded['siteId'];
+            if (siteId is String && siteId.isNotEmpty) {
+              // Don't overwrite an existing secure-storage entry — the
+              // secure value wins on conflict (it's newer by definition).
+              if (!(secureProxyPasswords[siteId]?.isNotEmpty ?? false)) {
+                legacyMigrations[siteId] = pwd;
+              }
+              proxy.remove('password');
+            }
+          }
+        }
+        cleanedJsonStrings.add(jsonEncode(decoded));
+      }
+      if (legacyMigrations.isNotEmpty) {
+        final merged = <String, String?>{
+          ...secureProxyPasswords,
+          ...legacyMigrations,
+        };
+        await _proxyPasswordStorage.saveAll(merged);
+        await prefs.setStringList('webViewModels', cleanedJsonStrings);
+        secureProxyPasswords.addAll(legacyMigrations);
+        LogService.instance.log(
+          'ProxyPwdStore',
+          'Migrated ${legacyMigrations.length} legacy plaintext per-site proxy password(s) to secure storage',
+          level: LogLevel.info,
+        );
+      }
+
+      List<WebViewModel> loadedWebViewModels = cleanedJsonStrings
           .map((webViewModelJson) => WebViewModel.fromJson(jsonDecode(webViewModelJson), (){ setState((){}); _updateCanGoBack(); }))
           .toList();
+
+      // Hydrate per-site proxy passwords from secure storage.
+      for (final m in loadedWebViewModels) {
+        final pwd = secureProxyPasswords[m.siteId];
+        if (pwd != null && pwd.isNotEmpty) {
+          m.proxySettings.password = pwd;
+        }
+      }
 
       // Load cookies from secure storage (keyed by siteId or legacy domain)
       final secureCookies = await _cookieSecureStorage.loadCookies();
@@ -1226,6 +1290,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // extra pass covers launch before any site is activated.
     final activeSiteIdsAtStartup = _webViewModels.map((m) => m.siteId).toSet();
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIdsAtStartup);
+    await _proxyPasswordStorage.removeOrphaned(activeSiteIdsAtStartup);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIdsAtStartup);
     await _cookieManager.deleteAllCookies();
     // Sweep containers whose owning site no longer exists. No-op when
@@ -1565,6 +1630,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // Export settings to a file
   Future<void> _exportSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    // The global proxy password is in secure storage, not in the prefs
+    // value `readExportedAppPrefs` reads — and per PWD-005 we do NOT
+    // re-inject it for export (same as secure cookies).
     await SettingsBackupService.exportAndSave(
       context,
       webViewModels: _webViewModels,
@@ -1693,8 +1761,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     // Save all settings. Global UI toggles go through the registry so
     // new entries in kExportedAppPrefs are automatically persisted.
+    // Per PWD-005 the backup file does not carry proxy passwords, so
+    // there's nothing to route into secure storage here — the user will
+    // re-enter passwords on the proxy settings screen, just like they
+    // re-log into sites whose secure cookies were stripped.
     final prefsToWrite = await SharedPreferences.getInstance();
     await writeExportedAppPrefs(prefsToWrite, backup.globalPrefs);
+    // Hydrate the in-memory GlobalOutboundProxy from the (password-less)
+    // imported value so subsequent outbound calls pick up the new
+    // address/username without an app restart.
+    final reloadedPrefs = await SharedPreferences.getInstance();
+    await GlobalOutboundProxy.update(readGlobalOutboundProxy(reloadedPrefs));
     await _saveWebViewModels();
     await _saveWebspaces();
     await _saveThemeSettings();
@@ -1730,6 +1807,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         .map((model) => model.siteId)
         .toSet();
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
+    await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
 
     // Apply theme to all webviews
@@ -1739,8 +1817,36 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     if (mounted) {
+      // Surface the strip-from-export contract (PWD-005) when the source
+      // device had a proxy username configured — a strong proxy for "had
+      // a proxy password too" (since the username is meaningless without
+      // one). Detected from the imported backup, not the live state, so
+      // the hint fires even if hydration from secure storage hasn't
+      // finished yet.
+      bool hasProxyUsername(Map<String, dynamic>? proxy) =>
+          proxy != null &&
+          proxy['username'] is String &&
+          (proxy['username'] as String).isNotEmpty;
+      final perSiteProxyAuth = backup.sites
+          .any((s) => hasProxyUsername(s['proxySettings'] as Map<String, dynamic>?));
+      Map<String, dynamic>? globalProxyJson;
+      try {
+        final raw = backup.globalPrefs[kGlobalOutboundProxyKey];
+        if (raw is String && raw.isNotEmpty) {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map<String, dynamic>) globalProxyJson = decoded;
+        }
+      } catch (_) {/* malformed global proxy entry → no hint */}
+      final globalProxyAuth = hasProxyUsername(globalProxyJson);
+      final stripped = perSiteProxyAuth || globalProxyAuth;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Settings imported successfully')),
+        SnackBar(
+          content: Text(stripped
+              ? 'Settings imported. Proxy passwords aren\'t included in '
+                  'backups — re-enter them in site / app settings.'
+              : 'Settings imported successfully'),
+          duration: Duration(seconds: stripped ? 6 : 4),
+        ),
       );
     }
   }
@@ -2932,6 +3038,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Defense in depth: sweep orphaned per-siteId storage entries.
     final activeSiteIds = _webViewModels.map((m) => m.siteId).toSet();
     await _cookieSecureStorage.removeOrphanedCookies(activeSiteIds);
+    await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
 
     if (!mounted) return;
