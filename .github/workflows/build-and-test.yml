@@ -11,13 +11,22 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate-metadata:
-    name: Validate Fastlane Metadata
+  validate:
+    name: Validate Fastlane + OpenSpec
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate metadata
+      - name: Validate Fastlane metadata
         run: ./scripts/validate_fastlane_metadata.sh
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Validate OpenSpec
+        run: npx openspec validate --no-interactive --all
 
   build-android:
     name: Build Android
