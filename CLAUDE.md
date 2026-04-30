@@ -140,6 +140,7 @@ Detailed feature specs are in `openspec/specs/`. Each spec uses Given/When/Then 
 | nested-url-blocking | Cross-domain navigation control: nested InAppBrowser, gesture-based auto-redirect blocking |
 | per-site-cookie-isolation | Cookie isolation via domain conflict detection, siteId storage (legacy / fallback engine) |
 | per-site-containers | Native per-site containers via `androidx.webkit.Profile` (Android, System WebView 110+) and `WKWebsiteDataStore(forIdentifier:)` (iOS 17+ / macOS 14+); supersedes per-site-cookie-isolation when supported |
+| passkey-support | WebAuthn/passkey authentication via JS polyfill + Android Credential Manager (iOS pending) |
 | per-site-location | Per-site geolocation spoofing, IANA timezone override, WebRTC leak lockdown |
 | platform-support | Platform abstraction layer for iOS, Android, macOS |
 | proxy | Per-site HTTP/HTTPS/SOCKS5 proxy (Android only) |
