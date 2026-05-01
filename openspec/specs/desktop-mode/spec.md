@@ -59,29 +59,21 @@ When `isDesktopUserAgent(userAgent)` is true at webview-creation time:
      Other queries fall through to the real `matchMedia`.
    - `<meta name="viewport">` → rewritten to `width=1366, initial-scale=1.0`,
      both for existing tags and via a `MutationObserver` for tags added
-     later. The width must clear the widest "desktop" breakpoint a
-     mainstream site uses; Bluesky's `useWebMediaQueries` gates
-     `isDesktop` on `(min-width: 1300px)` and treats 800-1299 as
-     tablet, so a smaller value ships the tablet layout. iOS WKWebView
-     re-evaluates the meta on mutation; **Android Chromium WebView does
-     NOT** — the rewrite only changes the attribute string, so on
-     Android the next bullet (Android-only spoof) is what actually
-     shifts the JS-visible layout viewport.
-   - **Android-only** (gated on `Platform.isAndroid` in
-     `webview.dart`, plumbed through `buildDesktopModeShim(...,
-     spoofLayoutViewport: true)`): pin `window.innerWidth` /
-     `outerWidth` / `innerHeight` / `outerHeight` to `1366` / `1366` /
-     `768` / `768`, and extend the `matchMedia` wrapper so width-based
-     queries (`(min-width: …)` / `(max-width: …)` / `(min-device-width:
-     …)` / `(max-device-width: …)`, including those combined with
-     `only screen and …`) are answered against the spoofed `1366`
-     viewport. Width queries that mix in clauses we don't recognise
-     (orientation, color, hover, etc.) fall through to the real CSS
-     engine, so we never lie about queries we can't evaluate.
-   - **NOT spoofed**: `window.devicePixelRatio`, `screen.width`. DPR is
-     orthogonal to layout (real retina desktops report dpr ≥ 2);
-     `screen.*` belongs to the anti-fingerprinting shim's domain and
-     would conflict if we touched it here.
+     later. This is what makes width-based responsive CSS pick the
+     desktop layout, since `useWideViewPort` alone respects whatever
+     viewport meta the page ships. The width must clear the widest
+     "desktop" breakpoint a mainstream site uses; Bluesky's
+     `useWebMediaQueries` gates `isDesktop` on `(min-width: 1300px)`
+     and treats 800-1299 as tablet, so a smaller value ships the
+     tablet layout on Android — iOS WKWebView synthesizes a desktop
+     viewport at the WebKit level via `preferredContentMode = .desktop`
+     and is unaffected, but on Android the meta-rewrite is the only
+     viewport signal.
+   - **NOT spoofed**: `window.devicePixelRatio`, `window.innerWidth`,
+     `screen.width`. DPR is orthogonal to layout (real retina desktops
+     report dpr ≥ 2); the width properties are backed by native layout
+     measurements, and the meta-viewport rewrite handles width-based CSS
+     directly.
 
 A re-entrance guard (`window.__ws_desktop_shim__`) prevents the
 `matchMedia` wrapper from wrapping itself when the plugin re-injects
@@ -179,76 +171,7 @@ underlying mobile WebView's signals.
 
 ---
 
-### Requirement: DM-003 — Layout viewport spoof on Android
-
-The system SHALL pin `window.innerWidth` / `outerWidth` / `innerHeight`
-/ `outerHeight` and forge width-based `matchMedia` queries against a
-synthetic `1366×768` viewport when the desktop-mode shim runs on
-Android, and SHALL NOT do so on any other host platform.
-
-Android Chromium WebView does not re-run viewport calculation when
-`<meta name="viewport">` content is mutated post-parse, so the
-MutationObserver rewrite changes the attribute string without changing
-`window.innerWidth` or CSS width media-query evaluation. React Native
-Web sites (Bluesky and similar) read `window.innerWidth` and
-`matchMedia('(min-width: …)')` at boot to pick a layout, so without
-this requirement they ship the mobile branch despite the desktop UA.
-
-The shim builder accepts `spoofLayoutViewport: true` (passed from
-`webview.dart` when `Platform.isAndroid`); the call site MUST pass
-`false` on iOS / macOS / Linux, where the platform either re-evaluates
-the meta on mutation or synthesizes a desktop viewport at the WebKit
-level via `preferredContentMode = .desktop`.
-
-When `spoofLayoutViewport == true`:
-
-1. `window.innerWidth` and `window.outerWidth` are pinned to `1366`.
-2. `window.innerHeight` and `window.outerHeight` are pinned to `768`.
-3. The `matchMedia` wrapper additionally answers `(min-width: N)` /
-   `(max-width: N)` / `(min-device-width: N)` / `(max-device-width:
-   N)` queries against the same `1366` value, including queries
-   prefixed by `only screen and …` and queries combining multiple
-   width clauses via `and`.
-4. Queries that mix in clauses we don't recognise (e.g.
-   `(orientation: portrait)`, `(prefers-color-scheme: dark)`, raw
-   `not`) fall through to the real `matchMedia` so we never forge an
-   answer for a query we can't fully evaluate.
-
-#### Scenario: Android variant pins window.innerWidth to 1366
-
-**Given** the desktop-mode shim runs on Android (`spoofLayoutViewport=true`)
-**When** the page reads `window.innerWidth`
-**Then** the value is `1366`
-**And** `window.outerWidth` is `1366`
-**And** `window.innerHeight` is `768`
-**And** `window.outerHeight` is `768`
-
-#### Scenario: Bluesky's desktop breakpoint matches on Android
-
-**Given** the desktop-mode shim runs on Android
-**When** the page evaluates `matchMedia('(min-width: 1300px)').matches`
-**Then** the value is `true` (1366 ≥ 1300)
-**And** `matchMedia('only screen and (max-width: 1300px)').matches` is `false`
-**And** `matchMedia('(min-width: 800px) and (max-width: 1299px)').matches` is `false`
-
-#### Scenario: Non-width queries fall through to native
-
-**Given** the desktop-mode shim runs on Android
-**When** the page evaluates `matchMedia('(prefers-color-scheme: dark)')`
-**Then** the wrapper does NOT synthesize an answer
-**And** the result comes from the real CSS engine
-
-#### Scenario: Default build does not pin innerWidth
-
-**Given** the desktop-mode shim runs on iOS / macOS / Linux (`spoofLayoutViewport=false`)
-**When** the page reads `window.innerWidth`
-**Then** the value comes from the underlying platform — we MUST NOT
-override it, since iOS WKWebView in `preferredContentMode=.desktop`
-already reports a desktop-shaped viewport.
-
----
-
-### Requirement: DM-004 — Sec-CH-UA-* tracks the spoofed UA on Android
+### Requirement: DM-003 — Sec-CH-UA-* tracks the spoofed UA on Android
 
 The system SHALL override the `Sec-CH-UA`, `Sec-CH-UA-Mobile`, and
 `Sec-CH-UA-Platform` HTTP request headers and the
