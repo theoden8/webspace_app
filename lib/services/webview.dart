@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
@@ -434,6 +435,13 @@ class WebViewConfig {
   final bool dnsBlockEnabled;
   /// Whether to apply ABP content blocker rules (ads, trackers, cosmetic).
   final bool contentBlockEnabled;
+  /// Umbrella per-site Enhanced Tracking Protection: when true, the
+  /// anti-fingerprinting JS shim (Canvas/WebGL/audio/fonts/screen/
+  /// hardware/timing) is injected at DOCUMENT_START. The owning
+  /// `WebViewModel.getWebView` is also responsible for forcing
+  /// [clearUrlEnabled], [dnsBlockEnabled], and [contentBlockEnabled]
+  /// effectively-on whenever this flag is true.
+  final bool trackingProtectionEnabled;
   /// Whether to serve CDN resources from local cache (Android only).
   final bool localCdnEnabled;
   /// Callback for JS console messages.
@@ -494,6 +502,7 @@ class WebViewConfig {
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
+    this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onLoadingChanged,
@@ -1267,6 +1276,20 @@ class WebViewFactory {
       injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       forMainFrameOnly: false,
     ));
+
+    // Per-site anti-fingerprinting shim. Patches Canvas/WebGL/audio/fonts/
+    // screen/hardware/timing surfaces, seeded by siteId so the same site
+    // sees a stable fingerprint across launches but different sites see
+    // different ones. Must run before site scripts capture the unpatched
+    // references and must reach iframes.
+    if (config.trackingProtectionEnabled && config.siteId != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'anti_fingerprinting',
+        source: '${buildAntiFingerprintingShim(config.siteId!)}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
 
     // Blob URL capture: bridge sites whose CSP `connect-src` rejects
     // fetch(blob:) — the IIFE in `_handleBlobDownload` looks the Blob

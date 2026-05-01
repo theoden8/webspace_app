@@ -112,6 +112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _clearUrlEnabled;
   late bool _dnsBlockEnabled;
   late bool _contentBlockEnabled;
+  late bool _trackingProtectionEnabled;
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _fullscreenMode;
@@ -170,6 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _clearUrlEnabled = widget.webViewModel.clearUrlEnabled;
     _dnsBlockEnabled = widget.webViewModel.dnsBlockEnabled;
     _contentBlockEnabled = widget.webViewModel.contentBlockEnabled;
+    _trackingProtectionEnabled = widget.webViewModel.trackingProtectionEnabled;
     _localCdnEnabled = widget.webViewModel.localCdnEnabled;
     _blockAutoRedirects = widget.webViewModel.blockAutoRedirects;
     _fullscreenMode = widget.webViewModel.fullscreenMode;
@@ -345,6 +347,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
       widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
       widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
+      widget.webViewModel.trackingProtectionEnabled = _trackingProtectionEnabled;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.fullscreenMode = _fullscreenMode;
@@ -943,6 +946,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
+                const Flexible(child: Text('Tracking Protection')),
+                const HintButton(
+                  title: 'Tracking Protection',
+                  description:
+                      'Umbrella per-site Enhanced Tracking Protection. When on, '
+                      'forces ClearURLs, DNS Blocklist, and Content Blocker to be '
+                      'active for this site, AND injects an anti-fingerprinting '
+                      'shim that randomizes Canvas, WebGL, audio, font metrics, '
+                      'screen dimensions, hardware concurrency, plugins, battery, '
+                      'speech voices, high-resolution timers, and bounding-box '
+                      'measurements. The fingerprint stays stable per site across '
+                      'launches but differs between sites and between users.',
+                ),
+              ],
+            ),
+            subtitle: const Text(
+              'Anti-fingerprinting + force tracker blocking',
+            ),
+            value: _trackingProtectionEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _trackingProtectionEnabled = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
                 const Text('ClearURLs'),
                 const HintButton(
                   title: 'ClearURLs',
@@ -952,13 +983,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            subtitle: const Text('Strip tracking parameters from URLs'),
-            value: _clearUrlEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _clearUrlEnabled = value;
-              });
-            },
+            subtitle: Text(
+              _trackingProtectionEnabled
+                  ? 'Forced on by Tracking Protection'
+                  : 'Strip tracking parameters from URLs',
+            ),
+            value: _clearUrlEnabled || _trackingProtectionEnabled,
+            onChanged: _trackingProtectionEnabled
+                ? null
+                : (bool value) {
+                    setState(() {
+                      _clearUrlEnabled = value;
+                    });
+                  },
           ),
           SwitchListTile(
             title: Row(
@@ -974,18 +1011,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             subtitle: Text(
-              DnsBlockService.instance.hasBlocklist
-                  ? dnsBlockLevelNames[DnsBlockService.instance.level]
-                  : 'Not configured',
+              _trackingProtectionEnabled
+                  ? 'Forced on by Tracking Protection'
+                  : (DnsBlockService.instance.hasBlocklist
+                      ? dnsBlockLevelNames[DnsBlockService.instance.level]
+                      : 'Not configured'),
             ),
-            value: _dnsBlockEnabled,
-            onChanged: DnsBlockService.instance.hasBlocklist
-                ? (bool value) {
-                    setState(() {
-                      _dnsBlockEnabled = value;
-                    });
-                  }
-                : null,
+            value: _dnsBlockEnabled || _trackingProtectionEnabled,
+            onChanged: _trackingProtectionEnabled
+                ? null
+                : (DnsBlockService.instance.hasBlocklist
+                    ? (bool value) {
+                        setState(() {
+                          _dnsBlockEnabled = value;
+                        });
+                      }
+                    : null),
           ),
           if (DnsBlockService.instance.hasBlocklist) _buildDnsStatsCard(),
           SwitchListTile(
@@ -1002,18 +1043,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             subtitle: Text(
-              ContentBlockerService.instance.hasRules
-                  ? '${ContentBlockerService.instance.totalRuleCount} rules'
-                  : 'Not configured',
+              _trackingProtectionEnabled
+                  ? 'Forced on by Tracking Protection'
+                  : (ContentBlockerService.instance.hasRules
+                      ? '${ContentBlockerService.instance.totalRuleCount} rules'
+                      : 'Not configured'),
             ),
-            value: _contentBlockEnabled,
-            onChanged: ContentBlockerService.instance.hasRules
-                ? (bool value) {
-                    setState(() {
-                      _contentBlockEnabled = value;
-                    });
-                  }
-                : null,
+            value: _contentBlockEnabled || _trackingProtectionEnabled,
+            onChanged: _trackingProtectionEnabled
+                ? null
+                : (ContentBlockerService.instance.hasRules
+                    ? (bool value) {
+                        setState(() {
+                          _contentBlockEnabled = value;
+                        });
+                      }
+                    : null),
           ),
           ListTile(
             title: const Text('User Scripts'),
