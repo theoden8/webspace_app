@@ -18,13 +18,13 @@
 //   * `@media (pointer: coarse)` / `(hover: none)` — match on touch.
 //   * `<meta name=viewport>` shipped by the page — defeats `useWideViewPort`.
 //
-// What the shim CANNOT fix: `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform`, and
-// `Sec-CH-UA` HTTP request headers. Chromium WebView builds these from
-// native UA-metadata that flutter_inappwebview does not expose. A site
-// that gates strictly on those headers (DDG is one) will still see mobile
-// hints. This is documented in `openspec/specs/desktop-mode/spec.md` and
-// is not fixable without a plugin patch exposing
-// `WebSettingsCompat.setUserAgentMetadata()`.
+// `Sec-CH-UA-Mobile`, `Sec-CH-UA-Platform`, and `Sec-CH-UA` HTTP request
+// headers are emitted by Chromium WebView from a separate UA-metadata
+// object — independent of the UA string and unreachable from JS. They
+// are overridden separately by `user_agent_metadata_builder.dart`, wired
+// into `InAppWebViewSettings.userAgentMetadata` on Android (fork patch
+// over `WebSettingsCompat.setUserAgentMetadata`). This shim only
+// patches the JS-side surfaces; the wire-level headers live there.
 
 import 'package:webspace/services/user_agent_classifier.dart';
 
