@@ -105,6 +105,24 @@ no separate persisted `desktopMode` field.
 **And** the desktop-mode shim is injected at `AT_DOCUMENT_START` for every frame
 **And** `navigator.platform` reads `"Linux x86_64"` from page JS
 
+#### Scenario: Mid-life UA change → webview recreated
+
+The UA classification is fixed at webview construction — the platform's
+`InAppWebViewSettings.userAgent` and `initialUserScripts` cannot be
+swapped in place after creation. Calling `controller.loadUrl` alone
+reloads the *page* but reuses the existing controller's baked-in user-
+agent and scripts, so a desktop UA set after the webview was created
+would silently keep emitting the mobile fingerprint.
+
+**Given** a site whose webview was created with a mobile or empty UA
+**When** the user updates the per-site UA to a desktop-shaped string
+**And** `SettingsScreen` saves and fires `onSettingsSaved`
+**Then** the host disposes the existing webview
+**And** the next render constructs a fresh webview using the updated UA
+**And** `preferredContentMode` is `DESKTOP`
+**And** the desktop-mode shim is injected at `AT_DOCUMENT_START` for the
+new webview
+
 ---
 
 ### Requirement: DM-002 — JS-side desktop fingerprint

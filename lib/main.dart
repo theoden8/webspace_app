@@ -1082,10 +1082,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   /// Dispose the current site's webview so the next render recreates it
-  /// with fresh [initialUserScripts]. Used after the user edits the
-  /// script list — toggling `enabled` on a script does nothing at runtime
-  /// because the native WKUserScript / Android UserScript objects are
-  /// baked at webview creation time.
+  /// with fresh [initialUserScripts] and [initialSettings]. Used after
+  /// the user edits the script list or any per-site setting baked at
+  /// webview creation time — UA, language, location/timezone, content
+  /// blocker, etc. The native WKUserScript / Android UserScript objects
+  /// are immutable post-creation, and so are the platform UA / desktop-
+  /// mode flags; `controller.loadUrl` alone reloads the *page* but
+  /// reuses those baked-in values, so e.g. a desktop UA set after the
+  /// webview was created wouldn't activate the desktop_mode_shim.
   ///
   /// Also drops the cached HTML (online only): the snapshot was captured
   /// with the previous script set applied, so showing it on next load
@@ -1096,6 +1100,32 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     setState(() {
       _webViewModels[_currentIndex!].disposeWebView();
     });
+  }
+
+  /// Persist settings, then recreate the current site's webview so the
+  /// updated UA / language / location / shim-relevant fields take effect
+  /// through fresh `initialSettings` and `initialUserScripts`. Wired into
+  /// [SettingsScreen]'s `onSettingsSaved`.
+  Future<void> _handlePerSiteSettingsSaved() async {
+    await _saveWebViewModels();
+    if (!mounted) return;
+
+    final index = _currentIndex;
+    final model = (index != null && index < _webViewModels.length)
+        ? _webViewModels[index]
+        : null;
+
+    if (model != null && model.fullscreenMode) {
+      _enterFullscreen();
+    } else {
+      _exitFullscreen();
+    }
+
+    if (index != null && model != null) {
+      _resetCurrentSiteWebView();
+    } else {
+      setState(() {});
+    }
   }
 
   /// Dispose every loaded webview. Used after global user script edits,
@@ -2728,43 +2758,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           _saveWebViewModels();
                           getController()?.reload();
                         },
-                        onSettingsSaved: () async {
-                          await _saveWebViewModels();
-                          if (!mounted) return;
-
-                          final index = _currentIndex;
-                          final model = index != null && index < _webViewModels.length
-                              ? _webViewModels[index]
-                              : null;
-                          final urlToLoad = model?.currentUrl;
-                          final languageToUse = model?.language;
-
-                          // Apply fullscreen setting immediately
-                          if (model != null && model.fullscreenMode) {
-                            _enterFullscreen();
-                          } else {
-                            _exitFullscreen();
-                          }
-
-                          setState(() {});
-
-                          if (index != null && model != null && urlToLoad != null) {
-                            final isFileImport = urlToLoad.startsWith('file://');
-                            if (!isFileImport) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) async {
-                                for (int i = 0; i < 20; i++) {
-                                  await Future.delayed(const Duration(milliseconds: 100));
-                                  if (!mounted) return;
-                                  if (model.controller != null) {
-                                    LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
-                                    await model.controller!.loadUrl(urlToLoad, language: languageToUse);
-                                    break;
-                                  }
-                                }
-                              });
-                            }
-                          }
-                        },
+                        onSettingsSaved: _handlePerSiteSettingsSaved,
                       ),
                     ),
                   );
@@ -3128,40 +3122,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     _saveWebViewModels();
                     getController()?.reload();
                   },
-                  onSettingsSaved: () async {
-                    await _saveWebViewModels();
-                    if (!mounted) return;
-
-                    final index = _currentIndex;
-                    final model = index != null && index < _webViewModels.length
-                        ? _webViewModels[index]
-                        : null;
-                    final urlToLoad = model?.currentUrl;
-                    final languageToUse = model?.language;
-
-                    // Apply fullscreen setting immediately
-                    if (model != null && model.fullscreenMode) {
-                      _enterFullscreen();
-                    } else {
-                      _exitFullscreen();
-                    }
-
-                    setState(() {});
-
-                    if (index != null && model != null && urlToLoad != null) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) async {
-                        for (int i = 0; i < 20; i++) {
-                          await Future.delayed(const Duration(milliseconds: 100));
-                          if (!mounted) return;
-                          if (model.controller != null) {
-                            LogService.instance.log('Settings', 'Reloading URL with language: $languageToUse');
-                            await model.controller!.loadUrl(urlToLoad, language: languageToUse);
-                            break;
-                          }
-                        }
-                      });
-                    }
-                  },
+                  onSettingsSaved: _handlePerSiteSettingsSaved,
                 ),
               ),
             );
