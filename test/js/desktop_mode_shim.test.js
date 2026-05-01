@@ -127,3 +127,83 @@ test('re-entrance guard: running the shim twice is a no-op', () => {
   assert.equal(dom.window.matchMedia('(pointer: fine)').matches, true);
   assert.equal(dom.window.__ws_desktop_shim__, true);
 });
+
+// --- Android-host variant: spoofLayoutViewport=true ---
+//
+// On Android, Chromium WebView does not recompute layout when the meta
+// viewport is mutated post-parse, so window.innerWidth stays at the
+// device's CSS width and CSS width media queries match the mobile
+// branch. The Android variant pins innerWidth and forges width queries
+// against a 1366x768 viewport.
+
+test('android variant: window.innerWidth is pinned to 1366', () => {
+  const dom = loadShim('desktop_mode/linux_android.js');
+  assert.equal(dom.window.innerWidth, 1366);
+  assert.equal(dom.window.outerWidth, 1366);
+  assert.equal(dom.window.innerHeight, 768);
+  assert.equal(dom.window.outerHeight, 768);
+});
+
+test('android variant: matchMedia(min-width: 1300px) → matches=true', () => {
+  // Bluesky's useWebMediaQueries gates isDesktop on this exact
+  // query. With the spoof on, our 1366 viewport must satisfy it.
+  const dom = loadShim('desktop_mode/linux_android.js');
+  assert.equal(
+    dom.window.matchMedia('(min-width: 1300px)').matches, true);
+});
+
+test('android variant: matchMedia(max-width: 1300px) → matches=false', () => {
+  // Bluesky's "M" flag (small screen / mobile-or-tablet) evaluates
+  // this. 1366 > 1300, so the spoofed viewport must NOT match.
+  const dom = loadShim('desktop_mode/linux_android.js');
+  assert.equal(
+    dom.window.matchMedia('only screen and (max-width: 1300px)').matches,
+    false);
+});
+
+test('android variant: tablet range (800-1299) → matches=false', () => {
+  // Bluesky's isTablet check. 1366 > 1299 so this MUST be false,
+  // otherwise we ship the tablet layout instead of desktop.
+  const dom = loadShim('desktop_mode/linux_android.js');
+  assert.equal(
+    dom.window.matchMedia('(min-width: 800px) and (max-width: 1299px)').matches,
+    false);
+});
+
+test('android variant: pure mobile range (max-width: 799) → false', () => {
+  const dom = loadShim('desktop_mode/linux_android.js');
+  assert.equal(
+    dom.window.matchMedia('(max-width: 799px)').matches, false);
+});
+
+test('android variant: pointer/hover overrides still apply', () => {
+  // The width-clause wrapper must not break the pointer/hover flips
+  // that already work on iOS — the dispatch order matters.
+  const dom = loadShim('desktop_mode/linux_android.js');
+  assert.equal(dom.window.matchMedia('(pointer: fine)').matches, true);
+  assert.equal(dom.window.matchMedia('(pointer: coarse)').matches, false);
+  assert.equal(dom.window.matchMedia('(hover: hover)').matches, true);
+  assert.equal(dom.window.matchMedia('(hover: none)').matches, false);
+});
+
+test('android variant: non-width / non-pointer queries fall through', () => {
+  // The width wrapper must answer null (fall through) for queries
+  // that mix in non-width clauses we can't evaluate, otherwise we'd
+  // lie about prefers-color-scheme / orientation / etc.
+  const dom = loadShim('desktop_mode/linux_android.js');
+  // jsdom's stub returns {matches: false, media} for any query it
+  // doesn't recognise; the important thing is the wrapper didn't
+  // synthesise a fake answer.
+  const mq = dom.window.matchMedia('(prefers-color-scheme: dark)');
+  assert.equal(mq.media, '(prefers-color-scheme: dark)');
+});
+
+test('default (non-android) variant does NOT pin innerWidth', () => {
+  // iOS WKWebView already reports a desktop viewport via
+  // preferredContentMode=.desktop, so spoofing on top would override
+  // a correct value with our fake 1366. Guard against accidentally
+  // shipping the spoof everywhere.
+  const dom = loadShim('desktop_mode/linux.js');
+  // jsdom's default innerWidth is 1024 — anything but 1366.
+  assert.notEqual(dom.window.innerWidth, 1366);
+});

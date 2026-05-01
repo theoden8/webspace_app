@@ -92,5 +92,50 @@ void main() {
       expect(js, isNot(contains("def(window, 'devicePixelRatio'")));
       expect(js, isNot(contains("'devicePixelRatio',")));
     });
+
+    test('default build does NOT spoof window.innerWidth', () {
+      // iOS WKWebView synthesizes a desktop viewport via
+      // preferredContentMode=.desktop and re-evaluates the meta on
+      // mutation, so window.innerWidth is already correct without
+      // overrides. Regression guard: don't ship the Android-only
+      // spoof to iOS/macOS/Linux by accident.
+      final js = buildDesktopModeShim(firefoxLinuxDesktopUserAgent);
+      expect(js, isNot(contains("defWin('innerWidth'")));
+      expect(js, isNot(contains("evalWidthClauses")));
+    });
+
+    test('spoofLayoutViewport=true pins window.innerWidth to 1366', () {
+      // Android Chromium WebView ignores meta-viewport mutations
+      // post-parse, so window.innerWidth stays at the device's CSS
+      // width unless we explicitly redefine it. 1366x768 matches a
+      // typical laptop and clears Bluesky's (min-width: 1300px)
+      // desktop breakpoint.
+      final js = buildDesktopModeShim(
+        firefoxLinuxDesktopUserAgent,
+        spoofLayoutViewport: true,
+      );
+      expect(js, contains("defWin('innerWidth', 1366)"));
+      expect(js, contains("defWin('outerWidth', 1366)"));
+      expect(js, contains("defWin('innerHeight', 768)"));
+      expect(js, contains("defWin('outerHeight', 768)"));
+    });
+
+    test('spoofLayoutViewport=true forges width matchMedia queries', () {
+      // Bluesky's useWebMediaQueries calls
+      // matchMedia('(max-width: 1300px)') / (min-width: 1300px) and
+      // those evaluate against the real CSS engine viewport (still
+      // device width on Android post-rewrite). Forge them against the
+      // spoofed 1366 viewport so the JS-side answer matches innerWidth.
+      final js = buildDesktopModeShim(
+        firefoxLinuxDesktopUserAgent,
+        spoofLayoutViewport: true,
+      );
+      expect(js, contains('evalWidthClauses'));
+      expect(js, contains('WIDTH_RE'));
+      // The dispatch must run inside the matchMedia wrapper after the
+      // pointer/hover force checks, otherwise width queries fall
+      // through to native and Bluesky still sees mobile.
+      expect(js, contains('return synthetic(query, w)'));
+    });
   });
 }
