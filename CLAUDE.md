@@ -93,6 +93,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | developer-tools | JS console, cookie inspector, HTML export, app logs |
 | dns-blocklist | Hagezi list, severity levels, per-site toggle |
 | downloads | http/https/data/blob, streamed progress + save dialog |
+| external-scheme-handling | intent:// auto-resolves to http(s) fallback (silent route); prompt only when no web equivalent |
 | file-import-sites | local HTML via HtmlCacheService |
 | fullscreen-mode | hide app bar/tab strip/system UI; per-site auto |
 | home-shortcut | Android pinned shortcuts |
