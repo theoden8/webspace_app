@@ -39,6 +39,28 @@ class OutboundClientReady extends OutboundClient {
   const OutboundClientReady(this.client);
 }
 
+/// Wrap [inner] so every outgoing request carries the always-on `DNT: 1`
+/// and `Sec-GPC: 1` headers. The privacy posture of this app is "do not
+/// track me": every Dart-side outbound seam (downloads, user-script
+/// fetches, blocklist updates, favicon probes, …) must advertise that
+/// preference on the wire. Existing headers win — callers that
+/// explicitly set `DNT`/`Sec-GPC` for a test or odd-server probe keep
+/// their value.
+class _DoNotTrackClient extends http.BaseClient {
+  final http.Client _inner;
+  _DoNotTrackClient(this._inner);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers.putIfAbsent('DNT', () => '1');
+    request.headers.putIfAbsent('Sec-GPC', () => '1');
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _inner.close();
+}
+
 /// The configured proxy cannot be honored from Dart-side HTTP. The caller
 /// MUST abort the request — falling back to a direct connection would leak
 /// the user's IP, defeating the proxy the user explicitly chose.
@@ -203,9 +225,28 @@ bool _isLocalhost(String host) {
 
 OutboundHttpFactory _factory = const DefaultOutboundHttpFactory();
 
+/// Wrapping factory: forwards to [inner] for proxy/connection setup, then
+/// drapes the always-on DNT/Sec-GPC client over the result. Sandwiched
+/// between the public [outboundHttp] getter and the underlying
+/// [DefaultOutboundHttpFactory] so every caller — production or test
+/// (when not overriding the factory) — gets the privacy headers.
+class _DoNotTrackOutboundHttpFactory implements OutboundHttpFactory {
+  final OutboundHttpFactory inner;
+  const _DoNotTrackOutboundHttpFactory(this.inner);
+
+  @override
+  OutboundClient clientFor(UserProxySettings settings) {
+    final result = inner.clientFor(settings);
+    if (result is OutboundClientReady) {
+      return OutboundClientReady(_DoNotTrackClient(result.client));
+    }
+    return result;
+  }
+}
+
 /// Global outbound HTTP factory. Use this from every Dart-side HTTP call
 /// that can carry user-identifying traffic.
-OutboundHttpFactory get outboundHttp => _factory;
+OutboundHttpFactory get outboundHttp => _DoNotTrackOutboundHttpFactory(_factory);
 
 /// Replace the global factory. Intended for tests.
 @visibleForTesting

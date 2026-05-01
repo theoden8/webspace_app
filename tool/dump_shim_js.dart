@@ -21,6 +21,7 @@ import 'dart:io';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
+import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
@@ -93,6 +94,8 @@ Map<String, String> buildAllFixtures() {
     spoofTimezone: 'Europe/Paris',
     webRtcPolicy: WebRtcPolicy.relayOnly,
   )!;
+
+  fixtures['do_not_track/shim.js'] = buildDoNotTrackShim();
 
   fixtures['language/en.js'] = buildLanguageShim('en');
   fixtures['language/fr_FR.js'] = buildLanguageShim('fr-FR');
