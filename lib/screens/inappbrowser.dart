@@ -155,7 +155,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         onWindowRequested: _showPopupWindow,
         onExternalSchemeUrl: (url, info) async {
           if (!mounted) return;
-          await confirmAndLaunchExternalUrl(context, info);
+          await confirmAndLaunchExternalUrl(
+            context,
+            info,
+            loadInWebView: _controller,
+          );
         },
       ),
       onControllerCreated: (controller) {

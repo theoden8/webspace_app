@@ -3992,7 +3992,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   onConfirmScriptFetch: _confirmScriptFetch,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;
-                                    await confirmAndLaunchExternalUrl(context, info);
+                                    await confirmAndLaunchExternalUrl(
+                                      context,
+                                      info,
+                                      loadInWebView: webViewModel.controller,
+                                    );
                                   },
                                 ),
                               ),
