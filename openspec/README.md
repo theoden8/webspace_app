@@ -17,6 +17,7 @@ openspec/
     ├── cookie-secure-storage/spec.md     # Encrypted cookie storage
     ├── developer-tools/spec.md           # In-app dev tools (JS console, cookie inspector)
     ├── dns-blocklist/spec.md             # Hagezi DNS blocklist domain blocking
+    ├── external-scheme-handling/spec.md  # intent:// auto-resolve to http(s) fallback; prompt unresolvable schemes
     ├── home-shortcut/spec.md             # Android home screen shortcuts
     ├── icon-fetching/spec.md             # Progressive favicon loading
     ├── language/spec.md                  # Per-site language (Accept-Language + navigator.language override)
@@ -58,6 +59,7 @@ Each spec file follows the OpenSpec format:
 | Cookie Secure Storage | Completed | Encrypted cookie persistence with flutter_secure_storage |
 | Developer Tools | Completed | JS console, cookie inspector, HTML export, app logs |
 | DNS Blocklist | Completed | Hagezi DNS blocklist with severity levels and per-site toggle |
+| External Scheme Handling | Completed | intent:// fallback URLs route through standard navigation; prompt only when no http(s) equivalent exists |
 | Home Shortcut | Completed | Android home screen shortcut via pinned shortcuts API |
 | Icon Fetching | Completed | Progressive favicon loading with fallbacks |
 | Language | Completed | Per-site language via Accept-Language header and navigator.language override |

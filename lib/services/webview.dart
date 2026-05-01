@@ -2024,6 +2024,31 @@ class WebViewFactory {
           LogService.instance.log('WebView',
               'External scheme intercepted: scheme=${externalInfo.scheme} '
               'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url');
+          // intent:// with a resolvable web URL: route the fallback
+          // through the standard same-domain / cross-domain path, no
+          // confirmation prompt. We are the browser; handing the user
+          // off to a different app for a URL they clicked inside us is
+          // hostile behavior (and Google Maps fires these constantly).
+          // Same base domain → load in this webview; cross-domain →
+          // nested via shouldOverrideUrlLoading. Intents *without* a
+          // web fallback (zxing scanner, custom-app deep links) still
+          // hit the confirmation dialog so the user can choose.
+          if (externalInfo.scheme == 'intent') {
+            final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
+            if (resolved != null) {
+              LogService.instance.log('WebView',
+                  'intent fallback resolved → $resolved (from $url)');
+              bool allow = true;
+              if (config.shouldOverrideUrlLoading != null) {
+                final hasGesture = _hasUserGesture(navigationAction);
+                allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
+              }
+              if (allow) {
+                controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
+              }
+              return inapp.NavigationActionPolicy.CANCEL;
+            }
+          }
           if (config.onExternalSchemeUrl != null) {
             config.onExternalSchemeUrl!(url, externalInfo);
           }
@@ -2153,6 +2178,22 @@ class WebViewFactory {
           LogService.instance.log('WebView',
               'External scheme intercepted (onCreateWindow): '
               'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url');
+          if (externalInfo.scheme == 'intent') {
+            final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
+            if (resolved != null) {
+              LogService.instance.log('WebView',
+                  'intent fallback resolved (onCreateWindow) → $resolved (from $url)');
+              bool allow = true;
+              if (config.shouldOverrideUrlLoading != null) {
+                final hasGesture = _hasUserGesture(createWindowAction);
+                allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
+              }
+              if (allow) {
+                controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
+              }
+              return false;
+            }
+          }
           if (config.onExternalSchemeUrl != null) {
             config.onExternalSchemeUrl!(url, externalInfo);
           }
@@ -2403,6 +2444,34 @@ class WebViewFactory {
             } catch (_) {}
           });
           return;
+        }
+        if (externalInfo.scheme == 'intent') {
+          final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
+          if (resolved != null) {
+            ExternalUrlSuppressor.mark(externalInfo);
+            LogService.instance.log('WebView',
+                'onReceivedError: intent fallback resolved → $resolved (from $reqUrl)');
+            Future.microtask(() async {
+              try {
+                bool allow = true;
+                if (config.shouldOverrideUrlLoading != null) {
+                  allow = config.shouldOverrideUrlLoading!(resolved, false);
+                }
+                if (allow) {
+                  await controller.loadUrl(
+                    urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)),
+                  );
+                } else {
+                  await controller.loadUrl(
+                    urlRequest: inapp.URLRequest(url: inapp.WebUri('about:blank')),
+                  );
+                }
+              } catch (_) {}
+            });
+            return;
+          }
+          // No web fallback — fall through to the dialog path so the
+          // user can still choose to launch the target app.
         }
         if (config.onExternalSchemeUrl != null) {
           LogService.instance.log('WebView',

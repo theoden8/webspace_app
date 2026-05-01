@@ -121,6 +121,34 @@ class ExternalUrlParser {
       targetScheme: targetScheme,
     );
   }
+
+  /// Resolves an [ExternalUrlInfo] for an intent:// URL to an equivalent
+  /// http(s) URL the webview can load: prefers the explicit
+  /// `S.browser_fallback_url` extra; otherwise reconstructs from
+  /// `targetScheme` + the intent's host/path/query when the target scheme
+  /// is http(s). Returns null when no equivalent web URL can be produced
+  /// (e.g. zxing scanner intent with no fallback).
+  static String? intentToWebUrl(ExternalUrlInfo info) {
+    if (info.scheme != 'intent') return null;
+    final fallback = info.fallbackUrl;
+    if (fallback != null && fallback.isNotEmpty) {
+      final parsed = Uri.tryParse(fallback);
+      if (parsed != null && (parsed.scheme == 'http' || parsed.scheme == 'https')) {
+        return fallback;
+      }
+    }
+    final scheme = info.targetScheme;
+    if (scheme != 'http' && scheme != 'https') return null;
+    final original = Uri.tryParse(info.url);
+    if (original == null || original.host.isEmpty) return null;
+    return Uri(
+      scheme: scheme,
+      host: original.host,
+      port: original.hasPort ? original.port : null,
+      path: original.path,
+      query: original.query.isEmpty ? null : original.query,
+    ).toString();
+  }
 }
 
 /// Loop-suppression for external URL prompts. After the user decides what

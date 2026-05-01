@@ -89,4 +89,50 @@ void main() {
       expect(info?.scheme, 'intent');
     });
   });
+
+  group('ExternalUrlParser.intentToWebUrl', () {
+    test('returns null for non-intent schemes', () {
+      final tel = ExternalUrlParser.parse('tel:+14155551234')!;
+      expect(ExternalUrlParser.intentToWebUrl(tel), isNull);
+    });
+
+    test('prefers explicit browser_fallback_url', () {
+      const url =
+          'intent://www.google.com/maps?entry=ml&utm_campaign=ml-ardi-wv&coh=230964'
+          '#Intent;scheme=https;package=com.google.android.apps.maps;'
+          'S.browser_fallback_url=https%3A%2F%2Fwww.google.com%2Fmaps%3Fentry%3Dml'
+          '%26utm_campaign%3Dml-ardi-wv%26coh%3D230964;end;';
+      final info = ExternalUrlParser.parse(url)!;
+      expect(
+        ExternalUrlParser.intentToWebUrl(info),
+        'https://www.google.com/maps?entry=ml&utm_campaign=ml-ardi-wv&coh=230964',
+      );
+    });
+
+    test('reconstructs from targetScheme + host + path + query when no fallback', () {
+      const url =
+          'intent://www.google.com/maps?entry=ml#Intent;scheme=https;package=x;end';
+      final info = ExternalUrlParser.parse(url)!;
+      expect(info.fallbackUrl, isNull);
+      expect(
+        ExternalUrlParser.intentToWebUrl(info),
+        'https://www.google.com/maps?entry=ml',
+      );
+    });
+
+    test('returns null when targetScheme is non-http (e.g. zxing) and no fallback', () {
+      const url =
+          'intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end';
+      final info = ExternalUrlParser.parse(url)!;
+      expect(ExternalUrlParser.intentToWebUrl(info), isNull);
+    });
+
+    test('returns null when fallback is non-http and no http target scheme', () {
+      const url =
+          'intent://scan/#Intent;scheme=zxing;'
+          'S.browser_fallback_url=zxing%3A%2F%2Fscan%2F;end';
+      final info = ExternalUrlParser.parse(url)!;
+      expect(ExternalUrlParser.intentToWebUrl(info), isNull);
+    });
+  });
 }

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/webview.dart' show WebViewController;
 import 'package:webspace/widgets/root_messenger.dart';
 
 /// Shared per-route guard so rapid-fire redirects (Google Maps can hit the
@@ -82,14 +83,18 @@ String _cleanFallback(String? fallbackUrl) {
 enum _ExternalUrlChoice { cancel, openInApp, openInBrowser }
 
 /// Ask the user whether to hand [info.url] to the OS via url_launcher.
-/// "Open in app" launches the intent URL. "Open in browser" launches
-/// the cleaned `browser_fallback_url` externally so the user's default
-/// browser handles it. Tracking params are stripped from both via
-/// [ClearUrlService] before they leave the app.
+/// "Open in app" launches the intent URL. "Open in browser" loads the
+/// cleaned `browser_fallback_url` inside our own webview — we are the
+/// browser; handing the URL to a different one would lose per-site
+/// settings and confuse the user. When [loadInWebView] is null (no
+/// controller available), it falls back to launching the URL via the OS.
+/// Tracking params are stripped from both via [ClearUrlService] before
+/// they leave the app.
 Future<void> confirmAndLaunchExternalUrl(
   BuildContext context,
-  ExternalUrlInfo info,
-) async {
+  ExternalUrlInfo info, {
+  WebViewController? loadInWebView,
+}) async {
   // Loop guard: pages frequently re-fire the same intent immediately
   // after we load their browser_fallback_url. Without suppression the
   // user gets re-prompted every redirect and the choice they made a
@@ -181,13 +186,23 @@ Future<void> confirmAndLaunchExternalUrl(
       case _ExternalUrlChoice.openInBrowser:
         LogService.instance.log('ExternalUrl', 'user chose: open in browser → $cleanedFallback');
         ExternalUrlSuppressor.mark(info);
-        // Hand the URL to the OS so the user's default browser opens
-        // it. Loading inside our webview was the previous behavior;
-        // for hostile sites (Google Maps mobile is the canonical
-        // example) the page just JS-redirects right back to intent://
-        // and we end up at about:blank. The external browser is what
-        // "Open in browser" means in every other app's mental model.
-        await _launchExternally(cleanedFallback, label: 'browser');
+        // We are the browser. Load the fallback inside our own webview
+        // so per-site settings (cookie isolation, proxy, content blocker
+        // etc.) still apply. shouldOverrideUrlLoading then decides
+        // same-domain vs cross-domain (nested webview). When no
+        // controller is available — e.g. tel:/mailto: with no fallback —
+        // fall back to handing the URL to the OS.
+        if (loadInWebView != null && cleanedFallback.isNotEmpty) {
+          try {
+            await loadInWebView.loadUrl(cleanedFallback);
+          } catch (e) {
+            LogService.instance.log('ExternalUrl',
+                'in-app loadUrl failed ($e), falling back to external launch');
+            await _launchExternally(cleanedFallback, label: 'browser fallback');
+          }
+        } else {
+          await _launchExternally(cleanedFallback, label: 'browser');
+        }
         return;
       case _ExternalUrlChoice.openInApp:
         LogService.instance.log('ExternalUrl', 'user chose: open in app → $cleanedLaunchUrl');
