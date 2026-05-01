@@ -50,13 +50,6 @@ Map<String, String> buildAllFixtures() {
       buildDesktopModeShim(firefoxMacosDesktopUserAgent);
   fixtures['desktop_mode/windows.js'] =
       buildDesktopModeShim(firefoxWindowsDesktopUserAgent);
-  // Android-host variant: spoof window.innerWidth and forge width
-  // matchMedia queries, since Android Chromium WebView ignores
-  // meta-viewport mutations post-parse.
-  fixtures['desktop_mode/linux_android.js'] = buildDesktopModeShim(
-    firefoxLinuxDesktopUserAgent,
-    spoofLayoutViewport: true,
-  );
 
   fixtures['location_spoof/static_tokyo.js'] =
       LocationSpoofService.buildScript(

@@ -1327,19 +1327,9 @@ class WebViewFactory {
     // shim's properties are in place before any site script reads them.
     final desktopMode = isDesktopUserAgent(config.userAgent);
     if (desktopMode) {
-      // Android Chromium WebView ignores meta-viewport mutations post-
-      // parse, so on Android the meta-rewrite alone leaves
-      // window.innerWidth at the device's CSS width and React Native
-      // Web sites (Bluesky, etc.) pick the mobile branch. Pin
-      // window.innerWidth + forge width matchMedia queries on Android
-      // only; iOS WKWebView re-evaluates the meta on mutation and
-      // synthesizes a desktop viewport via preferredContentMode=.desktop.
       userScripts.add(inapp.UserScript(
         groupName: 'desktop_mode_shim',
-        source: '${buildDesktopModeShim(
-          config.userAgent ?? '',
-          spoofLayoutViewport: Platform.isAndroid,
-        )}\n;null;',
+        source: '${buildDesktopModeShim(config.userAgent ?? '')}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         // Inject into iframes too. Without this, a site can embed
         // browserleaks.com or similar in an iframe and bypass the shim

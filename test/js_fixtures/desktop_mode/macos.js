@@ -64,8 +64,7 @@
   // Force `(pointer: fine)`, `(hover: hover)`, and the `any-*` variants
   // to match; force `coarse`/`none` opposites not to match. Other queries
   // (width-based, prefers-color-scheme, etc.) fall through to the real
-  // implementation — except width queries when spoofLayoutViewport is on,
-  // which are answered against the spoofed 1366 viewport.
+  // implementation.
   try {
     var origMM = window.matchMedia && window.matchMedia.bind(window);
     if (origMM) {
@@ -73,7 +72,6 @@
         /\((?:any-)?pointer:\s*fine\)|\((?:any-)?hover:\s*hover\)/i;
       var FORCE_FALSE =
         /\((?:any-)?pointer:\s*coarse\)|\((?:any-)?hover:\s*none\)/i;
-
       function synthetic(query, matches) {
         var listeners = [];
         return {
@@ -113,9 +111,9 @@
   // as soon as it appears. Must clear the widest "desktop" breakpoint a
   // mainstream site uses; Bluesky gates `isDesktop` on
   // `(min-width: 1300px)` and treats 800-1299 as tablet, so a viewport
-  // <=1299 ships the tablet layout. iOS WKWebView re-evaluates the
-  // meta on mutation; Android Chromium WebView does not, which is why
-  // spoofLayoutViewport additionally pins window.innerWidth above.
+  // <=1299 ships the tablet layout on Android (where the meta-rewrite
+  // is the only viewport signal — iOS WKWebView synthesizes a desktop
+  // viewport at the WebKit level via preferredContentMode=.desktop).
   var VIEWPORT_CONTENT = 'width=1366, initial-scale=1.0';
   function rewriteExistingViewports() {
     try {
@@ -147,8 +145,10 @@
     }
   } catch (e) {}
 
-  // Intentionally NOT spoofing `window.devicePixelRatio` or `screen.width`.
-  // DPR is orthogonal to desktop-vs-mobile layout — modern retina displays
-  // report dpr >= 2 — and screen.* would conflict with the
-  // anti-fingerprinting shim's screen overrides.
+  // Intentionally NOT spoofing `window.devicePixelRatio` or
+  // `window.innerWidth` / `screen.width`. DPR is orthogonal to desktop-vs-
+  // mobile layout — modern retina displays report dpr >= 2 — and width
+  // properties are backed by native layout measurements; the meta-viewport
+  // rewrite above handles width-based layout via the WebView's own
+  // useWideViewPort path.
 })();
