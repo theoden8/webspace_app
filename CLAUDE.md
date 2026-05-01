@@ -101,7 +101,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | ip-leakage | proxy coverage contract; fail-closed on SOCKS5; WebRTC + DNS |
 | js-shim-tests | jsdom + node:test, with Dart drift check |
 | language | Accept-Language + DOCUMENT_START navigator.language/Intl |
-| linux-integration-tests | Xvfb + dbus + pass-secret-service harness; mock conventions |
+| integration-tests | flutter `integration_test/` harness conventions + headless Linux CI setup |
 | lazy-webview-loading | on-demand creation, IndexedStack placeholders |
 | localcdn | cache CDN resources locally (Android) |
 | navigation | back gesture, drawer swipe, refresh, race guards |

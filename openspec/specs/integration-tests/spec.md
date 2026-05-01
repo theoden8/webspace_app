@@ -1,23 +1,37 @@
-# Linux Integration Tests Specification
+# Integration Tests Specification
 
 ## Purpose
 
-Drive the full Flutter app under WPE WebKit + GTK on Linux through the
-`integration_test` framework, against a real Xvfb display, dbus session,
-and Secret Service provider — the surface that the unit tests in
-`test/` and the JS shim tests in `test/js/`/`test/browser/` cannot
-reach. Goal: catch UI / orchestration regressions that depend on app
-initialization order, async race conditions across SharedPreferences
-+ secure storage, and ScaffoldMessenger / Navigator interaction across
-async gaps.
+Drive the full Flutter app through the `integration_test` framework
+against a real display server, dbus session, and Secret Service
+provider — the surface that the unit tests in `test/` and the JS shim
+tests in `test/js/`/`test/browser/` cannot reach. Goal: catch UI /
+orchestration regressions that depend on app initialization order,
+async race conditions across SharedPreferences + secure storage, and
+ScaffoldMessenger / Navigator interaction across async gaps.
+
+The harness conventions (`isDemoMode`, `SharedPreferences.setMockInitialValues`,
+plugin platform-interface stubs, Pop-then-callback re-navigation,
+widget-tree dumps on failure) are framework-level and apply to any
+`-d` target. The headless CI infrastructure (sid container,
+`pass-secret-service`, Xvfb, dbus-run-session) is currently Linux-only;
+a future macOS or Android runner would slot under the same harness
+with a different platform setup section.
+
+The fastlane-driven Android/iOS screenshot pipeline lives under
+[`screenshots`](../screenshots/spec.md) — different harness, different
+goal (screenshot generation vs. assertion-driven UI testing).
 
 ## Status
 
 - **Status**: Implemented
-- **Platforms**: Linux desktop (CI: GitHub Actions debian:sid container)
+- **Harness**: Cross-platform (`integration_test/*.dart` runs on any
+  `-d` target Flutter supports)
 - **CI Integration**: GitHub Actions
   ([`build-and-test.yml`](../../../.github/workflows/build-and-test.yml)
-  → `build-linux` job → `Run Linux integration tests` step)
+  → `build-linux` job → `Run Linux integration tests` step). Linux is
+  currently the only `-d` target wired into CI; macOS and Android
+  runner support is a future scope.
 
 ---
 
@@ -53,7 +67,7 @@ The pipeline is invoked once per integration test file via
 
 ## Requirements
 
-### Requirement: LINTEG-001 — Headless Secret Service
+### Requirement: INTEG-001 — Headless Secret Service
 
 The harness SHALL provide an unlocked `org.freedesktop.secrets` dbus
 implementation so `flutter_secure_storage` round-trips without
@@ -98,7 +112,7 @@ which headless Xvfb cannot dismiss.
 
 ---
 
-### Requirement: LINTEG-002 — Sid container for WPE WebKit ≥ 2.50
+### Requirement: INTEG-002 — Sid container for WPE WebKit ≥ 2.50
 
 The CI container SHALL be `debian:sid-slim`. The plugin requires symbols
 introduced in WPE WebKit 2.50; trixie / bookworm / Ubuntu noble do not
@@ -121,7 +135,7 @@ ship a sufficient version.
 
 ---
 
-### Requirement: LINTEG-003 — Plugin dialogs mocked at the platform-interface level
+### Requirement: INTEG-003 — Plugin dialogs mocked at the platform-interface level
 
 Tests SHALL swap a plugin's `...PlatformInterface.instance` with a
 `MockPlatformInterfaceMixin` stub in `setUpAll` whenever they exercise
@@ -155,7 +169,7 @@ MethodChannel (`file_picker` is the canonical example: it uses
 
 ---
 
-### Requirement: LINTEG-004 — Demo mode + SharedPreferences mock
+### Requirement: INTEG-004 — Demo mode + SharedPreferences mock
 
 Tests SHALL set `isDemoMode = true` and seed any required initial
 SharedPreferences values via `SharedPreferences.setMockInitialValues({...})`
@@ -182,7 +196,7 @@ SharedPreferences and gives each test a deterministic starting state.
 
 ---
 
-### Requirement: LINTEG-005 — Pop-then-callback navigation pattern
+### Requirement: INTEG-005 — Pop-then-callback navigation pattern
 
 Tests SHALL re-navigate to App Settings between consecutive taps on
 tiles whose `onTap` pops the route before invoking the parent's
@@ -205,7 +219,7 @@ been popped to the webspaces-list route by the first tap.
 
 ---
 
-### Requirement: LINTEG-006 — Self-diagnosing widget-tree dumps on failure
+### Requirement: INTEG-006 — Self-diagnosing widget-tree dumps on failure
 
 Tests SHALL `print` a labelled enumeration of `find.byType(Text)` /
 `find.byTooltip` results when an `expect` is about to fail because
@@ -225,7 +239,7 @@ needs a different finder.
 
 ---
 
-### Requirement: LINTEG-007 — Existing scenarios
+### Requirement: INTEG-007 — Existing scenarios
 
 The pipeline SHALL run at least the smoke test and the settings-backup
 roundtrip test on every CI run. Each existing scenario file in
@@ -259,7 +273,7 @@ deletion of any scenario MUST be paired with a deletion of its row.
 
 ---
 
-### Requirement: LINTEG-008 — Adding a new scenario
+### Requirement: INTEG-008 — Adding a new scenario
 
 A new integration test SHALL follow the harness conventions:
 
