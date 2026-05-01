@@ -1,0 +1,125 @@
+// Linux integration smoke test — proves the integration_test
+// pipeline works on Linux desktop (WPE WebKit + GTK), and exercises
+// the App Settings screen path that touches the recent proxy / backup
+// fix area (PR #266 + the proxy_password_secure_storage migration).
+//
+// Scope is intentionally narrow: boot the app, reach App Settings,
+// assert the Export/Import buttons render. That's enough to prove:
+//   * Linux Flutter desktop builds and launches under Xvfb in CI
+//   * SharedPreferences default-init works (no crash on cold start)
+//   * The webspaces-list / drawer / settings navigation chain
+//     renders without hitting an exception
+//   * The settings-backup UI surface (the recent proxy auth fix
+//     touched _exportSettings / _importSettings indirectly) is
+//     reachable and renders its expected rows
+//
+// Deeper scenarios (settings backup roundtrip with proxy passwords
+// preserved, navigation race guards) want this same harness extended
+// to drive file-picker mocks and rapid-input sequences. Adding those
+// is straightforward once this smoke test confirms the harness works
+// in CI; the goal here is to pin the pipeline before the harness is
+// invested in.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/main.dart' as app;
+import 'package:webspace/demo_data.dart';
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    // Empty SharedPreferences — fresh-install state, no seeded sites.
+    SharedPreferences.setMockInitialValues({});
+    // isDemoMode = true bypasses persistence so the test never writes
+    // to the host's real SharedPreferences (CI runners share state
+    // across test runs without this).
+    isDemoMode = true;
+  });
+
+  testWidgets('App boots on Linux and reaches App Settings', (tester) async {
+    app.main();
+    // pumpAndSettle drives the splash → first frame → first idle
+    // sequence. 30s is generous for the slow CI runner; locally this
+    // settles in <1s. If it times out, dump the current widget tree
+    // so the failure log shows what actually rendered rather than
+    // just "settled never returned".
+    try {
+      await tester.pumpAndSettle(const Duration(seconds: 30));
+    } catch (e) {
+      // ignore: avoid_print
+      print('pumpAndSettle threw: $e\n'
+          'Tree at timeout:\n${tester.allWidgets.length} widgets\n'
+          'Texts visible: ${find.byType(Text).evaluate().map((e) {
+        final w = e.widget;
+        return w is Text ? w.data : '?';
+      }).take(20).toList()}');
+      rethrow;
+    }
+
+    // The App Settings icon button is rendered on the webspaces-list
+    // screen (no site selected). With empty SharedPreferences and
+    // isDemoMode=true, the app boots straight into that screen.
+    final settingsButton = find.byTooltip('App Settings');
+    if (settingsButton.evaluate().isEmpty) {
+      // Self-diagnose: dump every Tooltip / Text / IconButton we
+      // see so the CI log explains why the find missed.
+      final tooltips = find.byType(Tooltip).evaluate().map((e) {
+        final w = e.widget;
+        return w is Tooltip ? w.message : '?';
+      }).toList();
+      final texts = find.byType(Text).evaluate().map((e) {
+        final w = e.widget;
+        return w is Text ? w.data : '?';
+      }).where((s) => s != null).toList();
+      final icons = find.byType(IconButton).evaluate().length;
+      // ignore: avoid_print
+      print('App Settings tooltip not found.\n'
+          '  Tooltips: $tooltips\n'
+          '  IconButtons: $icons\n'
+          '  ${texts.length} Texts: $texts');
+    }
+    expect(settingsButton, findsOneWidget,
+      reason: 'App Settings icon should be visible on empty webspaces list');
+
+    await tester.tap(settingsButton);
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+
+    // Dump every Text widget rendered after the navigation — useful
+    // diagnostic when expectations below fail because the target
+    // widget is below the viewport fold.
+    final visibleTexts = find.byType(Text).evaluate().map((e) {
+      final w = e.widget;
+      return w is Text ? w.data : '?';
+    }).where((s) => s != null).toList();
+    // ignore: avoid_print
+    print('After Settings tap, ${visibleTexts.length} Text widgets: $visibleTexts');
+
+    // The Export Settings + Import Settings tiles live near the
+    // bottom of the AppSettingsScreen ListView, well below the
+    // viewport fold under the integration_test default viewport.
+    // ListView's SliverChildListDelegate culls offscreen children, so
+    // they aren't in the Element tree until scrolled into view.
+    // scrollUntilVisible scrolls the nearest Scrollable ancestor
+    // until the matcher resolves.
+    await tester.scrollUntilVisible(
+      find.text('Export Settings'),
+      300.0,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Export Settings'), findsOneWidget,
+      reason: 'Export Settings list tile should render after scroll');
+    expect(find.text('Import Settings'), findsOneWidget,
+      reason: 'Import Settings list tile should render after scroll');
+
+    // Verify we can scroll the settings screen — proves the
+    // ListView/Scrollable inside the screen layouts correctly under
+    // the Linux desktop renderer's DPR.
+    final scrollable = find.byType(Scrollable).first;
+    expect(scrollable, findsOneWidget);
+    await tester.drag(scrollable, const Offset(0, -300));
+    await tester.pumpAndSettle();
+  });
+}

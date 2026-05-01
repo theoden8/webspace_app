@@ -15,8 +15,8 @@ void main() {
     test('wraps both URL.createObjectURL and URL.revokeObjectURL', () {
       // If only createObjectURL is wrapped, the map grows without bound;
       // if only revokeObjectURL is wrapped, captures never happen.
-      expect(blobUrlCaptureScript, contains('URL.createObjectURL = function'));
-      expect(blobUrlCaptureScript, contains('URL.revokeObjectURL = function'));
+      expect(blobUrlCaptureScript, contains('URL.createObjectURL = _patchedCreate'));
+      expect(blobUrlCaptureScript, contains('URL.revokeObjectURL = _patchedRevoke'));
       expect(blobUrlCaptureScript, contains('var origCreate = URL.createObjectURL'));
       expect(blobUrlCaptureScript, contains('var origRevoke = URL.revokeObjectURL'));
     });

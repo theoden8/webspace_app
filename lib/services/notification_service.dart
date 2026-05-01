@@ -22,10 +22,20 @@ class NotificationService {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
+    // Linux requires its own InitializationSettings or
+    // FlutterLocalNotificationsPlugin.initialize throws
+    // ArgumentError("Linux settings must be set when targeting Linux
+    // platform"). defaultActionName is the label shown on the click
+    // action of a notification — "Open" matches what most freedesktop
+    // notification daemons display.
+    const linuxSettings = LinuxInitializationSettings(
+      defaultActionName: 'Open',
+    );
     final settings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
       macOS: iosSettings,
+      linux: linuxSettings,
     );
 
     await _plugin.initialize(

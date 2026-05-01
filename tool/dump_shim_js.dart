@@ -19,8 +19,11 @@
 import 'dart:io';
 
 import 'package:webspace/services/blob_url_capture.dart';
+import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
+import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/location_spoof_service.dart';
+import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/settings/location.dart';
 
@@ -89,6 +92,35 @@ Map<String, String> buildAllFixtures() {
     spoofAccuracy: 30.0,
     spoofTimezone: 'Europe/Paris',
     webRtcPolicy: WebRtcPolicy.relayOnly,
+  )!;
+
+  fixtures['language/en.js'] = buildLanguageShim('en');
+  fixtures['language/fr_FR.js'] = buildLanguageShim('fr-FR');
+  fixtures['language/ja.js'] = buildLanguageShim('ja');
+
+  fixtures['theme_color_scheme/light.js'] = buildThemeColorSchemeShim('light');
+  fixtures['theme_color_scheme/dark.js'] = buildThemeColorSchemeShim('dark');
+  fixtures['theme_color_scheme/system.js'] = buildThemeColorSchemeShim('system');
+
+  // Content-blocker fixture inputs are a stand-in for what a real ABP
+  // filter list produces — a mix of class selectors, attribute
+  // selectors, and a text-match rule that catches sponsor content
+  // whose markup doesn't carry a stable class.
+  const sampleSelectors = [
+    '.ad-banner',
+    '.sponsored',
+    '#sidebar-ad',
+    'div[data-ad-slot]',
+    'a[href*="track.example.com"]',
+  ];
+  const sampleTextRules = <ContentBlockerTextRule>[
+    (selector: 'div.article > p', patterns: ['Sponsored content']),
+  ];
+  fixtures['content_blocker/early_css.js'] =
+      buildContentBlockerEarlyCssShim(sampleSelectors)!;
+  fixtures['content_blocker/cosmetic.js'] = buildContentBlockerCosmeticShim(
+    selectors: sampleSelectors,
+    textRules: sampleTextRules,
   )!;
 
   return fixtures;

@@ -51,14 +51,21 @@ jobs:
         # `chrome` is the @puppeteer/browsers CLI name; `chromium` is
         # rejected as an invalid positional and yargs exits 1 on CI.
         run: npx puppeteer browsers install chrome
-      # Real-Chromium tests for the blob_url_capture fix. jsdom can't
-      # enforce CSP, so this is the only layer that proves
-      # `connect-src` actually rejects fetch(blob:) AND that our shim
-      # bypasses it. See test/browser/ + openspec/specs/downloads/.
-      # process.env.CI=true (set by Actions) makes the test file
-      # hard-fail when Chromium can't launch — see requireBrowser() in
-      # test/browser/blob_url_capture_csp.test.js.
-      - name: Run browser tests (CSP enforcement)
+      # Tier 2 of the JS shim test pipeline: load each committed
+      # fixture into headless Chromium and assert behaviour the real
+      # engine produces (matchMedia against real CSS, Intl/Date
+      # timezone arithmetic, Geolocation callback path, RTCPeerConnection
+      # semantics, CSP enforcement of fetch(blob:)). jsdom cannot
+      # honestly answer any of those, so this is the only layer that
+      # proves the shim's effect end-to-end. See
+      # openspec/specs/js-shim-tests/spec.md (SHIM-TEST-005/006) and
+      # test/browser/.
+      #
+      # process.env.CI=true (set by Actions) makes the test files
+      # hard-fail when Chromium can't launch — silently skipping the
+      # tier on a misconfigured runner would defeat its purpose. See
+      # requireBrowser() in test/browser/helpers/launch.js.
+      - name: Run browser tests (real-Chromium shim tier)
         run: npm run test:browser
 
   build-android:
@@ -264,6 +271,20 @@ jobs:
         # epoxy. The plugin needs libwpewebkit-2.0-dev plus libwpe-1.0-dev
         # and libwpebackend-fdo-1.0-dev (legacy fallback path; harmless
         # to install even though the plugin prefers WPEPlatform).
+        # xvfb is for the integration_test step further down — Flutter
+        # desktop linux apps need a display server, and Actions runners
+        # don't expose one in headless containers.
+        # pass + gpg + pipx + python3-gi/dbus/secretstorage are the
+        # support stack for pass-secret-service (a Secret Service dbus
+        # provider backed by pass+gpg). Replaces gnome-keyring for CI:
+        # gnome-keyring 50.0 in sid auto-activates a fresh daemon on
+        # libsecret first-call that prompts via gcr-prompter, and
+        # headless Xvfb has no way to dismiss the prompt — main() hangs
+        # forever before runApp. pass-secret-service answers the same
+        # org.freedesktop.secrets dbus name without ever prompting, so
+        # libsecret round-trips cleanly. Build deps (libcairo2-dev,
+        # libgirepository-2.0-dev, python3-dev, pkg-config) are needed
+        # for the pygobject wheel pipx pulls in.
         run: |
           set -x
           apt-get update
@@ -271,10 +292,36 @@ jobs:
             ca-certificates curl wget git unzip xz-utils sudo \
             build-essential clang lld llvm cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev libsecret-1-dev libepoxy-dev \
-            libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev
+            libwpewebkit-2.0-dev libwpebackend-fdo-1.0-dev libwpe-1.0-dev \
+            xvfb xauth dbus-x11 xdg-user-dirs \
+            weston mesa-utils libgl1-mesa-dri libegl-mesa0 \
+            libegl1-mesa-dev libgles2-mesa-dev libgbm-dev mesa-vulkan-drivers \
+            pass gpg pipx python3-gi gir1.2-glib-2.0 python3-dbus \
+            python3-cairo python3-secretstorage \
+            libcairo2-dev python3-dev libgirepository-2.0-dev
           rm -rf /var/lib/apt/lists/*
           pkg-config --modversion wpe-webkit-2.0 || echo "wpe-webkit-2.0 NOT FOUND"
           pkg-config --modversion wpe-platform-2.0 || echo "wpe-platform-2.0 NOT FOUND"
+
+      - name: Install pass-secret-service
+        # pipx into a venv with --system-site-packages so the venv can
+        # see the apt-installed python3-gi (which builds against system
+        # libgirepository — pipx-installing pygobject from PyPI fails
+        # without that). Then two sed patches:
+        #   1. cryptography 46+ removed cryptography.utils.int_from_bytes;
+        #      shim it back with int.from_bytes.
+        #   2. pydbus delivers the 'ay' (byte array) field of the secret
+        #      tuple as list[int], not bytes — wrap with bytes() before
+        #      handing to the AES decryptor.
+        # Both will be unnecessary once upstream pass-secret-service
+        # ships a release > 0.1a0; track upstream and drop when fixed.
+        run: |
+          set -x
+          pipx install --system-site-packages pass-secret-service
+          SESSION_PY="$HOME/.local/share/pipx/venvs/pass-secret-service/lib/python3.13/site-packages/pass_secret_service/interfaces/session.py"
+          sed -i 's|from cryptography.utils import int_from_bytes|def int_from_bytes(data, byteorder, signed=False): return int.from_bytes(data, byteorder, signed=signed)|' "$SESSION_PY"
+          sed -i 's|password = secret\[2\]|password = bytes(secret[2])|' "$SESSION_PY"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -340,6 +387,156 @@ jobs:
 
       - name: Build Linux
         run: fvm flutter build linux --release
+
+      # Integration tests run after the production build so a clean
+      # build is verified independently first. The integration_test
+      # path drives the actual Flutter widget tree against the WPE
+      # WebKit + GTK runtime — a different test surface than the
+      # widget tests in `flutter test` (which use the shared-test
+      # binding, not a real display server).
+      #
+      # xvfb-run provides the X11 display the GTK app needs;
+      # dbus-launch provides the session bus libsecret + GTK helpers
+      # try to talk to. Without dbus-launch, libsecret prints scary
+      # warnings but tests still work; we wrap anyway because some
+      # GTK widgets fall back to broken layout on no-bus systems.
+      #
+      # Smoke test: settings_smoke_test.dart asserts the App Settings
+      # screen reaches a renderable state — proves the integration
+      # harness works end-to-end on Linux. Deeper scenarios (settings
+      # backup roundtrip, navigation race guards, drawer-flash) want
+      # this same harness extended; the smoke test pins the pipeline
+      # so they can land as follow-up tests without re-litigating CI.
+      - name: Run Linux integration tests
+        run: |
+          set -x
+          # path_provider_linux's getApplicationDocumentsDirectory()
+          # calls `xdg-user-dir DOCUMENTS` (provided by the xdg-user-dirs
+          # package, installed in the deps step above). xdg-user-dir
+          # reads $XDG_CONFIG_HOME/user-dirs.dirs; if absent it falls
+          # back to $HOME/Documents. The Sid container ships with
+          # neither — populate ~/.config/user-dirs.dirs and create the
+          # target directory so the lookup returns a real path instead
+          # of throwing MissingPlatformDirectoryException at boot.
+          mkdir -p "$HOME/Documents" "$HOME/.cache" "$HOME/.local/share" \
+                   "$HOME/.config"
+          cat > "$HOME/.config/user-dirs.dirs" <<'EOF'
+          XDG_DESKTOP_DIR="$HOME/Desktop"
+          XDG_DOWNLOAD_DIR="$HOME/Downloads"
+          XDG_DOCUMENTS_DIR="$HOME/Documents"
+          XDG_PICTURES_DIR="$HOME/Pictures"
+          XDG_VIDEOS_DIR="$HOME/Videos"
+          XDG_MUSIC_DIR="$HOME/Music"
+          EOF
+          mkdir -p "$HOME/Desktop" "$HOME/Downloads" "$HOME/Pictures" \
+                   "$HOME/Videos" "$HOME/Music"
+          # Sanity: the test will fail with MissingPlatformDirectoryException
+          # if this command returns empty. Print it so the log shows the
+          # resolved path on success or the empty failure on a config
+          # mismatch.
+          xdg-user-dir DOCUMENTS
+
+          # Provision the gpg key + pass store that pass-secret-service
+          # uses as its on-disk backend. Loopback pinentry + a passphrase-
+          # less RSA key keeps gpg-agent out of any TTY-prompt path, so
+          # the eventual `pass insert` from libsecret never blocks for
+          # input. Idempotent: skip if a key already exists (the key
+          # itself is throwaway-per-runner; no caching needed).
+          mkdir -p "$HOME/.gnupg" && chmod 700 "$HOME/.gnupg"
+          printf '%s\n' \
+            "allow-loopback-pinentry" > "$HOME/.gnupg/gpg-agent.conf"
+          printf '%s\n' \
+            "pinentry-mode loopback" > "$HOME/.gnupg/gpg.conf"
+          if ! gpg --list-secret-keys --with-colons | grep -q '^sec'; then
+            cat > /tmp/gpgkey <<'EOF'
+          %no-protection
+          Key-Type: rsa
+          Key-Length: 2048
+          Name-Real: CI
+          Name-Email: ci@local
+          Expire-Date: 0
+          %commit
+          EOF
+            gpg --batch --gen-key /tmp/gpgkey
+          fi
+          GPGID=$(gpg --list-keys --with-colons \
+            | awk -F: '/^pub/{print $5; exit}')
+          [ -d "$HOME/.password-store" ] || pass init "$GPGID"
+
+          # Software-EGL + Wayland scaffolding for WebView-mounting tests.
+          # WPE WebKit's libWPEBackend-fdo binds to a Wayland display
+          # (it's the FDO backend's only buffer-allocation path), so a
+          # bare Xvfb display isn't enough — without a Wayland socket the
+          # WebView mount hangs at EGL surface creation. weston with the
+          # `headless` backend provides a Wayland compositor that doesn't
+          # require any GPU. The Mesa software stack (LIBGL_ALWAYS_SOFTWARE
+          # + GALLIUM_DRIVER=llvmpipe) handles GL on top.
+          #
+          # WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1: WPE WebKit forks
+          # its Web/Network/GPU subprocesses wrapped in bwrap, and bwrap
+          # needs CAP_SYS_ADMIN + user namespaces — both blocked in
+          # GitHub Actions container jobs. The flag tells WebKit to launch
+          # them directly. Safe under CI (single-tenant container, only
+          # loads test fixtures), unsafe in production.
+          export LIBGL_ALWAYS_SOFTWARE=1
+          export GALLIUM_DRIVER=llvmpipe
+          export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
+          mkdir -p /tmp/runtime-root && chmod 0700 /tmp/runtime-root
+          export XDG_RUNTIME_DIR=/tmp/runtime-root
+          export WAYLAND_DISPLAY=wayland-test
+          weston --backend=headless --width=1280 --height=720 \
+            --socket="$WAYLAND_DISPLAY" --no-config \
+            > /tmp/weston.log 2>&1 &
+          WESTON_PID=$!
+          # Wait for the Wayland socket so the test doesn't race weston.
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break
+            sleep 1
+          done
+
+          # xvfb-run + dbus-run-session: the GTK app still needs an X
+          # display for the host frame, and pass-secret-service needs a
+          # session bus to claim org.freedesktop.secrets on. Inside the
+          # session:
+          #   1. Start pass_secret_service in the background (it claims
+          #      the secrets bus name; further libsecret calls hit it
+          #      instead of dbus-activating a fresh gnome-keyring that
+          #      would prompt and hang).
+          #   2. Open + unlock the default collection via the python
+          #      Secret Service client. pass-secret-service auto-creates
+          #      the collection on first OpenSession, and the unlock
+          #      goes through gpg-agent's loopback path — no prompt.
+          #   3. Run every integration test. libsecret.read/write now
+          #      round-trips through pass+gpg, so HtmlImport / HtmlCache /
+          #      ProxyPwd / WebViewState actually persist their keys.
+          xvfb-run -a --server-args="-screen 0 1280x720x24 +extension GLX +render -nolisten tcp" \
+            dbus-run-session -- bash -c '
+              pass_secret_service > /tmp/pss.log 2>&1 &
+              PSS_PID=$!
+              sleep 2
+              python3 -c "
+          import secretstorage
+          conn = secretstorage.dbus_init()
+          coll = secretstorage.get_default_collection(conn)
+          if coll.is_locked():
+              coll.unlock()
+          print(f\"keyring: locked={coll.is_locked()} label={coll.get_label()}\")
+          "
+              status=0
+              for t in integration_test/*_test.dart; do
+                # Screenshot generator is an iOS/Android fastlane helper,
+                # not a Linux-runnable test.
+                [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+                echo "::group::$t"
+                fvm flutter test "$t" -d linux || status=$?
+                echo "::endgroup::"
+              done
+              kill "$PSS_PID" 2>/dev/null
+              exit $status
+            '
+          test_status=$?
+          kill "$WESTON_PID" 2>/dev/null || true
+          exit $test_status
 
   build-apple:
     name: Build iOS & macOS

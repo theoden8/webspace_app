@@ -47,9 +47,36 @@ String buildDesktopModeShim(String userAgent) {
   if (window.__ws_desktop_shim__) return;
   window.__ws_desktop_shim__ = true;
 
-  function def(obj, name, getter) {
+  // --- Function.prototype.toString hardening ---
+  // Fingerprinters call `Function.prototype.toString.call(fn)` to detect
+  // monkey-patched getters. The WeakMap-keyed stub makes every spoofed
+  // function stringify as native. Shared with location_spoof_service.dart
+  // via window.__wsFnStubs so both shims see one patched toString.
+  var _origFnToString = Function.prototype.toString;
+  var _stubs = window.__wsFnStubs || new WeakMap();
+  window.__wsFnStubs = _stubs;
+  function asNative(fn, name) {
+    _stubs.set(fn, 'function ' + name + '() { [native code] }');
+    return fn;
+  }
+  if (!window.__wsFnToStringPatched) {
+    window.__wsFnToStringPatched = true;
+    var patched = function toString() {
+      var stub = _stubs.get(this);
+      return stub !== undefined ? stub : _origFnToString.call(this);
+    };
+    _stubs.set(patched, 'function toString() { [native code] }');
+    try { Function.prototype.toString = patched; } catch (e) {}
+  }
+
+  // Patch on Navigator.prototype, not the navigator instance. A clean
+  // navigator carries these on the prototype; defining them on the
+  // instance would leak via `Object.getOwnPropertyNames(navigator)`.
+  function def(name, getter) {
     try {
-      Object.defineProperty(obj, name, { get: getter, configurable: true });
+      Object.defineProperty(Navigator.prototype, name, {
+        get: getter, configurable: true, enumerable: true
+      });
     } catch (e) {}
   }
 
@@ -57,20 +84,21 @@ String buildDesktopModeShim(String userAgent) {
   // Our spoofed UA is Firefox-shaped, and Firefox does not implement the
   // User-Agent Client Hints API. Sites that feature-detect Client Hints
   // by reading `navigator.userAgentData` should see `undefined`, not the
-  // Chromium-WebView-populated mobile object.
-  def(navigator, 'userAgentData', function() { return undefined; });
+  // Chromium-WebView-populated mobile object. Only present on
+  // Navigator.prototype in secure contexts (https / 127.0.0.1).
+  def('userAgentData', asNative(function() { return undefined; }, 'userAgentData'));
 
   // --- Touch / platform signals ---
-  def(navigator, 'maxTouchPoints', function() { return 0; });
-  def(navigator, 'platform', function() { return $navPlatformJs; });
+  def('maxTouchPoints', asNative(function() { return 0; }, 'maxTouchPoints'));
+  def('platform', asNative(function() { return $navPlatformJs; }, 'platform'));
 
-  // Remove `'ontouchstart' in window` — redefine as undefined so property
-  // lookup doesn't fall through to the real native handler.
-  try {
-    Object.defineProperty(window, 'ontouchstart', {
-      value: undefined, configurable: true, writable: true
-    });
-  } catch (e) {}
+  // Remove `'ontouchstart' in window`. Clean desktop Chromium does not
+  // expose ontouchstart at all (it's only on Window.prototype on touch
+  // builds), so defining it as undefined is the leak we used to ship —
+  // `'ontouchstart' in window` would still return true for the
+  // own-property. Delete from both window and Window.prototype.
+  try { delete window.ontouchstart; } catch (e) {}
+  try { delete Window.prototype.ontouchstart; } catch (e) {}
 
   // --- matchMedia wrapper for pointer/hover queries ---
   // Force `(pointer: fine)`, `(hover: hover)`, and the `any-*` variants
@@ -103,13 +131,15 @@ String buildDesktopModeShim(String userAgent) {
           dispatchEvent: function() { return false; }
         };
       }
-      window.matchMedia = function(query) {
+      var _patchedMM = function matchMedia(query) {
         if (typeof query === 'string') {
           if (FORCE_TRUE.test(query)) return synthetic(query, true);
           if (FORCE_FALSE.test(query)) return synthetic(query, false);
         }
         return origMM(query);
       };
+      asNative(_patchedMM, 'matchMedia');
+      window.matchMedia = _patchedMM;
     }
   } catch (e) {}
 

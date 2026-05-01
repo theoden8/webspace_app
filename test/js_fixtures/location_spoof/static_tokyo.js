@@ -173,9 +173,14 @@
     }
 
     // Permissions API: geolocation should report 'granted' since
-    // getCurrentPosition resolves without prompting.
-    if (navigator.permissions && navigator.permissions.query) {
-      var _origQuery = navigator.permissions.query.bind(navigator.permissions);
+    // getCurrentPosition resolves without prompting. Patch on
+    // Permissions.prototype rather than navigator.permissions so the
+    // override does not leak as an own-property of navigator.permissions
+    // (clean Chromium has Object.getOwnPropertyNames(navigator.permissions)
+    // === [], with `query` only on the prototype).
+    if (typeof Permissions !== 'undefined' && navigator.permissions
+        && navigator.permissions.query) {
+      var _origQuery = Permissions.prototype.query;
       var _query = function query(p) {
         if (p && p.name === 'geolocation') {
           var status = {};
@@ -189,10 +194,14 @@
           status.dispatchEvent = function() { return true; };
           return Promise.resolve(status);
         }
-        return _origQuery(p);
+        return _origQuery.call(this, p);
       };
       asNative(_query, 'query');
-      try { navigator.permissions.query = _query; } catch (e) {}
+      try {
+        Object.defineProperty(Permissions.prototype, 'query', {
+          value: _query, configurable: true, writable: true, enumerable: true,
+        });
+      } catch (e) {}
     }
   }
 
