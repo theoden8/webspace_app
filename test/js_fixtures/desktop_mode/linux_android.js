@@ -50,7 +50,7 @@
 
   // --- Touch / platform signals ---
   def('maxTouchPoints', asNative(function() { return 0; }, 'maxTouchPoints'));
-  def('platform', asNative(function() { return "MacIntel"; }, 'platform'));
+  def('platform', asNative(function() { return "Linux x86_64"; }, 'platform'));
 
   // Remove `'ontouchstart' in window`. Clean desktop Chromium does not
   // expose ontouchstart at all (it's only on Window.prototype on touch
@@ -59,6 +59,29 @@
   // own-property. Delete from both window and Window.prototype.
   try { delete window.ontouchstart; } catch (e) {}
   try { delete Window.prototype.ontouchstart; } catch (e) {}
+
+  // --- Layout viewport spoof (Android host only) ---
+  // Android Chromium WebView does not recompute layout when the meta
+  // viewport content is mutated post-parse, so the rewrite below
+  // updates the attribute string without changing window.innerWidth or
+  // CSS width media queries. Pin the JS-visible window size to a
+  // typical 1366x768 laptop so React Native Web's Dimensions API and
+  // hand-rolled `innerWidth >= N` checks see desktop. The matchMedia
+  // wrapper forges (min/max-width) queries against the same value so
+  // libraries that go through matchMedia (Bluesky's useWebMediaQueries,
+  // CSS-in-JS media-query helpers) get the same answer.
+  function defWin(name, val) {
+    try {
+      Object.defineProperty(window, name, {
+        get: asNative(function() { return val; }, name),
+        configurable: true
+      });
+    } catch (e) {}
+  }
+  defWin('innerWidth', 1366);
+  defWin('outerWidth', 1366);
+  defWin('innerHeight', 768);
+  defWin('outerHeight', 768);
 
   // --- matchMedia wrapper for pointer/hover queries ---
   // Force `(pointer: fine)`, `(hover: hover)`, and the `any-*` variants
@@ -73,6 +96,34 @@
         /\((?:any-)?pointer:\s*fine\)|\((?:any-)?hover:\s*hover\)/i;
       var FORCE_FALSE =
         /\((?:any-)?pointer:\s*coarse\)|\((?:any-)?hover:\s*none\)/i;
+      // Width-clause evaluation against the spoofed 1366 viewport.
+      // Returns true/false if the query is purely width-based and we
+      // can answer it; null if the query carries any clause we don't
+      // recognise (orientation, color, etc.) so we fall through to
+      // native matchMedia.
+      var WIDTH_RE =
+        /\((max|min)-(?:device-)?width:\s*(\d+(?:\.\d+)?)\s*(?:px|em|rem)?\s*\)/gi;
+      function evalWidthClauses(query) {
+        var q = String(query).toLowerCase().trim();
+        WIDTH_RE.lastIndex = 0;
+        var clauses = [];
+        var m;
+        while ((m = WIDTH_RE.exec(q)) !== null) {
+          clauses.push([m[1], parseFloat(m[2])]);
+        }
+        if (clauses.length === 0) return null;
+        var residual = q.replace(WIDTH_RE, '')
+          .replace(/\b(only|all|screen|and)\b/g, '')
+          .replace(/[(),\s]+/g, '');
+        if (residual.length > 0) return null;
+        for (var i = 0; i < clauses.length; i++) {
+          var op = clauses[i][0];
+          var val = clauses[i][1];
+          if (op === 'min' && 1366 < val) return false;
+          if (op === 'max' && 1366 > val) return false;
+        }
+        return true;
+      }
 
       function synthetic(query, matches) {
         var listeners = [];
@@ -97,6 +148,8 @@
         if (typeof query === 'string') {
           if (FORCE_TRUE.test(query)) return synthetic(query, true);
           if (FORCE_FALSE.test(query)) return synthetic(query, false);
+          var w = evalWidthClauses(query);
+          if (w !== null) return synthetic(query, w);
         }
         return origMM(query);
       };

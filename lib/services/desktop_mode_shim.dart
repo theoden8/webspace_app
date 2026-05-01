@@ -25,17 +25,111 @@
 // into `InAppWebViewSettings.userAgentMetadata` on Android (fork patch
 // over `WebSettingsCompat.setUserAgentMetadata`). This shim only
 // patches the JS-side surfaces; the wire-level headers live there.
+//
+// `spoofLayoutViewport=true` adds Android-specific layout spoofs:
+// `window.innerWidth`/`outerWidth`/`innerHeight`/`outerHeight` are
+// pinned to 1366x768, and the matchMedia wrapper additionally forges
+// width-based queries against that fake size. Android Chromium WebView
+// does NOT recompute layout when `<meta name=viewport>` content is
+// mutated post-parse, so the meta-rewrite below is silently ignored
+// for layout — `window.innerWidth` stays at the device's CSS width
+// (~412 on a Pixel) and CSS `(max-width: 1300px)` matches, sending
+// React Native Web sites like Bluesky down their mobile branch. iOS
+// WKWebView re-evaluates on mutation (and synthesizes a desktop
+// viewport at the WebKit level via `preferredContentMode=.desktop`
+// regardless), so this spoof is gated to Android.
 
 import 'package:webspace/services/user_agent_classifier.dart';
+
+const int _spoofViewportWidth = 1366;
+const int _spoofViewportHeight = 768;
 
 /// Build the per-site desktop-mode shim for [userAgent]. The caller is
 /// responsible for only invoking this when [isDesktopUserAgent] returns
 /// true; the shim assumes the UA is desktop-shaped and uses
 /// [inferDesktopUaPlatform] to pick the matching `navigator.platform`.
-String buildDesktopModeShim(String userAgent) {
+///
+/// [spoofLayoutViewport] controls the Android-only JS-side viewport
+/// override (see file header). Pass `true` on Android, `false`
+/// elsewhere — iOS already reports a desktop viewport via
+/// `preferredContentMode=.desktop`.
+String buildDesktopModeShim(
+  String userAgent, {
+  bool spoofLayoutViewport = false,
+}) {
   final platform = inferDesktopUaPlatform(userAgent);
   final navPlatform = navigatorPlatformFor(platform);
   final navPlatformJs = _jsString(navPlatform);
+  final spoofW = _spoofViewportWidth;
+  final spoofH = _spoofViewportHeight;
+  final spoofViewportBlock = spoofLayoutViewport
+      ? '''
+
+  // --- Layout viewport spoof (Android host only) ---
+  // Android Chromium WebView does not recompute layout when the meta
+  // viewport content is mutated post-parse, so the rewrite below
+  // updates the attribute string without changing window.innerWidth or
+  // CSS width media queries. Pin the JS-visible window size to a
+  // typical 1366x768 laptop so React Native Web's Dimensions API and
+  // hand-rolled `innerWidth >= N` checks see desktop. The matchMedia
+  // wrapper forges (min/max-width) queries against the same value so
+  // libraries that go through matchMedia (Bluesky's useWebMediaQueries,
+  // CSS-in-JS media-query helpers) get the same answer.
+  function defWin(name, val) {
+    try {
+      Object.defineProperty(window, name, {
+        get: asNative(function() { return val; }, name),
+        configurable: true
+      });
+    } catch (e) {}
+  }
+  defWin('innerWidth', $spoofW);
+  defWin('outerWidth', $spoofW);
+  defWin('innerHeight', $spoofH);
+  defWin('outerHeight', $spoofH);
+'''
+      : '';
+
+  final widthClauseHelpers = spoofLayoutViewport
+      ? '''
+      // Width-clause evaluation against the spoofed $spoofW viewport.
+      // Returns true/false if the query is purely width-based and we
+      // can answer it; null if the query carries any clause we don't
+      // recognise (orientation, color, etc.) so we fall through to
+      // native matchMedia.
+      var WIDTH_RE =
+        /\\((max|min)-(?:device-)?width:\\s*(\\d+(?:\\.\\d+)?)\\s*(?:px|em|rem)?\\s*\\)/gi;
+      function evalWidthClauses(query) {
+        var q = String(query).toLowerCase().trim();
+        WIDTH_RE.lastIndex = 0;
+        var clauses = [];
+        var m;
+        while ((m = WIDTH_RE.exec(q)) !== null) {
+          clauses.push([m[1], parseFloat(m[2])]);
+        }
+        if (clauses.length === 0) return null;
+        var residual = q.replace(WIDTH_RE, '')
+          .replace(/\\b(only|all|screen|and)\\b/g, '')
+          .replace(/[(),\\s]+/g, '');
+        if (residual.length > 0) return null;
+        for (var i = 0; i < clauses.length; i++) {
+          var op = clauses[i][0];
+          var val = clauses[i][1];
+          if (op === 'min' && $spoofW < val) return false;
+          if (op === 'max' && $spoofW > val) return false;
+        }
+        return true;
+      }
+'''
+      : '';
+
+  // Leading "\n" because Dart strips the newline that immediately
+  // follows an opening `'''`, and we want this to land on its own
+  // line under the FORCE_FALSE check.
+  final widthClauseDispatch = spoofLayoutViewport
+      ? '\n          var w = evalWidthClauses(query);'
+          '\n          if (w !== null) return synthetic(query, w);'
+      : '';
 
   return '''
 (function(){
@@ -99,12 +193,13 @@ String buildDesktopModeShim(String userAgent) {
   // own-property. Delete from both window and Window.prototype.
   try { delete window.ontouchstart; } catch (e) {}
   try { delete Window.prototype.ontouchstart; } catch (e) {}
-
+$spoofViewportBlock
   // --- matchMedia wrapper for pointer/hover queries ---
   // Force `(pointer: fine)`, `(hover: hover)`, and the `any-*` variants
   // to match; force `coarse`/`none` opposites not to match. Other queries
   // (width-based, prefers-color-scheme, etc.) fall through to the real
-  // implementation.
+  // implementation — except width queries when spoofLayoutViewport is on,
+  // which are answered against the spoofed $spoofW viewport.
   try {
     var origMM = window.matchMedia && window.matchMedia.bind(window);
     if (origMM) {
@@ -112,6 +207,7 @@ String buildDesktopModeShim(String userAgent) {
         /\\((?:any-)?pointer:\\s*fine\\)|\\((?:any-)?hover:\\s*hover\\)/i;
       var FORCE_FALSE =
         /\\((?:any-)?pointer:\\s*coarse\\)|\\((?:any-)?hover:\\s*none\\)/i;
+$widthClauseHelpers
       function synthetic(query, matches) {
         var listeners = [];
         return {
@@ -134,7 +230,7 @@ String buildDesktopModeShim(String userAgent) {
       var _patchedMM = function matchMedia(query) {
         if (typeof query === 'string') {
           if (FORCE_TRUE.test(query)) return synthetic(query, true);
-          if (FORCE_FALSE.test(query)) return synthetic(query, false);
+          if (FORCE_FALSE.test(query)) return synthetic(query, false);$widthClauseDispatch
         }
         return origMM(query);
       };
@@ -147,14 +243,14 @@ String buildDesktopModeShim(String userAgent) {
   // A site shipping `<meta name=viewport content="width=device-width">`
   // defeats `useWideViewPort`: CSS lays out at the phone's real CSS pixel
   // width, so responsive breakpoints pick the mobile layout. Rewrite any
-  // viewport meta to a desktop-ish width=1366 (a common laptop width)
+  // viewport meta to a desktop-ish width=$spoofW (a common laptop width)
   // as soon as it appears. Must clear the widest "desktop" breakpoint a
   // mainstream site uses; Bluesky gates `isDesktop` on
   // `(min-width: 1300px)` and treats 800-1299 as tablet, so a viewport
-  // <=1299 ships the tablet layout on Android (where the meta-rewrite
-  // is the only viewport signal — iOS WKWebView synthesizes a desktop
-  // viewport at the WebKit level via preferredContentMode=.desktop).
-  var VIEWPORT_CONTENT = 'width=1366, initial-scale=1.0';
+  // <=1299 ships the tablet layout. iOS WKWebView re-evaluates the
+  // meta on mutation; Android Chromium WebView does not, which is why
+  // spoofLayoutViewport additionally pins window.innerWidth above.
+  var VIEWPORT_CONTENT = 'width=$spoofW, initial-scale=1.0';
   function rewriteExistingViewports() {
     try {
       var metas = document.querySelectorAll('meta[name="viewport" i]');
@@ -185,12 +281,10 @@ String buildDesktopModeShim(String userAgent) {
     }
   } catch (e) {}
 
-  // Intentionally NOT spoofing `window.devicePixelRatio` or
-  // `window.innerWidth` / `screen.width`. DPR is orthogonal to desktop-vs-
-  // mobile layout — modern retina displays report dpr >= 2 — and width
-  // properties are backed by native layout measurements; the meta-viewport
-  // rewrite above handles width-based layout via the WebView's own
-  // useWideViewPort path.
+  // Intentionally NOT spoofing `window.devicePixelRatio` or `screen.width`.
+  // DPR is orthogonal to desktop-vs-mobile layout — modern retina displays
+  // report dpr >= 2 — and screen.* would conflict with the
+  // anti-fingerprinting shim's screen overrides.
 })();
 ''';
 }
