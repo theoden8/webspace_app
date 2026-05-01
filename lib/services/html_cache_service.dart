@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -18,6 +18,13 @@ class HtmlCacheService {
   static HtmlCacheService? _instance;
   static HtmlCacheService get instance => _instance ??= HtmlCacheService._();
 
+  /// Reset the singleton. Tests use this between cases so each starts
+  /// with empty in-memory cache and a fresh eviction-generation table.
+  @visibleForTesting
+  static void resetForTesting() {
+    _instance = null;
+  }
+
   HtmlCacheService._();
 
   Directory? _cacheDirectory;
@@ -27,7 +34,7 @@ class HtmlCacheService {
   /// In-memory cache for sync access during build
   final Map<String, String> _memoryCache = {};
 
-  final _secureStorage = const FlutterSecureStorage();
+  FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   /// Initialize the cache service. Call on app startup.
   ///
@@ -37,8 +44,15 @@ class HtmlCacheService {
   /// callee can read existing entries (encryption is live) and copy
   /// data that should survive the wipe — used to migrate file-import
   /// HTML into [HtmlImportStorage] before the cache is nuked.
-  Future<void> initialize({Future<void> Function()? beforeUpgradeWipe}) async {
-    final appDir = await getApplicationDocumentsDirectory();
+  Future<void> initialize({
+    Future<void> Function()? beforeUpgradeWipe,
+    @visibleForTesting Directory? overrideAppDir,
+    @visibleForTesting FlutterSecureStorage? secureStorage,
+  }) async {
+    if (secureStorage != null) {
+      _secureStorage = secureStorage;
+    }
+    final appDir = overrideAppDir ?? await getApplicationDocumentsDirectory();
     _cacheDirectory = Directory('${appDir.path}/$_cacheDir');
 
     // Initialize encryption
@@ -220,6 +234,37 @@ class HtmlCacheService {
   /// to skip saves that fire inside the [_minSaveInterval] window.
   final Map<String, DateTime> _lastSaveAt = {};
 
+  /// Per-site eviction generation. Bumped synchronously by [evictInMemory]
+  /// (and by full [deleteCache], which delegates to [evictInMemory]).
+  /// [saveHtml] captures the generation at entry and re-checks before
+  /// committing the encrypted bytes — a save that started against
+  /// generation N drops if an eviction has bumped it to N+1 in flight.
+  /// Closes the race where the disposed webview's `onLoadStop`
+  /// `getHtml()` IPC resolves after the user pressed Home and writes
+  /// the stale snapshot back over the freshly-evicted entry.
+  final Map<String, int> _evictionGen = {};
+
+  /// Synchronously drops the in-memory snapshot and debounce timestamp
+  /// for [siteId] and bumps the eviction generation so any in-flight
+  /// [saveHtml] for the same site is rejected at write time.
+  ///
+  /// Sync by design: callers (notably `_goHome`) need the next webview
+  /// rebuild's `getHtmlSync(siteId)` to return null in the same event-loop
+  /// turn, before the rebuild's build phase runs. An async eviction loses
+  /// that race.
+  ///
+  /// Disk file is left alone — the next live `saveHtml` overwrites it.
+  /// If no live save fires before app close (cold-killed mid-load), the
+  /// stale on-disk snapshot is read back into memory by `preloadCache`
+  /// at next launch and overwritten by the cached-then-live path on
+  /// first webview rebuild. Use [deleteCache] when the disk file must
+  /// also go (orphan cleanup, explicit site deletion).
+  void evictInMemory(String siteId) {
+    _evictionGen[siteId] = (_evictionGen[siteId] ?? 0) + 1;
+    _memoryCache.remove(siteId);
+    _lastSaveAt.remove(siteId);
+  }
+
   /// Returns true if a save for [siteId] should proceed right now.
   /// False means the caller should skip the save (and, in particular,
   /// skip the upstream `controller.getHtml()` IPC into the renderer
@@ -271,6 +316,8 @@ class HtmlCacheService {
       return;
     }
 
+    final genAtEntry = _evictionGen[siteId] ?? 0;
+
     try {
       final file = _getCacheFile(siteId);
 
@@ -279,7 +326,27 @@ class HtmlCacheService {
       final encrypted = _encrypt(plaintext);
       if (encrypted == null) return;
 
+      // An eviction (e.g. from `_goHome`) that lands between entry and
+      // here invalidates this save: the call site explicitly asked the
+      // cache to drop this site, and committing now would silently
+      // resurrect the stale bytes the user just told us to forget.
+      if ((_evictionGen[siteId] ?? 0) != genAtEntry) {
+        LogService.instance.log('HtmlCache', 'Skipping save for $siteId - evicted before write');
+        return;
+      }
+
       await file.writeAsString(encrypted);
+
+      // Eviction can also race the file write itself. Roll back on disk
+      // so a cold restart's `preloadCache` doesn't pick up content the
+      // call site told us to drop.
+      if ((_evictionGen[siteId] ?? 0) != genAtEntry) {
+        try {
+          if (await file.exists()) await file.delete();
+        } catch (_) {}
+        LogService.instance.log('HtmlCache', 'Rolled back save for $siteId - evicted during write');
+        return;
+      }
 
       // Update memory cache and debounce timestamp
       _memoryCache[siteId] = html;
@@ -326,15 +393,19 @@ class HtmlCacheService {
     return file.exists();
   }
 
-  /// Delete cached HTML for a site
+  /// Delete cached HTML for a site (memory + disk).
+  ///
+  /// Bumps the eviction generation synchronously via [evictInMemory]
+  /// before awaiting the file delete, so an in-flight [saveHtml] for
+  /// the same site cannot land on the cleared entry while the disk
+  /// delete is in progress.
   Future<void> deleteCache(String siteId) async {
+    evictInMemory(siteId);
     if (_cacheDirectory == null) return;
     final file = _getCacheFile(siteId);
     if (await file.exists()) {
       await file.delete();
     }
-    _memoryCache.remove(siteId);
-    _lastSaveAt.remove(siteId);
   }
 
   /// Delete cached HTML for sites not in the provided set
@@ -347,9 +418,8 @@ class HtmlCacheService {
         final filename = entity.path.split('/').last;
         final siteId = filename.replaceAll('.enc', '');
         if (!activeSiteIds.contains(siteId)) {
+          evictInMemory(siteId);
           await entity.delete();
-          _memoryCache.remove(siteId);
-    _lastSaveAt.remove(siteId);
           LogService.instance.log('HtmlCache', 'Removed orphaned cache for $siteId', level: LogLevel.info);
         }
       }
