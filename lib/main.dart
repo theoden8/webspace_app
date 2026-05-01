@@ -1047,20 +1047,38 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _saveWebViewModels();
   }
 
-  /// Drop the cached HTML for a site — but only when we're online. When
-  /// offline the cached snapshot is the only content we can render, so
-  /// preserve it until a live reload can overwrite it (via the
-  /// `onHtmlLoaded` callback on the next successful `onLoadStop`).
+  /// Drop the cached HTML snapshot for a site so the next webview rebuild
+  /// boots clean — but only when we're (likely) online. When offline the
+  /// cached snapshot is the only content we can render, so preserve it
+  /// until a live reload can overwrite it (via the `onHtmlLoaded` callback
+  /// on the next successful `onLoadStop`).
   ///
-  /// Fire-and-forget so synchronous call sites (notably `_goHome`, which is
-  /// synchronous by design per navigation spec RACE-004) stay synchronous.
-  /// The connectivity probe resolves in a few ms; the worst case is a brief
-  /// window where a freshly-rebuilt webview renders the stale snapshot, and
-  /// then the next live navigation replaces it.
-  void _deleteCacheIfOnline(String siteId) {
-    ConnectivityService.instance.isOnline().then((online) {
-      if (online) HtmlCacheService.instance.deleteCache(siteId);
-    });
+  /// Synchronous in-memory eviction. Sync because callers like `_goHome`
+  /// dispose the webview and trigger a rebuild in the same event-loop turn
+  /// — `getHtmlSync(siteId)` runs during that rebuild's build phase, so an
+  /// async eviction loses the race and the rebuilt webview boots with the
+  /// stale snapshot anyway. The eviction also bumps the
+  /// [HtmlCacheService] generation, so any `saveHtml` for the same siteId
+  /// already in flight (e.g. the previous `controller.getHtml()` IPC
+  /// resolving after dispose) is rejected at write time and cannot
+  /// resurrect the stale bytes the call site just dropped.
+  ///
+  /// Online gate uses [ConnectivityService.lastKnownOnline] (primed at
+  /// startup, refreshed by every probe). Treats unknown as online so
+  /// post-startup callers get the eviction; the only cost of a wrong
+  /// guess offline is losing the cached fallback for one rebuild —
+  /// `controller.reload()` is itself online-gated in [WebViewFactory], so
+  /// nothing tries to fetch a live page we can't reach.
+  ///
+  /// Disk file is left alone. The next live `saveHtml` overwrites it; if
+  /// the app is killed before that fires, `preloadCache` reads it back at
+  /// next launch and the cached-then-live rebuild path heals it on first
+  /// webview load. Use [HtmlCacheService.deleteCache] when the disk file
+  /// must also go (orphan cleanup, explicit site deletion).
+  void _evictCacheIfOnline(String siteId) {
+    if (ConnectivityService.instance.lastKnownOnline ?? true) {
+      HtmlCacheService.instance.evictInMemory(siteId);
+    }
   }
 
   /// Dispose the current site's webview so the next render recreates it
@@ -1074,7 +1092,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// would render the pre-edit DOM before the new scripts re-run.
   void _resetCurrentSiteWebView() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
-    _deleteCacheIfOnline(_webViewModels[_currentIndex!].siteId);
+    _evictCacheIfOnline(_webViewModels[_currentIndex!].siteId);
     setState(() {
       _webViewModels[_currentIndex!].disposeWebView();
     });
@@ -1087,7 +1105,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   void _resetAllWebViews() {
     for (final model in _webViewModels) {
       if (model.enabledGlobalScriptIds.isNotEmpty) {
-        _deleteCacheIfOnline(model.siteId);
+        _evictCacheIfOnline(model.siteId);
       }
     }
     setState(() {
@@ -2398,13 +2416,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   /// Navigate to the site's initial URL and clear navigation history.
   /// Disposes the webview so it's recreated fresh with no back history.
-  /// Drops the HTML cache (online only) so the next load starts from the
-  /// live site rather than a stale cached frame. Offline: the cache is
+  /// Evicts the in-memory HTML cache snapshot (online only) so the
+  /// rebuilt webview boots clean and goes straight to the live home URL
+  /// rather than flashing a stale cached frame. Offline: the cache is
   /// preserved — it's the only content we can render without network.
   void _goHome() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
     final model = _webViewModels[_currentIndex!];
-    _deleteCacheIfOnline(model.siteId);
+    _evictCacheIfOnline(model.siteId);
     model.currentUrl = model.initUrl;
     model.disposeWebView();
     _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
