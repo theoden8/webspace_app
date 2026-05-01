@@ -164,33 +164,62 @@ underlying mobile WebView's signals.
 
 ---
 
-## Known limitation: `Sec-CH-UA-*` HTTP headers
+### Requirement: DM-003 — Sec-CH-UA-* tracks the spoofed UA on Android
 
-The `Sec-CH-UA`, `Sec-CH-UA-Mobile`, and `Sec-CH-UA-Platform` HTTP
-request headers are emitted by the native Chromium WebView (Android) /
-WebKit (iOS) from a **User-Agent metadata object** that is independent of
-the UA string. flutter_inappwebview does not expose this metadata
-object; an earlier attempt to override the headers via
-`URLRequest.headers` (Android `loadUrl(url, additionalHttpHeaders)`) was
-empirically confirmed to be discarded by Chromium's network stack —
-even on the main document, the headers reach the server as `?1` /
-`"Android"` / `"Android WebView"` regardless of the UA string we set.
+The system SHALL override the `Sec-CH-UA`, `Sec-CH-UA-Mobile`, and
+`Sec-CH-UA-Platform` HTTP request headers and the
+`navigator.userAgentData` JS surface so they stay consistent with the
+per-site User-Agent string. Chromium WebView emits these values from a
+**User-Agent metadata object** independent of the UA string; without an
+override a desktop UA leaks `Sec-CH-UA-Mobile: ?1` and
+`Sec-CH-UA-Platform: "Android"`, and sites that gate on UA-CH rather
+than the UA string (DuckDuckGo, anti-bot vendors) keep serving mobile
+layouts and observe a contradictory fingerprint.
 
-A site that gates its layout strictly on `Sec-CH-UA-Mobile` rather than
-on `navigator.userAgentData` or the UA string will continue to receive
-the mobile layout even with a desktop UA. **DuckDuckGo (`duckduckgo.com`)
-is a confirmed example**: it reads the header and serves mobile no matter
-what UA / shim we present from Dart. WhatsApp Web, Bluesky, and X read
-`navigator.userAgentData` and the UA string, so the shim + UA together
-fix them.
+The override is wired through
+[`InAppWebViewSettings.userAgentMetadata`] →
+`androidx.webkit.WebSettingsCompat.setUserAgentMetadata` (gated on
+`WebViewFeature.USER_AGENT_METADATA`), and applied for every non-empty
+per-site UA — desktop or mobile — at webview-creation time. On iOS /
+macOS / Linux there is no equivalent native API; the field is
+serialized but the platform plugin silently drops it.
 
-The only fix from the app side is exposing
-`WebSettingsCompat.setUserAgentMetadata()` (Android 13.3+, androidx.webkit
-1.5.0+; analogous WKWebView API on iOS) through a
-flutter_inappwebview plugin patch. That requires either a fork or an
-upstream PR — based on the issue history (`#1458`, `#1713`, `#682`,
-`#2132`, `#2528`, all closed without maintainer reply) the upstream
-path is dead. Not currently implemented.
+#### Scenario: Desktop UA → Sec-CH-UA-Mobile reads `?0`
+
+**Given** a site with `userAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:147.0) Gecko/20100101 Firefox/147.0"`
+**When** the webview is created on Android
+**Then** `InAppWebViewSettings.userAgentMetadata.mobile` is `false`
+**And** `userAgentMetadata.platform` is `"Linux"`
+
+#### Scenario: Mobile UA → Sec-CH-UA-Mobile reads `?1`
+
+**Given** a site with `userAgent = "Mozilla/5.0 (Android 16; Mobile; rv:147.0) Gecko/20100101 Firefox/147.0"`
+**When** the webview is created on Android
+**Then** `userAgentMetadata.mobile` is `true`
+**And** `userAgentMetadata.platform` is `"Android"`
+
+#### Scenario: Brand list matches the UA family
+
+**Given** a site with a Firefox-shaped UA
+**When** the webview is created on Android
+**Then** `userAgentMetadata.brandVersionList` carries a Firefox brand
+entry whose `majorVersion` equals the UA's `Firefox/N` major
+**And** the list is prefixed with the W3C-recommended GREASE entry
+(`brand: "Not.A/Brand"`, `majorVersion: "99"`)
+
+**Given** a site with a Chrome-shaped UA
+**When** the webview is created on Android
+**Then** the brand list carries `"Chromium"` and `"Google Chrome"`
+entries with the parsed version
+**And** is prefixed with the GREASE entry
+
+#### Scenario: Empty UA → no override
+
+**Given** a site with `userAgent = ""`
+**When** the webview is created on Android
+**Then** `userAgentMetadata` is `null`
+**And** the platform default UA-CH metadata reaches the wire — we do not
+manufacture a fake brand list when the user has not chosen a UA.
 
 ---
 
@@ -200,6 +229,8 @@ path is dead. Not currently implemented.
 |------|------|
 | `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, canonical Firefox desktop UA constants |
 | `lib/services/desktop_mode_shim.dart` | `buildDesktopModeShim(userAgent)` — JS source for AT_DOCUMENT_START injection |
-| `lib/services/webview.dart` | `createWebView`: injects shim and sets `preferredContentMode` based on `isDesktopUserAgent(config.userAgent)` |
+| `lib/services/user_agent_metadata_builder.dart` | `buildUserAgentMetadata(userAgent)` — UA-CH override mapped 1:1 with the spoofed UA. Wired through to `WebSettingsCompat.setUserAgentMetadata` on Android via the fork's `InAppWebViewSettings.userAgentMetadata`. |
+| `lib/services/webview.dart` | `createWebView`: injects shim, sets `preferredContentMode`, and assigns `userAgentMetadata` from the per-site UA |
 | `test/user_agent_classifier_test.dart` | Coverage for the inference helpers |
 | `test/desktop_mode_shim_test.dart` | Coverage for the JS shim source generation |
+| `test/user_agent_metadata_builder_test.dart` | Coverage for the UA-CH override (mobile flag, platform, brand list, GREASE entry, wire shape) |

@@ -17,6 +17,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
+import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/download_engine.dart';
@@ -744,6 +745,11 @@ class _WebViewController implements WebViewController {
     settings: inapp.InAppWebViewSettings(
       javaScriptEnabled: javascriptEnabled,
       userAgent: userAgent,
+      // Keep Sec-CH-UA*/navigator.userAgentData consistent with the UA
+      // string. Webview recreation on UA edits is the primary path
+      // (DM-001), so this is a defensive parallel apply for the rare
+      // setSettings-only path.
+      userAgentMetadata: buildUserAgentMetadata(userAgent),
       thirdPartyCookiesEnabled: thirdPartyCookiesEnabled ?? false,
       incognito: incognito ?? false,
       // Preserve system-derived textZoom — the InAppWebViewSettings
@@ -1758,6 +1764,11 @@ class WebViewFactory {
     )
       ..javaScriptEnabled = config.javascriptEnabled
       ..userAgent = config.userAgent
+      // Sec-CH-UA*/navigator.userAgentData on Android come from a separate
+      // metadata object — not the UA string. Without this override the
+      // wire-level UA-CH headers contradict the spoofed UA. Silently
+      // ignored on iOS/macOS/Linux (no equivalent native API).
+      ..userAgentMetadata = buildUserAgentMetadata(config.userAgent)
       ..thirdPartyCookiesEnabled = config.thirdPartyCookiesEnabled
       ..incognito = config.incognito
       ..textZoom = textZoom
