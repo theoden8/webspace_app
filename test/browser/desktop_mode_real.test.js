@@ -261,7 +261,7 @@ test('viewport rewrite covers existing AND dynamically inserted metas',
       await page.evaluate(LINUX);
       const beforeInsert = await page.evaluate(() =>
         document.querySelector('meta[name="viewport" i]').getAttribute('content'));
-      assert.equal(beforeInsert, 'width=1280, initial-scale=1.0',
+      assert.equal(beforeInsert, 'width=1366, initial-scale=1.0',
         'rewriteExistingViewports must rewrite the static meta');
 
       const afterInsert = await page.evaluate(async () => {
@@ -274,7 +274,7 @@ test('viewport rewrite covers existing AND dynamically inserted metas',
         await new Promise((r) => setTimeout(r, 50));
         return m.getAttribute('content');
       });
-      assert.equal(afterInsert, 'width=1280, initial-scale=1.0',
+      assert.equal(afterInsert, 'width=1366, initial-scale=1.0',
         'MutationObserver must catch dynamically inserted viewport metas');
     } finally {
       await page.close();

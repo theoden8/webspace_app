@@ -72,8 +72,12 @@ void main() {
     });
 
     test('viewport rewrite uses a desktop-width content value', () {
+      // Must clear the widest "desktop" breakpoint a mainstream site
+      // uses. Bluesky gates `isDesktop` on `(min-width: 1300px)`, so
+      // anything <=1299 picks the tablet layout. 1366 is a common
+      // laptop width that comfortably clears that threshold.
       final js = buildDesktopModeShim(firefoxLinuxDesktopUserAgent);
-      expect(js, contains('width=1280'));
+      expect(js, contains('width=1366'));
     });
 
     test('does NOT spoof devicePixelRatio', () {

@@ -107,8 +107,14 @@
   // A site shipping `<meta name=viewport content="width=device-width">`
   // defeats `useWideViewPort`: CSS lays out at the phone's real CSS pixel
   // width, so responsive breakpoints pick the mobile layout. Rewrite any
-  // viewport meta to a desktop-ish width=1280 as soon as it appears.
-  var VIEWPORT_CONTENT = 'width=1280, initial-scale=1.0';
+  // viewport meta to a desktop-ish width=1366 (a common laptop width)
+  // as soon as it appears. Must clear the widest "desktop" breakpoint a
+  // mainstream site uses; Bluesky gates `isDesktop` on
+  // `(min-width: 1300px)` and treats 800-1299 as tablet, so a viewport
+  // <=1299 ships the tablet layout on Android (where the meta-rewrite
+  // is the only viewport signal — iOS WKWebView synthesizes a desktop
+  // viewport at the WebKit level via preferredContentMode=.desktop).
+  var VIEWPORT_CONTENT = 'width=1366, initial-scale=1.0';
   function rewriteExistingViewports() {
     try {
       var metas = document.querySelectorAll('meta[name="viewport" i]');

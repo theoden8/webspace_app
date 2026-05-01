@@ -57,11 +57,18 @@ When `isDesktopUserAgent(userAgent)` is true at webview-creation time:
    - `@media (pointer: fine)` / `(hover: hover)` and the `any-*` variants
      → forced match; `(pointer: coarse)` / `(hover: none)` → forced no-match.
      Other queries fall through to the real `matchMedia`.
-   - `<meta name="viewport">` → rewritten to `width=1280, initial-scale=1.0`,
+   - `<meta name="viewport">` → rewritten to `width=1366, initial-scale=1.0`,
      both for existing tags and via a `MutationObserver` for tags added
      later. This is what makes width-based responsive CSS pick the
      desktop layout, since `useWideViewPort` alone respects whatever
-     viewport meta the page ships.
+     viewport meta the page ships. The width must clear the widest
+     "desktop" breakpoint a mainstream site uses; Bluesky's
+     `useWebMediaQueries` gates `isDesktop` on `(min-width: 1300px)`
+     and treats 800-1299 as tablet, so a smaller value ships the
+     tablet layout on Android — iOS WKWebView synthesizes a desktop
+     viewport at the WebKit level via `preferredContentMode = .desktop`
+     and is unaffected, but on Android the meta-rewrite is the only
+     viewport signal.
    - **NOT spoofed**: `window.devicePixelRatio`, `window.innerWidth`,
      `screen.width`. DPR is orthogonal to layout (real retina desktops
      report dpr ≥ 2); the width properties are backed by native layout
@@ -152,7 +159,7 @@ underlying mobile WebView's signals.
 **Given** a page ships `<meta name="viewport" content="width=device-width, initial-scale=1">`
 **And** the site UA is desktop-shaped
 **When** the document is parsed
-**Then** the meta element's `content` attribute reads `width=1280, initial-scale=1.0` before layout runs
+**Then** the meta element's `content` attribute reads `width=1366, initial-scale=1.0` before layout runs
 **And** any later-injected viewport meta is also rewritten
 
 #### Scenario: Re-entrance guard prevents matchMedia recursion
