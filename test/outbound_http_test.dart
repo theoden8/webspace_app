@@ -248,4 +248,60 @@ void main() {
       expect(fake.queries[1].type, ProxyType.HTTP);
     });
   });
+
+  group('always-on Do Not Track / Sec-GPC headers', () {
+    test('every outbound request carries DNT: 1 and Sec-GPC: 1', () async {
+      // The privacy posture of this app is "do not track me" — every
+      // Dart-side outbound call (downloads, blocklist updates, favicon
+      // probes, user-script fetches) must advertise that on the wire
+      // even when the caller didn't set the headers explicitly.
+      late http.BaseRequest captured;
+      final fake = RecordingOutboundFactory(
+        clientBuilder: () => MockClient((req) async {
+          captured = req;
+          return http.Response('', 200);
+        }),
+      );
+      outboundHttp = fake;
+      addTearDown(resetOutboundHttp);
+
+      final result = outboundHttp.clientFor(
+        UserProxySettings(type: ProxyType.DEFAULT),
+      );
+      expect(result, isA<OutboundClientReady>());
+      final client = (result as OutboundClientReady).client;
+      addTearDown(client.close);
+      await client.get(Uri.parse('https://example.com/'));
+
+      expect(captured.headers['DNT'], '1');
+      expect(captured.headers['Sec-GPC'], '1');
+    });
+
+    test('caller-supplied DNT header is preserved (no double-set)', () async {
+      // The wrapper uses putIfAbsent so a test or odd-server probe that
+      // explicitly sets a different DNT value keeps it.
+      late http.BaseRequest captured;
+      final fake = RecordingOutboundFactory(
+        clientBuilder: () => MockClient((req) async {
+          captured = req;
+          return http.Response('', 200);
+        }),
+      );
+      outboundHttp = fake;
+      addTearDown(resetOutboundHttp);
+
+      final result = outboundHttp.clientFor(
+        UserProxySettings(type: ProxyType.DEFAULT),
+      );
+      final client = (result as OutboundClientReady).client;
+      addTearDown(client.close);
+      await client.get(
+        Uri.parse('https://example.com/'),
+        headers: {'DNT': '0'},
+      );
+
+      expect(captured.headers['DNT'], '0');
+      expect(captured.headers['Sec-GPC'], '1');
+    });
+  });
 }

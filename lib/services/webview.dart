@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -653,6 +654,10 @@ class _WebViewController implements WebViewController {
     // the request through the WebView's HTTP path and can get rejected as
     // "invalid URL".
     final isHttp = url.startsWith('http://') || url.startsWith('https://');
+    if (isHttp) {
+      headers['DNT'] = '1';
+      headers['Sec-GPC'] = '1';
+    }
     if (language != null && isHttp) {
       headers['Accept-Language'] = '$language, *;q=0.5';
     }
@@ -1174,8 +1179,13 @@ class WebViewFactory {
     required WebViewConfig config,
     required Function(WebViewController) onControllerCreated,
   }) {
-    // Build initial URL request with optional Accept-Language header
-    final headers = <String, String>{};
+    // Build initial URL request headers. DNT/Sec-GPC are always-on per
+    // the privacy posture of this app — every outbound nav advertises
+    // the user's no-tracking preference.
+    final headers = <String, String>{
+      'DNT': '1',
+      'Sec-GPC': '1',
+    };
     if (config.language != null) {
       headers['Accept-Language'] = '${config.language}, *;q=0.5';
     }
@@ -1246,6 +1256,17 @@ class WebViewFactory {
         forMainFrameOnly: false,
       ));
     }
+
+    // Always-on Do Not Track / Global Privacy Control. Installs the
+    // navigator.doNotTrack / navigator.globalPrivacyControl getters before
+    // any site script can read them — also covers iframes (fingerprinters
+    // routinely run inside one).
+    userScripts.add(inapp.UserScript(
+      groupName: 'do_not_track',
+      source: '${buildDoNotTrackShim()}\n;null;',
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      forMainFrameOnly: false,
+    ));
 
     // Blob URL capture: bridge sites whose CSP `connect-src` rejects
     // fetch(blob:) — the IIFE in `_handleBlobDownload` looks the Blob
