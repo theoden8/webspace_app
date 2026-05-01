@@ -3370,12 +3370,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     if (newUrl != null && newUrl != _webViewModels[index].initUrl) {
+      // Snapshot belongs to the old URL; deleteCache must run before the
+      // rebuild's getHtmlSync, which is why the sync in-memory eviction
+      // (inside deleteCache) is fired before setState rather than awaited.
+      final siteId = _webViewModels[index].siteId;
+      final deleteCache = HtmlCacheService.instance.deleteCache(siteId);
       setState(() {
         _webViewModels[index].initUrl = newUrl;
         _webViewModels[index].currentUrl = newUrl;
         _webViewModels[index].webview = null; // Force recreation with new URL
         _webViewModels[index].controller = null;
       });
+      await deleteCache;
     }
 
     await _saveWebViewModels();
