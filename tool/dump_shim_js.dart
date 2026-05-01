@@ -18,6 +18,7 @@
 
 import 'dart:io';
 
+import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
@@ -96,6 +97,16 @@ Map<String, String> buildAllFixtures() {
   )!;
 
   fixtures['do_not_track/shim.js'] = buildDoNotTrackShim();
+
+  // Two pinned seeds — one stable string for shape/behaviour tests, one
+  // variant to confirm the seed actually flows through (different seeds
+  // must produce different fingerprints for cross-site uniqueness, same
+  // seed must produce the same fingerprint across runs for per-site
+  // stability).
+  fixtures['anti_fingerprinting/shim_seed_alpha.js'] =
+      buildAntiFingerprintingShim('alpha-fixture-seed');
+  fixtures['anti_fingerprinting/shim_seed_beta.js'] =
+      buildAntiFingerprintingShim('beta-fixture-seed');
 
   fixtures['language/en.js'] = buildLanguageShim('en');
   fixtures['language/fr_FR.js'] = buildLanguageShim('fr-FR');

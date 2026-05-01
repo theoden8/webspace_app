@@ -22,6 +22,7 @@ void main() {
       expect(model.clearUrlEnabled, isTrue);
       expect(model.dnsBlockEnabled, isTrue);
       expect(model.contentBlockEnabled, isTrue);
+      expect(model.trackingProtectionEnabled, isTrue);
       expect(model.localCdnEnabled, isTrue);
       expect(model.fullscreenMode, isFalse);
       expect(model.notificationsEnabled, isFalse);
@@ -49,6 +50,7 @@ void main() {
       expect(json['clearUrlEnabled'], equals(true));
       expect(json['dnsBlockEnabled'], equals(true));
       expect(json['contentBlockEnabled'], equals(true));
+      expect(json['trackingProtectionEnabled'], equals(true));
       expect(json['localCdnEnabled'], equals(true));
       expect(json['fullscreenMode'], equals(false));
       expect(json['cookies'], isList);
@@ -104,6 +106,7 @@ void main() {
       expect(restored.clearUrlEnabled, equals(original.clearUrlEnabled));
       expect(restored.dnsBlockEnabled, equals(original.dnsBlockEnabled));
       expect(restored.contentBlockEnabled, equals(original.contentBlockEnabled));
+      expect(restored.trackingProtectionEnabled, equals(original.trackingProtectionEnabled));
       expect(restored.localCdnEnabled, equals(original.localCdnEnabled));
       expect(restored.fullscreenMode, equals(original.fullscreenMode));
     });
@@ -190,6 +193,38 @@ void main() {
 
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.contentBlockEnabled, isFalse);
+    });
+
+    test('trackingProtectionEnabled defaults to true when missing from JSON', () {
+      // Backward-compat: existing sites stored before this field was
+      // added must opt INTO Enhanced Tracking Protection on next launch
+      // (default true) so anti-fingerprinting + forced tracker blocking
+      // is on by default for upgraders, matching the constructor default.
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.trackingProtectionEnabled, isTrue);
+    });
+
+    test('trackingProtectionEnabled false is preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        trackingProtectionEnabled: false,
+      );
+
+      final json = model.toJson();
+      expect(json['trackingProtectionEnabled'], equals(false));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.trackingProtectionEnabled, isFalse);
     });
 
     test('localCdnEnabled defaults to true when missing from JSON', () {
