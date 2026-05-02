@@ -603,11 +603,19 @@ class FastSubresourceInterceptor(
 
             connection.connect()
             val statusCode = connection.responseCode
-            if (statusCode < 200 || statusCode >= 400) return null
+            if (statusCode < 200 || statusCode >= 400) {
+                onLog("WebIntercept",
+                    "Main-doc rewrite skipped: url=$url status=$statusCode")
+                return null
+            }
 
             val rawContentType = connection.contentType ?: ""
             val mime = rawContentType.substringBefore(';').trim().lowercase()
-            if (mime != "text/html" && mime != "application/xhtml+xml") return null
+            if (mime != "text/html" && mime != "application/xhtml+xml") {
+                onLog("WebIntercept",
+                    "Main-doc rewrite skipped: url=$url mime='$mime'")
+                return null
+            }
 
             val charsetName = parseCharset(rawContentType) ?: "UTF-8"
             val charset = try {
@@ -622,8 +630,10 @@ class FastSubresourceInterceptor(
             )
             val bodyBytes = bodyStream.use { it.readBytes() }
 
-            val rewritten = rewriteViewportMeta(String(bodyBytes, charset))
+            val original = String(bodyBytes, charset)
+            val rewritten = rewriteViewportMeta(original)
             val rewrittenBytes = rewritten.toByteArray(charset)
+            val rewriteApplied = rewritten != original
 
             // Re-apply Set-Cookie response headers to the WebView's
             // cookie jar. WebView does NOT auto-apply Set-Cookie from
@@ -642,6 +652,12 @@ class FastSubresourceInterceptor(
                     lk == "transfer-encoding" || lk == "content-type") continue
                 responseHeaders[key] = values.joinToString(",")
             }
+
+            onLog("WebIntercept",
+                "Main-doc rewrite: url=$url status=$statusCode mime=$mime " +
+                "charset=$charsetName origBytes=${bodyBytes.size} " +
+                "rewrittenBytes=${rewrittenBytes.size} applied=$rewriteApplied " +
+                "headers=${responseHeaders.size}")
 
             return WebResourceResponse(
                 "text/html",
