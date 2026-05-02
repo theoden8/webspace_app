@@ -2157,7 +2157,17 @@ class WebViewFactory {
         // populated, and the references are shared with the plugin so
         // subsequent updates are picked up without re-attaching.
         if (Platform.isAndroid) {
-          Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
+          Future.microtask(() => WebInterceptNative.attachToWebViews(
+                siteId: config.siteId,
+                // The native interceptor rewrites <meta name=viewport>
+                // on the wire for desktop-mode pages (Android Chromium
+                // WebView ignores meta-viewport mutations post-parse;
+                // the JS-shim's MutationObserver only changes the
+                // attribute string). iOS WKWebView synthesizes a
+                // desktop viewport via preferredContentMode=.desktop
+                // and doesn't need this.
+                desktopMode: desktopMode,
+              ));
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
