@@ -2609,11 +2609,20 @@ class WebViewFactory {
           LogService.instance.log(
             'WebView',
             'requesting native interceptor attach: siteId=${config.siteId} '
-                'initialUrl=${config.initialUrl}',
+                'initialUrl=${config.initialUrl} desktopMode=$desktopMode',
             level: LogLevel.debug,
             sensitivity: LogSensitivity.sensitive,
           );
-          Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
+          // The native interceptor rewrites <meta name=viewport> on the
+          // wire for desktop-mode pages (Android Chromium WebView
+          // ignores meta-viewport mutations post-parse; the JS-shim's
+          // MutationObserver only changes the attribute string). iOS
+          // WKWebView synthesizes a desktop viewport via
+          // preferredContentMode=.desktop and doesn't need this.
+          Future.microtask(() => WebInterceptNative.attachToWebViews(
+                siteId: config.siteId,
+                desktopMode: desktopMode,
+              ));
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
