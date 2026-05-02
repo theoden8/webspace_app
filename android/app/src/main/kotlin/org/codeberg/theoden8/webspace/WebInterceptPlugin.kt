@@ -303,13 +303,17 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     onLog = { tag, message -> log(tag, message) }
                 )
                 val handlerAfter = webView.contentBlockerHandler
+                val s = webView.settings
                 log("WebIntercept",
                     "Attached interceptor: siteId=$siteId desktop=$desktopMode " +
                     "dns=${dnsBlockedDomains.size} abp=${abpBlockedDomains.size} " +
                     "cdnPatterns=${cdnPatterns.size} cdnCache=${cdnCacheIndex.size} " +
                     "localCdnDisabled=${localCdnDisabled.get()} " +
                     "handler=${handlerAfter::class.java.simpleName} " +
-                    "ruleListSize=${handlerAfter.ruleList.size}")
+                    "ruleListSize=${handlerAfter.ruleList.size} " +
+                    "useWideViewPort=${s.useWideViewPort} " +
+                    "loadWithOverviewMode=${s.loadWithOverviewMode} " +
+                    "ua='${s.userAgentString.take(60)}…'")
             }
         }
         return webViews.size
