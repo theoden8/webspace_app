@@ -166,14 +166,19 @@ class WebInterceptNative {
 
   // ========== Shared ==========
 
-  static Future<int> attachToWebViews({String? siteId}) async {
+  static Future<int> attachToWebViews({
+    String? siteId,
+    bool desktopMode = false,
+  }) async {
     if (!isSupported) return 0;
     try {
       final count = await _channel.invokeMethod('attachToWebViews', {
         if (siteId != null) 'siteId': siteId,
+        'desktopMode': desktopMode,
       });
       LogService.instance.log('WebIntercept',
-          'Attached native interceptor to $count webviews (siteId: $siteId)');
+          'Attached native interceptor to $count webviews '
+          '(siteId: $siteId, desktopMode: $desktopMode)');
       return count as int;
     } catch (e) {
       LogService.instance.log('WebIntercept',
