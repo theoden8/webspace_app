@@ -116,7 +116,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | screenshots | integration-test driven |
 | settings-backup | JSON import/export |
 | site-editing | URL + custom name |
-| tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
+| tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
 | user-scripts | per-site JS injection w/ timing control |
 | webspaces | named site collections |
 | webview-hints | color-scheme, matchMedia, theme prelude cache |

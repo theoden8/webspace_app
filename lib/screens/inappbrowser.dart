@@ -24,6 +24,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool clearUrlEnabled;
   final bool dnsBlockEnabled;
   final bool contentBlockEnabled;
+  final bool localCdnEnabled;
   final bool trackingProtectionEnabled;
   final String? language;
   final bool showUrlBar;
@@ -55,6 +56,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.clearUrlEnabled,
     required this.dnsBlockEnabled,
     required this.contentBlockEnabled,
+    required this.localCdnEnabled,
     required this.trackingProtectionEnabled,
     required this.language,
     this.showUrlBar = false,
@@ -123,20 +125,37 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         initialUrl: widget.url,
         incognito: widget.incognito,
         thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
-        // Mirror parent: when umbrella protection is on, force the three
+        // Mirror parent: when umbrella protection is on, force the four
         // tracker-protection subordinates effectively-on regardless of
         // their stored value.
         clearUrlEnabled: widget.clearUrlEnabled || widget.trackingProtectionEnabled,
         dnsBlockEnabled: widget.dnsBlockEnabled || widget.trackingProtectionEnabled,
         contentBlockEnabled: widget.contentBlockEnabled || widget.trackingProtectionEnabled,
+        localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
         trackingProtectionEnabled: widget.trackingProtectionEnabled,
         language: widget.language,
-        locationMode: widget.locationMode,
+        // Live geolocation leaks the device's real position around any
+        // proxy and through every spoof shim, so the umbrella demotes
+        // it to off; static spoof coords are kept and force the
+        // timezone to "From picked location". With no coords the
+        // umbrella leaves the timezone alone.
+        locationMode: widget.trackingProtectionEnabled &&
+                widget.locationMode == LocationMode.live
+            ? LocationMode.off
+            : widget.locationMode,
         spoofLatitude: widget.spoofLatitude,
         spoofLongitude: widget.spoofLongitude,
         spoofAccuracy: widget.spoofAccuracy,
-        spoofTimezone: widget.spoofTimezone,
-        spoofTimezoneFromLocation: widget.spoofTimezoneFromLocation,
+        spoofTimezone: (widget.trackingProtectionEnabled &&
+                widget.spoofLatitude != null &&
+                widget.spoofLongitude != null)
+            ? null
+            : widget.spoofTimezone,
+        spoofTimezoneFromLocation: (widget.trackingProtectionEnabled &&
+                widget.spoofLatitude != null &&
+                widget.spoofLongitude != null)
+            ? true
+            : widget.spoofTimezoneFromLocation,
         webRtcPolicy: widget.webRtcPolicy,
         proxySettings: widget.proxySettings,
         userScripts: widget.userScripts,

@@ -475,9 +475,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Derive the active segment from current state. `Static` is selected
     // when there are coords AND we're not in live mode; `Live` is selected
     // when the live flag is on (regardless of whether stale coords linger
-    // — they're ignored on save in that branch).
+    // — they're ignored on save in that branch). Tracking Protection
+    // disallows live (it leaks real GPS around the proxy and shim) and
+    // forces the segment to Off when no coords are picked.
+    final bool liveBlocked = _trackingProtectionEnabled;
     final _LocationSegment selected = _isLiveLocation
-        ? _LocationSegment.live
+        ? (liveBlocked ? _LocationSegment.off : _LocationSegment.live)
         : (hasCoords ? _LocationSegment.staticCoords : _LocationSegment.off);
 
     void onSegmentChanged(Set<_LocationSegment> values) {
@@ -511,19 +514,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     final selector = SegmentedButton<_LocationSegment>(
-      segments: const [
-        ButtonSegment(
+      segments: [
+        const ButtonSegment(
             value: _LocationSegment.off,
             icon: Icon(Icons.location_disabled),
             label: Text('Off')),
-        ButtonSegment(
+        const ButtonSegment(
             value: _LocationSegment.staticCoords,
             icon: Icon(Icons.map_outlined),
             label: Text('Static')),
         ButtonSegment(
             value: _LocationSegment.live,
-            icon: Icon(Icons.my_location),
-            label: Text('Live')),
+            icon: const Icon(Icons.my_location),
+            label: const Text('Live'),
+            enabled: !liveBlocked),
       ],
       selected: {selected},
       onSelectionChanged: onSegmentChanged,
@@ -533,11 +537,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget detail;
     switch (selected) {
       case _LocationSegment.off:
-        detail = const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        detail = Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Text(
-            'Sites use the webview default (typically denied).',
-            style: TextStyle(fontSize: 12),
+            liveBlocked
+                ? 'Sites use the webview default (typically denied). '
+                    'Live tracking is blocked by Tracking Protection.'
+                : 'Sites use the webview default (typically denied).',
+            style: const TextStyle(fontSize: 12),
           ),
         );
         break;
@@ -648,11 +655,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? 'Download polygon dataset in App Settings'
             : 'Pick a location first');
 
-    final value = _spoofTimezoneFromLocation
+    // Tracking Protection forces the timezone to "From picked location"
+    // when coords are set so the spoofed Date/Intl values match the
+    // spoofed geo. With no coords picked the umbrella does NOT touch
+    // the timezone — the user's stored choice (or system default) stands.
+    final bool forceFromLocation = _trackingProtectionEnabled && hasCoords;
+    final String? value = forceFromLocation
         ? _kFromLocationSentinel
-        : (commonTimezones.any((e) => e.key == _spoofTimezone)
-            ? _spoofTimezone
-            : null);
+        : (_spoofTimezoneFromLocation
+            ? _kFromLocationSentinel
+            : (commonTimezones.any((e) => e.key == _spoofTimezone)
+                ? _spoofTimezone
+                : null));
 
     // The "From picked location" entry is conceptually a sibling of
     // "System default" (both auto-derive the timezone instead of taking
@@ -684,22 +698,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return DropdownButtonFormField<String?>(
       value: value,
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: 'Timezone',
-        helperText: 'Overrides Intl.DateTimeFormat and Date getters',
-        border: OutlineInputBorder(),
+        helperText: forceFromLocation
+            ? 'Forced to "From picked location" by Tracking Protection'
+            : 'Overrides Intl.DateTimeFormat and Date getters',
+        border: const OutlineInputBorder(),
       ),
       items: items,
       isExpanded: true,
-      onChanged: (v) => setState(() {
-        if (v == _kFromLocationSentinel) {
-          _spoofTimezoneFromLocation = true;
-          _spoofTimezone = null;
-        } else {
-          _spoofTimezoneFromLocation = false;
-          _spoofTimezone = v;
-        }
-      }),
+      onChanged: forceFromLocation
+          ? null
+          : (v) => setState(() {
+                if (v == _kFromLocationSentinel) {
+                  _spoofTimezoneFromLocation = true;
+                  _spoofTimezone = null;
+                } else {
+                  _spoofTimezoneFromLocation = false;
+                  _spoofTimezone = v;
+                }
+              }),
     );
   }
 
@@ -1060,6 +1078,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }
                     : null),
           ),
+          if (Platform.isAndroid)
+            SwitchListTile(
+              title: Row(
+                children: [
+                  const Text('LocalCDN'),
+                  const HintButton(
+                    title: 'LocalCDN',
+                    description:
+                        'Serves common CDN resources (JavaScript libraries, fonts, CSS frameworks) from a local cache '
+                        'instead of fetching them from third-party CDN servers. '
+                        'This prevents CDN providers from tracking your browsing activity across sites.',
+                  ),
+                ],
+              ),
+              subtitle: Text(
+                _trackingProtectionEnabled
+                    ? 'Forced on by Tracking Protection'
+                    : (LocalCdnService.instance.hasCache
+                        ? '${LocalCdnService.instance.resourceCount} cached resources'
+                        : 'Download the cache in app settings first'),
+              ),
+              value: (_localCdnEnabled || _trackingProtectionEnabled) &&
+                  LocalCdnService.instance.hasCache,
+              onChanged: _trackingProtectionEnabled
+                  ? null
+                  : (LocalCdnService.instance.hasCache
+                      ? (bool value) {
+                          setState(() {
+                            _localCdnEnabled = value;
+                          });
+                        }
+                      : null),
+            ),
           ListTile(
             title: const Text('User Scripts'),
             subtitle: Text(
@@ -1104,34 +1155,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          if (Platform.isAndroid)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  const Text('LocalCDN'),
-                  const HintButton(
-                    title: 'LocalCDN',
-                    description:
-                        'Serves common CDN resources (JavaScript libraries, fonts, CSS frameworks) from a local cache '
-                        'instead of fetching them from third-party CDN servers. '
-                        'This prevents CDN providers from tracking your browsing activity across sites.',
-                  ),
-                ],
-              ),
-              subtitle: Text(
-                LocalCdnService.instance.hasCache
-                    ? '${LocalCdnService.instance.resourceCount} cached resources'
-                    : 'Download the cache in app settings first',
-              ),
-              value: _localCdnEnabled && LocalCdnService.instance.hasCache,
-              onChanged: LocalCdnService.instance.hasCache
-                  ? (bool value) {
-                      setState(() {
-                        _localCdnEnabled = value;
-                      });
-                    }
-                  : null,
-            ),
           SwitchListTile(
             title: Row(
               children: [
