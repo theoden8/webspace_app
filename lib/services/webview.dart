@@ -1245,8 +1245,23 @@ class WebViewFactory {
     // to load the synthetic file:// URL — there's no actual file on
     // disk, so the load would surface as ERR_INVALID_URL or
     // ERR_FILE_NOT_FOUND in the user's face.
-    final renderInitialData = config.initialHtml != null || isFileImport;
-    final usesCachedHtml = config.initialHtml != null;
+    final desktopMode = isDesktopUserAgent(config.userAgent);
+
+    // Cached HTML is loaded via `InAppWebView.initialData` (synthetic
+    // in-memory document), which bypasses `shouldInterceptRequest` for
+    // the main document. On Android desktop-mode pages we NEED the
+    // main-doc fetch to flow through our native interceptor so the
+    // wire-level `<meta name=viewport>` rewrite runs before parse —
+    // skip the cached-HTML shortcut when desktop mode is on. Sites
+    // without a desktop UA, file imports, and non-Android platforms
+    // keep the existing cached-HTML behaviour for the offline-first /
+    // first-paint advantage it provides.
+    final skipCachedHtmlForDesktop =
+        desktopMode && Platform.isAndroid && !isFileImport;
+    final renderInitialData =
+        (config.initialHtml != null && !skipCachedHtmlForDesktop) || isFileImport;
+    final usesCachedHtml =
+        config.initialHtml != null && !skipCachedHtmlForDesktop;
     // One-shot: when the cached HTML's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
     // onLoadStop events (post-reload, or for SPA navigations) leave
@@ -1325,7 +1340,6 @@ class WebViewFactory {
     // see a coherent desktop fingerprint instead of an Android-mobile one
     // with a desktop UA glued on top. Runs at DOCUMENT_START so the
     // shim's properties are in place before any site script reads them.
-    final desktopMode = isDesktopUserAgent(config.userAgent);
     if (desktopMode) {
       userScripts.add(inapp.UserScript(
         groupName: 'desktop_mode_shim',
