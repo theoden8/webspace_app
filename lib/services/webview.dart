@@ -771,6 +771,22 @@ class _WebViewController implements WebViewController {
   @override
   Future<void> setThemePreference(WebViewTheme theme) async {
     final themeValue = theme == WebViewTheme.system ? 'system' : (theme == WebViewTheme.dark ? 'dark' : 'light');
+    // Rotate the DOCUMENT_START user script so future page loads
+    // (including controller.reload()) re-run the shim. Without this,
+    // a refresh drops the matchMedia override and `<meta name=
+    // "color-scheme">` and the page falls back to its own default
+    // (typically light), since onUrlChanged dedups same-URL events
+    // and skips its own evaluateJavascript reapplication.
+    final source = '${buildThemeColorSchemeShim(themeValue)}\n;null;';
+    try {
+      await _c.removeUserScriptsByGroupName(groupName: 'theme_color_scheme_shim');
+      await _c.addUserScript(userScript: inapp.UserScript(
+        groupName: 'theme_color_scheme_shim',
+        source: source,
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    } catch (_) {} // controller may be detached during teardown
     await evaluateJavascript(buildThemeColorSchemeShim(themeValue));
   }
 
