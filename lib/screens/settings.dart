@@ -1119,18 +1119,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               subtitle: Text(
-                LocalCdnService.instance.hasCache
-                    ? '${LocalCdnService.instance.resourceCount} cached resources'
-                    : 'Download the cache in app settings first',
+                _trackingProtectionEnabled
+                    ? 'Forced on by Tracking Protection'
+                    : (LocalCdnService.instance.hasCache
+                        ? '${LocalCdnService.instance.resourceCount} cached resources'
+                        : 'Download the cache in app settings first'),
               ),
-              value: _localCdnEnabled && LocalCdnService.instance.hasCache,
-              onChanged: LocalCdnService.instance.hasCache
-                  ? (bool value) {
-                      setState(() {
-                        _localCdnEnabled = value;
-                      });
-                    }
-                  : null,
+              value: (_localCdnEnabled || _trackingProtectionEnabled) &&
+                  LocalCdnService.instance.hasCache,
+              onChanged: _trackingProtectionEnabled
+                  ? null
+                  : (LocalCdnService.instance.hasCache
+                      ? (bool value) {
+                          setState(() {
+                            _localCdnEnabled = value;
+                          });
+                        }
+                      : null),
             ),
           SwitchListTile(
             title: Row(

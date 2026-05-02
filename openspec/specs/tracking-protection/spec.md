@@ -6,12 +6,12 @@
 ## Purpose
 
 Bundle the per-site tracker-blocking surfaces (`clearUrlEnabled`,
-`dnsBlockEnabled`, `contentBlockEnabled`) and a new anti-fingerprinting JS
-shim under one umbrella per-site toggle, modelled on Firefox's "Enhanced
-Tracking Protection". When the umbrella is on, the site is forced into
-the strongest-supported posture without users having to enable each axis
-separately; when it's off, the three sub-toggles fall back to their
-independent values.
+`dnsBlockEnabled`, `contentBlockEnabled`, `localCdnEnabled`) and an
+anti-fingerprinting JS shim under one umbrella per-site toggle, modelled
+on Firefox's "Enhanced Tracking Protection". When the umbrella is on,
+the site is forced into the strongest-supported posture without users
+having to enable each axis separately; when it's off, the four sub-
+toggles fall back to their independent values.
 
 ## Problem Statement
 
@@ -20,9 +20,11 @@ about separately:
 
 1. **Tracker network requests.** ClearURLs strips known tracking params,
    the DNS blocklist drops requests to known-tracker domains, the
-   content blocker hides ad/tracker subresources via filter lists. Each
-   has its own toggle, and a user who wants "block trackers for this
-   site" today has to know to flip three switches.
+   content blocker hides ad/tracker subresources via filter lists, and
+   LocalCDN serves popular third-party CDN libraries from an on-device
+   cache so the CDN provider can't observe browsing activity. Each has
+   its own toggle, and a user who wants "block trackers for this site"
+   today has to know to flip four switches.
 2. **Browser fingerprinting.** Tracker scripts that can't load network
    beacons can still re-identify a user across sessions via Canvas
    pixel hashes, WebGL vendor/renderer strings, audio synthesis output,
@@ -37,19 +39,19 @@ The umbrella addresses both: one switch, both behaviours.
 Add a per-site `trackingProtectionEnabled` boolean (default true) to
 `WebViewModel`. When true:
 
-* The three pre-existing toggles (`clearUrlEnabled`, `dnsBlockEnabled`,
-  `contentBlockEnabled`) behave as ON regardless of their stored value
-  — `WebViewModel.getWebView` and `InAppWebViewScreen` compute
-  `effective = stored || trackingProtectionEnabled` and pass that to
-  `WebViewConfig`.
-* A new JS shim
+* The four pre-existing toggles (`clearUrlEnabled`, `dnsBlockEnabled`,
+  `contentBlockEnabled`, `localCdnEnabled`) behave as ON regardless of
+  their stored value — `WebViewModel.getWebView` and
+  `InAppWebViewScreen` compute `effective = stored ||
+  trackingProtectionEnabled` and pass that to `WebViewConfig`.
+* A JS shim
   ([lib/services/anti_fingerprinting_shim.dart](../../../lib/services/anti_fingerprinting_shim.dart))
   is injected at `DOCUMENT_START` into every frame of the site,
   patching the surfaces enumerated below seeded by the per-site
   `siteId`. Per-site stability + cross-site uniqueness is delivered by
   a Mulberry32 PRNG keyed off an FNV-1a hash of the seed.
 
-When false, the three sub-toggles act independently as they did pre-
+When false, the four sub-toggles act independently as they did pre-
 umbrella, the anti-fingerprinting shim is not injected, and per-site
 fingerprinting protection is off.
 
@@ -84,7 +86,7 @@ true) controlling the umbrella.
 
 ### Requirement: ETP-002 - Subordinate toggles forced on under umbrella
 
-The umbrella SHALL force ClearURLs, DNS blocklist, and content blocker to behave as on whenever `trackingProtectionEnabled` is true, regardless of their stored per-site values.
+The umbrella SHALL force ClearURLs, DNS blocklist, content blocker, and LocalCDN to behave as on whenever `trackingProtectionEnabled` is true, regardless of their stored per-site values.
 
 #### Scenario: Stored ClearURLs disabled, umbrella on
 
@@ -93,6 +95,16 @@ true
 **When** the webview is constructed
 **Then** the `WebViewConfig` passed to `WebViewFactory.createWebView`
 has `clearUrlEnabled: true`
+**And** the same forcing applies to nested webviews opened by
+`launchUrl`
+
+#### Scenario: Stored LocalCDN disabled, umbrella on
+
+**Given** `localCdnEnabled` is false and `trackingProtectionEnabled` is
+true
+**When** the webview is constructed
+**Then** the `WebViewConfig` passed to `WebViewFactory.createWebView`
+has `localCdnEnabled: true`
 **And** the same forcing applies to nested webviews opened by
 `launchUrl`
 
@@ -107,8 +119,8 @@ false
 
 **Given** `trackingProtectionEnabled` is true on the site settings
 screen
-**Then** the ClearURLs / DNS / Content Blocker `SwitchListTile`s show
-`value: true`
+**Then** the ClearURLs / DNS / Content Blocker / LocalCDN
+`SwitchListTile`s show `value: true`
 **And** their `onChanged: null` (visually disabled)
 **And** their subtitle reads "Forced on by Tracking Protection"
 
@@ -453,30 +465,36 @@ is `true`
 
 The site Settings screen SHALL expose the umbrella as a `SwitchListTile`
 labeled "Tracking Protection" with a subtitle of "Anti-fingerprinting +
-force tracker blocking", placed above the three subordinate switches.
+force tracker blocking", placed above the four subordinate switches.
 The subordinate switches SHALL render with `onChanged: null` and value
 `true` whenever the umbrella is on, with subtitle "Forced on by Tracking
-Protection".
+Protection". The LocalCDN subordinate is gated additionally by
+`LocalCdnService.instance.hasCache` — its effective value is
+`(stored || umbrella) && hasCache`, since it has no effect without a
+populated cache.
 
 #### Scenario: Umbrella switch placed above subordinates
 
 **Given** the user opens the per-site Settings screen
 **Then** a `SwitchListTile` titled "Tracking Protection" is shown
 **And** it is rendered above the ClearURLs / DNS Blocklist / Content
-Blocker switches
+Blocker / LocalCDN switches
 
 #### Scenario: Subordinates disabled while umbrella is on
 
 **Given** the umbrella is on
 **Then** the ClearURLs, DNS Blocklist, and Content Blocker switches show
 `value: true`
+**And** the LocalCDN switch shows `value: true` when
+`LocalCdnService.instance.hasCache` is true (otherwise `false`, since
+the cache is empty)
 **And** their `onChanged` is `null` (Material renders the switch grey)
 **And** their subtitle reads "Forced on by Tracking Protection"
 
 #### Scenario: Subordinates editable while umbrella is off
 
 **Given** the umbrella is off
-**Then** the three subordinate switches are tappable
+**Then** the four subordinate switches are tappable
 **And** their values reflect the per-site stored booleans
 
 ---
@@ -509,6 +527,7 @@ for nested webviews), the effective values are:
 clearUrlEnabled: clearUrlEnabled || trackingProtectionEnabled,
 dnsBlockEnabled: dnsBlockEnabled || trackingProtectionEnabled,
 contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
+localCdnEnabled: localCdnEnabled || trackingProtectionEnabled,
 trackingProtectionEnabled: trackingProtectionEnabled,
 ```
 

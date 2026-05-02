@@ -24,6 +24,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool clearUrlEnabled;
   final bool dnsBlockEnabled;
   final bool contentBlockEnabled;
+  final bool localCdnEnabled;
   final bool trackingProtectionEnabled;
   final String? language;
   final bool showUrlBar;
@@ -55,6 +56,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.clearUrlEnabled,
     required this.dnsBlockEnabled,
     required this.contentBlockEnabled,
+    required this.localCdnEnabled,
     required this.trackingProtectionEnabled,
     required this.language,
     this.showUrlBar = false,
@@ -123,12 +125,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         initialUrl: widget.url,
         incognito: widget.incognito,
         thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
-        // Mirror parent: when umbrella protection is on, force the three
+        // Mirror parent: when umbrella protection is on, force the four
         // tracker-protection subordinates effectively-on regardless of
         // their stored value.
         clearUrlEnabled: widget.clearUrlEnabled || widget.trackingProtectionEnabled,
         dnsBlockEnabled: widget.dnsBlockEnabled || widget.trackingProtectionEnabled,
         contentBlockEnabled: widget.contentBlockEnabled || widget.trackingProtectionEnabled,
+        localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
         trackingProtectionEnabled: widget.trackingProtectionEnabled,
         language: widget.language,
         locationMode: widget.locationMode,

@@ -125,7 +125,7 @@ The service SHALL return the correct MIME type for cached resources based on fil
 
 ### LCDN-007: Per-Site Toggle
 
-Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls whether LocalCDN is applied.
+Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls whether LocalCDN is applied. The umbrella `trackingProtectionEnabled` (see [tracking-protection/spec.md](../tracking-protection/spec.md), ETP-002) forces this effectively-on whenever the umbrella is true; the stored field is honoured only when the umbrella is off.
 
 #### Scenario: LocalCDN enabled (default)
 
@@ -135,19 +135,31 @@ Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls
 
 #### Scenario: LocalCDN disabled for a site
 
-- **Given** a site with `localCdnEnabled` set to `false`
+- **Given** a site with `localCdnEnabled` set to `false` and `trackingProtectionEnabled` set to `false`
 - **When** the webview intercepts a CDN request
 - **Then** the request passes through to the CDN normally
 
+#### Scenario: LocalCDN forced on by tracking protection
+
+- **Given** a site with `localCdnEnabled` set to `false` and `trackingProtectionEnabled` set to `true`
+- **When** the `WebViewConfig` is constructed
+- **Then** `localCdnEnabled` is effectively `true`
+
 ### LCDN-008: Per-Site Settings UI
 
-The per-site settings screen SHALL show a toggle for LocalCDN with cache statistics.
+The per-site settings screen SHALL show a toggle for LocalCDN with cache statistics. When the tracking-protection umbrella is on, the toggle SHALL render with `onChanged: null`, `value: true` (gated by `LocalCdnService.instance.hasCache`), and subtitle "Forced on by Tracking Protection".
 
 #### Scenario: Toggle display
 
 - **Given** the user opens per-site settings
 - **When** the settings list is displayed
 - **Then** a "LocalCDN" toggle appears with the count of cached resources
+
+#### Scenario: Toggle locked while umbrella is on
+
+- **Given** `trackingProtectionEnabled` is true on the site settings screen
+- **Then** the LocalCDN switch's `onChanged` is `null`
+- **And** its subtitle reads "Forced on by Tracking Protection"
 
 ### LCDN-009: App Settings UI
 
