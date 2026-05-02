@@ -420,4 +420,14 @@ class ContentBlockerService {
   void setLists(List<FilterList> lists) {
     _lists = lists;
   }
+
+  /// Exposed for testing: seed the aggregated blocked domains directly,
+  /// bypassing the file I/O / parser path. Mirrors the shape produced
+  /// by [_rebuildRules] so the [isBlocked] hot path can be exercised
+  /// without staging cached filter files on disk.
+  @visibleForTesting
+  void setBlockedDomainsForTest(Set<String> domains) {
+    _blockedDomains = domains;
+    _isBlockedCache.clear();
+  }
 }
