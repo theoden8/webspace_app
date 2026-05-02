@@ -578,12 +578,29 @@ class WebViewModel {
           contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
           localCdnEnabled: localCdnEnabled || trackingProtectionEnabled,
           trackingProtectionEnabled: trackingProtectionEnabled,
-          locationMode: locationMode,
+          // Live geolocation leaks the device's real position around any
+          // proxy and through every spoof shim, so the umbrella demotes
+          // it to off. Static spoof coords are kept and force the
+          // timezone to "From picked location" so Date/Intl values
+          // match the spoofed geo. When no coords are picked the
+          // umbrella does NOT touch the timezone — the stored choice
+          // (or system default) stands.
+          locationMode: trackingProtectionEnabled && locationMode == LocationMode.live
+              ? LocationMode.off
+              : locationMode,
           spoofLatitude: spoofLatitude,
           spoofLongitude: spoofLongitude,
           spoofAccuracy: spoofAccuracy,
-          spoofTimezone: spoofTimezone,
-          spoofTimezoneFromLocation: spoofTimezoneFromLocation,
+          spoofTimezone: (trackingProtectionEnabled &&
+                  spoofLatitude != null &&
+                  spoofLongitude != null)
+              ? null
+              : spoofTimezone,
+          spoofTimezoneFromLocation: (trackingProtectionEnabled &&
+                  spoofLatitude != null &&
+                  spoofLongitude != null)
+              ? true
+              : spoofTimezoneFromLocation,
           webRtcPolicy: webRtcPolicy,
           // Per-site proxy. Honored at WebView construction on iOS 17+ /
           // macOS 14+ via the patched `preWKWebViewConfiguration` (see

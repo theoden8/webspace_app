@@ -44,6 +44,10 @@ Add a per-site `trackingProtectionEnabled` boolean (default true) to
   their stored value — `WebViewModel.getWebView` and
   `InAppWebViewScreen` compute `effective = stored ||
   trackingProtectionEnabled` and pass that to `WebViewConfig`.
+* `LocationMode.live` is demoted to `LocationMode.off` at the
+  `WebViewConfig` boundary (real GPS leaks around proxies and shims),
+  and when a static spoof location is set the timezone is forced to
+  "from picked location" so `Date` / `Intl` match the spoofed geo.
 * A JS shim
   ([lib/services/anti_fingerprinting_shim.dart](../../../lib/services/anti_fingerprinting_shim.dart))
   is injected at `DOCUMENT_START` into every frame of the site,
@@ -52,7 +56,8 @@ Add a per-site `trackingProtectionEnabled` boolean (default true) to
   a Mulberry32 PRNG keyed off an FNV-1a hash of the seed.
 
 When false, the four sub-toggles act independently as they did pre-
-umbrella, the anti-fingerprinting shim is not injected, and per-site
+umbrella, the anti-fingerprinting shim is not injected, live
+geolocation and any stored timezone are honoured, and per-site
 fingerprinting protection is off.
 
 ---
@@ -443,6 +448,60 @@ seeded noise per frame.
 **And** `measureText('x').width === w0`
 **When** the shim is loaded a second time in the same window
 **Then** `measureText('x').width === w0` (unchanged)
+
+---
+
+### Requirement: ETP-018 - Geolocation and timezone forcing
+
+When `trackingProtectionEnabled` is true the umbrella SHALL demote
+`LocationMode.live` to `LocationMode.off` at the `WebViewConfig`
+boundary (the device's real GPS would leak around any proxy and through
+every spoof shim) and, if a static spoof location is set
+(`spoofLatitude` and `spoofLongitude` both non-null), SHALL force the
+effective timezone to "from picked location"
+(`spoofTimezoneFromLocation: true`, `spoofTimezone: null`) so spoofed
+`Date` / `Intl.DateTimeFormat` values match the spoofed geo. With no
+spoof location set the umbrella SHALL leave the timezone untouched.
+Stored fields on `WebViewModel` are unchanged; only the `WebViewConfig`
+sees the forced values, and the same forcing applies to nested webviews
+via `InAppWebViewScreen.initState`.
+
+#### Scenario: Live location demoted to off
+
+**Given** a site with `locationMode: LocationMode.live` and
+`trackingProtectionEnabled: true`
+**When** the webview is constructed
+**Then** the `WebViewConfig` has `locationMode: LocationMode.off`
+**And** the same demotion applies to nested webviews
+
+#### Scenario: Static spoof coords force from-location timezone
+
+**Given** a site with `spoofLatitude: 48.8`, `spoofLongitude: 2.3`,
+`spoofTimezone: 'America/New_York'`, `spoofTimezoneFromLocation: false`,
+and `trackingProtectionEnabled: true`
+**When** the webview is constructed
+**Then** the `WebViewConfig` has `spoofTimezone: null`
+**And** `spoofTimezoneFromLocation: true`
+
+#### Scenario: No coords leaves timezone untouched
+
+**Given** a site with `spoofLatitude: null`, `spoofLongitude: null`,
+`spoofTimezone: 'Europe/London'`, `spoofTimezoneFromLocation: false`,
+and `trackingProtectionEnabled: true`
+**When** the webview is constructed
+**Then** the `WebViewConfig` has `spoofTimezone: 'Europe/London'`
+**And** `spoofTimezoneFromLocation: false`
+
+#### Scenario: Settings UI locks Live segment and timezone
+
+**Given** the umbrella is on
+**Then** the per-site Settings geolocation `SegmentedButton` Live
+segment is rendered with `enabled: false`
+**And** when spoof coords are set the timezone `DropdownButtonFormField`
+locks to "From picked location" with `onChanged: null` and a helper
+text of "Forced to "From picked location" by Tracking Protection"
+**And** when no spoof coords are set the timezone dropdown remains
+editable
 
 ---
 
