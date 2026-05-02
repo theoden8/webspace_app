@@ -778,15 +778,13 @@ class _WebViewController implements WebViewController {
     // (typically light), since onUrlChanged dedups same-URL events
     // and skips its own evaluateJavascript reapplication.
     final source = '${buildThemeColorSchemeShim(themeValue)}\n;null;';
-    try {
-      await _c.removeUserScriptsByGroupName(groupName: 'theme_color_scheme_shim');
-      await _c.addUserScript(userScript: inapp.UserScript(
-        groupName: 'theme_color_scheme_shim',
-        source: source,
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    } catch (_) {} // controller may be detached during teardown
+    await _c.removeUserScriptsByGroupName(groupName: 'theme_color_scheme_shim');
+    await _c.addUserScript(userScript: inapp.UserScript(
+      groupName: 'theme_color_scheme_shim',
+      source: source,
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      forMainFrameOnly: false,
+    ));
     await evaluateJavascript(buildThemeColorSchemeShim(themeValue));
   }
 
