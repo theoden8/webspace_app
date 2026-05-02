@@ -4,7 +4,8 @@
   "description": "WebSpace app development tools",
   "scripts": {
     "test:js": "node --test --test-reporter=spec 'test/js/**/*.test.js'",
-    "test:browser": "node --test --test-reporter=spec --test-timeout=30000 'test/browser/**/*.test.js'"
+    "test:browser": "node --test --test-reporter=spec --test-timeout=30000 'test/browser/**/*.test.js'",
+    "bench:js": "node test/js/perf/blocking.bench.js"
   },
   "devDependencies": {
     "@fingerprintjs/fingerprintjs": "^5.2.0",
