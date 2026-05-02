@@ -771,6 +771,20 @@ class _WebViewController implements WebViewController {
   @override
   Future<void> setThemePreference(WebViewTheme theme) async {
     final themeValue = theme == WebViewTheme.system ? 'system' : (theme == WebViewTheme.dark ? 'dark' : 'light');
+    // Rotate the DOCUMENT_START user script so future page loads
+    // (including controller.reload()) re-run the shim. Without this,
+    // a refresh drops the matchMedia override and `<meta name=
+    // "color-scheme">` and the page falls back to its own default
+    // (typically light), since onUrlChanged dedups same-URL events
+    // and skips its own evaluateJavascript reapplication.
+    final source = '${buildThemeColorSchemeShim(themeValue)}\n;null;';
+    await _c.removeUserScriptsByGroupName(groupName: 'theme_color_scheme_shim');
+    await _c.addUserScript(userScript: inapp.UserScript(
+      groupName: 'theme_color_scheme_shim',
+      source: source,
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      forMainFrameOnly: false,
+    ));
     await evaluateJavascript(buildThemeColorSchemeShim(themeValue));
   }
 
@@ -786,15 +800,13 @@ class _WebViewController implements WebViewController {
     // DOCUMENT_START user script so future page loads pick up the new
     // value, then update the style element on the current page.
     final source = '${WebViewFactory._textSizeAdjustScript(zoomPercent)}\n;null;';
-    try {
-      await _c.removeUserScriptsByGroupName(groupName: 'system_text_zoom');
-      await _c.addUserScript(userScript: inapp.UserScript(
-        groupName: 'system_text_zoom',
-        source: source,
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    } catch (_) {} // controller may be detached during teardown
+    await _c.removeUserScriptsByGroupName(groupName: 'system_text_zoom');
+    await _c.addUserScript(userScript: inapp.UserScript(
+      groupName: 'system_text_zoom',
+      source: source,
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      forMainFrameOnly: false,
+    ));
     await evaluateJavascript(WebViewFactory._textSizeAdjustScript(zoomPercent));
   }
 
