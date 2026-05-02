@@ -2254,10 +2254,14 @@ class WebViewFactory {
             // main document — therefore lands in our handler, which
             // re-fetches and rewrites `<meta name=viewport>` before
             // the parser runs.
+            LogService.instance.log('WebView',
+                'Deferred desktop-mode load: attaching for ${config.initialUrl}');
             await WebInterceptNative.attachToWebViews(
               siteId: config.siteId,
               desktopMode: true,
             );
+            LogService.instance.log('WebView',
+                'Deferred desktop-mode load: attach done, calling loadUrl ${config.initialUrl}');
             try {
               await controller.loadUrl(
                 urlRequest: inapp.URLRequest(
@@ -2265,6 +2269,8 @@ class WebViewFactory {
                   headers: headers.isNotEmpty ? headers : null,
                 ),
               );
+              LogService.instance.log('WebView',
+                  'Deferred desktop-mode load: loadUrl returned for ${config.initialUrl}');
             } catch (e) {
               LogService.instance.log('WebView',
                   'Deferred desktop-mode loadUrl failed for ${config.initialUrl}: $e',
