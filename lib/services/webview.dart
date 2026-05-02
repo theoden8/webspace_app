@@ -800,15 +800,13 @@ class _WebViewController implements WebViewController {
     // DOCUMENT_START user script so future page loads pick up the new
     // value, then update the style element on the current page.
     final source = '${WebViewFactory._textSizeAdjustScript(zoomPercent)}\n;null;';
-    try {
-      await _c.removeUserScriptsByGroupName(groupName: 'system_text_zoom');
-      await _c.addUserScript(userScript: inapp.UserScript(
-        groupName: 'system_text_zoom',
-        source: source,
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    } catch (_) {} // controller may be detached during teardown
+    await _c.removeUserScriptsByGroupName(groupName: 'system_text_zoom');
+    await _c.addUserScript(userScript: inapp.UserScript(
+      groupName: 'system_text_zoom',
+      source: source,
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      forMainFrameOnly: false,
+    ));
     await evaluateJavascript(WebViewFactory._textSizeAdjustScript(zoomPercent));
   }
 
