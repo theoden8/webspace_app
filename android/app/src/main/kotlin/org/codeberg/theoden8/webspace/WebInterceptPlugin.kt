@@ -344,11 +344,14 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) },
                     onLog = { tag, message -> log(tag, message) }
                 )
+                val handlerAfter = webView.contentBlockerHandler
                 log("WebIntercept",
                     "Attached interceptor: siteId=$siteId desktop=$desktopMode " +
                     "dns=${dnsBlockedDomains.size} " +
                     "cdnPatterns=${cdnPatterns.size} cdnCache=${cdnCacheIndex.size} " +
-                    "localCdnDisabled=${localCdnDisabled.get()}")
+                    "localCdnDisabled=${localCdnDisabled.get()} " +
+                    "handler=${handlerAfter::class.java.simpleName} " +
+                    "ruleListSize=${handlerAfter.ruleList.size}")
             }
         }
         return webViews.size
@@ -512,6 +515,12 @@ class FastSubresourceInterceptor(
         webView: InAppWebView,
         request: WebResourceRequestExt
     ): WebResourceResponse? {
+        // DEBUG: Unconditional entry log so we can confirm the fork is
+        // actually dispatching to this handler. Move back behind the
+        // `checkCount <= 10` gate once verified.
+        onLog("WebIntercept",
+            "checkUrl ENTERED url=${request.url} mainFrame=${request.isForMainFrame}")
+
         val url = request.url ?: return null
         val host = extractHost(url) ?: return null
         if (host.isEmpty()) return null
