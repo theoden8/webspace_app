@@ -7,6 +7,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,26 +36,55 @@ class DnsLogEntry {
 ///
 /// `blocked`/`allowed` are merged totals; `blockedByDns`/`blockedByAbp` let
 /// callers break it down without iterating the log.
+///
+/// The log is backed by a fixed-size ring buffer so high-volume pages
+/// (hundreds of sub-resources per load) don't pay an O(n) shift on every
+/// overflow — `List.removeAt(0)` on a 500-element list copies all 499
+/// remaining elements per insert past the cap.
 class DnsStats {
   int allowed = 0;
   int blocked = 0;
   int blockedByDns = 0;
   int blockedByAbp = 0;
-  final List<DnsLogEntry> log = [];
   static const int _maxLogEntries = 500;
+
+  final List<DnsLogEntry?> _ring =
+      List<DnsLogEntry?>.filled(_maxLogEntries, null);
+  int _head = 0;
+  int _size = 0;
 
   int get total => allowed + blocked;
   double get blockRate => total > 0 ? blocked / total * 100 : 0;
 
-  void record(String domain, bool wasBlocked, {BlockSource? source}) {
+  /// Snapshot of the log, oldest-first. Allocates a new list per call —
+  /// the dev tools UI consumes this once per visible refresh, not per
+  /// recorded request.
+  List<DnsLogEntry> get log {
+    if (_size == 0) return const <DnsLogEntry>[];
+    final out = List<DnsLogEntry>.filled(_size, _ring[0]!, growable: false);
+    final start = _size < _maxLogEntries ? 0 : _head;
+    for (var i = 0; i < _size; i++) {
+      out[i] = _ring[(start + i) % _maxLogEntries]!;
+    }
+    return out;
+  }
+
+  /// Record a request decision against this site's stats. [count] lets
+  /// callers fold in `N` repeated requests for the same host without
+  /// allocating `N` log entries — the log only ever grows by one per
+  /// call, but the per-site total and source-attributed counters
+  /// increment by [count]. Used by the Android native interceptor's
+  /// per-host dedup batching.
+  void record(String domain, bool wasBlocked, {BlockSource? source, int count = 1}) {
+    if (count < 1) count = 1;
     if (wasBlocked) {
-      blocked++;
+      blocked += count;
       switch (source) {
         case BlockSource.dns:
-          blockedByDns++;
+          blockedByDns += count;
           break;
         case BlockSource.abp:
-          blockedByAbp++;
+          blockedByAbp += count;
           break;
         case null:
           // Unsourced block — count toward the total only. Callers should
@@ -63,16 +93,20 @@ class DnsStats {
           break;
       }
     } else {
-      allowed++;
+      allowed += count;
     }
-    log.add(DnsLogEntry(
+    final entry = DnsLogEntry(
       timestamp: DateTime.now(),
       domain: domain,
       blocked: wasBlocked,
       source: wasBlocked ? source : null,
-    ));
-    if (log.length > _maxLogEntries) {
-      log.removeAt(0);
+    );
+    if (_size < _maxLogEntries) {
+      _ring[(_head + _size) % _maxLogEntries] = entry;
+      _size++;
+    } else {
+      _ring[_head] = entry;
+      _head = (_head + 1) % _maxLogEntries;
     }
   }
 
@@ -81,7 +115,11 @@ class DnsStats {
     blocked = 0;
     blockedByDns = 0;
     blockedByAbp = 0;
-    log.clear();
+    for (var i = 0; i < _maxLogEntries; i++) {
+      _ring[i] = null;
+    }
+    _head = 0;
+    _size = 0;
   }
 }
 
@@ -211,7 +249,7 @@ class DnsBlockService {
   /// — no allocation per evict. On the realistic single-page workload this
   /// shaves ~50% off per-call cost; on cache-thrash workloads it
   /// eliminates the regression entirely.
-  final _HostFifoCache _dnsBlockCache = _HostFifoCache(_maxDomainCacheEntries);
+  final HostFifoCache _dnsBlockCache = HostFifoCache(_maxDomainCacheEntries);
 
   static const _domainCacheKey = 'dns_domain_cache';
   static const _maxDomainCacheEntries = 5000;
@@ -343,17 +381,28 @@ class DnsBlockService {
   /// next request because both services can answer independently.
   void recordRequest(String siteId, String url, bool wasBlocked,
       {BlockSource? source}) {
-    final uri = Uri.tryParse(url);
-    if (uri == null || uri.host.isEmpty) return;
-    statsForSite(siteId).record(uri.host, wasBlocked, source: source);
-    recordDomainDecision(uri.host, wasBlocked);
-    _notifyDnsLogListeners();
+    final host = extractHost(url);
+    if (host == null || host.isEmpty) return;
+    recordHostRequest(siteId, host, wasBlocked, source: source);
+  }
+
+  /// Like [recordRequest] but the caller already has a host (e.g. the
+  /// Android native interceptor reports `host` directly). Skips
+  /// `Uri.tryParse` and the URL synthesis roundtrip. [count] folds
+  /// dedup'd repeat requests into the per-site totals without growing
+  /// the log by [count].
+  void recordHostRequest(String siteId, String host, bool wasBlocked,
+      {BlockSource? source, int count = 1}) {
+    if (host.isEmpty) return;
+    statsForSite(siteId).record(host, wasBlocked, source: source, count: count);
+    recordDomainDecision(host, wasBlocked);
+    _scheduleNotifyDnsLogListeners();
   }
 
   /// Clear stats for a specific site.
   void clearStatsForSite(String siteId) {
     _siteStats[siteId]?.clear();
-    _notifyDnsLogListeners();
+    _scheduleNotifyDnsLogListeners();
   }
 
   /// Add a listener for DNS log changes (live UI updates).
@@ -366,8 +415,24 @@ class DnsBlockService {
     _dnsLogListeners.remove(listener);
   }
 
-  void _notifyDnsLogListeners() {
-    for (final listener in _dnsLogListeners) {
+  /// Coalesce listener notifications across a microtask. The dev-tools UI
+  /// only needs one rebuild per batch of recorded requests — without
+  /// coalescing, a page load that records hundreds of sub-resources kicks
+  /// off hundreds of `setState` calls in <1s, each rebuilding the entire
+  /// log `ListView`. The microtask runs before the next frame, so the UI
+  /// still updates "live". When no listener is registered the post is a
+  /// no-op (early return).
+  bool _notifyScheduled = false;
+  void _scheduleNotifyDnsLogListeners() {
+    if (_dnsLogListeners.isEmpty) return;
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    scheduleMicrotask(_flushDnsLogListeners);
+  }
+
+  void _flushDnsLogListeners() {
+    _notifyScheduled = false;
+    for (final listener in List<VoidCallback>.from(_dnsLogListeners)) {
       listener();
     }
   }
@@ -488,113 +553,32 @@ class DnsBlockService {
   /// roundtrip. Backed by [_dnsBlockCache] so a domain repeated dozens of
   /// times within a single page (the common case) only walks once.
   ///
-  /// Host extraction uses the hand-rolled [_fastHost] rather than
-  /// `Uri.tryParse`. Full RFC 3986 validation is unnecessary for our
-  /// purposes: we only need scheme://host[:port], and `_fastHost` handles
-  /// userinfo, IPv6 brackets, and case-folding without allocating
-  /// intermediate `Uri` objects. The scenarios `Uri.tryParse` rejects
-  /// (relative URLs, opaque schemes like `data:` / `about:`) are also
-  /// rejected here, with the same observable behavior: return false.
+  /// Host extraction uses [extractHost] rather than `Uri.tryParse`: full
+  /// RFC 3986 validation is unnecessary, we only need scheme://host[:port],
+  /// and [extractHost] handles userinfo, IPv6 brackets, and case-folding
+  /// without allocating intermediate `Uri` objects. The scenarios
+  /// `Uri.tryParse` rejects (relative URLs, opaque schemes like `data:` /
+  /// `about:`) are also rejected here, with the same observable behavior:
+  /// return false.
   bool isBlocked(String url) {
     if (_blockedDomains.isEmpty) return false;
 
-    final host = _fastHost(url);
+    final host = extractHost(url);
     if (host == null || host.isEmpty) return false;
+    return isHostBlocked(host);
+  }
 
+  /// Like [isBlocked] but skips URL parsing — caller already has the host
+  /// (e.g. native interceptor bridge passing `host` directly). Hot-path
+  /// callers should prefer this over `recordRequest('https://$host/', ...)`
+  /// which round-trips through `Uri.tryParse` just to recover the host.
+  bool isHostBlocked(String host) {
+    if (_blockedDomains.isEmpty || host.isEmpty) return false;
     final cached = _dnsBlockCache[host];
     if (cached != null) return cached;
-
-    final result = _hostIsBlocked(host);
+    final result = hostInSet(host, _blockedDomains);
     _dnsBlockCache.put(host, result);
     return result;
-  }
-
-  /// Extract the lowercase host from `scheme://host[:port]/...` without
-  /// `Uri.parse`-style RFC validation. Handles userinfo (`user:pass@host`)
-  /// and IPv6 literals (`[2001:db8::1]`). Returns null when no `://` is
-  /// present (relative URLs, `data:` / `about:` / `javascript:` etc.) so
-  /// the caller treats them as not-blockable, matching the previous
-  /// `Uri.tryParse` behavior.
-  ///
-  /// Case-folds only when the host actually contains uppercase ASCII.
-  /// `String.toLowerCase()` always allocates a new string, so for the
-  /// common case of already-lowercase hosts we return the substring
-  /// directly. The uppercase scan piggybacks on the existing authority
-  /// scan loop — zero added work in the no-uppercase fast path.
-  static String? _fastHost(String url) {
-    final i = url.indexOf('://');
-    if (i < 0) return null;
-    final start = i + 3;
-    int end = url.length;
-    for (var j = start; j < url.length; j++) {
-      final c = url.codeUnitAt(j);
-      // '/', '?', '#' all terminate the authority.
-      if (c == 0x2F || c == 0x3F || c == 0x23) {
-        end = j;
-        break;
-      }
-    }
-    // Strip userinfo. The LAST '@' before '/' delimits userinfo from host
-    // (per RFC 3986); intermediate '@'s would be percent-encoded.
-    int hostStart = start;
-    for (var j = start; j < end; j++) {
-      if (url.codeUnitAt(j) == 0x40 /* @ */) hostStart = j + 1;
-    }
-    // IPv6 literal: host is bracketed, port (if any) follows the ']'.
-    if (hostStart < end && url.codeUnitAt(hostStart) == 0x5B /* [ */) {
-      for (var j = hostStart; j < end; j++) {
-        if (url.codeUnitAt(j) == 0x5D /* ] */) {
-          // IPv6 literals are hex digits + ':' — already case-insensitive
-          // but we lowercase for canonical-form match. Most real hosts
-          // are lowercase already.
-          return _slice(url, hostStart, j + 1);
-        }
-      }
-      return null; // unterminated [
-    }
-    // Strip :port — first ':' between hostStart and end terminates the host.
-    int hostEnd = end;
-    for (var j = hostStart; j < end; j++) {
-      if (url.codeUnitAt(j) == 0x3A /* : */) {
-        hostEnd = j;
-        break;
-      }
-    }
-    return _slice(url, hostStart, hostEnd);
-  }
-
-  /// Substring + conditional lowercase. Scans for any uppercase ASCII in
-  /// `url[start..end)` and only allocates a lowercased copy if found.
-  /// In the common case (already-lowercase host) this returns the bare
-  /// substring — one allocation instead of two.
-  static String _slice(String url, int start, int end) {
-    bool hasUpper = false;
-    for (var j = start; j < end; j++) {
-      final c = url.codeUnitAt(j);
-      if (c >= 0x41 && c <= 0x5A) {
-        hasUpper = true;
-        break;
-      }
-    }
-    final s = url.substring(start, end);
-    return hasUpper ? s.toLowerCase() : s;
-  }
-
-  /// Substring-based hierarchy walk. Avoids the per-step `parts.sublist(i)
-  /// .join('.')` allocation pattern of the previous implementation. Same
-  /// matching semantics: exact match, then walk parents until the final
-  /// label (eTLD) — `mytracker.net` is NOT blocked by `tracker.net`.
-  bool _hostIsBlocked(String host) {
-    if (_blockedDomains.contains(host)) return true;
-    int dot = host.indexOf('.');
-    while (dot >= 0 && dot < host.length - 1) {
-      final parent = host.substring(dot + 1);
-      // Stop at the eTLD level — never check a single-label string like "com".
-      if (!parent.contains('.')) break;
-      if (_blockedDomains.contains(parent)) return true;
-      dot = host.indexOf('.', dot + 1);
-    }
-    return false;
   }
 
   /// Get the last time the blocklist was downloaded, or null if never.
@@ -632,53 +616,4 @@ class DnsBlockService {
     final appDir = await getApplicationDocumentsDirectory();
     return File('${appDir.path}/$_cacheFileName');
   }
-}
-
-/// Bounded host->bool cache with FIFO eviction, designed for the
-/// [DnsBlockService.isBlocked] hot path. Eviction is O(1) without
-/// allocating an iterator: insertion order is tracked in a fixed-size
-/// `List<String?>` ring, and the oldest entry is evicted via
-/// `_ring[head++ % cap]`. Hits never reorder the ring — read path is a
-/// single `Map` lookup.
-class _HostFifoCache {
-  final int capacity;
-  final List<String?> _ring;
-  int _head = 0;
-  int _size = 0;
-  final Map<String, bool> _map = <String, bool>{};
-
-  _HostFifoCache(this.capacity)
-      : _ring = List<String?>.filled(capacity, null);
-
-  bool? operator [](String key) => _map[key];
-
-  void put(String key, bool value) {
-    if (_map.containsKey(key)) {
-      // Update in place; keep original insertion position so a hot host
-      // doesn't keep evicting itself by being repeatedly re-inserted.
-      _map[key] = value;
-      return;
-    }
-    if (_size >= capacity) {
-      final evicted = _ring[_head];
-      if (evicted != null) _map.remove(evicted);
-      _ring[_head] = key;
-      _head = (_head + 1) % capacity;
-    } else {
-      _ring[(_head + _size) % capacity] = key;
-      _size++;
-    }
-    _map[key] = value;
-  }
-
-  void clear() {
-    _map.clear();
-    _head = 0;
-    _size = 0;
-    for (var i = 0; i < _ring.length; i++) {
-      _ring[i] = null;
-    }
-  }
-
-  int get length => _map.length;
 }

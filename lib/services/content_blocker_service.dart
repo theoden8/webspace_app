@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
+import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
@@ -140,22 +141,36 @@ class ContentBlockerService {
     }
   }
 
+  /// Per-host decision cache for [isBlocked]. The DNS path uses the same
+  /// pattern in [DnsBlockService._dnsBlockCache]; without a cache here,
+  /// every sub-resource roundtrip (iOS JS-bridge `blockCheck` /
+  /// `blockResourceLoaded`) re-walks the suffix hierarchy even for hosts
+  /// already known good. Cleared in [_rebuildRules].
+  final HostFifoCache _isBlockedCache = HostFifoCache(2048);
+
   /// Check if a URL's domain (or any parent domain) is blocked.
+  ///
+  /// Hot path. Avoids `Uri.parse` (full RFC 3986 validation, allocates a
+  /// `Uri` object) by using [extractHost] and short-circuits via
+  /// [_isBlockedCache] on repeated hosts. The suffix walk is allocation-
+  /// free aside from the parent substring per level. Mirrors the
+  /// optimisation already in place on [DnsBlockService.isBlocked].
   bool isBlocked(String url) {
     if (_blockedDomains.isEmpty) return false;
-    try {
-      final host = Uri.parse(url).host.toLowerCase();
-      if (host.isEmpty) return false;
-      // Check exact and parent domains: a.b.example.com -> b.example.com -> example.com
-      String domain = host;
-      while (domain.isNotEmpty) {
-        if (_blockedDomains.contains(domain)) return true;
-        final dotIdx = domain.indexOf('.');
-        if (dotIdx < 0) break;
-        domain = domain.substring(dotIdx + 1);
-      }
-    } catch (_) {}
-    return false;
+    final host = extractHost(url);
+    if (host == null || host.isEmpty) return false;
+    return isHostBlocked(host);
+  }
+
+  /// Like [isBlocked] but the caller already has the host. Skips the
+  /// URL-parse step.
+  bool isHostBlocked(String host) {
+    if (_blockedDomains.isEmpty || host.isEmpty) return false;
+    final cached = _isBlockedCache[host];
+    if (cached != null) return cached;
+    final result = hostInSet(host, _blockedDomains);
+    _isBlockedCache.put(host, result);
+    return result;
   }
 
   /// Collect applicable selectors and text rules for a page URL.
@@ -168,8 +183,8 @@ class ContentBlockerService {
     final globalText = _textHideRules[''];
     if (globalText != null) textRules.addAll(globalText);
 
-    try {
-      final host = Uri.parse(pageUrl).host.toLowerCase();
+    final host = extractHost(pageUrl);
+    if (host != null && host.isNotEmpty) {
       String domain = host;
       while (domain.isNotEmpty) {
         final ds = _cosmeticSelectors[domain];
@@ -180,7 +195,7 @@ class ContentBlockerService {
         if (dotIdx < 0) break;
         domain = domain.substring(dotIdx + 1);
       }
-    } catch (_) {}
+    }
 
     return (selectors: selectors, textRules: textRules);
   }
@@ -375,6 +390,7 @@ class ContentBlockerService {
     _blockedDomains = allDomains;
     _cosmeticSelectors = allSelectors;
     _textHideRules = allTextRules;
+    _isBlockedCache.clear();
     _notifyRulesChanged();
   }
 
@@ -396,11 +412,22 @@ class ContentBlockerService {
     _blockedDomains = {};
     _cosmeticSelectors = {};
     _textHideRules = {};
+    _isBlockedCache.clear();
   }
 
   /// Exposed for testing: set lists directly.
   @visibleForTesting
   void setLists(List<FilterList> lists) {
     _lists = lists;
+  }
+
+  /// Exposed for testing: seed the aggregated blocked domains directly,
+  /// bypassing the file I/O / parser path. Mirrors the shape produced
+  /// by [_rebuildRules] so the [isBlocked] hot path can be exercised
+  /// without staging cached filter files on disk.
+  @visibleForTesting
+  void setBlockedDomainsForTest(Set<String> domains) {
+    _blockedDomains = domains;
+    _isBlockedCache.clear();
   }
 }

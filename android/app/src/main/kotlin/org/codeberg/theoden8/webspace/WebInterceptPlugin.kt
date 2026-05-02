@@ -15,7 +15,6 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
-import java.net.URI
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -38,11 +37,14 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     // LocalCDN: cacheKey ("lib/ver/file") -> absolute file path on disk.
     private val cdnCacheIndex = mutableMapOf<String, String>()
 
-    // Per-site pending block events (DNS + ABP + allowed). Java is the
-    // source of truth; Dart pulls on demand. Each event carries a
-    // "source" string identifying which blocklist matched ("dns", "abp")
-    // or null/absent for allowed requests.
-    private val pendingBlockEvents = ConcurrentHashMap<String, MutableList<Map<String, Any>>>()
+    // Per-site pending block events. Stored as a per-host map keyed by
+    // host so repeated requests for the same host (the dominant pattern
+    // on real pages — a CDN domain serving 30+ assets) collapse into one
+    // log entry with a `count` aggregate. Without this dedup, a typical
+    // page enqueued 200+ HashMap allocations on the WebView thread per
+    // load, pinned the synchronized list contention, and pumped 200+
+    // events through the Flutter MethodChannel codec on each drain.
+    private val pendingBlockEvents = ConcurrentHashMap<String, MutableMap<String, BlockEventEntry>>()
     private val blockSignalPending = ConcurrentHashMap<String, AtomicBoolean>()
 
     // Per-site pending LocalCDN replacement events. Events carry the cache key
@@ -128,7 +130,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     if (siteId == null) {
                         result.error("INVALID_ARGS", "siteId required", null)
                     } else {
-                        result.success(drainEvents(pendingBlockEvents, siteId))
+                        result.success(drainBlockEvents(siteId))
                     }
                 }
                 "fetchCdnEvents" -> {
@@ -136,7 +138,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     if (siteId == null) {
                         result.error("INVALID_ARGS", "siteId required", null)
                     } else {
-                        result.success(drainEvents(pendingCdnEvents, siteId))
+                        result.success(drainCdnEvents(siteId))
                     }
                 }
                 else -> result.notImplemented()
@@ -144,11 +146,8 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
     }
 
-    private fun drainEvents(
-        store: ConcurrentHashMap<String, MutableList<Map<String, Any>>>,
-        siteId: String
-    ): List<Map<String, Any>> {
-        val list = store[siteId] ?: return emptyList()
+    private fun drainCdnEvents(siteId: String): List<Map<String, Any>> {
+        val list = pendingCdnEvents[siteId] ?: return emptyList()
         synchronized(list) {
             val snapshot = ArrayList(list)
             list.clear()
@@ -156,19 +155,54 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
     }
 
-    /// Records a block event (allowed or blocked, source-tagged) and
-    /// signals Dart once per batch. If Dart is already processing an
-    /// earlier signal for this site, subsequent events just accumulate —
-    /// no duplicate signals.
-    private fun recordBlockEvent(siteId: String, host: String, blocked: Boolean, source: String?) {
-        val list = pendingBlockEvents.computeIfAbsent(siteId) {
-            Collections.synchronizedList(mutableListOf())
+    /// Drain all pending block events for a site. The map is consumed
+    /// (cleared) under lock and returned as a list of `{host, blocked,
+    /// source, count}` records. A repeat host that fired N times since
+    /// the previous drain shows up as a single record with `count = N`.
+    /// Dart applies the counts to the per-site totals while only adding
+    /// one DnsLogEntry per record.
+    private fun drainBlockEvents(siteId: String): List<Map<String, Any>> {
+        val map = pendingBlockEvents[siteId] ?: return emptyList()
+        synchronized(map) {
+            if (map.isEmpty()) return emptyList()
+            val snapshot = ArrayList<Map<String, Any>>(map.size)
+            for ((host, entry) in map) {
+                val event = HashMap<String, Any>(4)
+                event["host"] = host
+                event["blocked"] = entry.blocked
+                if (entry.source != null) event["source"] = entry.source!!
+                event["count"] = entry.count
+                snapshot.add(event)
+            }
+            map.clear()
+            return snapshot
         }
-        val event = HashMap<String, Any>(3)
-        event["host"] = host
-        event["blocked"] = blocked
-        if (source != null) event["source"] = source
-        list.add(event)
+    }
+
+    /// Records a block event (allowed or blocked, source-tagged) and
+    /// signals Dart once per batch. Repeat hosts in the same drain
+    /// window only bump the `count` field on the existing entry — no
+    /// new HashMap allocation, no extra mainHandler.post.
+    private fun recordBlockEvent(siteId: String, host: String, blocked: Boolean, source: String?) {
+        val map = pendingBlockEvents.computeIfAbsent(siteId) {
+            Collections.synchronizedMap(LinkedHashMap())
+        }
+        val isNew: Boolean
+        synchronized(map) {
+            val existing = map[host]
+            if (existing != null) {
+                existing.count++
+                isNew = false
+            } else {
+                map[host] = BlockEventEntry(blocked, source, 1)
+                isNew = true
+            }
+        }
+
+        // Signal Dart only when a new host appears, OR when no signal is
+        // pending (Dart will eventually drain). Bumping a count on an
+        // already-pending host doesn't need a fresh wakeup.
+        if (!isNew) return
 
         val signaled = blockSignalPending.computeIfAbsent(siteId) { AtomicBoolean(false) }
         if (signaled.compareAndSet(false, true)) {
@@ -181,6 +215,11 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
             }
         }
     }
+
+    /// Mutable count carrier. The map of these is the source of truth
+    /// while events are pending; on drain we atomically swap the map
+    /// contents and translate each entry to a serializable `Map<String, Any>`.
+    private class BlockEventEntry(val blocked: Boolean, val source: String?, var count: Int)
 
     /// Records that a CDN request was replaced with a cached resource for
     /// this site. Signal batching mirrors the DNS path.
@@ -291,6 +330,27 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
 /// DNS is checked before ABP so that requests which appear in both lists
 /// are attributed to DNS (the user-facing blocklist with the tighter
 /// severity settings). Stats downstream can be disentangled by source.
+///
+/// Hot-path notes:
+/// * Host extraction avoids `java.net.URI`. Java's URI ctor is strict
+///   about RFC 3986 and throws on perfectly valid web URLs (spaces,
+///   curly braces in query strings, etc.); each throw allocates a stack
+///   trace. The substring-based [extractHost] handles every form
+///   chromium delivers without throwing.
+/// * [isInSet] walks the suffix hierarchy without `host.split(".")` /
+///   `parts.subList(...).joinToString(".")` per level. Hundreds of
+///   sub-resources per page x 4–6 levels of suffix walk ≈ thousands of
+///   list/string allocations on the WebView thread; the substring walk
+///   keeps that down to one substring per parent label visited.
+/// * [hostDecision] caches the (DNS+ABP+allowed) classification per
+///   host so a page that loads 50 resources from `cdn.example.com`
+///   walks the suffix lookup once, not 50 times. The cache is also
+///   used to dedupe block-event reporting back to Dart: only the
+///   first request per (siteId, host) is enqueued, repeats just bump
+///   atomic counters that Dart reconciles on each drain. Without
+///   dedup, a single page load enqueued one event per allowed
+///   sub-resource — hundreds of HashMap allocations + synchronizedList
+///   adds per page on the critical request path.
 class FastSubresourceInterceptor(
     private val dnsBlockedDomains: HashSet<String>,
     private val abpBlockedDomains: HashSet<String>,
@@ -306,6 +366,14 @@ class FastSubresourceInterceptor(
     private var loggedNoCache = false
     private var loggedLocalCdnDisabled = false
 
+    /// Per-instance host classification cache. Capacity 1024 covers a
+    /// typical busy page (≤ a few hundred unique hosts) plus headroom;
+    /// once full, FIFO eviction keeps memory bounded. Storing
+    /// `Decision` (an enum) instead of raw `String?` for the source
+    /// avoids re-classifying on dedup'd repeats.
+    private val hostDecision = LinkedHashMap<String, Decision>(256, 0.75f, false)
+    private val hostDecisionCap = 1024
+
     init {
         // Dummy rule so the Java guard `ruleList.size() > 0` passes
         val trigger = ContentBlockerTrigger(".*", null, null, null, null, null, null, null)
@@ -313,60 +381,62 @@ class FastSubresourceInterceptor(
         ruleList.add(ContentBlocker(trigger, action))
     }
 
+    private enum class Decision { ALLOWED, BLOCKED_DNS, BLOCKED_ABP }
+
     override fun checkUrl(
         webView: InAppWebView,
         request: WebResourceRequestExt
     ): WebResourceResponse? {
         val url = request.url ?: return null
-        val host = try {
-            URI(url).host?.lowercase() ?: return null
-        } catch (_: Exception) {
-            return null
-        }
+        val host = extractHost(url) ?: return null
         if (host.isEmpty()) return null
 
         checkCount++
-        // Log the first handful of sub-resource intercepts so you can
-        // confirm the native path is firing at all, plus periodic samples.
         if (checkCount <= 10 || checkCount % 100 == 0) {
             onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
         }
 
-        // 1. Domain blocking (DNS first, then ABP) with source attribution.
-        // ALWAYS runs, regardless of the LocalCDN kill-switch.
-        //
-        // Use an EMPTY ByteArrayInputStream for the response body, NOT
-        // null. Returning a `WebResourceResponse(_, _, null)` is a
-        // documented edge case: per the chromium WebView source the
-        // null body is treated as "request blocked" but the response
-        // object is still routed across the IPC boundary to chromium's
-        // IO thread, which on some builds dereferences the InputStream
-        // during cleanup of cross-origin redirects. That's the candidate
-        // for the dangling-raw_ptr SIGTRAP at
-        // `partition_alloc_support.cc:770` we keep hitting on the
-        // LinkedIn safety/go → reddit redirect path: the previous
-        // origin's blocked sub-resource responses are still cleaning up
-        // when chromium swaps SiteInstance, and a null InputStream
-        // there nulls a raw_ptr held against the old RenderFrameHost.
-        // An empty stream gives chromium a real (zero-byte) object to
-        // route through the same code path with no null dereference.
-        when {
-            isInSet(host, dnsBlockedDomains) -> {
-                onBlockChecked(host, true, "dns")
-                return WebResourceResponse(
-                    "text/plain", "utf-8", ByteArrayInputStream(EMPTY_BODY))
+        // 1. Look up the cached classification for this host. On miss,
+        // walk the DNS + ABP sets and cache. The dominant cost the cache
+        // saves is the suffix walk — `tracker.example.com` resolved
+        // once doesn't need to look up `tracker.example.com`,
+        // `example.com`, then fail again on every subsequent fetch.
+        var decision = hostDecision[host]
+        if (decision == null) {
+            decision = when {
+                isInSet(host, dnsBlockedDomains) -> Decision.BLOCKED_DNS
+                isInSet(host, abpBlockedDomains) -> Decision.BLOCKED_ABP
+                else -> Decision.ALLOWED
             }
-            isInSet(host, abpBlockedDomains) -> {
-                onBlockChecked(host, true, "abp")
-                return WebResourceResponse(
-                    "text/plain", "utf-8", ByteArrayInputStream(EMPTY_BODY))
-            }
-            else -> {
-                onBlockChecked(host, false, null)
-            }
+            putHostDecision(host, decision)
         }
 
-        // 2. LocalCDN — gated by the diagnostic kill-switch. Builds a
+        // Always report — the WebInterceptPlugin layer dedupes at the
+        // pending-drain level, collapsing repeat requests for the same
+        // host into a single Dart-side log entry while still summing
+        // the count toward the per-site totals.
+        when (decision) {
+            Decision.BLOCKED_DNS -> onBlockChecked(host, true, "dns")
+            Decision.BLOCKED_ABP -> onBlockChecked(host, true, "abp")
+            Decision.ALLOWED -> onBlockChecked(host, false, null)
+        }
+
+        // 2. Domain blocking response. Use an EMPTY ByteArrayInputStream
+        // for the response body, NOT null. Returning a `WebResourceResponse(
+        // _, _, null)` is a documented edge case: per the chromium WebView
+        // source the null body is treated as "request blocked" but the
+        // response object is still routed across the IPC boundary to
+        // chromium's IO thread, which on some builds dereferences the
+        // InputStream during cleanup of cross-origin redirects. That's the
+        // candidate for the dangling-raw_ptr SIGTRAP at
+        // `partition_alloc_support.cc:770`. An empty stream gives chromium
+        // a real (zero-byte) object with no null dereference.
+        if (decision == Decision.BLOCKED_DNS || decision == Decision.BLOCKED_ABP) {
+            return WebResourceResponse(
+                "text/plain", "utf-8", ByteArrayInputStream(EMPTY_BODY))
+        }
+
+        // 3. LocalCDN — gated by the diagnostic kill-switch. Builds a
         // WebResourceResponse with a FileInputStream that chromium's IO
         // thread reads async; if the request lifecycle ends before
         // chromium consumes the stream, that's the candidate origin
@@ -390,6 +460,17 @@ class FastSubresourceInterceptor(
         }
 
         return null
+    }
+
+    private fun putHostDecision(host: String, decision: Decision) {
+        if (hostDecision.size >= hostDecisionCap) {
+            val it = hostDecision.entries.iterator()
+            if (it.hasNext()) {
+                it.next()
+                it.remove()
+            }
+        }
+        hostDecision[host] = decision
     }
 
     private fun tryServeCdn(url: String): WebResourceResponse? {
@@ -425,14 +506,23 @@ class FastSubresourceInterceptor(
         return null
     }
 
+    /// Allocation-free suffix-walk lookup. Same semantics as the previous
+    /// `host.split(".")` + `parts.subList(i, parts.size).joinToString(".")`
+    /// pattern, but uses `String.indexOf` against `host` to derive each
+    /// parent label without allocating a fresh `List<String>` or composing
+    /// strings via `joinToString`. The single substring per parent is
+    /// the key for `set.contains(...)` — `HashSet.contains` accepts that
+    /// substring directly without further allocation. Stops before the
+    /// final eTLD label (`com` alone is never matched).
     private fun isInSet(host: String, set: HashSet<String>): Boolean {
         if (set.isEmpty()) return false
         if (set.contains(host)) return true
-        val parts = host.split(".")
-        for (i in 1 until parts.size - 1) {
-            if (set.contains(parts.subList(i, parts.size).joinToString("."))) {
-                return true
-            }
+        var dot = host.indexOf('.')
+        while (dot in 0 until host.length - 1) {
+            val parent = host.substring(dot + 1)
+            if (parent.indexOf('.') < 0) return false
+            if (set.contains(parent)) return true
+            dot = host.indexOf('.', dot + 1)
         }
         return false
     }
@@ -465,6 +555,67 @@ class FastSubresourceInterceptor(
                 if (path.endsWith(ext)) return mime
             }
             return "application/octet-stream"
+        }
+
+        /// Extract the lowercase host from `scheme://host[:port]/...`.
+        /// Mirrors `host_lookup.dart#extractHost` so Dart and Kotlin
+        /// agree on what counts as a host. Avoids `java.net.URI` which
+        /// throws on URLs chromium accepts (spaces / `{` `}` in query
+        /// strings, malformed userinfo, etc.) — each throw allocates a
+        /// stack trace and pays for `Throwable.fillInStackTrace`. This
+        /// hand-rolled extractor uses three index scans + one substring,
+        /// no exceptions.
+        @JvmStatic
+        fun extractHost(url: String): String? {
+            val schemeEnd = url.indexOf("://")
+            if (schemeEnd < 0) return null
+            val start = schemeEnd + 3
+            val len = url.length
+            var end = len
+            for (j in start until len) {
+                val c = url[j].code
+                if (c == 0x2F || c == 0x3F || c == 0x23) {
+                    end = j
+                    break
+                }
+            }
+            // Strip userinfo: last '@' before authority terminator.
+            var hostStart = start
+            for (j in start until end) {
+                if (url[j].code == 0x40) hostStart = j + 1
+            }
+            // IPv6 literal: bracketed.
+            if (hostStart < end && url[hostStart].code == 0x5B) {
+                for (j in hostStart until end) {
+                    if (url[j].code == 0x5D) {
+                        return slice(url, hostStart, j + 1)
+                    }
+                }
+                return null
+            }
+            // Strip :port — first ':' between hostStart and end.
+            var hostEnd = end
+            for (j in hostStart until end) {
+                if (url[j].code == 0x3A) {
+                    hostEnd = j
+                    break
+                }
+            }
+            return slice(url, hostStart, hostEnd)
+        }
+
+        private fun slice(url: String, start: Int, end: Int): String {
+            if (start >= end) return ""
+            var hasUpper = false
+            for (j in start until end) {
+                val c = url[j].code
+                if (c in 0x41..0x5A) {
+                    hasUpper = true
+                    break
+                }
+            }
+            val s = url.substring(start, end)
+            return if (hasUpper) s.lowercase() else s
         }
     }
 }

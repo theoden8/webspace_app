@@ -61,8 +61,15 @@ class WebInterceptNative {
             'abp' => BlockSource.abp,
             _ => null,
           };
+          // Native dedupes by host across the drain window. `count` is
+          // the number of repeat requests since the last drain; default
+          // 1 if absent (older codec / no dedup). Pass it straight to
+          // the host-level recorder so the per-site Total/Allowed/
+          // Blocked counts stay accurate while the log keeps a single
+          // entry per host.
+          final count = (entry['count'] as int?) ?? 1;
           DnsBlockService.instance
-              .recordRequest(siteId, 'https://$host/', blocked, source: source);
+              .recordHostRequest(siteId, host, blocked, source: source, count: count);
         }
       }
     } catch (_) {}
