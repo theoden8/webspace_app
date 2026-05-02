@@ -1433,36 +1433,49 @@ class WebViewFactory {
         groupName: 'block_resource_observer',
         source: '''
 (function() {
-  var seen = {};
-  var pending = [];
-  function send(url) {
-    if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
-      window.flutter_inappwebview.callHandler('blockResourceLoaded', url);
-    } else {
-      pending.push(url);
-    }
-  }
-  function report(url) {
-    if (!url || seen[url] || !url.startsWith('http')) return;
-    seen[url] = 1;
-    send(url);
-  }
-  var po = new PerformanceObserver(function(list) {
-    list.getEntries().forEach(function(e) { report(e.name); });
-  });
-  po.observe({type: 'resource', buffered: true});
-  po.observe({type: 'navigation', buffered: true});
+  // Per-host dedup. PerformanceObserver fires once per loaded resource;
+  // a typical news page is hundreds of entries across ~30 hosts. We
+  // record one host per Dart roundtrip and dedup the rest in JS — same
+  // semantics as the native Android interceptor, but driven from the
+  // performance timeline because WebKit doesn't expose a sub-resource
+  // intercept hook.
+  var seenHost = Object.create(null);
+  var pending = [];           // batched hosts not yet sent
+  var pendingTimer = null;
+  var BATCH_MS = 250;
+  var BATCH_MAX = 64;
+
   function flush() {
-    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+    pendingTimer = null;
+    if (!pending.length) return;
+    if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) {
       setTimeout(flush, 50);
       return;
     }
-    pending.forEach(function(url) {
-      window.flutter_inappwebview.callHandler('blockResourceLoaded', url);
-    });
+    var batch = pending;
     pending = [];
+    window.flutter_inappwebview.callHandler('blockResourceLoadedBatch', batch);
   }
-  flush();
+  function schedule() {
+    if (pending.length >= BATCH_MAX) { flush(); return; }
+    if (pendingTimer == null) pendingTimer = setTimeout(flush, BATCH_MS);
+  }
+  function report(url) {
+    if (!url || url.charCodeAt(0) === 100 /* d */) return; // data:
+    if (url.indexOf('http') !== 0) return;
+    var host;
+    try { host = new URL(url).hostname; } catch (e) { return; }
+    if (!host || seenHost[host]) return;
+    seenHost[host] = 1;
+    pending.push(host);
+    schedule();
+  }
+  var po = new PerformanceObserver(function(list) {
+    var entries = list.getEntries();
+    for (var i = 0; i < entries.length; i++) report(entries[i].name);
+  });
+  po.observe({type: 'resource', buffered: true});
+  po.observe({type: 'navigation', buffered: true});
 })();
 ;null;''',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
@@ -1470,9 +1483,20 @@ class WebViewFactory {
     }
 
     // iOS sub-resource blocking: JS interceptor with merged DNS+ABP
-    // Bloom-filter prefilter. Bloom check is pure JS (microseconds).
-    // Only ~0.1% of allowed URLs trigger a Dart roundtrip; Dart's
-    // blockCheck handler decides DNS vs ABP and records the source.
+    // Bloom-filter prefilter. The hot path is allocation-light and
+    // SYNCHRONOUS for bloom misses (the dominant case): no Promise
+    // wrapping, no microtask delay. That matters for property setters
+    // — wrapping `Image.src = url` in `Promise.resolve().then(set)`
+    // delays every image load by a microtask, which on a page with
+    // hundreds of `<img>` elements adds up to a visible stall. Only
+    // the rare bloom-hit path goes through Dart, where the actual DNS
+    // vs ABP attribution happens.
+    //
+    // We don't fire `blockResourceLoaded` from this script anymore.
+    // The block_resource_observer (PerformanceObserver) above batches
+    // unique hosts and reports them via `blockResourceLoadedBatch` —
+    // having both fire was double-counting hundreds of entries per
+    // page.
     if (!Platform.isAndroid
         && config.siteId != null
         && ((config.dnsBlockEnabled && hasDnsRules) ||
@@ -1486,7 +1510,6 @@ class WebViewFactory {
   var bloomBitCount = 0;
   var bloomK = 0;
 
-  // FNV-1a 32-bit hash, matching Dart implementation
   function fnv1a(s, seed) {
     var h = seed >>> 0;
     for (var i = 0; i < s.length; i++) {
@@ -1497,7 +1520,7 @@ class WebViewFactory {
   }
 
   function bloomContains(s) {
-    if (!bloomReady) return true; // safe default while loading: ask Dart
+    if (!bloomReady) return true;
     var h1 = fnv1a(s, 0x811C9DC5);
     var h2 = fnv1a(s, 0xCBF29CE4);
     for (var i = 0; i < bloomK; i++) {
@@ -1507,65 +1530,84 @@ class WebViewFactory {
     return true;
   }
 
-  // Hierarchy walk-up: check host, then each parent suffix
   function maybeBlocked(host) {
     if (bloomContains(host)) return true;
-    var parts = host.split('.');
-    for (var i = 1; i < parts.length - 1; i++) {
-      if (bloomContains(parts.slice(i).join('.'))) return true;
+    // Suffix walk without parts.slice().join() per level — peel labels
+    // from the left by tracking a single dot index.
+    var dot = host.indexOf('.');
+    while (dot >= 0 && dot < host.length - 1) {
+      var parent = host.substring(dot + 1);
+      if (parent.indexOf('.') < 0) break;
+      if (bloomContains(parent)) return true;
+      dot = host.indexOf('.', dot + 1);
     }
     return false;
   }
 
-  // Per-site domain result cache (LRU-ish: evict oldest when full).
-  // Restored from Dart persistence on startup, sent back on page load.
-  var allowedCache = {};
-  var blockedCache = {};
-  var cacheKeys = [];
+  // Cache. Capacity 500 covers the typical page header set; FIFO eviction
+  // when full. Map-of-bools instead of two parallel objects so we keep
+  // per-host RAM at one entry not two — important on iOS where every
+  // long-running tab keeps this state alive.
+  var hostCache = Object.create(null);     // host -> true (blocked) | false (allowed)
+  var hostOrder = [];                       // FIFO order
   var MAX_CACHE = 500;
-
-  function cacheResult(host, blocked) {
-    if (blocked) { blockedCache[host] = 1; }
-    else { allowedCache[host] = 1; }
-    cacheKeys.push(host);
-    if (cacheKeys.length > MAX_CACHE) {
-      var old = cacheKeys.shift();
-      delete allowedCache[old];
-      delete blockedCache[old];
+  function cacheGet(host) { return hostCache[host]; }
+  function cachePut(host, blocked) {
+    if (host in hostCache) { hostCache[host] = blocked; return; }
+    hostCache[host] = blocked;
+    hostOrder.push(host);
+    if (hostOrder.length > MAX_CACHE) {
+      var old = hostOrder.shift();
+      delete hostCache[old];
     }
   }
 
-
-  function check(url) {
-    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-      return Promise.resolve(false);
-    }
-    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
-      return Promise.resolve(false);
-    }
+  // Sync-only check. Returns:
+  //   true  → known blocked (skip request)
+  //   false → known allowed (proceed synchronously)
+  //   undefined → decision needs async Dart confirmation
+  // The caller is responsible for handling the undefined case via
+  // checkAsync. Keeping the sync path branchless and microtask-free is
+  // what makes property-setter patches not stall image loads.
+  function checkSync(url) {
+    if (!url || typeof url !== 'string' || url.charCodeAt(0) !== 104) return false; // 'h'
+    if (url.indexOf('http') !== 0) return false;
     var host;
-    try { host = new URL(url).hostname; } catch (e) { return Promise.resolve(false); }
-    // Check per-site cache first (instant)
-    if (allowedCache[host]) return Promise.resolve(false);
-    if (blockedCache[host]) return Promise.resolve(true);
-    // Bloom prefilter: if definitely not in set, allow without roundtrip
+    try { host = new URL(url).hostname; } catch (e) { return false; }
+    if (!host) return false;
+    var cached = cacheGet(host);
+    if (cached === false) return false;
+    if (cached === true) return true;
+    if (!bloomReady) return undefined; // Dart roundtrip while bloom warms up
     if (!maybeBlocked(host)) {
-      cacheResult(host, false);
-      window.flutter_inappwebview.callHandler('blockResourceLoaded', url);
+      cachePut(host, false);
+      return false;
+    }
+    return undefined; // bloom hit — Dart must adjudicate
+  }
+
+  function checkAsync(url) {
+    if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) {
       return Promise.resolve(false);
     }
-    // Possibly blocked — confirm via Dart, then cache result. Dart
-    // decides DNS vs ABP and records the source in per-site stats.
     return window.flutter_inappwebview.callHandler('blockCheck', url).then(function(blocked) {
-      cacheResult(host, blocked);
-      return blocked;
+      try {
+        var host = new URL(url).hostname;
+        if (host) cachePut(host, !!blocked);
+      } catch (e) {}
+      return !!blocked;
     });
   }
 
-  // Fetch merged DNS+ABP Bloom filter + persisted per-site cache from
-  // Dart at startup.
+  // Promise-returning wrapper for callers that always go through .then.
+  function check(url) {
+    var sync = checkSync(url);
+    if (sync !== undefined) return Promise.resolve(sync);
+    return checkAsync(url);
+  }
+
   function loadBloom() {
-    if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) {
+    if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) {
       setTimeout(loadBloom, 50);
       return;
     }
@@ -1575,13 +1617,17 @@ class WebViewFactory {
       bloomBits = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
       bloomBitCount = map.bitCount;
       bloomK = map.k;
-      // Restore persisted per-site cache
       var persisted = map.cache;
       if (persisted) {
         for (var h in persisted) {
-          if (persisted[h]) blockedCache[h] = 1;
-          else allowedCache[h] = 1;
-          cacheKeys.push(h);
+          if (!(h in hostCache)) {
+            hostCache[h] = !!persisted[h];
+            hostOrder.push(h);
+            if (hostOrder.length > MAX_CACHE) {
+              var old = hostOrder.shift();
+              delete hostCache[old];
+            }
+          }
         }
       }
       bloomReady = true;
@@ -1589,15 +1635,19 @@ class WebViewFactory {
   }
   loadBloom();
 
-  // fetch
+  // fetch — sync fast-path on misses, async only on bloom hits.
   var origFetch = window.fetch;
   if (origFetch) {
     window.fetch = function(input, init) {
       var url = typeof input === 'string' ? input : (input && input.url);
-      return check(url).then(function(blocked) {
-        if (blocked) return Promise.reject(new TypeError('Blocked by DNS blocklist: ' + url));
-        return origFetch.call(this, input, init);
-      }.bind(this));
+      var sync = checkSync(url);
+      if (sync === false) return origFetch.call(this, input, init);
+      if (sync === true) return Promise.reject(new TypeError('Blocked: ' + url));
+      var self = this;
+      return checkAsync(url).then(function(blocked) {
+        if (blocked) return Promise.reject(new TypeError('Blocked: ' + url));
+        return origFetch.call(self, input, init);
+      });
     };
   }
 
@@ -1609,15 +1659,23 @@ class WebViewFactory {
   };
   var origSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.send = function(body) {
+    var url = this.__dnsBlockUrl;
+    var sync = checkSync(url);
+    if (sync === false) return origSend.apply(this, arguments);
+    if (sync === true) { try { this.abort(); } catch (e) {} return; }
     var self = this;
     var args = arguments;
-    check(self.__dnsBlockUrl).then(function(blocked) {
-      if (blocked) { try { self.abort(); } catch(e) {} return; }
+    checkAsync(url).then(function(blocked) {
+      if (blocked) { try { self.abort(); } catch (e) {} return; }
       origSend.apply(self, args);
     });
   };
 
-  // Property setters for src/href on resource elements
+  // Property setters for src/href. CRITICAL that the bloom-miss path is
+  // synchronous: wrapping `el.src = url` in `Promise.resolve().then(set)`
+  // delays every image load by one microtask. On a typical e-commerce
+  // page with 200 product images that's 200 microtasks — visible
+  // jitter and dropped scroll frames.
   function patchSetter(proto, attr) {
     var desc = Object.getOwnPropertyDescriptor(proto, attr);
     if (!desc || !desc.set) return;
@@ -1627,8 +1685,11 @@ class WebViewFactory {
       enumerable: desc.enumerable,
       get: desc.get,
       set: function(value) {
+        var sync = checkSync(value);
+        if (sync === false) { origSet.call(this, value); return; }
+        if (sync === true) { return; }
         var el = this;
-        check(value).then(function(blocked) {
+        checkAsync(value).then(function(blocked) {
           if (!blocked) origSet.call(el, value);
         });
       }
@@ -1639,22 +1700,29 @@ class WebViewFactory {
   patchSetter(HTMLLinkElement.prototype, 'href');
   patchSetter(HTMLIFrameElement.prototype, 'src');
 
-  // MutationObserver for statically-parsed HTML elements
+  // MutationObserver for statically-parsed HTML elements. Bloom-miss
+  // path is a no-op (the element is allowed to keep the attribute);
+  // only confirmed-blocked elements are stripped.
   function checkElement(el) {
     var attr = null;
     if (el.tagName === 'IMG' || el.tagName === 'SCRIPT' || el.tagName === 'IFRAME') attr = 'src';
     else if (el.tagName === 'LINK') attr = 'href';
-    if (attr) {
-      var url = el.getAttribute(attr);
-      if (url && url.indexOf('http') === 0) {
-        check(url).then(function(blocked) {
-          if (blocked) {
-            el.removeAttribute(attr);
-            if (el.parentNode) el.parentNode.removeChild(el);
-          }
-        });
-      }
+    if (!attr) return;
+    var url = el.getAttribute(attr);
+    if (!url || url.indexOf('http') !== 0) return;
+    var sync = checkSync(url);
+    if (sync === false) return; // allowed, leave element alone
+    if (sync === true) {
+      el.removeAttribute(attr);
+      if (el.parentNode) el.parentNode.removeChild(el);
+      return;
     }
+    checkAsync(url).then(function(blocked) {
+      if (blocked) {
+        el.removeAttribute(attr);
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }
+    });
   }
   var mo = new MutationObserver(function(mutations) {
     for (var i = 0; i < mutations.length; i++) {
@@ -1873,45 +1941,70 @@ class WebViewFactory {
         // checks below decide how to attribute a block, and a request
         // with neither list matching is simply recorded as allowed.
         if (config.siteId != null) {
-          controller.addJavaScriptHandler(handlerName: 'blockResourceLoaded', callback: (args) {
-            if (args.isNotEmpty && args[0] is String) {
-              final url = args[0] as String;
-              final dnsBlocked = config.dnsBlockEnabled &&
-                  DnsBlockService.instance.isBlocked(url);
+          // Batched per-host allowed/blocked report from
+          // PerformanceObserver. JS dedupes by host across the entire
+          // page lifetime and flushes batches every 250ms (or 64 hosts).
+          // Each host walks the blocklists once and gets a single log
+          // entry — no per-URL Dart roundtrip.
+          controller.addJavaScriptHandler(handlerName: 'blockResourceLoadedBatch', callback: (args) {
+            if (args.isEmpty || args[0] is! List) return null;
+            final hosts = args[0] as List;
+            final dnsSvc = DnsBlockService.instance;
+            final abpSvc = ContentBlockerService.instance;
+            for (final h in hosts) {
+              if (h is! String || h.isEmpty) continue;
+              final dnsBlocked =
+                  config.dnsBlockEnabled && dnsSvc.isHostBlocked(h);
               final abpBlocked = !dnsBlocked &&
                   config.contentBlockEnabled &&
-                  ContentBlockerService.instance.isBlocked(url);
+                  abpSvc.isHostBlocked(h);
               final blocked = dnsBlocked || abpBlocked;
               final source = dnsBlocked
                   ? BlockSource.dns
                   : (abpBlocked ? BlockSource.abp : null);
-              DnsBlockService.instance
-                  .recordRequest(config.siteId!, url, blocked, source: source);
+              dnsSvc.recordHostRequest(config.siteId!, h, blocked, source: source);
             }
             return null;
           });
+          // Backwards-compat: legacy single-URL report path. The JS
+          // interceptor no longer fires this, but stale injected scripts
+          // (cached service workers, in-page bookmarklets) might. Treat
+          // it the same as a one-host batch.
+          controller.addJavaScriptHandler(handlerName: 'blockResourceLoaded', callback: (args) {
+            if (args.isEmpty || args[0] is! String) return null;
+            final url = args[0] as String;
+            final dnsBlocked = config.dnsBlockEnabled &&
+                DnsBlockService.instance.isBlocked(url);
+            final abpBlocked = !dnsBlocked &&
+                config.contentBlockEnabled &&
+                ContentBlockerService.instance.isBlocked(url);
+            final blocked = dnsBlocked || abpBlocked;
+            final source = dnsBlocked
+                ? BlockSource.dns
+                : (abpBlocked ? BlockSource.abp : null);
+            DnsBlockService.instance
+                .recordRequest(config.siteId!, url, blocked, source: source);
+            return null;
+          });
           // iOS sub-resource blocking: per-URL check from JS interceptor.
-          // Merged Bloom prefilter runs in JS; Dart resolves DNS vs ABP.
+          // Only the bloom-hit minority of requests hits this path.
           if (!Platform.isAndroid) {
             controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
               if (args.isEmpty || args[0] is! String) return false;
               final url = args[0] as String;
-              if (config.dnsBlockEnabled &&
-                  DnsBlockService.instance.isBlocked(url)) {
-                DnsBlockService.instance.recordRequest(
-                    config.siteId!, url, true,
+              final dnsSvc = DnsBlockService.instance;
+              final abpSvc = ContentBlockerService.instance;
+              if (config.dnsBlockEnabled && dnsSvc.isBlocked(url)) {
+                dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.dns);
                 return true;
               }
-              if (config.contentBlockEnabled &&
-                  ContentBlockerService.instance.isBlocked(url)) {
-                DnsBlockService.instance.recordRequest(
-                    config.siteId!, url, true,
+              if (config.contentBlockEnabled && abpSvc.isBlocked(url)) {
+                dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.abp);
                 return true;
               }
-              DnsBlockService.instance
-                  .recordRequest(config.siteId!, url, false);
+              dnsSvc.recordRequest(config.siteId!, url, false);
               return false;
             });
             // One-shot merged Bloom filter + global domain cache delivery to JS
@@ -2111,9 +2204,11 @@ class WebViewFactory {
         }
         // DNS blocklist check + record navigation for stats. Record for
         // every http navigation so the per-site log works even when no
-        // blocklist is populated; isBlocked is a cheap set lookup.
+        // blocklist is populated; isBlocked is a cheap set lookup. The
+        // verbose `[Navigation] $url` log was dropped — `LogService.log`
+        // calls `notifyListeners()` which triggers a setState rebuild
+        // on the dev tools log tab for every single navigation.
         if (config.siteId != null && url.startsWith('http')) {
-          LogService.instance.log('DnsBlock', '[Navigation] $url');
           final blocked = DnsBlockService.instance.hasBlocklist &&
               DnsBlockService.instance.isBlocked(url);
           DnsBlockService.instance.recordRequest(config.siteId!, url, blocked,
