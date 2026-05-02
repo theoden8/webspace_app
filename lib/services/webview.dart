@@ -16,7 +16,6 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
-import 'package:webspace/services/main_doc_viewport_rewriter.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -1855,23 +1854,12 @@ class WebViewFactory {
       ..textZoom = textZoom
       ..supportZoom = true
       ..useShouldOverrideUrlLoading = true
-      // Dart shouldInterceptRequest is normally disabled on Android: the
-      // native FastSubresourceInterceptor handles DNS blocking and
+      // Keep the Dart shouldInterceptRequest callback disabled on Android:
+      // the native FastSubresourceInterceptor handles DNS blocking and
       // LocalCDN replacement for every sub-resource, whereas the Dart
       // callback only fires for main-document navigations on modern
       // Chromium WebView.
-      //
-      // We DO enable it for desktop-mode pages on Android, just to
-      // rewrite `<meta name=viewport>` on the wire — Chromium WebView
-      // ignores meta-viewport mutations after parse, so the only way to
-      // actually move the layout viewport is to make the parser see
-      // `width=1366` the first time. iOS WKWebView synthesizes a
-      // desktop viewport via preferredContentMode=.desktop and doesn't
-      // need this. Only main-document navs reach the Dart callback on
-      // Android, so the perf cost is bounded to one Dart-side fetch
-      // per navigation rather than every sub-resource.
-      ..useShouldInterceptRequest =
-          desktopMode && Platform.isAndroid
+      ..useShouldInterceptRequest = false
       ..useShouldInterceptAjaxRequest = false
       ..useShouldInterceptFetchRequest = false
       ..useOnLoadResource = false
@@ -2172,15 +2160,6 @@ class WebViewFactory {
           Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
         }
       },
-      shouldInterceptRequest:
-          (desktopMode && Platform.isAndroid)
-              ? (controller, request) async {
-                  return rewriteMainDocForDesktopViewport(
-                    request,
-                    proxySettings: config.proxySettings,
-                  );
-                }
-              : null,
       shouldOverrideUrlLoading: (controller, navigationAction) async {
         // Bump the navigation generation FIRST. Any in-flight `onLoadStart`
         // handler from the previous navigation that's about to fire an
