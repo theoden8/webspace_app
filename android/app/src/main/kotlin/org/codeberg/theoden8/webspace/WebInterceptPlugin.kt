@@ -736,8 +736,13 @@ class FastSubresourceInterceptor(
         /// 1366 is a common laptop width.
         private const val DESKTOP_VIEWPORT_CONTENT =
             "width=1366, initial-scale=1.0"
+        // `data-ws-source="wire"` lets us prove via JS introspection
+        // whether the meta in the DOM came from this wire rewrite or
+        // from the JS-shim's MutationObserver post-parse fallback.
+        // The data-* attribute is invisible to layout / CSS / page
+        // logic so it has no semantic effect.
         private const val DESKTOP_VIEWPORT_META =
-            """<meta name="viewport" content="$DESKTOP_VIEWPORT_CONTENT">"""
+            """<meta name="viewport" content="$DESKTOP_VIEWPORT_CONTENT" data-ws-source="wire">"""
 
         private val VIEWPORT_META_RE = Regex(
             """<meta\b[^>]*?\bname\s*=\s*["']?viewport["']?[^>]*?>""",
