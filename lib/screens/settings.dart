@@ -1252,17 +1252,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.qr_code),
-              label: const Text('Share QR'),
-              onPressed: () => showSiteSettingsQrShareDialog(
-                context,
-                widget.webViewModel,
+          // Imported file:// sites have no fetchable URL; sharing the
+          // QR would only ship a synthetic file:///<name> handle that the
+          // receiving device can't load, so the action is hidden.
+          if (!widget.webViewModel.initUrl.startsWith('file://'))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.qr_code),
+                label: const Text('Share QR'),
+                onPressed: () => showSiteSettingsQrShareDialog(
+                  context,
+                  widget.webViewModel,
+                ),
               ),
             ),
-          ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(

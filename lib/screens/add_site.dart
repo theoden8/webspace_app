@@ -309,7 +309,6 @@ class AddSiteScreen extends StatefulWidget {
 
 class _AddSiteScreenState extends State<AddSiteScreen> {
   final TextEditingController _urlController = TextEditingController();
-  bool _incognito = false;
   Timer? _debounceTimer;
   String? _previewUrl;
   late List<SiteSuggestion> _suggestions;
@@ -428,7 +427,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       Navigator.pop(context, {
         'url': 'file:///$fileName',
         'name': nameWithoutExt,
-        'incognito': _incognito,
         'htmlContent': htmlContent,
       });
     } catch (e) {
@@ -670,25 +668,13 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                       SizedBox(height: 8),
                       Row(
                         children: [
-                          IconButton(
-                            icon: Icon(
-                              _incognito ? MdiIcons.incognito : MdiIcons.incognitoOff,
-                              color: _incognito ? Theme.of(context).colorScheme.primary : null,
-                            ),
-                            tooltip: _incognito ? 'Incognito mode on' : 'Incognito mode off',
-                            onPressed: () {
-                              setState(() {
-                                _incognito = !_incognito;
-                              });
-                            },
-                          ),
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () {
                                 String url = _urlController.text.trim();
                                 // If no protocol specified, default to https
                                 url = ensureUrlScheme(url);
-                                Navigator.pop(context, {'url': url, 'name': '', 'incognito': _incognito});
+                                Navigator.pop(context, {'url': url, 'name': ''});
                               },
                               child: Text('Add Site'),
                             ),
