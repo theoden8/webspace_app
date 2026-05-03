@@ -13,7 +13,9 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/screens/location_picker.dart';
+import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/root_messenger.dart';
@@ -138,62 +140,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Force DEFAULT proxy on unsupported platforms
+    _userAgentController = TextEditingController();
+    _proxyAddressController = TextEditingController();
+    _proxyUsernameController = TextEditingController();
+    _proxyPasswordController = TextEditingController();
+    _latitudeController = TextEditingController();
+    _longitudeController = TextEditingController();
+    _accuracyController = TextEditingController();
+    _loadFromModel();
+  }
+
+  /// Mirror [widget.webViewModel] into the form state. Called from
+  /// [initState] and from the apply-from-QR handler after the decoded
+  /// payload has been written back into the model.
+  void _loadFromModel() {
+    final m = widget.webViewModel;
+    // Force DEFAULT proxy on unsupported platforms.
     _proxySettings = UserProxySettings(
       type: PlatformInfo.isProxySupported
-          ? widget.webViewModel.proxySettings.type
+          ? m.proxySettings.type
           : ProxyType.DEFAULT,
-      address: PlatformInfo.isProxySupported
-          ? widget.webViewModel.proxySettings.address
-          : null,
-      username: PlatformInfo.isProxySupported
-          ? widget.webViewModel.proxySettings.username
-          : null,
-      password: PlatformInfo.isProxySupported
-          ? widget.webViewModel.proxySettings.password
-          : null,
+      address: PlatformInfo.isProxySupported ? m.proxySettings.address : null,
+      username: PlatformInfo.isProxySupported ? m.proxySettings.username : null,
+      password: PlatformInfo.isProxySupported ? m.proxySettings.password : null,
     );
-    _userAgentController = TextEditingController(
-      text: getResetUserAgent(),
-    );
-    _proxyAddressController = TextEditingController(
-      text: _proxySettings.address ?? '',
-    );
-    _proxyUsernameController = TextEditingController(
-      text: _proxySettings.username ?? '',
-    );
-    _proxyPasswordController = TextEditingController(
-      text: _proxySettings.password ?? '',
-    );
-    _javascriptEnabled = widget.webViewModel.javascriptEnabled;
-    _thirdPartyCookiesEnabled = widget.webViewModel.thirdPartyCookiesEnabled;
-    _incognito = widget.webViewModel.incognito;
-    _clearUrlEnabled = widget.webViewModel.clearUrlEnabled;
-    _dnsBlockEnabled = widget.webViewModel.dnsBlockEnabled;
-    _contentBlockEnabled = widget.webViewModel.contentBlockEnabled;
-    _trackingProtectionEnabled = widget.webViewModel.trackingProtectionEnabled;
-    _localCdnEnabled = widget.webViewModel.localCdnEnabled;
-    _blockAutoRedirects = widget.webViewModel.blockAutoRedirects;
-    _fullscreenMode = widget.webViewModel.fullscreenMode;
-    _notificationsEnabled = widget.webViewModel.notificationsEnabled;
-    _backgroundPoll = widget.webViewModel.backgroundPoll;
-    _selectedLanguage = widget.webViewModel.language;
-    // locationMode is derived from whether coords are present at save time;
-    // no separate UI state needed (see _buildLocationTile).
-    _latitudeController = TextEditingController(
-      text: widget.webViewModel.spoofLatitude?.toString() ?? '',
-    );
-    _longitudeController = TextEditingController(
-      text: widget.webViewModel.spoofLongitude?.toString() ?? '',
-    );
-    _accuracyController = TextEditingController(
-      text: widget.webViewModel.spoofAccuracy.toString(),
-    );
-    _spoofTimezone = widget.webViewModel.spoofTimezone;
-    _spoofTimezoneFromLocation = widget.webViewModel.spoofTimezoneFromLocation;
-    _isLiveLocation = widget.webViewModel.locationMode == LocationMode.live;
-    _webRtcPolicy = widget.webViewModel.webRtcPolicy;
-    // Show credentials section if credentials already exist
+    _userAgentController.text = getResetUserAgent();
+    _proxyAddressController.text = _proxySettings.address ?? '';
+    _proxyUsernameController.text = _proxySettings.username ?? '';
+    _proxyPasswordController.text = _proxySettings.password ?? '';
+    _javascriptEnabled = m.javascriptEnabled;
+    _thirdPartyCookiesEnabled = m.thirdPartyCookiesEnabled;
+    _incognito = m.incognito;
+    _clearUrlEnabled = m.clearUrlEnabled;
+    _dnsBlockEnabled = m.dnsBlockEnabled;
+    _contentBlockEnabled = m.contentBlockEnabled;
+    _trackingProtectionEnabled = m.trackingProtectionEnabled;
+    _localCdnEnabled = m.localCdnEnabled;
+    _blockAutoRedirects = m.blockAutoRedirects;
+    _fullscreenMode = m.fullscreenMode;
+    _notificationsEnabled = m.notificationsEnabled;
+    _backgroundPoll = m.backgroundPoll;
+    _selectedLanguage = m.language;
+    _latitudeController.text = m.spoofLatitude?.toString() ?? '';
+    _longitudeController.text = m.spoofLongitude?.toString() ?? '';
+    _accuracyController.text = m.spoofAccuracy.toString();
+    _spoofTimezone = m.spoofTimezone;
+    _spoofTimezoneFromLocation = m.spoofTimezoneFromLocation;
+    _isLiveLocation = m.locationMode == LocationMode.live;
+    _webRtcPolicy = m.webRtcPolicy;
     _showProxyCredentials = _proxySettings.hasCredentials;
   }
 
@@ -413,6 +407,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(content: Text('Error saving settings: $e')),
       );
     }
+  }
+
+  Future<void> _applyFromQr() async {
+    final decoded = await showSiteSettingsQrApplyDialog(context);
+    if (decoded == null || !mounted) return;
+
+    // Hydrate then parse via WebViewModel.fromJson — the same code path
+    // used for backup imports — so deserialization stays in one place.
+    final incoming = WebViewModel.fromJson(
+      SiteSettingsQrCodec.hydrateForFromJson(decoded),
+      null,
+    );
+    final m = widget.webViewModel;
+
+    // Settings overwrite: per-site config from the QR replaces the current
+    // site's. Identity (siteId, currentUrl, cookies, scripts) stays put.
+    m.initUrl = incoming.initUrl;
+    m.name = incoming.name;
+    m.proxySettings = incoming.proxySettings;
+    m.javascriptEnabled = incoming.javascriptEnabled;
+    m.userAgent = incoming.userAgent;
+    m.thirdPartyCookiesEnabled = incoming.thirdPartyCookiesEnabled;
+    m.incognito = incoming.incognito;
+    m.language = incoming.language;
+    m.clearUrlEnabled = incoming.clearUrlEnabled;
+    m.dnsBlockEnabled = incoming.dnsBlockEnabled;
+    m.contentBlockEnabled = incoming.contentBlockEnabled;
+    m.trackingProtectionEnabled = incoming.trackingProtectionEnabled;
+    m.localCdnEnabled = incoming.localCdnEnabled;
+    m.blockAutoRedirects = incoming.blockAutoRedirects;
+    m.fullscreenMode = incoming.fullscreenMode;
+    m.notificationsEnabled = incoming.notificationsEnabled;
+    m.backgroundPoll = incoming.backgroundPoll;
+    m.locationMode = incoming.locationMode;
+    m.spoofLatitude = incoming.spoofLatitude;
+    m.spoofLongitude = incoming.spoofLongitude;
+    m.spoofAccuracy = incoming.spoofAccuracy;
+    m.spoofTimezone = incoming.spoofTimezone;
+    m.spoofTimezoneFromLocation = incoming.spoofTimezoneFromLocation;
+    m.webRtcPolicy = incoming.webRtcPolicy;
+
+    setState(_loadFromModel);
+    final proxyNeedsPassword = incoming.proxySettings.username != null &&
+        incoming.proxySettings.username!.isNotEmpty;
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: Text(proxyNeedsPassword
+            ? 'Settings applied. Re-enter proxy password and press Save.'
+            : 'Settings applied. Press Save to persist.'),
+      ),
+    );
   }
 
   Future<void> _openLocationPicker() async {
@@ -1259,6 +1304,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
             ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.qr_code),
+                    label: const Text('Share QR'),
+                    onPressed: () => showSiteSettingsQrShareDialog(
+                      context,
+                      widget.webViewModel,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Apply QR'),
+                    onPressed: _applyFromQr,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
