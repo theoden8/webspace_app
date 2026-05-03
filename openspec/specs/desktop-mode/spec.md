@@ -57,16 +57,43 @@ When `isDesktopUserAgent(userAgent)` is true at webview-creation time:
    - `@media (pointer: fine)` / `(hover: hover)` and the `any-*` variants
      → forced match; `(pointer: coarse)` / `(hover: none)` → forced no-match.
      Other queries fall through to the real `matchMedia`.
-   - `<meta name="viewport">` → rewritten to `width=1280, initial-scale=1.0`,
-     both for existing tags and via a `MutationObserver` for tags added
-     later. This is what makes width-based responsive CSS pick the
-     desktop layout, since `useWideViewPort` alone respects whatever
-     viewport meta the page ships.
-   - **NOT spoofed**: `window.devicePixelRatio`, `window.innerWidth`,
-     `screen.width`. DPR is orthogonal to layout (real retina desktops
-     report dpr ≥ 2); the width properties are backed by native layout
-     measurements, and the meta-viewport rewrite handles width-based CSS
-     directly.
+   - `<meta name="viewport">` → rewritten to `width=1366, initial-scale=1.0`
+     via a JS-side `MutationObserver` that catches both pre-existing
+     and dynamically inserted viewport metas. iOS WKWebView re-evaluates
+     the viewport on attribute mutation; Android Chromium WebView does
+     NOT, which is why on Android we additionally rewrite the meta on
+     the wire (see point 3). The width must clear the widest "desktop"
+     breakpoint a mainstream site uses; Bluesky's `useWebMediaQueries`
+     gates `isDesktop` on `(min-width: 1300px)` and treats 800-1299 as
+     tablet, so a smaller value ships the tablet layout.
+   - **NOT spoofed by the JS shim**: `window.devicePixelRatio`,
+     `window.innerWidth`, `screen.width`. DPR is orthogonal to layout;
+     the width properties are backed by native layout measurements
+     which we move via the wire-level rewrite below.
+3. **Android-only main-document rewrite, on the wire**, in the native
+   `FastSubresourceInterceptor`
+   ([`WebInterceptPlugin.kt`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebInterceptPlugin.kt)).
+   Android Chromium WebView does not recompute layout when the meta
+   viewport is mutated post-parse, so the JS-side rewrite alone leaves
+   `window.innerWidth` at the device's CSS width and React Native Web
+   sites (Bluesky and similar) ship the mobile branch despite the
+   desktop UA. To actually move the layout viewport, when a WebView
+   is created with a desktop UA on Android, the Dart side passes
+   `desktopMode: true` to `WebInterceptNative.attachToWebViews`, which
+   plumbs through to `FastSubresourceInterceptor.isDesktopMode`. The
+   interceptor then branches on `request.isForMainFrame` for `GET`
+   `http(s)://…` requests: re-fetch via `HttpURLConnection` (forwarding
+   the WebView's request headers — desktop UA, Sec-CH-UA-*, Cookie,
+   Accept-Language — and back-stopping cookies from the global
+   `CookieManager`), decompress gzip/deflate, decode the body with
+   the upstream's `charset`, regex-rewrite every `<meta name=viewport>`
+   to `width=1366, initial-scale=1.0`, and hand the modified bytes
+   back as a `WebResourceResponse` so the WebView's HTML parser sees
+   the desktop viewport at parse time. Sub-resource requests still go
+   through the existing DNS/ABP/LocalCDN logic in the same handler,
+   and any error path (non-HTML, non-2xx, decompression failure,
+   network error) returns `null` so the WebView falls through to its
+   own native fetch. iOS, macOS and Linux are unaffected.
 
 A re-entrance guard (`window.__ws_desktop_shim__`) prevents the
 `matchMedia` wrapper from wrapping itself when the plugin re-injects
@@ -152,7 +179,7 @@ underlying mobile WebView's signals.
 **Given** a page ships `<meta name="viewport" content="width=device-width, initial-scale=1">`
 **And** the site UA is desktop-shaped
 **When** the document is parsed
-**Then** the meta element's `content` attribute reads `width=1280, initial-scale=1.0` before layout runs
+**Then** the meta element's `content` attribute reads `width=1366, initial-scale=1.0` before layout runs
 **And** any later-injected viewport meta is also rewritten
 
 #### Scenario: Re-entrance guard prevents matchMedia recursion
@@ -164,7 +191,107 @@ underlying mobile WebView's signals.
 
 ---
 
-### Requirement: DM-003 — Sec-CH-UA-* tracks the spoofed UA on Android
+### Requirement: DM-003 — Layout viewport rewritten on the wire (Android)
+
+The system SHALL intercept main-document HTTP responses on Android in
+the native `FastSubresourceInterceptor` when the per-site UA is
+desktop-shaped, replace every `<meta name="viewport">` in the HTML
+body with a synthetic `width=1366, initial-scale=1.0`, and return the
+modified response so the WebView's HTML parser sees the desktop
+viewport at parse time. Sub-resources (handled by the same interceptor
+via the existing DNS/ABP/LocalCDN paths), non-main-frame requests,
+non-HTML responses, non-GET navigations, non-`http(s)` schemes, and any
+upstream error MUST fall through to the WebView's native fetch (the
+handler returns `null`). Other host platforms (iOS, macOS, Linux) MUST
+NOT enable this interception — iOS WKWebView synthesizes a desktop
+viewport via `WKWebpagePreferences.preferredContentMode = .desktop`,
+and the desktop platforms render at their native viewport.
+
+The flag flows from Dart at WebView attach time:
+`WebInterceptNative.attachToWebViews(siteId: …, desktopMode: …)` →
+`WebInterceptPlugin.attachToAllWebViews(newSiteId, desktopMode)` →
+`FastSubresourceInterceptor(isDesktopMode = desktopMode, …)`. Each
+WebView gets its own interceptor instance, so changing the UA mid-life
+follows the existing "dispose + recreate" path in `_WebSpacePageState`
+(see DM-001's "Mid-life UA change → webview recreated" scenario).
+
+#### Scenario: Bluesky-style HTML rewritten on Android
+
+**Given** a site with a desktop UA navigates to `https://bsky.app/`
+on Android
+**When** the native `FastSubresourceInterceptor.checkUrl` is invoked
+with `isForMainFrame == true`, `method == "GET"`, the upstream
+returns `Content-Type: text/html`, and `isDesktopMode == true`
+**Then** the handler re-fetches the page through `HttpURLConnection`
+(forwarding the WebView's request headers and back-stopping cookies
+from `CookieManager`)
+**And** every `<meta name="viewport" ...>` in the response body is
+replaced with `<meta name="viewport" content="width=1366,
+initial-scale=1.0">`
+**And** the modified bytes are returned via `WebResourceResponse`
+with the upstream `statusCode`, `reasonPhrase`, and `Set-Cookie` /
+`Cache-Control` / `Content-Security-Policy` headers preserved
+**And** `Content-Length`, `Content-Encoding`, `Transfer-Encoding`,
+and the `Content-Type` header are dropped because the body is now
+plain decompressed bytes whose length differs and the new
+`text/html` mime + charset are passed via the response constructor
+**And** any `Set-Cookie` response headers are re-applied to
+`CookieManager.getInstance().setCookie(url, ...)` so the WebView's
+cookie jar tracks logins through the rewrite
+
+#### Scenario: Page without a viewport meta gets one injected
+
+**Given** a main-document HTML response that does NOT ship a
+`<meta name="viewport">`
+**When** the rewriter processes the body
+**Then** a `<meta name="viewport" content="width=1366,
+initial-scale=1.0">` is injected immediately after `<head>`
+**And** the rest of `<head>`'s contents are preserved verbatim
+
+#### Scenario: Non-HTML / non-2xx / non-GET / sub-resource → fall through
+
+**Given** any of: `request.isForMainFrame == false`,
+`request.method != "GET"`, scheme not in `{http, https}`, response
+`Content-Type` is not `text/html`/`application/xhtml+xml`, or the
+response status is outside `[200, 400)`
+**When** `tryRewriteMainDocViewport` is invoked
+**Then** it returns `null` and `checkUrl` continues with its existing
+sub-resource logic (DNS / ABP / LocalCDN), or — for main-frame
+requests — returns `null` so the WebView fetches natively
+
+#### Scenario: Upstream error → fall through
+
+**Given** the `HttpURLConnection.connect()` or read throws
+(timeout, DNS error, TLS error, IOException)
+**When** the rewriter catches the error
+**Then** it logs a `WebIntercept` entry with the URL and exception
+**And** returns `null` so the WebView retries via its native fetch
+and the user sees the platform-native error page
+
+#### Scenario: Charset preserved on rewrite
+
+**Given** an HTML response with `Content-Type: text/html;
+charset=iso-8859-1` whose body contains non-ASCII bytes
+**When** the rewriter decodes via `Charset.forName("iso-8859-1")`,
+modifies the viewport meta, and re-encodes
+**Then** the non-ASCII bytes survive the round-trip unchanged
+**And** the response's `contentEncoding` (the `WebResourceResponse`
+charset field) reflects `iso-8859-1`
+
+#### Scenario: Mobile UA → interceptor disabled
+
+**Given** a per-site UA WITHOUT a desktop marker (e.g., contains
+`Mobile`, `Android`, `iPhone`)
+**When** the WebView is created on Android
+**Then** Dart calls `WebInterceptNative.attachToWebViews(...,
+desktopMode: false)`
+**And** `FastSubresourceInterceptor.isDesktopMode == false`
+**And** main-doc requests fall through directly to the WebView's
+native fetch with no Dart-or-Kotlin-side rewrite
+
+---
+
+### Requirement: DM-004 — Sec-CH-UA-* tracks the spoofed UA on Android
 
 The system SHALL override the `Sec-CH-UA`, `Sec-CH-UA-Mobile`, and
 `Sec-CH-UA-Platform` HTTP request headers and the
@@ -230,7 +357,9 @@ manufacture a fake brand list when the user has not chosen a UA.
 | `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, canonical Firefox desktop UA constants |
 | `lib/services/desktop_mode_shim.dart` | `buildDesktopModeShim(userAgent)` — JS source for AT_DOCUMENT_START injection |
 | `lib/services/user_agent_metadata_builder.dart` | `buildUserAgentMetadata(userAgent)` — UA-CH override mapped 1:1 with the spoofed UA. Wired through to `WebSettingsCompat.setUserAgentMetadata` on Android via the fork's `InAppWebViewSettings.userAgentMetadata`. |
-| `lib/services/webview.dart` | `createWebView`: injects shim, sets `preferredContentMode`, and assigns `userAgentMetadata` from the per-site UA |
+| `android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebInterceptPlugin.kt` | `FastSubresourceInterceptor.tryRewriteMainDocViewport` — Android-only main-document re-fetch + viewport meta rewrite, plumbed via `attachToWebViews(desktopMode = true)`. `Companion.rewriteViewportMeta(html)` is a pure-Kotlin helper for the regex (verified via standalone Kotlin checks against Bluesky-shaped, attribute-order-swapped, multi-meta, and missing-`<head>` inputs). |
+| `lib/services/web_intercept_native.dart` | Dart bridge: `attachToWebViews(siteId, desktopMode)` |
+| `lib/services/webview.dart` | `createWebView`: injects shim, sets `preferredContentMode`, assigns `userAgentMetadata`, and on Android passes `desktopMode = isDesktopUserAgent(...)` through `WebInterceptNative.attachToWebViews` |
 | `test/user_agent_classifier_test.dart` | Coverage for the inference helpers |
 | `test/desktop_mode_shim_test.dart` | Coverage for the JS shim source generation |
 | `test/user_agent_metadata_builder_test.dart` | Coverage for the UA-CH override (mobile flag, platform, brand list, GREASE entry, wire shape) |

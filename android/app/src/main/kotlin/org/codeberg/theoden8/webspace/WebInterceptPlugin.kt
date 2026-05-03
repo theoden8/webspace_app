@@ -3,6 +3,7 @@ package org.codeberg.theoden8.webspace
 import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.WebResourceResponse
 import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlocker
 import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlockerAction
@@ -15,9 +16,15 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URL
+import java.nio.charset.Charset
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.zip.GZIPInputStream
+import java.util.zip.InflaterInputStream
 
 class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterEngine) {
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -122,7 +129,8 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                 }
                 "attachToWebViews" -> {
                     val siteId = call.argument<String>("siteId")
-                    val count = attachToAllWebViews(siteId)
+                    val desktopMode = call.argument<Boolean>("desktopMode") ?: false
+                    val count = attachToAllWebViews(siteId, desktopMode)
                     result.success(count)
                 }
                 "fetchBlockEvents" -> {
@@ -249,7 +257,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
     }
 
-    private fun attachToAllWebViews(newSiteId: String?): Int {
+    private fun attachToAllWebViews(newSiteId: String?, desktopMode: Boolean): Int {
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
         findInAppWebViews(rootView, webViews)
@@ -287,17 +295,25 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     cdnPatterns = cdnPatterns,
                     cdnCacheIndex = cdnCacheIndex,
                     localCdnDisabled = localCdnDisabled,
+                    isDesktopMode = desktopMode,
                     onBlockChecked = { host, blocked, source ->
                         recordBlockEvent(siteId, host, blocked, source)
                     },
                     onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) },
                     onLog = { tag, message -> log(tag, message) }
                 )
+                val handlerAfter = webView.contentBlockerHandler
+                val s = webView.settings
                 log("WebIntercept",
-                    "Attached interceptor: siteId=$siteId dns=${dnsBlockedDomains.size} " +
-                    "abp=${abpBlockedDomains.size} cdnPatterns=${cdnPatterns.size} " +
-                    "cdnCache=${cdnCacheIndex.size} " +
-                    "localCdnDisabled=${localCdnDisabled.get()}")
+                    "Attached interceptor: siteId=$siteId desktop=$desktopMode " +
+                    "dns=${dnsBlockedDomains.size} abp=${abpBlockedDomains.size} " +
+                    "cdnPatterns=${cdnPatterns.size} cdnCache=${cdnCacheIndex.size} " +
+                    "localCdnDisabled=${localCdnDisabled.get()} " +
+                    "handler=${handlerAfter::class.java.simpleName} " +
+                    "ruleListSize=${handlerAfter.ruleList.size} " +
+                    "useWideViewPort=${s.useWideViewPort} " +
+                    "loadWithOverviewMode=${s.loadWithOverviewMode} " +
+                    "ua='${s.userAgentString.take(60)}…'")
             }
         }
         return webViews.size
@@ -322,10 +338,11 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
 }
 
 /// Native ContentBlockerHandler that handles DNS + ABP domain blocking
-/// and LocalCDN replacement for sub-resource requests. Runs on the
-/// WebView thread (no main-thread roundtrip), which is why it actually
-/// fires for sub-resources where Dart-side shouldInterceptRequest only
-/// catches the main document navigation on modern Chromium WebView.
+/// and LocalCDN replacement for sub-resource requests, plus main-document
+/// `<meta name=viewport>` rewriting in desktop mode. Runs on the WebView
+/// thread (no main-thread roundtrip), which is why it actually fires for
+/// sub-resources where Dart-side shouldInterceptRequest only catches the
+/// main document navigation on modern Chromium WebView.
 ///
 /// DNS is checked before ABP so that requests which appear in both lists
 /// are attributed to DNS (the user-facing blocklist with the tighter
@@ -351,12 +368,24 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
 ///   dedup, a single page load enqueued one event per allowed
 ///   sub-resource — hundreds of HashMap allocations + synchronizedList
 ///   adds per page on the critical request path.
+///
+/// Desktop-mode main-doc rewrite (when `isDesktopMode == true`):
+/// Android Chromium WebView does NOT recompute layout when a meta
+/// viewport is mutated post-parse, so the JS-shim's MutationObserver
+/// rewrite (which iOS WKWebView honours) only changes the attribute
+/// string. The layout viewport stays at the device's CSS width and React
+/// Native Web sites (Bluesky and similar) read `window.innerWidth` and
+/// the CSS `(max-width: …)` queries off it, picking the mobile branch
+/// despite the desktop UA. Re-fetching the main document here and
+/// rewriting the meta tag in the body BEFORE the parser reads it is the
+/// only way to actually move the layout viewport.
 class FastSubresourceInterceptor(
     private val dnsBlockedDomains: HashSet<String>,
     private val abpBlockedDomains: HashSet<String>,
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
     private val localCdnDisabled: AtomicBoolean,
+    private val isDesktopMode: Boolean,
     private val onBlockChecked: (String, Boolean, String?) -> Unit,
     private val onCdnReplaced: (String, String) -> Unit,
     private val onLog: (String, String) -> Unit = { _, _ -> }
@@ -387,13 +416,36 @@ class FastSubresourceInterceptor(
         webView: InAppWebView,
         request: WebResourceRequestExt
     ): WebResourceResponse? {
+        // DEBUG: Unconditional entry log so we can confirm the fork is
+        // actually dispatching to this handler. Move back behind the
+        // `checkCount <= 10` gate once verified.
+        onLog("WebIntercept",
+            "checkUrl ENTERED url=${request.url} mainFrame=${request.isForMainFrame}")
+
         val url = request.url ?: return null
         val host = extractHost(url) ?: return null
         if (host.isEmpty()) return null
 
         checkCount++
         if (checkCount <= 10 || checkCount % 100 == 0) {
-            onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
+            onLog("WebIntercept",
+                "checkUrl #$checkCount host=$host url=$url " +
+                "mainFrame=${request.isForMainFrame}")
+        }
+
+        // 0. Main-document viewport rewrite (desktop-mode WebViews only).
+        // Run BEFORE the DNS/ABP/CDN checks so a desktop-mode page on a
+        // host the user has DNS-blocked still gets a clean blocked
+        // response from the existing path below — the rewrite handler
+        // returns null for non-main-frame requests anyway.
+        if (isDesktopMode && request.isForMainFrame &&
+            (url.startsWith("http://") || url.startsWith("https://")) &&
+            (request.method ?: "GET").equals("GET", ignoreCase = true)) {
+            val rewritten = tryRewriteMainDocViewport(url, request.headers)
+            if (rewritten != null) return rewritten
+            // null means upstream error / non-HTML / etc — fall through
+            // to the rest of checkUrl, which for main-doc requests will
+            // return null and let the WebView fetch natively.
         }
 
         // 1. Look up the cached classification for this host. On miss,
@@ -506,6 +558,147 @@ class FastSubresourceInterceptor(
         return null
     }
 
+    /// Re-fetch [url] over the native HTTP stack, rewrite the
+    /// `<meta name=viewport>` in the response body to a desktop width,
+    /// and return the modified [WebResourceResponse]. Returns null on
+    /// any path we can't safely handle (non-HTML, non-2xx, decompression
+    /// failure, network error) so the WebView falls through to its own
+    /// native fetch.
+    ///
+    /// Forwarded request headers come from [requestHeaders] (which the
+    /// WebView populates with our spoofed Firefox UA, Sec-CH-UA-*,
+    /// Cookie, Accept-Language, etc.) — so the upstream sees the same
+    /// per-site fingerprint as the native fetch would have. We
+    /// additionally pull cookies from the global CookieManager to
+    /// cover the case where the caller didn't include them, and we
+    /// re-apply Set-Cookie response headers back to CookieManager so
+    /// the WebView's cookie jar tracks logins through the rewrite.
+    private fun tryRewriteMainDocViewport(
+        url: String,
+        requestHeaders: Map<String, String>?
+    ): WebResourceResponse? {
+        var connection: HttpURLConnection? = null
+        try {
+            connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 10_000
+                readTimeout = 30_000
+                requestMethod = "GET"
+                instanceFollowRedirects = true
+                // Accept-Encoding controls compression; we only handle
+                // gzip/deflate/identity below, so cap it to those (the
+                // WebView's original Accept-Encoding may include br
+                // which we don't decompress here).
+                setRequestProperty("Accept-Encoding", "gzip, deflate")
+            }
+            requestHeaders?.forEach { (k, v) ->
+                if (k.equals("Accept-Encoding", ignoreCase = true)) return@forEach
+                if (k.equals("Host", ignoreCase = true)) return@forEach
+                connection.setRequestProperty(k, v)
+            }
+            // Backstop the Cookie header from the global jar if the
+            // caller didn't include one.
+            if (requestHeaders?.keys?.none {
+                    it.equals("Cookie", ignoreCase = true)
+                } != false) {
+                CookieManager.getInstance().getCookie(url)?.let {
+                    if (it.isNotEmpty()) connection.setRequestProperty("Cookie", it)
+                }
+            }
+
+            connection.connect()
+            val statusCode = connection.responseCode
+            if (statusCode < 200 || statusCode >= 400) {
+                onLog("WebIntercept",
+                    "Main-doc rewrite skipped: url=$url status=$statusCode")
+                return null
+            }
+
+            val rawContentType = connection.contentType ?: ""
+            val mime = rawContentType.substringBefore(';').trim().lowercase()
+            if (mime != "text/html" && mime != "application/xhtml+xml") {
+                onLog("WebIntercept",
+                    "Main-doc rewrite skipped: url=$url mime='$mime'")
+                return null
+            }
+
+            val charsetName = parseCharset(rawContentType) ?: "UTF-8"
+            val charset = try {
+                Charset.forName(charsetName)
+            } catch (_: Exception) {
+                Charsets.UTF_8
+            }
+
+            val bodyStream = decompressedStream(
+                connection.inputStream,
+                connection.contentEncoding
+            )
+            val bodyBytes = bodyStream.use { it.readBytes() }
+
+            val original = String(bodyBytes, charset)
+            val rewritten = rewriteViewportMeta(original)
+            val rewrittenBytes = rewritten.toByteArray(charset)
+            val rewriteApplied = rewritten != original
+
+            // Re-apply Set-Cookie response headers to the WebView's
+            // cookie jar. WebView does NOT auto-apply Set-Cookie from
+            // synthetic shouldInterceptRequest responses, so without
+            // this logins through a desktop-mode page would silently
+            // drop their session cookies.
+            applySetCookieHeaders(connection, url)
+
+            // Forward upstream headers minus the ones that no longer
+            // apply (length / encoding change after rewrite).
+            val responseHeaders = HashMap<String, String>()
+            for ((rawKey, values) in connection.headerFields) {
+                val key = rawKey ?: continue
+                val lk = key.lowercase()
+                if (lk == "content-length" || lk == "content-encoding" ||
+                    lk == "transfer-encoding" || lk == "content-type") continue
+                responseHeaders[key] = values.joinToString(",")
+            }
+
+            onLog("WebIntercept",
+                "Main-doc rewrite: url=$url status=$statusCode mime=$mime " +
+                "charset=$charsetName origBytes=${bodyBytes.size} " +
+                "rewrittenBytes=${rewrittenBytes.size} applied=$rewriteApplied " +
+                "headers=${responseHeaders.size}")
+
+            return WebResourceResponse(
+                "text/html",
+                charsetName,
+                statusCode,
+                connection.responseMessage ?: "OK",
+                responseHeaders,
+                ByteArrayInputStream(rewrittenBytes)
+            )
+        } catch (e: Exception) {
+            onLog("WebIntercept",
+                "Main-doc rewrite failed: url=$url err=${e.javaClass.simpleName}: ${e.message}")
+            return null
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    private fun decompressedStream(
+        raw: java.io.InputStream,
+        contentEncoding: String?
+    ): java.io.InputStream = when (contentEncoding?.lowercase()) {
+        "gzip" -> GZIPInputStream(raw)
+        "deflate" -> InflaterInputStream(raw)
+        else -> raw
+    }
+
+    private fun applySetCookieHeaders(connection: HttpURLConnection, url: String) {
+        val cm = CookieManager.getInstance()
+        val rawHeaders = connection.headerFields
+        for ((rawKey, values) in rawHeaders) {
+            val key = rawKey ?: continue
+            if (!key.equals("Set-Cookie", ignoreCase = true)) continue
+            for (cookie in values) cm.setCookie(url, cookie)
+        }
+    }
+
     /// Allocation-free suffix-walk lookup. Same semantics as the previous
     /// `host.split(".")` + `parts.subList(i, parts.size).joinToString(".")`
     /// pattern, but uses `String.indexOf` against `host` to derive each
@@ -534,6 +727,58 @@ class FastSubresourceInterceptor(
         /// hundreds of these). The InputStream wrapping is per-call
         /// because chromium consumes/closes it.
         private val EMPTY_BODY = ByteArray(0)
+
+        /// Synthetic viewport `content` value injected into rewritten
+        /// HTML. Must clear the widest "desktop" breakpoint a
+        /// mainstream site uses; Bluesky's `useWebMediaQueries` gates
+        /// `isDesktop` on `(min-width: 1300px)` and treats 800-1299
+        /// as tablet, so anything <=1299 ships the tablet layout.
+        /// 1366 is a common laptop width.
+        private const val DESKTOP_VIEWPORT_CONTENT =
+            "width=1366, initial-scale=1.0"
+        // `data-ws-source="wire"` lets us prove via JS introspection
+        // whether the meta in the DOM came from this wire rewrite or
+        // from the JS-shim's MutationObserver post-parse fallback.
+        // The data-* attribute is invisible to layout / CSS / page
+        // logic so it has no semantic effect.
+        private const val DESKTOP_VIEWPORT_META =
+            """<meta name="viewport" content="$DESKTOP_VIEWPORT_CONTENT" data-ws-source="wire">"""
+
+        private val VIEWPORT_META_RE = Regex(
+            """<meta\b[^>]*?\bname\s*=\s*["']?viewport["']?[^>]*?>""",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+        )
+        private val HEAD_OPEN_RE = Regex(
+            """<head\b[^>]*>""",
+            RegexOption.IGNORE_CASE
+        )
+        private val CHARSET_RE = Regex(
+            """charset\s*=\s*["']?([^\s;"']+)["']?""",
+            RegexOption.IGNORE_CASE
+        )
+
+        /// Replace any `<meta name=viewport>` in [html] with one whose
+        /// `content` attribute is the desktop viewport. If no viewport
+        /// meta exists, inject one as the first child of `<head>`.
+        /// Pages without `<head>` fall through unchanged — the WebView
+        /// would synthesise one, the page would have rendered the
+        /// platform default viewport anyway, so adding a floating meta
+        /// would be wasted work.
+        fun rewriteViewportMeta(html: String): String {
+            if (VIEWPORT_META_RE.containsMatchIn(html)) {
+                return VIEWPORT_META_RE.replace(html, DESKTOP_VIEWPORT_META)
+            }
+            val headMatch = HEAD_OPEN_RE.find(html) ?: return html
+            return html.replaceFirst(
+                HEAD_OPEN_RE,
+                "${headMatch.value}$DESKTOP_VIEWPORT_META"
+            )
+        }
+
+        fun parseCharset(contentType: String): String? {
+            val match = CHARSET_RE.find(contentType) ?: return null
+            return match.groupValues[1]
+        }
 
         private val contentTypes = linkedMapOf(
             ".js" to "application/javascript",

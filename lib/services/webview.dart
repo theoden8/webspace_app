@@ -1245,8 +1245,23 @@ class WebViewFactory {
     // to load the synthetic file:// URL — there's no actual file on
     // disk, so the load would surface as ERR_INVALID_URL or
     // ERR_FILE_NOT_FOUND in the user's face.
-    final renderInitialData = config.initialHtml != null || isFileImport;
-    final usesCachedHtml = config.initialHtml != null;
+    final desktopMode = isDesktopUserAgent(config.userAgent);
+
+    // Cached HTML is loaded via `InAppWebView.initialData` (synthetic
+    // in-memory document), which bypasses `shouldInterceptRequest` for
+    // the main document. On Android desktop-mode pages we NEED the
+    // main-doc fetch to flow through our native interceptor so the
+    // wire-level `<meta name=viewport>` rewrite runs before parse —
+    // skip the cached-HTML shortcut when desktop mode is on. Sites
+    // without a desktop UA, file imports, and non-Android platforms
+    // keep the existing cached-HTML behaviour for the offline-first /
+    // first-paint advantage it provides.
+    final skipCachedHtmlForDesktop =
+        desktopMode && Platform.isAndroid && !isFileImport;
+    final renderInitialData =
+        (config.initialHtml != null && !skipCachedHtmlForDesktop) || isFileImport;
+    final usesCachedHtml =
+        config.initialHtml != null && !skipCachedHtmlForDesktop;
     // One-shot: when the cached HTML's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
     // onLoadStop events (post-reload, or for SPA navigations) leave
@@ -1325,7 +1340,6 @@ class WebViewFactory {
     // see a coherent desktop fingerprint instead of an Android-mobile one
     // with a desktop UA glued on top. Runs at DOCUMENT_START so the
     // shim's properties are in place before any site script reads them.
-    final desktopMode = isDesktopUserAgent(config.userAgent);
     if (desktopMode) {
       userScripts.add(inapp.UserScript(
         groupName: 'desktop_mode_shim',
@@ -1894,12 +1908,32 @@ class WebViewFactory {
       // Enable DevTools inspection in debug mode (chrome://inspect on Android)
       ..isInspectable = kDebugMode;
 
+    // Android desktop-mode pages need the native FastSubresourceInterceptor
+    // attached BEFORE the main-document fetch starts, so the wire-level
+    // viewport meta rewrite actually happens before the parser reads it.
+    // The default flow (`initialUrlRequest` set on the InAppWebView, attach
+    // scheduled from `onWebViewCreated`) loses the race: the WebView fires
+    // its main-doc fetch from `FlutterWebView.makeInitialLoad` while our
+    // attach is still pending in a microtask, so the request goes through
+    // the default empty `ContentBlockerHandler` and our rewrite never
+    // fires. Sub-resources do hit our handler — they fire after attach.
+    //
+    // Fix: skip `initialUrlRequest`, attach first, then `controller.loadUrl`
+    // synchronously in `onWebViewCreated`. Only relevant for live URL
+    // navigations on Android in desktop mode; `renderInitialData` (cached
+    // HTML via `initialData`) is unaffected because there's no main-doc
+    // network fetch in that path.
+    final deferUrlLoadForDesktop =
+        desktopMode && Platform.isAndroid && !renderInitialData;
+
     return inapp.InAppWebView(
       key: config.key,
-      initialUrlRequest: renderInitialData ? null : inapp.URLRequest(
-        url: inapp.WebUri(config.initialUrl),
-        headers: headers.isNotEmpty ? headers : null,
-      ),
+      initialUrlRequest: (renderInitialData || deferUrlLoadForDesktop)
+          ? null
+          : inapp.URLRequest(
+              url: inapp.WebUri(config.initialUrl),
+              headers: headers.isNotEmpty ? headers : null,
+            ),
       initialData: renderInitialData ? inapp.InAppWebViewInitialData(
         data: config.initialHtml ?? buildFileImportFallbackHtml(config.initialUrl),
         mimeType: 'text/html',
@@ -2157,7 +2191,49 @@ class WebViewFactory {
         // populated, and the references are shared with the plugin so
         // subsequent updates are picked up without re-attaching.
         if (Platform.isAndroid) {
-          Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
+          if (deferUrlLoadForDesktop) {
+            // Synchronous order matters here: attach FIRST, loadUrl
+            // SECOND. With `initialUrlRequest = null` above, the
+            // WebView starts blank; the attach call returns once the
+            // native plugin has swapped the contentBlockerHandler to
+            // our `FastSubresourceInterceptor` (with `isDesktopMode =
+            // true`); only then do we fire the navigation. The first
+            // shouldInterceptRequest the WebView dispatches — for the
+            // main document — therefore lands in our handler, which
+            // re-fetches and rewrites `<meta name=viewport>` before
+            // the parser runs.
+            LogService.instance.log('WebView',
+                'Deferred desktop-mode load: attaching for ${config.initialUrl}');
+            await WebInterceptNative.attachToWebViews(
+              siteId: config.siteId,
+              desktopMode: true,
+            );
+            LogService.instance.log('WebView',
+                'Deferred desktop-mode load: attach done, calling loadUrl ${config.initialUrl}');
+            try {
+              await controller.loadUrl(
+                urlRequest: inapp.URLRequest(
+                  url: inapp.WebUri(config.initialUrl),
+                  headers: headers.isNotEmpty ? headers : null,
+                ),
+              );
+              LogService.instance.log('WebView',
+                  'Deferred desktop-mode load: loadUrl returned for ${config.initialUrl}');
+            } catch (e) {
+              LogService.instance.log('WebView',
+                  'Deferred desktop-mode loadUrl failed for ${config.initialUrl}: $e',
+                  level: LogLevel.error);
+            }
+          } else {
+            // Non-desktop Android (or cached-HTML path): keep the
+            // historical microtask attach. Sub-resource DNS / ABP /
+            // LocalCDN handling doesn't depend on attach winning the
+            // main-doc race.
+            Future.microtask(() => WebInterceptNative.attachToWebViews(
+                  siteId: config.siteId,
+                  desktopMode: desktopMode,
+                ));
+          }
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
