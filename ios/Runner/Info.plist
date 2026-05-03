@@ -10,6 +10,8 @@
 	<string>This app may request access to your photo library when uploading files through web pages.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Used only when you tap "Use current location" in the per-site location picker, to fill in your coordinates for the site's spoofed location.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Used only when you tap "Apply QR" in per-site settings, to scan a shared site-settings QR code. The camera feed is not stored or transmitted.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

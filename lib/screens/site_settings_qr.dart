@@ -1,10 +1,20 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:webspace/screens/site_settings_qr_scanner.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/web_view_model.dart';
+
+/// Camera scanning is wired up only where flutter_zxing's `ReaderWidget`
+/// has a working camera path. On desktop (Linux, macOS, Windows) and web
+/// the apply dialog skips straight to paste.
+bool _hasCameraScanner() =>
+    !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
 /// Show a dialog rendering [model]'s shareable subset as a QR code.
 /// Cookies, user scripts, secure cookies, and proxy passwords are stripped
@@ -77,13 +87,29 @@ Future<void> showSiteSettingsQrShareDialog(
   );
 }
 
-/// Show a dialog that asks the user to paste a `webspace://qr/site/...`
-/// payload. Returns the decoded shareable subset (per
-/// [SiteSettingsQrCodec.includedKeys]) on success, or null if the user
-/// cancels or the payload is malformed. Most native camera apps decode
-/// QR codes and produce the URI string — paste-and-apply works without a
-/// camera library and dodges F-Droid concerns about ML Kit barcode deps.
+/// Drive the apply-from-QR flow. On Android/iOS opens the in-app camera
+/// scanner first (flutter_zxing → ZXing C++, FOSS). On desktop or if the
+/// user backs out of the scanner, falls back to a paste dialog.
 Future<Map<String, dynamic>?> showSiteSettingsQrApplyDialog(
+  BuildContext context,
+) async {
+  if (_hasCameraScanner()) {
+    final scanned = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => const SiteSettingsQrScannerScreen(),
+      ),
+    );
+    if (scanned != null) return scanned;
+    if (!context.mounted) return null;
+  }
+  return _showPasteDialog(context);
+}
+
+/// Paste-fallback dialog. Exposed so [showSiteSettingsQrApplyDialog] can
+/// route to it after the scanner is cancelled or on platforms without a
+/// camera path. Tests against the codec target this through the public
+/// entry point above; this helper is intentionally private.
+Future<Map<String, dynamic>?> _showPasteDialog(
   BuildContext context,
 ) async {
   final controller = TextEditingController();

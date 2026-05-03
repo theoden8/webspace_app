@@ -5,6 +5,11 @@
          in the per-site location picker. Not used for any background/tracking. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Optional, requested at runtime only when the user taps "Apply QR" in
+         per-site settings to scan a shared site-settings QR. Not used for
+         any background capture or media collection. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="Webspace"
         android:name="${applicationName}"
