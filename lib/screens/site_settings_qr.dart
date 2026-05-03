@@ -118,83 +118,99 @@ Future<Map<String, dynamic>?> showSiteSettingsQrApplyDialog(
 /// entry point above; this helper is intentionally private.
 Future<Map<String, dynamic>?> _showPasteDialog(
   BuildContext context,
-) async {
-  final controller = TextEditingController();
-  String? errorText;
+) {
+  return showDialog<Map<String, dynamic>>(
+    context: context,
+    builder: (ctx) => const _PasteDialog(),
+  );
+}
 
-  Map<String, dynamic>? tryDecode() {
-    final raw = controller.text.trim();
+class _PasteDialog extends StatefulWidget {
+  const _PasteDialog();
+
+  @override
+  State<_PasteDialog> createState() => _PasteDialogState();
+}
+
+class _PasteDialogState extends State<_PasteDialog> {
+  final TextEditingController _controller = TextEditingController();
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Map<String, dynamic>? _tryDecode() {
+    final raw = _controller.text.trim();
     if (raw.isEmpty) return null;
     return SiteSettingsQrCodec.decode(raw);
   }
 
-  final result = await showDialog<Map<String, dynamic>>(
-    context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setState) => AlertDialog(
-        title: const Text('Apply settings from QR'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Scan the QR with your camera and paste the resulting '
-                'webspace://qr/site/... URL here.',
-                style: TextStyle(fontSize: 13),
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Apply settings from QR'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Scan the QR with your camera and paste the resulting '
+              'webspace://qr/site/... URL here.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              minLines: 3,
+              maxLines: 6,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'webspace://qr/site/v1/...',
+                border: const OutlineInputBorder(),
+                errorText: _errorText,
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                minLines: 3,
-                maxLines: 6,
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: 'webspace://qr/site/v1/...',
-                  border: const OutlineInputBorder(),
-                  errorText: errorText,
-                ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                icon: const Icon(Icons.paste),
+                label: const Text('Paste from clipboard'),
+                onPressed: () async {
+                  final data = await Clipboard.getData('text/plain');
+                  if (!mounted) return;
+                  if (data?.text != null) {
+                    _controller.text = data!.text!;
+                    setState(() => _errorText = null);
+                  }
+                },
               ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  icon: const Icon(Icons.paste),
-                  label: const Text('Paste from clipboard'),
-                  onPressed: () async {
-                    final data = await Clipboard.getData('text/plain');
-                    if (data?.text != null) {
-                      controller.text = data!.text!;
-                      setState(() => errorText = null);
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final decoded = tryDecode();
-              if (decoded == null) {
-                setState(() => errorText =
-                    'Not a valid WebSpace site-settings QR.');
-                return;
-              }
-              Navigator.of(ctx).pop(decoded);
-            },
-            child: const Text('Apply'),
-          ),
-        ],
       ),
-    ),
-  );
-
-  controller.dispose();
-  return result;
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            final decoded = _tryDecode();
+            if (decoded == null) {
+              setState(() => _errorText =
+                  'Not a valid WebSpace site-settings QR.');
+              return;
+            }
+            Navigator.of(context).pop(decoded);
+          },
+          child: const Text('Apply'),
+        ),
+      ],
+    );
+  }
 }
