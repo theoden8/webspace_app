@@ -32,8 +32,15 @@ class _RecordingController extends Fake implements WebViewController {
   }
 }
 
-WebViewModel _modelWith(WebViewController? controller) {
-  final m = WebViewModel(initUrl: 'https://example.com', name: 'Example');
+WebViewModel _modelWith(
+  WebViewController? controller, {
+  bool notificationsEnabled = false,
+}) {
+  final m = WebViewModel(
+    initUrl: 'https://example.com',
+    name: 'Example',
+    notificationsEnabled: notificationsEnabled,
+  );
   m.controller = controller;
   return m;
 }
@@ -90,6 +97,28 @@ void main() {
       expect(c.calls, ['pause', 'pauseAllJsTimers', 'resume', 'resumeAllJsTimers']);
       expect(c.calls.where((s) => s == 'pauseAllJsTimers').length, 1);
       expect(c.calls.where((s) => s == 'resumeAllJsTimers').length, 1);
+    });
+  });
+
+  group('WebViewModel pause skips notification sites', () {
+    test('pauseWebView() with notificationsEnabled is a no-op', () async {
+      final c = _RecordingController();
+      await _modelWith(c, notificationsEnabled: true).pauseWebView();
+      expect(c.calls, isEmpty,
+          reason: 'On iOS, per-instance pause uses pauseTimers() (alert-deadlock '
+              'hack) which freezes JS — that stalls notification pollers until '
+              'the site is resumed. Sites the user opted in to notifications '
+              'must keep running on a site switch.');
+    });
+
+    test('resumeWebView() still resumes a notification site', () async {
+      // pauseWebView is a no-op for notification sites, but resume must
+      // still run — site activation always resumes the new active webview,
+      // and skipping it would leave a previously-paused (e.g. via the
+      // app-lifecycle path) site frozen.
+      final c = _RecordingController();
+      await _modelWith(c, notificationsEnabled: true).resumeWebView();
+      expect(c.calls, ['resume']);
     });
   });
 

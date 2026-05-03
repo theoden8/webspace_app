@@ -289,8 +289,12 @@ class WebViewModel {
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
-  bool notificationsEnabled; // Allow this site to show system notifications
-  bool backgroundPoll; // Keep checking for updates while app is backgrounded
+  /// Allow this site to show system notifications. Implies background
+  /// polling: the site is auto-loaded on startup, kept resident across
+  /// site switches and app-lifecycle pauses, and reloaded periodically by
+  /// the foreground poll timer so it can detect new content and fire
+  /// notifications even when the user isn't looking at it.
+  bool notificationsEnabled;
   List<UserScriptConfig> userScripts; // Per-site user scripts
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -355,7 +359,6 @@ class WebViewModel {
     this.blockAutoRedirects = true,
     this.fullscreenMode = false,
     this.notificationsEnabled = false,
-    this.backgroundPoll = false,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
@@ -931,8 +934,16 @@ class WebViewModel {
   /// This is a resource hint, not a security boundary — see
   /// [WebViewController.pause] for the full caveat list. To safely mutate
   /// cookies or proxy under a webview, dispose it instead.
+  ///
+  /// Skipped for sites with [notificationsEnabled] set: on iOS, per-instance
+  /// pause is implemented via `pauseTimers()` (the plugin's alert-deadlock
+  /// hack), which freezes this WebView's JS thread. That stalls any
+  /// setInterval / setTimeout / WebSocket-driven notification poller until
+  /// the user switches back, at which point all queued notifications fire
+  /// at once. Sites the user enabled notifications on must keep running.
   Future<void> pauseWebView() async {
     if (controller == null) return;
+    if (notificationsEnabled) return;
     try {
       await controller!.pause();
       LogService.instance.log('WebView', 'Paused webview for "$name" (siteId: $siteId)');
@@ -1082,7 +1093,6 @@ class WebViewModel {
         'blockAutoRedirects': blockAutoRedirects,
         'fullscreenMode': fullscreenMode,
         'notificationsEnabled': notificationsEnabled,
-        'backgroundPoll': backgroundPoll,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -1121,8 +1131,10 @@ class WebViewModel {
       localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       fullscreenMode: json['fullscreenMode'] ?? false,
-      notificationsEnabled: json['notificationsEnabled'] ?? false,
-      backgroundPoll: json['backgroundPoll'] ?? false,
+      notificationsEnabled:
+          (json['notificationsEnabled'] as bool?) ??
+              (json['backgroundPoll'] as bool?) ??
+              false,
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),

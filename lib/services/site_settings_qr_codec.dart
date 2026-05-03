@@ -43,7 +43,6 @@ class SiteSettingsQrCodec {
     'blockAutoRedirects',
     'fullscreenMode',
     'notificationsEnabled',
-    'backgroundPoll',
     'locationMode',
     'spoofLatitude',
     'spoofLongitude',

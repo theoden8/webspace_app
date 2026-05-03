@@ -3,13 +3,13 @@ class ForegroundPollEngine {
     required int siteCount,
     required int? currentIndex,
     required Set<int> loadedIndices,
-    required bool Function(int index) isBackgroundPoll,
+    required bool Function(int index) isPolled,
   }) {
     final result = <int>[];
     for (int i = 0; i < siteCount; i++) {
       if (i != currentIndex &&
           loadedIndices.contains(i) &&
-          isBackgroundPoll(i)) {
+          isPolled(i)) {
         result.add(i);
       }
     }

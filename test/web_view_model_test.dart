@@ -26,7 +26,6 @@ void main() {
       expect(model.localCdnEnabled, isTrue);
       expect(model.fullscreenMode, isFalse);
       expect(model.notificationsEnabled, isFalse);
-      expect(model.backgroundPoll, isFalse);
     });
 
     test('should serialize to JSON correctly', () {
@@ -283,7 +282,7 @@ void main() {
       expect(restored.fullscreenMode, isTrue);
     });
 
-    test('notificationsEnabled and backgroundPoll default to false when missing from JSON', () {
+    test('notificationsEnabled defaults to false when missing from JSON', () {
       final json = {
         'initUrl': 'https://example.com',
         'currentUrl': 'https://example.com',
@@ -296,23 +295,38 @@ void main() {
 
       final model = WebViewModel.fromJson(json, null);
       expect(model.notificationsEnabled, isFalse);
-      expect(model.backgroundPoll, isFalse);
     });
 
-    test('notificationsEnabled and backgroundPoll true are preserved through serialization', () {
+    test('notificationsEnabled true is preserved through serialization', () {
       final model = WebViewModel(
         initUrl: 'https://example.com',
         notificationsEnabled: true,
-        backgroundPoll: true,
       );
 
       final json = model.toJson();
       expect(json['notificationsEnabled'], equals(true));
-      expect(json['backgroundPoll'], equals(true));
 
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.notificationsEnabled, isTrue);
-      expect(restored.backgroundPoll, isTrue);
+    });
+
+    test('legacy backgroundPoll JSON migrates to notificationsEnabled', () {
+      // Sites stored under the previous schema (separate backgroundPoll
+      // toggle, notifications off) should still be polled and able to
+      // fire notifications after upgrade.
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+        'backgroundPoll': true,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.notificationsEnabled, isTrue);
     });
 
     test('location spoof fields default to off and null', () {

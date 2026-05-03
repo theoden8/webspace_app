@@ -3,12 +3,12 @@ import 'package:webspace/services/foreground_poll_engine.dart';
 
 void main() {
   group('ForegroundPollEngine.indicesToRefresh', () {
-    test('returns empty when no sites have backgroundPoll', () {
+    test('returns empty when no sites are polled', () {
       final result = ForegroundPollEngine.indicesToRefresh(
         siteCount: 3,
         currentIndex: 0,
         loadedIndices: {0, 1, 2},
-        isBackgroundPoll: (_) => false,
+        isPolled: (_) => false,
       );
       expect(result, isEmpty);
     });
@@ -18,7 +18,7 @@ void main() {
         siteCount: 3,
         currentIndex: 1,
         loadedIndices: {0, 1, 2},
-        isBackgroundPoll: (_) => true,
+        isPolled: (_) => true,
       );
       expect(result, [0, 2]);
     });
@@ -28,18 +28,18 @@ void main() {
         siteCount: 4,
         currentIndex: 0,
         loadedIndices: {0, 2},
-        isBackgroundPoll: (_) => true,
+        isPolled: (_) => true,
       );
       expect(result, [2]);
     });
 
-    test('returns all loaded backgroundPoll sites except current', () {
-      final bgPollSet = {1, 3};
+    test('returns all loaded polled sites except current', () {
+      final polledSet = {1, 3};
       final result = ForegroundPollEngine.indicesToRefresh(
         siteCount: 5,
         currentIndex: 0,
         loadedIndices: {0, 1, 2, 3, 4},
-        isBackgroundPoll: (i) => bgPollSet.contains(i),
+        isPolled: (i) => polledSet.contains(i),
       );
       expect(result, [1, 3]);
     });
@@ -49,7 +49,7 @@ void main() {
         siteCount: 2,
         currentIndex: null,
         loadedIndices: {0, 1},
-        isBackgroundPoll: (_) => true,
+        isPolled: (_) => true,
       );
       expect(result, [0, 1]);
     });
