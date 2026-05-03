@@ -59,6 +59,7 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
+import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
@@ -912,6 +913,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Await any in-flight pause before resuming to prevent ordering inversion
       _resumeAfterLifecyclePause();
       _handleShortcutIntent();
+      _handleShareIntent();
       // Pinned shortcuts may have been added (via the launcher's pin dialog)
       // or removed (by the user from the launcher) while we were backgrounded.
       _refreshPinnedSiteIds();
@@ -944,6 +946,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (!mounted) return;
         setState(() {});
       }
+    }
+  }
+
+  bool _handlingShareIntent = false;
+
+  Future<void> _handleShareIntent() async {
+    if (_handlingShareIntent) return;
+    _handlingShareIntent = true;
+    try {
+      final url = await ShareIntentService.consumeLaunchUrl();
+      if (!mounted || url == null || url.isEmpty) return;
+      _addSite(initialUrl: url);
+    } finally {
+      _handlingShareIntent = false;
     }
   }
 
@@ -1803,6 +1819,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     await NotificationService.instance.init();
     NotificationService.instance.onNotificationTapped = _onNotificationTapped;
+
+    // Cold-start path for ACTION_SEND share intents: open AddSiteScreen
+    // prefilled with the shared URL once startup is settled. The resumed
+    // lifecycle hook handles the warm path.
+    unawaited(_handleShareIntent());
   }
 
   void _onNotificationTapped(String siteId) {
@@ -3173,7 +3194,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     );
   }
 
-  void _addSite() async {
+  void _addSite({String? initialUrl}) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -3197,6 +3218,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             _suggestedSites = sites;
             suggested_sites.saveSuggestedSites(sites);
           },
+          initialUrl: initialUrl,
         ),
       ),
     );

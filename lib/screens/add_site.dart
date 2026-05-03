@@ -295,12 +295,14 @@ class AddSiteScreen extends StatefulWidget {
   final Function(ThemeMode) onThemeModeChanged;
   final List<SiteSuggestion> suggestions;
   final Function(List<SiteSuggestion>) onSuggestionsChanged;
+  final String? initialUrl;
 
   AddSiteScreen({
     required this.themeMode,
     required this.onThemeModeChanged,
     required this.suggestions,
     required this.onSuggestionsChanged,
+    this.initialUrl,
   });
 
   @override
@@ -318,6 +320,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     super.initState();
     _suggestions = List.of(widget.suggestions);
     _urlController.addListener(_onUrlChanged);
+    if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
+      _urlController.text = widget.initialUrl!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _updatePreview());
+    }
   }
 
   @override

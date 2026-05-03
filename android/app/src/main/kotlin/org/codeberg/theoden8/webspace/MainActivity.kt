@@ -2,6 +2,7 @@ package org.codeberg.theoden8.webspace
 
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
@@ -14,9 +15,11 @@ import java.net.URL
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
+    private val SHARE_CHANNEL = "org.codeberg.theoden8.webspace/share_intent"
     private var webInterceptPlugin: WebInterceptPlugin? = null
     private var locationPlugin: LocationPlugin? = null
     private var webSpaceContainerPlugin: WebSpaceContainerPlugin? = null
+    private var pendingShareUrl: String? = null
 
     override fun getFlutterShellArgs(): FlutterShellArgs {
         val args = FlutterShellArgs.fromIntent(intent)
@@ -35,6 +38,17 @@ class MainActivity: FlutterActivity() {
         webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
         locationPlugin = LocationPlugin(this, flutterEngine)
         webSpaceContainerPlugin = WebSpaceContainerPlugin(flutterEngine)
+        pendingShareUrl = extractShareUrl(intent)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "consumeLaunchUrl" -> {
+                    val url = pendingShareUrl
+                    pendingShareUrl = null
+                    result.success(url)
+                }
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "pinShortcut" -> {
@@ -134,6 +148,23 @@ class MainActivity: FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        val url = extractShareUrl(intent)
+        if (url != null) {
+            pendingShareUrl = url
+        }
+    }
+
+    private fun extractShareUrl(intent: Intent?): String? {
+        if (intent == null || intent.action != Intent.ACTION_SEND) return null
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim() ?: return null
+        if (text.isEmpty()) return null
+        val direct = Uri.parse(text)
+        val directScheme = direct.scheme?.lowercase()
+        return if (directScheme == "http" || directScheme == "https") {
+            text
+        } else {
+            Regex("""https?://\S+""").find(text)?.value
+        }
     }
 
     override fun onRequestPermissionsResult(
