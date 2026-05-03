@@ -11,6 +11,7 @@ import '../main.dart' show extractDomain;
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, IconUpdate;
 import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
+import 'site_settings_qr.dart';
 
 /// Persistent cache for favicon URLs and SVG content
 class FaviconUrlCache {
@@ -382,6 +383,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     }
   }
 
+  Future<void> _addByQr() async {
+    final decoded = await showSiteSettingsQrApplyDialog(context);
+    if (decoded == null || !mounted) return;
+    Navigator.pop(context, {'qrSettings': decoded});
+  }
+
   Future<void> _importHtmlFile() async {
     try {
       final result = await FilePicker.pickFiles(
@@ -654,6 +661,16 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                 )
                               : null,
                           suffixIcon: IconButton(
+                            icon: const Icon(Icons.qr_code_scanner),
+                            tooltip: 'Add from QR code',
+                            onPressed: _addByQr,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Row(
+                        children: [
+                          IconButton(
                             icon: Icon(
                               _incognito ? MdiIcons.incognito : MdiIcons.incognitoOff,
                               color: _incognito ? Theme.of(context).colorScheme.primary : null,
@@ -665,11 +682,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                               });
                             },
                           ),
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Row(
-                        children: [
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () {
