@@ -99,38 +99,27 @@ class WebspacesListScreen extends StatelessWidget {
                               ? Theme.of(context).colorScheme.secondary
                               : null,
                         ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                webspace.name,
-                                style: TextStyle(
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                            if (isSelected)
-                              Icon(
-                                Icons.check_circle,
-                                color: Theme.of(context).colorScheme.secondary,
-                                size: 20,
-                              ),
-                          ],
+                        title: Text(
+                          webspace.name,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
                         ),
                         subtitle: Text('$siteCount sites'),
                         onTap: () => onSelectWebspace(webspace),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: Icon(Icons.edit, size: 20),
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints(
-                                minWidth: 40,
-                                minHeight: 40,
+                            if (!isAll)
+                              IconButton(
+                                icon: Icon(Icons.edit, size: 20),
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                ),
+                                onPressed: () => onEditWebspace(webspace),
                               ),
-                              onPressed: () => onEditWebspace(webspace),
-                            ),
                             if (!isAll)
                               Container(
                                 color: Theme.of(context).cardTheme.color ??
@@ -158,6 +147,15 @@ class WebspacesListScreen extends StatelessWidget {
                                       ),
                                     ),
                                   ],
+                                ),
+                              ),
+                            if (isSelected)
+                              Padding(
+                                padding: EdgeInsets.only(left: 4, right: 8),
+                                child: Icon(
+                                  Icons.check_circle,
+                                  color: Theme.of(context).colorScheme.secondary,
+                                  size: 20,
                                 ),
                               ),
                           ],
