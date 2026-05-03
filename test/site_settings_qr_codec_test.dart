@@ -26,7 +26,6 @@ void main() {
         blockAutoRedirects: false,
         fullscreenMode: true,
         notificationsEnabled: true,
-        backgroundPoll: true,
         locationMode: LocationMode.spoof,
         spoofLatitude: 51.5074,
         spoofLongitude: -0.1278,
@@ -70,7 +69,6 @@ void main() {
       expect(hydrated.blockAutoRedirects, source.blockAutoRedirects);
       expect(hydrated.fullscreenMode, source.fullscreenMode);
       expect(hydrated.notificationsEnabled, source.notificationsEnabled);
-      expect(hydrated.backgroundPoll, source.backgroundPoll);
       expect(hydrated.locationMode, source.locationMode);
       expect(hydrated.spoofLatitude, source.spoofLatitude);
       expect(hydrated.spoofLongitude, source.spoofLongitude);

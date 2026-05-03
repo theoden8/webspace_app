@@ -118,7 +118,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _blockAutoRedirects;
   late bool _fullscreenMode;
   late bool _notificationsEnabled;
-  late bool _backgroundPoll;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -178,7 +177,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _blockAutoRedirects = m.blockAutoRedirects;
     _fullscreenMode = m.fullscreenMode;
     _notificationsEnabled = m.notificationsEnabled;
-    _backgroundPoll = m.backgroundPoll;
     _selectedLanguage = m.language;
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
     _longitudeController.text = m.spoofLongitude?.toString() ?? '';
@@ -345,7 +343,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
-      widget.webViewModel.backgroundPoll = _backgroundPoll;
       widget.webViewModel.language = _selectedLanguage;
       // locationMode is derived from the UI state:
       // - `_isLiveLocation` → live (real device GPS forwarded through the shim)
@@ -1192,26 +1189,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (widget.useContainers)
             SwitchListTile(
               title: const Text('Notifications'),
-              subtitle: const Text('Allow this site to show system notifications'),
+              subtitle: const Text(
+                'Allow this site to show system notifications. Keeps the '
+                'site polling in the background so notifications fire even '
+                'when you are on a different tab.',
+              ),
               value: _notificationsEnabled,
               onChanged: (bool value) {
                 setState(() {
                   _notificationsEnabled = value;
-                });
-              },
-            ),
-          if (widget.useContainers)
-            SwitchListTile(
-              title: const Text('Background polling'),
-              subtitle: Text(
-                Platform.isIOS
-                    ? 'Check for updates periodically (~15-30 min while app is closed)'
-                    : 'Keep checking for updates while app is backgrounded',
-              ),
-              value: _backgroundPoll,
-              onChanged: (bool value) {
-                setState(() {
-                  _backgroundPoll = value;
                 });
               },
             ),

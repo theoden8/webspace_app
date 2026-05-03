@@ -12,8 +12,8 @@ enum SiteRetentionPriority {
   /// Target of an in-flight `_setCurrentIndex` — never evicted.
   activating,
 
-  /// User explicitly opted this site into notifications or background
-  /// polling — evicting it silently breaks the user's intent.
+  /// User explicitly opted this site into notifications (which implies
+  /// background polling) — evicting it silently breaks the user's intent.
   notification,
 
   /// In the active webspace — evict only after lower-priority sites.

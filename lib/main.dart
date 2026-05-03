@@ -901,7 +901,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        if (!_webViewModels[_currentIndex!].backgroundPoll) {
+        if (!_webViewModels[_currentIndex!].notificationsEnabled) {
           _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
         }
         final activeIdx = _currentIndex!;
@@ -924,7 +924,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _lifecyclePauseFuture = null;
     }
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      if (!_webViewModels[_currentIndex!].backgroundPoll) {
+      if (!_webViewModels[_currentIndex!].notificationsEnabled) {
         await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
       }
     }
@@ -1780,9 +1780,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       models: _webViewModels,
     );
 
-    // Auto-load background-poll sites so they start running immediately
+    // Auto-load notification sites so they start polling immediately and
+    // can fire notifications without waiting for the user to open them.
     for (int i = 0; i < _webViewModels.length; i++) {
-      if (_webViewModels[i].backgroundPoll) {
+      if (_webViewModels[i].notificationsEnabled) {
         _loadedIndices.add(i);
       }
     }
@@ -1828,7 +1829,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (index == _activationInFlightIndex) return SiteRetentionPriority.activating;
     if (index >= 0 && index < _webViewModels.length) {
       final m = _webViewModels[index];
-      if (m.backgroundPoll || m.notificationsEnabled) {
+      if (m.notificationsEnabled) {
         return SiteRetentionPriority.notification;
       }
     }
@@ -1839,7 +1840,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   void _onForegroundPollTick() {
     for (int i = 0; i < _webViewModels.length; i++) {
-      if (_webViewModels[i].backgroundPoll &&
+      if (_webViewModels[i].notificationsEnabled &&
           i != _currentIndex &&
           _loadedIndices.contains(i)) {
         _webViewModels[i].controller?.reload();
