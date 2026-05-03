@@ -69,7 +69,7 @@ persisted before this fix are migrated on load via
 #### Scenario: HTML content stored via HtmlImportStorage
 
 **Given** the user selects an HTML file
-**When** the site is created (non-incognito)
+**When** the site is created
 **Then** the file content is saved to `HtmlImportStorage` for the new site's siteId
 **And** the webview loads the content via `initialHtml` on first display
 
@@ -96,15 +96,27 @@ WebViewModel's siteId from SharedPreferences, decrypts its cache entry
 with the still-current key, and writes it into HtmlImportStorage. The
 subsequent cache wipe drops the now-redundant copy.
 
-#### Scenario: Incognito mode
+#### Scenario: Imports always persist at create time
 
-**Given** the user has incognito mode enabled
-**When** an HTML file is imported
-**Then** the HTML content is NOT persisted to HtmlImportStorage
-**And** the webview renders the "imported file unavailable" fallback
-(via `buildFileImportFallbackHtml`) instead of attempting to load the
-synthetic `file:///<filename>` URL — there's no real file on disk for
-the import, so a direct load would surface as `ERR_FILE_NOT_FOUND`.
+**Given** the user picks an HTML file from the file picker
+**When** the site is created
+**Then** the HTML content is unconditionally written to `HtmlImportStorage`.
+
+The Add Site screen does not expose an incognito toggle; `incognito` is
+a per-site setting that the user can flip later in per-site settings. A
+late toggle does not retroactively wipe the import — the bytes stay in
+`HtmlImportStorage` and the webview still reads them on display.
+
+#### Scenario: Missing import bytes render fallback HTML
+
+**Given** a `file://` site whose entry in `HtmlImportStorage` is absent
+(legacy data created when incognito-at-import existed, post-upgrade
+key rotation that lost the entry, manual storage clear)
+**When** the webview is created
+**Then** the webview renders the "imported file unavailable" fallback
+via `buildFileImportFallbackHtml` instead of trying to load the
+synthetic `file:///<filename>` URL, which chromium would reject as
+`ERR_FILE_NOT_FOUND`.
 
 #### Scenario: No page title fetch
 
@@ -169,10 +181,12 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 4. Select the HTML file
 5. **Expected**: Site is added with name "test-page", content renders in webview
 
-### Test: Import HTML file with incognito
-1. Enable incognito mode on the Add Site screen
-2. Import an HTML file
-3. **Expected**: Site is added, content renders, but HTML is not persisted
+### Test: Late-incognito on a file-import site
+1. Import an HTML file (Add Site → Import file)
+2. Open the site's per-site settings, toggle incognito on, save
+3. Reopen the site
+4. **Expected**: HTML still renders — the import is in `HtmlImportStorage`
+   and incognito doesn't retroactively unpersist it
 
 ### Test: Cancel file picker
 1. Tap "Import HTML file"

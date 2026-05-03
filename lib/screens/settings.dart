@@ -15,7 +15,6 @@ import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
-import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/root_messenger.dart';
@@ -407,57 +406,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(content: Text('Error saving settings: $e')),
       );
     }
-  }
-
-  Future<void> _applyFromQr() async {
-    final decoded = await showSiteSettingsQrApplyDialog(context);
-    if (decoded == null || !mounted) return;
-
-    // Hydrate then parse via WebViewModel.fromJson — the same code path
-    // used for backup imports — so deserialization stays in one place.
-    final incoming = WebViewModel.fromJson(
-      SiteSettingsQrCodec.hydrateForFromJson(decoded),
-      null,
-    );
-    final m = widget.webViewModel;
-
-    // Settings overwrite: per-site config from the QR replaces the current
-    // site's. Identity (siteId, currentUrl, cookies, scripts) stays put.
-    m.initUrl = incoming.initUrl;
-    m.name = incoming.name;
-    m.proxySettings = incoming.proxySettings;
-    m.javascriptEnabled = incoming.javascriptEnabled;
-    m.userAgent = incoming.userAgent;
-    m.thirdPartyCookiesEnabled = incoming.thirdPartyCookiesEnabled;
-    m.incognito = incoming.incognito;
-    m.language = incoming.language;
-    m.clearUrlEnabled = incoming.clearUrlEnabled;
-    m.dnsBlockEnabled = incoming.dnsBlockEnabled;
-    m.contentBlockEnabled = incoming.contentBlockEnabled;
-    m.trackingProtectionEnabled = incoming.trackingProtectionEnabled;
-    m.localCdnEnabled = incoming.localCdnEnabled;
-    m.blockAutoRedirects = incoming.blockAutoRedirects;
-    m.fullscreenMode = incoming.fullscreenMode;
-    m.notificationsEnabled = incoming.notificationsEnabled;
-    m.backgroundPoll = incoming.backgroundPoll;
-    m.locationMode = incoming.locationMode;
-    m.spoofLatitude = incoming.spoofLatitude;
-    m.spoofLongitude = incoming.spoofLongitude;
-    m.spoofAccuracy = incoming.spoofAccuracy;
-    m.spoofTimezone = incoming.spoofTimezone;
-    m.spoofTimezoneFromLocation = incoming.spoofTimezoneFromLocation;
-    m.webRtcPolicy = incoming.webRtcPolicy;
-
-    setState(_loadFromModel);
-    final proxyNeedsPassword = incoming.proxySettings.username != null &&
-        incoming.proxySettings.username!.isNotEmpty;
-    rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Text(proxyNeedsPassword
-            ? 'Settings applied. Re-enter proxy password and press Save.'
-            : 'Settings applied. Press Save to persist.'),
-      ),
-    );
   }
 
   Future<void> _openLocationPicker() async {
@@ -1304,31 +1252,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.qr_code),
-                    label: const Text('Share QR'),
-                    onPressed: () => showSiteSettingsQrShareDialog(
-                      context,
-                      widget.webViewModel,
-                    ),
-                  ),
+          // Imported file:// sites have no fetchable URL; sharing the
+          // QR would only ship a synthetic file:///<name> handle that the
+          // receiving device can't load, so the action is hidden.
+          if (!widget.webViewModel.initUrl.startsWith('file://'))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.qr_code),
+                label: const Text('Share QR'),
+                onPressed: () => showSiteSettingsQrShareDialog(
+                  context,
+                  widget.webViewModel,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Apply QR'),
-                    onPressed: _applyFromQr,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(

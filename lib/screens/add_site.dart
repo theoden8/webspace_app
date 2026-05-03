@@ -11,6 +11,7 @@ import '../main.dart' show extractDomain;
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, IconUpdate;
 import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
+import 'site_settings_qr.dart';
 
 /// Persistent cache for favicon URLs and SVG content
 class FaviconUrlCache {
@@ -308,7 +309,6 @@ class AddSiteScreen extends StatefulWidget {
 
 class _AddSiteScreenState extends State<AddSiteScreen> {
   final TextEditingController _urlController = TextEditingController();
-  bool _incognito = false;
   Timer? _debounceTimer;
   String? _previewUrl;
   late List<SiteSuggestion> _suggestions;
@@ -382,6 +382,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     }
   }
 
+  Future<void> _addByQr() async {
+    final decoded = await showSiteSettingsQrApplyDialog(context);
+    if (decoded == null || !mounted) return;
+    Navigator.pop(context, {'qrSettings': decoded});
+  }
+
   Future<void> _importHtmlFile() async {
     try {
       final result = await FilePicker.pickFiles(
@@ -421,7 +427,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       Navigator.pop(context, {
         'url': 'file:///$fileName',
         'name': nameWithoutExt,
-        'incognito': _incognito,
         'htmlContent': htmlContent,
       });
     } catch (e) {
@@ -654,16 +659,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                 )
                               : null,
                           suffixIcon: IconButton(
-                            icon: Icon(
-                              _incognito ? MdiIcons.incognito : MdiIcons.incognitoOff,
-                              color: _incognito ? Theme.of(context).colorScheme.primary : null,
-                            ),
-                            tooltip: _incognito ? 'Incognito mode on' : 'Incognito mode off',
-                            onPressed: () {
-                              setState(() {
-                                _incognito = !_incognito;
-                              });
-                            },
+                            icon: const Icon(Icons.qr_code_scanner),
+                            tooltip: 'Add from QR code',
+                            onPressed: _addByQr,
                           ),
                         ),
                       ),
@@ -676,7 +674,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                 String url = _urlController.text.trim();
                                 // If no protocol specified, default to https
                                 url = ensureUrlScheme(url);
-                                Navigator.pop(context, {'url': url, 'name': '', 'incognito': _incognito});
+                                Navigator.pop(context, {'url': url, 'name': ''});
                               },
                               child: Text('Add Site'),
                             ),

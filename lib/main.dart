@@ -41,6 +41,7 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/navigation_engine.dart';
+import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -3201,37 +3202,58 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (result == null || result is! Map<String, dynamic>) return;
     if (!mounted) return;
 
-    final url = result['url'] as String;
-    final customName = result['name'] as String;
-    final incognito = result['incognito'] as bool? ?? false;
-    final htmlContent = result['htmlContent'] as String?;
+    final stateSetter = () { setState((){}); _updateCanGoBack(); };
+    late WebViewModel model;
+    final qrSettings = result['qrSettings'] as Map<String, dynamic>?;
 
-    // Try to fetch page title if custom name not provided (skip for local files)
-    String? pageTitle;
-    if (customName.isEmpty && htmlContent == null) {
-      pageTitle = await getPageTitle(url);
-      if (!mounted) return;
-    }
+    if (qrSettings != null) {
+      model = WebViewModel.fromJson(
+        SiteSettingsQrCodec.hydrateForFromJson(qrSettings),
+        stateSetter,
+      );
+      if ((model.name ?? '').isEmpty) {
+        final pageTitle = await getPageTitle(model.initUrl);
+        if (!mounted) return;
+        if (pageTitle != null && pageTitle.isNotEmpty) {
+          model.name = pageTitle;
+          model.pageTitle = pageTitle;
+        }
+      } else {
+        model.pageTitle = model.name;
+      }
+    } else {
+      final url = result['url'] as String;
+      final customName = result['name'] as String;
+      final incognito = result['incognito'] as bool? ?? false;
+      final htmlContent = result['htmlContent'] as String?;
 
-    final model = WebViewModel(
-      initUrl: url,
-      incognito: incognito,
-      stateSetterF: () { setState((){}); _updateCanGoBack(); },
-    );
-    if (customName.isNotEmpty) {
-      model.name = customName;
-      model.pageTitle = customName;
-    } else if (pageTitle != null && pageTitle.isNotEmpty) {
-      model.name = pageTitle;
-      model.pageTitle = pageTitle;
-    }
+      // Try to fetch page title if custom name not provided (skip for local files)
+      String? pageTitle;
+      if (customName.isEmpty && htmlContent == null) {
+        pageTitle = await getPageTitle(url);
+        if (!mounted) return;
+      }
 
-    // Imported HTML files are the only copy of the user's data, so they
-    // go into HtmlImportStorage (persistent) rather than HtmlCacheService
-    // (cleared on app upgrade). The webview reads from the import store
-    // for `initialHtml` on creation.
-    if (htmlContent != null && !incognito) {
-      await HtmlImportStorage.instance.saveHtml(model.siteId, htmlContent, url);
+      model = WebViewModel(
+        initUrl: url,
+        incognito: incognito,
+        stateSetterF: stateSetter,
+      );
+      if (customName.isNotEmpty) {
+        model.name = customName;
+        model.pageTitle = customName;
+      } else if (pageTitle != null && pageTitle.isNotEmpty) {
+        model.name = pageTitle;
+        model.pageTitle = pageTitle;
+      }
+
+      // Imported HTML files are the only copy of the user's data, so they
+      // go into HtmlImportStorage (persistent) rather than HtmlCacheService
+      // (cleared on app upgrade). The webview reads from the import store
+      // for `initialHtml` on creation.
+      if (htmlContent != null && !incognito) {
+        await HtmlImportStorage.instance.saveHtml(model.siteId, htmlContent, url);
+      }
     }
 
     setState(() {
