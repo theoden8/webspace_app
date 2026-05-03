@@ -37,13 +37,20 @@ Future<void> showSiteSettingsQrShareDialog(
             Container(
               color: Colors.white,
               padding: const EdgeInsets.all(8),
-              child: QrImageView(
-                data: encoded,
-                version: QrVersions.auto,
-                size: 240,
-                backgroundColor: Colors.white,
-                errorCorrectionLevel: QrErrorCorrectLevel.M,
-                gapless: true,
+              // SizedBox with tight constraints terminates intrinsic queries
+              // before they reach QrImageView's internal LayoutBuilder, which
+              // AlertDialog's IntrinsicWidth would otherwise hit.
+              child: SizedBox(
+                width: 240,
+                height: 240,
+                child: QrImageView(
+                  data: encoded,
+                  version: QrVersions.auto,
+                  size: 240,
+                  backgroundColor: Colors.white,
+                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                  gapless: true,
+                ),
               ),
             ),
             const SizedBox(height: 12),
