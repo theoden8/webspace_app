@@ -2,7 +2,7 @@
 
 ### Requirement: LIR-001 - Per-Site Domain Claim List
 
-Each site SHALL carry a list of domain claims that declare which URLs it handles. A claim has a `kind` of `exactHost`, `wildcardSubdomain`, or `baseDomain`, and a canonical lowercase `value` with no scheme or port. Existing sites SHALL auto-synthesize one `baseDomain` claim equal to `getBaseDomain(initUrl)` on first load after upgrade, preserving legacy cookie-isolation semantics.
+Each site SHALL carry a list of domain claims that declare which URLs it handles. A claim has a `kind` of `exactHost`, `wildcardSubdomain`, or `baseDomain`, and a canonical lowercase `value` with no scheme or port. Existing sites SHALL auto-synthesize one `baseDomain` claim equal to `getBaseDomain(initUrl)` on first load after upgrade. The `domainClaims` list SHALL persist as part of `WebViewModel` JSON, and SHALL be omitted from serialization output when it equals the synthesized legacy default.
 
 #### Scenario: Legacy site migrates with synthesized claim
 
@@ -16,11 +16,17 @@ Each site SHALL carry a list of domain claims that declare which URLs it handles
 - **THEN** the site stores all three claims verbatim
 - **AND** `google.com`, `mail.google.com`, and `gmail.com` all route to that site via the resolver
 
+#### Scenario: User-defined claims persist across restart
+
+- **GIVEN** the user saved claims `[exactHost:google.com, wildcardSubdomain:google.com]` on a site
+- **WHEN** the app is restarted
+- **THEN** the site's `domainClaims` list loads exactly as saved
+
 ---
 
 ### Requirement: LIR-002 - URL Routing Resolver
 
-The system SHALL resolve an incoming https URL to exactly one site (or "no match") using a deterministic specificity ranking: `exactHost` (score 300) > `wildcardSubdomain` (score 200) > `baseDomain` (score 100). On a score tie, the system SHALL surface a disambiguation picker.
+The system SHALL resolve an incoming `http`/`https` URL to exactly one site (or "no match") using a deterministic specificity ranking: `exactHost` (score 300) > `wildcardSubdomain` (score 200) > `baseDomain` (score 100). On a score tie, the system SHALL surface a disambiguation picker. On no match, the system SHALL surface a "Create site for <host>?" bottom sheet.
 
 #### Scenario: Exact host beats wildcard
 
@@ -32,8 +38,8 @@ The system SHALL resolve an incoming https URL to exactly one site (or "no match
 
 - **WHEN** site A claims `wildcardSubdomain:mastodon.social` only
 - **AND** the incoming URL is `https://mastodon.social/`
-- **THEN** the resolver returns no match from site A's wildcard claim
-- **AND** falls through to any `baseDomain` or `exactHost` claim on other sites
+- **THEN** site A's wildcard claim does not match
+- **AND** any `baseDomain` or `exactHost` claim on other sites is consulted instead
 
 #### Scenario: Tie surfaces picker
 
@@ -42,12 +48,11 @@ The system SHALL resolve an incoming https URL to exactly one site (or "no match
 - **THEN** a disambiguation picker is shown listing both sites
 - **AND** the chosen site receives the full URL
 
-#### Scenario: No match falls back
+#### Scenario: No match offers create
 
 - **WHEN** no site's claims match the incoming URL
-- **AND** the launch source is an Android intent
-- **THEN** the resolver returns no match
-- **AND** the intent is re-emitted to the OS chooser excluding WebSpace
+- **THEN** the app shows a "Create site for <host>?" bottom sheet
+- **AND** accepting creates a site with `initUrl` set to the incoming URL and a synthesized `baseDomain` claim
 
 ---
 
@@ -72,9 +77,45 @@ The system SHALL prevent a site from claiming a domain whose base domain equals 
 
 ---
 
-### Requirement: LIR-004 - Android Share Intent Handler
+### Requirement: LIR-004 - `webspace://` URL Scheme
 
-The Android app SHALL declare an `ACTION_SEND` intent-filter with `mimeType="text/plain"` on `MainActivity`. Shared text that starts with `http://` or `https://` (after trimming) SHALL be delivered to the resolver.
+The app SHALL register the `webspace` URL scheme on every supported platform (Android intent-filter, iOS/macOS `CFBundleURLTypes`, Linux `.desktop` `MimeType=x-scheme-handler/webspace;`). The canonical form is `webspace://open?url=<percent-encoded-target>` where the target SHALL be a `http` or `https` URL. Invalid targets SHALL be ignored silently with a snackbar; the app SHALL NOT crash on malformed input.
+
+#### Scenario: External app opens `webspace://` URL
+
+- **GIVEN** another app provides a button that calls `Intent.ACTION_VIEW` (Android) / `UIApplication.open` (iOS) / `xdg-open` (Linux) on `webspace://open?url=https%3A%2F%2Ftwitter.com%2Fuser`
+- **WHEN** the OS dispatches the URL
+- **THEN** WebSpace launches (or is brought to foreground) without a chooser, since no other app handles `webspace://`
+- **AND** the resolver receives `https://twitter.com/user`
+- **AND** the matching site (or no-match flow) handles it
+
+#### Scenario: Invalid target URL
+
+- **WHEN** the app receives `webspace://open?url=javascript%3Aalert(1)` or any non-http(s) target
+- **THEN** the URL is dropped
+- **AND** a snackbar reports "Unsupported URL scheme"
+- **AND** the app does not crash
+
+#### Scenario: Cold start via `webspace://` URL
+
+- **GIVEN** WebSpace is not running
+- **WHEN** the OS launches it with a `webspace://open?url=...` URL
+- **THEN** the main app calls `LinkIntentService.getInitialUrl()` after `runApp()`
+- **AND** the URL is delivered exactly once
+- **AND** subsequent calls to `getInitialUrl()` return null
+
+#### Scenario: Warm start via `webspace://` URL
+
+- **GIVEN** WebSpace is already running in the background
+- **WHEN** the OS dispatches a `webspace://open?url=...` URL
+- **THEN** `LinkIntentService` emits the URL on its `Stream<Uri>`
+- **AND** `WebSpacePage` runs the resolver and activates the matching site
+
+---
+
+### Requirement: LIR-005 - Android Share Intent Handler
+
+The Android app SHALL declare an `ACTION_SEND` intent-filter with `mimeType="text/plain"` on `MainActivity`. Shared text that contains an `http://` or `https://` URL (after trimming) SHALL be delivered to the resolver. The intent activity SHALL NOT request `FLAG_ACTIVITY_NEW_TASK` so that pressing Back returns to the referring app.
 
 #### Scenario: Share a URL from another app
 
@@ -90,36 +131,18 @@ The Android app SHALL declare an `ACTION_SEND` intent-filter with `mimeType="tex
 - **THEN** the app launches to its previous state without routing
 - **AND** a snackbar informs the user that no URL was found
 
----
+#### Scenario: Back returns to referrer
 
-### Requirement: LIR-005 - Android Curated Open Intent Handlers
-
-The Android app SHALL register one `<activity-alias>` per curated host, each with `ACTION_VIEW` + `android.intent.category.BROWSABLE` + `<data android:scheme="https" android:host="..."/>`, `android:autoVerify="false"`, and `android:enabled="false"` by default. Users SHALL toggle each alias from the Link handling settings screen, which calls `PackageManager.setComponentEnabledSetting` via a platform channel.
-
-#### Scenario: User enables twitter.com handler
-
-- **GIVEN** `com.theoden8.webspace/.handler.TwitterHandler` alias exists and is disabled
-- **WHEN** the user flips the twitter.com toggle on
-- **THEN** the app calls `setComponentEnabledSetting(..., COMPONENT_ENABLED_STATE_ENABLED, DONT_KILL_APP)`
-- **AND** the next time the user taps a twitter.com link in another app, WebSpace appears in the chooser
-
-#### Scenario: User disables handler
-
-- **WHEN** the user flips a host's toggle off
-- **THEN** the corresponding alias is set to `COMPONENT_ENABLED_STATE_DISABLED`
-- **AND** WebSpace no longer appears in the chooser for that host
-
-#### Scenario: No autoVerify
-
-- **WHEN** any alias is enabled
-- **THEN** its `<intent-filter>` carries `android:autoVerify="false"`
-- **AND** Android never selects WebSpace silently as default handler
+- **GIVEN** the user shared a URL from Gmail to WebSpace
+- **WHEN** the matching site is loaded and the user presses the system Back button
+- **THEN** Gmail returns to the foreground
+- **AND** WebSpace is not relaunched into its home state
 
 ---
 
 ### Requirement: LIR-006 - iOS Share Extension
 
-The iOS app SHALL ship a Share Extension target that accepts Web URLs (`NSExtensionActivationSupportsWebURLWithMaxCount = 1`). The extension SHALL hand the URL to the main app via `extensionContext.open(URL(string: "webspace://open?url=<encoded>")!)` and then call `completeRequest(returningItems: nil)`. The main app SHALL handle the `webspace://open` URL by passing the decoded URL to the resolver.
+The iOS app SHALL ship a Share Extension target that accepts Web URLs (`NSExtensionActivationSupportsWebURLWithMaxCount = 1`). The extension SHALL hand the URL to the main app via `extensionContext.open(URL(string: "webspace://open?url=<encoded>")!)` and then call `completeRequest(returningItems: nil)`. The main app SHALL handle the resulting `webspace://open` URL via LIR-004.
 
 #### Scenario: Share from Safari
 
@@ -127,7 +150,7 @@ The iOS app SHALL ship a Share Extension target that accepts Web URLs (`NSExtens
 - **WHEN** the user taps the share button and selects WebSpace
 - **THEN** the Share Extension launches briefly
 - **AND** the main app opens with the article URL routed to the matching site
-- **AND** the OS shows a "← Safari" breadcrumb in the status bar
+- **AND** the OS shows a "← Safari" breadcrumb in the status bar that returns the user on tap
 
 #### Scenario: Share Extension with no URL
 
@@ -138,43 +161,25 @@ The iOS app SHALL ship a Share Extension target that accepts Web URLs (`NSExtens
 
 ### Requirement: LIR-007 - macOS Share Extension
 
-The macOS app SHALL ship a Share Extension target with behavior equivalent to iOS (LIR-006). Data transfer to the main app uses the same `webspace://open` scheme and App Group.
+The macOS app SHALL ship a Share Extension target with behavior equivalent to iOS (LIR-006). Data transfer to the main app uses the same `webspace://open?url=...` scheme.
 
 #### Scenario: Share from Safari on macOS
 
 - **WHEN** the user shares a URL from Safari to WebSpace
 - **THEN** the main app opens with the URL routed to the matching site
+- **AND** the OS shows a back-to-Safari affordance in the menu bar
 
 ---
 
-### Requirement: LIR-008 - Back to Referring App
+### Requirement: LIR-008 - Link Handling Settings Screen
 
-When launched via share/open intent from another app, pressing Back (Android) or tapping the status-bar breadcrumb (iOS/macOS) SHALL return the user to the referring app without first returning to the WebSpace home.
-
-#### Scenario: Android back returns to referrer
-
-- **GIVEN** the user tapped a link in Gmail and chose WebSpace
-- **WHEN** the matching site is loaded and the user presses the system Back button
-- **THEN** the user returns to Gmail
-- **AND** WebSpace is not relaunched into its home state
-
-#### Scenario: iOS breadcrumb returns to referrer
-
-- **GIVEN** the user shared a URL from Safari to WebSpace
-- **WHEN** the user taps the "← Safari" breadcrumb in the status bar
-- **THEN** Safari reopens at its previous state
-
----
-
-### Requirement: LIR-009 - Link Handling Settings Screen
-
-The app SHALL provide a "Link handling" screen inside Settings containing: a master "Handle shared links" switch, per-host toggles (Android only; reflect actual component state), and a "Routing overview" list showing every domain pattern → owning site with conflict warnings.
+The app SHALL provide a "Link handling" screen inside Settings containing a master "Handle shared links" switch and a "Routing overview" list showing every domain pattern → owning site with conflict warnings.
 
 #### Scenario: Master switch disabled
 
 - **WHEN** the user turns off the master switch
-- **THEN** Android disables every alias regardless of individual toggle state
-- **AND** iOS/macOS extensions detect the flag via App Group and no-op
+- **THEN** `LinkIntentService` ignores subsequent URLs from any source (Android `ACTION_SEND`, `webspace://`, iOS/macOS Share Extension) and logs them
+- **AND** the iOS/macOS Share Extension reads the flag from the App Group and shows "WebSpace link handling is disabled" instead of opening the main app
 
 #### Scenario: Routing overview reflects claims
 
@@ -189,13 +194,13 @@ The app SHALL provide a "Link handling" screen inside Settings containing: a mas
 
 ---
 
-### Requirement: LIR-010 - No-Match Recovery
+### Requirement: LIR-009 - No-Match Recovery
 
-When the resolver returns no match for an incoming URL, the system SHALL offer to create a new site for that URL rather than silently failing, except when the launch source is an Android OS chooser (in which case no match simply re-emits the intent).
+When the resolver returns no match for an incoming URL, the system SHALL offer to create a new site for that URL. Accepting creates a `WebViewModel` whose `initUrl` is the incoming URL and whose `domainClaims` is the synthesized `[baseDomain(getBaseDomain(host))]`.
 
-#### Scenario: Share sheet no-match prompts create
+#### Scenario: Share-sheet no-match prompts create
 
 - **GIVEN** no site matches `https://example.org/article`
-- **WHEN** the URL arrives via iOS Share Extension or Android `ACTION_SEND`
+- **WHEN** the URL arrives via iOS Share Extension or Android `ACTION_SEND` or `webspace://`
 - **THEN** the app shows a "Create site for example.org?" bottom sheet
-- **AND** accepting creates a site with `initUrl=https://example.org/article` and a synthesized `baseDomain` claim
+- **AND** accepting creates the site and immediately activates it on the article URL
