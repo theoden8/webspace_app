@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:webspace/screens/site_settings_qr_scanner.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
+import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// Camera scanning is wired up only where flutter_zxing's `ReaderWidget`
@@ -71,11 +72,11 @@ Future<void> showSiteSettingsQrShareDialog(
           label: const Text('Copy'),
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: encoded));
-            if (ctx.mounted) {
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                const SnackBar(content: Text('Copied to clipboard')),
-              );
-            }
+            if (!ctx.mounted) return;
+            Navigator.of(ctx).pop();
+            rootScaffoldMessengerKey.currentState?.showSnackBar(
+              const SnackBar(content: Text('Copied to clipboard')),
+            );
           },
         ),
         TextButton.icon(
@@ -83,6 +84,7 @@ Future<void> showSiteSettingsQrShareDialog(
           label: const Text('Share'),
           onPressed: () {
             SharePlus.instance.share(ShareParams(text: encoded));
+            Navigator.of(ctx).pop();
           },
         ),
         TextButton(
