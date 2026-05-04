@@ -89,6 +89,13 @@ class SettingsScreen extends StatefulWidget {
   final VoidCallback? onScriptsChanged;
   final bool useContainers;
 
+  /// Android-only: name of another site whose `notificationsEnabled` is
+  /// already on with a conflicting proxy fingerprint, or `null` if there
+  /// is no conflict. When non-null, the Notifications toggle renders
+  /// disabled with an explanatory subtitle (NOTIF-005-A). On other
+  /// platforms or when there's no conflict, this is `null`.
+  final String? notificationsBlockedBySite;
+
   SettingsScreen({
     required this.webViewModel,
     this.onSettingsSaved,
@@ -97,6 +104,7 @@ class SettingsScreen extends StatefulWidget {
     this.onGlobalUserScriptsChanged,
     this.onScriptsChanged,
     this.useContainers = false,
+    this.notificationsBlockedBySite,
   });
 
   @override
@@ -1195,37 +1203,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           if (widget.useContainers)
-            SwitchListTile(
-              title: const Text('Notifications'),
-              subtitle: Text(
-                _notificationsEnabled &&
-                        NotificationService.instance.permissionGranted == false
-                    ? 'Notifications denied. Enable in Settings → '
-                        '${Platform.isIOS ? "Notifications → WebSpace" : "WebSpace → Notifications"}.'
-                    : 'Allow this site to show system notifications. Keeps the '
-                        'site polling in the background so notifications fire even '
-                        'when you are on a different tab.',
-              ),
-              value: _notificationsEnabled,
-              onChanged: (bool value) async {
-                setState(() {
-                  _notificationsEnabled = value;
-                });
-                if (!value) return;
-                // First-time iOS info dialog (NOTIF-005-I); idempotent
-                // via SharedPreferences flag. Show before requesting OS
-                // permission so the user understands the iOS limits
-                // before tapping Allow.
-                if (Platform.isIOS) {
-                  await maybeShowIosNotificationLimitsDialog(context);
-                }
-                // NOTIF-007 / 16.1: request OS permission proactively
-                // at toggle time, not lazily on first notification.
-                // Repeat calls after a denial are harmless (the OS
-                // returns the cached decision).
-                await NotificationService.instance.requestPermission();
-              },
-            ),
+            Builder(builder: (context) {
+              final blockedBy = widget.notificationsBlockedBySite;
+              // The conflict gate only forbids ENABLING. If the toggle
+              // is already on (state predates a proxy edit on another
+              // site), the user can still turn it off — we just don't
+              // let them flip it back on while the conflict stands.
+              final blocked = blockedBy != null && !_notificationsEnabled;
+              final permissionDenied = _notificationsEnabled &&
+                  NotificationService.instance.permissionGranted == false;
+              final String subtitle;
+              if (blocked) {
+                subtitle =
+                    'Cannot enable: "$blockedBy" is already polling in '
+                    'background with a different proxy. Android allows only '
+                    'one proxy at a time.';
+              } else if (permissionDenied) {
+                subtitle = 'Notifications denied. Enable in Settings → '
+                    '${Platform.isIOS ? "Notifications → WebSpace" : "WebSpace → Notifications"}.';
+              } else {
+                subtitle =
+                    'Allow this site to show system notifications. Keeps the '
+                    'site polling in the background so notifications fire even '
+                    'when you are on a different tab.';
+              }
+              return SwitchListTile(
+                title: const Text('Notifications'),
+                subtitle: Text(subtitle),
+                value: _notificationsEnabled,
+                onChanged: blocked
+                    ? null
+                    : (bool value) async {
+                        setState(() {
+                          _notificationsEnabled = value;
+                        });
+                        if (!value) return;
+                        // First-time iOS info dialog (NOTIF-005-I); idempotent
+                        // via SharedPreferences flag. Show before requesting OS
+                        // permission so the user understands the iOS limits
+                        // before tapping Allow.
+                        if (Platform.isIOS) {
+                          await maybeShowIosNotificationLimitsDialog(context);
+                        }
+                        // NOTIF-007 / 16.1: request OS permission proactively
+                        // at toggle time, not lazily on first notification.
+                        // Repeat calls after a denial are harmless (the OS
+                        // returns the cached decision).
+                        await NotificationService.instance.requestPermission();
+                      },
+              );
+            }),
           ..._buildLocationSection(),
           if (widget.onClearCookies != null)
             Padding(
