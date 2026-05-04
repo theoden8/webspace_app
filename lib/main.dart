@@ -59,6 +59,7 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
+import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -908,6 +909,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         final activeIdx = _currentIndex!;
         unawaited(_captureStateBytes(_webViewModels[activeIdx]));
       }
+      // iOS: open a ~30s background-task window so notification webviews
+      // can flush in-flight setTimeouts before iOS suspends the process,
+      // and re-arm the periodic BGAppRefreshTask for opportunistic wakeups
+      // afterwards. No-op on other platforms (Android keeps the process
+      // alive via foreground service per NOTIF-005-A).
+      if (_anyNotificationSites()) {
+        unawaited(BackgroundTaskService.instance.beginGracePeriod());
+        unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
+      }
     } else if (state == AppLifecycleState.resumed) {
       _startForegroundPollTimer();
       // Await any in-flight pause before resuming to prevent ordering inversion
@@ -917,6 +927,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Pinned shortcuts may have been added (via the launcher's pin dialog)
       // or removed (by the user from the launcher) while we were backgrounded.
       _refreshPinnedSiteIds();
+      // Release the iOS grace-period background task. Foregrounded again,
+      // so we don't need the extension; iOS auto-ends after the expiration
+      // handler fires, but explicit end is cleaner.
+      unawaited(BackgroundTaskService.instance.endGracePeriod());
     }
   }
 
@@ -1824,6 +1838,42 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // prefilled with the shared URL once startup is settled. The resumed
     // lifecycle hook handles the warm path.
     unawaited(_handleShareIntent());
+
+    // iOS: register the BGAppRefreshTask handler so opportunistic wakeups
+    // reload notification webviews. No-op on other platforms.
+    BackgroundTaskService.instance.onBackgroundRefresh =
+        _refreshNotificationSites;
+    BackgroundTaskService.instance.initialize();
+    if (_anyNotificationSites()) {
+      unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
+    }
+  }
+
+  bool _anyNotificationSites() {
+    for (final m in _webViewModels) {
+      if (m.notificationsEnabled) return true;
+    }
+    return false;
+  }
+
+  /// Reload every notification site so its page JS gets a chance to fire
+  /// pending notifications. Called by:
+  ///   1. The 5-minute foreground poll tick (skips the active site so the
+  ///      user's interaction isn't disrupted).
+  ///   2. The iOS BGAppRefreshTask handler (no active-site exclusion since
+  ///      the app is suspended at that point).
+  Future<void> _refreshNotificationSites({bool excludeActive = false}) async {
+    for (int i = 0; i < _webViewModels.length; i++) {
+      final m = _webViewModels[i];
+      if (!m.notificationsEnabled) continue;
+      if (excludeActive && i == _currentIndex) continue;
+      if (!_loadedIndices.contains(i)) continue;
+      try {
+        await m.controller?.reload();
+      } catch (_) {
+        // Controller may have been disposed mid-iteration.
+      }
+    }
   }
 
   void _onNotificationTapped(String siteId) {
@@ -1860,13 +1910,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   void _onForegroundPollTick() {
-    for (int i = 0; i < _webViewModels.length; i++) {
-      if (_webViewModels[i].notificationsEnabled &&
-          i != _currentIndex &&
-          _loadedIndices.contains(i)) {
-        _webViewModels[i].controller?.reload();
-      }
-    }
+    unawaited(_refreshNotificationSites(excludeActive: true));
   }
 
   Future<void> launchUrl(String url, {

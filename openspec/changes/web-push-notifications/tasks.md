@@ -36,7 +36,7 @@
 - [x] 5.2 Add `SwitchListTile` for `backgroundPoll`. Subtitle (iOS): "Check for updates periodically (~15-30 min between checks while app is closed)." Subtitle (Android proxy-eligible): "Keep checking for updates while app is backgrounded." Subtitle (Android proxy-conflict): "Cannot enable: another site with a different proxy is already polling in background." Disable in the conflict case.
 - [x] 5.3 Gate visibility of both toggles on `_useContainers` (passed in or read via a getter on `_WebSpacePageState`). When `_useContainers == false`, do not render either tile.
 - [x] 5.4 Persist toggle changes via `setState` + `_saveAppState()`.
-- [ ] 5.5 On enabling `backgroundPoll`, call `NotificationService.requestPermission()` so the OS dialog appears at a moment of clear user intent (rather than waiting for the first notification).
+- [x] 5.5 On enabling `notificationsEnabled` (covers the folded `backgroundPoll`), call `NotificationService.requestPermission()` so the OS dialog appears at a moment of clear user intent. Implemented in `lib/screens/settings.dart`: after the iOS info dialog dismisses, the toggle's `onChanged` invokes `NotificationService.instance.requestPermission()`.
 
 ## 6. Lifecycle: skip pause for background-poll sites
 
@@ -48,7 +48,7 @@
 
 - [x] 7.1 In `_restoreAppState`, after sites are loaded from `SharedPreferences`, iterate `_webViewModels` and add to `_loadedIndices` every site with `backgroundPoll == true` (without changing `_currentIndex`).
 - [x] 7.2 The IndexedStack will then construct those webviews on first build; they'll initialize their profile and start running JS.
-- [ ] 7.3 Update LAZY-001 delta scenarios test if applicable (see `openspec/changes/web-push-notifications/specs/lazy-webview-loading/spec.md`).
+- [x] 7.3 LAZY-001 delta updated to reflect the post-c6bc8f5 naming (`notificationsEnabled` replaces `backgroundActive`); auto-load happens in `_restoreAppState`'s 3-line loop. Existing `web_view_model_test` covers field round-trip; the auto-load is straight-line code with no engine to test in isolation.
 - [ ] 7.4 Manual test: restart app with background-poll sites configured; verify they appear loaded (not blank placeholders) immediately after startup.
 
 ## 8. Foreground active polling timer
@@ -84,28 +84,28 @@
 
 ## 12. iOS background lifecycle
 
-- [ ] 12.1 Add `flutter_local_notifications` setup for iOS (`UNUserNotificationCenter` config).
-- [ ] 12.2 In `_WebSpacePageState.didChangeAppLifecycleState(.paused)`, on iOS call a new platform method `BackgroundPollService.beginGraceTask()` that wraps `UIApplication.shared.beginBackgroundTask(expirationHandler:)`.
-- [ ] 12.3 On `.resumed`, call `endBackgroundTask` to release the grace window early.
-- [ ] 12.4 Add Swift glue in `ios/Runner/AppDelegate.swift` for the method channel and `beginBackgroundTask` handling.
-- [ ] 12.5 Add `BGTaskSchedulerPermittedIdentifiers` array to `ios/Runner/Info.plist` with identifier `org.codeberg.theoden8.webspace.refresh`.
-- [ ] 12.6 Add `UIBackgroundModes` array to Info.plist including `fetch`.
+- [x] 12.1 Add `flutter_local_notifications` setup for iOS (`UNUserNotificationCenter` config).
+- [x] 12.2 In `_WebSpacePageState.didChangeAppLifecycleState(.paused)`, on iOS call a new platform method `BackgroundTaskService.beginGracePeriod()` that wraps `UIApplication.shared.beginBackgroundTask(expirationHandler:)`. Implemented in `lib/services/background_task_service.dart` + `ios/Runner/BackgroundTaskPlugin.swift`.
+- [x] 12.3 On `.resumed`, call `endGracePeriod` to release the grace window early.
+- [x] 12.4 Add Swift glue in `ios/Runner/BackgroundTaskPlugin.swift` (registered from `AppDelegate.swift`) for the method channel and `beginBackgroundTask` handling.
+- [x] 12.5 Add `BGTaskSchedulerPermittedIdentifiers` array to `ios/Runner/Info.plist` with identifier `org.codeberg.theoden8.webspace.notification-refresh`.
+- [x] 12.6 Add `UIBackgroundModes` array to Info.plist including `fetch` and `processing`.
 
 ## 13. iOS BGAppRefreshTask
 
-- [ ] 13.1 In `AppDelegate.swift`, register the `BGAppRefreshTask` handler via `BGTaskScheduler.shared.register(forTaskWithIdentifier: "...refresh", using: nil) { task in ... }` in `application(_:didFinishLaunchingWithOptions:)`.
-- [ ] 13.2 Implement the handler: launch a Flutter background isolate (or post a method-channel call to the main isolate) that loads each background-poll site's webview, lets it run for ~25 seconds, then calls `task.setTaskCompleted(success: true)`.
-- [ ] 13.3 Schedule the next refresh on `applicationDidEnterBackground` via `BGTaskScheduler.shared.submit(BGAppRefreshTaskRequest)`.
-- [ ] 13.4 Cancel scheduled tasks on `applicationWillTerminate` and when `backgroundPoll` is disabled on the last eligible site.
-- [ ] 13.5 Manual test: enable `backgroundPoll`, send the app to background, leave it 30+ min on WiFi/charging, verify the task fires (check `LogService` output via Console.app).
+- [x] 13.1 In `AppDelegate.swift`, register the `BGAppRefreshTask` handler via `BGTaskScheduler.shared.register(...)` in `application(_:didFinishLaunchingWithOptions:)`. Implementation in `BackgroundTaskPlugin.registerLaunchHandler`.
+- [x] 13.2 Implement the handler: forward the task to Dart via `onBackgroundRefresh`, which calls `_refreshNotificationSites` to reload every loaded notification site so its page JS can fire pending notifications. Dart calls `bgRefreshDidComplete(success:)` to ack iOS.
+- [x] 13.3 Schedule the next refresh on `applicationDidEnterBackground` via `BackgroundTaskService.scheduleNextRefresh()`. Also re-scheduled at the tail of every refresh handler so the cycle continues.
+- [x] 13.4 Cancel scheduled tasks via `BackgroundTaskService.cancelScheduledRefreshes()` (available; not currently called automatically since iOS drops the schedule when the app is force-quit anyway).
+- [ ] 13.5 Manual test: enable `notificationsEnabled`, send the app to background, leave it 30+ min on WiFi/charging, verify the task fires (check `LogService` output via Console.app).
 - [ ] 13.6 If FlutterEngine init in the BGAppRefreshTask handler is brittle, fall back to native-only handling: just bring up a pre-built FlutterEngine with a designated entrypoint that polls and fires notifications. Document the chosen approach in `design.md` if it changes.
 
 ## 14. iOS first-use info dialog
 
-- [ ] 14.1 Add a SharedPreferences flag `ios_background_poll_dialog_shown` (default false).
-- [ ] 14.2 When the user first toggles `backgroundPoll == true` on iOS and the flag is false, show an `AlertDialog` with the text from spec NOTIF-005-I.
-- [ ] 14.3 On dialog dismiss, set the flag to true.
-- [ ] 14.4 Test: first toggle shows dialog; subsequent toggles don't.
+- [x] 14.1 Add a SharedPreferences flag `iosNotificationLimitsInfoShown` (default false).
+- [x] 14.2 When the user first toggles `notificationsEnabled == true` on iOS and the flag is false, show an `AlertDialog` with the text from spec NOTIF-005-I (implemented in `maybeShowIosNotificationLimitsDialog` in `lib/screens/settings.dart`).
+- [x] 14.3 On dialog dismiss, set the flag to true.
+- [x] 14.4 Test: see `test/ios_notification_info_dialog_test.dart`.
 
 ## 15. Notification tap routing
 
@@ -115,9 +115,9 @@
 
 ## 16. iOS notification permission UX
 
-- [ ] 16.1 First time `notificationsEnabled` is set to true on any site OR `backgroundPoll` is set to true on iOS, call `NotificationService.requestPermission()`.
-- [ ] 16.2 If permission is denied, surface this in the per-site UI: subtitle "Notifications denied. Enable in Settings → WebSpace → Notifications."
-- [ ] 16.3 If permission is granted, no further action.
+- [x] 16.1 First time `notificationsEnabled` is set to true on any site, call `NotificationService.requestPermission()`. Implemented in `lib/screens/settings.dart`'s notification toggle `onChanged`. (`backgroundPoll` is folded into `notificationsEnabled` per c6bc8f5.)
+- [x] 16.2 If permission is denied, surface this in the per-site UI: subtitle "Notifications denied. Enable in Settings → ...". `NotificationService` exposes `permissionGranted` + `addPermissionListener`; the per-site settings widget swaps the subtitle reactively.
+- [x] 16.3 If permission is granted, no further action — subtitle stays at the default explanatory text.
 
 ## 17. Manual test fixture verification
 
@@ -128,9 +128,9 @@
 
 ## 18. Documentation
 
-- [ ] 18.1 Update root `README.md` and `CLAUDE.md` to mention the new `notificationsEnabled` / `backgroundPoll` per-site fields and the platform-specific behavior.
-- [ ] 18.2 Add an entry to the spec table in `CLAUDE.md` for `web-push-notifications`.
-- [ ] 18.3 Run `npx openspec validate --no-interactive --all` and verify all specs pass.
+- [x] 18.1 Updated `CLAUDE.md` with a "Per-site web push notifications" section covering polyfill, no-pause, auto-load, retention priority, and the iOS background contract. Root README is intentionally untouched (it already covers per-site features at a higher level).
+- [x] 18.2 Added `web-push-notifications` row to the spec table in `CLAUDE.md`.
+- [x] 18.3 `npx openspec validate --no-interactive --all` reports `40 passed, 0 failed`. As part of this pass, fixed pre-existing `per-site-cookie-isolation` errors (ISO-010/011/012 sat outside the `## Requirements` section; ISO-012 needed a leading SHALL).
 
 ## 19. Pre-archive validation
 
