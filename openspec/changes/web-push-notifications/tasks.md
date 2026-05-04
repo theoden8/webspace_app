@@ -84,28 +84,28 @@
 
 ## 12. iOS background lifecycle
 
-- [ ] 12.1 Add `flutter_local_notifications` setup for iOS (`UNUserNotificationCenter` config).
-- [ ] 12.2 In `_WebSpacePageState.didChangeAppLifecycleState(.paused)`, on iOS call a new platform method `BackgroundPollService.beginGraceTask()` that wraps `UIApplication.shared.beginBackgroundTask(expirationHandler:)`.
-- [ ] 12.3 On `.resumed`, call `endBackgroundTask` to release the grace window early.
-- [ ] 12.4 Add Swift glue in `ios/Runner/AppDelegate.swift` for the method channel and `beginBackgroundTask` handling.
-- [ ] 12.5 Add `BGTaskSchedulerPermittedIdentifiers` array to `ios/Runner/Info.plist` with identifier `org.codeberg.theoden8.webspace.refresh`.
-- [ ] 12.6 Add `UIBackgroundModes` array to Info.plist including `fetch`.
+- [x] 12.1 Add `flutter_local_notifications` setup for iOS (`UNUserNotificationCenter` config).
+- [x] 12.2 In `_WebSpacePageState.didChangeAppLifecycleState(.paused)`, on iOS call a new platform method `BackgroundTaskService.beginGracePeriod()` that wraps `UIApplication.shared.beginBackgroundTask(expirationHandler:)`. Implemented in `lib/services/background_task_service.dart` + `ios/Runner/BackgroundTaskPlugin.swift`.
+- [x] 12.3 On `.resumed`, call `endGracePeriod` to release the grace window early.
+- [x] 12.4 Add Swift glue in `ios/Runner/BackgroundTaskPlugin.swift` (registered from `AppDelegate.swift`) for the method channel and `beginBackgroundTask` handling.
+- [x] 12.5 Add `BGTaskSchedulerPermittedIdentifiers` array to `ios/Runner/Info.plist` with identifier `org.codeberg.theoden8.webspace.notification-refresh`.
+- [x] 12.6 Add `UIBackgroundModes` array to Info.plist including `fetch` and `processing`.
 
 ## 13. iOS BGAppRefreshTask
 
-- [ ] 13.1 In `AppDelegate.swift`, register the `BGAppRefreshTask` handler via `BGTaskScheduler.shared.register(forTaskWithIdentifier: "...refresh", using: nil) { task in ... }` in `application(_:didFinishLaunchingWithOptions:)`.
-- [ ] 13.2 Implement the handler: launch a Flutter background isolate (or post a method-channel call to the main isolate) that loads each background-poll site's webview, lets it run for ~25 seconds, then calls `task.setTaskCompleted(success: true)`.
-- [ ] 13.3 Schedule the next refresh on `applicationDidEnterBackground` via `BGTaskScheduler.shared.submit(BGAppRefreshTaskRequest)`.
-- [ ] 13.4 Cancel scheduled tasks on `applicationWillTerminate` and when `backgroundPoll` is disabled on the last eligible site.
-- [ ] 13.5 Manual test: enable `backgroundPoll`, send the app to background, leave it 30+ min on WiFi/charging, verify the task fires (check `LogService` output via Console.app).
+- [x] 13.1 In `AppDelegate.swift`, register the `BGAppRefreshTask` handler via `BGTaskScheduler.shared.register(...)` in `application(_:didFinishLaunchingWithOptions:)`. Implementation in `BackgroundTaskPlugin.registerLaunchHandler`.
+- [x] 13.2 Implement the handler: forward the task to Dart via `onBackgroundRefresh`, which calls `_refreshNotificationSites` to reload every loaded notification site so its page JS can fire pending notifications. Dart calls `bgRefreshDidComplete(success:)` to ack iOS.
+- [x] 13.3 Schedule the next refresh on `applicationDidEnterBackground` via `BackgroundTaskService.scheduleNextRefresh()`. Also re-scheduled at the tail of every refresh handler so the cycle continues.
+- [x] 13.4 Cancel scheduled tasks via `BackgroundTaskService.cancelScheduledRefreshes()` (available; not currently called automatically since iOS drops the schedule when the app is force-quit anyway).
+- [ ] 13.5 Manual test: enable `notificationsEnabled`, send the app to background, leave it 30+ min on WiFi/charging, verify the task fires (check `LogService` output via Console.app).
 - [ ] 13.6 If FlutterEngine init in the BGAppRefreshTask handler is brittle, fall back to native-only handling: just bring up a pre-built FlutterEngine with a designated entrypoint that polls and fires notifications. Document the chosen approach in `design.md` if it changes.
 
 ## 14. iOS first-use info dialog
 
-- [ ] 14.1 Add a SharedPreferences flag `ios_background_poll_dialog_shown` (default false).
-- [ ] 14.2 When the user first toggles `backgroundPoll == true` on iOS and the flag is false, show an `AlertDialog` with the text from spec NOTIF-005-I.
-- [ ] 14.3 On dialog dismiss, set the flag to true.
-- [ ] 14.4 Test: first toggle shows dialog; subsequent toggles don't.
+- [x] 14.1 Add a SharedPreferences flag `iosNotificationLimitsInfoShown` (default false).
+- [x] 14.2 When the user first toggles `notificationsEnabled == true` on iOS and the flag is false, show an `AlertDialog` with the text from spec NOTIF-005-I (implemented in `maybeShowIosNotificationLimitsDialog` in `lib/screens/settings.dart`).
+- [x] 14.3 On dialog dismiss, set the flag to true.
+- [x] 14.4 Test: see `test/ios_notification_info_dialog_test.dart`.
 
 ## 15. Notification tap routing
 

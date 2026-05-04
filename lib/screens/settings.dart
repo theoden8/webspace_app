@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/location.dart';
@@ -1195,10 +1196,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'when you are on a different tab.',
               ),
               value: _notificationsEnabled,
-              onChanged: (bool value) {
+              onChanged: (bool value) async {
                 setState(() {
                   _notificationsEnabled = value;
                 });
+                if (value && Platform.isIOS) {
+                  await maybeShowIosNotificationLimitsDialog(context);
+                }
               },
             ),
           ..._buildLocationSection(),
@@ -1264,6 +1268,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+}
+
+const _kIosNotifInfoShownPrefKey = 'iosNotificationLimitsInfoShown';
+
+/// Per NOTIF-005-I: surface iOS background-execution limits to the user
+/// the first time they enable Notifications on any site. Shown once per
+/// install; the "shown" flag is stored in SharedPreferences so a subsequent
+/// re-toggle (or a different site's toggle) doesn't repeat the dialog.
+Future<void> maybeShowIosNotificationLimitsDialog(BuildContext context) async {
+  if (!Platform.isIOS) return;
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getBool(_kIosNotifInfoShownPrefKey) == true) return;
+  if (!context.mounted) return;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Background notifications on iOS'),
+      content: const Text(
+        'iOS limits background execution. Notifications arrive while '
+        'WebSpace is open or in the recent-tasks list. After WebSpace is '
+        'fully suspended, iOS schedules background refreshes opportunistically '
+        '— typically every 15-30 minutes — at which point your sites are '
+        'reloaded and any pending notifications fire.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+  await prefs.setBool(_kIosNotifInfoShownPrefKey, true);
 }
 
 /// Three-way segmented control state for the per-site geolocation row.
