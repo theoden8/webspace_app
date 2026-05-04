@@ -91,10 +91,7 @@ The session-scoped fields are: `currentUrl`, `pageTitle`, and
 
 ### Requirement: INC-004 - Session State Is Discarded On Deserialization
 
-When a `WebViewModel` is rehydrated from JSON (`fromJson`), the system
-SHALL discard any persisted session state if `incognito = true`. This
-covers JSON written by older builds (defense in depth) and JSON copied
-between devices.
+The system SHALL discard any persisted session state when a `WebViewModel` is rehydrated from JSON (`fromJson`) with `incognito = true`. This covers JSON written by older builds (defense in depth) and JSON copied between devices.
 
 #### Scenario: Legacy JSON with incognito + currentUrl
 
@@ -108,12 +105,7 @@ between devices.
 
 ### Requirement: INC-005 - Container On-Disk Data Is Wiped On Startup
 
-On the platforms where per-site native containers are used (see
-[per-site-containers](../per-site-containers/spec.md)), each
-container persists localStorage, IndexedDB, ServiceWorkers, and HTTP
-cache to disk. The system SHALL delete every incognito site's container
-during app startup, before any webview binds. The container is
-recreated empty on the next bind.
+The system SHALL delete every incognito site's native container during app startup, before any webview binds. On the platforms where per-site native containers are used (see [per-site-containers](../per-site-containers/spec.md)), each container persists localStorage, IndexedDB, ServiceWorkers, and HTTP cache to disk; the wipe is what makes those stores ephemeral. The container is recreated empty on the next bind.
 
 > **Why a wipe step is needed on top of `incognito = true`.** The fork
 > makes `incognito = true` ephemeral on Apple (`WKWebsiteDataStore.nonPersistent()`)
@@ -151,17 +143,7 @@ recreated empty on the next bind.
 
 ### Requirement: INC-006 - Encrypted Per-Site Storage Treats Incognito As Orphan
 
-The startup garbage-collection passes for session-scoped per-site
-stores SHALL treat incognito siteIds as orphaned, sweeping their
-entries even though the site itself is alive. This handles users who
-toggled an existing site to incognito after data accumulated.
-
-The session-scoped stores are: `CookieSecureStorage`,
-`HtmlCacheService`, and `WebViewStateStorage`.
-
-The non-session stores (`ProxyPasswordSecureStorage`,
-`HtmlImportStorage` for file:// imports) MUST be excluded from this
-treatment — they hold user configuration, not session data.
+The startup garbage-collection passes for session-scoped per-site stores SHALL treat incognito siteIds as orphaned, sweeping their entries even though the site itself is alive — this handles users who toggled an existing site to incognito after data accumulated. The session-scoped stores are: `CookieSecureStorage`, `HtmlCacheService`, and `WebViewStateStorage`. The non-session stores (`ProxyPasswordSecureStorage`, `HtmlImportStorage` for file:// imports) MUST be excluded from this treatment — they hold user configuration, not session data.
 
 #### Scenario: Pre-toggle cookies are swept
 

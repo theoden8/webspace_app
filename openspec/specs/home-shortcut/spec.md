@@ -102,6 +102,40 @@ The pinned-shortcut set is queried via `ShortcutManagerCompat.getShortcuts(FLAG_
 
 ---
 
+### Requirement: HS-006 - Shortcut Launch Resets To Home URL
+
+A pinned shortcut SHALL launch the targeted site at its `initUrl`, not at the last persisted `currentUrl`. The shortcut represents the user's stated entry point for that site (the URL they pinned), not the URL the previous session happened to drift to. Without this, location/tracking/state parameters that accumulate during a session resurface every time the shortcut is tapped — particularly visible on map and search sites that encode coordinates or query state in the URL (issue #298).
+
+This requirement applies only to **process-startup** launches (cold or post-kill). When the app is already running and the user taps a shortcut, the live in-memory session is preserved — the shortcut just brings the app to the foreground and switches to the site, matching HS-002's "App already running" scenario.
+
+#### Scenario: Cold-launch via shortcut resets to initUrl
+
+**Given** site A's `initUrl` is `https://www.google.com/maps`
+**And** the previous session ended with `currentUrl` = `https://www.google.com/maps/@40.7,-74.0,15z`
+**And** the user has force-killed the app
+**When** the user taps A's home shortcut
+**Then** the app starts up
+**And** A's webview is created with `initialUrl` = `https://www.google.com/maps`
+**And** the URL bar shows `https://www.google.com/maps`
+
+#### Scenario: Warm tap leaves running session intact
+
+**Given** the app is already running
+**And** site A's webview has navigated to `https://www.google.com/maps/@40.7,-74.0,15z`
+**When** the user taps A's home shortcut from the launcher
+**Then** the app comes to the foreground
+**And** A is selected
+**And** A's webview is at `https://www.google.com/maps/@40.7,-74.0,15z` (no reset)
+
+#### Scenario: Non-shortcut cold launch is unchanged
+
+**Given** the previous session ended with site A active at a deep `currentUrl`
+**When** the user opens WebSpace from its app icon (no shortcut intent)
+**Then** the app starts on the home screen with no site activated
+**And** if A is later opened, A's webview loads its persisted `currentUrl`
+
+---
+
 ## Implementation
 
 ### Platform Channel
