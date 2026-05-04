@@ -1,6 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Foreground service for NOTIF-005-A: keeps notification sites'
+         webviews polling while the app is backgrounded so their page JS
+         can fire pending notifications. specialUse covers the
+         "polling user-configured websites for updates" case — none of
+         the predefined service types (dataSync, mediaPlayback, location)
+         match a generic JS event loop. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Optional, requested at runtime only when the user taps "Use current location"
          in the per-site location picker. Not used for any background/tracking. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -54,5 +62,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/flutter_inappwebview_android_provider_paths" />
         </provider>
+        <service
+            android:name=".BackgroundPollService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keep user-selected websites running so they can fire notifications while the app is backgrounded." />
+        </service>
     </application>
 </manifest>

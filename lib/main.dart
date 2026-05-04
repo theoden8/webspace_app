@@ -59,10 +59,12 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
+import 'package:webspace/services/android_foreground_service.dart';
 import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
+import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -918,6 +920,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         unawaited(BackgroundTaskService.instance.beginGracePeriod());
         unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
       }
+      // Android: ensure the foreground service is up before the
+      // process gets backgrounded so the OS doesn't freeze the renderer.
+      // No-op on other platforms.
+      unawaited(_updateForegroundService());
     } else if (state == AppLifecycleState.resumed) {
       _startForegroundPollTimer();
       // Await any in-flight pause before resuming to prevent ordering inversion
@@ -931,6 +937,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // so we don't need the extension; iOS auto-ends after the expiration
       // handler fires, but explicit end is cleaner.
       unawaited(BackgroundTaskService.instance.endGracePeriod());
+      // Android: re-evaluate (idempotent). The service stays running
+      // whenever a notification site is loaded — the persistent
+      // notification is the user's signal that the app is holding the
+      // process alive — so this is mostly a no-op on resume, but
+      // ensures the state is correct if any sites were unloaded by a
+      // memory-pressure handler while we were backgrounded.
+      unawaited(_updateForegroundService());
     }
   }
 
@@ -1157,6 +1170,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     } else {
       setState(() {});
     }
+
+    // The user may have just toggled `notificationsEnabled` on/off, so
+    // re-evaluate whether the Android foreground service should be
+    // running. No-op on other platforms.
+    unawaited(_updateForegroundService());
   }
 
   /// Dispose every loaded webview. Used after global user script edits,
@@ -1436,6 +1454,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
+    // _loadedIndices may have changed (LRU eviction, conflict unload,
+    // first-load of target), so re-evaluate the Android foreground
+    // service. No-op on non-Android.
+    unawaited(_updateForegroundService());
     } finally {
       // Clear the in-flight marker only if we still own it; a newer
       // _setCurrentIndex caller will have already overwritten it with
@@ -1882,6 +1904,59 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (m.notificationsEnabled) return true;
     }
     return false;
+  }
+
+  /// NOTIF-005-A: Android `ProxyController` is process-wide, so a site
+  /// can become a notification (background-poll) site only if every
+  /// other already-enabled notification site shares its proxy
+  /// fingerprint. Returns the first conflicting site's name (for
+  /// explanatory subtitle) or `null` if [target] is free to enable.
+  ///
+  /// No-op (returns null) on non-Android — iOS uses `BGAppRefreshTask`
+  /// which doesn't share a process-wide proxy controller.
+  String? _notificationsBlockedBySite(WebViewModel target) {
+    if (!Platform.isAndroid) return null;
+    final others = <WebViewModel>[];
+    for (final m in _webViewModels) {
+      if (identical(m, target)) continue;
+      if (!m.notificationsEnabled) continue;
+      others.add(m);
+    }
+    final conflict = ProxyConflictEngine.firstConflict(
+      targetProxy: target.proxySettings,
+      otherEnabledProxies: others.map((m) => m.proxySettings),
+    );
+    if (conflict == null) return null;
+    final blocker = _webViewModels.firstWhere(
+      (m) => identical(m.proxySettings, conflict),
+      orElse: () => target,
+    );
+    return blocker.name.isNotEmpty
+        ? blocker.name
+        : (blocker.initUrl.isNotEmpty ? blocker.initUrl : 'Another site');
+  }
+
+  /// NOTIF-005-A: keep the Android foreground service running iff at
+  /// least one notification site is loaded. The service holds the app
+  /// process alive across backgrounding so notification sites' page JS
+  /// keeps executing.
+  ///
+  /// Idempotent — [AndroidForegroundService] dedupes start calls with
+  /// the same count.
+  Future<void> _updateForegroundService() async {
+    if (!Platform.isAndroid) return;
+    int count = 0;
+    for (int i = 0; i < _webViewModels.length; i++) {
+      final m = _webViewModels[i];
+      if (!m.notificationsEnabled) continue;
+      if (!_loadedIndices.contains(i)) continue;
+      count++;
+    }
+    if (count > 0) {
+      await AndroidForegroundService.instance.start(count);
+    } else {
+      await AndroidForegroundService.instance.stop();
+    }
   }
 
   /// Reload every notification site so its page JS gets a chance to fire
@@ -2855,6 +2930,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       builder: (context) => SettingsScreen(
                         webViewModel: _webViewModels[_currentIndex!],
                         useContainers: _useContainers,
+                        notificationsBlockedBySite: _notificationsBlockedBySite(_webViewModels[_currentIndex!]),
                         globalUserScripts: _globalUserScripts,
                         onGlobalUserScriptsChanged: (scripts) {
                           _globalUserScripts = scripts;
@@ -3219,6 +3295,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 builder: (context) => SettingsScreen(
                   webViewModel: _webViewModels[_currentIndex!],
                   useContainers: _useContainers,
+                  notificationsBlockedBySite: _notificationsBlockedBySite(_webViewModels[_currentIndex!]),
                   globalUserScripts: _globalUserScripts,
                   onGlobalUserScriptsChanged: (scripts) {
                     _globalUserScripts = scripts;
@@ -3643,6 +3720,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIds);
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
     await _stateStorage.removeOrphans(activeSiteIds);
+
+    // Deletion may have just removed the last notification site; tear
+    // down the Android foreground service if so. No-op on other
+    // platforms.
+    unawaited(_updateForegroundService());
 
     if (!mounted) return;
     Navigator.pop(context);

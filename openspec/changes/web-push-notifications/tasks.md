@@ -62,25 +62,25 @@
 
 ## 9. Android foreground service
 
-- [ ] 9.1 Add `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` permissions to `android/app/src/main/AndroidManifest.xml`.
-- [ ] 9.2 Declare a foreground service with `android:foregroundServiceType="specialUse"` in the manifest. Service class: `org.codeberg.theoden8.webspace.BackgroundPollService`.
-- [ ] 9.3 Implement `BackgroundPollService.kt` — minimal foreground service that calls `startForeground(...)` with a persistent notification (channel id `webspace_background_poll`, title "WebSpace is checking N sites for updates").
-- [ ] 9.4 Add a Dart-side wrapper `lib/services/android_foreground_service.dart` with `start(siteCount)` / `stop()` methods communicating via `MethodChannel('org.codeberg.theoden8.webspace/background-poll')`.
-- [ ] 9.5 Add a Kotlin plugin `WebSpaceBackgroundPollPlugin.kt` registered alongside existing plugins in `MainActivity.kt`. Method handlers: `start(count)` starts the service, `stop()` stops it.
+- [x] 9.1 `POST_NOTIFICATIONS` was already in [`AndroidManifest.xml`](../../../android/app/src/main/AndroidManifest.xml). Added `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_SPECIAL_USE`.
+- [x] 9.2 Declared the service with `android:foregroundServiceType="specialUse"` in the manifest, plus the required `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` `<property>` describing the use case to the OS.
+- [x] 9.3 Implemented [`BackgroundPollService.kt`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundPollService.kt) — `startForeground(...)` with a low-importance, ongoing, silent notification on channel `webspace_background_poll`. Uses `ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE` on Q+. `START_NOT_STICKY` so OS-kill doesn't restart with a null intent.
+- [x] 9.4 Added [`AndroidForegroundService`](../../../lib/services/android_foreground_service.dart) — Dart wrapper around the method channel `org.codeberg.theoden8.webspace/background-poll`. `start(count)` is dedupe'd by last count; both methods are no-ops on non-Android.
+- [x] 9.5 Added [`WebSpaceBackgroundPollPlugin.kt`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceBackgroundPollPlugin.kt) and registered it in [`MainActivity.configureFlutterEngine`](../../../android/app/src/main/kotlin/org/codeberg/theoden8/webspace/MainActivity.kt). The plugin starts/stops the service via `startForegroundService`; STOP routes through `onStartCommand` so `stopForeground(REMOVE)` runs and the persistent notification disappears immediately.
 - [ ] 9.6 Verify F-Droid build is clean: run `scripts/check_no_gms.sh build/app/outputs/flutter-apk/app-fdroid-release.apk` after `fvm flutter build apk --flavor fdroid --release`.
 
 ## 10. Android proxy conflict detection
 
-- [ ] 10.1 In `_WebSpacePageState`, add a method `bool _canEnableBackgroundPoll(WebViewModel target)` that returns false iff another site with `backgroundPoll == true` has a different `proxySettings`.
-- [ ] 10.2 Use `_canEnableBackgroundPoll` to gate the toggle in the per-site settings UI (task 5.2).
-- [ ] 10.3 When `_canEnableBackgroundPoll` is false, the toggle is disabled with the explanatory subtitle.
-- [ ] 10.4 Unit tests: extract the conflict detection to a pure function in `lib/services/proxy_conflict_engine.dart`. Test scenarios from NOTIF-005-A.
+- [x] 10.1 Added `_notificationsBlockedBySite(target)` in [`lib/main.dart`](../../../lib/main.dart) — wraps the engine and returns the blocking site's display name (or `null` if no conflict). Android-only.
+- [x] 10.2 Both `SettingsScreen` call sites in `main.dart` pass the result as `notificationsBlockedBySite`.
+- [x] 10.3 The Notifications `SwitchListTile` in [`lib/screens/settings.dart`](../../../lib/screens/settings.dart) renders disabled with an explanatory subtitle when blocked. Already-on toggles can still be turned off — the gate only forbids enabling.
+- [x] 10.4 Pure-Dart [`ProxyConflictEngine`](../../../lib/services/proxy_conflict_engine.dart) exposes `fingerprint`, `canEnable`, and `firstConflict`. Unit-covered by [`test/proxy_conflict_engine_test.dart`](../../../test/proxy_conflict_engine_test.dart) — all NOTIF-005-A scenarios (multiple DEFAULT, same custom proxy, SOCKS5 vs HTTP, DEFAULT vs custom, mismatched credentials).
 
 ## 11. Android background lifecycle
 
-- [ ] 11.1 In `_WebSpacePageState`, add `_updateForegroundService()` — recompute whether any background-poll site is loaded and proxy-eligible; start or stop the foreground service accordingly.
-- [ ] 11.2 Call `_updateForegroundService()` after: `_setCurrentIndex` settles, site addition/deletion, `backgroundPoll` toggle change, app pause/resume.
-- [ ] 11.3 Manual test (Android): enable `backgroundPoll` on a non-proxy site; verify the persistent notification appears. Disable; verify it disappears.
+- [x] 11.1 Added `_updateForegroundService()` in [`lib/main.dart`](../../../lib/main.dart) — counts notification sites currently in `_loadedIndices` and starts/stops the foreground service. Idempotent on the native side.
+- [x] 11.2 Called from `_handlePerSiteSettingsSaved` (toggle change), the tail of `_setCurrentIndex` (loaded-set mutations), `_deleteSite` (last notification site removed), and both branches of `didChangeAppLifecycleState` (so the service is up before the activity is hidden, and re-evaluated after a memory-pressure-driven unload during background).
+- [ ] 11.3 Manual test (Android): enable `notificationsEnabled` on a non-proxy site; verify the persistent notification appears. Disable; verify it disappears.
 
 ## 12. iOS background lifecycle
 
