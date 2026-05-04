@@ -137,6 +137,31 @@ Map<String, String> buildAllFixtures() {
     textRules: sampleTextRules,
   )!;
 
+  // Multi-batch + multi-pattern fixture for the edge cases the small
+  // sample can't reach: the shim batches selectors in groups of 20 with
+  // per-batch try/catch, so a malformed selector should poison its own
+  // batch but leave the other one working. 25 selectors -> two batches;
+  // the bad one sits at index 20 so it lands at the head of batch #2.
+  // Two text rules, the first with multiple OR-matched patterns, prove
+  // CB-005's multi-pattern semantics.
+  const multiBatchSelectors = [
+    '.batch1-a', '.batch1-b', '.batch1-c', '.batch1-d', '.batch1-e',
+    '.batch1-f', '.batch1-g', '.batch1-h', '.batch1-i', '.batch1-j',
+    '.batch1-k', '.batch1-l', '.batch1-m', '.batch1-n', '.batch1-o',
+    '.batch1-p', '.batch1-q', '.batch1-r', '.batch1-s', '.batch1-t',
+    '>>>invalid<<<',
+    '.batch2-b', '.batch2-c', '.batch2-d', '.batch2-e',
+  ];
+  const multiTextRules = <ContentBlockerTextRule>[
+    (selector: 'p.notice', patterns: ['Promoted', 'Sponsored']),
+    (selector: 'div.bio', patterns: ['Editor']),
+  ];
+  fixtures['content_blocker/cosmetic_multi.js'] =
+      buildContentBlockerCosmeticShim(
+    selectors: multiBatchSelectors,
+    textRules: multiTextRules,
+  )!;
+
   return fixtures;
 }
 
