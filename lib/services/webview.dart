@@ -1111,16 +1111,26 @@ class WebViewFactory {
 
   /// Determine if a navigation was triggered by a user gesture.
   /// Android: uses hasGesture property.
-  /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
+  /// iOS/macOS/Linux: infers from navigationType (LINK_ACTIVATED = user
+  ///   tap, FORM_SUBMITTED = user form). The Linux fork's
+  ///   `NavigationActionType` currently lacks `formSubmitted` — WPE
+  ///   WebKit's `WEBKIT_NAVIGATION_TYPE_FORM_SUBMITTED` collapses into
+  ///   `other`, so user-driven cross-origin form posts on Linux read
+  ///   as no-gesture and the engine silently blocks them. That regress
+  ///   is acceptable vs. the prior catch-all `return true`, which
+  ///   treated every JS-initiated cross-domain redirect as a user
+  ///   click and popped a nested browser for SPA auto-redirects (the
+  ///   posture that `integration_test/spa_cross_domain_navigation_test.dart`
+  ///   exercises).
   static bool _hasUserGesture(inapp.NavigationAction action) {
     if (Platform.isAndroid) {
       return action.hasGesture ?? true;
     }
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (Platform.isIOS || Platform.isMacOS || Platform.isLinux) {
       return action.navigationType == inapp.NavigationType.LINK_ACTIVATED ||
              action.navigationType == inapp.NavigationType.FORM_SUBMITTED;
     }
-    return true; // Default allow on unknown platforms
+    return true; // Default allow on remaining unknown platforms
   }
 
   static bool _shouldBlockUrl(String url) {
