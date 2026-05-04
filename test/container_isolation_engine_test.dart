@@ -200,4 +200,72 @@ void main() {
       expect(native.profiles, isEmpty);
     });
   });
+
+  group('ContainerIsolationEngine — wipeContainers (incognito INC-005)', () {
+    test('deletes only the named incognito containers', () async {
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
+      await engine.bindForSite('regular-A');
+      await engine.bindForSite('incognito-B');
+      await engine.bindForSite('regular-C');
+
+      final wiped = await engine.wipeContainers(['incognito-B']);
+
+      expect(wiped, 1);
+      expect(native.profiles.keys, unorderedEquals(['regular-A', 'regular-C']));
+    });
+
+    test('handles multiple incognito siteIds', () async {
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
+      await engine.bindForSite('a');
+      await engine.bindForSite('b');
+      await engine.bindForSite('c');
+
+      final wiped = await engine.wipeContainers(['a', 'c']);
+
+      expect(wiped, 2);
+      expect(native.profiles.keys, ['b']);
+    });
+
+    test('no-op on empty input', () async {
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
+      await engine.bindForSite('a');
+
+      final wiped = await engine.wipeContainers(const []);
+
+      expect(wiped, 0);
+      expect(native.profiles.keys, ['a']);
+    });
+
+    test('short-circuits to 0 on unsupported platform', () async {
+      final native = MockContainerNative(supported: false);
+      final engine = ContainerIsolationEngine(containerNative: native);
+
+      final wiped = await engine.wipeContainers(['a', 'b']);
+
+      expect(wiped, 0);
+      expect(
+        native.calls.where((c) => c.startsWith('deleteContainer')).toList(),
+        isEmpty,
+        reason: 'no native delete should run when isSupported() == false',
+      );
+    });
+
+    test('passing a siteId without a container is a tolerated no-op',
+        () async {
+      // Mirrors the production `deleteContainer` contract: the native
+      // side returns false for an unknown name, the Dart side just
+      // counts the call. This covers the "user toggled incognito on a
+      // site whose container was never materialized" case.
+      final native = MockContainerNative();
+      final engine = ContainerIsolationEngine(containerNative: native);
+
+      final wiped = await engine.wipeContainers(['ghost']);
+
+      expect(wiped, 1);
+      expect(native.profiles, isEmpty);
+    });
+  });
 }

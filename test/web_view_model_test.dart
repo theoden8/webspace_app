@@ -386,6 +386,90 @@ void main() {
       expect(model.spoofTimezone, isNull);
       expect(model.webRtcPolicy, equals(WebRtcPolicy.defaultPolicy));
     });
+
+    group('incognito ephemerality (issue #298)', () {
+      test('toJson omits currentUrl/pageTitle and zeroes cookies (INC-003)', () {
+        final model = WebViewModel(
+          initUrl: 'https://www.google.com/maps',
+          currentUrl: 'https://www.google.com/maps/@40.7128,-74.0060,15z',
+          cookies: [Cookie(name: 'session', value: 'abc')],
+          incognito: true,
+        )..pageTitle = 'Google Maps';
+
+        final json = model.toJson();
+
+        expect(json.containsKey('currentUrl'), isFalse,
+            reason: 'currentUrl is the smoking gun: it would re-centre Maps '
+                'on the spoofed location after restart');
+        expect(json.containsKey('pageTitle'), isFalse);
+        expect(json['cookies'], isEmpty);
+        // Config the user typed must still survive a restart.
+        expect(json['initUrl'], 'https://www.google.com/maps');
+        expect(json['incognito'], isTrue);
+      });
+
+      test('non-incognito toJson keeps session state', () {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          currentUrl: 'https://example.com/page',
+          cookies: [Cookie(name: 'session', value: 'abc')],
+          incognito: false,
+        )..pageTitle = 'Example';
+
+        final json = model.toJson();
+
+        expect(json['currentUrl'], 'https://example.com/page');
+        expect(json['pageTitle'], 'Example');
+        expect((json['cookies'] as List), hasLength(1));
+      });
+
+      test(
+          'fromJson with incognito + legacy currentUrl/cookies discards them (INC-004)',
+          () {
+        // This is the exact shape produced by builds before the toJson
+        // fix: incognito=true, but currentUrl and cookies are persisted.
+        final json = {
+          'initUrl': 'https://www.google.com/maps',
+          'currentUrl':
+              'https://www.google.com/maps/@40.7128,-74.0060,15z',
+          'pageTitle': 'Stale Title',
+          'cookies': [
+            {'name': 'session', 'value': 'leak'}
+          ],
+          'proxySettings': {'type': 0, 'address': null},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+          'incognito': true,
+        };
+
+        final model = WebViewModel.fromJson(json, null);
+
+        expect(model.currentUrl, equals(model.initUrl),
+            reason: 'incognito session must reset to initUrl on every load');
+        expect(model.cookies, isEmpty);
+        expect(model.pageTitle, isNull);
+        expect(model.incognito, isTrue);
+      });
+
+      test('round-trip from incognito: deep URL never resurfaces', () {
+        final original = WebViewModel(
+          initUrl: 'https://www.google.com/maps',
+          currentUrl: 'https://www.google.com/maps/@40.7128,-74.0060,15z',
+          cookies: [Cookie(name: 'session', value: 'abc')],
+          incognito: true,
+        )..pageTitle = 'Maps';
+
+        final restored =
+            WebViewModel.fromJson(original.toJson(), null);
+
+        expect(restored.currentUrl, equals(original.initUrl));
+        expect(restored.cookies, isEmpty);
+        expect(restored.pageTitle, isNull);
+        expect(restored.siteId, equals(original.siteId));
+        expect(restored.incognito, isTrue);
+      });
+    });
   });
 
   group('extractDomain', () {

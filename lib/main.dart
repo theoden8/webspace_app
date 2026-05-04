@@ -1700,8 +1700,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Load cookies from secure storage (keyed by siteId or legacy domain)
       final secureCookies = await _cookieSecureStorage.loadCookies();
 
-      // Load cookies into models by siteId (or migrate from domain-keyed)
+      // Load cookies into models by siteId (or migrate from domain-keyed).
+      // Incognito sites must start each launch with no cookies — even if
+      // legacy entries exist in secure storage from before the toggle was
+      // flipped on (issue #298).
       for (final webViewModel in loadedWebViewModels) {
+        if (webViewModel.incognito) continue;
         // Try siteId first (new format)
         var siteCookies = secureCookies[webViewModel.siteId];
         if (siteCookies == null || siteCookies.isEmpty) {
@@ -1793,15 +1797,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // activated site. `_restoreCookiesForSite` re-nukes on every switch; this
     // extra pass covers launch before any site is activated.
     final activeSiteIdsAtStartup = _webViewModels.map((m) => m.siteId).toSet();
-    await _cookieSecureStorage.removeOrphanedCookies(activeSiteIdsAtStartup);
+    // Incognito sites are treated as orphans for any session-scoped GC
+    // (cookies, html cache, navigation state, container) so on-disk
+    // remnants don't outlive the process — see issue #298. Their config
+    // (proxy passwords, imported HTML for file:// sites) stays put.
+    final nonIncognitoSiteIds = {
+      for (final m in _webViewModels)
+        if (!m.incognito) m.siteId,
+    };
+    final incognitoSiteIds = activeSiteIdsAtStartup.difference(nonIncognitoSiteIds);
+    await _cookieSecureStorage.removeOrphanedCookies(nonIncognitoSiteIds);
     await _proxyPasswordStorage.removeOrphaned(activeSiteIdsAtStartup);
-    await HtmlCacheService.instance.removeOrphanedCaches(activeSiteIdsAtStartup);
+    await HtmlCacheService.instance.removeOrphanedCaches(nonIncognitoSiteIds);
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIdsAtStartup);
-    await _stateStorage.removeOrphans(activeSiteIdsAtStartup);
+    await _stateStorage.removeOrphans(nonIncognitoSiteIds);
     await _cookieManager.deleteAllCookies();
     // Sweep containers whose owning site no longer exists. No-op when
     // the Container API is unsupported.
     await _containerIsolation.garbageCollectOrphans(activeSiteIdsAtStartup);
+    // Wipe containers for incognito sites — recreated empty on the
+    // next bind. Without this, localStorage/IDB/ServiceWorker/cache
+    // outlives the process and the next launch reads stale state.
+    await _containerIsolation.wipeContainers(incognitoSiteIds);
 
     // Always start at home screen on launch - only restore index if launched via shortcut
     final shortcutSiteId = await ShortcutService.getLaunchSiteId();
@@ -1809,6 +1826,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       shortcutSiteId: shortcutSiteId,
       models: _webViewModels,
     );
+    // A Home Shortcut represents the user's stated entry point for that
+    // site — they pinned it expecting "open google maps", not "resume
+    // wherever I last drifted to". Reset the launched site's currentUrl
+    // to its initUrl so a tapped shortcut always lands on the home URL,
+    // regardless of where the previous session ended up (issue #298).
+    if (indexToRestore != null) {
+      final m = _webViewModels[indexToRestore];
+      if (m.currentUrl != m.initUrl) {
+        m.currentUrl = m.initUrl;
+      }
+    }
 
     // Auto-load notification sites so they start polling immediately and
     // can fire notifications without waiting for the user to open them.
