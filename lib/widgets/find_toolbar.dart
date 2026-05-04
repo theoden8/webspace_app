@@ -39,6 +39,7 @@ class _FindToolbarState extends State<FindToolbar> {
           Expanded(
             child: TextField(
               controller: _searchController,
+              autofocus: true,
               autocorrect: false,
               enableSuggestions: false,
               decoration: InputDecoration(
