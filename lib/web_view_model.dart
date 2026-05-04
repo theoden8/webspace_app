@@ -6,10 +6,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
+import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/external_url_engine.dart';
+import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
-import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
@@ -541,7 +543,7 @@ class WebViewModel {
       final pullToRefreshController = isMobile ? inapp.PullToRefreshController(
         settings: inapp.PullToRefreshSettings(enabled: true),
         onRefresh: () async {
-          controller?.reload();
+          await userDrivenReload();
         },
       ) : null;
       // Track last user gesture on same-domain navigation, so we can
@@ -1012,6 +1014,40 @@ class WebViewModel {
           'Cleared in-memory cache for "$name" (siteId: $siteId)');
     } catch (_) {
       // Controller may have been disposed mid-call.
+    }
+  }
+
+  /// User-driven hard reload (pull-to-refresh, Refresh button, Clear-cookies).
+  ///
+  /// In addition to `controller.reload()`, drop:
+  ///   * the [HtmlCacheService] in-memory snapshot for this site, so any
+  ///     subsequent webview rebuild before the post-reload save lands
+  ///     can't feed the rebuilt webview the stale snapshot the user
+  ///     just told us to refresh — bumps the eviction generation, so
+  ///     an in-flight save from the disposed view is rejected at write
+  ///     time and can't resurrect the dropped bytes;
+  ///   * the chromium HTTP/image cache, so the reload actually hits
+  ///     the network instead of being satisfied from disk cache (a
+  ///     stale-cached HTML response is what bit issue #290 — the user
+  ///     pulled to refresh and saw the same stale page because chromium
+  ///     served the cached response).
+  ///
+  /// Online-gated for the HtmlCache eviction: offline users keep the
+  /// snapshot as their only renderable content. The HTTP cache clear
+  /// runs unconditionally — clearing it offline is harmless (no live
+  /// fetch will succeed anyway, and any post-online reload will
+  /// repopulate it) and avoids a second connectivity probe on the
+  /// hot path.
+  Future<void> userDrivenReload() async {
+    if (controller == null) return;
+    if (ConnectivityService.instance.lastKnownOnline ?? true) {
+      HtmlCacheService.instance.evictInMemory(siteId);
+    }
+    await clearWebViewCache();
+    try {
+      await controller!.reload();
+    } catch (_) {
+      // Controller may have been disposed between the cache clear and the reload.
     }
   }
 

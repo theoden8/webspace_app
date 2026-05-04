@@ -2430,6 +2430,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
   }
 
+  /// User-driven reload of the current site (Refresh button, Clear-cookies).
+  /// Delegates to [WebViewModel.userDrivenReload] which drops the
+  /// HtmlCacheService snapshot and the chromium HTTP cache before the
+  /// reload, so the user actually gets fresh content instead of being
+  /// served the same stale page from disk cache (issue #290).
+  Future<void> _refreshCurrentSite() async {
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
+    await _webViewModels[_currentIndex!].userDrivenReload();
+  }
+
   /// Update _canGoBack from the current webview's controller.
   /// Used on iOS to enable drawer edge-swipe when there's no back history.
   /// Note: canGoBack() can return false for pushState/SPA navigations even
@@ -2684,7 +2694,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                             if (loading) {
                               getController()?.stopLoading();
                             } else {
-                              getController()?.reload();
+                              _refreshCurrentSite();
                             }
                           },
                         );
@@ -2783,7 +2793,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         onClearCookies: () {
                           _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _containerCookieManager);
                           _saveWebViewModels();
-                          getController()?.reload();
+                          _refreshCurrentSite();
                         },
                         onSettingsSaved: _handlePerSiteSettingsSaved,
                       ),
@@ -3048,7 +3058,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       if (loading) {
                         getController()?.stopLoading();
                       } else {
-                        getController()?.reload();
+                        _refreshCurrentSite();
                       }
                     },
                   );
@@ -3147,7 +3157,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   onClearCookies: () {
                     _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _containerCookieManager);
                     _saveWebViewModels();
-                    getController()?.reload();
+                    _refreshCurrentSite();
                   },
                   onSettingsSaved: _handlePerSiteSettingsSaved,
                 ),
