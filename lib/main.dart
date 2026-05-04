@@ -971,6 +971,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     try {
       final url = await ShareIntentService.consumeLaunchUrl();
       if (!mounted || url == null || url.isEmpty) return;
+      if (url.startsWith('webspace://qr/')) {
+        final decoded = SiteSettingsQrCodec.decode(url);
+        if (decoded != null) {
+          _addSite(qrSettings: decoded);
+        }
+        return;
+      }
       _addSite(initialUrl: url);
     } finally {
       _handlingShareIntent = false;
@@ -3248,44 +3255,49 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     );
   }
 
-  void _addSite({String? initialUrl}) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddSiteScreen(
-          themeMode: _themeSettings.themeMode,
-          onThemeModeChanged: (ThemeMode mode) async {
-            setState(() {
-              _themeSettings = _themeSettings.copyWith(themeMode: mode);
-            });
-            widget.onThemeSettingsChanged(_themeSettings);
-            await _saveThemeSettings();
+  void _addSite({String? initialUrl, Map<String, dynamic>? qrSettings}) async {
+    Object? result;
+    if (qrSettings != null) {
+      result = {'qrSettings': qrSettings};
+    } else {
+      result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddSiteScreen(
+            themeMode: _themeSettings.themeMode,
+            onThemeModeChanged: (ThemeMode mode) async {
+              setState(() {
+                _themeSettings = _themeSettings.copyWith(themeMode: mode);
+              });
+              widget.onThemeSettingsChanged(_themeSettings);
+              await _saveThemeSettings();
 
-            // Apply theme to all webviews
-            final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-            for (var webViewModel in _webViewModels) {
-              await webViewModel.setTheme(webViewTheme);
-            }
-          },
-          suggestions: _suggestedSites,
-          onSuggestionsChanged: (sites) {
-            _suggestedSites = sites;
-            suggested_sites.saveSuggestedSites(sites);
-          },
-          initialUrl: initialUrl,
+              // Apply theme to all webviews
+              final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
+              for (var webViewModel in _webViewModels) {
+                await webViewModel.setTheme(webViewTheme);
+              }
+            },
+            suggestions: _suggestedSites,
+            onSuggestionsChanged: (sites) {
+              _suggestedSites = sites;
+              suggested_sites.saveSuggestedSites(sites);
+            },
+            initialUrl: initialUrl,
+          ),
         ),
-      ),
-    );
+      );
+    }
     if (result == null || result is! Map<String, dynamic>) return;
     if (!mounted) return;
 
     final stateSetter = () { setState((){}); _updateCanGoBack(); };
     late WebViewModel model;
-    final qrSettings = result['qrSettings'] as Map<String, dynamic>?;
+    final resultQrSettings = result['qrSettings'] as Map<String, dynamic>?;
 
-    if (qrSettings != null) {
+    if (resultQrSettings != null) {
       model = WebViewModel.fromJson(
-        SiteSettingsQrCodec.hydrateForFromJson(qrSettings),
+        SiteSettingsQrCodec.hydrateForFromJson(resultQrSettings),
         stateSetter,
       );
       if ((model.name ?? '').isEmpty) {
