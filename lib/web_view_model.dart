@@ -1111,10 +1111,16 @@ class WebViewModel {
   Map<String, dynamic> toJson() => {
         'siteId': siteId,
         'initUrl': initUrl,
-        'currentUrl': currentUrl,
+        // Incognito sites must not retain session state across app restarts:
+        // the currentUrl/pageTitle/cookies tuple is the user-visible session.
+        // Persisting currentUrl is what makes Google Maps reopen on the
+        // last-viewed coordinates after a kill (issue #298).
+        if (!incognito) 'currentUrl': currentUrl,
         'name': name,
-        'pageTitle': pageTitle,
-        'cookies': cookies.map((cookie) => cookie.toJson()).toList(),
+        if (!incognito) 'pageTitle': pageTitle,
+        'cookies': incognito
+            ? const <Map<String, dynamic>>[]
+            : cookies.map((cookie) => cookie.toJson()).toList(),
         'proxySettings': proxySettings.toJson(),
         'javascriptEnabled': javascriptEnabled,
         'userAgent': userAgent,
@@ -1144,21 +1150,26 @@ class WebViewModel {
       };
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
+    final isIncognito = json['incognito'] as bool? ?? false;
     return WebViewModel(
       siteId: json['siteId'], // May be null for legacy data, will auto-generate
       initUrl: migrateLegacyFileImportUrl(json['initUrl'] as String),
-      currentUrl: json['currentUrl'] == null
+      // Drop persisted session state for incognito sites — handles legacy
+      // JSON written before the toJson fix (issue #298).
+      currentUrl: isIncognito || json['currentUrl'] == null
           ? null
           : migrateLegacyFileImportUrl(json['currentUrl'] as String),
       name: json['name'],
-      cookies: (json['cookies'] as List<dynamic>)
-          .map((dynamic e) => cookieFromJson(e))
-          .toList(),
+      cookies: isIncognito
+          ? const <Cookie>[]
+          : (json['cookies'] as List<dynamic>)
+              .map((dynamic e) => cookieFromJson(e))
+              .toList(),
       proxySettings: UserProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
       userAgent: json['userAgent'],
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
-      incognito: json['incognito'] ?? false,
+      incognito: isIncognito,
       language: json['language'],
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
@@ -1195,6 +1206,6 @@ class WebViewModel {
         orElse: () => WebRtcPolicy.defaultPolicy,
       ),
       stateSetterF: stateSetterF,
-    )..pageTitle = json['pageTitle'];
+    )..pageTitle = isIncognito ? null : json['pageTitle'];
   }
 }
