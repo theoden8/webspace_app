@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:webspace/services/log_service.dart';
 
@@ -11,6 +12,36 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
   void Function(String siteId)? onNotificationTapped;
+
+  /// Listeners are invoked whenever [permissionGranted] changes (e.g.
+  /// after a `requestPermission()` call). Used by the per-site settings
+  /// UI to refresh the "denied" subtitle reactively.
+  final List<VoidCallback> _permissionListeners = [];
+  bool? _permissionGranted;
+
+  /// Last known OS-level notification permission result. `null` means we
+  /// haven't asked yet (cold state). `true` is granted; `false` is denied.
+  /// On iOS / macOS / Android the value is observed via the platform-
+  /// specific request API. Other platforms return `null`.
+  bool? get permissionGranted => _permissionGranted;
+
+  void addPermissionListener(VoidCallback cb) {
+    _permissionListeners.add(cb);
+  }
+
+  void removePermissionListener(VoidCallback cb) {
+    _permissionListeners.remove(cb);
+  }
+
+  void _notifyPermissionListeners() {
+    for (final cb in List<VoidCallback>.from(_permissionListeners)) {
+      try {
+        cb();
+      } catch (_) {
+        // Listeners are UI refreshers; never let one throw take down others.
+      }
+    }
+  }
 
   Future<void> init() async {
     if (_initialized) return;
@@ -73,12 +104,9 @@ class NotificationService {
     }
   }
 
-  bool _permissionGranted = false;
-
   Future<void> _ensurePermission() async {
-    if (_permissionGranted) return;
-    _permissionGranted = await requestPermission();
-    LogService.instance.log('Notification', 'OS permission: ${_permissionGranted ? "granted" : "denied"}');
+    if (_permissionGranted == true) return;
+    await requestPermission();
   }
 
   Future<void> show({
@@ -90,7 +118,7 @@ class NotificationService {
   }) async {
     if (!_initialized) await init();
     await _ensurePermission();
-    if (!_permissionGranted) {
+    if (_permissionGranted != true) {
       LogService.instance.log('Notification', 'Skipped "$title" — OS notification permission denied', level: LogLevel.warning);
       return;
     }
@@ -126,24 +154,29 @@ class NotificationService {
   Future<bool> requestPermission() async {
     if (!_initialized) await init();
 
+    bool granted = false;
     if (Platform.isAndroid) {
       final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
-      return await androidPlugin?.requestNotificationsPermission() ?? false;
-    }
-
-    if (Platform.isIOS) {
+      granted = await androidPlugin?.requestNotificationsPermission() ?? false;
+    } else if (Platform.isIOS) {
       final iosPlugin = _plugin.resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin>();
-      return await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true) ?? false;
-    }
-
-    if (Platform.isMacOS) {
+      granted = await iosPlugin?.requestPermissions(
+              alert: true, badge: true, sound: true) ??
+          false;
+    } else if (Platform.isMacOS) {
       final macPlugin = _plugin.resolvePlatformSpecificImplementation<
           MacOSFlutterLocalNotificationsPlugin>();
-      return await macPlugin?.requestPermissions(alert: true, badge: true, sound: true) ?? false;
+      granted = await macPlugin?.requestPermissions(
+              alert: true, badge: true, sound: true) ??
+          false;
     }
-
-    return false;
+    final changed = _permissionGranted != granted;
+    _permissionGranted = granted;
+    LogService.instance.log(
+        'Notification', 'OS permission: ${granted ? "granted" : "denied"}');
+    if (changed) _notifyPermissionListeners();
+    return granted;
   }
 }

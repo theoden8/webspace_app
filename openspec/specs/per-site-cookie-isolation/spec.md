@@ -220,6 +220,140 @@ Each webview widget SHALL maintain its identity via `ValueKey(siteId)` to preven
 **Then** each widget maintains its own state
 **And** callbacks reference the correct site's `initUrl`
 
+### Requirement: ISO-010 - Cookie Cleanup on Site Deletion
+
+The system SHALL clean up all cookie-related data when a site is deleted.
+
+#### Scenario: Delete only site on a domain
+
+**Given** Site A (`linkedin.com`) is the only site on that domain
+**When** the user deletes Site A
+**Then** all cookies for `linkedin.com` are deleted from the webview cookie jar
+**And** Site A's cookies are removed from secure storage (by siteId)
+**And** Site A's HTML cache is deleted
+
+#### Scenario: Delete one of multiple sites on same domain
+
+**Given** Site A (`github.com/personal`) and Site B (`github.com/work`) exist
+**When** the user deletes Site A
+**Then** cookies for Site A's URL(s) are deleted from the native cookie jar
+  unconditionally
+**And** Site A's cookies are removed from secure storage (by siteId)
+**And** Site A's HTML cache is deleted
+**And** orphaned per-siteId entries are swept from encrypted storage and
+  HTML cache as defense in depth
+**And** Site B continues to function with its cookies intact after next
+  activation (which triggers restore from its siteId-keyed storage)
+
+#### Scenario: Deleting a site while a same-base-domain site is loaded preserves its live session
+
+**Given** Site A (`github.com/personal`) and Site B (`github.com/work`) exist
+**And** Site B is currently active/loaded with a live session in the native
+  cookie jar
+**When** the user deletes Site A
+**Then** before the URL-scoped delete, the system snapshots all native
+  cookies matching the deleted base domain via `getAllCookies()`
+**And** after the URL-scoped delete (which would otherwise wipe Site B's
+  session because `github.com/personal` and `github.com/work` share a
+  host), Site B's snapshot is restored to the native jar
+**And** Site B's live session is NOT interrupted — no reload or re-login
+  is required
+
+#### Scenario: Re-adding a deleted site starts fresh
+
+**Given** Site A (`linkedin.com`) was the only site on that domain and was deleted
+**When** the user adds a new site for `linkedin.com`
+**Then** the new site has no pre-existing cookies
+**And** the user must log in again
+
+### Requirement: ISO-011 - Per-Site Cookie Blocking
+
+The system SHALL allow blocking specific cookies by name + domain on a per-site basis. Blocked cookies are deleted from the webview cookie jar after each page load and skipped during cookie restoration.
+
+> **Profile mode note.** This requirement applies in legacy mode
+> (`_useProfiles == false`); the delete routes through the global
+> `CookieManager`. In profile mode the same scenarios are satisfied
+> by [CONT-006 — Cookie Ops via ContainerCookieManager](../per-site-containers/spec.md#requirement-cont-006--cookie-ops-via-containercookiemanager),
+> which does the delete via the patched `inapp.CookieManager`'s
+> `webViewController:` parameter so the per-site profile's cookie
+> store is targeted (HttpOnly cookies included).
+
+#### Scenario: Block a cookie from the cookie inspector
+
+**Given** Site A has cookies including `_ga` on `.google.com`
+**When** the user opens Developer Tools -> Cookies tab and taps "Block" on `_ga`
+**Then** a `BlockedCookie(name: "_ga", domain: ".google.com")` is added to Site A's `blockedCookies` set
+**And** the cookie is immediately deleted from the webview
+**And** the block rule is persisted via site serialization
+
+#### Scenario: Blocked cookie re-set by website is removed
+
+**Given** Site A has `_ga` on `.google.com` blocked
+**When** a page load completes and the website sets `_ga` again
+**Then** `onCookiesChanged` filters out `_ga` and deletes it from CookieManager
+**And** the cookie does not appear in `model.cookies`
+
+#### Scenario: Blocked cookie skipped during restore
+
+**Given** Site A has `_ga` blocked and stored cookies include `_ga`
+**When** Site A is activated and `_restoreCookiesForSite()` runs
+**Then** `_ga` is NOT set in CookieManager
+**And** other non-blocked cookies are restored normally
+
+#### Scenario: Unblock a cookie
+
+**Given** Site A has `_ga` blocked
+**When** the user opens the Blocked section in the Cookies tab and taps "Unblock"
+**Then** the `BlockedCookie` is removed from `blockedCookies`
+**And** the cookie can be set again on next page load
+
+#### Scenario: Legacy data without blockedCookies
+
+**Given** a site was serialized before the cookie blocking feature existed
+**When** the site is deserialized
+**Then** `blockedCookies` defaults to an empty set
+**And** no cookies are blocked
+
+### Requirement: ISO-012 - Native Cookie Jar Garbage Collection
+
+The system SHALL garbage-collect the native cookie jar (iOS `WKHTTPCookieStorage`, Android `CookieManager`) at every boundary where cookies from deleted sites, sibling subdomains, or legacy pre-siteId sessions could leak into unrelated sites. The native jar is a process-wide shared store that persists across app launches and is not keyed by siteId, so without an explicit GC step, accumulated cookies cross-pollinate across the app's per-site model.
+
+The boundaries:
+
+- **On app startup** — after loading persisted models but before activating
+  any site
+- **On site switch** — inside `_restoreCookiesForSite`, after capturing
+  cookies for other loaded sites
+- **On settings import** — `_setCurrentIndex` during import routes through
+  `_restoreCookiesForSite`, which performs the nuke-and-restore cycle; the
+  import path MUST NOT issue a subsequent `deleteAllCookies()` or it would
+  wipe the session just restored for the imported active site
+- **On site deletion** — for the deleted site's `initUrl` and `currentUrl`
+  unconditionally, followed by an orphan sweep of siteId-keyed storage; if
+  a loaded same-base-domain site exists, its session SHALL be snapshotted
+  via `getAllCookies()` before the delete and restored after
+
+#### Scenario: Startup evicts cookies from deleted-in-previous-session sites
+
+**Given** in a previous session the user had Site A (`mail.google.com`)
+  signed in, then deleted it
+**And** `WKHTTPCookieStorage` still contains `.google.com` and
+  `accounts.google.com` cookies from that session
+**When** the app launches
+**Then** orphaned siteId-keyed entries are swept from encrypted storage and
+  HTML cache
+**And** the native cookie jar is cleared before any site is activated
+**And** the first activated site restores only its own siteId-keyed cookies
+
+#### Scenario: Orphan sweep runs on site deletion
+
+**Given** the user deletes a site
+**When** the delete flow completes
+**Then** `removeOrphanedCookies` runs with the updated active siteId set
+**And** `removeOrphanedCaches` runs with the updated active siteId set
+**And** any encrypted-storage or HTML-cache entries not referenced by a
+  surviving site are removed
+
 ## Implementation Details
 
 ### Logic Engines
@@ -410,149 +544,6 @@ IndexedStack(
 - `test/site_lifecycle_engine_test.dart` - Unit tests for deletion patch
 - `test/nested_webview_navigation_test.dart` - Tests for per-site URL blocking and widget identity
 - `openspec/specs/per-site-cookie-isolation/spec.md` - This specification
-
-### Requirement: ISO-010 - Cookie Cleanup on Site Deletion
-
-The system SHALL clean up all cookie-related data when a site is deleted.
-
-#### Scenario: Delete only site on a domain
-
-**Given** Site A (`linkedin.com`) is the only site on that domain
-**When** the user deletes Site A
-**Then** all cookies for `linkedin.com` are deleted from the webview cookie jar
-**And** Site A's cookies are removed from secure storage (by siteId)
-**And** Site A's HTML cache is deleted
-
-#### Scenario: Delete one of multiple sites on same domain
-
-**Given** Site A (`github.com/personal`) and Site B (`github.com/work`) exist
-**When** the user deletes Site A
-**Then** cookies for Site A's URL(s) are deleted from the native cookie jar
-  unconditionally
-**And** Site A's cookies are removed from secure storage (by siteId)
-**And** Site A's HTML cache is deleted
-**And** orphaned per-siteId entries are swept from encrypted storage and
-  HTML cache as defense in depth
-**And** Site B continues to function with its cookies intact after next
-  activation (which triggers restore from its siteId-keyed storage)
-
-#### Scenario: Deleting a site while a same-base-domain site is loaded preserves its live session
-
-**Given** Site A (`github.com/personal`) and Site B (`github.com/work`) exist
-**And** Site B is currently active/loaded with a live session in the native
-  cookie jar
-**When** the user deletes Site A
-**Then** before the URL-scoped delete, the system snapshots all native
-  cookies matching the deleted base domain via `getAllCookies()`
-**And** after the URL-scoped delete (which would otherwise wipe Site B's
-  session because `github.com/personal` and `github.com/work` share a
-  host), Site B's snapshot is restored to the native jar
-**And** Site B's live session is NOT interrupted — no reload or re-login
-  is required
-
-#### Scenario: Re-adding a deleted site starts fresh
-
-**Given** Site A (`linkedin.com`) was the only site on that domain and was deleted
-**When** the user adds a new site for `linkedin.com`
-**Then** the new site has no pre-existing cookies
-**And** the user must log in again
-
----
-
-### Requirement: ISO-011 - Per-Site Cookie Blocking
-
-The system SHALL allow blocking specific cookies by name + domain on a per-site basis. Blocked cookies are deleted from the webview cookie jar after each page load and skipped during cookie restoration.
-
-> **Profile mode note.** This requirement applies in legacy mode
-> (`_useProfiles == false`); the delete routes through the global
-> `CookieManager`. In profile mode the same scenarios are satisfied
-> by [CONT-006 — Cookie Ops via ContainerCookieManager](../per-site-containers/spec.md#requirement-cont-006--cookie-ops-via-containercookiemanager),
-> which does the delete via the patched `inapp.CookieManager`'s
-> `webViewController:` parameter so the per-site profile's cookie
-> store is targeted (HttpOnly cookies included).
-
-#### Scenario: Block a cookie from the cookie inspector
-
-**Given** Site A has cookies including `_ga` on `.google.com`
-**When** the user opens Developer Tools -> Cookies tab and taps "Block" on `_ga`
-**Then** a `BlockedCookie(name: "_ga", domain: ".google.com")` is added to Site A's `blockedCookies` set
-**And** the cookie is immediately deleted from the webview
-**And** the block rule is persisted via site serialization
-
-#### Scenario: Blocked cookie re-set by website is removed
-
-**Given** Site A has `_ga` on `.google.com` blocked
-**When** a page load completes and the website sets `_ga` again
-**Then** `onCookiesChanged` filters out `_ga` and deletes it from CookieManager
-**And** the cookie does not appear in `model.cookies`
-
-#### Scenario: Blocked cookie skipped during restore
-
-**Given** Site A has `_ga` blocked and stored cookies include `_ga`
-**When** Site A is activated and `_restoreCookiesForSite()` runs
-**Then** `_ga` is NOT set in CookieManager
-**And** other non-blocked cookies are restored normally
-
-#### Scenario: Unblock a cookie
-
-**Given** Site A has `_ga` blocked
-**When** the user opens the Blocked section in the Cookies tab and taps "Unblock"
-**Then** the `BlockedCookie` is removed from `blockedCookies`
-**And** the cookie can be set again on next page load
-
-#### Scenario: Legacy data without blockedCookies
-
-**Given** a site was serialized before the cookie blocking feature existed
-**When** the site is deserialized
-**Then** `blockedCookies` defaults to an empty set
-**And** no cookies are blocked
-
----
-
-### Requirement: ISO-012 - Native Cookie Jar Garbage Collection
-
-The native cookie jar (iOS `WKHTTPCookieStorage`, Android `CookieManager`) is
-a process-wide shared store that persists across app launches. Because it is
-not keyed by siteId, cookies from deleted sites, sibling subdomains not
-visited by the active site, or legacy pre-siteId sessions can accumulate and
-leak into unrelated sites. The system SHALL garbage-collect the native cookie
-jar at every boundary where site cookies could leak:
-
-- **On app startup** — after loading persisted models but before activating
-  any site
-- **On site switch** — inside `_restoreCookiesForSite`, after capturing
-  cookies for other loaded sites
-- **On settings import** — `_setCurrentIndex` during import routes through
-  `_restoreCookiesForSite`, which performs the nuke-and-restore cycle; the
-  import path MUST NOT issue a subsequent `deleteAllCookies()` or it would
-  wipe the session just restored for the imported active site
-- **On site deletion** — for the deleted site's `initUrl` and `currentUrl`
-  unconditionally, followed by an orphan sweep of siteId-keyed storage; if
-  a loaded same-base-domain site exists, its session SHALL be snapshotted
-  via `getAllCookies()` before the delete and restored after
-
-#### Scenario: Startup evicts cookies from deleted-in-previous-session sites
-
-**Given** in a previous session the user had Site A (`mail.google.com`)
-  signed in, then deleted it
-**And** `WKHTTPCookieStorage` still contains `.google.com` and
-  `accounts.google.com` cookies from that session
-**When** the app launches
-**Then** orphaned siteId-keyed entries are swept from encrypted storage and
-  HTML cache
-**And** the native cookie jar is cleared before any site is activated
-**And** the first activated site restores only its own siteId-keyed cookies
-
-#### Scenario: Orphan sweep runs on site deletion
-
-**Given** the user deletes a site
-**When** the delete flow completes
-**Then** `removeOrphanedCookies` runs with the updated active siteId set
-**And** `removeOrphanedCaches` runs with the updated active siteId set
-**And** any encrypted-storage or HTML-cache entries not referenced by a
-  surviving site are removed
-
----
 
 ## Migration
 

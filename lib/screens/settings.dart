@@ -12,6 +12,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
@@ -147,6 +148,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _longitudeController = TextEditingController();
     _accuracyController = TextEditingController();
     _loadFromModel();
+    NotificationService.instance.addPermissionListener(_onPermissionChanged);
+  }
+
+  void _onPermissionChanged() {
+    if (mounted) setState(() {});
   }
 
   /// Mirror [widget.webViewModel] into the form state. Called from
@@ -191,6 +197,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    NotificationService.instance.removePermissionListener(_onPermissionChanged);
     _userAgentController.dispose();
     _proxyAddressController.dispose();
     _proxyUsernameController.dispose();
@@ -1190,19 +1197,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (widget.useContainers)
             SwitchListTile(
               title: const Text('Notifications'),
-              subtitle: const Text(
-                'Allow this site to show system notifications. Keeps the '
-                'site polling in the background so notifications fire even '
-                'when you are on a different tab.',
+              subtitle: Text(
+                _notificationsEnabled &&
+                        NotificationService.instance.permissionGranted == false
+                    ? 'Notifications denied. Enable in Settings → '
+                        '${Platform.isIOS ? "Notifications → WebSpace" : "WebSpace → Notifications"}.'
+                    : 'Allow this site to show system notifications. Keeps the '
+                        'site polling in the background so notifications fire even '
+                        'when you are on a different tab.',
               ),
               value: _notificationsEnabled,
               onChanged: (bool value) async {
                 setState(() {
                   _notificationsEnabled = value;
                 });
-                if (value && Platform.isIOS) {
+                if (!value) return;
+                // First-time iOS info dialog (NOTIF-005-I); idempotent
+                // via SharedPreferences flag. Show before requesting OS
+                // permission so the user understands the iOS limits
+                // before tapping Allow.
+                if (Platform.isIOS) {
                   await maybeShowIosNotificationLimitsDialog(context);
                 }
+                // NOTIF-007 / 16.1: request OS permission proactively
+                // at toggle time, not lazily on first notification.
+                // Repeat calls after a denial are harmless (the OS
+                // returns the cached decision).
+                await NotificationService.instance.requestPermission();
               },
             ),
           ..._buildLocationSection(),

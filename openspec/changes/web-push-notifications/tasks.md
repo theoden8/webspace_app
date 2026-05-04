@@ -36,7 +36,7 @@
 - [x] 5.2 Add `SwitchListTile` for `backgroundPoll`. Subtitle (iOS): "Check for updates periodically (~15-30 min between checks while app is closed)." Subtitle (Android proxy-eligible): "Keep checking for updates while app is backgrounded." Subtitle (Android proxy-conflict): "Cannot enable: another site with a different proxy is already polling in background." Disable in the conflict case.
 - [x] 5.3 Gate visibility of both toggles on `_useContainers` (passed in or read via a getter on `_WebSpacePageState`). When `_useContainers == false`, do not render either tile.
 - [x] 5.4 Persist toggle changes via `setState` + `_saveAppState()`.
-- [ ] 5.5 On enabling `backgroundPoll`, call `NotificationService.requestPermission()` so the OS dialog appears at a moment of clear user intent (rather than waiting for the first notification).
+- [x] 5.5 On enabling `notificationsEnabled` (covers the folded `backgroundPoll`), call `NotificationService.requestPermission()` so the OS dialog appears at a moment of clear user intent. Implemented in `lib/screens/settings.dart`: after the iOS info dialog dismisses, the toggle's `onChanged` invokes `NotificationService.instance.requestPermission()`.
 
 ## 6. Lifecycle: skip pause for background-poll sites
 
@@ -48,7 +48,7 @@
 
 - [x] 7.1 In `_restoreAppState`, after sites are loaded from `SharedPreferences`, iterate `_webViewModels` and add to `_loadedIndices` every site with `backgroundPoll == true` (without changing `_currentIndex`).
 - [x] 7.2 The IndexedStack will then construct those webviews on first build; they'll initialize their profile and start running JS.
-- [ ] 7.3 Update LAZY-001 delta scenarios test if applicable (see `openspec/changes/web-push-notifications/specs/lazy-webview-loading/spec.md`).
+- [x] 7.3 LAZY-001 delta updated to reflect the post-c6bc8f5 naming (`notificationsEnabled` replaces `backgroundActive`); auto-load happens in `_restoreAppState`'s 3-line loop. Existing `web_view_model_test` covers field round-trip; the auto-load is straight-line code with no engine to test in isolation.
 - [ ] 7.4 Manual test: restart app with background-poll sites configured; verify they appear loaded (not blank placeholders) immediately after startup.
 
 ## 8. Foreground active polling timer
@@ -115,9 +115,9 @@
 
 ## 16. iOS notification permission UX
 
-- [ ] 16.1 First time `notificationsEnabled` is set to true on any site OR `backgroundPoll` is set to true on iOS, call `NotificationService.requestPermission()`.
-- [ ] 16.2 If permission is denied, surface this in the per-site UI: subtitle "Notifications denied. Enable in Settings → WebSpace → Notifications."
-- [ ] 16.3 If permission is granted, no further action.
+- [x] 16.1 First time `notificationsEnabled` is set to true on any site, call `NotificationService.requestPermission()`. Implemented in `lib/screens/settings.dart`'s notification toggle `onChanged`. (`backgroundPoll` is folded into `notificationsEnabled` per c6bc8f5.)
+- [x] 16.2 If permission is denied, surface this in the per-site UI: subtitle "Notifications denied. Enable in Settings → ...". `NotificationService` exposes `permissionGranted` + `addPermissionListener`; the per-site settings widget swaps the subtitle reactively.
+- [x] 16.3 If permission is granted, no further action — subtitle stays at the default explanatory text.
 
 ## 17. Manual test fixture verification
 
@@ -128,9 +128,9 @@
 
 ## 18. Documentation
 
-- [ ] 18.1 Update root `README.md` and `CLAUDE.md` to mention the new `notificationsEnabled` / `backgroundPoll` per-site fields and the platform-specific behavior.
-- [ ] 18.2 Add an entry to the spec table in `CLAUDE.md` for `web-push-notifications`.
-- [ ] 18.3 Run `npx openspec validate --no-interactive --all` and verify all specs pass.
+- [x] 18.1 Updated `CLAUDE.md` with a "Per-site web push notifications" section covering polyfill, no-pause, auto-load, retention priority, and the iOS background contract. Root README is intentionally untouched (it already covers per-site features at a higher level).
+- [x] 18.2 Added `web-push-notifications` row to the spec table in `CLAUDE.md`.
+- [x] 18.3 `npx openspec validate --no-interactive --all` reports `40 passed, 0 failed`. As part of this pass, fixed pre-existing `per-site-cookie-isolation` errors (ISO-010/011/012 sat outside the `## Requirements` section; ISO-012 needed a leading SHALL).
 
 ## 19. Pre-archive validation
 
