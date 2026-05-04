@@ -1030,4 +1030,129 @@ void main() {
       expect(site3.currentUrl, equals('https://bitbucket.org'));
     });
   });
+
+  // The two-pronged onUrlChanged contract the production wiring at
+  // lib/web_view_model.dart:665-728 promises: a domain-changing URL
+  // hands the destination off to a nested InAppBrowser and tells the
+  // caller to navigate the parent back to the prior in-domain page,
+  // while a same-domain URL is just committed and the navigation
+  // happens inside the current webview. Exercises
+  // `NavigationDecisionEngine.handleOnUrlChanged` through the same
+  // harness production runs through, so the two halves of the
+  // contract can't drift apart.
+  group('onUrlChanged: domain-change vs same-domain contract', () {
+    late NavigationTestHarness harness;
+
+    setUp(() {
+      harness = NavigationTestHarness();
+    });
+
+    test('domain change opens nested and parent navigates back to in-domain URL', () {
+      harness.addSite('https://linkedin.com', name: 'LinkedIn');
+
+      // Seed the parent webview on a real in-domain page.
+      harness.simulateFullUrlChanged(0, 'https://www.linkedin.com/feed/');
+      expect(harness.stateFor(0).currentUrl,
+          equals('https://www.linkedin.com/feed/'));
+
+      // User taps a same-domain redirector (records gesture).
+      harness.simulateNavigation(
+        0,
+        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        hasGesture: true,
+      );
+      harness.simulateFullUrlChanged(0,
+          'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
+
+      // Cross-domain server-side redirect surfaces only via onUrlChanged.
+      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+
+      expect(harness.launchUrlCalls, hasLength(1),
+          reason: 'cross-domain onUrlChanged must open a nested browser');
+      expect(harness.launchUrlCalls.last.url,
+          equals('https://www.reddit.com/r/foo'),
+          reason: 'nested browser opens at the cross-domain destination');
+      expect(harness.loadUrlCalls, hasLength(1),
+          reason: 'parent webview must be told to navigate back so it does '
+                  'not stay parked on the cross-domain URL');
+      expect(harness.loadUrlCalls.last.url,
+          equals('https://www.linkedin.com/feed/'),
+          reason: 'navigate-back target is the prior in-domain page the user '
+                  'was viewing before the redirector chain');
+      expect(harness.stateFor(0).currentUrl,
+          startsWith('https://www.linkedin.com/'),
+          reason: 'currentUrl must stay on an in-domain URL — committing the '
+                  'cross-domain URL would poison previousSameDomainUrl on '
+                  'the next event');
+    });
+
+    test('domain change with no prior in-domain visit falls back to initUrl', () {
+      harness.addSite('https://example.com', name: 'Example');
+
+      // No prior simulateFullUrlChanged — previousSameDomainUrl is null
+      // and the engine must fall back to initUrl as the navigate-back
+      // target instead of leaving the parent on the cross-domain URL.
+      harness.simulateNavigation(0, 'https://example.com/click',
+          hasGesture: true);
+      harness.simulateFullUrlChanged(0, 'https://other.com/landing');
+
+      expect(harness.launchUrlCalls, hasLength(1));
+      expect(harness.launchUrlCalls.last.url,
+          equals('https://other.com/landing'));
+      expect(harness.loadUrlCalls, hasLength(1));
+      expect(harness.loadUrlCalls.last.url, equals('https://example.com'),
+          reason: 'fall back to initUrl when no in-domain page has been '
+                  'visited yet');
+    });
+
+    test('same-domain change navigates within the current window', () {
+      harness.addSite('https://github.com', name: 'GitHub');
+
+      harness.simulateFullUrlChanged(0, 'https://github.com/');
+      expect(harness.stateFor(0).currentUrl, equals('https://github.com/'));
+
+      harness.simulateFullUrlChanged(0, 'https://github.com/user/repo');
+
+      expect(harness.launchUrlCalls, isEmpty,
+          reason: 'same-domain onUrlChanged must not open a nested browser');
+      expect(harness.loadUrlCalls, isEmpty,
+          reason: 'no navigate-back is issued for same-domain navigation');
+      expect(harness.stateFor(0).currentUrl,
+          equals('https://github.com/user/repo'),
+          reason: 'currentUrl advances in place — navigation happens inside '
+                  'the current webview');
+    });
+
+    test('subdomain of the site base domain is treated as same-domain', () {
+      // "Standard rules": NavigationDecisionEngine compares normalized
+      // base domains, so gist.github.com is same-domain as github.com
+      // and must navigate inside the current webview.
+      harness.addSite('https://github.com', name: 'GitHub');
+
+      harness.simulateFullUrlChanged(0, 'https://github.com/');
+      harness.simulateFullUrlChanged(0, 'https://gist.github.com/user/123');
+
+      expect(harness.launchUrlCalls, isEmpty);
+      expect(harness.loadUrlCalls, isEmpty);
+      expect(harness.stateFor(0).currentUrl,
+          equals('https://gist.github.com/user/123'));
+    });
+
+    test('aliased domain (gmail → google) is treated as same-domain', () {
+      // _domainAliases map gmail.com → google.com, so a Google sign-in
+      // redirect from a Gmail site is "in-domain" by our rules and must
+      // not bounce to a nested browser.
+      harness.addSite('https://gmail.com', name: 'Gmail');
+
+      harness.simulateFullUrlChanged(0, 'https://gmail.com/');
+      harness.simulateFullUrlChanged(0, 'https://accounts.google.com/signin');
+
+      expect(harness.launchUrlCalls, isEmpty,
+          reason: 'aliased domains are same-domain by our standard rules');
+      expect(harness.loadUrlCalls, isEmpty);
+      expect(harness.stateFor(0).currentUrl,
+          equals('https://accounts.google.com/signin'),
+          reason: 'currentUrl advances to the aliased destination in place');
+    });
+  });
 }
