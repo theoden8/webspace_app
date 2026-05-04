@@ -2479,7 +2479,8 @@ class WebViewFactory {
         //
         // Skipped for offline runs via the `isOnline()` check — there's
         // no live to fetch, so the cached page is the answer.
-        if (pendingLiveReload && navigationGen == 0) {
+        final firedLiveReload = pendingLiveReload && navigationGen == 0;
+        if (firedLiveReload) {
           pendingLiveReload = false;
           ConnectivityService.instance.isOnline().then((online) {
             if (!online) return;
@@ -2531,7 +2532,19 @@ class WebViewFactory {
         // via shouldFetchHtml so the per-onLoadStop storm is collapsed
         // before we ask chromium to serialize the DOM — the IPC, not
         // the encrypt+write afterward, is the lifecycle-racing piece.
+        //
+        // Skip when we just fired the cached-then-live reload above:
+        // the reload IPC reaches the renderer before our `getHtml()`
+        // does, so the serialized DOM here is the partial mid-reload
+        // markup (often a few-KB SPA shell) — and saving that clobbers
+        // the previously-cached fully-rendered snapshot. On next launch
+        // the corrupt shell loads as initialData and the SPA's hydration
+        // throws (`Cannot read properties of null`) leaving a blank
+        // page. The post-reload `onLoadStop` saves the live HTML
+        // instead; `_lastSaveAt` isn't bumped here, so its debounce
+        // stays open.
         if (config.onHtmlLoaded != null
+            && !firedLiveReload
             && (config.shouldFetchHtml?.call() ?? true)) {
           try {
             final html = await controller.getHtml();
