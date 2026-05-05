@@ -102,6 +102,28 @@ The pinned-shortcut set is queried via `ShortcutManagerCompat.getShortcuts(FLAG_
 
 ---
 
+### Requirement: HS-007 - Shortcut Tap Propagates To Flagged Siblings
+
+The system SHALL reset `currentUrl` to `initUrl` for every flagged
+sibling of the launched site when an Android home-shortcut is tapped.
+A site is "flagged" if `alwaysOpenHome = true` or `incognito = true`.
+A "sibling" is any site that shares at least one named webspace with
+the launched site. The full cold/warm, "All"-webspace, and scenario
+detail lives in [always-open-home/AOH-004](../always-open-home/spec.md).
+
+This requirement layers on top of HS-006: HS-006 governs the launched
+site itself on cold launch; HS-007 governs the propagation to siblings
+in any webspace containing the launched site.
+
+#### Scenario: Sibling resets cross-reference
+
+**Given** the user has set `alwaysOpenHome = true` for site B in webspace W and the app is running
+**When** the user warm-taps the home shortcut for site A in webspace W
+**Then** B's `currentUrl` resets to its `initUrl` per [AOH-004](../always-open-home/spec.md)
+**And** B's webview is disposed so the next paint reloads at home
+
+---
+
 ### Requirement: HS-006 - Shortcut Launch Resets To Home URL
 
 A pinned shortcut SHALL launch the targeted site at its `initUrl`, not at the last persisted `currentUrl`. The shortcut represents the user's stated entry point for that site (the URL they pinned), not the URL the previous session happened to drift to. Without this, location/tracking/state parameters that accumulate during a session resurface every time the shortcut is tapped — particularly visible on map and search sites that encode coordinates or query state in the URL (issue #298).

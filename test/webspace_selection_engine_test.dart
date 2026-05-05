@@ -108,6 +108,99 @@ void main() {
     });
   });
 
+  group('WebspaceSelectionEngine.indicesToResetOnShortcutLaunch', () {
+    test('resets flagged siblings sharing a named webspace with the launched site', () {
+      // Banking webspace: A (launched) and B (flagged); Mail: C (flagged
+      // but unrelated). Tap on A's shortcut should reset B, not C.
+      final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
+        launchedIndex: 0,
+        webspaces: [
+          Webspace(id: 'banking', name: 'Banking', siteIndices: [0, 1]),
+          Webspace(id: 'mail', name: 'Mail', siteIndices: [2]),
+        ],
+        flag: (i) => i == 1 || i == 2,
+      );
+      expect(result, {1});
+    });
+
+    test('includes the launched site when it satisfies the flag', () {
+      final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
+        launchedIndex: 0,
+        webspaces: [
+          Webspace(id: 'banking', name: 'Banking', siteIndices: [0]),
+        ],
+        flag: (i) => true,
+      );
+      expect(result, {0});
+    });
+
+    test('excludes the launched site when its flag is false but resets siblings', () {
+      // The launched site itself is unflagged (e.g. user opened a shortcut
+      // for a non-banking site that happens to share a webspace with a
+      // flagged one). Sibling propagation still runs.
+      final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
+        launchedIndex: 0,
+        webspaces: [
+          Webspace(id: 'mixed', name: 'Mixed', siteIndices: [0, 1]),
+        ],
+        flag: (i) => i == 1,
+      );
+      expect(result, {1});
+    });
+
+    test('skips the synthetic All webspace when computing siblings', () {
+      // The launched site lives in "All" and a named webspace; only the
+      // named webspace anchors the propagation. Without this, every site
+      // in the app would reset on any shortcut tap.
+      final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
+        launchedIndex: 0,
+        webspaces: [
+          Webspace.all()..siteIndices = [0, 1, 2, 3],
+          Webspace(id: 'banking', name: 'Banking', siteIndices: [0, 2]),
+        ],
+        flag: (i) => true,
+      );
+      expect(result, {0, 2});
+    });
+
+    test('returns empty when launchedIndex is negative', () {
+      final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
+        launchedIndex: -1,
+        webspaces: [Webspace(id: 'w', name: 'W', siteIndices: [0])],
+        flag: (i) => true,
+      );
+      expect(result, isEmpty);
+    });
+
+    test('only the launched site resets when it lives only in the All webspace', () {
+      // No named webspace contains the launched site, so siblings cannot
+      // be inferred. The launched site itself is still anchored — if its
+      // flag is true, it resets via its own toJson trip plus this set.
+      final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
+        launchedIndex: 0,
+        webspaces: [
+          Webspace(id: 'other', name: 'Other', siteIndices: [1, 2]),
+        ],
+        flag: (i) => true,
+      );
+      expect(result, {0});
+    });
+
+    test('site in multiple named webspaces resets union of flagged members', () {
+      final result = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
+        launchedIndex: 0,
+        webspaces: [
+          Webspace(id: 'banking', name: 'Banking', siteIndices: [0, 1]),
+          Webspace(id: 'work', name: 'Work', siteIndices: [0, 2, 3]),
+          Webspace(id: 'misc', name: 'Misc', siteIndices: [4]),
+        ],
+        flag: (i) => i == 1 || i == 3 || i == 4,
+      );
+      // Misc is unrelated to A, so 4 stays.
+      expect(result, {1, 3});
+    });
+  });
+
   group('WebspaceSelectionEngine.cleanupWebspaceIndices', () {
     test('strips out-of-bounds indices in place', () {
       final webspaces = [

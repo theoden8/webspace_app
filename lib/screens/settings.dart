@@ -120,6 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _javascriptEnabled;
   late bool _thirdPartyCookiesEnabled;
   late bool _incognito;
+  late bool _alwaysOpenHome;
   late bool _clearUrlEnabled;
   late bool _dnsBlockEnabled;
   late bool _contentBlockEnabled;
@@ -184,6 +185,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _javascriptEnabled = m.javascriptEnabled;
     _thirdPartyCookiesEnabled = m.thirdPartyCookiesEnabled;
     _incognito = m.incognito;
+    _alwaysOpenHome = m.alwaysOpenHome;
     _clearUrlEnabled = m.clearUrlEnabled;
     _dnsBlockEnabled = m.dnsBlockEnabled;
     _contentBlockEnabled = m.contentBlockEnabled;
@@ -351,6 +353,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.javascriptEnabled = _javascriptEnabled;
       widget.webViewModel.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
       widget.webViewModel.incognito = _incognito;
+      widget.webViewModel.alwaysOpenHome = _alwaysOpenHome;
       widget.webViewModel.clearUrlEnabled = _clearUrlEnabled;
       widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
       widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
@@ -966,6 +969,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _incognito = value;
               });
             },
+          ),
+          SwitchListTile(
+            title: const Text('Always open Home'),
+            subtitle: Text(
+              _incognito
+                  ? 'Forced on by Incognito'
+                  : 'Reset URL on app restart and home-screen shortcut '
+                      '(cookies persist)',
+            ),
+            value: _incognito || _alwaysOpenHome,
+            onChanged: _incognito
+                ? null
+                : (bool value) {
+                    setState(() {
+                      _alwaysOpenHome = value;
+                    });
+                  },
           ),
           SwitchListTile(
             title: Row(
