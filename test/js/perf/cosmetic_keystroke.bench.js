@@ -8,12 +8,21 @@
 //             MutationObserver -> 50ms-debounced hide() that re-queries
 //             the WHOLE document on every burst.
 //   * explored — same install sweep, but the mutation handler scopes
-//             work to the freshly-added subtree only. Useful as a
-//             reference point — was prototyped, found to REGRESS on
-//             keystroke-heavy pages because the per-call selector-parse
-//             overhead (684 BATCHES of 20) outweighs the saved
-//             tree-walk when many small subtrees are added per burst.
-//             Recorded here so the trade-off stays measurable.
+//             work to the freshly-added subtree only.
+//
+// Two workloads:
+//   * "composer + popover" — each keystroke appends a span to a
+//     contenteditable composer AND rebuilds a small popover. The
+//     composer adds ACCUMULATE (no removal between keystrokes), so
+//     by flush time 200 spans are connected; this stresses the
+//     "many tiny subtrees" cost of `explored`.
+//   * "popover only" — same workload minus the composer churn. No
+//     editable subtree in play. Tests whether `explored` beats
+//     `current` on its own merits.
+//
+// Without a real captured mutation trace from github.com it's not
+// possible to say which workload production lives in. The bench
+// reports both so the trade-off stays visible.
 //
 // What this measures (and what blocking_real.bench.js does NOT):
 //   * Wall-clock cost of the install sweep on a representative DOM.
@@ -246,12 +255,14 @@ function buildSyntheticDom(commentCount = 30) {
 // re-render of the suggestion popover (matches what real React-driven
 // editors do).
 
-function simulateKeystroke(window, charIdx) {
+function simulateKeystroke(window, charIdx, opts = {}) {
   const { document } = window;
-  const composer = document.querySelector('#composer');
-  const span = document.createElement('span');
-  span.textContent = String.fromCharCode(97 + (charIdx % 26));
-  composer.appendChild(span);
+  if (opts.skipComposer !== true) {
+    const composer = document.querySelector('#composer');
+    const span = document.createElement('span');
+    span.textContent = String.fromCharCode(97 + (charIdx % 26));
+    composer.appendChild(span);
+  }
 
   const popover = document.querySelector('#suggestion-popover');
   popover.hidden = false;
@@ -484,35 +495,46 @@ async function main() {
     { tag: 'explored   ', install: installNewShim },
   ];
   const KEYS = 200;
-  for (const v of variants) {
-    const dom = buildSyntheticDom(50);
-    const win = dom.window;
-    const stats = v.install(win);
 
-    const keyTimes = [];
-    for (let i = 0; i < KEYS; i++) {
-      const a = performance.now();
-      simulateKeystroke(win, i);
-      keyTimes.push(performance.now() - a);
+  // Two workloads: with and without the contenteditable composer add.
+  // The "no-composer" workload isolates whether added-subtree-scoping
+  // is itself a win, independent of any editable bail-out.
+  const workloads = [
+    { tag: 'composer + popover', opts: {} },
+    { tag: 'popover only',       opts: { skipComposer: true } },
+  ];
+
+  for (const w of workloads) {
+    console.log(`\n  workload: ${w.tag}`);
+    for (const v of variants) {
+      const dom = buildSyntheticDom(50);
+      const win = dom.window;
+      const stats = v.install(win);
+
+      const keyTimes = [];
+      for (let i = 0; i < KEYS; i++) {
+        const a = performance.now();
+        simulateKeystroke(win, i, w.opts);
+        keyTimes.push(performance.now() - a);
+      }
+      await new Promise((r) => setTimeout(r, 200));
+
+      row(
+        `${v.tag} keystroke wall-clock`,
+        `median=${fmt(median(keyTimes))} p99=${fmt(pct(keyTimes, 0.99))} ` +
+          `max=${fmt(Math.max(...keyTimes))}`,
+      );
+      row(
+        `${v.tag} observer callback total`,
+        `runs=${stats.observerCbs} total=${fmt(stats.observerMs)}`,
+      );
+      row(
+        `${v.tag} flush total`,
+        `runs=${stats.flushRuns} total=${fmt(stats.flushMs)} ` +
+          `mean=${fmt(stats.flushMs / Math.max(1, stats.flushRuns))}`,
+      );
+      win.close();
     }
-    // Wait past the 50ms debounce so any pending flush runs.
-    await new Promise((r) => setTimeout(r, 200));
-
-    row(
-      `${v.tag} keystroke wall-clock`,
-      `median=${fmt(median(keyTimes))} p99=${fmt(pct(keyTimes, 0.99))} ` +
-        `max=${fmt(Math.max(...keyTimes))}`,
-    );
-    row(
-      `${v.tag} observer callback total`,
-      `runs=${stats.observerCbs} total=${fmt(stats.observerMs)}`,
-    );
-    row(
-      `${v.tag} flush total`,
-      `runs=${stats.flushRuns} total=${fmt(stats.flushMs)} ` +
-        `mean=${fmt(stats.flushMs / Math.max(1, stats.flushRuns))}`,
-    );
-    win.close();
   }
 }
 
@@ -522,10 +544,12 @@ async function main() {
   console.log('  * "none" is the no-block baseline — pure DOM mutation cost.');
   console.log('  * "current" mirrors content_blocker_shim.dart — whole-document');
   console.log('    hide() per debounced burst. This is what production runs.');
-  console.log('  * "explored" scopes work to the freshly-added subtree. On');
-  console.log('    editor-heavy pages this REGRESSES (selector-parse overhead');
-  console.log('    per call dominates when many tiny subtrees are added per');
-  console.log('    burst). Reverting this shape is recorded in the git log.');
+  console.log('  * "explored" scopes work to the freshly-added subtree.');
   console.log('  * "flush total" is the perceptible freeze after a typing pause.');
+  console.log('  * Compare BOTH workloads — the verdict flips. With the composer');
+  console.log('    accumulating spans, `current` is cheaper; without it,');
+  console.log('    `explored` is cheaper. Production behavior depends on the');
+  console.log('    real mutation profile (text nodes / wrapper reuse) which');
+  console.log('    this synthetic bench does not capture.');
   console.log('  * jsdom is slower than WebKit; use relative numbers.');
 })();
