@@ -2479,11 +2479,19 @@ class WebViewFactory {
         //
         // Skipped for offline runs via the `isOnline()` check — there's
         // no live to fetch, so the cached page is the answer.
+        //
+        // The `isOnline()` probe does a DNS lookup with up to a 3s
+        // timeout — long enough for the user to tap a link or trigger
+        // a back/forward gesture. Re-check `navigationGen` after the
+        // probe resolves so the live-reload doesn't clobber an
+        // in-flight history navigation that started during the probe.
         final firedLiveReload = pendingLiveReload && navigationGen == 0;
         if (firedLiveReload) {
           pendingLiveReload = false;
+          final genAtSchedule = navigationGen;
           ConnectivityService.instance.isOnline().then((online) {
             if (!online) return;
+            if (navigationGen != genAtSchedule) return;
             try {
               controller.reload();
             } catch (_) {}
