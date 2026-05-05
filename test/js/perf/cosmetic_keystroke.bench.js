@@ -2,13 +2,18 @@
 // the content_blocker cosmetic shim — the suspected dominant cost on
 // editor-heavy pages like github.com when block is on.
 //
-// Two shim shapes are compared head-to-head:
-//   * old   — pre-2026 shape: hide() re-queries the WHOLE document on
-//             every mutation burst (debounced 50ms).
-//   * new   — current shape (lib/services/content_blocker_shim.dart):
-//             same one-shot install sweep, but mutation handler scopes
-//             work to the freshly-added subtree only and skips
-//             [contenteditable] subtrees entirely.
+// Three shim shapes are compared head-to-head:
+//   * none  — no shim at all (DOM-mutation baseline).
+//   * current — shape in lib/services/content_blocker_shim.dart:
+//             MutationObserver -> 50ms-debounced hide() that re-queries
+//             the WHOLE document on every burst.
+//   * explored — same install sweep, but the mutation handler scopes
+//             work to the freshly-added subtree only. Useful as a
+//             reference point — was prototyped, found to REGRESS on
+//             keystroke-heavy pages because the per-call selector-parse
+//             overhead (684 BATCHES of 20) outweighs the saved
+//             tree-walk when many small subtrees are added per burst.
+//             Recorded here so the trade-off stays measurable.
 //
 // What this measures (and what blocking_real.bench.js does NOT):
 //   * Wall-clock cost of the install sweep on a representative DOM.
@@ -433,18 +438,6 @@ async function main() {
         } catch (e) {}
       }
     }
-    function isInsideEditable(el) {
-      let n = el;
-      while (n && n.nodeType === 1) {
-        if (n.isContentEditable === true) return true;
-        if (n.getAttribute) {
-          const ce = n.getAttribute('contenteditable');
-          if (ce === '' || ce === 'true' || ce === 'plaintext-only') return true;
-        }
-        n = n.parentNode;
-      }
-      return false;
-    }
     // Initial install sweep — out of band; we don't charge it to typing.
     applyCss(document);
 
@@ -457,7 +450,6 @@ async function main() {
       const roots = pending.splice(0, pending.length);
       for (let i = 0; i < roots.length; i++) {
         if (!roots[i].isConnected) continue;
-        if (isInsideEditable(roots[i])) continue;
         applyCss(roots[i]);
       }
       stats.flushMs += performance.now() - a;
@@ -487,9 +479,9 @@ async function main() {
   }
 
   const variants = [
-    { tag: 'no-shim   ', install: installNoShim },
-    { tag: 'old shim  ', install: installOldShim },
-    { tag: 'new shim  ', install: installNewShim },
+    { tag: 'none       ', install: installNoShim },
+    { tag: 'current    ', install: installOldShim },
+    { tag: 'explored   ', install: installNewShim },
   ];
   const KEYS = 200;
   for (const v of variants) {
@@ -527,11 +519,13 @@ async function main() {
 (async () => {
   await main();
   console.log('\nNotes:');
-  console.log('  * "no-shim" is the no-block baseline — pure DOM mutation cost.');
-  console.log('  * "old shim" replays the pre-2026 shape (whole-document hide).');
-  console.log('  * "new shim" mirrors content_blocker_shim.dart — added-subtree');
-  console.log('    only, with [contenteditable] subtrees skipped entirely.');
-  console.log('  * "flush total" is the perceptible "freeze" visible after each');
-  console.log('    typing pause >= 50ms; this is what the new shape collapses.');
+  console.log('  * "none" is the no-block baseline — pure DOM mutation cost.');
+  console.log('  * "current" mirrors content_blocker_shim.dart — whole-document');
+  console.log('    hide() per debounced burst. This is what production runs.');
+  console.log('  * "explored" scopes work to the freshly-added subtree. On');
+  console.log('    editor-heavy pages this REGRESSES (selector-parse overhead');
+  console.log('    per call dominates when many tiny subtrees are added per');
+  console.log('    burst). Reverting this shape is recorded in the git log.');
+  console.log('  * "flush total" is the perceptible freeze after a typing pause.');
   console.log('  * jsdom is slower than WebKit; use relative numbers.');
 })();
