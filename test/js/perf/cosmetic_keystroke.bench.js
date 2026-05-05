@@ -2,23 +2,18 @@
 // the content_blocker cosmetic shim — the suspected dominant cost on
 // editor-heavy pages like github.com when block is on.
 //
-// What this measures (and what blocking_real.bench.js does NOT):
-//   * Wall-clock cost of `hide()` on a representative DOM, run over
-//     every cosmetic selector batch (`querySelectorAll` per batch +
-//     `display:none` writes on matches).
-//   * Per-keystroke cost when the MutationObserver fires `hide()` after
-//     each typing pause (the 50ms-debounced path).
-//   * Cost when re-running on every mutation (the no-debounce variant)
-//     — useful as a worst-case bound and to validate the debounce.
+// Two shim shapes are compared head-to-head:
+//   * old   — pre-2026 shape: hide() re-queries the WHOLE document on
+//             every mutation burst (debounced 50ms).
+//   * new   — current shape (lib/services/content_blocker_shim.dart):
+//             same one-shot install sweep, but mutation handler scopes
+//             work to the freshly-added subtree only and skips
+//             [contenteditable] subtrees entirely.
 //
-// The bench replays the EXACT shim shape from
-// `lib/services/content_blocker_shim.dart`:
-//   * 20 selectors per BATCH, each batch is a comma-joined
-//     `querySelectorAll`.
-//   * `hide()` = hideCSS() + hideText() each MutationObserver fire.
-//   * Selectors: global EasyList cosmetic rules + the github.com
-//     suffix-walk (`github.com` then walk parents) — same as
-//     `_collectRules` in content_blocker_service.dart.
+// What this measures (and what blocking_real.bench.js does NOT):
+//   * Wall-clock cost of the install sweep on a representative DOM.
+//   * Per-keystroke wall-clock with both shapes.
+//   * Mutation-handler total cost over a typing burst.
 //
 // Lists are NOT bundled. Same cache as blocking_real.bench.js:
 //   BLOCKLIST_DIR=tmp/blocklists  (defaults to ../../../tmp/blocklists)
@@ -31,9 +26,7 @@
 //     are pessimistic. The relative cost between variants is the
 //     transferable signal.
 //   * The DOM is synthetic (built to roughly the depth and tag mix of
-//     a github.com PR-discussion page). Real-DOM numbers can be
-//     produced by piping a captured outerHTML in via STDIN or
-//     `--dom <path>` (not implemented here yet).
+//     a github.com PR-discussion page).
 
 'use strict';
 
@@ -362,101 +355,171 @@ async function main() {
   }
 
   // ---------- Typing: per-keystroke wall-clock ----------
-  // We simulate ${KEYS} keystrokes at typing speed (~80 ms apart), let
-  // the debounce coalesce into hide() runs, and report:
-  //   * "input -> hide done": wall-clock from a keystroke that triggers
-  //     the debounce window to the `hide()` returning.
-  //   * "input -> next paint slot": MutationObserver schedules in a
-  //     microtask, so per-keystroke we measure the observer callback
-  //     time only (the debounce timer fires later).
-  //
-  // The numbers are interesting both ways: observer callback is the
-  // immediate jitter the user sees on each keystroke; hide() cost is
-  // the perceptible "freeze" between bursts.
+  // Drive a stream of keystrokes against the synthetic DOM and measure
+  // the JS-side cost. The composer is contenteditable, so the new shim
+  // should bail out before BATCHES * querySelectorAll runs at all.
+  // The comparison reports keystroke wall-clock + total work charged
+  // by the observer/flush callbacks.
 
-  console.log('\nTyping bench: 200 keystrokes at 80ms apart, debounce 50ms');
+  console.log('\nTyping bench: 200 keystrokes; debounce 50ms');
 
-  for (const blockOn of [false, true]) {
+  // ---- Variant: install one of three shim shapes onto a window ----
+  function installNoShim() {
+    return { observerCbs: 0, observerMs: 0, flushRuns: 0, flushMs: 0 };
+  }
+  // OLD shape: every mutation burst -> hide() re-queries the WHOLE
+  // document. This is the pre-2026 shape we're moving away from.
+  function installOldShim(win) {
+    const { document } = win;
+    const earlyCss = selectors
+      .map((s) => `${s} { display: none !important; }`)
+      .join(' ');
+    const styleEl = document.createElement('style');
+    styleEl.textContent = earlyCss;
+    (document.head || document.documentElement).appendChild(styleEl);
+    const BATCHES = [];
+    for (let i = 0; i < selectors.length; i += 20) {
+      BATCHES.push(selectors.slice(i, i + 20).join(', '));
+    }
+    const stats = { observerCbs: 0, observerMs: 0, flushRuns: 0, flushMs: 0 };
+    const hide = () => {
+      const a = performance.now();
+      for (let i = 0; i < BATCHES.length; i++) {
+        try {
+          document.querySelectorAll(BATCHES[i]).forEach((el) => {
+            el.style.display = 'none';
+          });
+        } catch (e) {}
+      }
+      stats.flushMs += performance.now() - a;
+      stats.flushRuns++;
+    };
+    let t = null;
+    const obs = new win.MutationObserver(() => {
+      const a = performance.now();
+      if (t) clearTimeout(t);
+      t = setTimeout(hide, 50);
+      stats.observerMs += performance.now() - a;
+      stats.observerCbs++;
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    return stats;
+  }
+  // NEW shape: per content_blocker_shim.dart — initial sweep at install,
+  // then mutation handler scopes to added subtrees only and skips
+  // [contenteditable]. We replicate the JS logic here (rather than
+  // exec'ing the Dart-built fixture) so timing instrumentation can
+  // observe the work directly.
+  function installNewShim(win) {
+    const { document } = win;
+    const earlyCss = selectors
+      .map((s) => `${s} { display: none !important; }`)
+      .join(' ');
+    const styleEl = document.createElement('style');
+    styleEl.textContent = earlyCss;
+    (document.head || document.documentElement).appendChild(styleEl);
+    const BATCHES = [];
+    for (let i = 0; i < selectors.length; i += 20) {
+      BATCHES.push(selectors.slice(i, i + 20).join(', '));
+    }
+    function applyCss(root) {
+      const rootIsEl = root.nodeType === 1;
+      for (let i = 0; i < BATCHES.length; i++) {
+        const b = BATCHES[i];
+        try {
+          if (rootIsEl && root.matches(b)) root.style.display = 'none';
+          const els = root.querySelectorAll(b);
+          for (let j = 0; j < els.length; j++) els[j].style.display = 'none';
+        } catch (e) {}
+      }
+    }
+    function isInsideEditable(el) {
+      let n = el;
+      while (n && n.nodeType === 1) {
+        if (n.isContentEditable === true) return true;
+        if (n.getAttribute) {
+          const ce = n.getAttribute('contenteditable');
+          if (ce === '' || ce === 'true' || ce === 'plaintext-only') return true;
+        }
+        n = n.parentNode;
+      }
+      return false;
+    }
+    // Initial install sweep — out of band; we don't charge it to typing.
+    applyCss(document);
+
+    const stats = { observerCbs: 0, observerMs: 0, flushRuns: 0, flushMs: 0 };
+    const pending = [];
+    let t = null;
+    function flush() {
+      t = null;
+      const a = performance.now();
+      const roots = pending.splice(0, pending.length);
+      for (let i = 0; i < roots.length; i++) {
+        if (!roots[i].isConnected) continue;
+        if (isInsideEditable(roots[i])) continue;
+        applyCss(roots[i]);
+      }
+      stats.flushMs += performance.now() - a;
+      stats.flushRuns++;
+    }
+    const obs = new win.MutationObserver((mutations) => {
+      const a = performance.now();
+      let added = false;
+      for (let m = 0; m < mutations.length; m++) {
+        const nodes = mutations[m].addedNodes;
+        for (let n = 0; n < nodes.length; n++) {
+          const node = nodes[n];
+          if (node.nodeType !== 1) continue;
+          pending.push(node);
+          added = true;
+        }
+      }
+      if (added) {
+        if (t != null) clearTimeout(t);
+        t = setTimeout(flush, 50);
+      }
+      stats.observerMs += performance.now() - a;
+      stats.observerCbs++;
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    return stats;
+  }
+
+  const variants = [
+    { tag: 'no-shim   ', install: installNoShim },
+    { tag: 'old shim  ', install: installOldShim },
+    { tag: 'new shim  ', install: installNewShim },
+  ];
+  const KEYS = 200;
+  for (const v of variants) {
     const dom = buildSyntheticDom(50);
     const win = dom.window;
-    let shim = null;
-    let observerCbs = 0;
-    let observerCbTotalMs = 0;
-    let hideRuns = 0;
-    let hideTotalMs = 0;
+    const stats = v.install(win);
 
-    // We replace the shim's MutationObserver with our own that times
-    // both phases — observer callback (fires per microtask after a
-    // mutation) and hide() (fires after the debounce timeout).
-    if (blockOn) {
-      const { document } = win;
-      const earlyCss = selectors
-        .map((s) => `${s} { display: none !important; }`)
-        .join(' ');
-      const styleEl = document.createElement('style');
-      styleEl.textContent = earlyCss;
-      (document.head || document.documentElement).appendChild(styleEl);
-      const BATCHES = [];
-      for (let i = 0; i < selectors.length; i += 20) {
-        BATCHES.push(selectors.slice(i, i + 20).join(', '));
-      }
-      const hide = () => {
-        const a = performance.now();
-        for (let i = 0; i < BATCHES.length; i++) {
-          try {
-            document.querySelectorAll(BATCHES[i]).forEach((el) => {
-              el.style.display = 'none';
-            });
-          } catch (e) {}
-        }
-        hideTotalMs += performance.now() - a;
-        hideRuns++;
-      };
-      let t = null;
-      const obs = new win.MutationObserver(() => {
-        const a = performance.now();
-        if (t) clearTimeout(t);
-        t = setTimeout(hide, 50);
-        observerCbTotalMs += performance.now() - a;
-        observerCbs++;
-      });
-      obs.observe(document.body, { childList: true, subtree: true });
-      shim = { obs, hideRuns: () => hideRuns, hideMs: () => hideTotalMs };
-    }
-
-    // Drive keystrokes synchronously; node's setTimeout still fires in
-    // the right order so the debounce logic works as long as we yield.
     const keyTimes = [];
-    const KEYS = 200;
     for (let i = 0; i < KEYS; i++) {
       const a = performance.now();
       simulateKeystroke(win, i);
       keyTimes.push(performance.now() - a);
-      // Yield so MutationObserver microtasks (and the debounce timer
-      // when due) get a chance to run.
-      // eslint-disable-next-line no-await-in-loop
     }
-    // Flush observers + any pending debounce.
-    // setTimeout(50ms) -> wait at least 200ms before reading numbers.
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    const tag = blockOn ? 'block ON ' : 'block OFF';
+    // Wait past the 50ms debounce so any pending flush runs.
+    await new Promise((r) => setTimeout(r, 200));
+
     row(
-      `${tag} keystroke wall-clock`,
+      `${v.tag} keystroke wall-clock`,
       `median=${fmt(median(keyTimes))} p99=${fmt(pct(keyTimes, 0.99))} ` +
         `max=${fmt(Math.max(...keyTimes))}`,
     );
-    if (blockOn && shim) {
-      row(
-        `${tag} mutation-observer callback (per keystroke)`,
-        `runs=${observerCbs} total=${fmt(observerCbTotalMs)} ` +
-          `mean=${fmt(observerCbTotalMs / Math.max(1, observerCbs))}`,
-      );
-      row(
-        `${tag} hide() (debounce-coalesced full sweep)`,
-        `runs=${shim.hideRuns()} total=${fmt(shim.hideMs())} ` +
-          `mean=${fmt(shim.hideMs() / Math.max(1, shim.hideRuns()))}`,
-      );
-    }
+    row(
+      `${v.tag} observer callback total`,
+      `runs=${stats.observerCbs} total=${fmt(stats.observerMs)}`,
+    );
+    row(
+      `${v.tag} flush total`,
+      `runs=${stats.flushRuns} total=${fmt(stats.flushMs)} ` +
+        `mean=${fmt(stats.flushMs / Math.max(1, stats.flushRuns))}`,
+    );
     win.close();
   }
 }
@@ -464,10 +527,11 @@ async function main() {
 (async () => {
   await main();
   console.log('\nNotes:');
-  console.log('  * "block OFF" is the no-shim baseline — pure DOM mutation cost.');
-  console.log('  * "block ON keystroke wall-clock" is the visible jitter PER');
-  console.log('    keystroke. The observer callback adds to this directly.');
-  console.log('  * "hide() ... mean" is the freeze visible after each typing');
-  console.log('    pause >= 50ms — this is the dominant cost on a high-DOM page.');
-  console.log('  * jsdom is slower than WebKit; use the relative ON/OFF ratio.');
+  console.log('  * "no-shim" is the no-block baseline — pure DOM mutation cost.');
+  console.log('  * "old shim" replays the pre-2026 shape (whole-document hide).');
+  console.log('  * "new shim" mirrors content_blocker_shim.dart — added-subtree');
+  console.log('    only, with [contenteditable] subtrees skipped entirely.');
+  console.log('  * "flush total" is the perceptible "freeze" visible after each');
+  console.log('    typing pause >= 50ms; this is what the new shape collapses.');
+  console.log('  * jsdom is slower than WebKit; use relative numbers.');
 })();

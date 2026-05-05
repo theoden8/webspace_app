@@ -217,3 +217,33 @@ test('cosmetic_multi: MutationObserver re-applies text rules to dynamic DOM',
     assert.equal(late.style.display, 'none',
       'MutationObserver must re-run text rules on later inserts');
   });
+
+// Cosmetic shim must not sweep nodes added inside [contenteditable].
+// Editor pages (github / gmail) churn the composer subtree on every
+// keystroke. The pre-2026 shim re-queried the whole document on each
+// burst and dominated keystroke wall-clock at scale; the current shape
+// scopes work to added subtrees and bails out when any ancestor is
+// contenteditable.
+test('cosmetic fixture: skips subtrees inside [contenteditable=true]',
+  async () => {
+    const dom = makeDom({
+      html: '<!doctype html><html><body>' +
+        '<div id="composer" contenteditable="true"></div>' +
+        '</body></html>',
+    });
+    runInDom(dom, COSMETIC);
+    const doc = dom.window.document;
+    // Insert an ad-banner-classed element INSIDE the composer. The
+    // global early-CSS still applies (display:none !important via the
+    // <style> tag) but the runtime sweep must NOT touch inline style —
+    // that's the signal the shim correctly bailed out before running
+    // querySelectorAll on the composer subtree.
+    const composer = doc.getElementById('composer');
+    const inside = doc.createElement('div');
+    inside.className = 'ad-banner';
+    inside.id = 'inside-editable';
+    composer.appendChild(inside);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(inside.style.display, '',
+      'runtime sweep must not write inline style inside contenteditable');
+  });
