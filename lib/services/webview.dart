@@ -2557,7 +2557,25 @@ class WebViewFactory {
           try {
             final html = await controller.getHtml();
             if (html != null && html.isNotEmpty) {
-              config.onHtmlLoaded!(urlStr, html);
+              // `urlStr` was captured at onLoadStop entry. `getHtml()` is
+              // an async IPC into the renderer; if the user kicked off a
+              // back/forward gesture or a link tap during that round trip,
+              // the markup we got back belongs to the *new* page, not
+              // `urlStr`. Saving (urlStr, html-of-new-page) under `siteId`
+              // poisons the cache: next webview construction renders that
+              // mismatched HTML at `baseUrl=currentUrl`, so the user sees
+              // the wrong page when they swipe back into the cached entry.
+              // Re-read the URL post-getHtml and skip the save on
+              // mismatch — the next stable onLoadStop will write the
+              // right pair.
+              final liveUrl = (await controller.getUrl())?.toString();
+              if (liveUrl == urlStr) {
+                config.onHtmlLoaded!(urlStr, html);
+              } else {
+                LogService.instance.log('WebView',
+                    'Skipping cache save: URL changed during getHtml() '
+                    '($urlStr -> $liveUrl)');
+              }
             }
           } catch (_) {
             // Controller may have been disposed if webview was unloaded
