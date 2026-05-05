@@ -2479,11 +2479,19 @@ class WebViewFactory {
         //
         // Skipped for offline runs via the `isOnline()` check — there's
         // no live to fetch, so the cached page is the answer.
+        //
+        // The `isOnline()` probe does a DNS lookup with up to a 3s
+        // timeout — long enough for the user to tap a link or trigger
+        // a back/forward gesture. Re-check `navigationGen` after the
+        // probe resolves so the live-reload doesn't clobber an
+        // in-flight history navigation that started during the probe.
         final firedLiveReload = pendingLiveReload && navigationGen == 0;
         if (firedLiveReload) {
           pendingLiveReload = false;
+          final genAtSchedule = navigationGen;
           ConnectivityService.instance.isOnline().then((online) {
             if (!online) return;
+            if (navigationGen != genAtSchedule) return;
             try {
               controller.reload();
             } catch (_) {}
@@ -2549,7 +2557,25 @@ class WebViewFactory {
           try {
             final html = await controller.getHtml();
             if (html != null && html.isNotEmpty) {
-              config.onHtmlLoaded!(urlStr, html);
+              // `urlStr` was captured at onLoadStop entry. `getHtml()` is
+              // an async IPC into the renderer; if the user kicked off a
+              // back/forward gesture or a link tap during that round trip,
+              // the markup we got back belongs to the *new* page, not
+              // `urlStr`. Saving (urlStr, html-of-new-page) under `siteId`
+              // poisons the cache: next webview construction renders that
+              // mismatched HTML at `baseUrl=currentUrl`, so the user sees
+              // the wrong page when they swipe back into the cached entry.
+              // Re-read the URL post-getHtml and skip the save on
+              // mismatch — the next stable onLoadStop will write the
+              // right pair.
+              final liveUrl = (await controller.getUrl())?.toString();
+              if (liveUrl == urlStr) {
+                config.onHtmlLoaded!(urlStr, html);
+              } else {
+                LogService.instance.log('WebView',
+                    'Skipping cache save: URL changed during getHtml() '
+                    '($urlStr -> $liveUrl)');
+              }
             }
           } catch (_) {
             // Controller may have been disposed if webview was unloaded
