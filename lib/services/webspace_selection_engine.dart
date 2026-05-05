@@ -49,6 +49,34 @@ class WebspaceSelectionEngine {
         .toSet();
   }
 
+  /// Site indices that should reset to their `initUrl` when the user taps
+  /// an Android home-shortcut for [launchedIndex]: every site flagged
+  /// (predicate true) that shares at least one named webspace with the
+  /// launched site. The launched site itself is included if it satisfies
+  /// the predicate. The synthetic "All" webspace is ignored — it has no
+  /// stored `siteIndices` so it never anchors the reset (a flagged site
+  /// only living in "All" still resets via its own toJson trip).
+  ///
+  /// Pure: no `setState`, no controller calls, no IO. The caller maps
+  /// the returned indices back to webview disposal + persistence.
+  static Set<int> indicesToResetOnShortcutLaunch({
+    required int launchedIndex,
+    required List<Webspace> webspaces,
+    required bool Function(int index) flag,
+  }) {
+    if (launchedIndex < 0) return const {};
+    // Anchor on the launched site itself, then expand by any named
+    // webspace it lives in. A site that only lives in the synthetic "All"
+    // webspace still resets via its own flag — no sibling propagation.
+    final candidates = <int>{launchedIndex};
+    for (final ws in webspaces) {
+      if (ws.isAll) continue;
+      if (!ws.siteIndices.contains(launchedIndex)) continue;
+      candidates.addAll(ws.siteIndices);
+    }
+    return {for (final i in candidates) if (flag(i)) i};
+  }
+
   /// Strips out-of-bounds `siteIndices` from every webspace in place. Used
   /// after reorderings or imports where indices may have drifted. No-op for
   /// webspaces whose indices are already in-bounds.

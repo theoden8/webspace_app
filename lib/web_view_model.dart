@@ -278,6 +278,12 @@ class WebViewModel {
   String userAgent;
   bool thirdPartyCookiesEnabled;
   bool incognito; // Private browsing mode - no cookies/cache persist
+  /// When true, the site's currentUrl/pageTitle are not persisted: every
+  /// app restart and every Android home-shortcut tap returns the site to
+  /// its `initUrl`. Cookies / localStorage / IDB ARE preserved (the user
+  /// keeps their login session); only the navigation URL resets. Implied
+  /// by [incognito], which adds the cookie/storage wipe on top.
+  bool alwaysOpenHome;
   String? language; // Language code (e.g., 'en', 'es'), null = system default
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
   bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
@@ -352,6 +358,7 @@ class WebViewModel {
     this.userAgent = '',
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
+    this.alwaysOpenHome = false,
     this.language,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
@@ -1108,16 +1115,18 @@ class WebViewModel {
   /// The proxy password is never serialised — same contract as
   /// `isSecure=true` cookies, which are also stripped from exports. See
   /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson() {
+    // currentUrl/pageTitle are dropped when either incognito (full ephemeral
+    // session — issue #298) or alwaysOpenHome (URL-only ephemeral, cookies
+    // persist) is set. Cookies are dropped only by incognito; alwaysOpenHome
+    // banking-style sites keep their login state.
+    final dropUrl = incognito || alwaysOpenHome;
+    return {
         'siteId': siteId,
         'initUrl': initUrl,
-        // Incognito sites must not retain session state across app restarts:
-        // the currentUrl/pageTitle/cookies tuple is the user-visible session.
-        // Persisting currentUrl is what makes Google Maps reopen on the
-        // last-viewed coordinates after a kill (issue #298).
-        if (!incognito) 'currentUrl': currentUrl,
+        if (!dropUrl) 'currentUrl': currentUrl,
         'name': name,
-        if (!incognito) 'pageTitle': pageTitle,
+        if (!dropUrl) 'pageTitle': pageTitle,
         'cookies': incognito
             ? const <Map<String, dynamic>>[]
             : cookies.map((cookie) => cookie.toJson()).toList(),
@@ -1126,6 +1135,7 @@ class WebViewModel {
         'userAgent': userAgent,
         'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
         'incognito': incognito,
+        'alwaysOpenHome': alwaysOpenHome,
         'language': language,
         'clearUrlEnabled': clearUrlEnabled,
         'dnsBlockEnabled': dnsBlockEnabled,
@@ -1148,15 +1158,19 @@ class WebViewModel {
         if (spoofTimezoneFromLocation) 'spoofTimezoneFromLocation': true,
         'webRtcPolicy': webRtcPolicy.name,
       };
+  }
 
   factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
     final isIncognito = json['incognito'] as bool? ?? false;
+    final isAlwaysOpenHome = json['alwaysOpenHome'] as bool? ?? false;
+    // Either flag drops persisted currentUrl/pageTitle on rehydrate; only
+    // incognito additionally clears cookies. Defends against legacy JSON
+    // written by older builds that didn't strip on toJson.
+    final dropUrl = isIncognito || isAlwaysOpenHome;
     return WebViewModel(
       siteId: json['siteId'], // May be null for legacy data, will auto-generate
       initUrl: migrateLegacyFileImportUrl(json['initUrl'] as String),
-      // Drop persisted session state for incognito sites — handles legacy
-      // JSON written before the toJson fix (issue #298).
-      currentUrl: isIncognito || json['currentUrl'] == null
+      currentUrl: dropUrl || json['currentUrl'] == null
           ? null
           : migrateLegacyFileImportUrl(json['currentUrl'] as String),
       name: json['name'],
@@ -1170,6 +1184,7 @@ class WebViewModel {
       userAgent: json['userAgent'],
       thirdPartyCookiesEnabled: json['thirdPartyCookiesEnabled'],
       incognito: isIncognito,
+      alwaysOpenHome: isAlwaysOpenHome,
       language: json['language'],
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
@@ -1206,6 +1221,6 @@ class WebViewModel {
         orElse: () => WebRtcPolicy.defaultPolicy,
       ),
       stateSetterF: stateSetterF,
-    )..pageTitle = isIncognito ? null : json['pageTitle'];
+    )..pageTitle = dropUrl ? null : json['pageTitle'];
   }
 }

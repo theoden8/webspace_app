@@ -470,6 +470,96 @@ void main() {
         expect(restored.incognito, isTrue);
       });
     });
+
+    group('alwaysOpenHome (banking case)', () {
+      test('toJson omits currentUrl/pageTitle but keeps cookies (AOH-001/003)', () {
+        final model = WebViewModel(
+          initUrl: 'https://login.bank.example',
+          currentUrl: 'https://login.bank.example/account/123',
+          cookies: [Cookie(name: 'session', value: 'keep_me')],
+          alwaysOpenHome: true,
+        )..pageTitle = 'Account 123';
+
+        final json = model.toJson();
+
+        expect(json.containsKey('currentUrl'), isFalse);
+        expect(json.containsKey('pageTitle'), isFalse);
+        // The whole point of the toggle vs incognito: cookies survive.
+        expect((json['cookies'] as List), hasLength(1));
+        expect((json['cookies'] as List)[0]['name'], 'session');
+        expect(json['alwaysOpenHome'], isTrue);
+      });
+
+      test('fromJson with alwaysOpenHome + legacy currentUrl strips it (AOH-002)', () {
+        final json = {
+          'initUrl': 'https://login.bank.example',
+          'currentUrl': 'https://login.bank.example/account/123',
+          'pageTitle': 'Stale Account',
+          'cookies': [
+            {'name': 'session', 'value': 'keep_me'}
+          ],
+          'proxySettings': {'type': 0, 'address': null},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+          'alwaysOpenHome': true,
+        };
+
+        final model = WebViewModel.fromJson(json, null);
+
+        expect(model.currentUrl, equals(model.initUrl));
+        expect(model.pageTitle, isNull);
+        // Cookies preserved — distinguishes from incognito's INC-004.
+        expect(model.cookies, hasLength(1));
+        expect(model.cookies[0].name, 'session');
+        expect(model.alwaysOpenHome, isTrue);
+      });
+
+      test('alwaysOpenHome defaults to false when missing from JSON', () {
+        final json = {
+          'initUrl': 'https://example.com',
+          'currentUrl': 'https://example.com',
+          'cookies': [],
+          'proxySettings': {'type': 0, 'address': null},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+        };
+
+        final model = WebViewModel.fromJson(json, null);
+        expect(model.alwaysOpenHome, isFalse);
+      });
+
+      test('non-flagged site keeps URL through round-trip', () {
+        final original = WebViewModel(
+          initUrl: 'https://example.com',
+          currentUrl: 'https://example.com/deep',
+          alwaysOpenHome: false,
+          incognito: false,
+        );
+
+        final restored = WebViewModel.fromJson(original.toJson(), null);
+
+        expect(restored.currentUrl, 'https://example.com/deep');
+      });
+
+      test('incognito + alwaysOpenHome: cookies cleared (incognito wins on cookies)', () {
+        // AOH-005: incognito implies alwaysOpenHome; the URL drop overlaps
+        // but the cookie wipe is incognito-only.
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          currentUrl: 'https://example.com/deep',
+          cookies: [Cookie(name: 's', value: 'v')],
+          incognito: true,
+          alwaysOpenHome: true,
+        );
+
+        final json = model.toJson();
+
+        expect(json.containsKey('currentUrl'), isFalse);
+        expect(json['cookies'], isEmpty);
+      });
+    });
   });
 
   group('extractDomain', () {

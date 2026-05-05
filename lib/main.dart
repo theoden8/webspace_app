@@ -968,10 +968,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!mounted) return;
     if (siteId != null) {
       final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
-      if (index >= 0 && index != _currentIndex) {
-        await _setCurrentIndex(index);
-        if (!mounted) return;
+      if (index >= 0) {
+        _resetAlwaysOpenHomeOnShortcut(index);
+        if (index != _currentIndex) {
+          await _setCurrentIndex(index);
+          if (!mounted) return;
+        }
         setState(() {});
+        await _saveWebViewModels();
       }
     }
   }
@@ -1865,6 +1869,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (m.currentUrl != m.initUrl) {
         m.currentUrl = m.initUrl;
       }
+      // Webspace-scoped reset: every flagged sibling in a webspace that
+      // contains the launched site also drops to its initUrl. Mostly a
+      // no-op on cold launch (fromJson already stripped currentUrl for
+      // flagged sites) but kept here for defense in depth and parity
+      // with the warm-launch path in `_handleShortcutIntent`.
+      _resetAlwaysOpenHomeOnShortcut(indexToRestore);
     }
 
     // Auto-load notification sites so they start polling immediately and
@@ -2641,6 +2651,33 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// rebuilt webview boots clean and goes straight to the live home URL
   /// rather than flashing a stale cached frame. Offline: the cache is
   /// preserved — it's the only content we can render without network.
+  /// Reset every "Always open Home" / incognito site that shares a named
+  /// webspace with [launchedIndex] back to its `initUrl` and tear down its
+  /// live webview so the next paint reloads at home. Called from both the
+  /// cold and warm shortcut entrypoints — on cold launch most flagged
+  /// sites already had `currentUrl` dropped during `fromJson`, so the
+  /// pass is mostly a no-op there; on warm launch it is the only thing
+  /// that resets siblings.
+  void _resetAlwaysOpenHomeOnShortcut(int launchedIndex) {
+    final indices = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
+      launchedIndex: launchedIndex,
+      webspaces: _webspaces,
+      flag: (i) {
+        if (i < 0 || i >= _webViewModels.length) return false;
+        final m = _webViewModels[i];
+        return m.alwaysOpenHome || m.incognito;
+      },
+    );
+    for (final i in indices) {
+      final m = _webViewModels[i];
+      if (m.currentUrl == m.initUrl && m.webview == null) continue;
+      _evictCacheIfOnline(m.siteId);
+      m.currentUrl = m.initUrl;
+      m.disposeWebView();
+      _loadedIndices.remove(i);
+    }
+  }
+
   void _goHome() {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
     final model = _webViewModels[_currentIndex!];

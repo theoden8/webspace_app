@@ -34,6 +34,7 @@ class SiteSettingsQrCodec {
     'userAgent',
     'thirdPartyCookiesEnabled',
     'incognito',
+    'alwaysOpenHome',
     'language',
     'clearUrlEnabled',
     'dnsBlockEnabled',
