@@ -7,11 +7,13 @@
 
 ## 2. Routing resolver (pure Dart)
 
-- [ ] 2.1 Create `lib/services/link_routing_service.dart` exposing `RoutingMatch resolve(Uri url, List<WebViewModel> sites)` with specificity scoring per design D2.
-- [ ] 2.2 Implement `RoutingMatch.ambiguous(List<WebViewModel>)` for top-score ties; `RoutingMatch.none()` for no match.
-- [ ] 2.3 Implement `List<ClaimConflict> validateClaims(WebViewModel edited, List<WebViewModel> others)` per design D3.
-- [ ] 2.4 Implement `Uri? parseWebspaceUri(Uri raw)` that returns the inner `http`/`https` target for `webspace://open?url=...` and null otherwise.
-- [ ] 2.5 Unit tests `test/link_routing_test.dart`: exact > wildcard > base ordering, ties, no-match, multi-part TLDs, IPs, validator hijack/warn paths, `webspace://` parse (valid, malformed, non-http target).
+- [x] 2.1 Create `lib/services/link_routing_service.dart` exposing `RoutingMatch resolve(Uri url, List<RoutableSite> sites)` with specificity scoring per design D2b.
+- [x] 2.2 Implement `RoutingSingle` / `RoutingAmbiguous` / `RoutingNone` (sealed) for top-score ties and no-match cases.
+- [x] 2.3 Implement `List<ClaimConflict> validateClaims(String editedSiteId, List<DomainClaim> editedClaims, List<RoutableSite> others)` per design D3.
+- [x] 2.4 Implement `Uri? parseWebspaceUri(Uri raw)` that returns the inner `http`/`https` target for `webspace://open?url=...` and null otherwise.
+- [x] 2.5 Implement `String? strippedHomeUrl(Uri url)` returning `<scheme>://<host>[:port]/` for valid http(s) Uris (LIR-009 path stripping).
+- [x] 2.6 Implement `List<DomainClaim> claimsToAdoptHost(String host)` returning `[exactHost, wildcardSubdomain(base)]` for the LIR-010 "send domain to a site" option, deduplicated by callers against existing claim lists.
+- [x] 2.7 Unit tests `test/link_routing_test.dart`: exact > wildcard > base ordering, ties, no-match, multi-part TLDs, IPs, validator hijack/warn paths, `webspace://` parse (valid, malformed, non-http target), stripped-path edge cases (port preservation, query/fragment dropped, malformed rejection), `claimsToAdoptHost` shape + dedup.
 
 ## 3. Platform channel for link intents
 
@@ -55,8 +57,8 @@
 - [ ] 8.2 Master "Handle shared links" switch persisted via `SharedPreferences` key `link_handling_enabled`. When off, the `LinkIntentService` ignores URLs and writes the flag to the App Group (iOS/macOS) so the Share Extension respects it.
 - [ ] 8.3 Routing overview list: iterate all sites, show each claim → site; conflict badges from `validateClaims`.
 - [ ] 8.4 Domain-claim editor in site settings: add/remove `exactHost` and `wildcardSubdomain` claims; `baseDomain` is not user-selectable. Validation runs `validateClaims`.
-- [ ] 8.5 No-match bottom sheet: "Create site for <host>?" creating a new `WebViewModel` with `initUrl=<arrived URL>` and synthesized `baseDomain` claim. After accept, activate the site immediately.
-- [ ] 8.6 Disambiguation picker: modal bottom sheet listing tied sites; selection activates that site.
+- [ ] 8.5 LIR-010 dispatch picker: single bottom sheet with up to three option groups — (1) one row per resolver winner ("Match router default" fast-pathed when there is exactly one), (2) "Send <host> (and subdomains) to a site" → site picker → append `claimsToAdoptHost(host)` (deduped) and activate, (3) "Create new site for <host>" → `WebViewModel(initUrl: strippedHomeUrl(url), domainClaims: [baseDomain(...)])`, then navigate the new webview to the full inbound URL on first activation.
+- [ ] 8.6 Manual re-route entry point so the user can re-run the LIR-010 picker on demand even when a single resolver match exists.
 
 ## 9. WEBSPACE-011 wiring
 

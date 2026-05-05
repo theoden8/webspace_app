@@ -57,7 +57,42 @@ Patterns:
 
 **Alternative considered**: free-form glob/regex. Rejected — users can't reason about it, and the validator would have to grow.
 
-### D2. Resolver ranking
+### D2a. Three-option dispatch picker (LIR-010)
+
+The resolver alone never *creates* state — it just classifies. State-changing decisions (which site to activate, whether to mutate a site's claim list, whether to create a new site) are funnelled through the LIR-010 picker:
+
+```
+RoutingMatch r = resolver.resolve(url, sites);
+switch (r) {
+  case RoutingSingle s:
+    activate(s.site, url);                           // option 1, fast-pathed
+    break;
+  case RoutingAmbiguous a:
+    showPicker(
+      routerDefaults: a.sites,                       // option 1 rows (one each)
+      bindOptionAvailable: sites.isNotEmpty,         // option 2
+      createOptionAvailable: canStripPath(url),      // option 3
+    );
+    break;
+  case RoutingNone _:
+    showPicker(
+      routerDefaults: const [],                      // suppressed
+      bindOptionAvailable: sites.isNotEmpty,
+      createOptionAvailable: canStripPath(url),
+    );
+    break;
+}
+```
+
+When the user picks option 2 ("send domain & subdomains to <site X>"), the dispatch invokes `LinkRoutingService.claimsToAdoptHost(host)` which returns `[exactHost(host), wildcardSubdomain(getBaseDomain(host))]`, deduplicates against the chosen site's existing claims, persists, and activates. This both routes the current URL and pre-claims the domain so future arrivals skip the picker (LIR-002 fast path).
+
+When the user picks option 3, the dispatch invokes `LinkRoutingService.strippedHomeUrl(url)` to compute `<scheme>://<host>[:port]/`, creates a `WebViewModel` with that `initUrl` and the synthesized `baseDomain` claim, then activates the site on the *full* inbound URL (the webview navigates one extra step beyond the new site's persisted home). This avoids "tap a Reddit thread → site forever opens on that thread on cold start."
+
+**Alternative considered**: have the resolver itself return option 2/3 mutations. Rejected — keeps the resolver pure, leaves all persistence and side-effects in the dispatcher.
+
+**Alternative considered**: drop option 1 entirely on ambiguous (force user to pick a row anyway). Rejected — option 2 ("send to a site") and option 3 ("create new") would still need to be reachable; offering one consolidated picker matches the user's mental model of "where should this URL go?"
+
+### D2b. Resolver ranking
 
 For an incoming URL `U`, compute `host(U)` and `base(U) = getBaseDomain(host(U))`. For every `(site, claim)`:
 

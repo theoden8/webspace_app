@@ -194,13 +194,84 @@ The app SHALL provide a "Link handling" screen inside Settings containing a mast
 
 ---
 
-### Requirement: LIR-009 - No-Match Recovery
+### Requirement: LIR-009 - No-Match Recovery With Stripped-Path Site Creation
 
-When the resolver returns no match for an incoming URL, the system SHALL offer to create a new site for that URL. Accepting creates a `WebViewModel` whose `initUrl` is the incoming URL and whose `domainClaims` is the synthesized `[baseDomain(getBaseDomain(host))]`.
+When the resolver returns no match for an incoming URL, the system SHALL offer to create a new site for that URL whose `initUrl` is the incoming URL **with path, query, and fragment stripped** (only `<scheme>://<host>[:port]/` is retained). The arrived URL is still loaded into the new site's webview on first activation, but the site's persisted "home" `initUrl` is the stripped form, so subsequent app launches and navigation-engine same-domain checks operate on the site root rather than on a deep article URL. The synthesized claim is `[baseDomain(getBaseDomain(host))]` per LIR-001. The stripping rule SHALL reject non-`http`/`https` URLs and URLs with empty hosts, returning to a no-op (snackbar) rather than creating a malformed site.
 
-#### Scenario: Share-sheet no-match prompts create
+#### Scenario: Share-sheet no-match prompts create with stripped path
 
-- **GIVEN** no site matches `https://example.org/article`
-- **WHEN** the URL arrives via iOS Share Extension or Android `ACTION_SEND` or `webspace://`
+- **GIVEN** no site matches `https://example.org/articles/2026/feature?ref=share#top`
+- **WHEN** the URL arrives via iOS Share Extension, Android `ACTION_SEND`, or `webspace://`
 - **THEN** the app shows a "Create site for example.org?" bottom sheet
-- **AND** accepting creates the site and immediately activates it on the article URL
+- **AND** accepting creates the site with `initUrl == "https://example.org/"`
+- **AND** the new site's webview navigates to the full incoming URL on first activation
+- **AND** the synthesized `domainClaims` is `[baseDomain("example.org")]`
+
+#### Scenario: Stripped path preserves non-default port
+
+- **GIVEN** no site matches `http://localhost:8080/dashboard?token=abc`
+- **WHEN** the user accepts the create prompt
+- **THEN** the new site's `initUrl == "http://localhost:8080/"`
+
+#### Scenario: Malformed target rejected
+
+- **GIVEN** the dispatched URL has an empty host (e.g. `https:///foo`) or a non-http(s) scheme
+- **WHEN** the no-match flow runs
+- **THEN** no site is created
+- **AND** a snackbar reports the URL was unsupported
+
+---
+
+### Requirement: LIR-010 - Three-Option Dispatch Picker
+
+Whenever an inbound URL cannot be unambiguously dispatched by the resolver alone — that is, the resolver returns ambiguous (LIR-002 tie) or no-match (LIR-009) — the system SHALL surface a single bottom-sheet picker offering up to three options, in this order:
+
+1. **Match router default** — activate the resolver's top-scored match. This option SHALL be present whenever the resolver returned a single winning candidate (i.e. on ambiguous, listed once per tied candidate; on no-match, suppressed).
+2. **Send domain (and subdomains) to a site** — open a site picker listing every existing site. Selecting a site SHALL append `[exactHost(host), wildcardSubdomain(getBaseDomain(host))]` to that site's `domainClaims` (deduplicated against existing entries), persist the change, and then activate the site on the full incoming URL. This option SHALL be suppressed when the user has zero existing sites.
+3. **Create new site (stripped path)** — invoke the LIR-009 flow. This option SHALL be suppressed when the URL's host is empty or its scheme is not `http`/`https`.
+
+The picker SHALL be skipped (option 1 silently auto-applied) when the resolver returned exactly one match — that is the normal "router default" fast path. The picker SHALL be reachable manually from a per-site or settings affordance (e.g. long-press on the share-sheet target during testing) so the user can re-route a URL even when a single resolver match exists; the manual entry point still uses LIR-010 semantics.
+
+When option 2 is taken and the chosen site already has a claim that would have matched the URL on its own, the dispatch SHALL still complete (idempotent: `claimsToAdoptHost` deduplicates) and no error SHALL be surfaced.
+
+#### Scenario: No match shows two options
+
+- **GIVEN** the user has two existing sites and none match `https://forum.invalid/thread/42`
+- **WHEN** the URL arrives via share intent
+- **THEN** the picker shows "Send forum.invalid to <pick site>" and "Create new site for forum.invalid"
+- **AND** "Match router default" is not shown (no resolver winner)
+
+#### Scenario: Tie shows router-default rows plus the binding/create options
+
+- **GIVEN** two sites both claim `exactHost:reddit.com`
+- **WHEN** `https://reddit.com/r/flutter` arrives
+- **THEN** the picker shows one "Open in <Site A>" row, one "Open in <Site B>" row, "Send reddit.com (and subdomains) to a site", and "Create new site for reddit.com"
+
+#### Scenario: Bind to existing site mutates its claims
+
+- **GIVEN** site A exists with no claim covering `forum.invalid`
+- **WHEN** the user picks "Send forum.invalid to Site A" for `https://forum.invalid/thread/42`
+- **THEN** site A's `domainClaims` gains `exactHost:forum.invalid` and `wildcardSubdomain:forum.invalid`
+- **AND** the change persists across app restart
+- **AND** site A is activated and navigates to `https://forum.invalid/thread/42`
+- **AND** a future arrival of `https://sub.forum.invalid/x` resolves to site A without showing the picker
+
+#### Scenario: No existing sites suppresses option 2
+
+- **GIVEN** the user has zero existing sites (fresh install)
+- **WHEN** any URL arrives
+- **THEN** only "Create new site" is offered (option 2 hidden)
+
+#### Scenario: Single resolver match skips the picker
+
+- **GIVEN** site A exclusively claims `exactHost:twitter.com`
+- **WHEN** `https://twitter.com/user` arrives
+- **THEN** site A is activated immediately
+- **AND** no picker is shown
+
+#### Scenario: Idempotent re-binding
+
+- **GIVEN** site A already claims `wildcardSubdomain:example.org`
+- **WHEN** the user invokes the manual picker on `https://api.example.org/x` and chooses "Send to site A"
+- **THEN** the dispatch succeeds
+- **AND** site A's claim list does not gain a duplicate entry
