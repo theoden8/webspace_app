@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -74,6 +75,41 @@ void main() {
       expect(model.javascriptEnabled, equals(false));
       expect(model.userAgent, equals('TestAgent/1.0'));
       expect(model.thirdPartyCookiesEnabled, equals(true));
+    });
+
+    test('domainClaims null by default; toJson omits it; fromJson stays null',
+        () {
+      final m = WebViewModel(initUrl: 'https://example.org/');
+      expect(m.domainClaims, isNull);
+      final json = m.toJson();
+      expect(json.containsKey('domainClaims'), isFalse);
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.domainClaims, isNull);
+    });
+
+    test(
+        'effectiveDomainClaims synthesizes baseDomain claim from initUrl when null',
+        () {
+      final m = WebViewModel(initUrl: 'https://mail.example.org/inbox');
+      expect(m.effectiveDomainClaims, hasLength(1));
+      expect(m.effectiveDomainClaims.first.kind, DomainClaimKind.baseDomain);
+      expect(m.effectiveDomainClaims.first.value, 'example.org');
+    });
+
+    test('explicit domainClaims persist through JSON round-trip', () {
+      final m = WebViewModel(initUrl: 'https://example.org/');
+      m.domainClaims = [
+        DomainClaim.exactHost('example.org'),
+        DomainClaim.wildcardSubdomain('example.org'),
+      ];
+      final json = m.toJson();
+      expect(json['domainClaims'], isA<List<dynamic>>());
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.domainClaims, isNotNull);
+      expect(back.domainClaims!, [
+        DomainClaim.exactHost('example.org'),
+        DomainClaim.wildcardSubdomain('example.org'),
+      ]);
     });
 
     test('should round-trip through JSON correctly', () {

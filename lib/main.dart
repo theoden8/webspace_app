@@ -62,6 +62,7 @@ import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/android_foreground_service.dart';
 import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
+import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
@@ -986,18 +987,187 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (_handlingShareIntent) return;
     _handlingShareIntent = true;
     try {
-      final url = await ShareIntentService.consumeLaunchUrl();
-      if (!mounted || url == null || url.isEmpty) return;
-      if (url.startsWith('webspace://qr/')) {
-        final decoded = SiteSettingsQrCodec.decode(url);
+      final raw = await ShareIntentService.consumeLaunchUrl();
+      if (!mounted || raw == null || raw.isEmpty) return;
+      if (raw.startsWith('webspace://qr/')) {
+        final decoded = SiteSettingsQrCodec.decode(raw);
         if (decoded != null) {
           _addSite(qrSettings: decoded);
         }
         return;
       }
-      _addSite(initialUrl: url);
+      Uri? target = Uri.tryParse(raw);
+      if (target != null && target.scheme.toLowerCase() == 'webspace') {
+        target = LinkRoutingService.parseWebspaceUri(target);
+      }
+      if (target == null ||
+          (target.scheme != 'http' && target.scheme != 'https') ||
+          target.host.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unsupported URL')),
+        );
+        return;
+      }
+      await _dispatchInboundUrl(target);
     } finally {
       _handlingShareIntent = false;
+    }
+  }
+
+  /// Resolves an inbound URL via [LinkRoutingService] and either activates
+  /// the matched site directly (single resolver winner — LIR-002 fast
+  /// path) or surfaces the LIR-010 three-option picker.
+  Future<void> _dispatchInboundUrl(Uri url) async {
+    final adapters = _webViewModels
+        .map((m) => _SiteRouteAdapter(m))
+        .toList(growable: false);
+    final match = LinkRoutingService.resolve(url, adapters);
+    if (match is RoutingSingle) {
+      final adapter = match.site as _SiteRouteAdapter;
+      await _activateSiteOnUrl(adapter.model, url.toString());
+      return;
+    }
+    final winners = match is RoutingAmbiguous
+        ? match.sites
+            .whereType<_SiteRouteAdapter>()
+            .map((a) => a.model)
+            .toList(growable: false)
+        : const <WebViewModel>[];
+    if (!mounted) return;
+    final choice = await showModalBottomSheet<_DispatchChoice>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => _DispatchPickerSheet(
+        url: url,
+        winners: winners,
+        otherSites: _webViewModels
+            .where((m) => !winners.contains(m))
+            .toList(growable: false),
+        canCreate: LinkRoutingService.strippedHomeUrl(url) != null,
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case _DispatchChoiceOpen(:final site):
+        await _activateSiteOnUrl(site, url.toString());
+        break;
+      case _DispatchChoiceBind(:final site):
+        final additions = LinkRoutingService.claimsToAdoptHost(url.host);
+        if (additions.isNotEmpty) {
+          final existing = site.domainClaims ?? site.effectiveDomainClaims;
+          site.domainClaims =
+              LinkRoutingService.mergeClaims(existing, additions);
+          await _saveWebViewModels();
+        }
+        await _activateSiteOnUrl(site, url.toString());
+        break;
+      case _DispatchChoiceCreate():
+        await _createSiteForInboundUrl(url);
+        break;
+    }
+  }
+
+  /// LIR-009 / LIR-010 option 3: create a new site whose persisted `initUrl`
+  /// is the stripped home (`<scheme>://<host>[:port]/`) and whose first
+  /// navigation goes to the full inbound URL. Skips the AddSiteScreen
+  /// dialog (the user already confirmed "create" in the picker).
+  Future<void> _createSiteForInboundUrl(Uri url) async {
+    final home = LinkRoutingService.strippedHomeUrl(url);
+    if (home == null) return;
+    final stateSetter = () { setState((){}); _updateCanGoBack(); };
+    final model = WebViewModel(
+      initUrl: home,
+      stateSetterF: stateSetter,
+    );
+    final pageTitle = await getPageTitle(url.toString());
+    if (!mounted) return;
+    if (pageTitle != null && pageTitle.isNotEmpty) {
+      model.name = pageTitle;
+      model.pageTitle = pageTitle;
+    }
+    setState(() {
+      _webViewModels.add(model);
+    });
+    final newSiteIndex = _webViewModels.length - 1;
+    if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
+      final wsIdx = _webspaces.indexWhere((w) => w.id == _selectedWebspaceId);
+      if (wsIdx != -1) {
+        _webspaces[wsIdx].siteIndices.add(newSiteIndex);
+        await _saveWebspaces();
+      }
+    }
+    await _setCurrentIndex(newSiteIndex);
+    if (!mounted) return;
+    setState(() {});
+    await _saveCurrentIndex();
+    await _saveWebViewModels();
+    final theme = _themeModeToWebViewTheme(_themeSettings.themeMode);
+    await model.setTheme(theme);
+    if (!mounted) return;
+    final controller = model.getController(
+      launchUrl,
+      _cookieManager,
+      _containerCookieManager,
+      _saveWebViewModels,
+      globalUserScripts: _globalUserScripts,
+    );
+    if (controller != null && url.toString() != home) {
+      await controller.loadUrl(url.toString(), language: model.language);
+      if (!mounted) return;
+      setState(() {
+        model.currentUrl = url.toString();
+      });
+      await _saveWebViewModels();
+    }
+  }
+
+  /// Activate [model] (switching webspace to "All" if it isn't a member of
+  /// the current named webspace, per WEBSPACE-011) and navigate its
+  /// webview to [url] using the controller's loadUrl path.
+  Future<void> _activateSiteOnUrl(WebViewModel model, String url) async {
+    final index = _webViewModels.indexOf(model);
+    if (index < 0) return;
+    if (_selectedWebspaceId != null &&
+        _selectedWebspaceId != kAllWebspaceId) {
+      final ws = _webspaces.firstWhere(
+        (w) => w.id == _selectedWebspaceId,
+        orElse: () => _webspaces.first,
+      );
+      if (!ws.siteIndices.contains(index)) {
+        setState(() {
+          _selectedWebspaceId = kAllWebspaceId;
+        });
+        await _saveSelectedWebspaceId();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Switched to All to open in ${model.getDisplayName()}',
+              ),
+            ),
+          );
+        }
+      }
+    }
+    if (index != _currentIndex) {
+      await _setCurrentIndex(index);
+    }
+    if (!mounted) return;
+    final controller = model.getController(
+      launchUrl,
+      _cookieManager,
+      _containerCookieManager,
+      _saveWebViewModels,
+      globalUserScripts: _globalUserScripts,
+    );
+    if (controller != null) {
+      await controller.loadUrl(url, language: model.language);
+      if (!mounted) return;
+      setState(() {
+        model.currentUrl = url;
+      });
+      await _saveWebViewModels();
     }
   }
 
@@ -4495,5 +4665,169 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             ),
     ),
     );
+  }
+}
+
+class _SiteRouteAdapter implements RoutableSite {
+  final WebViewModel model;
+  const _SiteRouteAdapter(this.model);
+
+  @override
+  String get siteId => model.siteId;
+
+  @override
+  String get initUrl => model.initUrl;
+
+  @override
+  List<DomainClaim> get domainClaims => model.effectiveDomainClaims;
+}
+
+sealed class _DispatchChoice {
+  const _DispatchChoice();
+}
+
+class _DispatchChoiceOpen extends _DispatchChoice {
+  final WebViewModel site;
+  const _DispatchChoiceOpen(this.site);
+}
+
+class _DispatchChoiceBind extends _DispatchChoice {
+  final WebViewModel site;
+  const _DispatchChoiceBind(this.site);
+}
+
+class _DispatchChoiceCreate extends _DispatchChoice {
+  const _DispatchChoiceCreate();
+}
+
+/// LIR-010 dispatch picker: shown when the resolver does not deliver a
+/// unique winner. Lists each resolver winner ("router default" rows), an
+/// option to bind the URL's host to an existing site (mutates that site's
+/// `domainClaims` via `claimsToAdoptHost`), and an option to create a new
+/// site with the path stripped to `<scheme>://<host>[:port]/`.
+class _DispatchPickerSheet extends StatefulWidget {
+  final Uri url;
+  final List<WebViewModel> winners;
+  final List<WebViewModel> otherSites;
+  final bool canCreate;
+
+  const _DispatchPickerSheet({
+    required this.url,
+    required this.winners,
+    required this.otherSites,
+    required this.canCreate,
+  });
+
+  @override
+  State<_DispatchPickerSheet> createState() => _DispatchPickerSheetState();
+}
+
+class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
+  bool _bindMode = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final host = widget.url.host;
+    final allSites = [...widget.winners, ...widget.otherSites];
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                _bindMode
+                    ? 'Send $host to which site?'
+                    : 'Open $host',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Text(
+              widget.url.toString(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            if (_bindMode)
+              ..._buildBindRows(allSites)
+            else
+              ..._buildPrimaryRows(),
+            const SizedBox(height: 8),
+            if (_bindMode)
+              TextButton(
+                onPressed: () => setState(() => _bindMode = false),
+                child: const Text('Back'),
+              )
+            else
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildPrimaryRows() {
+    final rows = <Widget>[];
+    for (final site in widget.winners) {
+      rows.add(ListTile(
+        leading: const Icon(Icons.open_in_new),
+        title: Text('Open in ${site.getDisplayName()}'),
+        subtitle: Text(site.initUrl,
+            maxLines: 1, overflow: TextOverflow.ellipsis),
+        onTap: () =>
+            Navigator.of(context).pop(_DispatchChoiceOpen(site)),
+      ));
+    }
+    if (widget.winners.isNotEmpty || widget.otherSites.isNotEmpty) {
+      rows.add(ListTile(
+        leading: const Icon(Icons.link),
+        title: Text(
+            'Send ${widget.url.host} (and subdomains) to a site'),
+        subtitle: const Text('Pick an existing site to handle this domain'),
+        onTap: () => setState(() => _bindMode = true),
+      ));
+    }
+    if (widget.canCreate) {
+      rows.add(ListTile(
+        leading: const Icon(Icons.add_circle_outline),
+        title: Text('Create new site for ${widget.url.host}'),
+        subtitle: Text(
+          LinkRoutingService.strippedHomeUrl(widget.url) ?? '',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        onTap: () =>
+            Navigator.of(context).pop(const _DispatchChoiceCreate()),
+      ));
+    }
+    return rows;
+  }
+
+  List<Widget> _buildBindRows(List<WebViewModel> sites) {
+    if (sites.isEmpty) {
+      return [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Text('No existing sites.'),
+        ),
+      ];
+    }
+    return sites
+        .map((s) => ListTile(
+              leading: const Icon(Icons.web),
+              title: Text(s.getDisplayName()),
+              subtitle: Text(s.initUrl,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              onTap: () =>
+                  Navigator.of(context).pop(_DispatchChoiceBind(s)),
+            ))
+        .toList(growable: false);
   }
 }
