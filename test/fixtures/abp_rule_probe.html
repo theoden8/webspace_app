@@ -171,14 +171,25 @@
     <code>new Image().src</code> and <code>fetch()</code> with
     <code>mode:'no-cors'</code> &mdash; and the
     <code>performance.getEntriesByName</code> API is consulted to
-    distinguish a JS-layer block (no resource entry created &rarr;
-    request never went out) from a network-level failure (entry exists
-    but server returned an error). Outcomes:
-    <code>js-blocked</code> &rarr; interceptor cancelled before
-    networking; <code>net-error</code> &rarr; request went out, server
-    failed; <code>loaded</code> &rarr; request succeeded;
-    <code>timeout</code> &rarr; neither fired in 5s.
-    Only <code>js-blocked</code> proves a content-blocker hit.
+    classify the outcome:
+    <code>js-blocked</code> &rarr; no Performance entry, request was
+    aborted before networking; <code>net-error</code> &rarr; entry
+    exists but server / interceptor returned an error;
+    <code>loaded</code> &rarr; request succeeded;
+    <code>net-timeout</code> &rarr; entry exists, no response in 5s.
+    <br><br>
+    <strong>Reading verdicts by platform:</strong>
+    <ul style="margin: 4px 0 0 1.2em; padding: 0;">
+      <li><strong>iOS / macOS</strong>: <code>js-blocked</code> is the
+      block signal &mdash; the JS setter wrap declines to call
+      <code>origSet</code>, no network entry is ever created.</li>
+      <li><strong>Android</strong>: the native
+      <code>FastSubresourceInterceptor</code> returns a synthetic
+      empty response, so a real block produces a Performance entry
+      and reads as <code>net-error</code>. Compare against the control
+      rows: if controls <code>load</code> and the blocked rows
+      <code>net-error</code>, the rule fired.</li>
+    </ul>
   </div>
   <table class="probe">
     <thead>
@@ -550,12 +561,17 @@
 
     function applyResult(cell, outcome, expected) {
       cell.className = 'result-cell';
-      // 'js-blocked' is the only outcome that proves a content-blocker
-      // hit. 'net-error' / 'net-timeout' / 'loaded' all mean the
-      // request reached the network — only 'loaded' is success-allowed
-      // for an `expected: allow` row.
+      // 'js-blocked' is the iOS/macOS block signal (setter wrap aborts
+      // before networking). 'net-error' is also a block signal on
+      // Android (native FastSubresourceInterceptor returns a synthetic
+      // empty response that *does* create a Performance entry). For
+      // an `expected: allow` row only 'loaded' is a clean pass.
+      const platform = sniffPlatform();
+      const isAndroid = platform.name === 'Android';
       if (expected === 'block') {
-        cell.classList.add(outcome === 'js-blocked' ? 'ok' : 'fail');
+        const blockOutcome = outcome === 'js-blocked' ||
+          (isAndroid && outcome === 'net-error');
+        cell.classList.add(blockOutcome ? 'ok' : 'fail');
       } else {
         cell.classList.add(outcome === 'loaded' ? 'ok' : 'note');
       }
