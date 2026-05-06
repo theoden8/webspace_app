@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/hint_button.dart';
 
 /// Global "Link handling" screen (LIR-008): master toggle + routing
 /// overview + manual test entry. Tapping a site row opens [onOpenSiteEditor]
@@ -287,6 +288,13 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
+              const HintButton(
+                title: 'Domain claims',
+                description:
+                    'Which hostnames route to this site when shared from '
+                    'another app. Existing sites synthesize one base-domain '
+                    'claim from their URL.',
+              ),
               IconButton(
                 icon: const Icon(Icons.add),
                 tooltip: 'Add claim',
@@ -295,15 +303,6 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
             ],
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Which hostnames route to this site when shared from another app. '
-            'Existing sites synthesize one base-domain claim from their URL.',
-            style: TextStyle(fontSize: 12),
-          ),
-        ),
-        const SizedBox(height: 8),
         for (var i = 0; i < _claims.length; i++)
           _ClaimRow(
             claim: _claims[i],

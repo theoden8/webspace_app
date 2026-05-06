@@ -242,6 +242,16 @@ void main() {
       );
       expect(action, isA<DispatchUnsupported>());
     });
+
+    test('non-default port seeds an exactHost host:port claim, no wildcard',
+        () {
+      final action = LinkIntentDispatchEngine.createNew(
+        inbound: Uri.parse('http://localhost:8080/admin?token=x'),
+      );
+      final c = action as DispatchCreateSite;
+      expect(c.home, 'http://localhost:8080/');
+      expect(c.initialClaims, [DomainClaim.exactHost('localhost:8080')]);
+    });
   });
 
   group('LinkIntentDispatchEngine.dispatch — InboundHtml — LIR-012', () {

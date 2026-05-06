@@ -209,7 +209,7 @@ class LinkIntentDispatchEngine {
     required DispatchableSite site,
   }) {
     final target = _normalizeInbound(inbound) ?? inbound;
-    final additions = LinkRoutingService.claimsToAdoptHost(target.host);
+    final additions = LinkRoutingService.claimsToAdoptUrl(target);
     return DispatchBindAndOpen(
       chosenSiteId: site.siteId,
       claimAdditions: additions,
@@ -230,10 +230,14 @@ class LinkIntentDispatchEngine {
     if (home == null) {
       return const DispatchUnsupported('cannot strip path for create');
     }
-    final base = getBaseDomain(target.host);
-    final claims = base.isEmpty
-        ? const <DomainClaim>[]
-        : [DomainClaim.baseDomain(base)];
+    final claims = target.hasPort
+        ? LinkRoutingService.claimsToAdoptUrl(target)
+        : () {
+            final base = getBaseDomain(target.host);
+            return base.isEmpty
+                ? const <DomainClaim>[]
+                : [DomainClaim.baseDomain(base)];
+          }();
     return DispatchCreateSite(
       home: home,
       fullUrl: target.toString(),
