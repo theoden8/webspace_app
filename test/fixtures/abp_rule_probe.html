@@ -62,8 +62,8 @@
     <tbody id="cosmetic-results"></tbody>
   </table>
 
-  <h2>Network rules (heuristic)</h2>
-  <p class="desc">Loads a tiny resource from each domain and reports whether the load succeeded. A failed load may mean the rule fired OR a transient network error; the <code>example.com</code> control row anchors the difference. Sub-resource blocking on iOS/macOS goes through the JS interceptor; on Android through the native interceptor.</p>
+  <h2>Network rules (heuristic — read with care)</h2>
+  <p class="desc">Loads a tiny resource from each domain. <strong>This section is best-effort:</strong> a failed load can mean the rule fired, the URL doesn't serve content, or a transient network error. Trust this section only when the control rows succeed. The cosmetic section above is the reliable end-to-end signal — sub-resource block status is better verified from the in-app Developer Tools &rarr; Network panel on a reload.</p>
   <table class="probe">
     <thead>
       <tr>
@@ -262,7 +262,7 @@
         label: '||doubleclick.net^',
         expected: 'block',
         url: 'https://doubleclick.net/favicon.ico',
-        note: 'main blocked target — load should fail',
+        note: 'main blocked target — load should fail when sub-resource interceptor is active',
       },
       {
         id: 'net-googlesynd',
@@ -271,19 +271,24 @@
         url: 'https://googlesyndication.com/favicon.ico',
         note: 'parent rule of @@||cdn.googlesyndication.com^',
       },
+      // Two controls so a single fragile favicon endpoint can't poison
+      // the verdict. If BOTH succeed → heuristic is reliable; if both
+      // fail → the probe column is unreliable on this device (could be
+      // captive portal, offline, strict TLS pinning, etc.); if mixed →
+      // one endpoint just doesn't serve favicon, which is fine.
       {
-        id: 'net-cdn-googlesynd',
-        label: '@@||cdn.googlesyndication.com^',
+        id: 'net-control-wikipedia',
+        label: '(control: en.wikipedia.org)',
         expected: 'allow',
-        url: 'https://cdn.googlesyndication.com/favicon.ico',
-        note: 'exception override — load should succeed if exception parsed',
+        url: 'https://en.wikipedia.org/static/favicon/wikipedia.ico',
+        note: 'baseline reachability — no rule should match',
       },
       {
-        id: 'net-control',
-        label: '(control: example.com)',
+        id: 'net-control-iana',
+        label: '(control: iana.org)',
         expected: 'allow',
-        url: 'https://example.com/favicon.ico',
-        note: 'no rule should match — confirms baseline reachability',
+        url: 'https://www.iana.org/favicon.ico',
+        note: 'second baseline — confirms the heuristic with a different host',
       },
     ];
 
