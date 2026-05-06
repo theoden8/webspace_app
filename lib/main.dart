@@ -4729,55 +4729,71 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
   Widget build(BuildContext context) {
     final host = widget.url.host;
     final allSites = [...widget.winners, ...widget.otherSites];
+    final rows = _bindMode ? _buildBindRows(allSites) : _buildPrimaryRows();
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                _bindMode
-                    ? 'Send $host to which site?'
-                    : 'Open $host',
-                style: Theme.of(context).textTheme.titleMedium,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  _bindMode ? 'Send $host to which site?' : 'Open $host',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
-            ),
-            Text(
-              widget.url.toString(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            if (_bindMode)
-              ..._buildBindRows(allSites)
-            else
-              ..._buildPrimaryRows(),
-            const SizedBox(height: 8),
-            if (_bindMode)
-              TextButton(
-                onPressed: () => setState(() => _bindMode = false),
-                child: const Text('Back'),
-              )
-            else
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
+              Text(
+                widget.url.toString(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-          ],
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: rows,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_bindMode)
+                TextButton(
+                  onPressed: () => setState(() => _bindMode = false),
+                  child: const Text('Back'),
+                )
+              else
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _siteFavicon(WebViewModel site) => SizedBox(
+        width: 32,
+        height: 32,
+        child: UnifiedFaviconImage(
+          url: site.initUrl,
+          size: 32,
+          proxy: site.proxySettings,
+        ),
+      );
+
   List<Widget> _buildPrimaryRows() {
     final rows = <Widget>[];
     for (final site in widget.winners) {
       rows.add(ListTile(
-        leading: const Icon(Icons.open_in_new),
+        leading: _siteFavicon(site),
         title: Text('Open in ${site.getDisplayName()}'),
         subtitle: Text(site.initUrl,
             maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -4787,7 +4803,8 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
     }
     if (widget.winners.isNotEmpty || widget.otherSites.isNotEmpty) {
       rows.add(ListTile(
-        leading: const Icon(Icons.link),
+        leading: const SizedBox(
+            width: 32, height: 32, child: Icon(Icons.link)),
         title: Text(
             'Send ${widget.url.host} (and subdomains) to a site'),
         subtitle: const Text('Pick an existing site to handle this domain'),
@@ -4796,7 +4813,15 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
     }
     if (widget.canCreate) {
       rows.add(ListTile(
-        leading: const Icon(Icons.add_circle_outline),
+        leading: SizedBox(
+          width: 32,
+          height: 32,
+          child: UnifiedFaviconImage(
+            url: LinkRoutingService.strippedHomeUrl(widget.url) ??
+                widget.url.toString(),
+            size: 32,
+          ),
+        ),
         title: Text('Create new site for ${widget.url.host}'),
         subtitle: Text(
           LinkRoutingService.strippedHomeUrl(widget.url) ?? '',
@@ -4821,7 +4846,7 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
     }
     return sites
         .map((s) => ListTile(
-              leading: const Icon(Icons.web),
+              leading: _siteFavicon(s),
               title: Text(s.getDisplayName()),
               subtitle: Text(s.initUrl,
                   maxLines: 1, overflow: TextOverflow.ellipsis),
