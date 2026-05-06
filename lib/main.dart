@@ -905,7 +905,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    // Only treat `paused` as a real backgrounding event. `inactive` fires for
+    // any transient focus loss — native <select> popup dialog, app-switcher
+    // peek, system permission prompt, incoming call on iOS — where pausing
+    // the WebView would dismiss the popup or the JS thread that the user is
+    // actively interacting with. See issue #308.
+    if (state == AppLifecycleState.paused) {
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
