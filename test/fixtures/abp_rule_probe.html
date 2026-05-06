@@ -57,7 +57,14 @@
   <div class="toolbar">
     <button onclick="measure()">Re-measure now</button>
     <button onclick="runNetworkProbes()">Re-run network probes</button>
+    <button onclick="refreshDiagnostics()">Refresh diagnostics</button>
     <span id="host-label" class="desc"></span>
+  </div>
+
+  <div id="diagnostics" class="section-callout" style="border-left-color:#888; background:#fafafa;">
+    <div><strong>Platform:</strong> <span id="diag-platform">checking…</span> &mdash; sub-resource interceptor: <strong id="diag-interceptor">checking…</strong></div>
+    <div><strong>Merged bloom:</strong> <span id="diag-bloom">checking…</span></div>
+    <div id="diag-warning" class="desc"></div>
   </div>
 
   <h2>1. Supported cosmetic rules</h2>
@@ -157,22 +164,30 @@
     <tbody id="control-results"></tbody>
   </table>
 
-  <h2>6. Network rules (heuristic)</h2>
+  <h2>6. Network rules (heuristic, triangulated)</h2>
   <div class="section-callout expect-blocked">
     <strong>Expected verdict per row: see "Expected" column.</strong>
-    Loads a tiny resource from each domain. <strong>Read with care:</strong>
-    a failed load can mean the rule fired, the URL doesn't serve content,
-    or a transient network error. Trust this section only when both
-    control rows succeed. The cosmetic sections above are the reliable
-    end-to-end signal — sub-resource block status is better verified
-    from the in-app Developer Tools &rarr; Network panel.
+    Each rule is probed three ways &mdash; <code>&lt;img&gt;</code> via
+    <code>new Image().src</code>, <code>&lt;script&gt;</code> via
+    <code>script.src</code>, and <code>fetch()</code> with
+    <code>mode:'no-cors'</code>. If <strong>all three fail</strong> for a
+    blocked-domain row, the interceptor is firing. If only some fail, you
+    can read where the wrap is missing: <code>img</code>/<code>script</code>
+    go through patched property setters at
+    <code>webview.dart:1710&ndash;1713</code>; <code>fetch</code> goes
+    through the wrapped global at <code>webview.dart:1652</code>. If
+    <strong>all three pass</strong> on a blocked-domain row while controls
+    pass, the bloom doesn't have the host (or sub-resource interception
+    isn't installed on this platform &mdash; see diagnostics above).
   </div>
   <table class="probe">
     <thead>
       <tr>
-        <th style="width: 30%">Rule</th>
-        <th style="width: 12%">Expected</th>
-        <th style="width: 18%">Actual</th>
+        <th style="width: 26%">Rule</th>
+        <th style="width: 10%">Expected</th>
+        <th style="width: 11%">img</th>
+        <th style="width: 11%">script</th>
+        <th style="width: 11%">fetch</th>
         <th>Probe target</th>
       </tr>
     </thead>
@@ -478,49 +493,159 @@
           '<td><code>' + escapeHtml(c.label) + '</code>' +
             '<div class="desc">' + escapeHtml(c.note) + '</div></td>' +
           '<td class="expected-cell">' + (c.expected === 'block' ? 'load fails' : 'load succeeds') + '</td>' +
-          '<td class="result-cell pending" data-result>pending…</td>' +
+          '<td class="result-cell pending" data-result-img>pending…</td>' +
+          '<td class="result-cell pending" data-result-script>pending…</td>' +
+          '<td class="result-cell pending" data-result-fetch>pending…</td>' +
           '<td><span class="markup">' + escapeHtml(c.url) + '</span></td>';
         tbody.appendChild(row);
       }
     }
 
-    function probeNetwork(c) {
+    // Three probe methods. Each returns one of:
+    //   'loaded'  — request completed (no-cors fetch resolves opaquely)
+    //   'failed'  — onerror or fetch rejection (interceptor block or net error)
+    //   'timeout' — neither fired in 5s (treat as failed for verdict purposes)
+    // Cache-busted so a prior 200 doesn't mask a newly enabled block.
+
+    function probeImg(url) {
       return new Promise((resolve) => {
         const img = new Image();
-        let settled = false;
-        const finish = (outcome) => {
-          if (settled) return;
-          settled = true;
-          resolve(outcome);
-        };
+        let done = false;
+        const finish = (o) => { if (!done) { done = true; resolve(o); } };
         img.onload = () => finish('loaded');
         img.onerror = () => finish('failed');
-        // Cache-bust so a cached 200 from a prior page doesn't mask a
-        // newly enabled blocking rule.
-        img.src = c.url + '?probe=' + Date.now();
+        img.src = url + (url.indexOf('?') < 0 ? '?' : '&') + 'probe=img-' + Date.now();
         setTimeout(() => finish('timeout'), 5000);
       });
     }
 
+    function probeScript(url) {
+      return new Promise((resolve) => {
+        const s = document.createElement('script');
+        let done = false;
+        const finish = (o) => {
+          if (done) return;
+          done = true;
+          if (s.parentNode) s.parentNode.removeChild(s);
+          resolve(o);
+        };
+        s.onload = () => finish('loaded');
+        s.onerror = () => finish('failed');
+        s.src = url + (url.indexOf('?') < 0 ? '?' : '&') + 'probe=script-' + Date.now();
+        document.head.appendChild(s);
+        setTimeout(() => finish('timeout'), 5000);
+      });
+    }
+
+    function probeFetch(url) {
+      return new Promise((resolve) => {
+        let done = false;
+        const finish = (o) => { if (!done) { done = true; resolve(o); } };
+        const target = url + (url.indexOf('?') < 0 ? '?' : '&') + 'probe=fetch-' + Date.now();
+        // mode:'no-cors' yields an opaque response on success but rejects
+        // when the request is aborted by the interceptor.
+        try {
+          fetch(target, { mode: 'no-cors', cache: 'no-store' })
+            .then(() => finish('loaded'))
+            .catch(() => finish('failed'));
+        } catch (e) {
+          finish('failed');
+        }
+        setTimeout(() => finish('timeout'), 5000);
+      });
+    }
+
+    function applyResult(cell, outcome, expected) {
+      cell.className = 'result-cell';
+      const failed = outcome === 'failed' || outcome === 'timeout';
+      if (expected === 'block') {
+        cell.classList.add(failed ? 'ok' : 'fail');
+      } else {
+        cell.classList.add(!failed ? 'ok' : 'note');
+      }
+      cell.textContent = outcome;
+    }
+
     async function runNetworkProbes() {
       renderNetworkTable();
-      for (const c of NETWORK_CASES) {
-        const cell = document.querySelector('#netrow-' + c.id + ' [data-result]');
-        const outcome = await probeNetwork(c);
-        cell.className = 'result-cell';
-        const failed = outcome === 'failed' || outcome === 'timeout';
-        if (c.expected === 'block') {
-          cell.classList.add(failed ? 'ok' : 'fail');
-          cell.textContent = failed
-            ? 'BLOCKED (load failed)'
-            : 'visible (load succeeded — rule did not fire)';
-        } else {
-          cell.classList.add(!failed ? 'ok' : 'note');
-          cell.textContent = !failed
-            ? 'load succeeded'
-            : 'load ' + outcome + ' (transient or unintended block?)';
-        }
+      // Run all three probe types in parallel per row, and all rows in
+      // parallel — total wall time stays bounded by the 5s timeout
+      // even with 4 rows × 3 methods.
+      await Promise.all(NETWORK_CASES.map(async (c) => {
+        const row = '#netrow-' + c.id + ' ';
+        const [imgOut, scriptOut, fetchOut] = await Promise.all([
+          probeImg(c.url),
+          probeScript(c.url),
+          probeFetch(c.url),
+        ]);
+        applyResult(document.querySelector(row + '[data-result-img]'),    imgOut,    c.expected);
+        applyResult(document.querySelector(row + '[data-result-script]'), scriptOut, c.expected);
+        applyResult(document.querySelector(row + '[data-result-fetch]'),  fetchOut,  c.expected);
+      }));
+    }
+
+    // ---------- diagnostics: platform sniff + bloom readout ----------
+    function sniffPlatform() {
+      const ua = navigator.userAgent || '';
+      // Order matters: iPad pretends to be macOS in modern UAs, so check
+      // touch points after the OS string fails.
+      if (/Android/i.test(ua))                  return { name: 'Android', interceptor: 'native FastSubresourceInterceptor', expectInstalled: true };
+      if (/iPhone|iPod/i.test(ua))              return { name: 'iOS',     interceptor: 'JS bloom + blockCheck',             expectInstalled: true };
+      if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1))
+                                                return { name: 'iPadOS',  interceptor: 'JS bloom + blockCheck',             expectInstalled: true };
+      if (/Macintosh|Mac OS X/i.test(ua))       return { name: 'macOS',   interceptor: 'JS bloom + blockCheck',             expectInstalled: true };
+      if (/Windows/i.test(ua))                  return { name: 'Windows', interceptor: 'NOT INSTALLED',                     expectInstalled: false };
+      if (/Linux|WPE|X11/i.test(ua))            return { name: 'Linux/WPE', interceptor: 'NOT INSTALLED',                   expectInstalled: false };
+      return { name: 'unknown (' + ua.slice(0, 40) + '…)', interceptor: 'unknown', expectInstalled: null };
+    }
+
+    async function getBloomStats() {
+      if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) return null;
+      try {
+        const map = await window.flutter_inappwebview.callHandler('getBlockBloom');
+        if (!map) return null;
+        const bits = map.bits;
+        const bytesLen = (bits && (bits.length || bits.byteLength)) || 0;
+        const cacheSize = map.cache ? Object.keys(map.cache).length : 0;
+        return {
+          bitCount: map.bitCount || 0,
+          k:        map.k || 0,
+          bytes:    bytesLen,
+          cacheSize: cacheSize,
+        };
+      } catch (e) {
+        return { error: String(e) };
       }
+    }
+
+    async function refreshDiagnostics() {
+      const plat = sniffPlatform();
+      document.getElementById('diag-platform').textContent = plat.name;
+      document.getElementById('diag-interceptor').textContent = plat.interceptor;
+
+      const bloom = await getBloomStats();
+      const bloomEl = document.getElementById('diag-bloom');
+      if (!bloom) {
+        bloomEl.innerHTML = '<em>no flutter_inappwebview bridge — running outside the app</em>';
+      } else if (bloom.error) {
+        bloomEl.innerHTML = '<em>error: ' + escapeHtml(bloom.error) + '</em>';
+      } else {
+        bloomEl.textContent = bloom.bitCount + ' bits, k=' + bloom.k +
+          ', payload ' + bloom.bytes + ' bytes, persisted host cache ' + bloom.cacheSize;
+      }
+
+      const warn = document.getElementById('diag-warning');
+      const messages = [];
+      if (plat.expectInstalled === false) {
+        messages.push('<strong>Sub-resource interception is NOT wired on this platform.</strong> Section 6 will report every domain as "loaded" regardless of any ||domain^ rule. Trust sections 1&ndash;5.');
+      }
+      if (bloom && !bloom.error && bloom.bitCount === 0) {
+        messages.push('<strong>Merged bloom is empty.</strong> Either no filter list is enabled, or the rule-changed listener hasn\'t rebuilt yet — try reloading.');
+      }
+      if (bloom && !bloom.error && bloom.bitCount > 0 && plat.expectInstalled === true) {
+        messages.push('Bloom is populated and platform supports interception — section 6 should be reliable.');
+      }
+      warn.innerHTML = messages.join('<br>');
     }
 
     // ---------- bootstrap ----------
@@ -528,6 +653,7 @@
       'host: ' + location.host + '  ·  scheme: ' + location.protocol;
     renderSections();
     renderNetworkTable();
+    refreshDiagnostics();
 
     // Settle delays:
     //   - early <style> at DOCUMENT_START is in place by the time this
