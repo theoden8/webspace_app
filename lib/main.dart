@@ -3379,7 +3379,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       context,
                       MaterialPageRoute(
                         builder: (context) => DevToolsScreen(
-                          webViewModel: _webViewModels[_currentIndex!],
+                          host: WebViewModelDevToolsHost(_webViewModels[_currentIndex!]),
                           cookieManager: _cookieManager,
                           containerCookieManager: _containerCookieManager,
                           onSave: _saveWebViewModels,
@@ -3747,7 +3747,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 context,
                 MaterialPageRoute(
                   builder: (context) => DevToolsScreen(
-                    webViewModel: _webViewModels[_currentIndex!],
+                    host: WebViewModelDevToolsHost(_webViewModels[_currentIndex!]),
                     cookieManager: _cookieManager,
                     containerCookieManager: _containerCookieManager,
                     onSave: _saveWebViewModels,

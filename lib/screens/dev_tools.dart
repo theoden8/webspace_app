@@ -17,8 +17,122 @@ import 'package:webspace/settings/user_script.dart';
 
 typedef VoidAsyncCallback = Future<void> Function();
 
+/// Bag of dependencies DevToolsScreen reads from the surrounding webview.
+/// Two concrete implementations:
+///
+/// - [WebViewModelDevToolsHost] for top-level sites (`WebViewModel`-backed):
+///   exposes per-site state (cookie blocking, scripts) and DNS stats.
+/// - [NestedDevToolsHost] for [InAppWebViewScreen] popups (no
+///   `WebViewModel`): exposes only console + JS eval + HTML export.
+///
+/// `blockedCookies == null` is the sentinel for "no per-site state" and
+/// hides the Cookies, Scripts, and DNS surfaces.
+abstract class DevToolsHost {
+  String get name;
+  String? get siteId;
+  String get currentUrl;
+  WebViewController? get controller;
+  List<ConsoleLogEntry> get consoleLogs;
+  set onConsoleLogChanged(VoidCallback? cb);
+  List<Cookie> get cookies;
+  set cookies(List<Cookie> value);
+  Set<BlockedCookie>? get blockedCookies;
+  List<UserScriptConfig>? get siteUserScripts;
+  Set<String> get enabledGlobalScriptIds;
+  void reload();
+}
+
+class WebViewModelDevToolsHost implements DevToolsHost {
+  final WebViewModel model;
+  WebViewModelDevToolsHost(this.model);
+
+  @override
+  String get name => model.name;
+  @override
+  String? get siteId => model.siteId;
+  @override
+  String get currentUrl => model.currentUrl;
+  @override
+  WebViewController? get controller => model.controller;
+  @override
+  List<ConsoleLogEntry> get consoleLogs => model.consoleLogs;
+  @override
+  set onConsoleLogChanged(VoidCallback? cb) => model.onConsoleLogChanged = cb;
+  @override
+  List<Cookie> get cookies => model.cookies;
+  @override
+  set cookies(List<Cookie> value) => model.cookies = value;
+  @override
+  Set<BlockedCookie>? get blockedCookies => model.blockedCookies;
+  @override
+  List<UserScriptConfig>? get siteUserScripts => model.userScripts;
+  @override
+  Set<String> get enabledGlobalScriptIds => model.enabledGlobalScriptIds;
+  @override
+  void reload() => model.controller?.reload();
+}
+
+/// Console-only host for nested [InAppWebViewScreen]s. There is no
+/// WebViewModel in nested mode, so per-site cookie/script state is absent
+/// and DNS stats belong to the parent site's siteId (already exposed in
+/// the parent's DevTools); we surface neither here.
+class NestedDevToolsHost implements DevToolsHost {
+  @override
+  final String name;
+  @override
+  final String? siteId;
+  String _currentUrl;
+  WebViewController? _controller;
+  @override
+  final List<ConsoleLogEntry> consoleLogs = [];
+  VoidCallback? _onConsoleLogChanged;
+  @override
+  List<Cookie> cookies = const [];
+
+  NestedDevToolsHost({
+    required this.name,
+    required this.siteId,
+    required String currentUrl,
+  }) : _currentUrl = currentUrl;
+
+  @override
+  String get currentUrl => _currentUrl;
+  set currentUrl(String value) => _currentUrl = value;
+
+  @override
+  WebViewController? get controller => _controller;
+  set controller(WebViewController? value) => _controller = value;
+
+  @override
+  set onConsoleLogChanged(VoidCallback? cb) => _onConsoleLogChanged = cb;
+  VoidCallback? get onConsoleLogChanged => _onConsoleLogChanged;
+
+  static const _maxConsoleLogs = 500;
+
+  void appendConsole(String message, ConsoleMessageLevel level) {
+    consoleLogs.add(ConsoleLogEntry(
+      timestamp: DateTime.now(),
+      message: message,
+      level: level,
+    ));
+    if (consoleLogs.length > _maxConsoleLogs) {
+      consoleLogs.removeAt(0);
+    }
+    _onConsoleLogChanged?.call();
+  }
+
+  @override
+  Set<BlockedCookie>? get blockedCookies => null;
+  @override
+  List<UserScriptConfig>? get siteUserScripts => null;
+  @override
+  Set<String> get enabledGlobalScriptIds => const {};
+  @override
+  void reload() => _controller?.reload();
+}
+
 class DevToolsScreen extends StatefulWidget {
-  final WebViewModel? webViewModel;
+  final DevToolsHost? host;
   final CookieManager cookieManager;
   /// Container-mode counterpart of [cookieManager]; non-null when
   /// `_useContainers` is true. The cookie inspector reads/deletes
@@ -32,7 +146,7 @@ class DevToolsScreen extends StatefulWidget {
 
   const DevToolsScreen({
     super.key,
-    this.webViewModel,
+    this.host,
     required this.cookieManager,
     this.containerCookieManager,
     this.onSave,
@@ -66,10 +180,19 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   /// Snapshot of blocked cookies on entry, to detect changes on exit.
   late final Set<BlockedCookie> _initialBlockedCookies;
 
-  bool get _hasSite => widget.webViewModel != null;
+  bool get _hasHost => widget.host != null;
+  bool get _hasSiteState => widget.host?.blockedCookies != null;
 
   bool get _hasDnsBlocklist => DnsBlockService.instance.hasBlocklist;
-  int get _tabCount => _hasSite ? (_hasDnsBlocklist ? 4 : 3) : 1;
+  int get _tabCount {
+    var n = 1; // App Logs is always present.
+    if (_hasHost) n += 1; // Console
+    if (_hasSiteState) {
+      n += 1; // Cookies
+      if (_hasDnsBlocklist) n += 1; // DNS
+    }
+    return n;
+  }
 
   /// Filter for DNS log: null = all, true = blocked only, false = allowed only.
   bool? _dnsFilter;
@@ -78,13 +201,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   @override
   void initState() {
     super.initState();
-    _initialBlockedCookies = _hasSite
-        ? Set<BlockedCookie>.of(widget.webViewModel!.blockedCookies)
+    _initialBlockedCookies = _hasSiteState
+        ? Set<BlockedCookie>.of(widget.host!.blockedCookies!)
         : <BlockedCookie>{};
     LogService.instance.addListener(_onLogUpdate);
     DnsBlockService.instance.addDnsLogListener(_onDnsLogUpdate);
-    if (_hasSite) {
-      widget.webViewModel!.onConsoleLogChanged = _onConsoleUpdate;
+    if (_hasHost) {
+      widget.host!.onConsoleLogChanged = _onConsoleUpdate;
     }
   }
 
@@ -92,13 +215,15 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   void dispose() {
     LogService.instance.removeListener(_onLogUpdate);
     DnsBlockService.instance.removeDnsLogListener(_onDnsLogUpdate);
-    if (_hasSite) {
-      widget.webViewModel!.onConsoleLogChanged = null;
+    if (_hasHost) {
+      widget.host!.onConsoleLogChanged = null;
+    }
+    if (_hasSiteState) {
       // If blocked cookies changed while DevTools was open, reload the page
       // so the webview re-fetches cookies with the new rules applied.
-      final current = widget.webViewModel!.blockedCookies;
+      final current = widget.host!.blockedCookies!;
       if (!_setEquals(current, _initialBlockedCookies)) {
-        widget.webViewModel!.controller?.reload();
+        widget.host!.reload();
       }
     }
     _consoleScrollController.dispose();
@@ -130,11 +255,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   List<Tab> get _tabs => [
-        if (_hasSite)
+        if (_hasHost)
           const Tab(icon: Icon(Icons.terminal, size: 18), text: 'Console'),
-        if (_hasSite)
+        if (_hasSiteState)
           const Tab(icon: Icon(Icons.cookie_outlined, size: 18), text: 'Cookies'),
-        if (_hasSite && _hasDnsBlocklist)
+        if (_hasSiteState && _hasDnsBlocklist)
           const Tab(icon: Icon(Icons.shield_outlined, size: 18), text: 'DNS'),
         const Tab(icon: Icon(Icons.list_alt, size: 18), text: 'Logs'),
       ];
@@ -164,13 +289,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         appBar: AppBar(
           title: const Text('Developer Tools'),
           actions: [
-            if (_hasSite)
+            if (_hasSiteState)
               IconButton(
                 icon: const Icon(Icons.code, size: 20),
                 tooltip: 'Scripts',
                 onPressed: _showScriptsSheet,
               ),
-            if (_hasSite)
+            if (_hasHost)
               IconButton(
                 icon: const Icon(Icons.share, size: 20),
                 tooltip: 'Share HTML',
@@ -223,9 +348,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             Expanded(
               child: TabBarView(
                 children: [
-                  if (_hasSite) _buildConsoleTab(),
-                  if (_hasSite) _buildCookiesTab(),
-                  if (_hasSite && _hasDnsBlocklist) _buildDnsTab(),
+                  if (_hasHost) _buildConsoleTab(),
+                  if (_hasSiteState) _buildCookiesTab(),
+                  if (_hasSiteState && _hasDnsBlocklist) _buildDnsTab(),
                   _buildAppLogsTab(),
                 ],
               ),
@@ -239,7 +364,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Console Tab ──
 
   Widget _buildConsoleTab() {
-    final allLogs = widget.webViewModel!.consoleLogs;
+    final allLogs = widget.host!.consoleLogs;
     final logs = _searchQuery.isEmpty
         ? allLogs
         : allLogs.where((e) => _matchesSearch(e.message)).toList();
@@ -271,7 +396,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           TextButton.icon(
             onPressed: () {
               setState(() {
-                widget.webViewModel!.consoleLogs.clear();
+                widget.host!.consoleLogs.clear();
               });
             },
             icon: const Icon(Icons.delete_outline, size: 18),
@@ -333,7 +458,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Console Eval ──
 
   Widget _buildEvalInput() {
-    final hasController = widget.webViewModel?.controller != null;
+    final hasController = widget.host?.controller != null;
     return Container(
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
@@ -417,7 +542,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final source = _evalController.text.trim();
     if (source.isEmpty) return;
 
-    final controller = widget.webViewModel?.controller;
+    final controller = widget.host?.controller;
     if (controller == null) return;
 
     if (_isEvaluating) return;
@@ -429,13 +554,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       }
       _evalHistoryIndex = -1;
 
-      widget.webViewModel!.consoleLogs.add(ConsoleLogEntry(
+      widget.host!.consoleLogs.add(ConsoleLogEntry(
         timestamp: DateTime.now(),
         message: source,
         level: ConsoleMessageLevel.LOG,
         isEvalInput: true,
       ));
-      widget.webViewModel!.onConsoleLogChanged?.call();
+      _onConsoleUpdate();
 
       // Directly embed code (no eval/Function) to respect CSP.
       // Phase 1: set sentinel. Phase 2: try as expression.
@@ -490,8 +615,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Cookies Tab ──
 
   Widget _buildCookiesTab() {
-    final allCookies = widget.webViewModel!.cookies;
-    final blocked = widget.webViewModel!.blockedCookies;
+    final allCookies = widget.host!.cookies;
+    final blocked = widget.host!.blockedCookies!;
     final cookies = _searchQuery.isEmpty
         ? allCookies
         : allCookies
@@ -565,23 +690,23 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Future<void> _refreshCookies() async {
-    final url = widget.webViewModel!.currentUrl;
+    final url = widget.host!.currentUrl;
     if (url.isEmpty) return;
     setState(() => _loadingCookies = true);
     try {
       final List<Cookie> cookies;
       final container = widget.containerCookieManager;
-      final controller = widget.webViewModel!.controller;
+      final controller = widget.host!.controller;
       if (container != null && controller != null) {
         cookies = await container.getCookies(
           controller: controller,
-          siteId: widget.webViewModel!.siteId,
+          siteId: widget.host!.siteId!,
           url: Uri.parse(url),
         );
         LogService.instance.log(
           'DevTools',
           'Cookie inspector via ContainerCookieManager: '
-              'siteId=${widget.webViewModel!.siteId} url=$url '
+              'siteId=${widget.host!.siteId} url=$url '
               'count=${cookies.length}',
         );
       } else {
@@ -589,13 +714,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         LogService.instance.log(
           'DevTools',
           'Cookie inspector via legacy CookieManager: '
-              'siteId=${widget.webViewModel!.siteId} url=$url '
+              'siteId=${widget.host!.siteId} url=$url '
               'count=${cookies.length} '
               '(container=${container != null} ctrl=${controller != null})',
         );
       }
       if (mounted) {
-        widget.webViewModel!.cookies = cookies;
+        widget.host!.cookies = cookies;
         setState(() => _loadingCookies = false);
       }
     } catch (e) {
@@ -606,13 +731,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Future<void> _deleteCookie(Cookie cookie) async {
-    final url = Uri.parse(widget.webViewModel!.currentUrl);
+    final url = Uri.parse(widget.host!.currentUrl);
     final container = widget.containerCookieManager;
-    final controller = widget.webViewModel!.controller;
+    final controller = widget.host!.controller;
     if (container != null && controller != null) {
       await container.deleteCookie(
         controller: controller,
-        siteId: widget.webViewModel!.siteId,
+        siteId: widget.host!.siteId!,
         url: url,
         name: cookie.name,
         domain: cookie.domain,
@@ -635,10 +760,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Future<void> _blockCookie(Cookie cookie) async {
-    final domain = cookie.domain ?? extractDomain(widget.webViewModel!.currentUrl);
+    final domain = cookie.domain ?? extractDomain(widget.host!.currentUrl);
     final rule = BlockedCookie(name: cookie.name, domain: domain);
     setState(() {
-      widget.webViewModel!.blockedCookies.add(rule);
+      widget.host!.blockedCookies!.add(rule);
     });
     // Delete the cookie immediately from the webview
     await _deleteCookie(cookie);
@@ -647,7 +772,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Future<void> _unblockCookie(BlockedCookie rule) async {
     setState(() {
-      widget.webViewModel!.blockedCookies.remove(rule);
+      widget.host!.blockedCookies!.remove(rule);
     });
     await widget.onSave?.call();
     if (mounted) {
@@ -761,8 +886,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Scripts Bottom Sheet ──
 
   void _showScriptsSheet() {
-    final siteScripts = widget.webViewModel!.userScripts;
-    final enabledIds = widget.webViewModel!.enabledGlobalScriptIds;
+    final siteScripts = widget.host!.siteUserScripts ?? const <UserScriptConfig>[];
+    final enabledIds = widget.host!.enabledGlobalScriptIds;
     final activeGlobals = widget.globalUserScripts
         .where((g) => enabledIds.contains(g.id))
         .toList();
@@ -956,7 +1081,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Future<String?> _fetchHtml() async {
     if (_isFetchingHtml) return _exportedHtml;
-    final controller = widget.webViewModel!.controller;
+    final controller = widget.host!.controller;
     if (controller == null) return null;
 
     _isFetchingHtml = true;
@@ -988,7 +1113,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final html = _exportedHtml ?? await _fetchHtml();
     if (html == null || !mounted) return;
 
-    final domain = extractDomain(widget.webViewModel!.currentUrl);
+    final domain = extractDomain(widget.host!.currentUrl);
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
     SharePlus.instance.share(ShareParams(
       text: html,
@@ -1001,7 +1126,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (html == null || !mounted) return;
 
     try {
-      final domain = extractDomain(widget.webViewModel!.currentUrl);
+      final domain = extractDomain(widget.host!.currentUrl);
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final fileName = '${domain}_$timestamp.html';
       final bytes = utf8.encode(html);
@@ -1046,7 +1171,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── DNS Tab ──
 
   Widget _buildDnsTab() {
-    final stats = DnsBlockService.instance.statsForSite(widget.webViewModel!.siteId);
+    final stats = DnsBlockService.instance.statsForSite(widget.host!.siteId!);
     final allEntries = stats.log;
     List<DnsLogEntry> entries = _dnsFilter == null
         ? allEntries
@@ -1159,7 +1284,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         children: [
           TextButton.icon(
             onPressed: () {
-              DnsBlockService.instance.clearStatsForSite(widget.webViewModel!.siteId);
+              DnsBlockService.instance.clearStatsForSite(widget.host!.siteId!);
             },
             icon: const Icon(Icons.delete_outline, size: 18),
             label: const Text('Clear'),

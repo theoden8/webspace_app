@@ -6,10 +6,12 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show Pu
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/web_view_model.dart' show extractDomain;
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -105,6 +107,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   bool _isFindVisible = false;
   FindMatchesResult findMatches = FindMatchesResult();
 
+  /// DevTools host for this nested webview. Captures console output and
+  /// tracks the current URL/controller so the user can open Developer
+  /// Tools (Console + JS eval + HTML export + app logs) from the popup
+  /// menu just like on the parent site.
+  late final NestedDevToolsHost _devToolsHost;
+
   @override
   void initState() {
     super.initState();
@@ -112,6 +120,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     // Use home site title if provided
     title = widget.homeTitle;
     _currentUrl = widget.url;
+    _devToolsHost = NestedDevToolsHost(
+      name: widget.homeTitle ?? extractDomain(widget.url),
+      siteId: widget.siteId,
+      currentUrl: widget.url,
+    );
     final bool isMobile = Platform.isIOS || Platform.isAndroid;
     _pullToRefreshController = isMobile ? inapp.PullToRefreshController(
       settings: inapp.PullToRefreshSettings(enabled: true),
@@ -163,11 +176,15 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         notificationsEnabled: widget.notificationsEnabled,
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {
+          _devToolsHost.currentUrl = url;
           if (mounted) {
             setState(() {
               _currentUrl = url;
             });
           }
+        },
+        onConsoleMessage: (message, level) {
+          _devToolsHost.appendConsole(message, level);
         },
         onFindResult: (activeMatch, totalMatches) {
           if (mounted) {
@@ -189,6 +206,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       ),
       onControllerCreated: (controller) {
         _controller = controller;
+        _devToolsHost.controller = controller;
         // Remove all cookies on load
         controller.evaluateJavascript('''
           (function() {
@@ -363,6 +381,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                     ],
                   ),
                 ),
+                PopupMenuItem<String>(
+                  value: "devTools",
+                  child: Row(
+                    children: [
+                      Icon(Icons.developer_mode),
+                      SizedBox(width: 8),
+                      Text("Developer Tools"),
+                    ],
+                  ),
+                ),
               ];
             },
             onSelected: (String value) async {
@@ -391,6 +419,17 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   break;
                 case 'refresh':
                   _controller?.reload();
+                  break;
+                case 'devTools':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DevToolsScreen(
+                        host: _devToolsHost,
+                        cookieManager: CookieManager(),
+                      ),
+                    ),
+                  );
                   break;
               }
             },
