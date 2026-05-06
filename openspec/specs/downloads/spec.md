@@ -170,6 +170,18 @@ blob is same-origin — the WebView enforces the directive where stock
 Chrome/Firefox internally exempt blob reads — and a fetch-only
 implementation silently breaks downloads on those sites.
 
+The same shim MUST also wrap `window.fetch` so that a `fetch(blobUrl)`
+call originating from page JS itself (e.g. github.com's
+`fetch-utilities-*.js` or any other site that reads a same-origin Blob
+via `fetch` rather than via our IIFE) resolves with a `Response`
+synthesised directly from the captured Blob, without dispatching a
+real network request. Non-blob URLs and uncaptured blob: URLs MUST
+fall through to the original `fetch` unchanged. The wrapper MUST
+preserve `Function.prototype.toString` semantics so the page sees
+`fetch.toString()` reporting `[native code]`. This contract is
+required because page-driven `fetch(blob:)` would otherwise surface
+to the user as a failed download even when our own IIFE never runs.
+
 #### Scenario: Pairdrop WebRTC file transfer
 **Given** pairdrop.net produces an in-memory `Blob` and triggers a
   download via `<a download href="blob:...">`
@@ -190,6 +202,21 @@ implementation silently breaks downloads on those sites.
   without invoking `fetch`
 **And** the `DownloadTask` completes successfully without producing a
   CSP `connect-src` violation in the WebView console
+
+#### Scenario: GitHub page-driven fetch(blob:) under strict CSP
+
+**Given** the user opens a github.com page whose own JS (e.g.
+  `fetch-utilities-*.js`) calls `fetch(blobUrl)` against a Blob it
+  minted via `URL.createObjectURL`
+**And** github.com's response `Content-Security-Policy` does not
+  whitelist `blob:` for `connect-src`
+**When** the page JS invokes `fetch(blobUrl)`
+**Then** the wrapped `fetch` looks the URL up in
+  `window.__webspaceBlobs`, finds the captured `Blob`, and resolves
+  with a synthesised `Response(blob)` without dispatching a real
+  network request
+**And** no CSP `connect-src` violation event fires
+**And** the page-side download flow completes successfully
 
 ---
 

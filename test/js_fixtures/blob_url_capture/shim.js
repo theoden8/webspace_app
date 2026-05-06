@@ -57,6 +57,74 @@
       asNative(_patchedRevoke, 'revokeObjectURL');
       URL.revokeObjectURL = _patchedRevoke;
     }
+
+    // window.fetch wrapper — intercepts fetch(blob:URL) for any blob we
+    // captured at createObjectURL time and resolves with a Response
+    // synthesised from the Blob. No network call is dispatched, so the
+    // CSP connect-src enforcer never runs against the blob: URL. Page
+    // code (e.g. github.com's fetch-utilities) and our own download
+    // IIFE both benefit. Non-blob URLs and uncaptured blob: URLs fall
+    // through to the original fetch.
+    var origFetch = window.fetch;
+    if (typeof origFetch === 'function') {
+      var _patchedFetch = function fetch(input, init) {
+        var url = '';
+        var method = 'GET';
+        try {
+          if (typeof input === 'string') {
+            url = input;
+            if (init && typeof init.method === 'string') {
+              method = init.method.toUpperCase();
+            }
+          } else if (input && typeof input.url === 'string') {
+            url = input.url;
+            // init.method, when present, overrides Request.method (per
+            // the fetch spec). Mirror that ordering.
+            if (init && typeof init.method === 'string') {
+              method = init.method.toUpperCase();
+            } else if (typeof input.method === 'string') {
+              method = input.method.toUpperCase();
+            }
+          }
+        } catch (_) {}
+        // Only intercept GET/HEAD on captured blob: URLs. Anything else
+        // (POST/PUT, abort already fired) falls through to the original
+        // fetch so the page sees real-fetch semantics — including a
+        // proper TypeError or AbortError instead of a silent success.
+        if (url && url.indexOf('blob:') === 0 &&
+            (method === 'GET' || method === 'HEAD')) {
+          var signal = (init && init.signal) ||
+              (input && typeof input !== 'string' && input.signal) || null;
+          if (signal && signal.aborted) {
+            try {
+              var reason = signal.reason !== undefined
+                ? signal.reason
+                : new DOMException('aborted', 'AbortError');
+              return Promise.reject(reason);
+            } catch (_) {}
+          } else {
+            var blob = map.get(url);
+            if (blob) {
+              try {
+                var body = method === 'HEAD' ? null : blob;
+                return Promise.resolve(new Response(body, {
+                  status: 200,
+                  statusText: 'OK',
+                  headers: {
+                    'Content-Type': blob.type || 'application/octet-stream',
+                    'Content-Length': String(blob.size || 0),
+                  },
+                }));
+              } catch (_) {}
+            }
+          }
+        }
+        return origFetch.apply(this, arguments);
+      };
+      asNative(_patchedFetch, 'fetch');
+      try { window.fetch = _patchedFetch; } catch (_) {}
+    }
+
     Object.defineProperty(window, '__webspaceBlobs', {
       value: { get: function(url) { return map.get(url); } },
       configurable: false,

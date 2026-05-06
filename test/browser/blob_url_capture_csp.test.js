@@ -150,6 +150,217 @@ test('PREMISE: without the shim, fetch(blob:) is blocked by CSP connect-src',
     }
   });
 
+test('PREMISE: without the shim, page-driven fetch(blob:) is blocked by CSP',
+  async (t) => {
+    if (!requireBrowser(t)) return;
+    // Mirrors the github.com failure: page JS itself (e.g.
+    // fetch-utilities-*.js) calls fetch(blobUrl) — no IIFE involved.
+    // The browser must reject under `connect-src 'none'`.
+    const page = await browser.newPage();
+    try {
+      await page.goto(server.url, { waitUntil: 'load' });
+      const result = await page.evaluate(async () => {
+        const url = window.__pageBlobUrl;
+        try {
+          const res = await fetch(url);
+          const text = await res.text();
+          return { ok: true, text };
+        } catch (e) {
+          return { ok: false, error: String(e) };
+        }
+      });
+      assert.equal(result.ok, false,
+        'expected fetch(blob:) to fail under connect-src none');
+
+      const violations = await page.evaluate(() => window.__cspViolations);
+      const connectViolation = violations.find(
+        (v) => v.directive && v.directive.startsWith('connect-src'));
+      assert.ok(connectViolation,
+        'expected a connect-src CSP violation event for page-driven fetch(blob:)');
+    } finally {
+      await page.close();
+    }
+  });
+
+test('FIX: with the shim installed, page-driven fetch(blob:) is serviced locally',
+  async (t) => {
+    if (!requireBrowser(t)) return;
+    const page = await browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(SHIM);
+      await page.goto(server.url, { waitUntil: 'load' });
+
+      // Page JS calls fetch(blobUrl) the same way github.githubassets.com
+      // 's fetch-utilities-*.js does. The wrapped fetch must recognise
+      // the blob: URL, resolve from the captured Blob, and never dispatch
+      // a real request — so CSP connect-src never fires.
+      const result = await page.evaluate(async () => {
+        const url = window.__pageBlobUrl;
+        try {
+          const res = await fetch(url);
+          const text = await res.text();
+          return { ok: true, text, type: res.headers.get('content-type') };
+        } catch (e) {
+          return { ok: false, error: String(e) };
+        }
+      });
+      assert.equal(result.ok, true,
+        'page-driven fetch(blob:) must succeed when shim is installed');
+      assert.equal(result.text, 'hello world');
+      assert.equal(result.type, 'text/plain');
+
+      const violations = await page.evaluate(() => window.__cspViolations);
+      const connectViolation = violations.find(
+        (v) => v.directive && v.directive.startsWith('connect-src'));
+      assert.equal(connectViolation, undefined,
+        'wrapped fetch must not produce a CSP connect-src violation');
+
+      // Function.prototype.toString must hide the wrapper so the page
+      // can't fingerprint our patch.
+      const stringified = await page.evaluate(
+        () => Function.prototype.toString.call(window.fetch));
+      assert.match(stringified, /\[native code\]/,
+        'wrapped fetch should toString as native code');
+    } finally {
+      await page.close();
+    }
+  });
+
+test('FIX: aborted signal rejects with AbortError instead of resolving',
+  async (t) => {
+    if (!requireBrowser(t)) return;
+    const page = await browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(SHIM);
+      await page.goto(server.url, { waitUntil: 'load' });
+
+      const result = await page.evaluate(async () => {
+        const url = window.__pageBlobUrl;
+        const ac = new AbortController();
+        ac.abort();
+        try {
+          await fetch(url, { signal: ac.signal });
+          return { rejected: false };
+        } catch (e) {
+          return {
+            rejected: true,
+            name: e && e.name,
+            isDomException: e instanceof DOMException,
+          };
+        }
+      });
+      assert.equal(result.rejected, true,
+        'pre-aborted signal must reject — not resolve with the captured Blob');
+      assert.equal(result.name, 'AbortError');
+    } finally {
+      await page.close();
+    }
+  });
+
+test('FIX: non-GET methods fall through to native fetch (which CSP-blocks)',
+  async (t) => {
+    if (!requireBrowser(t)) return;
+    const page = await browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(SHIM);
+      await page.goto(server.url, { waitUntil: 'load' });
+
+      // POST on a blob: URL is meaningless. We must NOT silently return
+      // the captured Blob — the page should see the same TypeError /
+      // CSP rejection it would get without the shim.
+      const result = await page.evaluate(async () => {
+        const url = window.__pageBlobUrl;
+        try {
+          await fetch(url, { method: 'POST', body: 'x' });
+          return { ok: true };
+        } catch (e) {
+          return { ok: false, error: String(e) };
+        }
+      });
+      assert.equal(result.ok, false,
+        'POST(blob:) must not be serviced by the wrapper');
+    } finally {
+      await page.close();
+    }
+  });
+
+test('FIX: HEAD returns headers without a body',
+  async (t) => {
+    if (!requireBrowser(t)) return;
+    const page = await browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(SHIM);
+      await page.goto(server.url, { waitUntil: 'load' });
+
+      const result = await page.evaluate(async () => {
+        const url = window.__pageBlobUrl;
+        const res = await fetch(url, { method: 'HEAD' });
+        return {
+          status: res.status,
+          contentType: res.headers.get('content-type'),
+          contentLength: res.headers.get('content-length'),
+          bodyLen: (await res.text()).length,
+        };
+      });
+      assert.equal(result.status, 200);
+      assert.equal(result.contentType, 'text/plain');
+      assert.equal(result.contentLength, '11');
+      assert.equal(result.bodyLen, 0,
+        'HEAD response must have empty body');
+    } finally {
+      await page.close();
+    }
+  });
+
+test('FIX: fetch(new Request(blobUrl)) is intercepted',
+  async (t) => {
+    if (!requireBrowser(t)) return;
+    const page = await browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(SHIM);
+      await page.goto(server.url, { waitUntil: 'load' });
+
+      const result = await page.evaluate(async () => {
+        const url = window.__pageBlobUrl;
+        const req = new Request(url);
+        const res = await fetch(req);
+        return { text: await res.text() };
+      });
+      assert.equal(result.text, 'hello world');
+    } finally {
+      await page.close();
+    }
+  });
+
+test('FIX: Request method=POST is honored over default GET',
+  async (t) => {
+    if (!requireBrowser(t)) return;
+    const page = await browser.newPage();
+    try {
+      await page.evaluateOnNewDocument(SHIM);
+      await page.goto(server.url, { waitUntil: 'load' });
+
+      const result = await page.evaluate(async () => {
+        const url = window.__pageBlobUrl;
+        // Request with POST + blob URL is itself an error in the browser
+        // (constructor rejects), so wrap.
+        try {
+          const req = new Request(url, { method: 'POST', body: 'x' });
+          await fetch(req);
+          return { ok: true };
+        } catch (e) {
+          return { ok: false, error: String(e) };
+        }
+      });
+      // Either Request constructor or fetch rejects; the wrapper must
+      // not silently service it as GET.
+      assert.equal(result.ok, false,
+        'POST Request must not get serviced as GET');
+    } finally {
+      await page.close();
+    }
+  });
+
 test('FIX: with the shim installed, the captured-blob path bypasses CSP',
   async (t) => {
     if (!requireBrowser(t)) return;
