@@ -341,6 +341,12 @@ class WebViewModel {
   List<DomainClaim> get effectiveDomainClaims {
     final explicit = domainClaims;
     if (explicit != null && explicit.isNotEmpty) return explicit;
+    final uri = Uri.tryParse(initUrl);
+    if (uri != null && uri.host.isNotEmpty && uri.hasPort) {
+      final h = uri.host.toLowerCase();
+      final wrapped = h.contains(':') && !h.startsWith('[') ? '[$h]' : h;
+      return [DomainClaim.exactHost('$wrapped:${uri.port}')];
+    }
     final base = getBaseDomain(initUrl);
     if (base.isEmpty) return const [];
     return [DomainClaim.baseDomain(base)];

@@ -1143,17 +1143,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         }
                       : null),
             ),
-          // LIR-008 / LIR-001: per-site domain-claim editor. Lets the user
-          // tell the share-intent resolver which hostnames belong to this
-          // site beyond the synthesized `baseDomain(initUrl)` default.
-          DomainClaimsEditor(
-            model: widget.webViewModel,
-            otherSites: widget.otherSites,
-            onChanged: (next) {
-              widget.webViewModel.domainClaims = next;
-            },
-          ),
-          const SizedBox(height: 8),
           ListTile(
             title: const Text('User Scripts'),
             subtitle: Text(
@@ -1249,24 +1238,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final blocked = blockedBy != null && !_notificationsEnabled;
               final permissionDenied = _notificationsEnabled &&
                   NotificationService.instance.permissionGranted == false;
-              final String subtitle;
+              final Widget? subtitle;
               if (blocked) {
-                subtitle =
-                    'Cannot enable: "$blockedBy" is already polling in '
-                    'background with a different proxy. Android allows only '
-                    'one proxy at a time.';
+                subtitle = Text(
+                  'Cannot enable: "$blockedBy" is already polling in '
+                  'background with a different proxy. Android allows only '
+                  'one proxy at a time.',
+                );
               } else if (permissionDenied) {
-                subtitle = 'Notifications denied. Enable in Settings → '
-                    '${Platform.isIOS ? "Notifications → WebSpace" : "WebSpace → Notifications"}.';
+                subtitle = Text(
+                  'Notifications denied. Enable in Settings → '
+                  '${Platform.isIOS ? "Notifications → WebSpace" : "WebSpace → Notifications"}.',
+                );
               } else {
-                subtitle =
-                    'Allow this site to show system notifications. Keeps the '
-                    'site polling in the background so notifications fire even '
-                    'when you are on a different tab.';
+                subtitle = null;
               }
               return SwitchListTile(
-                title: const Text('Notifications'),
-                subtitle: Text(subtitle),
+                title: Row(
+                  children: const [
+                    Flexible(child: Text('Notifications')),
+                    HintButton(
+                      title: 'Notifications',
+                      description:
+                          'Allow this site to show system notifications. '
+                          'Keeps the site polling in the background so '
+                          'notifications fire even when you are on a '
+                          'different tab.',
+                    ),
+                  ],
+                ),
+                subtitle: subtitle,
                 value: _notificationsEnabled,
                 onChanged: blocked
                     ? null
@@ -1291,6 +1292,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             }),
           ..._buildLocationSection(),
+          DomainClaimsEditor(
+            model: widget.webViewModel,
+            otherSites: widget.otherSites,
+            onChanged: (next) {
+              widget.webViewModel.domainClaims = next;
+            },
+          ),
+          const SizedBox(height: 8),
           if (widget.onClearCookies != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

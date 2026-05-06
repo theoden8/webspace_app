@@ -52,13 +52,32 @@ class LinkRoutingService {
   static const int _scoreWildcardSubdomain = 200;
   static const int _scoreBaseDomain = 100;
 
-  static int _score(DomainClaim claim, String host, String base) {
+  /// Authority key for routing: `host` when the URL's port is the scheme
+  /// default, `host:port` otherwise (with brackets around IPv6 hosts when
+  /// a port is appended, so the form is unambiguous).
+  static String hostAuthority(Uri url) {
+    final host = url.host.toLowerCase();
+    if (host.isEmpty) return '';
+    if (!url.hasPort) return host;
+    final h = host.contains(':') && !host.startsWith('[') ? '[$host]' : host;
+    return '$h:${url.port}';
+  }
+
+  static int _score(
+    DomainClaim claim,
+    String hostKey,
+    String host,
+    String base,
+    bool defaultPort,
+  ) {
     switch (claim.kind) {
       case DomainClaimKind.exactHost:
-        return claim.value == host ? _scoreExactHost : 0;
+        return claim.value == hostKey ? _scoreExactHost : 0;
       case DomainClaimKind.wildcardSubdomain:
+        if (!defaultPort) return 0;
         return host.endsWith('.${claim.value}') ? _scoreWildcardSubdomain : 0;
       case DomainClaimKind.baseDomain:
+        if (!defaultPort) return 0;
         return getBaseDomain(claim.value) == base ? _scoreBaseDomain : 0;
     }
   }
@@ -70,12 +89,14 @@ class LinkRoutingService {
     if (url.host.isEmpty) return const RoutingNone();
     final host = url.host.toLowerCase();
     final base = getBaseDomain(host);
+    final hostKey = hostAuthority(url);
+    final defaultPort = !url.hasPort;
     int best = 0;
     final winners = <RoutableSite>[];
     for (final site in sites) {
       int siteBest = 0;
       for (final claim in site.domainClaims) {
-        final s = _score(claim, host, base);
+        final s = _score(claim, hostKey, host, base, defaultPort);
         if (s > siteBest) siteBest = s;
       }
       if (siteBest == 0) continue;
@@ -117,6 +138,25 @@ class LinkRoutingService {
     return inner;
   }
 
+  /// Build the claim list to bind a site to an inbound URL (LIR-010 option
+  /// 2). For default-port URLs this emits both an `exactHost` and a
+  /// `wildcardSubdomain` over the base domain. For URLs with a non-default
+  /// port (e.g. `http://localhost:8080/`) only the port-bearing
+  /// `exactHost` is emitted — wildcard / subdomain semantics do not apply
+  /// to ad-hoc service ports.
+  static List<DomainClaim> claimsToAdoptUrl(Uri url) {
+    final host = url.host.toLowerCase();
+    if (host.isEmpty) return const [];
+    if (url.hasPort) {
+      final wrapped =
+          host.contains(':') && !host.startsWith('[') ? '[$host]' : host;
+      return [DomainClaim.exactHost('$wrapped:${url.port}')];
+    }
+    return claimsToAdoptHost(host);
+  }
+
+  /// Default-port variant kept for callers that only have a hostname.
+  /// Use [claimsToAdoptUrl] when a port-bearing URL is available.
   static List<DomainClaim> claimsToAdoptHost(String host) {
     final exact = DomainClaim.exactHost(host);
     final h = exact.value;

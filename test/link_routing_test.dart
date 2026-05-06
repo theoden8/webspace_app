@@ -14,13 +14,27 @@ class _Site implements RoutableSite {
 
 void main() {
   group('DomainClaim canonicalization', () {
-    test('lowercases, strips scheme and port, drops `*.` prefix', () {
+    test('lowercases, strips scheme and default port, drops `*.` prefix', () {
       expect(DomainClaim.exactHost('Twitter.COM').value, 'twitter.com');
       expect(DomainClaim.exactHost('https://Mail.google.com:443').value,
           'mail.google.com');
       expect(DomainClaim.wildcardSubdomain('*.Mastodon.Social').value,
           'mastodon.social');
       expect(DomainClaim.exactHost('  example.org  ').value, 'example.org');
+    });
+
+    test('exactHost preserves explicit non-default port', () {
+      expect(DomainClaim.exactHost('localhost:8080').value, 'localhost:8080');
+      expect(DomainClaim.exactHost('http://localhost:8080').value,
+          'localhost:8080');
+      expect(DomainClaim.exactHost('https://Service.Example:8443').value,
+          'service.example:8443');
+    });
+
+    test('wildcardSubdomain and baseDomain strip port even when given', () {
+      expect(DomainClaim.wildcardSubdomain('localhost:8080').value, 'localhost');
+      expect(DomainClaim.baseDomain('https://example.org:8443').value,
+          'example.org');
     });
 
     test('value-equality respects kind', () {
@@ -145,6 +159,69 @@ void main() {
         [a],
       );
       expect(r, isA<RoutingSingle>());
+    });
+
+    test('exactHost with port matches host:port URL', () {
+      final a = _Site('A', 'http://localhost:8080/', [
+        DomainClaim.exactHost('localhost:8080'),
+      ]);
+      final r = LinkRoutingService.resolve(
+        Uri.parse('http://localhost:8080/dashboard'),
+        [a],
+      );
+      expect(r, isA<RoutingSingle>());
+      expect((r as RoutingSingle).site.siteId, 'A');
+    });
+
+    test('exactHost without port does NOT match a port-bearing URL', () {
+      final a = _Site('A', 'http://localhost/', [
+        DomainClaim.exactHost('localhost'),
+      ]);
+      final r = LinkRoutingService.resolve(
+        Uri.parse('http://localhost:8080/x'),
+        [a],
+      );
+      expect(r, isA<RoutingNone>());
+    });
+
+    test(
+        'wildcardSubdomain and baseDomain do NOT match URLs with non-default port',
+        () {
+      final a = _Site('A', 'http://localhost/', [
+        DomainClaim.wildcardSubdomain('localhost'),
+        DomainClaim.baseDomain('localhost'),
+      ]);
+      final r = LinkRoutingService.resolve(
+        Uri.parse('http://api.localhost:8080/x'),
+        [a],
+      );
+      expect(r, isA<RoutingNone>());
+    });
+
+    test('default https port (443) is treated as no port', () {
+      final a = _Site('A', 'https://example.org/', [
+        DomainClaim.wildcardSubdomain('example.org'),
+      ]);
+      final r = LinkRoutingService.resolve(
+        Uri.parse('https://api.example.org:443/x'),
+        [a],
+      );
+      expect(r, isA<RoutingSingle>());
+      expect((r as RoutingSingle).site.siteId, 'A');
+    });
+
+    test('mismatched ports do not collide on exact host', () {
+      final a = _Site('A', 'http://localhost:8080/', [
+        DomainClaim.exactHost('localhost:8080'),
+      ]);
+      final b = _Site('B', 'http://localhost:9090/', [
+        DomainClaim.exactHost('localhost:9090'),
+      ]);
+      final r = LinkRoutingService.resolve(
+        Uri.parse('http://localhost:8080/x'),
+        [a, b],
+      );
+      expect((r as RoutingSingle).site.siteId, 'A');
     });
 
     test('per-site best-claim wins; lower-score claim on same site ignored',
@@ -311,6 +388,35 @@ void main() {
     test('empty input returns empty list', () {
       expect(LinkRoutingService.claimsToAdoptHost(''), isEmpty);
       expect(LinkRoutingService.claimsToAdoptHost('   '), isEmpty);
+    });
+  });
+
+  group('LinkRoutingService.claimsToAdoptUrl - non-default port', () {
+    test('default-port URL emits exact + wildcard like host variant', () {
+      final claims = LinkRoutingService.claimsToAdoptUrl(
+        Uri.parse('https://forum.invalid/thread/42'),
+      );
+      expect(claims, [
+        DomainClaim.exactHost('forum.invalid'),
+        DomainClaim.wildcardSubdomain('forum.invalid'),
+      ]);
+    });
+
+    test('non-default port URL emits a single port-bearing exactHost', () {
+      final claims = LinkRoutingService.claimsToAdoptUrl(
+        Uri.parse('http://localhost:8080/dashboard'),
+      );
+      expect(claims, [DomainClaim.exactHost('localhost:8080')]);
+    });
+
+    test('explicit default port is treated as default', () {
+      final claims = LinkRoutingService.claimsToAdoptUrl(
+        Uri.parse('https://example.org:443/'),
+      );
+      expect(claims, [
+        DomainClaim.exactHost('example.org'),
+        DomainClaim.wildcardSubdomain('example.org'),
+      ]);
     });
   });
 
