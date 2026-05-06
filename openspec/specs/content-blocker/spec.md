@@ -286,19 +286,35 @@ The system SHALL hide page elements by injecting CSS `display: none !important` 
 
 **Given** cosmetic selectors include one invalid selector among many valid ones
 **When** the CSS is injected
-**Then** the invalid selector does not affect other selectors (each is a separate CSS rule)
+**Then** the CSS parser silently discards the invalid rule and applies every other valid rule in the same `<style>` tag
 
-#### Scenario: Batched querySelectorAll
+#### Scenario: Selector hides rely entirely on the early `<style>` tag
 
-**Given** 100 cosmetic selectors are applicable to a page
-**When** the full script runs at `onLoadStop`
-**Then** selectors are processed in batches of 20 with per-batch try-catch to prevent one bad selector from breaking all
+**Given** cosmetic selectors are applicable to a page
+**When** the cosmetic shim runs
+**Then** there is no runtime `querySelectorAll` sweep for selector matches; the browser's CSS engine is the sole hide mechanism (verified by `test/js/content_blocker_shim_equivalence.test.js`, `test/browser/content_blocker_shim_equivalence.test.js`)
 
-#### Scenario: MutationObserver for dynamic content
+#### Scenario: Late-added or class-flipped elements hide reactively
 
-**Given** a React/SPA page that adds new content dynamically after initial load
+**Given** the early `<style>` tag is installed at `DOCUMENT_START`
+**When** a matching element is appended to the DOM after page load, OR an existing element gains a matching class/attribute later
+**Then** the CSS engine re-matches automatically and the element is hidden — including the class-flip case the prior runtime sweep could not catch (its `MutationObserver` opted into `childList` only, not attributes)
+
+#### Scenario: `:has()` selectors hide reactively when descendants change
+
+**Given** a `:has()` selector (either a native rule or one rewritten from `:-abp-has()`) is applied to the page
+**When** a matching descendant is added to a candidate parent after page load
+**Then** the parent is hidden by the CSS engine without any JS work
+
+#### Scenario: MutationObserver runs only for text-content rules
+
+**Given** a page has cosmetic selectors but no text-hide rules
+**When** the cosmetic shim runs
+**Then** no `MutationObserver` is installed (selector hides are handled entirely by the CSS engine)
+
+**Given** a page has text-hide rules
 **When** new DOM nodes are inserted
-**Then** the `MutationObserver` triggers cosmetic hiding within 50ms (debounced)
+**Then** a debounced `MutationObserver` re-runs the text scan within 50ms — selector hides remain owned by the CSS engine
 
 #### Scenario: Domain-scoped selectors
 
@@ -440,7 +456,8 @@ The `flutter_inappwebview` plugin provides a `contentBlockers` parameter on `InA
 Our custom implementation avoids these issues:
 - O(1) domain blocking via hash set (vs O(n) regex per request)
 - CSS injection at `DOCUMENT_START` via `UserScript` (vs 800ms delayed `evaluateJavascript`)
-- `MutationObserver` with 50ms debounce for dynamic content
+- Selector hides handled entirely by the early `<style>` tag — the CSS engine matches present and future elements, including class-flips and `:has()` descendant changes, with zero JS cost on every keystroke
+- `MutationObserver` (50ms debounce) installed only when text-content rules are present, to re-run text-scan on dynamic inserts
 - Text-based hiding for `:-abp-contains()` patterns (not supported by ContentBlocker API at all)
 - Cross-platform: same behavior on iOS, Android, and macOS
 
@@ -533,13 +550,13 @@ Serialized to/from JSON, stored in SharedPreferences as a JSON string.
 
 Two-phase injection:
 
-1. **DOCUMENT_START** (via `initialUserScripts` + `onLoadStart`): CSS-only script that creates a `<style>` tag with `display: none !important` rules. Prevents flash of unstyled content.
+1. **DOCUMENT_START** (via `initialUserScripts` + `onLoadStart`): CSS-only script that creates a `<style>` tag with `display: none !important` rules. Prevents flash of unstyled content. Owns the entire selector-hide path — including selectors rewritten from `:-abp-has()` to standard CSS `:has()`, which the CSS engine re-evaluates reactively when descendants change.
 
-2. **onLoadStop**: Full script with:
-   - Style tag creation (idempotent, skipped if already exists from phase 1)
-   - Batched `querySelectorAll` in groups of 20 with per-batch try-catch
-   - `hideText()` function that walks DOM elements and checks `textContent` against patterns
-   - `MutationObserver` on `document.body` with 50ms debounced callback
+2. **onLoadStop**: Full script that re-asserts the same `<style>` tag (idempotent) and, when text-hide rules are present:
+   - `hideText()` function that walks elements matching each rule's selector and writes `display: none` inline when any pattern is found in `textContent`
+   - `MutationObserver` on `document.body` with 50ms debounced callback that re-runs `hideText()`. The observer is **not** installed when no text-hide rules apply, since selector hides are owned by the CSS engine.
+
+Equivalence between this CSS-only shape and the previous shape (which also ran a runtime `querySelectorAll` sweep writing inline `style.display = 'none'`) is asserted at computed-style level by `test/js/content_blocker_shim_equivalence.test.js` and `test/browser/content_blocker_shim_equivalence.test.js`.
 
 ### Hook Point in WebView
 
