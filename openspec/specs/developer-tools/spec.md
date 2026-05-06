@@ -234,6 +234,61 @@ The app SHALL show active user scripts for the current site via an AppBar action
 
 ---
 
+### Requirement: DEVTOOLS-008 - Nested Webview Developer Tools
+
+The app SHALL allow opening Developer Tools inside an [`InAppWebViewScreen`]
+nested webview (the screen that handles cross-domain navigations and
+window.open popups), in a reduced "console-only" mode that surfaces the
+features that don't depend on per-site state.
+
+The reduced mode SHALL show:
+
+- Console tab (capture, filter, copy, clear, JS eval).
+- App Logs tab.
+- Share HTML AppBar action.
+
+The reduced mode SHALL NOT show Cookies, DNS, or Scripts surfaces. Cookies
+and scripts belong to the parent site (the nested webview reuses the
+parent's container/jar and `siteId`), so the user manages them from the
+parent site's Developer Tools entry.
+
+#### Scenario: Open Developer Tools from a nested webview
+
+**Given** the user has followed an outbound link or opened a popup that
+landed in an `InAppWebViewScreen`
+**When** the user taps the three-dot menu in the nested screen's AppBar
+and selects "Developer Tools"
+**Then** `DevToolsScreen` opens with `host: NestedDevToolsHost(...)`
+**And** the Console and App Logs tabs are visible
+**And** the Cookies, DNS, and Scripts surfaces are hidden
+
+#### Scenario: Console captures messages from the nested page
+
+**Given** Developer Tools is open over a nested webview
+**When** the nested page produces a `console.log`/`warn`/`error`
+**Then** the message is delivered through `WebViewConfig.onConsoleMessage`
+to `NestedDevToolsHost.appendConsole`
+**And** it appears in the Console tab in real time
+
+#### Scenario: JS eval in a nested webview
+
+**Given** Developer Tools is open over a nested webview and the
+controller is bound
+**When** the user types a JS expression and taps Run
+**Then** the expression is evaluated against the nested webview's
+controller (NOT the parent site's), with the same CSP-safe direct
+injection used in the full mode
+
+#### Scenario: Share HTML from a nested webview
+
+**Given** Developer Tools is open over a nested webview
+**When** the user taps the share icon and chooses Share / Save / Copy
+**Then** the HTML returned by the nested webview's `controller.getHtml()`
+is shared / saved / copied
+**And** the filename uses the nested webview's current URL domain
+
+---
+
 ### Requirement: DEVTOOLS-007 - Console Eval
 
 The app SHALL provide a JavaScript evaluation input in the Console tab, allowing users to execute arbitrary JS in the context of the current page and see results inline, like a standard browser console.
@@ -276,7 +331,8 @@ The app SHALL provide a JavaScript evaluation input in the Console tab, allowing
 | File | Role |
 |------|------|
 | `lib/services/log_service.dart` | LogService singleton, LogEntry, LogLevel enum |
-| `lib/screens/dev_tools.dart` | DevToolsScreen with 3 tabs (Console, Cookies, App Logs) and AppBar actions (Scripts, Share HTML, Search) |
+| `lib/screens/dev_tools.dart` | DevToolsScreen plus DevToolsHost abstraction (WebViewModelDevToolsHost, NestedDevToolsHost). Tabs/actions are gated on `host != null` (Console, Share HTML) and `host.blockedCookies != null` (Cookies, DNS, Scripts). |
+| `lib/screens/inappbrowser.dart` | InAppWebViewScreen owns a NestedDevToolsHost: forwards onConsoleMessage / onUrlChanged / onControllerCreated and exposes a "Developer Tools" entry in the popup menu. |
 
 ### Data Models
 
@@ -300,9 +356,9 @@ class ConsoleLogEntry {
 ### Integration Points
 
 - `WebViewConfig.onConsoleMessage` callback wired in `WebViewFactory.createWebView()`
-- `WebViewModel.consoleLogs` list (max 500 entries)
+- `WebViewModel.consoleLogs` and `NestedDevToolsHost.consoleLogs`, both ring buffers (max 500 entries)
 - All service files use `LogService.instance.log()` instead of `debugPrint()`
-- Popup menu "Developer Tools" item in `main.dart`
+- Popup menu "Developer Tools" item in `main.dart` (top-level sites) and `inappbrowser.dart` (nested webviews)
 - "App Logs" tile in App Settings screen
 
 ---
