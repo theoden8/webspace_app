@@ -71,17 +71,47 @@ The system SHALL parse filter lists in ABP/EasyList syntax, extracting three typ
 **When** the list is parsed
 **Then** `div:has(.ad-label)` is added as a cosmetic selector (`:has()` is standard CSS)
 
+#### Scenario: Parse exception rules
+
+**Given** a filter list containing `@@||cdn.example.com^`
+**When** the list is parsed
+**Then** `cdn.example.com` is added to the exception domains set
+
+#### Scenario: Skip complex exception rules
+
+**Given** a filter list containing `@@||example.com/path$script`
+**When** the list is parsed
+**Then** the rule is skipped (only simple domain-anchored exceptions are supported)
+
+#### Scenario: Convert :has-text() in cosmetic rules to text hide rules
+
+**Given** a filter list containing `##.container:has-text(Sponsored)`
+**When** the list is parsed
+**Then** a text hide rule is created with selector `.container` and pattern `Sponsored`
+
+#### Scenario: Convert :contains() in cosmetic rules to text hide rules
+
+**Given** a filter list containing `example.com##div.post:contains(Advertisement)`
+**When** the list is parsed
+**Then** a text hide rule is created with selector `div.post` and pattern `Advertisement` scoped to `example.com`
+
+#### Scenario: Rewrite :-abp-has() to standard CSS :has()
+
+**Given** a filter list containing `##div:-abp-has(.ad-label)`
+**When** the list is parsed
+**Then** `div:has(.ad-label)` is added as a cosmetic selector (rewritten to standard CSS)
+
 #### Scenario: Skip unsupported rule types
 
-**Given** a filter list containing rules with `#$#` (snippets), `##^` (HTML filters), `$redirect`, `$csp`, `$removeparam`, `@@` (exceptions), or regex patterns
+**Given** a filter list containing rules with `#$#` (snippets), `##^` (HTML filters), `$redirect`, `$csp`, `$removeparam`, or regex patterns
 **When** the list is parsed
 **Then** these rules are silently skipped
 
-#### Scenario: Skip ABP-only extended CSS
+#### Scenario: Skip unsupported extended CSS pseudo-classes
 
-**Given** a filter list containing selectors with `:-abp-has()`, `:has-text()`, `:contains()`, `:matches-path()`, or `:matches-attr()`
+**Given** a filter list containing selectors with `:matches-path()`, `:matches-attr()`, `:min-text-length()`, or `:watch-attr()`
 **When** the list is parsed
-**Then** these selectors are skipped (not standard CSS, would fail in querySelectorAll)
+**Then** these selectors are skipped (not supported)
 
 #### Scenario: Case-insensitive domain matching
 
@@ -154,7 +184,7 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 ### Requirement: CB-003 - Domain Blocking
 
-The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups, for both main-document navigations and sub-resource requests.
+The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups, for both main-document navigations and sub-resource requests. Exception domains (`@@||domain^`) override blocked domains.
 
 #### Scenario: Exact domain match
 
@@ -173,6 +203,27 @@ The system SHALL block navigation to domains matched by `||domain^` rules using 
 **Given** `tracker.net` is in the blocked domains set
 **When** the webview navigates to `https://mytracker.net/path`
 **Then** navigation is allowed (`mytracker.net` is not a subdomain of `tracker.net`)
+
+#### Scenario: Exception domain overrides block
+
+**Given** `tracker.net` is in the blocked domains set
+**And** `cdn.tracker.net` is in the exception domains set
+**When** the webview navigates to `https://cdn.tracker.net/resource.js`
+**Then** navigation is allowed (exception overrides block)
+
+#### Scenario: Exception domain with subdomain walk-up
+
+**Given** `tracker.net` is in the blocked domains set
+**And** `cdn.tracker.net` is in the exception domains set
+**When** the webview navigates to `https://sub.cdn.tracker.net/resource.js`
+**Then** navigation is allowed (parent domain walk-up finds exception)
+
+#### Scenario: Exception does not affect unrelated subdomains
+
+**Given** `tracker.net` is in the blocked domains set
+**And** `cdn.tracker.net` is in the exception domains set
+**When** the webview navigates to `https://other.tracker.net/path`
+**Then** navigation is cancelled (exception only covers cdn.tracker.net)
 
 #### Scenario: Hook ordering
 
@@ -235,19 +286,35 @@ The system SHALL hide page elements by injecting CSS `display: none !important` 
 
 **Given** cosmetic selectors include one invalid selector among many valid ones
 **When** the CSS is injected
-**Then** the invalid selector does not affect other selectors (each is a separate CSS rule)
+**Then** the CSS parser silently discards the invalid rule and applies every other valid rule in the same `<style>` tag
 
-#### Scenario: Batched querySelectorAll
+#### Scenario: Selector hides rely entirely on the early `<style>` tag
 
-**Given** 100 cosmetic selectors are applicable to a page
-**When** the full script runs at `onLoadStop`
-**Then** selectors are processed in batches of 20 with per-batch try-catch to prevent one bad selector from breaking all
+**Given** cosmetic selectors are applicable to a page
+**When** the cosmetic shim runs
+**Then** there is no runtime `querySelectorAll` sweep for selector matches; the browser's CSS engine is the sole hide mechanism (verified by `test/js/content_blocker_shim_equivalence.test.js`, `test/browser/content_blocker_shim_equivalence.test.js`)
 
-#### Scenario: MutationObserver for dynamic content
+#### Scenario: Late-added or class-flipped elements hide reactively
 
-**Given** a React/SPA page that adds new content dynamically after initial load
+**Given** the early `<style>` tag is installed at `DOCUMENT_START`
+**When** a matching element is appended to the DOM after page load, OR an existing element gains a matching class/attribute later
+**Then** the CSS engine re-matches automatically and the element is hidden — including the class-flip case the prior runtime sweep could not catch (its `MutationObserver` opted into `childList` only, not attributes)
+
+#### Scenario: `:has()` selectors hide reactively when descendants change
+
+**Given** a `:has()` selector (either a native rule or one rewritten from `:-abp-has()`) is applied to the page
+**When** a matching descendant is added to a candidate parent after page load
+**Then** the parent is hidden by the CSS engine without any JS work
+
+#### Scenario: MutationObserver runs only for text-content rules
+
+**Given** a page has cosmetic selectors but no text-hide rules
+**When** the cosmetic shim runs
+**Then** no `MutationObserver` is installed (selector hides are handled entirely by the CSS engine)
+
+**Given** a page has text-hide rules
 **When** new DOM nodes are inserted
-**Then** the `MutationObserver` triggers cosmetic hiding within 50ms (debounced)
+**Then** a debounced `MutationObserver` re-runs the text scan within 50ms — selector hides remain owned by the CSS engine
 
 #### Scenario: Domain-scoped selectors
 
@@ -389,7 +456,8 @@ The `flutter_inappwebview` plugin provides a `contentBlockers` parameter on `InA
 Our custom implementation avoids these issues:
 - O(1) domain blocking via hash set (vs O(n) regex per request)
 - CSS injection at `DOCUMENT_START` via `UserScript` (vs 800ms delayed `evaluateJavascript`)
-- `MutationObserver` with 50ms debounce for dynamic content
+- Selector hides handled entirely by the early `<style>` tag — the CSS engine matches present and future elements, including class-flips and `:has()` descendant changes, with zero JS cost on every keystroke
+- `MutationObserver` (50ms debounce) installed only when text-content rules are present, to re-run text-scan on dynamic inserts
 - Text-based hiding for `:-abp-contains()` patterns (not supported by ContentBlocker API at all)
 - Cross-platform: same behavior on iOS, Android, and macOS
 
@@ -400,6 +468,7 @@ Our custom implementation avoids these issues:
 ```dart
 class AbpParseResult {
   final Set<String> blockedDomains;                    // ||domain^ rules
+  final Set<String> exceptionDomains;                  // @@||domain^ rules
   final Map<String, List<String>> cosmeticSelectors;   // ## rules (key '' = global)
   final Map<String, List<TextHideRule>> textHideRules; // #?# rules with :-abp-contains
 }
@@ -418,16 +487,20 @@ Rule type support:
 |--------|---------|-------|
 | `\|\|domain^` | Converted to blocked domain | Simple domain-only patterns |
 | `\|\|domain^$options` | Converted (options ignored) | Domain extracted, options skipped |
+| `@@\|\|domain^` | Converted to exception domain | Overrides blocked domains |
 | `##selector` | Converted to cosmetic selector | Including standard CSS `:has()` |
 | `domain##selector` | Converted with domain scope | Multiple domains via `d1,d2##sel` |
+| `##sel:-abp-has(X)` | Rewritten to `sel:has(X)` | Standard CSS `:has()` |
+| `##sel:has-text(text)` | Converted to TextHideRule | Text-based element hiding |
+| `##sel:contains(text)` | Converted to TextHideRule | Alias for `:has-text()` |
 | `#?#sel:-abp-contains(text)` | Converted to TextHideRule | Extracts selector + text patterns |
 | `#?#sel:-abp-contains(/a\|b/)` | Converted to TextHideRule | Regex-style patterns split on `\|` |
 | `#$#` snippet filters | Skipped | Would require ABP snippet runtime |
 | `##^` HTML filters | Skipped | Non-standard |
-| `@@` exception rules | Skipped | Not implemented |
+| `@@\|\|domain/path` | Skipped | Only simple domain exceptions supported |
 | `$redirect`, `$csp`, `$removeparam` | Skipped | Advanced modifiers |
 | `/regex/` patterns | Skipped | Resource-level regex |
-| `:-abp-has()`, `:has-text()` etc. | Skipped in `##` | ABP-only pseudo-classes |
+| `:matches-path()`, `:matches-attr()` | Skipped in `##` | Unsupported pseudo-classes |
 
 ### ContentBlockerService Singleton
 
@@ -437,12 +510,13 @@ static ContentBlockerService get instance => _instance ??= ContentBlockerService
 ```
 
 Key methods:
-- `isBlocked(url)` — O(1) domain lookup with parent domain walk-up
+- `isBlocked(url)` — O(1) domain lookup with parent domain walk-up; exception domains checked first
 - `getEarlyCssScript(pageUrl)` — Returns JS that injects a `<style>` tag (for DOCUMENT_START)
 - `getCosmeticScript(pageUrl)` — Returns full JS with MutationObserver + text hiding (for onLoadStop)
 
 Aggregated state:
 - `_blockedDomains: Set<String>` — union of all enabled lists' blocked domains
+- `_exceptionDomains: Set<String>` — union of all enabled lists' exception domains (override blocks)
 - `_cosmeticSelectors: Map<String, List<String>>` — union of all enabled lists' CSS selectors
 - `_textHideRules: Map<String, List<TextHideRule>>` — union of all enabled lists' text rules
 
@@ -476,13 +550,13 @@ Serialized to/from JSON, stored in SharedPreferences as a JSON string.
 
 Two-phase injection:
 
-1. **DOCUMENT_START** (via `initialUserScripts` + `onLoadStart`): CSS-only script that creates a `<style>` tag with `display: none !important` rules. Prevents flash of unstyled content.
+1. **DOCUMENT_START** (via `initialUserScripts` + `onLoadStart`): CSS-only script that creates a `<style>` tag with `display: none !important` rules. Prevents flash of unstyled content. Owns the entire selector-hide path — including selectors rewritten from `:-abp-has()` to standard CSS `:has()`, which the CSS engine re-evaluates reactively when descendants change.
 
-2. **onLoadStop**: Full script with:
-   - Style tag creation (idempotent, skipped if already exists from phase 1)
-   - Batched `querySelectorAll` in groups of 20 with per-batch try-catch
-   - `hideText()` function that walks DOM elements and checks `textContent` against patterns
-   - `MutationObserver` on `document.body` with 50ms debounced callback
+2. **onLoadStop**: Full script that re-asserts the same `<style>` tag (idempotent) and, when text-hide rules are present:
+   - `hideText()` function that walks elements matching each rule's selector and writes `display: none` inline when any pattern is found in `textContent`
+   - `MutationObserver` on `document.body` with 50ms debounced callback that re-runs `hideText()`. The observer is **not** installed when no text-hide rules apply, since selector hides are owned by the CSS engine.
+
+Equivalence between this CSS-only shape and the previous shape (which also ran a runtime `querySelectorAll` sweep writing inline `style.display = 'none'`) is asserted at computed-style level by `test/js/content_blocker_shim_equivalence.test.js` and `test/browser/content_blocker_shim_equivalence.test.js`.
 
 ### Hook Point in WebView
 
@@ -575,12 +649,17 @@ ABP filter parser tests cover:
 - Comment and header line skipping
 - Simple domain block rule conversion (`||domain^`)
 - Domain rule without trailing `^`
-- Exception rule skipping (`@@`)
+- Simple exception rule conversion (`@@||domain^`)
+- Complex exception rule skipping (`@@||domain/path`)
+- Exception domain case-insensitivity
 - Global cosmetic filter conversion (`##.selector`)
 - Domain-specific cosmetic filter conversion (`domain##.selector`)
 - Multi-domain cosmetic filter
 - Standard CSS `:has()` selectors (allowed — native CSS)
-- ABP-only `:has-text()` selectors (skipped)
+- `:has-text()` in `##` rules converted to text hide rules
+- `:contains()` in `##` rules converted to text hide rules
+- `:-abp-has()` rewritten to standard `:has()` in cosmetic rules
+- Domain-specific `:-abp-has()` rewriting
 - `#?#` rules with `:-abp-contains()` to text hide rules
 - `#?#` rules without text matching (skipped)
 - `#$#` snippet rules (skipped)
@@ -588,7 +667,7 @@ ABP filter parser tests cover:
 - Complex path rules (skipped — not domain-only)
 - `$redirect`, `$csp`, `$removeparam` rules (skipped)
 - Regex patterns (skipped)
-- Mixed rule parsing
+- Mixed rule parsing (domains, exceptions, cosmetic, :-abp-has, :has-text)
 - Real EasyList-style rules
 - Case-insensitive domain blocking
 - Selector aggregation from multiple rules
@@ -603,6 +682,8 @@ Content blocker service tests cover:
 - totalRuleCount across enabled lists
 - Unmodifiable list getter
 - isBlocked with domain hierarchy walk-up
+- isBlocked respects exception domains (subdomain exception, unrelated subdomains still blocked)
+- isBlocked with exception on exact blocked domain
 - getCosmeticScript returns null when no selectors
 
 ### Manual Testing

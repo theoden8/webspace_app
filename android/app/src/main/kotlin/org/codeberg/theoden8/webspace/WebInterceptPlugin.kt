@@ -74,6 +74,13 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     if (domains != null) {
                         dnsBlockedDomains.clear()
                         dnsBlockedDomains.addAll(domains)
+                        // Without this every interceptor's per-host
+                        // decision cache keeps stale `ALLOWED`
+                        // verdicts for hosts the rule now covers — the
+                        // page would have to navigate fresh to re-
+                        // populate, which is exactly the situation a
+                        // user adding a list expects to work without.
+                        clearAllHostDecisionCaches()
                         result.success(dnsBlockedDomains.size)
                     } else {
                         result.error("INVALID_ARGS", "domains list required", null)
@@ -84,6 +91,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     if (domains != null) {
                         abpBlockedDomains.clear()
                         abpBlockedDomains.addAll(domains)
+                        clearAllHostDecisionCaches()
                         result.success(abpBlockedDomains.size)
                     } else {
                         result.error("INVALID_ARGS", "domains list required", null)
@@ -316,6 +324,31 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
     }
 
+    /// Walk every attached `FastSubresourceInterceptor` and invalidate
+    /// its per-host decision cache. Called whenever the DNS or ABP
+    /// blocked-domains set is replaced via `setDnsBlockedDomains` /
+    /// `setAbpBlockedDomains` — without this a host the page already
+    /// fetched (and got `Decision.ALLOWED` cached for) stays allowed
+    /// even after the rule that would block it lands. The shared
+    /// `dnsBlockedDomains` / `abpBlockedDomains` HashSets are mutated
+    /// in place so the interceptor sees the new contents on the next
+    /// cache miss; this call ensures there IS a miss.
+    private fun clearAllHostDecisionCaches() {
+        val rootView = activity.window.decorView.rootView
+        val webViews = mutableListOf<InAppWebView>()
+        findInAppWebViews(rootView, webViews)
+        var cleared = 0
+        for (webView in webViews) {
+            (webView.contentBlockerHandler as? FastSubresourceInterceptor)?.let {
+                it.clearHostDecisionCache()
+                cleared++
+            }
+        }
+        if (cleared > 0) {
+            log("WebIntercept", "Invalidated host decision cache on $cleared interceptor(s)")
+        }
+    }
+
     companion object {
         const val CHANNEL = "org.codeberg.theoden8.webspace/web_intercept"
     }
@@ -373,6 +406,15 @@ class FastSubresourceInterceptor(
     /// avoids re-classifying on dedup'd repeats.
     private val hostDecision = LinkedHashMap<String, Decision>(256, 0.75f, false)
     private val hostDecisionCap = 1024
+
+    /// Drop every cached host classification. Called by
+    /// [WebInterceptPlugin.clearAllHostDecisionCaches] when the
+    /// blocked-domains set is replaced — see comment there for the
+    /// race this avoids.
+    @Synchronized
+    fun clearHostDecisionCache() {
+        hostDecision.clear()
+    }
 
     init {
         // Dummy rule so the Java guard `ruleList.size() > 0` passes

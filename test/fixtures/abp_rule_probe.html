@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSpace ABP rule probe</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 960px; margin: 1em auto; padding: 0 1em; color: #222; }
+    h1 { font-size: 1.4em; }
+    h2 { font-size: 1.1em; margin-top: 2em; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    p { line-height: 1.45; }
+    table.probe { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 6px; }
+    table.probe th, table.probe td { border: 1px solid #d0d0d0; padding: 6px 8px; text-align: left; vertical-align: top; }
+    table.probe th { background: #f4f4f4; font-weight: 600; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.95em; }
+    .result-cell, .expected-cell { font-weight: 600; white-space: nowrap; }
+    .result-cell.ok       { background: #cef4d8; color: #186; }
+    .result-cell.fail     { background: #fde0e0; color: #a22; }
+    .result-cell.pending  { background: #fff3c4; color: #976; }
+    .result-cell.note     { background: #eef; color: #225; }
+    .expected-cell        { background: #f8f8f8; color: #333; }
+    .desc { color: #555; font-size: 0.9em; }
+    .markup { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85em; word-break: break-all; }
+    .toolbar { margin: 1em 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .toolbar button { padding: 6px 10px; border: 1px solid #ccc; background: #fafafa; border-radius: 4px; cursor: pointer; }
+    .toolbar button:active { background: #eaeaea; }
+    .legend { margin-top: 1em; font-size: 0.9em; color: #444; }
+    .legend span { display: inline-block; padding: 2px 8px; border-radius: 3px; margin-right: 4px; font-weight: 600; }
+    .section-callout {
+      margin: 4px 0 2px 0;
+      padding: 8px 10px;
+      border-left: 4px solid #888;
+      background: #fafafa;
+      font-size: 0.95em;
+    }
+    .section-callout.expect-blocked { border-left-color: #4a8; background: #f3faf6; }
+    .section-callout.expect-visible { border-left-color: #884; background: #fafaf3; }
+    .section-callout.expect-host    { border-left-color: #468; background: #f3f7fa; }
+    /* The probe container is moved off-screen; the test elements still
+       receive computed style from any cosmetic <style> the content
+       blocker injected at DOCUMENT_START. getComputedStyle sees the
+       hide regardless of layout position. */
+    .probe-stage { position: absolute; left: -99999px; top: 0; width: 1px; height: 1px; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <h1>WebSpace ABP rule probe</h1>
+  <p>Drops a sample element for every rule shape we declare support (or non-support) for, waits for the cosmetic shim to settle, then reports per row whether the target's computed display is <code>none</code>. Each section spells out its expected verdict so the green/red coloring is self-explanatory.</p>
+
+  <p class="legend">
+    <span class="result-cell ok">OK</span> matches the section's expectation
+    <span class="result-cell fail">FAIL</span> does NOT match expectation — investigate
+    <span class="result-cell pending">pending&hellip;</span> waiting for shim to settle
+    <span class="result-cell note">note</span> host- or network-dependent
+  </p>
+
+  <div class="toolbar">
+    <button onclick="measure()">Re-measure now</button>
+    <button onclick="runNetworkProbes()">Re-run network probes</button>
+    <button onclick="refreshDiagnostics()">Refresh diagnostics</button>
+    <span id="host-label" class="desc"></span>
+  </div>
+
+  <div id="diagnostics" class="section-callout" style="border-left-color:#888; background:#fafafa;">
+    <div><strong>Platform:</strong> <span id="diag-platform">checking…</span> &mdash; sub-resource interceptor: <strong id="diag-interceptor">checking…</strong></div>
+    <div><strong>Merged bloom:</strong> <span id="diag-bloom">checking…</span></div>
+    <div id="diag-warning" class="desc"></div>
+  </div>
+
+  <h2>1. Supported cosmetic rules</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: BLOCKED.</strong>
+    Every rule in this group is one we declare support for. With an
+    active filter list that contains the rule, the target's computed
+    display should be <code>none</code>. A row reading "visible" means
+    your loaded list either doesn't contain that rule or didn't fire it.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 30%">Rule shape</th>
+        <th style="width: 12%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="supported-results"></tbody>
+  </table>
+
+  <h2>2. Host-dependent rules</h2>
+  <div class="section-callout expect-host">
+    <strong>Expected verdict per row: BLOCKED only when this page is hosted on the rule's domain.</strong>
+    Otherwise "visible (host did not match)" is the correct outcome
+    and is colored as a neutral note rather than a failure.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 30%">Rule shape</th>
+        <th style="width: 12%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="host-results"></tbody>
+  </table>
+
+  <h2>3. Skipped rule shapes</h2>
+  <div class="section-callout expect-visible">
+    <strong>Expected verdict per row: visible.</strong>
+    These rule shapes are unsupported by design — the parser drops the
+    whole rule line. If a row turns BLOCKED, the parser is now
+    accepting an unsupported rule (e.g. naively splitting at <code>:</code>
+    and keeping the bare class) — that's a regression.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 30%">Rule shape (parser must skip)</th>
+        <th style="width: 12%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="skipped-results"></tbody>
+  </table>
+
+  <h2>4. False-positive guards</h2>
+  <div class="section-callout expect-visible">
+    <strong>Expected verdict per row: visible.</strong>
+    Each row drops markup that <em>looks like</em> a supported rule's
+    target but must not match (substring class, attribute prefix, text
+    extension, missing <code>:has()</code> descendant, etc.). If a row turns
+    BLOCKED, the parser or shim is over-matching — that's a regression.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 30%">Selector under test</th>
+        <th style="width: 12%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup (must NOT match)</th>
+      </tr>
+    </thead>
+    <tbody id="fp-results"></tbody>
+  </table>
+
+  <h2>5. Negative controls</h2>
+  <div class="section-callout expect-visible">
+    <strong>Expected verdict per row: visible.</strong>
+    Plain content with no rule that should target it. If any row turns
+    BLOCKED, your filter list is over-matching ordinary markup —
+    file a bug.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 30%">Description</th>
+        <th style="width: 12%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="control-results"></tbody>
+  </table>
+
+  <h2>6. Network rules (heuristic, triangulated)</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: see "Expected" column.</strong>
+    Each rule is probed two ways &mdash; <code>&lt;img&gt;</code> via
+    <code>new Image().src</code> and <code>fetch()</code> with
+    <code>mode:'no-cors'</code> &mdash; and the
+    <code>performance.getEntriesByName</code> API is consulted to
+    classify the outcome:
+    <code>js-blocked</code> &rarr; no Performance entry, request was
+    aborted before networking; <code>net-error</code> &rarr; entry
+    exists but server / interceptor returned an error;
+    <code>loaded</code> &rarr; request succeeded;
+    <code>net-timeout</code> &rarr; entry exists, no response in 5s.
+    <br><br>
+    <strong>Reading verdicts by platform:</strong>
+    <ul style="margin: 4px 0 0 1.2em; padding: 0;">
+      <li><strong>iOS / macOS</strong>: <code>js-blocked</code> is the
+      block signal &mdash; the JS setter wrap declines to call
+      <code>origSet</code>, no network entry is ever created.</li>
+      <li><strong>Android</strong>: the native
+      <code>FastSubresourceInterceptor</code> returns a synthetic
+      empty response, so a real block produces a Performance entry
+      and reads as <code>net-error</code>. Compare against the control
+      rows: if controls <code>load</code> and the blocked rows
+      <code>net-error</code>, the rule fired.</li>
+    </ul>
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 26%">Rule</th>
+        <th style="width: 12%">Expected</th>
+        <th style="width: 14%">img</th>
+        <th style="width: 14%">fetch</th>
+        <th>Probe target</th>
+      </tr>
+    </thead>
+    <tbody id="network-results"></tbody>
+  </table>
+
+  <h2>7. Page itself, for sanity</h2>
+  <p>If the chrome below is hidden, your filter list is over-matching the test page itself — file a bug.</p>
+  <p>This paragraph should remain visible. <span class="probe-page-chrome-marker">[chrome marker]</span></p>
+
+  <div class="probe-stage" id="cosmetic-stage"></div>
+
+  <script>
+    // Each entry: {id, label, html, note?}
+    //   html: markup injected into the off-screen stage; the FIRST
+    //         element child is the probe target.
+    // Section semantics live in the section's intro callout, NOT on
+    // each row — that's what 'all rows in this section share an
+    // expected verdict' actually means.
+
+    // ---- Section 1: rules we declare support for. Expected: BLOCKED. ----
+    const SUPPORTED_CASES = [
+      {
+        id: 'class-advert',
+        label: '##.advert',
+        html: '<div class="advert">advert sample</div>',
+      },
+      {
+        id: 'class-ad-banner',
+        label: '##.ad-banner',
+        html: '<div class="ad-banner">ad-banner sample</div>',
+      },
+      {
+        id: 'class-sponsored',
+        label: '##.sponsored-content',
+        html: '<div class="sponsored-content">sponsored sample</div>',
+      },
+      {
+        id: 'attr-data-ad-slot',
+        label: '##div[data-ad-slot]',
+        html: '<div data-ad-slot="123">attribute sample</div>',
+      },
+      {
+        id: 'attr-href-doubleclick',
+        label: '##a[href*="doubleclick.net"]',
+        html: '<a href="https://doubleclick.net/foo">href sample</a>',
+      },
+      {
+        id: 'has-native',
+        label: '##div.article:has(div.adsbygoogle)',
+        html: '<div class="article"><div class="adsbygoogle">x</div></div>',
+        note: 'native CSS :has() — handled by the early <style> reactively',
+      },
+      {
+        id: 'abp-has-rewritten',
+        label: '##div.feed-item:-abp-has(.ad-tag)',
+        html: '<div class="feed-item"><span class="ad-tag">x</span>body</div>',
+        note: ':-abp-has() rewritten to standard :has() by parser',
+      },
+      {
+        id: 'has-text',
+        label: '##span.notice:has-text(Sponsored)',
+        html: '<span class="notice">Sponsored item here</span>',
+        note: 'converted to text rule (MutationObserver path)',
+      },
+      {
+        id: 'contains',
+        label: '##p.story-body:contains(Advertisement)',
+        html: '<p class="story-body">An Advertisement appears.</p>',
+        note: 'converted to text rule (MutationObserver path)',
+      },
+    ];
+
+    // ---- Section 2: domain-scoped rules. Expected: BLOCKED iff host matches. ----
+    const HOST_CASES = [
+      {
+        id: 'feed-shared-ad',
+        label: 'linkedin.com##.feed-shared-update-v2--ad',
+        html: '<div class="feed-shared-update-v2--ad">linkedin native ad</div>',
+        host: 'linkedin.com',
+      },
+      {
+        id: 'cnn-zone',
+        label: 'cnn.com##div[data-zone-id="ad"]',
+        html: '<div data-zone-id="ad">cnn ad zone</div>',
+        host: 'cnn.com',
+      },
+      {
+        id: 'abp-contains-alt',
+        label: 'linkedin.com#?#div.feed-shared-actor:-abp-contains(/Promoted|Sponsored/)',
+        html: '<div class="feed-shared-actor">Promoted by Acme</div>',
+        host: 'linkedin.com',
+        note: 'host-scoped text rule with alternation',
+      },
+    ];
+
+    // ---- Section 3: rule shapes we deliberately skip. Expected: visible. ----
+    // Sample fixture's `##.foo:matches-path(...)` and
+    // `##.bar:min-text-length(...)` MUST be skipped wholesale. If a
+    // future change naively splits the selector at `:` and keeps the
+    // bare class, .foo / .bar would start hiding incorrectly.
+    const SKIPPED_CASES = [
+      {
+        id: 'skip-matches-path',
+        label: '##.foo:matches-path(/section/)',
+        html: '<div class="foo">.foo target</div>',
+        note: 'parser must drop the whole rule, not just :matches-path()',
+      },
+      {
+        id: 'skip-min-text-length',
+        label: '##.bar:min-text-length(20)',
+        html: '<div class="bar">.bar target with longer text</div>',
+        note: 'same — :min-text-length() is unsupported, full rule must skip',
+      },
+      // ##^script[src*="ads.js"], #$#log "snippet", $csp, $redirect,
+      // $removeparam, /regex/ — all skipped at parse time. They have
+      // no cosmetic projection so there's nothing to probe via
+      // getComputedStyle.
+    ];
+
+    // ---- Section 4: false-positive guards. Expected: visible. ----
+    // FP guards use synthetic class/attribute/host names that are
+    // crafted to be unique enough that no production filter list
+    // (EasyList, EasyPrivacy, etc.) will also target them. The
+    // matching rule lives in test/fixtures/easylist_sample.txt under
+    // "Synthetic rules used by abp_rule_probe.html". With our sample
+    // enabled the rule fires; without it nothing fires either way —
+    // both states correctly produce "visible" on these rows.
+    const FP_CASES = [
+      {
+        id: 'fp-class-suffix',
+        label: '##.fp_probe_class (vs. .fp_probe_classy)',
+        html: '<div class="fp_probe_classy">extra suffix &mdash; not the same class</div>',
+        note: 'CSS class match is by exact token, not substring',
+      },
+      {
+        id: 'fp-attr-different',
+        label: '##div[fp-probe-attr] (vs. fp-probe-attr-fake)',
+        html: '<div fp-probe-attr-fake="123">different attribute name</div>',
+      },
+      {
+        id: 'fp-href-different-tld',
+        label: '##a[href*="fp.probe.example"] (vs. fp.probex.example)',
+        html: '<a href="https://fp.probex.example/x">different host (not a substring match)</a>',
+      },
+      {
+        id: 'fp-text-shorter-substring',
+        label: ':has-text(FpProbeMagicNeedle) (vs. "FpProbeMagicNeedlz...")',
+        html: '<span class="fp_probe_notice">FpProbeMagicNeedlz and stuff</span>',
+        note: 'last char differs &rarr; "FpProbeMagicNeedle" is NOT a substring of "FpProbeMagicNeedlz..."',
+      },
+      {
+        id: 'fp-has-no-descendant',
+        label: ':has(div.fp_probe_descendant) (vs. article without it)',
+        html: '<div class="fp_probe_article"><p>no fp_probe_descendant child</p></div>',
+      },
+      {
+        id: 'fp-abp-has-no-descendant',
+        label: ':-abp-has(.fp_probe_tag) (vs. feed without it)',
+        html: '<div class="fp_probe_feed">no fp_probe_tag child</div>',
+        note: ':-abp-has() is rewritten to :has(), same descendant requirement',
+      },
+    ];
+
+    // ---- Section 5: negative controls. Expected: visible. ----
+    const CONTROL_CASES = [
+      {
+        id: 'control-feed-item-clean',
+        label: 'feed-item without .ad-tag',
+        html: '<div class="feed-item">no ad-tag inside</div>',
+      },
+      {
+        id: 'control-notice-clean',
+        label: 'span.notice without "Sponsored"',
+        html: '<span class="notice">Just a regular notice.</span>',
+      },
+      {
+        id: 'control-real',
+        label: 'arbitrary editorial paragraph',
+        html: '<p class="probe-real-content-marker">Editorial copy.</p>',
+      },
+    ];
+
+    // Group registry for measure() / render(). Each tuple binds a
+    // section to its expected verdict and the target tbody.
+    const SECTIONS = [
+      { cases: SUPPORTED_CASES, tbody: 'supported-results',  expected: 'hide',     expectLabel: 'BLOCKED' },
+      { cases: HOST_CASES,      tbody: 'host-results',       expected: 'host',     expectLabel: 'BLOCKED on host' },
+      { cases: SKIPPED_CASES,   tbody: 'skipped-results',    expected: 'keep',     expectLabel: 'visible' },
+      { cases: FP_CASES,        tbody: 'fp-results',         expected: 'keep',     expectLabel: 'visible' },
+      { cases: CONTROL_CASES,   tbody: 'control-results',    expected: 'keep',     expectLabel: 'visible' },
+    ];
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderSections() {
+      const stage = document.getElementById('cosmetic-stage');
+      for (const sec of SECTIONS) {
+        const tbody = document.getElementById(sec.tbody);
+        for (const c of sec.cases) {
+          const wrap = document.createElement('div');
+          wrap.id = 'probe-' + c.id;
+          wrap.innerHTML = c.html;
+          stage.appendChild(wrap);
+
+          const row = document.createElement('tr');
+          row.id = 'row-' + c.id;
+          const ruleCell = document.createElement('td');
+          ruleCell.innerHTML = '<code>' + escapeHtml(c.label) + '</code>' +
+            (c.note ? '<div class="desc">' + escapeHtml(c.note) + '</div>' : '');
+          const expectedCell = document.createElement('td');
+          expectedCell.className = 'expected-cell';
+          expectedCell.textContent = sec.expected === 'host'
+            ? (location.host && location.host.indexOf(c.host) !== -1 ? 'BLOCKED' : 'visible (off-host)')
+            : sec.expectLabel;
+          const statusCell = document.createElement('td');
+          statusCell.className = 'result-cell pending';
+          statusCell.textContent = 'pending…';
+          statusCell.setAttribute('data-result', '');
+          const markupCell = document.createElement('td');
+          markupCell.innerHTML = '<span class="markup">' + escapeHtml(c.html) + '</span>';
+          row.appendChild(ruleCell);
+          row.appendChild(expectedCell);
+          row.appendChild(statusCell);
+          row.appendChild(markupCell);
+          tbody.appendChild(row);
+        }
+      }
+    }
+
+    function measure() {
+      for (const sec of SECTIONS) {
+        for (const c of sec.cases) {
+          const wrap = document.getElementById('probe-' + c.id);
+          if (!wrap) continue;
+          const target = wrap.firstElementChild || wrap;
+          const computedDisplay = getComputedStyle(target).display;
+          const inlineDisplay = target.style.display;
+          const hidden = computedDisplay === 'none';
+          const cell = document.querySelector('#row-' + c.id + ' [data-result]');
+          cell.className = 'result-cell';
+          let label;
+          if (sec.expected === 'hide') {
+            cell.classList.add(hidden ? 'ok' : 'fail');
+            label = hidden ? 'BLOCKED' : 'visible (rule did not fire)';
+          } else if (sec.expected === 'keep') {
+            cell.classList.add(hidden ? 'fail' : 'ok');
+            label = hidden ? 'BLOCKED — false positive' : 'visible';
+          } else if (sec.expected === 'host') {
+            const onHost = location.host && location.host.indexOf(c.host) !== -1;
+            if (onHost) {
+              cell.classList.add(hidden ? 'ok' : 'fail');
+              label = hidden ? 'BLOCKED' : 'visible (rule did not fire)';
+            } else {
+              cell.classList.add(hidden ? 'fail' : 'note');
+              label = hidden ? 'BLOCKED — fired off-host!' : 'visible (host did not match)';
+            }
+          }
+          if (inlineDisplay) label += ' [inline:' + inlineDisplay + ']';
+          cell.textContent = label;
+        }
+      }
+    }
+
+    // ---------- network probes ----------
+    const NETWORK_CASES = [
+      {
+        id: 'net-doubleclick',
+        label: '||doubleclick.net^',
+        expected: 'block',
+        url: 'https://doubleclick.net/favicon.ico',
+        note: 'main blocked target — load should fail when sub-resource interceptor is active',
+      },
+      {
+        id: 'net-googlesynd',
+        label: '||googlesyndication.com^',
+        expected: 'block',
+        url: 'https://googlesyndication.com/favicon.ico',
+        note: 'parent rule of @@||cdn.googlesyndication.com^',
+      },
+      // Two controls so a single fragile favicon endpoint can't poison
+      // the verdict. If BOTH succeed → heuristic is reliable; if both
+      // fail → the probe column is unreliable on this device (could be
+      // captive portal, offline, strict TLS pinning, etc.); if mixed →
+      // one endpoint just doesn't serve favicon, which is fine.
+      {
+        id: 'net-control-wikipedia',
+        label: '(control: en.wikipedia.org)',
+        expected: 'allow',
+        url: 'https://en.wikipedia.org/static/favicon/wikipedia.ico',
+        note: 'baseline reachability — no rule should match',
+      },
+      {
+        id: 'net-control-iana',
+        label: '(control: iana.org)',
+        expected: 'allow',
+        url: 'https://www.iana.org/favicon.ico',
+        note: 'second baseline — confirms heuristic with a different host',
+      },
+    ];
+
+    function expectedNetworkLabel(c) {
+      if (c.expected !== 'block') return 'loaded';
+      // Native FastSubresourceInterceptor returns a synthetic empty
+      // response, which the JS layer sees as 'net-error' (img: bad
+      // decode) or 'loaded' (no-cors fetch resolves opaquely on the
+      // empty body). On iOS/macOS the JS setter wrap aborts before
+      // networking, producing 'js-blocked'.
+      return sniffPlatform().name === 'Android' ? 'net-error' : 'js-blocked';
+    }
+
+    function renderNetworkTable() {
+      const tbody = document.getElementById('network-results');
+      tbody.innerHTML = '';
+      for (const c of NETWORK_CASES) {
+        const row = document.createElement('tr');
+        row.id = 'netrow-' + c.id;
+        row.innerHTML =
+          '<td><code>' + escapeHtml(c.label) + '</code>' +
+            '<div class="desc">' + escapeHtml(c.note) + '</div></td>' +
+          '<td class="expected-cell">' + expectedNetworkLabel(c) + '</td>' +
+          '<td class="result-cell pending" data-result-img>pending…</td>' +
+          '<td class="result-cell pending" data-result-fetch>pending…</td>' +
+          '<td><span class="markup">' + escapeHtml(c.url) + '</span></td>';
+        tbody.appendChild(row);
+      }
+    }
+
+    // Performance Resource Timing tells us whether a request reached
+    // the network layer. A JS-layer block (the patched property setter
+    // / wrapped fetch declines to call origSet) leaves NO resource
+    // entry — the request never happened. A network-level failure
+    // (404, TLS error, DNS fail) leaves an entry with a 0/error
+    // response. This is the only way to distinguish content-blocker
+    // hits from server-side or network errors when probing arbitrary
+    // favicon URLs.
+    function entryExists(target) {
+      try {
+        return performance.getEntriesByName(target, 'resource').length > 0;
+      } catch (e) { return false; }
+    }
+
+    function probeImg(url) {
+      const target = url + (url.indexOf('?') < 0 ? '?' : '&') + 'probe=img-' + Date.now();
+      return new Promise((resolve) => {
+        const img = new Image();
+        let done = false;
+        const finish = (o) => { if (!done) { done = true; resolve(o); } };
+        img.onload  = () => finish('loaded');
+        img.onerror = () => finish(entryExists(target) ? 'net-error' : 'js-blocked');
+        img.src = target;
+        setTimeout(() => finish(entryExists(target) ? 'net-timeout' : 'js-blocked'), 5000);
+      });
+    }
+
+    function probeFetch(url) {
+      const target = url + (url.indexOf('?') < 0 ? '?' : '&') + 'probe=fetch-' + Date.now();
+      return new Promise((resolve) => {
+        let done = false;
+        const finish = (o) => { if (!done) { done = true; resolve(o); } };
+        try {
+          fetch(target, { mode: 'no-cors', cache: 'no-store' })
+            .then(() => finish('loaded'))
+            .catch(() => finish(entryExists(target) ? 'net-error' : 'js-blocked'));
+        } catch (e) { finish('js-blocked'); }
+        setTimeout(() => finish(entryExists(target) ? 'net-timeout' : 'js-blocked'), 5000);
+      });
+    }
+
+    function applyResult(cell, outcome, expected, method) {
+      cell.className = 'result-cell';
+      // 'js-blocked' is the iOS/macOS block signal (setter wrap aborts
+      // before networking). On Android the native interceptor returns
+      // a synthetic empty response, so 'net-error' on the img path is
+      // the block signal there. The fetch column is fundamentally
+      // ambiguous on Android: with mode:'no-cors', a real cross-
+      // origin response and a blocked synthetic empty 200 both
+      // surface as a resolved opaque response (status=0, body
+      // unreadable, transferSize/encodedBodySize zeroed by browser
+      // policy). Color fetch=loaded as a neutral note on Android,
+      // not a fail — img is the authoritative signal there.
+      const platform = sniffPlatform();
+      const isAndroid = platform.name === 'Android';
+      if (expected === 'block') {
+        if (isAndroid && method === 'fetch') {
+          cell.classList.add('note');
+        } else {
+          const blockOutcome = outcome === 'js-blocked' ||
+            (isAndroid && outcome === 'net-error');
+          cell.classList.add(blockOutcome ? 'ok' : 'fail');
+        }
+      } else {
+        cell.classList.add(outcome === 'loaded' ? 'ok' : 'note');
+      }
+      cell.textContent = outcome;
+    }
+
+    async function runNetworkProbes() {
+      renderNetworkTable();
+      await Promise.all(NETWORK_CASES.map(async (c) => {
+        const row = '#netrow-' + c.id + ' ';
+        const [imgOut, fetchOut] = await Promise.all([
+          probeImg(c.url),
+          probeFetch(c.url),
+        ]);
+        applyResult(document.querySelector(row + '[data-result-img]'),   imgOut,   c.expected, 'img');
+        applyResult(document.querySelector(row + '[data-result-fetch]'), fetchOut, c.expected, 'fetch');
+      }));
+    }
+
+    // ---------- diagnostics: platform sniff + bloom readout ----------
+    function sniffPlatform() {
+      const ua = navigator.userAgent || '';
+      // Order matters: iPad pretends to be macOS in modern UAs, so check
+      // touch points after the OS string fails.
+      if (/Android/i.test(ua))                  return { name: 'Android', interceptor: 'native FastSubresourceInterceptor', expectInstalled: true };
+      if (/iPhone|iPod/i.test(ua))              return { name: 'iOS',     interceptor: 'JS bloom + blockCheck',             expectInstalled: true };
+      if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1))
+                                                return { name: 'iPadOS',  interceptor: 'JS bloom + blockCheck',             expectInstalled: true };
+      if (/Macintosh|Mac OS X/i.test(ua))       return { name: 'macOS',   interceptor: 'JS bloom + blockCheck',             expectInstalled: true };
+      if (/Windows/i.test(ua))                  return { name: 'Windows', interceptor: 'NOT INSTALLED',                     expectInstalled: false };
+      if (/Linux|WPE|X11/i.test(ua))            return { name: 'Linux/WPE', interceptor: 'NOT INSTALLED',                   expectInstalled: false };
+      return { name: 'unknown (' + ua.slice(0, 40) + '…)', interceptor: 'unknown', expectInstalled: null };
+    }
+
+    async function getBloomStats() {
+      if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) return null;
+      try {
+        const map = await window.flutter_inappwebview.callHandler('getBlockBloom');
+        if (!map) return null;
+        const bits = map.bits;
+        const bytesLen = (bits && (bits.length || bits.byteLength)) || 0;
+        const cacheSize = map.cache ? Object.keys(map.cache).length : 0;
+        return {
+          bitCount: map.bitCount || 0,
+          k:        map.k || 0,
+          bytes:    bytesLen,
+          cacheSize: cacheSize,
+        };
+      } catch (e) {
+        return { error: String(e) };
+      }
+    }
+
+    async function refreshDiagnostics() {
+      const plat = sniffPlatform();
+      document.getElementById('diag-platform').textContent = plat.name;
+      document.getElementById('diag-interceptor').textContent = plat.interceptor;
+
+      const bloom = await getBloomStats();
+      const bloomEl = document.getElementById('diag-bloom');
+      if (!bloom) {
+        bloomEl.innerHTML = '<em>no flutter_inappwebview bridge — running outside the app</em>';
+      } else if (bloom.error) {
+        bloomEl.innerHTML = '<em>error: ' + escapeHtml(bloom.error) + '</em>';
+      } else {
+        bloomEl.textContent = bloom.bitCount + ' bits, k=' + bloom.k +
+          ', payload ' + bloom.bytes + ' bytes, persisted host cache ' + bloom.cacheSize;
+      }
+
+      const warn = document.getElementById('diag-warning');
+      const messages = [];
+      if (plat.expectInstalled === false) {
+        messages.push('<strong>Sub-resource interception is NOT wired on this platform.</strong> Section 6 will report every domain as "loaded" regardless of any ||domain^ rule. Trust sections 1&ndash;5.');
+      }
+      if (bloom && !bloom.error && bloom.bitCount === 0) {
+        messages.push('<strong>Merged bloom is empty.</strong> Either no filter list is enabled, or the rule-changed listener hasn\'t rebuilt yet — try reloading.');
+      }
+      if (bloom && !bloom.error && bloom.bitCount > 0 && plat.expectInstalled === true) {
+        messages.push('Bloom is populated and platform supports interception — section 6 should be reliable.');
+      }
+      warn.innerHTML = messages.join('<br>');
+    }
+
+    // ---------- bootstrap ----------
+    document.getElementById('host-label').textContent =
+      'host: ' + location.host + '  ·  scheme: ' + location.protocol;
+    renderSections();
+    renderNetworkTable();
+    refreshDiagnostics();
+
+    // Settle delays:
+    //   - early <style> at DOCUMENT_START is in place by the time this
+    //     script runs (it's at the bottom of <body>), so the CSS-only
+    //     hides should be visible immediately.
+    //   - text-rule MutationObserver fires within 50ms of injection.
+    //   - if the user just enabled a list, give the rebuild some slack.
+    setTimeout(measure, 200);
+    setTimeout(measure, 1500);
+    setTimeout(measure, 4000);
+    runNetworkProbes();
+  </script>
+</body>
+</html>
