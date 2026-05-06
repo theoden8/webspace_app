@@ -61,26 +61,24 @@ test('early_css is idempotent — second injection is a no-op', () => {
 
 // ---------- cosmetic ----------
 
-test('cosmetic fixture: hides matching elements via inline style', () => {
-  // The cosmetic shim's hide() pass walks querySelectorAll for each
-  // batched selector and sets el.style.display='none'. Checking the
-  // inline style is the jsdom-friendly way to assert it ran;
-  // computed-style assertions belong in Tier 2 against a real
-  // engine.
-  const dom = makeDom({ html: HOST_HTML });
-  runInDom(dom, COSMETIC);
-  const ad = dom.window.document.getElementById('ad1');
-  const sp = dom.window.document.getElementById('sp1');
-  const sidebar = dom.window.document.getElementById('sidebar-ad');
-  const trk = dom.window.document.getElementById('trk');
-  const keep = dom.window.document.getElementById('keep');
-  assert.equal(ad.style.display, 'none');
-  assert.equal(sp.style.display, 'none');
-  assert.equal(sidebar.style.display, 'none');
-  assert.equal(trk.style.display, 'none');
-  assert.equal(keep.style.display, '',
-    'unrelated elements must not be hidden');
-});
+test('cosmetic fixture: hides matching elements via early-CSS computed style',
+  () => {
+    // Selector-based hides are owned by the early <style> tag (the
+    // cosmetic shim's runtime CSS sweep was dropped). Computed style
+    // is the contract; el.style.display is empty for these (the only
+    // inline writes the shim does are for text-content rules).
+    const dom = makeDom({ html: HOST_HTML });
+    runInDom(dom, COSMETIC);
+    const cs = (id) =>
+      dom.window.getComputedStyle(dom.window.document.getElementById(id))
+        .display;
+    assert.equal(cs('ad1'), 'none');
+    assert.equal(cs('sp1'), 'none');
+    assert.equal(cs('sidebar-ad'), 'none');
+    assert.equal(cs('trk'), 'none');
+    assert.notEqual(cs('keep'), 'none',
+      'unrelated elements must not be hidden');
+  });
 
 test('cosmetic fixture: text-match hides matching paragraphs', () => {
   const dom = makeDom({ html: HOST_HTML });
@@ -93,21 +91,22 @@ test('cosmetic fixture: text-match hides matching paragraphs', () => {
     'paragraph without sponsor text must not be hidden');
 });
 
-test('cosmetic fixture: MutationObserver hides dynamically-added matches',
+test('cosmetic fixture: late-added matches hide via early-CSS (no JS sweep)',
   async () => {
     const dom = makeDom({ html: '<!doctype html><html><body></body></html>' });
     runInDom(dom, COSMETIC);
-    // Insert an ad after the shim has already run. The
-    // MutationObserver's debounced 50ms hide() pass should catch it.
+    // Append an ad-banner AFTER the shim runs. The CSS engine matches
+    // it automatically — no debounced JS sweep involved.
     const doc = dom.window.document;
     const newAd = doc.createElement('div');
     newAd.className = 'ad-banner';
     newAd.id = 'late-ad';
     doc.body.appendChild(newAd);
-    // Wait past the shim's 50ms debounce.
+    // Briefly wait so any text-rules observer pass settles (it only
+    // affects #?# rules; this element is selector-only).
     await new Promise((r) => setTimeout(r, 100));
-    assert.equal(newAd.style.display, 'none',
-      'MutationObserver must hide ads inserted after the shim runs');
+    assert.equal(dom.window.getComputedStyle(newAd).display, 'none',
+      'late-added .ad-banner must be hidden by the early <style>');
   });
 
 test('cosmetic fixture: <style> tag survives MutationObserver passes', () => {
@@ -148,33 +147,46 @@ const MULTI_HTML = `<!doctype html><html><body>
   <div class="bio" id="b-reader">Reader response: thanks.</div>
 </body></html>`;
 
-test('cosmetic_multi: batches of 20 + 5; bad selector poisons only its batch',
+test('cosmetic_multi: malformed selector is dropped by the CSS parser, others apply',
   () => {
+    // Pre-2026 the shim ran a runtime querySelectorAll sweep grouped
+    // into batches of 20 — a malformed selector would throw and
+    // poison its whole batch. The runtime sweep was dropped; selector
+    // hides are handled entirely by the early <style> tag now. CSS
+    // parsers are forgiving of invalid rules: the malformed
+    // `>>>invalid<<<` rule is silently discarded and EVERY other valid
+    // selector in the same stylesheet still applies. That is a strict
+    // improvement on the old behaviour, where 4 valid selectors were
+    // collateral-damage hidden behind a malformed sibling.
     const dom = makeDom({ html: MULTI_HTML });
     runInDom(dom, COSMETIC_MULTI);
     const doc = dom.window.document;
-    // Every batch1-* element belongs to a clean batch -> hidden.
+    const cs = (id) =>
+      dom.window.getComputedStyle(doc.getElementById(id)).display;
+
     const letters = 'abcdefghijklmnopqrst'.split('');
     for (const ch of letters) {
       const el = doc.querySelector('.batch1-' + ch);
-      assert.equal(el.style.display, 'none',
-        '.batch1-' + ch + ' must be hidden by the clean batch');
+      el.id = 'b1-' + ch;
+      assert.equal(dom.window.getComputedStyle(el).display, 'none',
+        '.batch1-' + ch + ' must be hidden by the early CSS');
     }
-    // Every batch2-* element shared a batch with `>>>invalid<<<`, whose
-    // syntax error makes the comma-joined selector list throw inside
-    // querySelectorAll. Per-batch try/catch absorbs it but no element
-    // in that batch gets hidden.
+    // The selectors that previously shared a batch with `>>>invalid<<<`
+    // are valid CSS by themselves. Under the early-CSS model they are
+    // hidden — the malformed rule is discarded by the parser without
+    // affecting the others.
     for (const id of ['b2b', 'b2c', 'b2d', 'b2e']) {
-      assert.equal(doc.getElementById(id).style.display, '',
-        '#' + id + ' must NOT be hidden — its batch was poisoned');
+      assert.equal(cs(id), 'none',
+        '#' + id + ' must be hidden — its rule is valid CSS, the ' +
+        'malformed sibling no longer drags it down');
     }
   });
 
 test('cosmetic_multi: malformed selector does not throw out of the shim',
   () => {
-    // Smoke test — if the per-batch try/catch were missing, runInDom
-    // would propagate the SyntaxError out of window.eval and fail the
-    // test before any assertion ran.
+    // Smoke test — the early <style> tag accepts the full ruleset
+    // including `>>>invalid<<<`; the CSS parser silently drops the
+    // bad rule. Eval must not throw.
     const dom = makeDom({ html: MULTI_HTML });
     assert.doesNotThrow(() => runInDom(dom, COSMETIC_MULTI));
   });

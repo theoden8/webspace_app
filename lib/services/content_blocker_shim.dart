@@ -38,28 +38,26 @@ String? buildContentBlockerEarlyCssShim(List<String> selectors) {
 ''';
 }
 
-/// Build the post-load cosmetic shim — the early CSS tag, plus
-/// runtime querySelectorAll passes (batched to survive a single bad
-/// selector), plus a MutationObserver that re-runs both passes on DOM
-/// changes. Returns `null` when both [selectors] and [textRules] are
-/// empty.
+/// Build the post-load cosmetic shim — the early CSS `<style>` tag
+/// (handles every selector-based hide via the browser's CSS engine,
+/// including dynamically-added or class-flipped elements) plus a
+/// debounced MutationObserver running text-content rules (CSS can't
+/// match on text content, so those need JS). Returns `null` when both
+/// [selectors] and [textRules] are empty.
+///
+/// Equivalence with the previous shape (which also ran a runtime
+/// `querySelectorAll` sweep writing inline `style.display = 'none'`
+/// for selector matches) is asserted in
+/// `test/js/content_blocker_shim_equivalence.test.js` and
+/// `test/browser/content_blocker_shim_equivalence.test.js` —
+/// computed-style is identical for every selector match the old
+/// shape covered.
 String? buildContentBlockerCosmeticShim({
   required List<String> selectors,
   required List<ContentBlockerTextRule> textRules,
 }) {
   if (selectors.isEmpty && textRules.isEmpty) return null;
   final cssText = _buildCssText(selectors);
-
-  // Batch selectors so a single malformed entry only blocks its
-  // batch, not every other selector. 20 per batch matches what
-  // ContentBlockerService used historically.
-  final escaped = selectors.map(_escapeForJsString).toList();
-  final batches = <String>[];
-  for (var i = 0; i < escaped.length; i += 20) {
-    final end = (i + 20 < escaped.length) ? i + 20 : escaped.length;
-    batches.add(escaped.sublist(i, end).join(', '));
-  }
-  final batchArray = batches.map((b) => "'$b'").join(',');
 
   final textRulesJs = StringBuffer('[');
   for (var i = 0; i < textRules.length; i++) {
@@ -80,13 +78,19 @@ String? buildContentBlockerCosmeticShim({
     s.textContent = '$cssText';
     (document.head || document.documentElement).appendChild(s);
   }
-  var BATCHES = [$batchArray];
+  // Selector-based hiding is handled entirely by the early <style>
+  // tag above. The browser's CSS engine matches the rules (with
+  // !important) against every element, present and future, with no
+  // JS work — including elements that LATER gain a matching class or
+  // attribute (something the prior runtime querySelectorAll sweep
+  // could not catch since it only observed childList mutations).
+  // Equivalence asserted via test/js/content_blocker_shim_equivalence.test.js
+  // and test/browser/content_blocker_shim_equivalence.test.js.
+  //
+  // Text-content rules (#?# / :-abp-contains) cannot be expressed in
+  // CSS, so they keep a debounced MutationObserver that re-runs the
+  // text scan on DOM bursts.
   var TEXT_RULES = $textRulesJs;
-  function hideCSS() {
-    for (var i = 0; i < BATCHES.length; i++) {
-      try { document.querySelectorAll(BATCHES[i]).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}
-    }
-  }
   function hideText() {
     for (var i = 0; i < TEXT_RULES.length; i++) {
       var r = TEXT_RULES[i];
@@ -103,20 +107,21 @@ String? buildContentBlockerCosmeticShim({
       } catch(e) {}
     }
   }
-  function hide() { hideCSS(); hideText(); }
-  hide();
-  var t = null;
-  var obs = new MutationObserver(function() {
-    if (t) clearTimeout(t);
-    t = setTimeout(hide, 50);
-  });
-  if (document.body) {
-    obs.observe(document.body, { childList: true, subtree: true });
-  } else {
-    document.addEventListener('DOMContentLoaded', function() {
-      hide();
-      if (document.body) obs.observe(document.body, { childList: true, subtree: true });
+  hideText();
+  if (TEXT_RULES.length > 0) {
+    var t = null;
+    var obs = new MutationObserver(function() {
+      if (t) clearTimeout(t);
+      t = setTimeout(hideText, 50);
     });
+    if (document.body) {
+      obs.observe(document.body, { childList: true, subtree: true });
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        hideText();
+        if (document.body) obs.observe(document.body, { childList: true, subtree: true });
+      });
+    }
   }
 })();
 ''';

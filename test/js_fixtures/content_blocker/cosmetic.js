@@ -6,13 +6,19 @@
     s.textContent = '.ad-banner { display: none !important; } .sponsored { display: none !important; } #sidebar-ad { display: none !important; } div[data-ad-slot] { display: none !important; } a[href*="track.example.com"] { display: none !important; } ';
     (document.head || document.documentElement).appendChild(s);
   }
-  var BATCHES = ['.ad-banner, .sponsored, #sidebar-ad, div[data-ad-slot], a[href*="track.example.com"]'];
+  // Selector-based hiding is handled entirely by the early <style>
+  // tag above. The browser's CSS engine matches the rules (with
+  // !important) against every element, present and future, with no
+  // JS work — including elements that LATER gain a matching class or
+  // attribute (something the prior runtime querySelectorAll sweep
+  // could not catch since it only observed childList mutations).
+  // Equivalence asserted via test/js/content_blocker_shim_equivalence.test.js
+  // and test/browser/content_blocker_shim_equivalence.test.js.
+  //
+  // Text-content rules (#?# / :-abp-contains) cannot be expressed in
+  // CSS, so they keep a debounced MutationObserver that re-runs the
+  // text scan on DOM bursts.
   var TEXT_RULES = [{sel:'div.article > p',pats:['Sponsored content']}];
-  function hideCSS() {
-    for (var i = 0; i < BATCHES.length; i++) {
-      try { document.querySelectorAll(BATCHES[i]).forEach(function(el) { el.style.display = 'none'; }); } catch(e) {}
-    }
-  }
   function hideText() {
     for (var i = 0; i < TEXT_RULES.length; i++) {
       var r = TEXT_RULES[i];
@@ -29,19 +35,20 @@
       } catch(e) {}
     }
   }
-  function hide() { hideCSS(); hideText(); }
-  hide();
-  var t = null;
-  var obs = new MutationObserver(function() {
-    if (t) clearTimeout(t);
-    t = setTimeout(hide, 50);
-  });
-  if (document.body) {
-    obs.observe(document.body, { childList: true, subtree: true });
-  } else {
-    document.addEventListener('DOMContentLoaded', function() {
-      hide();
-      if (document.body) obs.observe(document.body, { childList: true, subtree: true });
+  hideText();
+  if (TEXT_RULES.length > 0) {
+    var t = null;
+    var obs = new MutationObserver(function() {
+      if (t) clearTimeout(t);
+      t = setTimeout(hideText, 50);
     });
+    if (document.body) {
+      obs.observe(document.body, { childList: true, subtree: true });
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        hideText();
+        if (document.body) obs.observe(document.body, { childList: true, subtree: true });
+      });
+    }
   }
 })();
