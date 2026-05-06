@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 /// A text-based hiding rule: hide elements matching [selector] that contain
 /// text matching any of [textPatterns].
 class TextHideRule {
@@ -280,11 +278,3 @@ AbpParseResult parseAbpFilterListSync(String text) {
   );
 }
 
-/// Parse ABP filter text in an isolate to avoid blocking the UI thread.
-Future<AbpParseResult> parseAbpFilterList(String text) {
-  return compute(_parseInIsolate, text);
-}
-
-AbpParseResult _parseInIsolate(String text) {
-  return parseAbpFilterListSync(text);
-}

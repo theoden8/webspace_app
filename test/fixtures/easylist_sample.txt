@@ -1,0 +1,61 @@
+[Adblock Plus 2.0]
+! Title: WebSpace test EasyList sample (curated)
+! Hand-authored representative subset for end-to-end parser→shim
+! testing. Mirrors real EasyList rule shapes; one of each
+! pseudo-class / modifier we want to assert against.
+!
+! Stability contract: this file is the input to the
+! `easylist_sample_*.js` fixtures emitted by tool/dump_shim_js.dart
+! and exercised by test/js/content_blocker_easylist_sample.test.js.
+! Adding/removing rules requires re-running the dumper and updating
+! the test's expectations.
+
+! ---- Network blocks (||domain^) ----
+||doubleclick.net^
+||googlesyndication.com^
+||google-analytics.com^
+||tracker.example^
+
+! ---- Network exceptions (@@||domain^) ----
+@@||cdn.googlesyndication.com^
+
+! ---- Generic cosmetic ----
+##.advert
+##.ad-banner
+##.sponsored-content
+##div[data-ad-slot]
+##a[href*="doubleclick.net"]
+
+! ---- Standard CSS :has() (passes through unchanged) ----
+##div.article:has(div.adsbygoogle)
+
+! ---- ABP :-abp-has() (rewritten to :has) ----
+##div.feed-item:-abp-has(.ad-tag)
+
+! ---- :has-text() (converts to text rule) ----
+##span.notice:has-text(Sponsored)
+
+! ---- :contains() (converts to text rule) ----
+##p.story-body:contains(Advertisement)
+
+! ---- Domain-specific cosmetic ----
+linkedin.com##.feed-shared-update-v2--ad
+cnn.com##div[data-zone-id="ad"]
+
+! ---- Domain-specific :-abp-has ----
+linkedin.com##div.feed-shared-update-v2:-abp-has(.feed-shared-actor__sub-description)
+
+! ---- Domain-specific text rule (#?# with :-abp-contains) ----
+linkedin.com#?#div.feed-shared-actor:-abp-contains(/Promoted|Sponsored/)
+
+! ---- Multi-domain cosmetic ----
+example.com,test.com##.cross-site-ad
+
+! ---- Skipped rule shapes (must not break parsing) ----
+##^script[src*="ads.js"]
+##.foo:matches-path(/section/)
+##.bar:min-text-length(20)
+||badads.example^$csp=script-src 'none'
+||example.com^$removeparam=utm_source
+/banner-\d+\.gif/
+#$#log "snippet"

@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'abp_filter_parser.dart';
+import 'abp_filter_parser_async.dart';
 
 /// A filter list entry with metadata.
 class FilterList {

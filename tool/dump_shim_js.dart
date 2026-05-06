@@ -18,6 +18,7 @@
 
 import 'dart:io';
 
+import 'package:webspace/services/abp_filter_parser.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
@@ -181,6 +182,56 @@ Map<String, String> buildAllFixtures() {
   fixtures['content_blocker/abp_rules.js'] = buildContentBlockerCosmeticShim(
     selectors: abpRuleSelectors,
     textRules: abpRuleTextRules,
+  )!;
+
+  // End-to-end fixture: real ABP rule strings → parser → shim. Proves
+  // the parser and shim agree on the wire format for every rule shape
+  // we declare support for. Sample is hand-authored under
+  // test/fixtures/easylist_sample.txt so it stays stable across
+  // upstream EasyList changes; behavioural assertions live in
+  // test/js/content_blocker_easylist_sample.test.js.
+  // Path is repo-root-relative — same convention as
+  // test/js_fixtures_drift_test.dart, which expects CWD = repo root
+  // for both `dart run tool/dump_shim_js.dart` and `flutter test`.
+  final sampleText =
+      File('test/fixtures/easylist_sample.txt').readAsStringSync();
+  final parsed = parseAbpFilterListSync(sampleText);
+
+  // Collect rules a webview visiting [host] would see — globals plus
+  // every parent-domain match — mirroring ContentBlockerService's
+  // _collectRules walk-up.
+  ({List<String> selectors, List<ContentBlockerTextRule> textRules})
+      collectFor(String host) {
+    final selectors = <String>[];
+    final textRules = <ContentBlockerTextRule>[];
+    final globalSel = parsed.cosmeticSelectors[''];
+    if (globalSel != null) selectors.addAll(globalSel);
+    final globalText = parsed.textHideRules[''];
+    if (globalText != null) {
+      textRules.addAll(globalText
+          .map((r) => (selector: r.selector, patterns: r.textPatterns)));
+    }
+    var domain = host;
+    while (domain.isNotEmpty) {
+      final ds = parsed.cosmeticSelectors[domain];
+      if (ds != null) selectors.addAll(ds);
+      final tr = parsed.textHideRules[domain];
+      if (tr != null) {
+        textRules.addAll(
+            tr.map((r) => (selector: r.selector, patterns: r.textPatterns)));
+      }
+      final dotIdx = domain.indexOf('.');
+      if (dotIdx < 0) break;
+      domain = domain.substring(dotIdx + 1);
+    }
+    return (selectors: selectors, textRules: textRules);
+  }
+
+  final linkedinRules = collectFor('linkedin.com');
+  fixtures['content_blocker/easylist_sample_linkedin.js'] =
+      buildContentBlockerCosmeticShim(
+    selectors: linkedinRules.selectors,
+    textRules: linkedinRules.textRules,
   )!;
 
   return fixtures;
