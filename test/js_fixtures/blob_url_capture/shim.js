@@ -57,6 +57,45 @@
       asNative(_patchedRevoke, 'revokeObjectURL');
       URL.revokeObjectURL = _patchedRevoke;
     }
+
+    // window.fetch wrapper — intercepts fetch(blob:URL) for any blob we
+    // captured at createObjectURL time and resolves with a Response
+    // synthesised from the Blob. No network call is dispatched, so the
+    // CSP connect-src enforcer never runs against the blob: URL. Page
+    // code (e.g. github.com's fetch-utilities) and our own download
+    // IIFE both benefit. Non-blob URLs and uncaptured blob: URLs fall
+    // through to the original fetch.
+    var origFetch = window.fetch;
+    if (typeof origFetch === 'function') {
+      var _patchedFetch = function fetch(input, init) {
+        var url = '';
+        try {
+          if (typeof input === 'string') {
+            url = input;
+          } else if (input && typeof input.url === 'string') {
+            url = input.url;
+          }
+        } catch (_) {}
+        if (url && url.indexOf('blob:') === 0) {
+          var blob = map.get(url);
+          if (blob) {
+            try {
+              return Promise.resolve(new Response(blob, {
+                status: 200,
+                statusText: 'OK',
+                headers: {
+                  'Content-Type': blob.type || 'application/octet-stream',
+                },
+              }));
+            } catch (_) {}
+          }
+        }
+        return origFetch.apply(this, arguments);
+      };
+      asNative(_patchedFetch, 'fetch');
+      try { window.fetch = _patchedFetch; } catch (_) {}
+    }
+
     Object.defineProperty(window, '__webspaceBlobs', {
       value: { get: function(url) { return map.get(url); } },
       configurable: false,

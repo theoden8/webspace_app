@@ -11,6 +11,6 @@
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@fission-ai/openspec": "latest",
     "jsdom": "^25.0.1",
-    "puppeteer": "^24.42.0"
+    "puppeteer": "^24.43.0"
   }
 }
