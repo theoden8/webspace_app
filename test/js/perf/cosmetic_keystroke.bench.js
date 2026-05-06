@@ -2,13 +2,19 @@
 // the content_blocker cosmetic shim — the suspected dominant cost on
 // editor-heavy pages like github.com when block is on.
 //
-// Three shim shapes are compared head-to-head:
-//   * none  — no shim at all (DOM-mutation baseline).
-//   * current — shape in lib/services/content_blocker_shim.dart:
-//             MutationObserver -> 50ms-debounced hide() that re-queries
-//             the WHOLE document on every burst.
-//   * explored — same install sweep, but the mutation handler scopes
-//             work to the freshly-added subtree only.
+// Four shim shapes are compared head-to-head:
+//   * none      — no shim at all (DOM-mutation baseline).
+//   * pre-2026  — historical shape: MutationObserver fires a 50ms-
+//                 debounced hide() that re-queries the WHOLE document
+//                 on every burst (684 querySelectorAll per pause).
+//   * subtree   — same install sweep, but the mutation handler scopes
+//                 work to the freshly-added subtree only. Reference
+//                 only — explored, shown to be workload-dependent.
+//   * shipped   — current production shape (this commit). Selector
+//                 hides handled entirely by the early <style> tag; the
+//                 observer only fires for text-content rules (and only
+//                 when any are present). Selector-only sites pay zero
+//                 per-keystroke JS cost.
 //
 // Two workloads:
 //   * "composer + popover" — each keystroke appends a span to a
@@ -489,10 +495,29 @@ async function main() {
     return stats;
   }
 
+  // SHIPPED shape (current production after the runtime cosmetic-CSS
+  // sweep was dropped): early <style> tag does the selector hides; the
+  // runtime observer only re-runs text-content rules. For a host with
+  // ZERO text rules (the common case once the per-host selectors are
+  // fully covered by CSS), the observer doesn't even install.
+  function installShippedShim(win) {
+    const { document } = win;
+    const earlyCss = selectors
+      .map((s) => `${s} { display: none !important; }`)
+      .join(' ');
+    const styleEl = document.createElement('style');
+    styleEl.textContent = earlyCss;
+    (document.head || document.documentElement).appendChild(styleEl);
+    // No text rules in this synthetic workload — observer would not
+    // install in production. Reflect that here.
+    return { observerCbs: 0, observerMs: 0, flushRuns: 0, flushMs: 0 };
+  }
+
   const variants = [
     { tag: 'none       ', install: installNoShim },
-    { tag: 'current    ', install: installOldShim },
-    { tag: 'explored   ', install: installNewShim },
+    { tag: 'pre-2026   ', install: installOldShim },
+    { tag: 'subtree    ', install: installNewShim },
+    { tag: 'shipped    ', install: installShippedShim },
   ];
   const KEYS = 200;
 
@@ -542,14 +567,14 @@ async function main() {
   await main();
   console.log('\nNotes:');
   console.log('  * "none" is the no-block baseline — pure DOM mutation cost.');
-  console.log('  * "current" mirrors content_blocker_shim.dart — whole-document');
-  console.log('    hide() per debounced burst. This is what production runs.');
-  console.log('  * "explored" scopes work to the freshly-added subtree.');
+  console.log('  * "pre-2026" replays the historical whole-document hide()');
+  console.log('    that ran on every debounced mutation burst.');
+  console.log('  * "subtree" scopes work to the freshly-added subtree (a');
+  console.log('    workload-dependent variant; not shipped).');
+  console.log('  * "shipped" is the current production shape: early <style>');
+  console.log('    only, no per-mutation selector sweep. For a host with no');
+  console.log('    text-content rules the runtime observer is not installed,');
+  console.log('    so flush/observer totals are zero.');
   console.log('  * "flush total" is the perceptible freeze after a typing pause.');
-  console.log('  * Compare BOTH workloads — the verdict flips. With the composer');
-  console.log('    accumulating spans, `current` is cheaper; without it,');
-  console.log('    `explored` is cheaper. Production behavior depends on the');
-  console.log('    real mutation profile (text nodes / wrapper reuse) which');
-  console.log('    this synthetic bench does not capture.');
   console.log('  * jsdom is slower than WebKit; use relative numbers.');
 })();

@@ -223,24 +223,27 @@ test('equivalence: text-content rules agree in both shapes', () => {
   }
 });
 
-// ---------- known non-equivalence (documented) ----------
+// ---------- inline-style invariant ----------
 
-test('NON-equivalence: current writes inline style, css-only does not',
+test('inline el.style.display: empty for selector matches in both shapes',
   () => {
-    // This test documents the ONE observable difference between the
-    // two shapes: the current shim writes el.style.display = 'none'
-    // for selector-based hides; CSS-only relies on the <style> rule.
-    // Pages that introspect el.style.display (rather than computed
-    // style) will see different values. This is deliberate; the
-    // user-visible state (rendering) is the same.
+    // After the runtime cosmetic-CSS sweep was dropped, NEITHER shape
+    // writes inline style for selector-based hides. Pages that
+    // previously introspected el.style.display would have seen 'none'
+    // under the pre-2026 shape; both variants now show ''. Computed
+    // style — what affects rendering — remains 'none'.
     const domA = makeDom({ html: HOST_HTML });
     runShim(domA, COSMETIC);
     const domB = makeDom({ html: HOST_HTML });
     runShim(domB, COSMETIC_CSS_ONLY);
     const ad1A = domA.window.document.getElementById('ad1');
     const ad1B = domB.window.document.getElementById('ad1');
-    assert.equal(ad1A.style.display, 'none',
-      'current shim writes inline style');
+    assert.equal(ad1A.style.display, '',
+      'shipped shim does not write inline style for selector matches');
     assert.equal(ad1B.style.display, '',
-      'css-only does NOT write inline style');
+      'reference css-only shim also does not write inline style');
+    assert.equal(domA.window.getComputedStyle(ad1A).display, 'none',
+      'shipped shim still hides via early CSS');
+    assert.equal(domB.window.getComputedStyle(ad1B).display, 'none',
+      'reference shim hides via early CSS');
   });

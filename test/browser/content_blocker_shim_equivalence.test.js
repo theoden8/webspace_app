@@ -257,9 +257,9 @@ test('tier-2 equivalence: text-content rules agree in both shapes',
       'sanity: clean paragraph must remain visible');
   });
 
-// ---------- known non-equivalence ----------
+// ---------- inline-style invariant ----------
 
-test('tier-2 NON-equivalence: inline el.style.display differs (rendering same)',
+test('tier-2: inline el.style.display empty for selector matches in both shapes',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
     async function snap(shim) {
@@ -279,16 +279,17 @@ test('tier-2 NON-equivalence: inline el.style.display differs (rendering same)',
     }
     const a = await snap(COSMETIC);
     const b = await snap(COSMETIC_CSS_ONLY);
-    // Computed style (what affects rendering) MUST agree.
+    // Computed style — what affects rendering — MUST agree.
     assert.equal(a.computed, b.computed,
       `computed-display must match: current=${a.computed} ` +
       `css-only=${b.computed}`);
     assert.equal(a.computed, 'none', 'sanity');
-    // Inline style differs by design — current writes 'none', css-only
-    // doesn't. Asserted so any future change that re-introduces the
-    // inline write must be deliberate.
-    assert.equal(a.inline, 'none',
-      'current shim writes inline style for selector matches');
+    // Neither shape writes inline style for selector matches now (the
+    // pre-2026 runtime sweep that wrote `el.style.display = 'none'`
+    // was dropped). Locked in here so any future change that re-
+    // introduces the inline write must be deliberate.
+    assert.equal(a.inline, '',
+      'shipped shim does not write inline style for selector matches');
     assert.equal(b.inline, '',
-      'css-only does NOT write inline style for selector matches');
+      'reference shim does not write inline style for selector matches');
   });
