@@ -64,6 +64,7 @@ import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
+import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
@@ -726,6 +727,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
   bool _showUrlBar = false;
   bool _showTabStrip = false;
+  bool _linkHandlingEnabled = true;
   bool _showStatsBanner = true;
   bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
   int _canGoBackVersion = 0; // Guards _updateCanGoBack against stale async results
@@ -994,6 +996,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       final html = await ShareIntentService.consumeLaunchHtml();
       if (!mounted) return;
       if (html != null) {
+        if (!_linkHandlingEnabled) {
+          LogService.instance.log('LinkIntent',
+              'HTML share dropped (link handling disabled)');
+          return;
+        }
         await _dispatchInbound(InboundHtml(
           content: html.content,
           suggestedTitle: html.title,
@@ -1008,6 +1015,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (decoded != null) {
           _addSite(qrSettings: decoded);
         }
+        return;
+      }
+      if (!_linkHandlingEnabled) {
+        LogService.instance.log('LinkIntent',
+            'Share dropped (link handling disabled): $raw');
         return;
       }
       final parsed = Uri.tryParse(raw);
@@ -1371,6 +1383,38 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('showStatsBanner', _showStatsBanner);
+  }
+
+  Future<void> _saveLinkHandlingEnabled() async {
+    if (isDemoMode) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kLinkHandlingEnabledKey, _linkHandlingEnabled);
+  }
+
+  void _openLinkHandlingSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => LinkHandlingSettingsScreen(
+          enabled: _linkHandlingEnabled,
+          onEnabledChanged: (v) {
+            setState(() => _linkHandlingEnabled = v);
+            _saveLinkHandlingEnabled();
+          },
+          sites: List<WebViewModel>.from(_webViewModels),
+          onOpenSiteEditor: (site) {
+            final idx = _webViewModels.indexOf(site);
+            if (idx >= 0) {
+              Navigator.of(ctx).pop();
+              _editSite(idx);
+            }
+          },
+          onManualDispatch: (uri) async {
+            await _dispatchInbound(InboundUrl(uri));
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _saveGlobalUserScripts() async {
@@ -2109,6 +2153,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
+      _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
@@ -3123,6 +3168,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       });
                       _saveShowStatsBanner();
                     },
+                    linkHandlingEnabled: _linkHandlingEnabled,
+                    onLinkHandlingEnabledChanged: (value) {
+                      setState(() => _linkHandlingEnabled = value);
+                      _saveLinkHandlingEnabled();
+                    },
+                    onOpenLinkHandlingSettings: _openLinkHandlingSettings,
                     globalUserScripts: _globalUserScripts,
                     onGlobalUserScriptsChanged: (scripts) {
                       _globalUserScripts = scripts;
@@ -3281,6 +3332,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     MaterialPageRoute(
                       builder: (context) => SettingsScreen(
                         webViewModel: _webViewModels[_currentIndex!],
+                        otherSites: _webViewModels
+                            .where((m) => m.siteId != _webViewModels[_currentIndex!].siteId)
+                            .toList(growable: false),
                         useContainers: _useContainers,
                         notificationsBlockedBySite: _notificationsBlockedBySite(_webViewModels[_currentIndex!]),
                         globalUserScripts: _globalUserScripts,
@@ -3646,6 +3700,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               MaterialPageRoute(
                 builder: (context) => SettingsScreen(
                   webViewModel: _webViewModels[_currentIndex!],
+                  otherSites: _webViewModels
+                      .where((m) => m.siteId != _webViewModels[_currentIndex!].siteId)
+                      .toList(growable: false),
                   useContainers: _useContainers,
                   notificationsBlockedBySite: _notificationsBlockedBySite(_webViewModels[_currentIndex!]),
                   globalUserScripts: _globalUserScripts,

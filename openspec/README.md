@@ -22,6 +22,7 @@ openspec/
     ├── icon-fetching/spec.md             # Progressive favicon loading
     ├── language/spec.md                  # Per-site language (Accept-Language + navigator.language override)
     ├── lazy-webview-loading/spec.md      # On-demand webview creation
+    ├── link-intent-routing/spec.md       # Per-site domain claims + share/open intent dispatch (LIR-001..LIR-012)
     ├── localcdn/spec.md                  # Local CDN resource caching
     ├── navigation/spec.md                # Back gesture, home button, pull-to-refresh
     ├── nested-url-blocking/spec.md       # Block tracking and popup URLs

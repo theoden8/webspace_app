@@ -174,7 +174,17 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun captureSharePayload(intent: Intent?) {
-        if (intent == null || intent.action != Intent.ACTION_SEND) return
+        if (intent == null) return
+        // LIR-004: ACTION_VIEW on webspace:// — pass the raw URI string
+        // through; the Dart side runs it through parseWebspaceUri.
+        if (intent.action == Intent.ACTION_VIEW) {
+            val data = intent.data ?: return
+            if (data.scheme?.lowercase() == "webspace") {
+                pendingShareUrl = data.toString()
+            }
+            return
+        }
+        if (intent.action != Intent.ACTION_SEND) return
         val mime = intent.type?.lowercase() ?: ""
         // Prefer HTML when the sharer signals it via mime type OR ships
         // a text/html stream extra. Sharers that pass HTML as a tiny

@@ -192,7 +192,7 @@ class LinkIntentDispatchEngine {
     );
   }
 
-  /// User picked a "Open in <site>" row from the picker.
+  /// User picked an "Open in [site]" row from the picker.
   static DispatchAction openInChosen({
     required Uri inbound,
     required DispatchableSite site,
@@ -201,7 +201,7 @@ class LinkIntentDispatchEngine {
     return _openInExisting(site, target);
   }
 
-  /// User picked "Send <host> (and subdomains) to <site>". The returned
+  /// User picked "Send [host] (and subdomains) to [site]". The returned
   /// [DispatchBindAndOpen] tells the executor to mutate the site's
   /// claim list and then proceed with the same in-domain decision.
   static DispatchAction bindToSite({
@@ -223,7 +223,7 @@ class LinkIntentDispatchEngine {
     );
   }
 
-  /// User picked "Create new site for <host>".
+  /// User picked "Create new site for [host]".
   static DispatchAction createNew({required Uri inbound}) {
     final target = _normalizeInbound(inbound) ?? inbound;
     final home = LinkRoutingService.strippedHomeUrl(target);

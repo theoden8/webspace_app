@@ -42,6 +42,11 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onShowTabStripChanged;
   final bool showStatsBanner;
   final ValueChanged<bool> onShowStatsBannerChanged;
+  /// LIR-008: master "Handle shared links" switch + entry into the
+  /// routing overview screen. The wrapping page handles persistence.
+  final bool linkHandlingEnabled;
+  final ValueChanged<bool> onLinkHandlingEnabledChanged;
+  final VoidCallback onOpenLinkHandlingSettings;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
   /// Fired after the global outbound proxy is updated. Parent should
@@ -66,6 +71,9 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onShowTabStripChanged,
     required this.showStatsBanner,
     required this.onShowStatsBannerChanged,
+    required this.linkHandlingEnabled,
+    required this.onLinkHandlingEnabledChanged,
+    required this.onOpenLinkHandlingSettings,
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onOutboundProxyChanged,
@@ -635,6 +643,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               });
               widget.onShowStatsBannerChanged(value);
             },
+          ),
+          ListTile(
+            leading: const Icon(Icons.share_outlined),
+            title: const Text('Link handling'),
+            subtitle: Text(widget.linkHandlingEnabled
+                ? 'Handle shared links and webspace:// URLs'
+                : 'Off — share intents and webspace:// URLs are dropped'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: widget.onOpenLinkHandlingSettings,
           ),
           const Divider(height: 32),
           // Global outbound proxy section

@@ -61,6 +61,12 @@ import UserNotifications
         let url = self.pendingShareUrl
         self.pendingShareUrl = nil
         result(url)
+      case "consumeLaunchHtml":
+        // LIR-012: iOS Share Extension HTML delivery isn't wired yet
+        // (depends on the Share Extension target work in tasks 5.1 / 5.5).
+        // Return null so the Dart side falls through to the URL channel
+        // without raising MissingPluginException.
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -70,7 +76,14 @@ import UserNotifications
   private func capturePendingShareUrl(from url: URL) {
     guard url.scheme?.lowercased() == "webspace" else { return }
     let host = url.host?.lowercased()
-    if host == "share" {
+    // LIR-004: webspace://open?url=<encoded http(s)> is the canonical form
+    // for "Open in WebSpace" links from external apps. Pass the WHOLE URL
+    // through to Dart — `LinkRoutingService.parseWebspaceUri` validates and
+    // unwraps the inner http(s) target. The legacy `webspace://share?url=`
+    // form is preserved below for back-compat.
+    if host == "open" {
+      pendingShareUrl = url.absoluteString
+    } else if host == "share" {
       guard
         let inner = URLComponents(url: url, resolvingAgainstBaseURL: false)?
           .queryItems?.first(where: { $0.name == "url" })?.value,
