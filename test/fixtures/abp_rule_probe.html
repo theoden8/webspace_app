@@ -501,6 +501,16 @@
       },
     ];
 
+    function expectedNetworkLabel(c) {
+      if (c.expected !== 'block') return 'loaded';
+      // Native FastSubresourceInterceptor returns a synthetic empty
+      // response, which the JS layer sees as 'net-error' (img: bad
+      // decode) or 'loaded' (no-cors fetch resolves opaquely on the
+      // empty body). On iOS/macOS the JS setter wrap aborts before
+      // networking, producing 'js-blocked'.
+      return sniffPlatform().name === 'Android' ? 'net-error' : 'js-blocked';
+    }
+
     function renderNetworkTable() {
       const tbody = document.getElementById('network-results');
       tbody.innerHTML = '';
@@ -510,7 +520,7 @@
         row.innerHTML =
           '<td><code>' + escapeHtml(c.label) + '</code>' +
             '<div class="desc">' + escapeHtml(c.note) + '</div></td>' +
-          '<td class="expected-cell">' + (c.expected === 'block' ? 'js-blocked' : 'loaded') + '</td>' +
+          '<td class="expected-cell">' + expectedNetworkLabel(c) + '</td>' +
           '<td class="result-cell pending" data-result-img>pending…</td>' +
           '<td class="result-cell pending" data-result-fetch>pending…</td>' +
           '<td><span class="markup">' + escapeHtml(c.url) + '</span></td>';
@@ -559,19 +569,28 @@
       });
     }
 
-    function applyResult(cell, outcome, expected) {
+    function applyResult(cell, outcome, expected, method) {
       cell.className = 'result-cell';
       // 'js-blocked' is the iOS/macOS block signal (setter wrap aborts
-      // before networking). 'net-error' is also a block signal on
-      // Android (native FastSubresourceInterceptor returns a synthetic
-      // empty response that *does* create a Performance entry). For
-      // an `expected: allow` row only 'loaded' is a clean pass.
+      // before networking). On Android the native interceptor returns
+      // a synthetic empty response, so 'net-error' on the img path is
+      // the block signal there. The fetch column is fundamentally
+      // ambiguous on Android: with mode:'no-cors', a real cross-
+      // origin response and a blocked synthetic empty 200 both
+      // surface as a resolved opaque response (status=0, body
+      // unreadable, transferSize/encodedBodySize zeroed by browser
+      // policy). Color fetch=loaded as a neutral note on Android,
+      // not a fail — img is the authoritative signal there.
       const platform = sniffPlatform();
       const isAndroid = platform.name === 'Android';
       if (expected === 'block') {
-        const blockOutcome = outcome === 'js-blocked' ||
-          (isAndroid && outcome === 'net-error');
-        cell.classList.add(blockOutcome ? 'ok' : 'fail');
+        if (isAndroid && method === 'fetch') {
+          cell.classList.add('note');
+        } else {
+          const blockOutcome = outcome === 'js-blocked' ||
+            (isAndroid && outcome === 'net-error');
+          cell.classList.add(blockOutcome ? 'ok' : 'fail');
+        }
       } else {
         cell.classList.add(outcome === 'loaded' ? 'ok' : 'note');
       }
@@ -586,8 +605,8 @@
           probeImg(c.url),
           probeFetch(c.url),
         ]);
-        applyResult(document.querySelector(row + '[data-result-img]'),   imgOut,   c.expected);
-        applyResult(document.querySelector(row + '[data-result-fetch]'), fetchOut, c.expected);
+        applyResult(document.querySelector(row + '[data-result-img]'),   imgOut,   c.expected, 'img');
+        applyResult(document.querySelector(row + '[data-result-fetch]'), fetchOut, c.expected, 'fetch');
       }));
     }
 
