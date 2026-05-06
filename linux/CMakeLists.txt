@@ -139,3 +139,13 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endif()
+
+# LIR-004: webspace:// scheme handler. Bundles the .desktop file alongside
+# the binary; downstream packagers should additionally copy it to
+# `${XDG_DATA_DIRS}/applications/` (e.g. `/usr/share/applications/`) and
+# run `update-desktop-database` so xdg-open dispatches `webspace://`. The
+# bundled copy is documented for users running `flutter build linux`
+# manually.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/webspace.desktop"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)

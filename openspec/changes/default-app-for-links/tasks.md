@@ -1,74 +1,79 @@
 ## 1. Domain-claim model and migration
 
-- [ ] 1.1 Add `DomainClaim` + `DomainClaimKind` to `lib/web_view_model.dart` with canonical-form constructor (lowercase, strip scheme/port).
-- [ ] 1.2 Extend `WebViewModel` with `List<DomainClaim> domainClaims`.
-- [ ] 1.3 Add `toJson` / `fromJson` support, synthesizing `[DomainClaim.baseDomain(getBaseDomain(initUrl))]` when absent and omitting the field on write when it equals that default.
-- [ ] 1.4 Unit tests in `test/domain_claim_test.dart`: canonicalization, equality, JSON round-trip, legacy synthesis, serialization stability.
+- [x] 1.1 Add `DomainClaim` + `DomainClaimKind` to `lib/services/domain_claim.dart` (extracted from `web_view_model.dart` to avoid an import cycle) with canonical-form constructor (lowercase, strip scheme/port, drop `*.` prefix, unbracket IPv6).
+- [x] 1.2 Extend `WebViewModel` with `List<DomainClaim>? domainClaims` (nullable so the synthesized default doesn't bloat on-disk JSON).
+- [x] 1.3 Add `toJson` / `fromJson` support; `effectiveDomainClaims` getter synthesizes `[DomainClaim.baseDomain(getBaseDomain(initUrl))]` when absent, and `toJson` omits the field when the explicit list is null.
+- [x] 1.4 Unit tests in `test/link_routing_test.dart` (canonicalization / equality / JSON round-trip) and `test/web_view_model_test.dart` (synthesized default, explicit-list round-trip).
 
 ## 2. Routing resolver (pure Dart)
 
-- [ ] 2.1 Create `lib/services/link_routing_service.dart` exposing `RoutingMatch resolve(Uri url, List<WebViewModel> sites)` with specificity scoring per design D2.
-- [ ] 2.2 Implement `RoutingMatch.ambiguous(List<WebViewModel>)` for top-score ties; `RoutingMatch.none()` for no match.
-- [ ] 2.3 Implement `List<ClaimConflict> validateClaims(WebViewModel edited, List<WebViewModel> others)` per design D3.
-- [ ] 2.4 Implement `Uri? parseWebspaceUri(Uri raw)` that returns the inner `http`/`https` target for `webspace://open?url=...` and null otherwise.
-- [ ] 2.5 Unit tests `test/link_routing_test.dart`: exact > wildcard > base ordering, ties, no-match, multi-part TLDs, IPs, validator hijack/warn paths, `webspace://` parse (valid, malformed, non-http target).
+- [x] 2.1 Create `lib/services/link_routing_service.dart` exposing `RoutingMatch resolve(Uri url, List<RoutableSite> sites)` with specificity scoring per design D2b.
+- [x] 2.2 Implement `RoutingSingle` / `RoutingAmbiguous` / `RoutingNone` (sealed) for top-score ties and no-match cases.
+- [x] 2.3 Implement `List<ClaimConflict> validateClaims(String editedSiteId, List<DomainClaim> editedClaims, List<RoutableSite> others)` per design D3.
+- [x] 2.4 Implement `Uri? parseWebspaceUri(Uri raw)` that returns the inner `http`/`https` target for `webspace://open?url=...` and null otherwise.
+- [x] 2.5 Implement `String? strippedHomeUrl(Uri url)` returning `<scheme>://<host>[:port]/` for valid http(s) Uris (LIR-009 path stripping).
+- [x] 2.6 Implement `List<DomainClaim> claimsToAdoptHost(String host)` returning `[exactHost, wildcardSubdomain(base)]` for the LIR-010 "send domain to a site" option, deduplicated by callers against existing claim lists.
+- [x] 2.7 Unit tests `test/link_routing_test.dart`: exact > wildcard > base ordering, ties, no-match, multi-part TLDs, IPs, validator hijack/warn paths, `webspace://` parse (valid, malformed, non-http target), stripped-path edge cases (port preservation, query/fragment dropped, malformed rejection), `claimsToAdoptHost` shape + dedup.
 
 ## 3. Platform channel for link intents
 
-- [ ] 3.1 Define `MethodChannel("webspace/link_intent")` with `Future<String?> getInitialUrl()` and event `onUrlArrived(url)`.
-- [ ] 3.2 `LinkIntentService` in `lib/services/link_intent_service.dart` exposing `Stream<Uri>` and the initial-url future. Internally runs each URL through `parseWebspaceUri` to unwrap `webspace://open?url=...` before emitting.
-- [ ] 3.3 Wire subscription in `WebSpacePage.initState`; on each URL, run the resolver and dispatch activation / picker / no-match flow.
+- [x] 3.1 Reuse the existing `MethodChannel("org.codeberg.theoden8.webspace/share_intent")` (added in #292) with `consumeLaunchUrl` and a new `consumeLaunchHtml` method for HTML payloads (LIR-012).
+- [x] 3.2 `ShareIntentService` in `lib/services/share_intent_service.dart` exposes `consumeLaunchUrl()` (returns `String?`) and `consumeLaunchHtml()` (returns `InboundHtmlShare?`). Webspace-scheme unwrap happens in `LinkRoutingService.parseWebspaceUri`, called by the dispatch engine when a `webspace://` URL arrives.
+- [x] 3.3 `_handleShareIntent` in `lib/main.dart` consumes both channels (HTML first), wraps the payload in `InboundUrl` / `InboundHtml`, and hands it to `LinkIntentDispatchEngine.dispatch`. Wired on cold start (`runApp`) and warm-start lifecycle resume.
 - [ ] 3.4 Widget test `test/link_intent_dispatch_test.dart` with a fake channel: cold-start delivery, warm-start delivery, picker on ties, no-match bottom sheet.
 
 ## 4. Android integration
 
-- [ ] 4.1 Add `ACTION_SEND` intent-filter (`mimeType="text/plain"`) on `MainActivity` in `android/app/src/main/AndroidManifest.xml`.
-- [ ] 4.2 Add `<intent-filter>` for `<data android:scheme="webspace"/>` with `BROWSABLE` + `DEFAULT` categories on `MainActivity`. No `autoVerify`.
-- [ ] 4.3 `MainActivity` Kotlin: capture cold-start and `onNewIntent` URL — for `ACTION_VIEW` read `intent.data`, for `ACTION_SEND` read `EXTRA_TEXT` and extract the URL substring. Deliver via the channel. Do NOT add `FLAG_ACTIVITY_NEW_TASK`.
-- [ ] 4.4 Manual smoke test: share from Chrome to WebSpace; tap a `webspace://open?url=...` URL from Notes; confirm Back returns to source.
+- [x] 4.1 `ACTION_SEND` intent-filter on `MainActivity` in `android/app/src/main/AndroidManifest.xml`. Mime types: `text/plain`, `text/html`, `application/xhtml+xml` (LIR-012).
+- [x] 4.2 `<intent-filter>` for `<data android:scheme="webspace"/>` with `BROWSABLE` + `DEFAULT` categories on `MainActivity`. No `autoVerify`.
+- [x] 4.3 `MainActivity` Kotlin: `captureSharePayload` reads cold-start and `onNewIntent` intents — `ACTION_VIEW` with a `webspace://` URI passes the raw string through; `ACTION_SEND` with `EXTRA_TEXT` → URL substring extraction; `ACTION_SEND` with `EXTRA_STREAM` (HTML mime or `.html`/`.htm` extension) → reads file content into memory + extracts `<title>` (or filename) for the suggested title. No `FLAG_ACTIVITY_NEW_TASK`.
+- [ ] 4.4 Manual smoke test: share from Chrome to WebSpace; share an HTML file from Files / Drive; tap a `webspace://open?url=...` URL from Notes; confirm Back returns to source.
 
 ## 5. iOS integration
 
-- [ ] 5.1 Add new target `WebSpaceShareExtension` in `ios/` with `NSExtensionActivationSupportsWebURLWithMaxCount=1`, `NSExtensionActivationSupportsText=1`.
-- [ ] 5.2 Create App Group `group.com.theoden8.webspace`; entitlement on both main app and extension.
-- [ ] 5.3 Register `webspace` scheme in main app `Info.plist` `CFBundleURLTypes`.
-- [ ] 5.4 Implement `application:openURL:options:` (or `SceneDelegate.scene(_:openURLContexts:)`) to forward the URL to the `webspace/link_intent` channel.
-- [ ] 5.5 Extension `ShareViewController` extracts URL via `NSItemProvider`, writes `pending_link` to shared `UserDefaults`, calls `extensionContext?.open(URL(string: "webspace://open?url=<encoded>")!)`, then `completeRequest`.
-- [ ] 5.6 Main app reads pending URL from launch URL or App Group, then clears the App Group key.
-- [ ] 5.7 Manual smoke test: share from Safari → routed to matching site; tap a `webspace://` URL in Notes → app opens.
+> Basic URL share already lands via PR #297 (`Register WebSpace as iOS share target`); the channel name and `consumeLaunchUrl` API are reused. The Share Extension target, App Group, and `webspace://` scheme registration are still pending.
+
+- [ ] 5.1 Add new target `WebSpaceShareExtension` in `ios/` with `NSExtensionActivationSupportsWebURLWithMaxCount=1`, `NSExtensionActivationSupportsText=1`, `NSExtensionActivationSupportsFileWithMaxCount=1` (HTML files for LIR-012). **Requires Xcode** — cannot land from headless tooling.
+- [ ] 5.2 Create App Group `group.com.theoden8.webspace`; entitlement on both main app and extension. **Requires Xcode**.
+- [x] 5.3 `webspace` scheme registered in `ios/Runner/Info.plist` `CFBundleURLTypes` (already in master before this change).
+- [x] 5.4 `application:openURL:options:` accepts `webspace://open?url=<encoded http(s)>`, `webspace://share?url=...` (legacy), and `webspace://qr/...`; pending URL is exposed to Dart via the existing `share_intent` channel. New no-op `consumeLaunchHtml` channel method returns null until the Share Extension target lands (5.1) — Dart side falls through to URL channel without raising MissingPluginException.
+- [ ] 5.5 Extension `ShareViewController` extracts URL via `NSItemProvider` (or HTML file content), writes `pending_link` / `pending_html` to shared `UserDefaults`, calls `extensionContext?.open(URL(string: "webspace://open?url=<encoded>")!)`, then `completeRequest`. **Requires Xcode**.
+- [ ] 5.6 Main app reads pending URL/HTML from launch URL or App Group, then clears the App Group key. App Group draining for the URL is already wired (`drainAppGroupPendingUrl` in AppDelegate.swift); HTML drain stays pending until 5.1 / 5.5.
+- [ ] 5.7 Manual smoke test: share URL from Safari, share HTML file from Files, tap `webspace://` URL in Notes.
 
 ## 6. macOS integration
 
-- [ ] 6.1 Mirror steps 5.1–5.6 with a macOS Share Extension target under `macos/`.
+- [x] 6.1a `webspace` scheme registered in `macos/Runner/Info.plist` `CFBundleURLTypes`. `application:openURLs:` forwards `webspace://open` / `webspace://qr` to the existing `share_intent` channel; `consumeLaunchHtml` returns null until the Share Extension target ships.
+- [ ] 6.1b Add a macOS Share Extension target with the same activation rules as iOS 5.1 + App Group entitlement. **Requires Xcode** — cannot land from headless tooling.
 - [ ] 6.2 Manual smoke test on macOS Sonoma+.
 
 ## 7. Linux `webspace://` registration
 
-- [ ] 7.1 Author `linux/webspace.desktop` with `MimeType=x-scheme-handler/webspace;` and the runner's executable as `Exec=`.
-- [ ] 7.2 Wire CMake install rule under `linux/CMakeLists.txt` to copy the desktop file to `~/.local/share/applications/` and run `update-desktop-database` post-install (best-effort).
-- [ ] 7.3 Linux runner: capture cold-start argv URL and `g_application_open` (warm-start) URLs; deliver via the channel.
+- [x] 7.1 `linux/webspace.desktop` with `MimeType=x-scheme-handler/webspace;` and `Exec=webspace_app %u`. `StartupWMClass` matches the GTK app.
+- [x] 7.2 CMake install rule in `linux/CMakeLists.txt` bundles the desktop file alongside the runner. Distribution packagers must additionally copy it to `${XDG_DATA_DIRS}/applications/` and run `update-desktop-database`; documented inline.
+- [x] 7.3 Linux runner now sets `G_APPLICATION_HANDLES_OPEN`, intercepts `webspace://...` arguments in `local_command_line` and routes them through `GApplication::open`; the `share_intent` `FlMethodChannel` is registered on the FlView and exposes `consumeLaunchUrl` + a stub `consumeLaunchHtml`.
 - [ ] 7.4 Manual smoke test: `xdg-open 'webspace://open?url=https://example.org/'` after install.
 
 ## 8. Settings + UI
 
-- [ ] 8.1 Add "Link handling" entry in the existing settings UI.
-- [ ] 8.2 Master "Handle shared links" switch persisted via `SharedPreferences` key `link_handling_enabled`. When off, the `LinkIntentService` ignores URLs and writes the flag to the App Group (iOS/macOS) so the Share Extension respects it.
-- [ ] 8.3 Routing overview list: iterate all sites, show each claim → site; conflict badges from `validateClaims`.
-- [ ] 8.4 Domain-claim editor in site settings: add/remove `exactHost` and `wildcardSubdomain` claims; `baseDomain` is not user-selectable. Validation runs `validateClaims`.
-- [ ] 8.5 No-match bottom sheet: "Create site for <host>?" creating a new `WebViewModel` with `initUrl=<arrived URL>` and synthesized `baseDomain` claim. After accept, activate the site immediately.
-- [ ] 8.6 Disambiguation picker: modal bottom sheet listing tied sites; selection activates that site.
+- [x] 8.1 "Link handling" entry in the existing app settings (`AppSettingsScreen` opens `LinkHandlingSettingsScreen`).
+- [x] 8.2 Master "Handle shared links" switch persisted via `SharedPreferences` key `linkHandlingEnabled` and registered in `kExportedAppPrefs` so it round-trips through backups. `_handleShareIntent` early-returns (logs and drops) when off, for both URL and HTML payloads. Writing the flag to the iOS/macOS App Group still depends on the Share Extension target work in 5.x.
+- [x] 8.3 Routing overview list in `LinkHandlingSettingsScreen`: iterates `_webViewModels`, renders each site's effective claims as chips, surfaces a "N conflicts" badge from `LinkRoutingService.validateClaims`. Tapping a row pops the screen and reopens the per-site settings.
+- [x] 8.4 `DomainClaimsEditor` widget embedded in `lib/screens/settings.dart`. Lets the user add/remove `exactHost` and `wildcardSubdomain` claims; the synthesized `baseDomain` claim shows but cannot be removed when it's the last claim. Hijack and overlap conflicts surface inline against the claim row. `onChanged` returns `null` when the user reverts to the synthesized default so on-disk JSON stays minimal.
+- [x] 8.5 LIR-010 dispatch picker: single bottom sheet with up to three option groups — (1) one row per resolver winner ("Match router default" fast-pathed when there is exactly one), (2) "Send <host> (and subdomains) to a site" → site picker → append `claimsToAdoptHost(host)` (deduped) and activate, (3) "Create new site for <host>" → `WebViewModel(initUrl: strippedHomeUrl(url), domainClaims: [baseDomain(...)])`, then navigate the new webview to the full inbound URL on first activation.
+- [x] 8.6 "Test routing" entry in `LinkHandlingSettingsScreen` re-runs the `LinkIntentDispatchEngine` for an arbitrary URL the user types, which surfaces the LIR-010 picker on demand even when a single resolver match exists. Disabled when the master switch is off.
 
 ## 9. WEBSPACE-011 wiring
 
-- [ ] 9.1 In `LinkIntentService` dispatcher: after the resolver returns a single match, check membership in current webspace; if not a member, switch to "All" via the existing webspace selection path, then activate. Surface snackbar.
-- [ ] 9.2 Widget test asserting the auto-switch + snackbar (covered by `test/link_intent_dispatch_test.dart`).
+- [x] 9.1 `_maybeSwitchToAllForSite` runs at the top of every executor (`_executeOpenInMain`, `_executeOpenNested`, `_executeBindAndOpen`, `_executeCreateSite`, `_executeCreateSiteFromHtml` via `_registerNewSite`) — when the matched site is outside the current named webspace, the active webspace switches to "All" with a snackbar before activation.
+- [ ] 9.2 Widget test asserting the auto-switch + snackbar. Engine-level coverage is provided by `test/link_intent_dispatch_engine_test.dart`; a full widget test of `_WebSpacePageState` is heavy because the dispatcher is currently embedded there. Track as follow-up alongside 3.4 once the dispatcher widget is extracted.
 
 ## 10. Validation and CI
 
-- [ ] 10.1 Run `fvm flutter analyze`.
-- [ ] 10.2 Run `fvm flutter test`.
-- [ ] 10.3 Run `npx openspec validate default-app-for-links --strict`.
-- [ ] 10.4 Update `openspec/README.md` spec table to add `link-intent-routing`.
+- [x] 10.1 `fvm flutter analyze` — clean for new files; only pre-existing repo lints remain.
+- [x] 10.2 `fvm flutter test` — full suite green. Engine + widget tests added: `test/link_intent_dispatch_engine_test.dart`, `test/link_routing_test.dart`, `test/link_handling_settings_test.dart`, plus extensions to `test/web_view_model_test.dart`.
+- [x] 10.3 `npx openspec validate default-app-for-links --strict` — passes.
+- [x] 10.4 `openspec/README.md` lists `link-intent-routing` in the structure table.
 
 ## 11. Manual test sheet
 

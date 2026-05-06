@@ -10,13 +10,14 @@ The "always-isolate-each-site" goal that surfaced during scoping is **already sa
   - exact host (`twitter.com`)
   - wildcard subdomain (`*.mastodon.social`)
   - multiple patterns per site (e.g., one "Google" site handling `google.com`, `*.google.com`, `gmail.com`)
-- **URL routing resolver**: given an incoming URL, find the site whose claim list matches most specifically (exact host > wildcard subdomain > base-domain fallback). On true ties, surface a picker. On no match, offer "create new site for <host>?".
+- **URL routing resolver**: given an incoming URL, find the site whose claim list matches most specifically (exact host > wildcard subdomain > base-domain fallback). On true ties or no match, surface the LIR-010 three-option dispatch picker (router default for unique winners, "send domain & subdomains to <site>" for binding to an existing site, "create new site (stripped path)" for the empty case).
+- **Stripped-path site creation**: when the user accepts the create-new-site option, the new site's `initUrl` is `<scheme>://<host>[:port]/` only — path/query/fragment are dropped — so the site's persisted home is the domain root rather than whatever deep article triggered the create. The first activation still navigates to the full inbound URL.
 - **Domain-claim conflict prevention**: a site cannot claim a domain pattern whose base domain equals another site's `initUrl` base domain; the editor surfaces a validation error.
 - **`webspace://` URL scheme as a first-class cross-platform entry point**: registered on Android (intent-filter), iOS/macOS (`CFBundleURLTypes`), Linux (`.desktop` file `MimeType=x-scheme-handler/webspace;`). Format: `webspace://open?url=<encoded-target-url>`. Used by:
   - the iOS/macOS Share Extension to hand the URL off from extension process to main app
   - external apps wanting to provide an "Open in WebSpace" button without competing with browsers in the https chooser
   - paste-and-tap from Notes/Messages/etc.
-- **Android `ACTION_SEND` (share-intent) handler**: any app can share a URL (as `text/plain`) to WebSpace via the share sheet; it routes through the resolver.
+- **Android `ACTION_SEND` (share-intent) handler**: any app can share a URL (as `text/plain`) to WebSpace via the share sheet; it routes through the resolver. `text/html` and `application/xhtml+xml` shares with `EXTRA_STREAM` are read into memory and short-circuit to "create new site" (LIR-012) — existing sites can't claim opaque file content.
 - **iOS Share Extension** (`NSExtensionActivationSupportsWebURLWithMaxCount`): opens shared URLs in the main app via `webspace://open?url=...`.
 - **macOS Share Extension**: equivalent of iOS.
 - **Global routing overview UI**: a settings screen listing every claimed domain pattern → site, conflict warnings, and a master "Handle shared links" switch.
@@ -34,7 +35,7 @@ The "always-isolate-each-site" goal that surfaced during scoping is **already sa
 ## Capabilities
 
 ### New Capabilities
-- `link-intent-routing`: per-site domain-claim list (exact / wildcard-subdomain / base-domain), URL-to-site resolver with most-specific-match ranking and picker/no-match fallback, share-intent entry points (Android `ACTION_SEND`, iOS/macOS Share Extension), `webspace://open?url=...` cross-platform URL scheme, global routing overview settings screen, back-to-referring-app behavior.
+- `link-intent-routing`: per-site domain-claim list (exact / wildcard-subdomain / base-domain), URL-to-site resolver with most-specific-match ranking, three-option dispatch picker (router default / bind domain to existing site / create new site with stripped path), share-intent entry points (Android `ACTION_SEND`, iOS/macOS Share Extension), `webspace://open?url=...` cross-platform URL scheme, global routing overview settings screen, back-to-referring-app behavior.
 
 ### Modified Capabilities
 - `webspaces`: add WEBSPACE-011 — intent-routed URL targeting a site outside the current webspace switches to "All" before activation.

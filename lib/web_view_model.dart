@@ -8,6 +8,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
+import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -326,6 +327,25 @@ class WebViewModel {
   bool spoofTimezoneFromLocation;
   WebRtcPolicy webRtcPolicy;
 
+  /// User-defined domain-claim list used by `LinkRoutingService` to route
+  /// inbound share/open-intent URLs to a site (LIR-001..LIR-010). When
+  /// null, the resolver behaves as if the site claimed
+  /// `[baseDomain(getBaseDomain(initUrl))]` (the legacy synthesized
+  /// default). Serialised only when non-null so on-disk JSON for users who
+  /// never touch the feature stays byte-identical.
+  List<DomainClaim>? domainClaims;
+
+  /// View used by the resolver — always non-empty: returns the explicit
+  /// `domainClaims` if the user has set them, otherwise the synthesized
+  /// `[baseDomain(getBaseDomain(initUrl))]` per LIR-001.
+  List<DomainClaim> get effectiveDomainClaims {
+    final explicit = domainClaims;
+    if (explicit != null && explicit.isNotEmpty) return explicit;
+    final base = getBaseDomain(initUrl);
+    if (base.isEmpty) return const [];
+    return [DomainClaim.baseDomain(base)];
+  }
+
   /// Whether the webview is currently mid-navigation. Set true on
   /// `onLoadStart`, false on `onLoadStop`. Driven by the
   /// `WebViewConfig.onLoadingChanged` callback wired in [getWebView].
@@ -378,6 +398,7 @@ class WebViewModel {
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
+    this.domainClaims,
     this.stateSetterF,
   })  : userScripts = userScripts ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
@@ -1157,6 +1178,8 @@ class WebViewModel {
         if (spoofTimezone != null) 'spoofTimezone': spoofTimezone,
         if (spoofTimezoneFromLocation) 'spoofTimezoneFromLocation': true,
         'webRtcPolicy': webRtcPolicy.name,
+        if (domainClaims != null && domainClaims!.isNotEmpty)
+          'domainClaims': domainClaims!.map((c) => c.toJson()).toList(),
       };
   }
 
@@ -1220,6 +1243,9 @@ class WebViewModel {
         (p) => p.name == json['webRtcPolicy'],
         orElse: () => WebRtcPolicy.defaultPolicy,
       ),
+      domainClaims: (json['domainClaims'] as List<dynamic>?)
+          ?.map((e) => DomainClaim.fromJson(e as Map<String, dynamic>))
+          .toList(),
       stateSetterF: stateSetterF,
     )..pageTitle = dropUrl ? null : json['pageTitle'];
   }

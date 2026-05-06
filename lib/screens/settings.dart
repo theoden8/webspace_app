@@ -15,6 +15,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/screens/location_picker.dart';
+import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -96,6 +97,10 @@ class SettingsScreen extends StatefulWidget {
   /// platforms or when there's no conflict, this is `null`.
   final String? notificationsBlockedBySite;
 
+  /// Sites OTHER than [webViewModel], used by the domain-claim editor
+  /// (LIR-008 task 8.4) for hijack/overlap detection.
+  final List<WebViewModel> otherSites;
+
   SettingsScreen({
     required this.webViewModel,
     this.onSettingsSaved,
@@ -105,6 +110,7 @@ class SettingsScreen extends StatefulWidget {
     this.onScriptsChanged,
     this.useContainers = false,
     this.notificationsBlockedBySite,
+    this.otherSites = const [],
   });
 
   @override
@@ -1137,6 +1143,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         }
                       : null),
             ),
+          // LIR-008 / LIR-001: per-site domain-claim editor. Lets the user
+          // tell the share-intent resolver which hostnames belong to this
+          // site beyond the synthesized `baseDomain(initUrl)` default.
+          DomainClaimsEditor(
+            model: widget.webViewModel,
+            otherSites: widget.otherSites,
+            onChanged: (next) {
+              widget.webViewModel.domainClaims = next;
+            },
+          ),
+          const SizedBox(height: 8),
           ListTile(
             title: const Text('User Scripts'),
             subtitle: Text(

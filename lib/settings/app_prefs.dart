@@ -33,7 +33,13 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // value via `resolveEffectiveProxy`. Stored as a JSON-encoded
   // UserProxySettings; round-trips through backup/restore as a String.
   kGlobalOutboundProxyKey: kGlobalOutboundProxyDefault,
+  // LIR-008: master "Handle shared links" switch. When false, the app
+  // ignores incoming share/open intents (Android ACTION_SEND, webspace://,
+  // iOS/macOS Share Extension) without crashing. Default: enabled.
+  'linkHandlingEnabled': true,
 };
+
+const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';
 
 /// Read every registered pref from [prefs] into a map suitable for embedding
 /// in a `SettingsBackup`. Missing keys fall back to their registry default.

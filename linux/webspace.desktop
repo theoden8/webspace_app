@@ -1,0 +1,20 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WebSpace
+GenericName=Multi-site web browser
+Comment=Manage multiple websites with per-site cookie isolation
+# Adjust if installing into a custom prefix; the package usually
+# substitutes Exec= with the on-disk binary path. The %u substitutes the
+# inbound URL when launched via xdg-open.
+Exec=webspace_app %u
+Icon=webspace
+Terminal=false
+Categories=Network;WebBrowser;
+# LIR-004: register WebSpace as the handler for webspace://. xdg-open
+# routes webspace:// URLs (typically built as `webspace://open?url=...`)
+# to this entry. No https handler — see openspec proposal.
+MimeType=x-scheme-handler/webspace;
+StartupNotify=true
+StartupWMClass=webspace_app
+SingleMainWindow=true
