@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSpace ABP rule probe</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 960px; margin: 1em auto; padding: 0 1em; color: #222; }
+    h1 { font-size: 1.4em; }
+    h2 { font-size: 1.1em; margin-top: 2em; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    p { line-height: 1.45; }
+    table.probe { border-collapse: collapse; width: 100%; font-size: 13px; }
+    table.probe th, table.probe td { border: 1px solid #d0d0d0; padding: 6px 8px; text-align: left; vertical-align: top; }
+    table.probe th { background: #f4f4f4; font-weight: 600; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.95em; }
+    .result-cell { font-weight: 600; white-space: nowrap; }
+    .result-cell.blocked   { background: #cef4d8; color: #186; }
+    .result-cell.visible   { background: #fde0e0; color: #a22; }
+    .result-cell.pending   { background: #fff3c4; color: #976; }
+    .result-cell.note      { background: #eef; color: #225; }
+    .desc { color: #555; font-size: 0.9em; }
+    .markup { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85em; word-break: break-all; }
+    .toolbar { margin: 1em 0; display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar button { padding: 6px 10px; border: 1px solid #ccc; background: #fafafa; border-radius: 4px; cursor: pointer; }
+    .toolbar button:active { background: #eaeaea; }
+    .legend { margin-top: 1em; font-size: 0.9em; color: #444; }
+    .legend span { display: inline-block; padding: 2px 8px; border-radius: 3px; margin-right: 4px; font-weight: 600; }
+    /* The probe container is moved off-screen; the test elements still
+       receive computed style from any cosmetic <style> the content
+       blocker injected at DOCUMENT_START. getComputedStyle sees the
+       hide regardless of layout position. */
+    .probe-stage { position: absolute; left: -99999px; top: 0; width: 1px; height: 1px; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <h1>WebSpace ABP rule probe</h1>
+  <p>Drops a sample element for every rule shape we support, waits for the cosmetic shim to settle, then reports per row whether the target's computed display is <code>none</code>. Use this to verify which rule kinds your active filter lists actually catch.</p>
+
+  <p class="legend">
+    <span class="result-cell blocked">BLOCKED</span> rule fired — element hidden
+    <span class="result-cell visible">visible</span> rule did not fire
+    <span class="result-cell pending">pending&hellip;</span> waiting for shim to settle
+    <span class="result-cell note">note</span> host- or network-dependent
+  </p>
+
+  <div class="toolbar">
+    <button onclick="measure()">Re-measure now</button>
+    <button onclick="runNetworkProbes()">Re-run network probes</button>
+    <span id="host-label" class="desc"></span>
+  </div>
+
+  <h2>Cosmetic rules</h2>
+  <p class="desc">Each row's target lives in a hidden stage element. The shim's early <code>&lt;style&gt;</code> tag (if it caught this rule) will set <code>display: none !important</code> on the target.</p>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 28%">Rule shape</th>
+        <th style="width: 18%">Status</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="cosmetic-results"></tbody>
+  </table>
+
+  <h2>Network rules (heuristic)</h2>
+  <p class="desc">Loads a tiny resource from each domain and reports whether the load succeeded. A failed load may mean the rule fired OR a transient network error; the <code>example.com</code> control row anchors the difference. Sub-resource blocking on iOS/macOS goes through the JS interceptor; on Android through the native interceptor.</p>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 28%">Rule</th>
+        <th style="width: 18%">Status</th>
+        <th>Probe target</th>
+      </tr>
+    </thead>
+    <tbody id="network-results"></tbody>
+  </table>
+
+  <h2>Page itself, for sanity</h2>
+  <p>If the chrome below is hidden, your filter list is over-matching the test page itself — file a bug.</p>
+  <p>This paragraph should remain visible. <span class="probe-page-chrome-marker">[chrome marker]</span></p>
+
+  <div class="probe-stage" id="cosmetic-stage"></div>
+
+  <script>
+    // ---------- cosmetic probes ----------
+    // Each entry: {id, label, ruleShape, expected, html, note?}
+    //   expected: 'hide' | 'keep' | 'host' (for domain-scoped rules)
+    //   html: markup injected into the off-screen stage; the FIRST element
+    //         child is the probe target.
+    const COSMETIC_CASES = [
+      {
+        id: 'class-advert',
+        label: '##.advert',
+        expected: 'hide',
+        html: '<div class="advert">advert sample</div>',
+      },
+      {
+        id: 'class-ad-banner',
+        label: '##.ad-banner',
+        expected: 'hide',
+        html: '<div class="ad-banner">ad-banner sample</div>',
+      },
+      {
+        id: 'class-sponsored',
+        label: '##.sponsored-content',
+        expected: 'hide',
+        html: '<div class="sponsored-content">sponsored sample</div>',
+      },
+      {
+        id: 'attr-data-ad-slot',
+        label: '##div[data-ad-slot]',
+        expected: 'hide',
+        html: '<div data-ad-slot="123">attribute sample</div>',
+      },
+      {
+        id: 'attr-href-doubleclick',
+        label: '##a[href*="doubleclick.net"]',
+        expected: 'hide',
+        html: '<a href="https://doubleclick.net/foo">href sample</a>',
+      },
+      {
+        id: 'has-native',
+        label: '##div.article:has(div.adsbygoogle)',
+        expected: 'hide',
+        html: '<div class="article"><div class="adsbygoogle">x</div></div>',
+        note: 'native CSS :has() — handled by the early <style> reactively',
+      },
+      {
+        id: 'abp-has-rewritten',
+        label: '##div.feed-item:-abp-has(.ad-tag)',
+        expected: 'hide',
+        html: '<div class="feed-item"><span class="ad-tag">x</span>body</div>',
+        note: ':-abp-has() rewritten to standard :has() by parser',
+      },
+      {
+        id: 'has-text',
+        label: '##span.notice:has-text(Sponsored)',
+        expected: 'hide',
+        html: '<span class="notice">Sponsored item here</span>',
+        note: 'converted to text rule (MutationObserver path)',
+      },
+      {
+        id: 'contains',
+        label: '##p.story-body:contains(Advertisement)',
+        expected: 'hide',
+        html: '<p class="story-body">An Advertisement appears.</p>',
+        note: 'converted to text rule (MutationObserver path)',
+      },
+      {
+        id: 'feed-shared-ad',
+        label: 'linkedin.com##.feed-shared-update-v2--ad',
+        expected: 'host',
+        html: '<div class="feed-shared-update-v2--ad">linkedin native ad</div>',
+        note: 'fires only when host matches linkedin.com',
+      },
+      {
+        id: 'cnn-zone',
+        label: 'cnn.com##div[data-zone-id="ad"]',
+        expected: 'host',
+        html: '<div data-zone-id="ad">cnn ad zone</div>',
+        note: 'fires only when host matches cnn.com',
+      },
+      {
+        id: 'abp-contains-alt',
+        label: 'linkedin.com#?#div.feed-shared-actor:-abp-contains(/Promoted|Sponsored/)',
+        expected: 'host',
+        html: '<div class="feed-shared-actor">Promoted by Acme</div>',
+        note: 'host-scoped text rule with alternation',
+      },
+      // ---- negative controls ----
+      {
+        id: 'control-feed-item-clean',
+        label: '(control: feed-item without .ad-tag)',
+        expected: 'keep',
+        html: '<div class="feed-item">no ad-tag inside</div>',
+      },
+      {
+        id: 'control-notice-clean',
+        label: '(control: span.notice without "Sponsored")',
+        expected: 'keep',
+        html: '<span class="notice">Just a regular notice.</span>',
+      },
+      {
+        id: 'control-real',
+        label: '(control: arbitrary content)',
+        expected: 'keep',
+        html: '<p class="probe-real-content-marker">Editorial copy.</p>',
+      },
+    ];
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderCosmeticTable() {
+      const stage = document.getElementById('cosmetic-stage');
+      const tbody = document.getElementById('cosmetic-results');
+      for (const c of COSMETIC_CASES) {
+        const wrap = document.createElement('div');
+        wrap.id = 'probe-' + c.id;
+        wrap.innerHTML = c.html;
+        stage.appendChild(wrap);
+
+        const row = document.createElement('tr');
+        row.id = 'row-' + c.id;
+        const ruleCell = document.createElement('td');
+        ruleCell.innerHTML = '<code>' + escapeHtml(c.label) + '</code>' +
+          (c.note ? '<div class="desc">' + escapeHtml(c.note) + '</div>' : '');
+        const statusCell = document.createElement('td');
+        statusCell.className = 'result-cell pending';
+        statusCell.textContent = 'pending…';
+        statusCell.setAttribute('data-result', '');
+        const markupCell = document.createElement('td');
+        markupCell.innerHTML = '<span class="markup">' + escapeHtml(c.html) + '</span>';
+        row.appendChild(ruleCell);
+        row.appendChild(statusCell);
+        row.appendChild(markupCell);
+        tbody.appendChild(row);
+      }
+    }
+
+    function measure() {
+      for (const c of COSMETIC_CASES) {
+        const wrap = document.getElementById('probe-' + c.id);
+        if (!wrap) continue;
+        const target = wrap.firstElementChild || wrap;
+        const computedDisplay = getComputedStyle(target).display;
+        const inlineDisplay = target.style.display;
+        const hidden = computedDisplay === 'none';
+        const cell = document.querySelector('#row-' + c.id + ' [data-result]');
+        cell.className = 'result-cell';
+        let label;
+        if (c.expected === 'hide') {
+          if (hidden) {
+            cell.classList.add('blocked');
+            label = 'BLOCKED';
+          } else {
+            cell.classList.add('visible');
+            label = 'visible (rule did not fire)';
+          }
+        } else if (c.expected === 'keep') {
+          if (hidden) {
+            cell.classList.add('visible');
+            label = 'BLOCKED — false positive';
+          } else {
+            cell.classList.add('blocked');
+            label = 'visible — OK';
+          }
+        } else if (c.expected === 'host') {
+          cell.classList.add(hidden ? 'blocked' : 'note');
+          label = hidden ? 'BLOCKED (host matched)' : 'visible (host did not match)';
+        }
+        if (inlineDisplay) label += ' [inline:' + inlineDisplay + ']';
+        cell.textContent = label;
+      }
+    }
+
+    // ---------- network probes ----------
+    const NETWORK_CASES = [
+      {
+        id: 'net-doubleclick',
+        label: '||doubleclick.net^',
+        expected: 'block',
+        url: 'https://doubleclick.net/favicon.ico',
+        note: 'main blocked target — load should fail',
+      },
+      {
+        id: 'net-googlesynd',
+        label: '||googlesyndication.com^',
+        expected: 'block',
+        url: 'https://googlesyndication.com/favicon.ico',
+        note: 'parent rule of @@||cdn.googlesyndication.com^',
+      },
+      {
+        id: 'net-cdn-googlesynd',
+        label: '@@||cdn.googlesyndication.com^',
+        expected: 'allow',
+        url: 'https://cdn.googlesyndication.com/favicon.ico',
+        note: 'exception override — load should succeed if exception parsed',
+      },
+      {
+        id: 'net-control',
+        label: '(control: example.com)',
+        expected: 'allow',
+        url: 'https://example.com/favicon.ico',
+        note: 'no rule should match — confirms baseline reachability',
+      },
+    ];
+
+    function renderNetworkTable() {
+      const tbody = document.getElementById('network-results');
+      tbody.innerHTML = '';
+      for (const c of NETWORK_CASES) {
+        const row = document.createElement('tr');
+        row.id = 'netrow-' + c.id;
+        row.innerHTML =
+          '<td><code>' + escapeHtml(c.label) + '</code>' +
+            '<div class="desc">' + escapeHtml(c.note) + '</div></td>' +
+          '<td class="result-cell pending" data-result>pending…</td>' +
+          '<td><span class="markup">' + escapeHtml(c.url) + '</span></td>';
+        tbody.appendChild(row);
+      }
+    }
+
+    function probeNetwork(c) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        let settled = false;
+        const finish = (outcome) => {
+          if (settled) return;
+          settled = true;
+          resolve(outcome);
+        };
+        img.onload = () => finish('loaded');
+        img.onerror = () => finish('failed');
+        // Cache-bust so a cached 200 from a prior page doesn't mask a
+        // newly enabled blocking rule.
+        img.src = c.url + '?probe=' + Date.now();
+        setTimeout(() => finish('timeout'), 5000);
+      });
+    }
+
+    async function runNetworkProbes() {
+      renderNetworkTable();
+      for (const c of NETWORK_CASES) {
+        const cell = document.querySelector('#netrow-' + c.id + ' [data-result]');
+        const outcome = await probeNetwork(c);
+        cell.className = 'result-cell';
+        if (c.expected === 'block') {
+          cell.classList.add(outcome === 'failed' || outcome === 'timeout' ? 'blocked' : 'visible');
+          cell.textContent = outcome === 'failed' || outcome === 'timeout'
+            ? 'BLOCKED (load failed)'
+            : 'visible (load succeeded — rule did not fire)';
+        } else {
+          cell.classList.add(outcome === 'loaded' ? 'blocked' : 'note');
+          cell.textContent = outcome === 'loaded'
+            ? 'load succeeded — OK'
+            : 'load ' + outcome + ' (transient or unintended block?)';
+        }
+      }
+    }
+
+    // ---------- bootstrap ----------
+    document.getElementById('host-label').textContent =
+      'host: ' + location.host + '  ·  scheme: ' + location.protocol;
+    renderCosmeticTable();
+    renderNetworkTable();
+
+    // Settle delays:
+    //   - early <style> at DOCUMENT_START is in place by the time this
+    //     script runs (it's at the bottom of <body>), so the CSS-only
+    //     hides should be visible immediately.
+    //   - text-rule MutationObserver fires within 50ms of injection.
+    //   - if the user just enabled a list, give the rebuild some slack.
+    setTimeout(measure, 200);
+    setTimeout(measure, 1500);
+    setTimeout(measure, 4000);
+    runNetworkProbes();
+  </script>
+</body>
+</html>
