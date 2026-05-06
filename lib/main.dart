@@ -1122,9 +1122,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
-  /// Activate [model] (switching webspace to "All" if it isn't a member of
-  /// the current named webspace, per WEBSPACE-011) and navigate its
-  /// webview to [url] using the controller's loadUrl path.
+  /// Dispatches an inbound shared URL to an existing site. Routing rules:
+  ///
+  /// - If [url] is OUT of the site's normalized navigation domain (e.g.
+  ///   user picks "Open in DDG" for an f-droid.org URL), open it in a
+  ///   nested `InAppWebViewScreen` via `launchUrl`. Loading it in the
+  ///   site's main webview would either be silently blocked by the
+  ///   navigation engine's same-domain guard or clobber the active
+  ///   session — both surprising for a share dispatch.
+  /// - If [url] is IN-domain and the site is `incognito` or
+  ///   `alwaysOpenHome`, dispose the live webview first so the next paint
+  ///   recreates it from a clean slate, then load the URL.
+  /// - Otherwise, route through the site's main `controller.loadUrl`.
+  ///
+  /// Always switches the active webspace to "All" first if [model] is not
+  /// a member of the current named webspace (WEBSPACE-011).
   Future<void> _activateSiteOnUrl(WebViewModel model, String url) async {
     final index = _webViewModels.indexOf(model);
     if (index < 0) return;
@@ -1148,6 +1160,44 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             ),
           );
         }
+      }
+    }
+    final inDomain =
+        getNormalizedDomain(url) == getNormalizedDomain(model.initUrl);
+    if (!inDomain) {
+      await launchUrl(
+        url,
+        homeTitle: model.name,
+        siteId: model.siteId,
+        incognito: model.incognito,
+        thirdPartyCookiesEnabled: model.thirdPartyCookiesEnabled,
+        clearUrlEnabled: model.clearUrlEnabled,
+        dnsBlockEnabled: model.dnsBlockEnabled,
+        contentBlockEnabled: model.contentBlockEnabled,
+        localCdnEnabled: model.localCdnEnabled,
+        trackingProtectionEnabled: model.trackingProtectionEnabled,
+        language: model.language,
+        locationMode: model.locationMode,
+        spoofLatitude: model.spoofLatitude,
+        spoofLongitude: model.spoofLongitude,
+        spoofAccuracy: model.spoofAccuracy,
+        spoofTimezone: model.spoofTimezone,
+        spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
+        webRtcPolicy: model.webRtcPolicy,
+        userScripts: model.userScripts,
+        proxySettings: model.proxySettings,
+        notificationsEnabled: model.notificationsEnabled,
+      );
+      return;
+    }
+    if (model.incognito || model.alwaysOpenHome) {
+      _evictCacheIfOnline(model.siteId);
+      model.disposeWebView();
+      _loadedIndices.remove(index);
+      model.currentUrl = model.initUrl;
+      if (model.incognito) {
+        await _containerIsolation.wipeContainers([model.siteId]);
+        model.cookies = const [];
       }
     }
     if (index != _currentIndex) {

@@ -194,6 +194,48 @@ The app SHALL provide a "Link handling" screen inside Settings containing a mast
 
 ---
 
+### Requirement: LIR-011 - Cross-Domain Share Opens Nested Webview; In-Domain Resets Incognito / Always-Home
+
+When dispatching an inbound shared URL to an existing site (resolver winner OR LIR-010 "send domain to site" OR LIR-010 "Open in <site>" row), the system SHALL:
+
+1. **Out-of-domain share** — when `getNormalizedDomain(url) != getNormalizedDomain(site.initUrl)` (e.g. user routes `f-droid.org` to a `duckduckgo.com` site after binding it), open the URL in a nested `InAppWebViewScreen` (`launchUrl(...)` path) carrying the chosen site's privacy settings (siteId/container, incognito, proxy, language, location, WebRTC, user scripts, blocking toggles, notifications). The site's main webview SHALL NOT be navigated. This both matches user expectation ("a shared link from another app shouldn't trample my session") and avoids being silently blocked by the in-webview cross-domain navigation guard.
+2. **In-domain share, target site has `incognito` or `alwaysOpenHome` set** — before activating, the system SHALL dispose the live webview, drop it from `_loadedIndices`, evict its in-memory HTML cache (online only), and reset `currentUrl = initUrl`. For incognito additionally: wipe the site's container (best-effort: `ContainerIsolationEngine.wipeContainers([siteId])`) and clear in-memory cookies. Then activate and `controller.loadUrl(url)`. This matches existing always-home/incognito reset semantics on shortcut launch.
+3. **In-domain share, regular site** — activate via `_setCurrentIndex` and `controller.loadUrl(url)` (existing behavior).
+
+#### Scenario: Cross-domain bind opens nested
+
+- **GIVEN** the user has a `duckduckgo.com` site (incognito off) and no `f-droid.org` site
+- **WHEN** they share `https://f-droid.org/packages/<pkg>` and pick "Send f-droid.org to my DuckDuckGo site"
+- **THEN** the DuckDuckGo site's claim list gains `[exactHost(f-droid.org), wildcardSubdomain(f-droid.org)]`
+- **AND** the f-droid URL opens in a nested `InAppWebViewScreen` carrying DuckDuckGo's privacy/container settings
+- **AND** the DuckDuckGo main webview's URL does NOT change
+
+#### Scenario: In-domain share to incognito site resets the session
+
+- **GIVEN** an incognito `example.org` site has accumulated cookies and is mid-session on `https://example.org/account`
+- **WHEN** the user shares `https://example.org/articles/foo` and dispatches it to that site
+- **THEN** the live webview is disposed
+- **AND** the site's container is wiped
+- **AND** in-memory cookies are cleared
+- **AND** `currentUrl = initUrl` before the activation
+- **AND** the shared URL loads in a fresh main webview
+
+#### Scenario: In-domain share to always-home site discards mid-session URL
+
+- **GIVEN** an `example.org` site with `alwaysOpenHome=true` is mid-session on `https://example.org/page42`
+- **WHEN** the user shares `https://example.org/another` and dispatches it to that site
+- **THEN** the live webview is disposed and `currentUrl` is reset to `initUrl`
+- **AND** the shared URL then loads — cookies are NOT cleared (always-home preserves login state per its existing semantics)
+
+#### Scenario: In-domain share to regular site uses normal navigation
+
+- **GIVEN** a non-incognito, non-always-home `example.org` site mid-session
+- **WHEN** the user shares an in-domain URL to it
+- **THEN** the existing webview's `controller.loadUrl(url)` is used
+- **AND** no dispose / wipe / cookie clear is performed
+
+---
+
 ### Requirement: LIR-009 - No-Match Recovery With Stripped-Path Site Creation
 
 When the resolver returns no match for an incoming URL, the system SHALL offer to create a new site for that URL whose `initUrl` is the incoming URL **with path, query, and fragment stripped** (only `<scheme>://<host>[:port]/` is retained). The arrived URL is still loaded into the new site's webview on first activation, but the site's persisted "home" `initUrl` is the stripped form, so subsequent app launches and navigation-engine same-domain checks operate on the site root rather than on a deep article URL. The synthesized claim is `[baseDomain(getBaseDomain(host))]` per LIR-001. The stripping rule SHALL reject non-`http`/`https` URLs and URLs with empty hosts, returning to a no-op (snackbar) rather than creating a malformed site.
