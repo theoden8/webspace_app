@@ -59,3 +59,16 @@ example.com,test.com##.cross-site-ad
 ||example.com^$removeparam=utm_source
 /banner-\d+\.gif/
 #$#log "snippet"
+
+! ---- Synthetic rules used by test/fixtures/abp_rule_probe.html ----
+! False-positive guards in the probe page rely on these — selectors
+! crafted to be unique enough that no production filter list (EasyList,
+! EasyPrivacy, etc.) will also target them, so the FP rows give a clean
+! signal regardless of which other lists the user has enabled.
+##.fp_probe_class
+##div[fp-probe-attr]
+##a[href*="fp.probe.example"]
+##span.fp_probe_notice:has-text(FpProbeMagicNeedle)
+##div.fp_probe_article:has(div.fp_probe_descendant)
+##div.fp_probe_feed:-abp-has(.fp_probe_tag)
+
