@@ -162,6 +162,27 @@ Map<String, String> buildAllFixtures() {
     textRules: multiTextRules,
   )!;
 
+  // Fixture for the wider ABP rule shapes the parser produces:
+  //   * `:-abp-has(...)` rewritten to standard CSS `:has(...)` — feeds
+  //     the early-CSS path the new shim relies on entirely for
+  //     selector hides.
+  //   * `:has-text(...)` / `:contains(...)` converted to
+  //     `TextHideRule` — feeds the kept MutationObserver text path
+  //     (CSS can't match on text content, so this stays).
+  // Exercised end-to-end by test/js/content_blocker_abp_rules.test.js.
+  const abpRuleSelectors = [
+    'div.post:has(.ad-tag)',
+    '.banner',
+  ];
+  const abpRuleTextRules = <ContentBlockerTextRule>[
+    (selector: 'p.notice', patterns: ['Sponsored', 'Promoted']),
+    (selector: 'article', patterns: ['Advertisement']),
+  ];
+  fixtures['content_blocker/abp_rules.js'] = buildContentBlockerCosmeticShim(
+    selectors: abpRuleSelectors,
+    textRules: abpRuleTextRules,
+  )!;
+
   return fixtures;
 }
 
