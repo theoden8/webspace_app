@@ -63,6 +63,7 @@ import 'package:webspace/services/android_foreground_service.dart';
 import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
+import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
@@ -987,6 +988,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (_handlingShareIntent) return;
     _handlingShareIntent = true;
     try {
+      // HTML file payload first — the native side clears it after read,
+      // so a tag mismatch (e.g. an HTML file that *also* has EXTRA_TEXT)
+      // won't double-fire.
+      final html = await ShareIntentService.consumeLaunchHtml();
+      if (!mounted) return;
+      if (html != null) {
+        await _dispatchInbound(InboundHtml(
+          content: html.content,
+          suggestedTitle: html.title,
+          sourceUri: html.sourceUri,
+        ));
+        return;
+      }
       final raw = await ShareIntentService.consumeLaunchUrl();
       if (!mounted || raw == null || raw.isEmpty) return;
       if (raw.startsWith('webspace://qr/')) {
@@ -996,96 +1010,285 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         }
         return;
       }
-      Uri? target = Uri.tryParse(raw);
-      if (target != null && target.scheme.toLowerCase() == 'webspace') {
-        target = LinkRoutingService.parseWebspaceUri(target);
-      }
-      if (target == null ||
-          (target.scheme != 'http' && target.scheme != 'https') ||
-          target.host.isEmpty) {
+      final parsed = Uri.tryParse(raw);
+      if (parsed == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Unsupported URL')),
         );
         return;
       }
-      await _dispatchInboundUrl(target);
+      await _dispatchInbound(InboundUrl(parsed));
     } finally {
       _handlingShareIntent = false;
     }
   }
 
-  /// Resolves an inbound URL via [LinkRoutingService] and either activates
-  /// the matched site directly (single resolver winner — LIR-002 fast
-  /// path) or surfaces the LIR-010 three-option picker.
-  Future<void> _dispatchInboundUrl(Uri url) async {
+  /// Engine-driven dispatch entry point: hands [payload] to
+  /// [LinkIntentDispatchEngine] and executes the returned action. The
+  /// engine owns the routing decisions; this method only performs IO and
+  /// UI. See `lib/services/link_intent_dispatch_engine.dart`.
+  Future<void> _dispatchInbound(InboundPayload payload) async {
     final adapters = _webViewModels
         .map((m) => _SiteRouteAdapter(m))
         .toList(growable: false);
-    final match = LinkRoutingService.resolve(url, adapters);
-    if (match is RoutingSingle) {
-      final adapter = match.site as _SiteRouteAdapter;
-      await _activateSiteOnUrl(adapter.model, url.toString());
-      return;
+    final action = LinkIntentDispatchEngine.dispatch(
+      payload: payload,
+      sites: adapters,
+    );
+    final inboundUri = payload is InboundUrl ? payload.url : null;
+    await _executeDispatchAction(action, inboundUri);
+  }
+
+  Future<void> _executeDispatchAction(
+    DispatchAction action,
+    Uri? inboundUri,
+  ) async {
+    switch (action) {
+      case DispatchUnsupported(:final reason):
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Unsupported share: $reason')),
+          );
+        }
+      case DispatchOpenInMain():
+        await _executeOpenInMain(action);
+      case DispatchOpenNested():
+        await _executeOpenNested(action);
+      case DispatchCreateSite():
+        await _executeCreateSite(action);
+      case DispatchCreateSiteFromHtml():
+        await _executeCreateSiteFromHtml(action);
+      case DispatchBindAndOpen():
+        await _executeBindAndOpen(action);
+      case DispatchShowPicker():
+        if (inboundUri == null) return;
+        await _showDispatchPicker(action, inboundUri);
     }
-    final winners = match is RoutingAmbiguous
-        ? match.sites
-            .whereType<_SiteRouteAdapter>()
-            .map((a) => a.model)
-            .toList(growable: false)
-        : const <WebViewModel>[];
+  }
+
+  /// Hosts the LIR-010 picker. Translates the user's choice into a
+  /// follow-up engine call and executes the result.
+  Future<void> _showDispatchPicker(
+    DispatchShowPicker action,
+    Uri inbound,
+  ) async {
+    final winners = _webViewModels
+        .where((m) => action.winnerSiteIds.contains(m.siteId))
+        .toList(growable: false);
+    final others = _webViewModels
+        .where((m) => !action.winnerSiteIds.contains(m.siteId))
+        .toList(growable: false);
     if (!mounted) return;
     final choice = await showModalBottomSheet<_DispatchChoice>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (ctx) => _DispatchPickerSheet(
-        url: url,
+        url: inbound,
         winners: winners,
-        otherSites: _webViewModels
-            .where((m) => !winners.contains(m))
-            .toList(growable: false),
-        canCreate: LinkRoutingService.strippedHomeUrl(url) != null,
+        otherSites: others,
+        canCreate: action.offerCreate,
       ),
     );
     if (!mounted || choice == null) return;
+    final DispatchAction followUp;
     switch (choice) {
       case _DispatchChoiceOpen(:final site):
-        await _activateSiteOnUrl(site, url.toString());
-        break;
+        followUp = LinkIntentDispatchEngine.openInChosen(
+          inbound: inbound,
+          site: _SiteRouteAdapter(site),
+        );
       case _DispatchChoiceBind(:final site):
-        final additions = LinkRoutingService.claimsToAdoptHost(url.host);
-        if (additions.isNotEmpty) {
-          final existing = site.domainClaims ?? site.effectiveDomainClaims;
-          site.domainClaims =
-              LinkRoutingService.mergeClaims(existing, additions);
-          await _saveWebViewModels();
-        }
-        await _activateSiteOnUrl(site, url.toString());
-        break;
+        followUp = LinkIntentDispatchEngine.bindToSite(
+          inbound: inbound,
+          site: _SiteRouteAdapter(site),
+        );
       case _DispatchChoiceCreate():
-        await _createSiteForInboundUrl(url);
-        break;
+        followUp =
+            LinkIntentDispatchEngine.createNew(inbound: inbound);
+    }
+    await _executeDispatchAction(followUp, inbound);
+  }
+
+  /// LIR-011: dispose first when alwaysOpenHome / incognito; wipe
+  /// container + clear cookies when incognito. Then activate and load.
+  Future<void> _executeOpenInMain(DispatchOpenInMain a) async {
+    final index =
+        _webViewModels.indexWhere((m) => m.siteId == a.siteId);
+    if (index < 0) return;
+    final model = _webViewModels[index];
+    await _maybeSwitchToAllForSite(model, index);
+    if (a.disposeBeforeLoad) {
+      _evictCacheIfOnline(model.siteId);
+      model.disposeWebView();
+      _loadedIndices.remove(index);
+      model.currentUrl = model.initUrl;
+    }
+    if (a.wipeContainer) {
+      await _containerIsolation.wipeContainers([model.siteId]);
+    }
+    if (a.clearInMemoryCookies) {
+      model.cookies = const [];
+    }
+    if (index != _currentIndex) {
+      await _setCurrentIndex(index);
+    }
+    if (!mounted) return;
+    final controller = model.getController(
+      launchUrl,
+      _cookieManager,
+      _containerCookieManager,
+      _saveWebViewModels,
+      globalUserScripts: _globalUserScripts,
+    );
+    if (controller != null) {
+      await controller.loadUrl(a.url, language: model.language);
+      if (!mounted) return;
+      setState(() {
+        model.currentUrl = a.url;
+      });
+      await _saveWebViewModels();
     }
   }
 
-  /// LIR-009 / LIR-010 option 3: create a new site whose persisted `initUrl`
-  /// is the stripped home (`<scheme>://<host>[:port]/`) and whose first
-  /// navigation goes to the full inbound URL. Skips the AddSiteScreen
-  /// dialog (the user already confirmed "create" in the picker).
-  Future<void> _createSiteForInboundUrl(Uri url) async {
-    final home = LinkRoutingService.strippedHomeUrl(url);
-    if (home == null) return;
+  /// LIR-011: open as a nested webview using the chosen site's settings.
+  Future<void> _executeOpenNested(DispatchOpenNested a) async {
+    final index =
+        _webViewModels.indexWhere((m) => m.siteId == a.siteId);
+    if (index < 0) return;
+    final model = _webViewModels[index];
+    await _maybeSwitchToAllForSite(model, index);
+    if (!mounted) return;
+    await launchUrl(
+      a.url,
+      homeTitle: model.name,
+      siteId: model.siteId,
+      incognito: model.incognito,
+      thirdPartyCookiesEnabled: model.thirdPartyCookiesEnabled,
+      clearUrlEnabled: model.clearUrlEnabled,
+      dnsBlockEnabled: model.dnsBlockEnabled,
+      contentBlockEnabled: model.contentBlockEnabled,
+      localCdnEnabled: model.localCdnEnabled,
+      trackingProtectionEnabled: model.trackingProtectionEnabled,
+      language: model.language,
+      locationMode: model.locationMode,
+      spoofLatitude: model.spoofLatitude,
+      spoofLongitude: model.spoofLongitude,
+      spoofAccuracy: model.spoofAccuracy,
+      spoofTimezone: model.spoofTimezone,
+      spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
+      webRtcPolicy: model.webRtcPolicy,
+      userScripts: model.userScripts,
+      proxySettings: model.proxySettings,
+      notificationsEnabled: model.notificationsEnabled,
+    );
+  }
+
+  /// LIR-009 + LIR-010 option 3: create a brand-new site rooted at the
+  /// stripped home URL with a synthesized `baseDomain` claim, then
+  /// navigate the new webview to the full inbound URL on first activation.
+  Future<void> _executeCreateSite(DispatchCreateSite a) async {
     final stateSetter = () { setState((){}); _updateCanGoBack(); };
     final model = WebViewModel(
-      initUrl: home,
+      initUrl: a.home,
+      domainClaims: a.initialClaims.isEmpty ? null : a.initialClaims,
       stateSetterF: stateSetter,
     );
-    final pageTitle = await getPageTitle(url.toString());
+    final pageTitle = await getPageTitle(a.fullUrl);
     if (!mounted) return;
     if (pageTitle != null && pageTitle.isNotEmpty) {
       model.name = pageTitle;
       model.pageTitle = pageTitle;
     }
+    await _registerNewSite(model);
+    if (!mounted) return;
+    final controller = model.getController(
+      launchUrl,
+      _cookieManager,
+      _containerCookieManager,
+      _saveWebViewModels,
+      globalUserScripts: _globalUserScripts,
+    );
+    if (controller != null && a.fullUrl != a.home) {
+      await controller.loadUrl(a.fullUrl, language: model.language);
+      if (!mounted) return;
+      setState(() {
+        model.currentUrl = a.fullUrl;
+      });
+      await _saveWebViewModels();
+    }
+  }
+
+  /// LIR-012: an HTML file share short-circuits to "create new site"
+  /// (only sensible action — opaque file content can't be claimed by an
+  /// existing site). HTML lives in `HtmlImportStorage`, identical to the
+  /// in-app file-import flow.
+  Future<void> _executeCreateSiteFromHtml(
+    DispatchCreateSiteFromHtml a,
+  ) async {
+    final stateSetter = () { setState((){}); _updateCanGoBack(); };
+    final fileSiteUrl =
+        'file:///webspace_import_${DateTime.now().microsecondsSinceEpoch}.html';
+    final model = WebViewModel(
+      initUrl: fileSiteUrl,
+      stateSetterF: stateSetter,
+    );
+    final title = a.suggestedTitle?.trim();
+    if (title != null && title.isNotEmpty) {
+      model.name = title;
+      model.pageTitle = title;
+    }
+    await HtmlImportStorage.instance.saveHtml(model.siteId, a.html, fileSiteUrl);
+    await _registerNewSite(model);
+  }
+
+  /// Persist [a.claimAdditions] onto the chosen site (deduped against
+  /// existing claims) and then execute the engine-computed [a.followUp].
+  Future<void> _executeBindAndOpen(DispatchBindAndOpen a) async {
+    final idx =
+        _webViewModels.indexWhere((m) => m.siteId == a.chosenSiteId);
+    if (idx < 0) return;
+    final site = _webViewModels[idx];
+    if (a.claimAdditions.isNotEmpty) {
+      final existing = site.domainClaims ?? site.effectiveDomainClaims;
+      site.domainClaims =
+          LinkRoutingService.mergeClaims(existing, a.claimAdditions);
+      await _saveWebViewModels();
+    }
+    await _executeDispatchAction(a.followUp, null);
+  }
+
+  /// WEBSPACE-011 helper: switch the active webspace to "All" if [model]
+  /// isn't a member of the current named webspace, with a snackbar.
+  Future<void> _maybeSwitchToAllForSite(WebViewModel model, int index) async {
+    if (_selectedWebspaceId == null ||
+        _selectedWebspaceId == kAllWebspaceId) {
+      return;
+    }
+    final ws = _webspaces.firstWhere(
+      (w) => w.id == _selectedWebspaceId,
+      orElse: () => _webspaces.first,
+    );
+    if (ws.siteIndices.contains(index)) return;
+    setState(() {
+      _selectedWebspaceId = kAllWebspaceId;
+    });
+    await _saveSelectedWebspaceId();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Switched to All to open in ${model.getDisplayName()}',
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Add [model] to `_webViewModels`, attach to current named webspace,
+  /// activate, persist, and apply the current theme. Shared by the
+  /// "create new site for URL" and "create new site for HTML" flows.
+  Future<void> _registerNewSite(WebViewModel model) async {
     setState(() {
       _webViewModels.add(model);
     });
@@ -1104,121 +1307,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _saveWebViewModels();
     final theme = _themeModeToWebViewTheme(_themeSettings.themeMode);
     await model.setTheme(theme);
-    if (!mounted) return;
-    final controller = model.getController(
-      launchUrl,
-      _cookieManager,
-      _containerCookieManager,
-      _saveWebViewModels,
-      globalUserScripts: _globalUserScripts,
-    );
-    if (controller != null && url.toString() != home) {
-      await controller.loadUrl(url.toString(), language: model.language);
-      if (!mounted) return;
-      setState(() {
-        model.currentUrl = url.toString();
-      });
-      await _saveWebViewModels();
-    }
-  }
-
-  /// Dispatches an inbound shared URL to an existing site. Routing rules:
-  ///
-  /// - If [url] is OUT of the site's normalized navigation domain (e.g.
-  ///   user picks "Open in DDG" for an f-droid.org URL), open it in a
-  ///   nested `InAppWebViewScreen` via `launchUrl`. Loading it in the
-  ///   site's main webview would either be silently blocked by the
-  ///   navigation engine's same-domain guard or clobber the active
-  ///   session — both surprising for a share dispatch.
-  /// - If [url] is IN-domain and the site is `incognito` or
-  ///   `alwaysOpenHome`, dispose the live webview first so the next paint
-  ///   recreates it from a clean slate, then load the URL.
-  /// - Otherwise, route through the site's main `controller.loadUrl`.
-  ///
-  /// Always switches the active webspace to "All" first if [model] is not
-  /// a member of the current named webspace (WEBSPACE-011).
-  Future<void> _activateSiteOnUrl(WebViewModel model, String url) async {
-    final index = _webViewModels.indexOf(model);
-    if (index < 0) return;
-    if (_selectedWebspaceId != null &&
-        _selectedWebspaceId != kAllWebspaceId) {
-      final ws = _webspaces.firstWhere(
-        (w) => w.id == _selectedWebspaceId,
-        orElse: () => _webspaces.first,
-      );
-      if (!ws.siteIndices.contains(index)) {
-        setState(() {
-          _selectedWebspaceId = kAllWebspaceId;
-        });
-        await _saveSelectedWebspaceId();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Switched to All to open in ${model.getDisplayName()}',
-              ),
-            ),
-          );
-        }
-      }
-    }
-    final inDomain =
-        getNormalizedDomain(url) == getNormalizedDomain(model.initUrl);
-    if (!inDomain) {
-      await launchUrl(
-        url,
-        homeTitle: model.name,
-        siteId: model.siteId,
-        incognito: model.incognito,
-        thirdPartyCookiesEnabled: model.thirdPartyCookiesEnabled,
-        clearUrlEnabled: model.clearUrlEnabled,
-        dnsBlockEnabled: model.dnsBlockEnabled,
-        contentBlockEnabled: model.contentBlockEnabled,
-        localCdnEnabled: model.localCdnEnabled,
-        trackingProtectionEnabled: model.trackingProtectionEnabled,
-        language: model.language,
-        locationMode: model.locationMode,
-        spoofLatitude: model.spoofLatitude,
-        spoofLongitude: model.spoofLongitude,
-        spoofAccuracy: model.spoofAccuracy,
-        spoofTimezone: model.spoofTimezone,
-        spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
-        webRtcPolicy: model.webRtcPolicy,
-        userScripts: model.userScripts,
-        proxySettings: model.proxySettings,
-        notificationsEnabled: model.notificationsEnabled,
-      );
-      return;
-    }
-    if (model.incognito || model.alwaysOpenHome) {
-      _evictCacheIfOnline(model.siteId);
-      model.disposeWebView();
-      _loadedIndices.remove(index);
-      model.currentUrl = model.initUrl;
-      if (model.incognito) {
-        await _containerIsolation.wipeContainers([model.siteId]);
-        model.cookies = const [];
-      }
-    }
-    if (index != _currentIndex) {
-      await _setCurrentIndex(index);
-    }
-    if (!mounted) return;
-    final controller = model.getController(
-      launchUrl,
-      _cookieManager,
-      _containerCookieManager,
-      _saveWebViewModels,
-      globalUserScripts: _globalUserScripts,
-    );
-    if (controller != null) {
-      await controller.loadUrl(url, language: model.language);
-      if (!mounted) return;
-      setState(() {
-        model.currentUrl = url;
-      });
-      await _saveWebViewModels();
-    }
   }
 
   Future<void> _saveWebViewModels() async {
@@ -4718,7 +4806,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 }
 
-class _SiteRouteAdapter implements RoutableSite {
+class _SiteRouteAdapter implements DispatchableSite {
   final WebViewModel model;
   const _SiteRouteAdapter(this.model);
 
@@ -4730,6 +4818,15 @@ class _SiteRouteAdapter implements RoutableSite {
 
   @override
   List<DomainClaim> get domainClaims => model.effectiveDomainClaims;
+
+  @override
+  bool get incognito => model.incognito;
+
+  @override
+  bool get alwaysOpenHome => model.alwaysOpenHome;
+
+  @override
+  String get navigationDomain => getNormalizedDomain(model.initUrl);
 }
 
 sealed class _DispatchChoice {

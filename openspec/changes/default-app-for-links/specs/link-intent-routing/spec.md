@@ -194,13 +194,17 @@ The app SHALL provide a "Link handling" screen inside Settings containing a mast
 
 ---
 
-### Requirement: LIR-011 - Cross-Domain Share Opens Nested Webview; In-Domain Resets Incognito / Always-Home
+### Requirement: LIR-011 - Engine-Driven Dispatch: Cross-Domain Goes Nested; In-Domain Resets Incognito / Always-Home
 
-When dispatching an inbound shared URL to an existing site (resolver winner OR LIR-010 "send domain to site" OR LIR-010 "Open in <site>" row), the system SHALL:
+The dispatch decision tree for an inbound shared URL targeting an existing site SHALL live in a pure-Dart engine, `LinkIntentDispatchEngine` (mirroring the engine pattern in `cookie_isolation.dart` / `site_activation_engine.dart`). The engine takes the inbound payload and a list of `DispatchableSite` adapters and returns a `DispatchAction`. The view layer SHALL be a thin executor that performs IO/UI for the returned action; it MUST NOT recompute routing decisions of its own. This keeps every reset/disposal/wipe path testable with fakes.
 
-1. **Out-of-domain share** — when `getNormalizedDomain(url) != getNormalizedDomain(site.initUrl)` (e.g. user routes `f-droid.org` to a `duckduckgo.com` site after binding it), open the URL in a nested `InAppWebViewScreen` (`launchUrl(...)` path) carrying the chosen site's privacy settings (siteId/container, incognito, proxy, language, location, WebRTC, user scripts, blocking toggles, notifications). The site's main webview SHALL NOT be navigated. This both matches user expectation ("a shared link from another app shouldn't trample my session") and avoids being silently blocked by the in-webview cross-domain navigation guard.
-2. **In-domain share, target site has `incognito` or `alwaysOpenHome` set** — before activating, the system SHALL dispose the live webview, drop it from `_loadedIndices`, evict its in-memory HTML cache (online only), and reset `currentUrl = initUrl`. For incognito additionally: wipe the site's container (best-effort: `ContainerIsolationEngine.wipeContainers([siteId])`) and clear in-memory cookies. Then activate and `controller.loadUrl(url)`. This matches existing always-home/incognito reset semantics on shortcut launch.
-3. **In-domain share, regular site** — activate via `_setCurrentIndex` and `controller.loadUrl(url)` (existing behavior).
+The engine SHALL emit:
+
+1. **Out-of-domain share** — when `getNormalizedDomain(url) != site.navigationDomain` (e.g. user routes `f-droid.org` to a `duckduckgo.com` site after binding it), `DispatchOpenNested(siteId, url)`. The executor SHALL invoke the existing nested in-app-webview path (`launchUrl(...)`) carrying the chosen site's privacy settings (siteId/container, incognito, proxy, language, location, WebRTC, user scripts, blocking toggles, notifications). The site's main webview SHALL NOT be navigated. This both matches user expectation ("a shared link from another app shouldn't trample my session") and avoids being silently blocked by the in-webview cross-domain navigation guard.
+2. **In-domain share, target site has `incognito` or `alwaysOpenHome` set** — `DispatchOpenInMain(siteId, url, disposeBeforeLoad: true, wipeContainer: incognito, clearInMemoryCookies: incognito)`. The executor SHALL dispose the live webview, drop it from `_loadedIndices`, evict its in-memory HTML cache (online only), reset `currentUrl = initUrl`, wipe the container if `wipeContainer == true`, and clear in-memory cookies if `clearInMemoryCookies == true` — all BEFORE activating and calling `controller.loadUrl(url)`. The flags being engine-emitted (rather than computed at the call site) is the IP-leakage / session-leakage defence: a future caller cannot accidentally skip the disposal.
+3. **In-domain share, regular site** — `DispatchOpenInMain(siteId, url, disposeBeforeLoad: false, wipeContainer: false, clearInMemoryCookies: false)`. The executor activates and `controller.loadUrl(url)` (existing behaviour).
+
+The engine SHALL also expose follow-up entry points for the LIR-010 picker: `openInChosen(inbound, site)`, `bindToSite(inbound, site)` (returns `DispatchBindAndOpen` with `claimAdditions` + an engine-computed `followUp`), and `createNew(inbound)` (returns `DispatchCreateSite` for option 3 or `DispatchUnsupported` if the URL has no host).
 
 #### Scenario: Cross-domain bind opens nested
 
@@ -231,8 +235,47 @@ When dispatching an inbound shared URL to an existing site (resolver winner OR L
 
 - **GIVEN** a non-incognito, non-always-home `example.org` site mid-session
 - **WHEN** the user shares an in-domain URL to it
-- **THEN** the existing webview's `controller.loadUrl(url)` is used
+- **THEN** the engine emits `DispatchOpenInMain` with all reset flags `false`
+- **AND** the executor uses the existing webview's `controller.loadUrl(url)`
 - **AND** no dispose / wipe / cookie clear is performed
+
+#### Scenario: Engine owns the in-domain decision; view executes only
+
+- **WHEN** any caller dispatches an inbound URL
+- **THEN** all "main vs nested" and "reset vs in-place" decisions are made inside `LinkIntentDispatchEngine`
+- **AND** the executor in `_WebSpacePageState` performs the IO described by the returned `DispatchAction` without re-evaluating domain/reset rules
+
+---
+
+### Requirement: LIR-012 - HTML File Share Goes Only To Create-New-Site
+
+When the OS hands the app an HTML file via share (Android `ACTION_SEND` with `mimeType="text/html"` or `application/xhtml+xml` carrying `EXTRA_STREAM`; iOS / macOS Share Extension future-equivalent), the dispatcher SHALL skip the LIR-010 picker entirely and emit `DispatchCreateSiteFromHtml(html, suggestedTitle)`. The executor SHALL persist the HTML via `HtmlImportStorage` (same store used by the in-app file-import flow), create a `WebViewModel` with a synthesised `file:///webspace_import_<microseconds>.html` `initUrl`, register the new site, activate it, and apply the current theme. The picker's "open in existing site" and "bind to site" options SHALL NOT be offered for HTML payloads, because an existing site cannot meaningfully claim opaque file content (no host, no domain) — only the create path is sensible.
+
+#### Scenario: HTML payload short-circuits picker
+
+- **GIVEN** the user has two existing sites
+- **WHEN** another app shares an HTML file to WebSpace
+- **THEN** the engine emits `DispatchCreateSiteFromHtml`
+- **AND** no picker is shown
+- **AND** a new file:// site is created with the file's HTML stored in `HtmlImportStorage`
+
+#### Scenario: HTML title preferred over filename
+
+- **GIVEN** a shared HTML file containing `<title>Bookmarks</title>` and a filename `export-2026-04-19.html`
+- **WHEN** the share is dispatched
+- **THEN** the new site's `name` is `Bookmarks`
+
+#### Scenario: HTML filename used when no title
+
+- **GIVEN** a shared HTML file with no `<title>` and filename `notes.html`
+- **WHEN** the share is dispatched
+- **THEN** the new site's `name` is `notes`
+
+#### Scenario: Empty HTML payload is unsupported
+
+- **WHEN** the engine receives an `InboundHtml` with empty content
+- **THEN** the engine emits `DispatchUnsupported`
+- **AND** no site is created
 
 ---
 

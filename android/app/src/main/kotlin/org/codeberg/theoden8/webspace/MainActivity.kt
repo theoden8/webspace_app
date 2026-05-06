@@ -21,6 +21,13 @@ class MainActivity: FlutterActivity() {
     private var webSpaceContainerPlugin: WebSpaceContainerPlugin? = null
     private var backgroundPollPlugin: WebSpaceBackgroundPollPlugin? = null
     private var pendingShareUrl: String? = null
+    private var pendingShareHtml: HtmlPayload? = null
+
+    private data class HtmlPayload(
+        val content: String,
+        val title: String?,
+        val sourceUri: String?,
+    )
 
     override fun getFlutterShellArgs(): FlutterShellArgs {
         val args = FlutterShellArgs.fromIntent(intent)
@@ -40,13 +47,26 @@ class MainActivity: FlutterActivity() {
         locationPlugin = LocationPlugin(this, flutterEngine)
         webSpaceContainerPlugin = WebSpaceContainerPlugin(flutterEngine)
         backgroundPollPlugin = WebSpaceBackgroundPollPlugin(applicationContext, flutterEngine)
-        pendingShareUrl = extractShareUrl(intent)
+        captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "consumeLaunchUrl" -> {
                     val url = pendingShareUrl
                     pendingShareUrl = null
                     result.success(url)
+                }
+                "consumeLaunchHtml" -> {
+                    val payload = pendingShareHtml
+                    pendingShareHtml = null
+                    if (payload == null) {
+                        result.success(null)
+                    } else {
+                        result.success(mapOf(
+                            "content" to payload.content,
+                            "title" to payload.title,
+                            "sourceUri" to payload.sourceUri,
+                        ))
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -150,10 +170,58 @@ class MainActivity: FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        captureSharePayload(intent)
+    }
+
+    private fun captureSharePayload(intent: Intent?) {
+        if (intent == null || intent.action != Intent.ACTION_SEND) return
+        val mime = intent.type?.lowercase() ?: ""
+        // Prefer HTML when the sharer signals it via mime type OR ships
+        // a text/html stream extra. Sharers that pass HTML as a tiny
+        // EXTRA_TEXT (e.g. a copy-pasted snippet) still hit the URL path
+        // first; only when EXTRA_STREAM is present do we treat the
+        // payload as a file import.
+        val streamUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(Intent.EXTRA_STREAM)
+        }
+        val isHtmlMime = mime == "text/html" || mime == "application/xhtml+xml"
+        if (streamUri != null && (isHtmlMime || streamUri.path?.lowercase()?.endsWith(".html") == true || streamUri.path?.lowercase()?.endsWith(".htm") == true)) {
+            val html = readStreamAsString(streamUri)
+            if (html != null && html.isNotEmpty()) {
+                val title = guessTitleFrom(streamUri, html)
+                pendingShareHtml = HtmlPayload(content = html, title = title, sourceUri = streamUri.toString())
+                pendingShareUrl = null
+                return
+            }
+        }
         val url = extractShareUrl(intent)
         if (url != null) {
             pendingShareUrl = url
         }
+    }
+
+    private fun readStreamAsString(uri: Uri): String? {
+        return try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                input.bufferedReader(Charsets.UTF_8).readText()
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun guessTitleFrom(uri: Uri, html: String): String? {
+        // Honour an explicit <title>; fall back to the file name (without
+        // extension), which is what the desktop file-import flow does.
+        val titleMatch = Regex("(?is)<title[^>]*>(.*?)</title>").find(html)
+        val fromTitle = titleMatch?.groupValues?.getOrNull(1)?.trim().orEmpty()
+        if (fromTitle.isNotEmpty()) return fromTitle
+        val name = uri.lastPathSegment ?: return null
+        val dot = name.lastIndexOf('.')
+        return if (dot > 0) name.substring(0, dot) else name
     }
 
     private fun extractShareUrl(intent: Intent?): String? {

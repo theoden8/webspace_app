@@ -17,7 +17,7 @@ The "always-isolate-each-site" goal that surfaced during scoping is **already sa
   - the iOS/macOS Share Extension to hand the URL off from extension process to main app
   - external apps wanting to provide an "Open in WebSpace" button without competing with browsers in the https chooser
   - paste-and-tap from Notes/Messages/etc.
-- **Android `ACTION_SEND` (share-intent) handler**: any app can share a URL (as `text/plain`) to WebSpace via the share sheet; it routes through the resolver.
+- **Android `ACTION_SEND` (share-intent) handler**: any app can share a URL (as `text/plain`) to WebSpace via the share sheet; it routes through the resolver. `text/html` and `application/xhtml+xml` shares with `EXTRA_STREAM` are read into memory and short-circuit to "create new site" (LIR-012) — existing sites can't claim opaque file content.
 - **iOS Share Extension** (`NSExtensionActivationSupportsWebURLWithMaxCount`): opens shared URLs in the main app via `webspace://open?url=...`.
 - **macOS Share Extension**: equivalent of iOS.
 - **Global routing overview UI**: a settings screen listing every claimed domain pattern → site, conflict warnings, and a master "Handle shared links" switch.
