@@ -186,6 +186,75 @@
         expected: 'keep',
         html: '<p class="probe-real-content-marker">Editorial copy.</p>',
       },
+
+      // ---- skipped-rule probes ----
+      // Our sample's `##.foo:matches-path(/section/)` and
+      // `##.bar:min-text-length(20)` MUST be skipped by the parser.
+      // If a future change naively split the selector at `:` and kept
+      // the bare class, .foo / .bar would start hiding incorrectly.
+      // These rows would catch that regression.
+      {
+        id: 'skip-matches-path',
+        label: '##.foo:matches-path(...) (skipped)',
+        expected: 'keep',
+        html: '<div class="foo">.foo target</div>',
+        note: 'parser must drop the whole rule, not just the unsupported pseudo',
+      },
+      {
+        id: 'skip-min-text-length',
+        label: '##.bar:min-text-length(...) (skipped)',
+        expected: 'keep',
+        html: '<div class="bar">.bar target with longer text</div>',
+        note: 'same — :min-text-length() is unsupported, full rule must be skipped',
+      },
+      // `##^script[src*="ads.js"]`, `#$#log "snippet"`, `$csp`,
+      // `$redirect`, `$removeparam`, `/regex/` — all skipped at parse
+      // time. They have no cosmetic projection so there's nothing to
+      // probe via getComputedStyle.
+
+      // ---- false-positive probes ----
+      // Each row drops markup that LOOKS like the matching rule's
+      // target but should NOT match. Catches over-matching regressions
+      // (substring class match, attribute prefix match, naive text
+      // contains for shorter prefixes, etc.).
+      {
+        id: 'fp-class-substring',
+        label: '##.advert (must NOT match .adverts)',
+        expected: 'keep',
+        html: '<div class="adverts">close-but-not-advert</div>',
+        note: 'CSS class match is exact, not substring',
+      },
+      {
+        id: 'fp-class-prefix',
+        label: '##.ad-banner (must NOT match .add-banner)',
+        expected: 'keep',
+        html: '<div class="add-banner">extra letter "d"</div>',
+      },
+      {
+        id: 'fp-attr-different',
+        label: '##div[data-ad-slot] (must NOT match data-ad-slot-fake)',
+        expected: 'keep',
+        html: '<div data-ad-slot-fake="123">different attribute name</div>',
+      },
+      {
+        id: 'fp-href-different-tld',
+        label: '##a[href*="doubleclick.net"] (must NOT match doubleclick.example)',
+        expected: 'keep',
+        html: '<a href="https://doubleclick.example/x">different TLD</a>',
+      },
+      {
+        id: 'fp-text-shorter-substring',
+        label: ':has-text(Sponsored) (must NOT match "Sponsorship")',
+        expected: 'keep',
+        html: '<span class="notice">Sponsorship deal here</span>',
+        note: '"Sponsored" is not a substring of "Sponsorship"',
+      },
+      {
+        id: 'fp-has-no-descendant',
+        label: ':has(div.adsbygoogle) (must NOT match article without it)',
+        expected: 'keep',
+        html: '<div class="article"><p>just an article</p></div>',
+      },
     ];
 
     function escapeHtml(s) {
