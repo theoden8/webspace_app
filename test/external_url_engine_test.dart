@@ -15,6 +15,7 @@ void main() {
       expect(ExternalUrlParser.parse('file:///tmp/x.html'), isNull);
       expect(ExternalUrlParser.parse('javascript:void(0)'), isNull);
       expect(ExternalUrlParser.parse('view-source:https://example.com/'), isNull);
+      expect(ExternalUrlParser.parse('gemini://example.com/page'), isNull);
     });
 
     test('returns null for chrome-family internal schemes', () {
