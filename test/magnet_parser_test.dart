@@ -73,7 +73,7 @@ void main() {
         infoHash: 'abcdef1234567890abcdef1234567890abcdef12',
       );
       expect(info.shortHash, 'abcdef...cdef12');
-      expect(info.shortHash.length, 16);
+      expect(info.shortHash.length, 15);
     });
 
     test('returns short hashes unchanged', () {
