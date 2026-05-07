@@ -1,14 +1,15 @@
 ✨ New Features:
-• Web push notifications with background polling
-• Always-on Do Not Track / Global Privacy Control
-• Per-site Enhanced Tracking Protection umbrella
-• Share target, per-site QR, link dispatch picker
+• Web push notifications
+• Always-on DNT / Global Privacy Control
+• Per-site Enhanced Tracking Protection
+• Share target; QR share; link dispatch
 • Always Open Home; nested-webview dev tools
 
 🔧 Improvements:
-• Faster DNS + ABP; exceptions; UA-CH spoof
-• Persistent imported HTML; blob URL CSP bypass
+• Faster DNS + ABP; UA-CH spoof; ABP exceptions
+• Container sites survive switches
+• Imported HTML persisted; blob URLs unblocked
 
 🐛 Bug Fixes:
-• Theme/incognito persist; proxy auth wipe
+• Theme persists; ephemeral incognito; proxy auth wipe
 • Typing-lag freeze; reconnect race; idle pause
