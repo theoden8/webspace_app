@@ -319,8 +319,8 @@ packages:
     dependency: "direct main"
     description:
       path: flutter_inappwebview
-      ref: "claude/add-android-useragent-Wg5cT"
-      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: f68ed4ec6eca49ff72739b72d97534dd4dd6d94a
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -328,8 +328,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_android
-      ref: "claude/add-android-useragent-Wg5cT"
-      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: f68ed4ec6eca49ff72739b72d97534dd4dd6d94a
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -345,8 +345,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_ios
-      ref: "claude/add-android-useragent-Wg5cT"
-      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: f68ed4ec6eca49ff72739b72d97534dd4dd6d94a
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -354,17 +354,17 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_linux
-      ref: "claude/add-android-useragent-Wg5cT"
-      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: f68ed4ec6eca49ff72739b72d97534dd4dd6d94a
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
-    version: "0.1.0-beta.2"
+    version: "0.1.0-beta.1"
   flutter_inappwebview_macos:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_macos
-      ref: "claude/add-android-useragent-Wg5cT"
-      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: f68ed4ec6eca49ff72739b72d97534dd4dd6d94a
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -372,8 +372,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_platform_interface
-      ref: "claude/add-android-useragent-Wg5cT"
-      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: f68ed4ec6eca49ff72739b72d97534dd4dd6d94a
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
