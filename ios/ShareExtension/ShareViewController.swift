@@ -14,11 +14,14 @@ final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .clear
+        NSLog("[WebSpace.ShareExt] viewDidLoad")
         extractURL { url in
             DispatchQueue.main.async {
                 guard let url = url, !url.isEmpty else {
+                    NSLog("[WebSpace.ShareExt] no URL extracted; dismissing")
                     self.finish(); return
                 }
+                NSLog("[WebSpace.ShareExt] extracted URL: \(url)")
                 self.handOff(url)
                 self.finish()
             }
@@ -92,12 +95,16 @@ final class ShareViewController: UIViewController {
     private func handOff(_ url: String) {
         if let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) {
             defaults.set(url, forKey: ShareViewController.pendingUrlKey)
+            NSLog("[WebSpace.ShareExt] wrote URL to app group")
+        } else {
+            NSLog("[WebSpace.ShareExt] app group \(ShareViewController.appGroupId) unavailable; URL not persisted")
         }
         var components = URLComponents()
         components.scheme = ShareViewController.hostScheme
         components.host = ShareViewController.hostHost
         components.queryItems = [URLQueryItem(name: "url", value: url)]
         if let openUrl = components.url {
+            NSLog("[WebSpace.ShareExt] opening host app via \(openUrl.absoluteString)")
             openHostApp(openUrl)
         }
     }
@@ -115,9 +122,11 @@ final class ShareViewController: UIViewController {
         while let r = responder {
             if r.responds(to: selector) && !(r is UIViewController) {
                 _ = r.perform(selector, with: url)
+                NSLog("[WebSpace.ShareExt] dispatched openURL via responder: \(type(of: r))")
                 return
             }
             responder = r.next
         }
+        NSLog("[WebSpace.ShareExt] no responder accepted openURL — host app fallback to app-group only")
     }
 }

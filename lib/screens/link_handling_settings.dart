@@ -149,20 +149,27 @@ class _LinkHandlingSettingsScreenState
             .where((a) => a.siteId != site.siteId)
             .toList(growable: false),
       );
+      final conflictedClaims = <DomainClaim>{
+        for (final c in conflicts) c.claim,
+      };
       rows.add(ListTile(
         title: Text(site.getDisplayName()),
-        subtitle: Wrap(
-          spacing: 8,
-          runSpacing: 4,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final claim in claims) _ClaimChip(claim: claim),
-            if (conflicts.isNotEmpty)
-              Chip(
-                label: Text('${conflicts.length} conflict'
-                    '${conflicts.length == 1 ? '' : 's'}'),
-                backgroundColor:
-                    Theme.of(context).colorScheme.errorContainer,
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final claim in claims)
+                  _ClaimChip(
+                    claim: claim,
+                    isConflicting: conflictedClaims.contains(claim),
+                  ),
+              ],
+            ),
+            for (final c in conflicts)
+              _ConflictExplanation(conflict: c, sites: sites),
           ],
         ),
         trailing: const Icon(Icons.chevron_right),
@@ -175,7 +182,8 @@ class _LinkHandlingSettingsScreenState
 
 class _ClaimChip extends StatelessWidget {
   final DomainClaim claim;
-  const _ClaimChip({required this.claim});
+  final bool isConflicting;
+  const _ClaimChip({required this.claim, this.isConflicting = false});
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +192,71 @@ class _ClaimChip extends StatelessWidget {
       DomainClaimKind.wildcardSubdomain => '*.${claim.value}',
       DomainClaimKind.baseDomain => '${claim.value} (base)',
     };
-    return Chip(label: Text(label));
+    if (!isConflicting) return Chip(label: Text(label));
+    final scheme = Theme.of(context).colorScheme;
+    return Chip(
+      label: Text(label),
+      backgroundColor: scheme.errorContainer,
+      side: BorderSide(color: scheme.error),
+      labelStyle: TextStyle(color: scheme.onErrorContainer),
+    );
+  }
+}
+
+String _claimLabel(DomainClaim claim) {
+  switch (claim.kind) {
+    case DomainClaimKind.exactHost:
+      return claim.value;
+    case DomainClaimKind.wildcardSubdomain:
+      return '*.${claim.value}';
+    case DomainClaimKind.baseDomain:
+      return '${claim.value} (base)';
+  }
+}
+
+/// Single conflict line shown under a routing-overview row, e.g.
+/// "Hijacks Site B (mastodon.social) via exactHost: mastodon.social".
+/// Looks the other site up by id from the snapshot list so the message
+/// names a real site rather than a raw uuid.
+class _ConflictExplanation extends StatelessWidget {
+  final ClaimConflict conflict;
+  final List<WebViewModel> sites;
+  const _ConflictExplanation({
+    required this.conflict,
+    required this.sites,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final other = sites.firstWhere(
+      (s) => s.siteId == conflict.otherSiteId,
+      orElse: () => sites.first,
+    );
+    final isHijack = conflict.kind == ClaimConflictKind.hijack;
+    final color = isHijack ? scheme.error : scheme.tertiary;
+    final verb = isHijack ? 'Hijacks' : 'Overlaps with';
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isHijack ? Icons.warning_amber_rounded : Icons.info_outline,
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              '$verb ${other.getDisplayName()} '
+              'via ${_claimLabel(conflict.claim)}',
+              style: TextStyle(color: color, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
