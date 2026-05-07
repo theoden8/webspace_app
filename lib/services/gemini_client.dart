@@ -16,7 +16,7 @@ class GeminiResponse {
   bool get isSuccess => status >= 20 && status < 30;
   bool get isRedirect => status >= 30 && status < 40;
   bool get isInput => status >= 10 && status < 20;
-  bool get isError => status >= 40;
+  bool get isError => status == 0 || status >= 40;
 
   String get mimeType {
     if (!isSuccess) return '';
