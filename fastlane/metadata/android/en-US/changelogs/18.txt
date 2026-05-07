@@ -1,0 +1,15 @@
+✨ New Features:
+• Web push notifications
+• Always-on DNT / Global Privacy Control
+• Per-site Enhanced Tracking Protection
+• Share target; QR share; link dispatch
+• Always Open Home; nested-webview dev tools
+
+🔧 Improvements:
+• Faster DNS + ABP; UA-CH spoof; ABP exceptions
+• Container sites survive switches
+• Imported HTML persisted; blob URLs unblocked
+
+🐛 Bug Fixes:
+• Theme persists; ephemeral incognito; proxy auth wipe
+• Typing-lag freeze; reconnect race; idle pause

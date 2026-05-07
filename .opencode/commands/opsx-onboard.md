@@ -8,16 +8,19 @@ Guide the user through their first complete OpenSpec workflow cycle. This is a t
 
 ## Preflight
 
-Before starting, check if OpenSpec is initialized:
+Before starting, check if the OpenSpec CLI is installed:
 
 ```bash
-openspec status --json 2>&1 || echo "NOT_INITIALIZED"
+# Unix/macOS
+openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
+# Windows (PowerShell)
+# if (Get-Command openspec -ErrorAction SilentlyContinue) { openspec --version } else { echo "CLI_NOT_INSTALLED" }
 ```
 
-**If not initialized:**
-> OpenSpec isn't set up in this project yet. Run `openspec init` first, then come back to `/opsx:onboard`.
+**If CLI not installed:**
+> OpenSpec CLI is not installed. Install it first, then come back to `/opsx-onboard`.
 
-Stop here if not initialized.
+Stop here if not installed.
 
 ---
 
@@ -60,7 +63,10 @@ Scan the codebase for small improvement opportunities. Look for:
 
 Also check recent git activity:
 ```bash
+# Unix/macOS
 git log --oneline -10 2>/dev/null || echo "No git history"
+# Windows (PowerShell)
+# git log --oneline -10 2>$null; if ($LASTEXITCODE -ne 0) { echo "No git history" }
 ```
 
 ### Present Suggestions
@@ -139,7 +145,7 @@ Spend 1-2 minutes investigating the relevant code:
 │   [Optional: ASCII diagram if helpful]  │
 └─────────────────────────────────────────┘
 
-Explore mode (`/opsx:explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+Explore mode (`/opsx-explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
 
 Now let's create a change to hold our work.
 ```
@@ -255,7 +261,10 @@ For a small task like this, we might only need one spec file.
 
 **DO:** Create the spec file:
 ```bash
+# Unix/macOS
 mkdir -p openspec/changes/<name>/specs/<capability-name>
+# Windows (PowerShell)
+# New-Item -ItemType Directory -Force -Path "openspec/changes/<name>/specs/<capability-name>"
 ```
 
 Draft the spec content:
@@ -450,21 +459,29 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ## Command Reference
 
-| Command | What it does |
-|---------|--------------|
-| `/opsx:explore` | Think through problems before/during work |
-| `/opsx:new` | Start a new change, step through artifacts |
-| `/opsx:ff` | Fast-forward: create all artifacts at once |
-| `/opsx:continue` | Continue working on an existing change |
-| `/opsx:apply` | Implement tasks from a change |
-| `/opsx:verify` | Verify implementation matches artifacts |
-| `/opsx:archive` | Archive a completed change |
+**Core workflow:**
+
+ | Command           | What it does                               |
+ |-------------------|--------------------------------------------|
+ | `/opsx-propose` | Create a change and generate all artifacts |
+ | `/opsx-explore` | Think through problems before/during work  |
+ | `/opsx-apply`   | Implement tasks from a change              |
+ | `/opsx-archive` | Archive a completed change                 |
+
+**Additional commands:**
+
+ | Command            | What it does                                             |
+ |--------------------|----------------------------------------------------------|
+ | `/opsx-new`      | Start a new change, step through artifacts one at a time |
+ | `/opsx-continue` | Continue working on an existing change                   |
+ | `/opsx-ff`       | Fast-forward: create all artifacts at once               |
+ | `/opsx-verify`   | Verify implementation matches artifacts                  |
 
 ---
 
 ## What's Next?
 
-Try `/opsx:new` or `/opsx:ff` on something you actually want to build. You've got the rhythm now!
+Try `/opsx-propose` on something you actually want to build. You've got the rhythm now!
 ```
 
 ---
@@ -479,8 +496,8 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at `openspec/changes/<name>/`.
 
 To pick up where we left off later:
-- `/opsx:continue <name>` - Resume artifact creation
-- `/opsx:apply <name>` - Jump to implementation (if tasks exist)
+- `/opsx-continue <name>` - Resume artifact creation
+- `/opsx-apply <name>` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
 ```
@@ -494,17 +511,25 @@ If the user says they just want to see the commands or skip the tutorial:
 ```
 ## OpenSpec Quick Reference
 
-| Command | What it does |
-|---------|--------------|
-| `/opsx:explore` | Think through problems (no code changes) |
-| `/opsx:new <name>` | Start a new change, step by step |
-| `/opsx:ff <name>` | Fast-forward: all artifacts at once |
-| `/opsx:continue <name>` | Continue an existing change |
-| `/opsx:apply <name>` | Implement tasks |
-| `/opsx:verify <name>` | Verify implementation |
-| `/opsx:archive <name>` | Archive when done |
+**Core workflow:**
 
-Try `/opsx:new` to start your first change, or `/opsx:ff` if you want to move fast.
+ | Command                  | What it does                               |
+ |--------------------------|--------------------------------------------|
+ | `/opsx-propose <name>` | Create a change and generate all artifacts |
+ | `/opsx-explore`        | Think through problems (no code changes)   |
+ | `/opsx-apply <name>`   | Implement tasks                            |
+ | `/opsx-archive <name>` | Archive when done                          |
+
+**Additional commands:**
+
+ | Command                   | What it does                        |
+ |---------------------------|-------------------------------------|
+ | `/opsx-new <name>`      | Start a new change, step by step    |
+ | `/opsx-continue <name>` | Continue an existing change         |
+ | `/opsx-ff <name>`       | Fast-forward: all artifacts at once |
+ | `/opsx-verify <name>`   | Verify implementation               |
+
+Try `/opsx-propose` to start your first change.
 ```
 
 Exit gracefully.
