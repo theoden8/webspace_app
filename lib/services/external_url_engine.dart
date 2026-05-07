@@ -48,6 +48,7 @@ const Set<String> _internalSchemes = {
   'about',
   'file',
   'javascript',
+  'gemini',
   'view-source',
   'chrome',
   'chrome-extension',
