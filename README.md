@@ -44,9 +44,9 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 - 🌍 Per-site language preferences (30+ languages)
 - 💾 Import/export settings for backup
 - 🔄 Proxy support with authentication (Android, iOS 17+, macOS 14+, Linux)
-- 🧹 ClearURLs tracking parameter removal
-- 🛡️ Hagezi DNS blocklist domain blocking (5 severity levels)
-- 🚫 Content blocker with EasyList/EasyPrivacy ad & tracker filtering
+- 🧹 Tracking parameter removal via [ClearURLs](https://github.com/ClearURLs/Rules) rules (LGPL-3.0)
+- 🛡️ DNS-level domain blocking via [Hagezi](https://github.com/hagezi/dns-blocklists) blocklists (GPL-3.0, 5 severity levels)
+- 🚫 Ad & tracker filtering via [EasyList](https://easylist.to/) filter lists (GPL-3.0 / CC BY-SA 3.0), including EasyList, EasyPrivacy, Fanboy's Social Blocking List, and Fanboy's Annoyance List
 - 📦 LocalCDN - cache CDN resources locally to prevent tracking (Android)
 - 📌 Home screen shortcuts for quick site access (Android)
 - 📜 Per-site user scripts (custom JavaScript injection)
@@ -57,7 +57,7 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 ### Prerequisites
 - [FVM](https://fvm.app/) (Flutter Version Manager)
 - Xcode (for iOS/macOS)
-- Android Studio (for Android)
+- Android SDK (for Android)
 
 ### Setup
 ```bash
@@ -79,18 +79,6 @@ fvm flutter pub get
 | Android | ✅ Supported | Target |
 | macOS | ✅ Supported | Development |
 | Linux | ✅ Supported | Development |
-
-## Tech Stack
-
-- **Framework**: Flutter
-
-This project is made possible by [flutter_inappwebview](https://github.com/pichillilorenzo/flutter_inappwebview), which provides the advanced webview functionality at the core of WebSpace.
-
-URL cleaning is powered by rules from [ClearURLs](https://github.com/ClearURLs/Rules) (LGPL-3.0).
-
-DNS domain blocking uses blocklists from [Hagezi](https://github.com/hagezi/dns-blocklists) (GPL-3.0).
-
-Content blocking uses filter lists from [EasyList](https://easylist.to/) (GPL-3.0 / CC BY-SA 3.0), including EasyList, EasyPrivacy, Fanboy's Social Blocking List, and Fanboy's Annoyance List.
 
 ## License
 
