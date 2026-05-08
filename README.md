@@ -57,7 +57,7 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 ### Prerequisites
 - [FVM](https://fvm.app/) (Flutter Version Manager)
 - Xcode (for iOS/macOS)
-- Android Studio (for Android)
+- Android SDK (for Android)
 
 ### Setup
 ```bash
