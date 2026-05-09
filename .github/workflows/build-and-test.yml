@@ -146,11 +146,26 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install --locked cargo-ndk
 
+      # cargo-ndk requires ANDROID_NDK_HOME pointing at a real NDK
+      # install. The ubuntu-latest runner ships a default NDK under
+      # $ANDROID_SDK_ROOT/ndk/, but the path is version-stamped and
+      # the actual version drifts across runner image releases. Use
+      # the dedicated setup action so we pin a known-good NDK and
+      # don't wedge on a path-shape change in the runner image.
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: false
+
       - name: Build adblock-rust libraries (all Android ABIs)
         # Continue on failure so the legacy Dart engine fallback path
         # still ships an APK if the Rust build is broken — the Dart
         # AdblockEngine.load() returns null when the .so is missing.
         continue-on-error: true
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: ./scripts/build_rust.sh android-all
 
       - name: Run tests

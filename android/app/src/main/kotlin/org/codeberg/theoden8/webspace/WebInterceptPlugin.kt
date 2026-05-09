@@ -634,7 +634,7 @@ class FastSubresourceInterceptor(
      */
     private fun mapResourceType(request: WebResourceRequestExt): String {
         if (request.isForMainFrame()) return "document"
-        val headers = request.requestHeaders ?: emptyMap()
+        val headers = request.headers ?: emptyMap()
         // Header keys come back as the original case the browser
         // sent (typically lowercase for fetch metadata) — match
         // both casings to survive future quirks.
