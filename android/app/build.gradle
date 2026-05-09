@@ -39,6 +39,21 @@ android {
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+        test.java.srcDirs += 'src/test/kotlin'
+    }
+
+    testOptions {
+        // Make Android-framework references in our plugins (Log, etc.)
+        // return their default Java values instead of throwing
+        // RuntimeException at unit-test time, so we can JVM-test the
+        // pure-Kotlin glue (mapResourceType, AdblockEngineNative
+        // soft-fallback) without dragging in Robolectric. Anything
+        // touching real Android UI lives in instrumentation tests
+        // proper, not here.
+        unitTests {
+            returnDefaultValues = true
+            includeAndroidResources = false
+        }
     }
 
     defaultConfig {
@@ -130,4 +145,15 @@ dependencies {
     // ~15-min refreshes that wake the app to reload notification sites,
     // mirroring iOS BGAppRefreshTask without a foreground service.
     implementation "androidx.work:work-runtime-ktx:2.9.1"
+
+    // JVM unit tests for the Kotlin plugins. Run with:
+    //   ./gradlew :app:testFdroidDebugUnitTest
+    // Catches Kotlin compile errors and pure-Kotlin logic bugs in
+    // CI's "Build Android" job before the much-slower flutter build
+    // step would. We deliberately do NOT pull Robolectric — the
+    // returnDefaultValues=true testOption above stubs the Android
+    // framework SDK calls so any pure-Kotlin code path is testable.
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.mockito:mockito-core:5.14.2"
+    testImplementation "org.mockito.kotlin:mockito-kotlin:5.4.0"
 }

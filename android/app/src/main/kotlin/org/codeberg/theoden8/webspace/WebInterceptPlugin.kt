@@ -632,7 +632,7 @@ class FastSubresourceInterceptor(
      *   4. "other" as the final default — ABP rules without a
      *      resource-type modifier still match this.
      */
-    private fun mapResourceType(request: WebResourceRequestExt): String {
+    internal fun mapResourceType(request: WebResourceRequestExt): String {
         if (request.isForMainFrame()) return "document"
         val headers = request.headers ?: emptyMap()
         // Header keys come back as the original case the browser

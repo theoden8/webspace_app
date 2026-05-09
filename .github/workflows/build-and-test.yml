@@ -168,6 +168,21 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: ./scripts/build_rust.sh android-all
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run JVM unit tests (Kotlin plugins)
+        # Catches Kotlin compile errors and pure-logic bugs in the
+        # Android plugins (WebInterceptPlugin.mapResourceType,
+        # AdblockEngineNative fallback) before the slow APK assembly
+        # step. The phase 9 `request.requestHeaders` typo would
+        # have surfaced here in seconds. fdroidDebug variant has
+        # the smallest config — we only care that the code compiles
+        # and the unit-test logic passes; flavor specifics don't
+        # affect either.
+        working-directory: android
+        run: gradle :app:testFdroidDebugUnitTest --console=plain --no-daemon
+
       - name: Run tests
         run: fvm flutter test
 
