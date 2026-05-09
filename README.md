@@ -71,6 +71,22 @@ fvm install
 fvm flutter pub get
 ```
 
+### Optional: Rust adblock engine
+
+The content blocker can be backed by Brave's [adblock-rust](https://github.com/brave/adblock-rust) engine via `rust/webspace_adblock`. Off by default; opt in from App Settings → Content Blocker → "Use Rust adblock engine" once the library is built. Adds support for `$domain=`, regex network rules, generic class/id cosmetic lookups, and every other rule shape adblock-rust accepts.
+
+```bash
+# Native shared library for the current platform.
+# Targets: linux | android <abi> | android-all | ios | macos
+./scripts/build_rust.sh linux
+
+# Build the app — the .so is bundled under <bundle>/lib/ on Linux,
+# jniLibs/<abi>/ on Android, and as an XCFramework on iOS/macOS.
+fvm flutter build linux --release
+```
+
+Toggle the engine in the app, no rebuild required after the .so is installed. The legacy Dart engine remains the canonical fallback — flipping the toggle off restores it instantly.
+
 ## Platform Support
 
 | Platform | Status | Purpose |

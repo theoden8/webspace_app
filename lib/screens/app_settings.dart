@@ -1360,6 +1360,30 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               label: const Text('Add Custom List'),
             ),
           ),
+          // Experimental Rust engine toggle. Greyed out on platforms
+          // that don't ship the native library (Android in current
+          // builds; depends on the CI rust step having succeeded).
+          // Flipping it on rebuilds the rule set so the engine spins
+          // up immediately — no app restart needed.
+          SwitchListTile(
+            title: const Text('Use Rust adblock engine (experimental)'),
+            subtitle: Text(
+              ContentBlockerService.instance.rustEngineSupportedOnPlatform
+                  ? 'Routes network blocks through Brave’s adblock-rust engine. '
+                      'Adds support for \$domain=, regex network rules, and '
+                      'generic class/id cosmetic lookups.'
+                  : 'Native library not available on this platform.',
+            ),
+            value: ContentBlockerService.instance.rustEngineEnabled,
+            onChanged: ContentBlockerService.instance
+                    .rustEngineSupportedOnPlatform
+                ? (value) async {
+                    await ContentBlockerService.instance
+                        .setRustEngineEnabled(value);
+                    if (mounted) setState(() {});
+                  }
+                : null,
+          ),
 
           const Divider(height: 32),
 

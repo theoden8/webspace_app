@@ -504,22 +504,44 @@ Whenever the aggregated ABP rule set changes (download, toggle, remove, add cust
 
 ### Requirement: CB-010 - Optional Rust-Backed Engine
 
-When the `WEBSPACE_USE_RUST_ENGINE` build flag is set AND the platform ships the `webspace_adblock` shared library, the system SHALL route network-block decisions through Brave's adblock-rust engine via the Dart FFI binding in [lib/services/adblock_engine.dart](../../../lib/services/adblock_engine.dart). When the flag is unset or the library cannot be loaded, the system SHALL fall back to the Dart parser engine described in CB-001 through CB-009 with no behavior change visible to callers.
+When the user opts in via the `useRustAdblockEngine` SharedPreferences flag (toggleable from App Settings → Content Blocker → "Use Rust adblock engine") AND the platform ships the `webspace_adblock` shared library, the system SHALL route network-block decisions through Brave's adblock-rust engine via the Dart FFI binding in [lib/services/adblock_engine.dart](../../../lib/services/adblock_engine.dart). When the flag is unset or the library cannot be loaded, the system SHALL fall back to the Dart parser engine described in CB-001 through CB-009 with no behavior change visible to callers.
 
 #### Scenario: Engine takes precedence when active
 
-**Given** `kUseRustEngineForNetwork` is true and the library loaded
+**Given** `useRustAdblockEngine` is true and the library loaded
 **When** `ContentBlockerService.isBlocked(url, sourceUrl: src)` is called
 **Then** the result is whatever `AdblockEngine.shouldBlock` returns
 **And** the Dart aggregations (`_blockedDomains`, `_blockedDomainPathRegexes`) are unused for that decision
 
-#### Scenario: Fallback when library missing
+#### Scenario: Toggle flips engine without app restart
 
-**Given** the build flag is set but the platform has no `libwebspace_adblock.so`
+**Given** the user opens App Settings → Content Blocker → "Use Rust adblock engine"
+**When** they flip the switch
+**Then** `setRustEngineEnabled` persists the new value to SharedPreferences
+**And** triggers `_rebuildRules`, which spins up or tears down the engine immediately
+**And** subsequent `isBlocked` calls reflect the new routing
+
+#### Scenario: Toggle disabled when library not on platform
+
+**Given** `AdblockEngine.load` returns null on the running platform
+**When** the user opens App Settings
+**Then** the "Use Rust adblock engine" switch is greyed out
+**And** the subtitle reads "Native library not available on this platform"
+
+#### Scenario: Fallback when library missing but flag is true
+
+**Given** the user has `useRustAdblockEngine = true` from a prior install on a platform that shipped the library
+**And** they restore the same prefs onto a platform without the library
 **When** the service initialises
 **Then** a warning is logged
 **And** subsequent `isBlocked` calls use the Dart parser engine
 **And** every CB-001..CB-009 scenario continues to pass
+
+#### Scenario: useRustAdblockEngine round-trips through settings backup
+
+**Given** the user has flipped the toggle on
+**When** they export settings and restore on another device
+**Then** the imported pref preserves the value (the registry in `app_prefs.dart` covers it automatically)
 
 #### Scenario: $domain= modifier fires through service entry point
 

@@ -6,6 +6,7 @@ import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,20 +15,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'abp_filter_parser.dart';
 import 'abp_filter_parser_async.dart';
 
-/// Compile-time switch: route network-block decisions through the
-/// Rust-backed [AdblockEngine] when the platform ships the library.
-/// The Dart parser-based engine remains the canonical path for
-/// cosmetic rules until phase 4 wires those through too.
+/// Runtime opt-in for the Rust-backed adblock engine. Loaded from
+/// SharedPreferences (key: [kUseRustAdblockEngineKey]) on first
+/// access and cached. Off by default. Toggling at runtime calls
+/// [ContentBlockerService.setRustEngineEnabled], which persists the
+/// new value AND triggers a rebuild so the engine spins up / tears
+/// down without an app restart.
 ///
-/// Build with `--dart-define=WEBSPACE_USE_RUST_ENGINE=1` to opt in.
-/// When false, the service behaves exactly as before. When true and
-/// the library can't be loaded (unsupported platform, missing .so),
-/// the service silently falls back to the Dart path — the engine is
-/// strictly an accelerator for the network side, never a precondition.
-const bool kUseRustEngineForNetwork = bool.fromEnvironment(
-  'WEBSPACE_USE_RUST_ENGINE',
-  defaultValue: false,
-);
+/// When the runtime flag is true but the platform doesn't ship
+/// `webspace_adblock` (or the library fails to load), the service
+/// falls back to the Dart parser path — the engine is strictly an
+/// accelerator, never a precondition.
 
 /// A filter list entry with metadata.
 class FilterList {
@@ -144,9 +142,43 @@ class ContentBlockerService {
   AdblockEngine? _rustEngine;
 
   /// Whether the Rust engine is currently available — true only if
-  /// the build flag is on, the library loaded, and parsing succeeded.
-  /// Tested via [usingRustEngine] for diagnostics + tests.
+  /// the runtime flag is on, the library loaded, and parsing
+  /// succeeded. Tested via [usingRustEngine] for diagnostics + tests.
   bool get usingRustEngine => _rustEngine != null;
+
+  /// Cached runtime flag (mirrors SharedPreferences). Read by
+  /// [_maybeRebuildRustEngine]; written by [setRustEngineEnabled] and
+  /// loaded on first [_rebuildRules] call after [initialize].
+  bool _rustEngineEnabled = false;
+
+  /// Whether the user has opted in to the Rust engine. UI bindings
+  /// (settings page) read this for the toggle's current value.
+  bool get rustEngineEnabled => _rustEngineEnabled;
+
+  /// Whether the platform actually ships the engine library, regardless
+  /// of the user's preference. UI bindings should grey the toggle out
+  /// when this is false — flipping it on otherwise just logs a warning
+  /// and silently uses the Dart engine. Cheap to call: it tries the
+  /// `DynamicLibrary.open` once and caches the result.
+  bool get rustEngineSupportedOnPlatform {
+    if (_rustEngineSupported != null) return _rustEngineSupported!;
+    final probe = AdblockEngine.load('');
+    _rustEngineSupported = probe != null;
+    probe?.dispose();
+    return _rustEngineSupported!;
+  }
+  bool? _rustEngineSupported;
+
+  /// Toggle the Rust engine on / off, persist to SharedPreferences,
+  /// and rebuild rules so the engine spins up / tears down without
+  /// an app restart. Safe to call repeatedly.
+  Future<void> setRustEngineEnabled(bool enabled) async {
+    if (_rustEngineEnabled == enabled) return;
+    _rustEngineEnabled = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kUseRustAdblockEngineKey, enabled);
+    await _rebuildRules();
+  }
 
   /// All configured filter lists.
   List<FilterList> get lists => List.unmodifiable(_lists);
@@ -378,6 +410,10 @@ class ContentBlockerService {
   Future<void> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Hydrate the engine flag BEFORE _rebuildRules so the very
+      // first rebuild (just below) spins up the engine if the user
+      // already opted in on a prior run.
+      _rustEngineEnabled = prefs.getBool(kUseRustAdblockEngineKey) ?? false;
       final listsJson = prefs.getString(_listsKey);
 
       if (listsJson != null) {
@@ -570,13 +606,13 @@ class ContentBlockerService {
   }
 
   /// Rebuild the Rust engine from the same cached filter files the
-  /// Dart engine consumes. No-op when [kUseRustEngineForNetwork] is
-  /// false or the native library is unavailable. Called from
+  /// Dart engine consumes. No-op when [_rustEngineEnabled] is false
+  /// or the native library is unavailable. Called from
   /// [_rebuildRules] so the engine and Dart aggregations stay in sync.
   Future<void> _maybeRebuildRustEngine() async {
     _rustEngine?.dispose();
     _rustEngine = null;
-    if (!kUseRustEngineForNetwork) return;
+    if (!_rustEngineEnabled) return;
     final buf = StringBuffer();
     for (final list in _lists) {
       if (!list.enabled) continue;
