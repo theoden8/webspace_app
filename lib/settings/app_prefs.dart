@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
 /// Registry of global app-level preferences that are round-tripped through
@@ -37,6 +38,12 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // ignores incoming share/open intents (Android ACTION_SEND, webspace://,
   // iOS/macOS Share Extension) without crashing. Default: enabled.
   'linkHandlingEnabled': true,
+  // User-approved exceptions for self-signed / otherwise-untrusted TLS
+  // certificates. Each entry is `host|port|sha256hex` and is consulted by
+  // both the webview's `onReceivedServerTrustAuthRequest` and the
+  // Dart-side `HttpClient.badCertificateCallback`. Round-trips so a
+  // self-hosted user keeps their trust decisions across reinstalls.
+  kTrustedHostsKey: <String>[],
 };
 
 const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';

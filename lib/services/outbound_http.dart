@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:socks5_proxy/socks_client.dart' as socks5;
 
+import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -94,13 +95,13 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   OutboundClient clientFor(UserProxySettings settings) {
     switch (settings.type) {
       case ProxyType.DEFAULT:
-        return OutboundClientReady(http.Client());
+        return OutboundClientReady(IOClient(_newHttpClient()));
 
       case ProxyType.HTTP:
       case ProxyType.HTTPS:
         final addr = settings.address;
         if (addr == null || addr.isEmpty) {
-          return OutboundClientReady(http.Client());
+          return OutboundClientReady(IOClient(_newHttpClient()));
         }
         final hostPort = parseHostPort(addr);
         if (hostPort == null) {
@@ -109,7 +110,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
             'avoid leaking the device IP via a direct fallback.',
           );
         }
-        final inner = HttpClient();
+        final inner = _newHttpClient();
         inner.findProxy = (uri) {
           final host = uri.host.toLowerCase();
           if (_isLocalhost(host)) return 'DIRECT';
@@ -128,7 +129,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
       case ProxyType.SOCKS5:
         final addr = settings.address;
         if (addr == null || addr.isEmpty) {
-          return OutboundClientReady(http.Client());
+          return OutboundClientReady(IOClient(_newHttpClient()));
         }
         final hostPort = parseHostPort(addr);
         if (hostPort == null) {
@@ -146,6 +147,27 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     }
   }
 
+  /// Construct an [HttpClient] whose `badCertificateCallback` accepts a
+  /// cert iff the user has previously trusted (host, port, sha256) via
+  /// [TrustedHostsService]. Used everywhere this factory makes a client
+  /// so a self-signed site the user already trusted in the webview also
+  /// works for Dart-side fetches (favicon probes, downloads, …) — the
+  /// alternative was a `HandshakeException: CERTIFICATE_VERIFY_FAILED`
+  /// the moment any non-webview code touched the same site.
+  static HttpClient _newHttpClient() {
+    final client = HttpClient();
+    client.badCertificateCallback = _isTrustedBadCert;
+    return client;
+  }
+
+  static bool _isTrustedBadCert(X509Certificate cert, String host, int port) {
+    return TrustedHostsService.instance.isTrusted(
+      host: host,
+      port: port,
+      fingerprint: TrustedHostsService.fingerprintFromX509(cert),
+    );
+  }
+
   /// Builds an [http.Client] whose `connectionFactory` tunnels each request
   /// through the SOCKS5 server at [host]:[port]. The destination hostname is
   /// passed through to the SOCKS5 server (`InternetAddressType.unix`), so
@@ -156,7 +178,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
     String? username,
     String? password,
   }) {
-    final inner = HttpClient();
+    final inner = _newHttpClient();
     inner.connectionFactory = (uri, proxyHost, proxyPort) async {
       final InternetAddress proxyAddr;
       if (_isIpLiteral(host)) {
@@ -182,7 +204,20 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
         uri.port,
       );
       if (uri.scheme == 'https') {
-        final secure = (await socket).secure(uri.host);
+        // The SOCKS5 path bypasses HttpClient's TLS handshake (the
+        // secure() call below is on the raw socket), so the trust list
+        // has to be re-checked here too — otherwise self-signed sites
+        // accessible only through a SOCKS5 tunnel (Tor onion services
+        // talking to the user's self-hosted backend) get a hard
+        // HandshakeException despite the user trusting the cert.
+        final secure = (await socket).secure(
+          uri.host,
+          onBadCertificate: (cert) => TrustedHostsService.instance.isTrusted(
+            host: uri.host,
+            port: uri.port,
+            fingerprint: TrustedHostsService.fingerprintFromX509(cert),
+          ),
+        );
         return ConnectionTask.fromSocket(
           secure,
           () async => (await secure).close().ignore(),

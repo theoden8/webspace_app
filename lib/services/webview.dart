@@ -20,6 +20,7 @@ import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
+import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
 import 'package:webspace/services/download_url_revert_engine.dart';
@@ -457,6 +458,17 @@ class WebViewConfig {
   /// webview always cancels such navigations; the host UI decides
   /// whether to launch the target app after confirming with the user.
   final Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl;
+  /// Prompt for an untrusted (typically self-signed) TLS certificate
+  /// surfaced by the platform's `onReceivedServerTrustAuthRequest`. The
+  /// host UI shows a confirmation dialog; returning `true` adds the
+  /// (host, port, sha256) triple to [TrustedHostsService] and lets the
+  /// load proceed. Returning `false` (or a null callback) cancels the
+  /// load — matching the platform default.
+  final Future<bool> Function(
+    String host,
+    int port,
+    inapp.SslCertificate? certificate,
+  )? onUntrustedCertificate;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
   /// Per-site geolocation mode. [LocationMode.spoof] injects a shim that
@@ -521,6 +533,7 @@ class WebViewConfig {
     this.userScripts = const [],
     this.onConfirmScriptFetch,
     this.onExternalSchemeUrl,
+    this.onUntrustedCertificate,
     this.pullToRefreshController,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -1199,6 +1212,13 @@ class WebViewFactory {
       onCloseWindow: (controller) {
         onCloseWindow?.call();
       },
+      // Honor the same trust list as the parent webview, but never
+      // prompt — a popup is a child of a flow the user already
+      // approved, and surfacing a second dialog inside a Cloudflare
+      // verification iframe would be more confusing than the cancel
+      // it falls back to.
+      onReceivedServerTrustAuthRequest: (controller, challenge) =>
+          _handleServerTrust(challenge, null),
     );
   }
 
@@ -2714,7 +2734,62 @@ class WebViewFactory {
           config.onUrlChanged?.call(revert);
         }
       },
+      onReceivedServerTrustAuthRequest: (controller, challenge) =>
+          _handleServerTrust(challenge, config.onUntrustedCertificate),
     );
+  }
+
+  /// Routes the platform's certificate-validation failure through
+  /// [TrustedHostsService]. A previously-pinned (host, port, sha256)
+  /// triple proceeds silently; otherwise the host UI prompt decides,
+  /// and an "always trust" decision is persisted via the service.
+  static Future<inapp.ServerTrustAuthResponse> _handleServerTrust(
+    inapp.ServerTrustChallenge challenge,
+    Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
+  ) async {
+    final space = challenge.protectionSpace;
+    final host = space.host;
+    final port = space.port ??
+        (space.protocol?.toLowerCase() == 'https' ? 443 : 0);
+    final fingerprint =
+        TrustedHostsService.fingerprintFromInappCertificate(space.sslCertificate);
+    if (TrustedHostsService.instance.isTrusted(
+      host: host,
+      port: port,
+      fingerprint: fingerprint,
+    )) {
+      LogService.instance.log(
+          'TLS', 'pinned cert accepted for $host:$port (sha256=$fingerprint)');
+      return inapp.ServerTrustAuthResponse(
+          action: inapp.ServerTrustAuthResponseAction.PROCEED);
+    }
+    if (prompt == null) {
+      LogService.instance.log('TLS',
+          'untrusted cert for $host:$port and no host UI — cancelling load');
+      return inapp.ServerTrustAuthResponse(
+          action: inapp.ServerTrustAuthResponseAction.CANCEL);
+    }
+    final approved = await prompt(host, port, space.sslCertificate);
+    if (!approved) {
+      LogService.instance.log(
+          'TLS', 'user rejected untrusted cert for $host:$port');
+      return inapp.ServerTrustAuthResponse(
+          action: inapp.ServerTrustAuthResponseAction.CANCEL);
+    }
+    if (fingerprint != null) {
+      await TrustedHostsService.instance.trust(
+        host: host,
+        port: port,
+        fingerprint: fingerprint,
+      );
+      LogService.instance.log('TLS',
+          'user trusted cert for $host:$port (pinned sha256=$fingerprint)');
+    } else {
+      LogService.instance.log('TLS',
+          'user trusted cert for $host:$port (no DER from platform — not pinned)');
+    }
+    return inapp.ServerTrustAuthResponse(
+        action: inapp.ServerTrustAuthResponseAction.PROCEED);
   }
 
   static Future<void> _handleDownloadRequest(
