@@ -218,20 +218,32 @@ void main() {
           reason: 'engine has the tracker.com rule — Dart aggregations did not');
     }, skip: libExists ? false : 'Rust library not built');
 
-    test(r'engine handles $domain= modifier the Dart engine drops', () {
-      // The headline reason for adopting the engine. With no Rust
-      // engine set, the Dart path doesn't see this rule at all. With
-      // the engine routed, the rule fires conditionally.
+    test(r'engine fires $domain= rule when sourceUrl is on-list', () {
+      // The headline reason for adopting the engine. The phase-4
+      // sourceUrl plumbing is what actually makes this work — without
+      // it the engine sees an empty source and `$domain=news.com`
+      // never matches.
       final engine = AdblockEngine.load('||tracker.com^\$domain=news.com\n')!;
       service.setRustEngineForTest(engine);
 
-      // The Dart-only entry point doesn't carry source URL, so the
-      // engine sees an empty source — that doesn't match news.com,
-      // so the rule should NOT fire from this entry. This is a
-      // known limitation of routing through isBlocked(url) without
-      // also wiring shouldBlock(sourceUrl) — phase 4 territory.
-      expect(service.isBlocked('https://tracker.com/'), isFalse,
-          reason: 'no source URL plumbing yet — \$domain= rule cannot match');
+      expect(
+        service.isBlocked('https://tracker.com/x',
+            sourceUrl: 'https://news.com/article'),
+        isTrue,
+        reason:
+            r'$domain=news.com should fire when source URL is on news.com',
+      );
+      expect(
+        service.isBlocked('https://tracker.com/x',
+            sourceUrl: 'https://blog.com/article'),
+        isFalse,
+        reason: r'$domain=news.com must NOT fire on other domains',
+      );
+      expect(
+        service.isBlocked('https://tracker.com/x'),
+        isFalse,
+        reason: 'omitting sourceUrl degrades to empty source — rule misses',
+      );
     }, skip: libExists ? false : 'Rust library not built');
   });
 

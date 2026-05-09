@@ -502,6 +502,64 @@ Whenever the aggregated ABP rule set changes (download, toggle, remove, add cust
 
 ---
 
+### Requirement: CB-010 - Optional Rust-Backed Engine
+
+When the `WEBSPACE_USE_RUST_ENGINE` build flag is set AND the platform ships the `webspace_adblock` shared library, the system SHALL route network-block decisions through Brave's adblock-rust engine via the Dart FFI binding in [lib/services/adblock_engine.dart](../../../lib/services/adblock_engine.dart). When the flag is unset or the library cannot be loaded, the system SHALL fall back to the Dart parser engine described in CB-001 through CB-009 with no behavior change visible to callers.
+
+#### Scenario: Engine takes precedence when active
+
+**Given** `kUseRustEngineForNetwork` is true and the library loaded
+**When** `ContentBlockerService.isBlocked(url, sourceUrl: src)` is called
+**Then** the result is whatever `AdblockEngine.shouldBlock` returns
+**And** the Dart aggregations (`_blockedDomains`, `_blockedDomainPathRegexes`) are unused for that decision
+
+#### Scenario: Fallback when library missing
+
+**Given** the build flag is set but the platform has no `libwebspace_adblock.so`
+**When** the service initialises
+**Then** a warning is logged
+**And** subsequent `isBlocked` calls use the Dart parser engine
+**And** every CB-001..CB-009 scenario continues to pass
+
+#### Scenario: $domain= modifier fires through service entry point
+
+**Given** the engine is active and the filter list contains `||tracker.com^$domain=news.com`
+**When** `isBlocked('https://tracker.com/x', sourceUrl: 'https://news.com/article')` is called
+**Then** the result is `true`
+**When** the same URL is checked with `sourceUrl: 'https://blog.com/article'`
+**Then** the result is `false`
+
+#### Scenario: requestType gates resource-type modifiers
+
+**Given** a rule `||example.com^$image`
+**When** `isBlocked(url, requestType: 'image')` is called
+**Then** the rule fires
+**When** the same URL is checked with `requestType: 'document'`
+**Then** the rule does NOT fire
+
+#### Scenario: Sub-resource hooks pass page URL as sourceUrl
+
+**Given** the engine is active
+**When** the JS-bridge `blockResourceLoaded` or `blockCheck` handler fires for a sub-resource
+**Then** the handler passes `lastLoadStartUrl` (the page hosting the request) as `sourceUrl`
+**And** the engine can fire `$domain=` rules that target the page's domain
+
+#### Scenario: Cosmetic rules continue to use Dart engine
+
+**Given** the Rust engine is active
+**When** the cosmetic shim is built via `getEarlyCssScript` or `getCosmeticScript`
+**Then** the rules come from the Dart aggregations, NOT from the Rust engine
+**(Generic class/id selector handling via `hidden_class_id_selectors` is a separate phase.)**
+
+#### Scenario: Linux bundle ships the library
+
+**Given** `scripts/build_rust.sh linux` has been run
+**Then** `linux/lib/libwebspace_adblock.so` exists
+**And** `flutter build linux --release` packages it into the bundle's `lib/` directory
+**And** `AdblockEngine.load(...)` resolves it at runtime via the `$ORIGIN/lib` RPATH
+
+---
+
 ### Requirement: CB-009 - Backward Compatibility
 
 Existing sites without `contentBlockEnabled` in their stored JSON SHALL default to `true` on deserialization.

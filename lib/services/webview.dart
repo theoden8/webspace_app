@@ -2039,9 +2039,17 @@ class WebViewFactory {
             final url = args[0] as String;
             final dnsBlocked = config.dnsBlockEnabled &&
                 DnsBlockService.instance.isBlocked(url);
+            // Pass the page URL as sourceUrl so the engine can fire
+            // `$domain=` rules. lastLoadStartUrl is the most recent
+            // URL that triggered onLoadStart — the page hosting this
+            // sub-resource. Empty fallback degrades to host-only
+            // matching which still works for plain `||domain^` rules.
             final abpBlocked = !dnsBlocked &&
                 config.contentBlockEnabled &&
-                ContentBlockerService.instance.isBlocked(url);
+                ContentBlockerService.instance.isBlocked(
+                  url,
+                  sourceUrl: lastLoadStartUrl ?? '',
+                );
             final blocked = dnsBlocked || abpBlocked;
             final source = dnsBlocked
                 ? BlockSource.dns
@@ -2063,7 +2071,12 @@ class WebViewFactory {
                     source: BlockSource.dns);
                 return true;
               }
-              if (config.contentBlockEnabled && abpSvc.isBlocked(url)) {
+              // sourceUrl is the page hosting this sub-resource, so
+              // the engine can apply `$domain=` modifiers. See the
+              // matching comment in the blockResourceLoaded handler.
+              if (config.contentBlockEnabled &&
+                  abpSvc.isBlocked(url,
+                      sourceUrl: lastLoadStartUrl ?? '')) {
                 dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.abp);
                 return true;
@@ -2282,8 +2295,17 @@ class WebViewFactory {
           }
         }
         // Content blocker domain check (main-doc navigation; sub-resources
-        // are caught by the native / JS interceptor).
-        if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
+        // are caught by the native / JS interceptor). requestType
+        // 'document' tells the engine this is a top-level load, so
+        // any `$~document` modifiers are honoured. The source URL is
+        // the previous page (`lastLoadStartUrl`) — the page that
+        // initiated this navigation.
+        if (config.contentBlockEnabled &&
+            ContentBlockerService.instance.isBlocked(
+              url,
+              sourceUrl: lastLoadStartUrl ?? '',
+              requestType: 'document',
+            )) {
           if (config.siteId != null) {
             DnsBlockService.instance.recordRequest(config.siteId!, url, true,
                 source: BlockSource.abp);
@@ -2460,8 +2482,16 @@ class WebViewFactory {
             url.toString().startsWith('http')) {
           final urlStr = url.toString();
           final dnsBlocked = DnsBlockService.instance.isBlocked(urlStr);
+          // We're inside onLoadStart for `urlStr`, so this IS the
+          // page URL — use it as both the URL under check and the
+          // source. requestType 'document' since this is a top-level
+          // load.
           final abpBlocked = !dnsBlocked &&
-              ContentBlockerService.instance.isBlocked(urlStr);
+              ContentBlockerService.instance.isBlocked(
+                urlStr,
+                sourceUrl: urlStr,
+                requestType: 'document',
+              );
           final blocked = dnsBlocked || abpBlocked;
           final source = dnsBlocked
               ? BlockSource.dns

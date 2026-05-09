@@ -205,19 +205,26 @@ class ContentBlockerService {
   /// has any registered path glob. The per-host cache only stores the
   /// pure-domain decision; path lookups are unmemoised because the
   /// answer depends on the URL's path, not the host alone.
-  bool isBlocked(String url) {
-    // Rust engine takes precedence when active. It gives correct
-    // answers for everything the Dart engine handles AND for $domain=
-    // / regex / resource-type rules the Dart engine drops on the
-    // floor. The Dart aggregations (`_blockedDomains` etc.) are still
-    // populated so [isHostBlocked] (host-only fast path used by the
-    // PerformanceObserver report) keeps working.
+  ///
+  /// [sourceUrl] is the page URL the request originated from. Without
+  /// it the engine can't evaluate `$domain=` modifiers — those rules
+  /// will silently miss. Caller-side: pass `config.url` from the
+  /// WebView hook. [requestType] follows ABP's resource-type taxonomy
+  /// (`document|subdocument|stylesheet|script|image|font|media|xhr|other`)
+  /// and gates `$script`/`$image`/etc. modifiers; pass `'other'` (the
+  /// default) when unknown.
+  bool isBlocked(
+    String url, {
+    String sourceUrl = '',
+    String requestType = 'other',
+  }) {
     final engine = _rustEngine;
     if (engine != null) {
-      // No source URL plumbed through this entry point yet — the
-      // engine treats empty source as "unknown", matching the Dart
-      // engine's host-only semantics.
-      return engine.shouldBlock(url);
+      return engine.shouldBlock(
+        url,
+        sourceUrl: sourceUrl,
+        requestType: requestType,
+      );
     }
     if (_blockedDomains.isEmpty && _blockedDomainPathRegexes.isEmpty) {
       return false;

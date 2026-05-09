@@ -125,6 +125,20 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     COMPONENT Runtime)
 endforeach(bundled_library)
 
+# webspace_adblock — Rust-backed ABP engine. Built out-of-tree by
+# `scripts/build_rust.sh linux` which drops the .so at
+# `linux/lib/libwebspace_adblock.so` (relative to repo root). Install
+# only when present so the build still works without the Rust step
+# (Dart fallback engine handles that case at runtime via
+# AdblockEngine.load() returning null).
+set(WEBSPACE_ADBLOCK_SO
+  "${CMAKE_CURRENT_SOURCE_DIR}/lib/libwebspace_adblock.so")
+if(EXISTS "${WEBSPACE_ADBLOCK_SO}")
+  install(FILES "${WEBSPACE_ADBLOCK_SO}"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()
+
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.
 set(FLUTTER_ASSET_DIR_NAME "flutter_assets")

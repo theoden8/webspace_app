@@ -239,7 +239,17 @@ ffi.DynamicLibrary? _tryOpenLibrary() {
       return ffi.DynamicLibrary.open('libwebspace_adblock.so');
     }
     if (Platform.isLinux) {
-      return ffi.DynamicLibrary.open('libwebspace_adblock.so');
+      // Bundled installs land the .so at `<bundle>/lib/libwebspace_
+      // adblock.so` next to the Flutter engine library; the binary
+      // is built with RPATH=$ORIGIN/lib so a bare basename resolves.
+      // Fall through to absolute path if the bare lookup fails (e.g.
+      // running unbundled from `flutter run`).
+      try {
+        return ffi.DynamicLibrary.open('libwebspace_adblock.so');
+      } catch (_) {
+        final exeDir = File(Platform.resolvedExecutable).parent.path;
+        return ffi.DynamicLibrary.open('$exeDir/lib/libwebspace_adblock.so');
+      }
     }
     if (Platform.isMacOS) {
       return ffi.DynamicLibrary.open('libwebspace_adblock.dylib');
