@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 
 /// Direct tests for [ContentBlockerService.isBlocked] / `isHostBlocked`
@@ -193,6 +196,45 @@ void main() {
     });
   });
 
+  group('ContentBlockerService.isBlocked routes through Rust engine when set', () {
+    final libExists = _rustLibExists();
+
+    test('engine answer overrides Dart aggregations', () {
+      // Arrange: Dart aggregations say example.com is blocked. Engine
+      // says it's NOT blocked (different rule set). The engine answer
+      // wins — this proves the routing actually delegates and isn't
+      // accidentally falling through to the Dart path.
+      final engine = AdblockEngine.load('||tracker.com^\n')!;
+      service.setBlockedDomainsForTest({'example.com'});
+      service.setRustEngineForTest(engine);
+      addTearDown(() {
+        // setRustEngineForTest takes ownership and disposes on next
+        // call / reset; reset() at setUp covers this implicitly.
+      });
+
+      expect(service.isBlocked('https://example.com/'), isFalse,
+          reason: 'engine has no rule for example.com — must override Dart hit');
+      expect(service.isBlocked('https://tracker.com/'), isTrue,
+          reason: 'engine has the tracker.com rule — Dart aggregations did not');
+    }, skip: libExists ? false : 'Rust library not built');
+
+    test(r'engine handles $domain= modifier the Dart engine drops', () {
+      // The headline reason for adopting the engine. With no Rust
+      // engine set, the Dart path doesn't see this rule at all. With
+      // the engine routed, the rule fires conditionally.
+      final engine = AdblockEngine.load('||tracker.com^\$domain=news.com\n')!;
+      service.setRustEngineForTest(engine);
+
+      // The Dart-only entry point doesn't carry source URL, so the
+      // engine sees an empty source — that doesn't match news.com,
+      // so the rule should NOT fire from this entry. This is a
+      // known limitation of routing through isBlocked(url) without
+      // also wiring shouldBlock(sourceUrl) — phase 4 territory.
+      expect(service.isBlocked('https://tracker.com/'), isFalse,
+          reason: 'no source URL plumbing yet — \$domain= rule cannot match');
+    }, skip: libExists ? false : 'Rust library not built');
+  });
+
   group('ContentBlockerService.isHostBlocked', () {
     test('skips URL parsing — host is the input', () {
       service.setBlockedDomainsForTest({'tracker.net'});
@@ -210,4 +252,12 @@ void main() {
       expect(service.isHostBlocked('tracker.net'), isFalse);
     });
   });
+}
+
+bool _rustLibExists() {
+  final cwd = Directory.current.path;
+  final ext = Platform.isMacOS ? 'dylib' : 'so';
+  return File(
+          '$cwd/rust/webspace_adblock/target/release/libwebspace_adblock.$ext')
+      .existsSync();
 }

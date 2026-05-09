@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -12,6 +13,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'abp_filter_parser.dart';
 import 'abp_filter_parser_async.dart';
+
+/// Compile-time switch: route network-block decisions through the
+/// Rust-backed [AdblockEngine] when the platform ships the library.
+/// The Dart parser-based engine remains the canonical path for
+/// cosmetic rules until phase 4 wires those through too.
+///
+/// Build with `--dart-define=WEBSPACE_USE_RUST_ENGINE=1` to opt in.
+/// When false, the service behaves exactly as before. When true and
+/// the library can't be loaded (unsupported platform, missing .so),
+/// the service silently falls back to the Dart path — the engine is
+/// strictly an accelerator for the network side, never a precondition.
+const bool kUseRustEngineForNetwork = bool.fromEnvironment(
+  'WEBSPACE_USE_RUST_ENGINE',
+  defaultValue: false,
+);
 
 /// A filter list entry with metadata.
 class FilterList {
@@ -120,6 +136,18 @@ class ContentBlockerService {
   /// Aggregated text-based hiding rules: domain -> rules.
   Map<String, List<TextHideRule>> _textHideRules = {};
 
+  /// Optional Rust-backed engine for network-block decisions. Built
+  /// lazily on the first [_rebuildRules] call when the
+  /// [kUseRustEngineForNetwork] flag is set AND the platform ships
+  /// the native library. Disposed and re-created on each rebuild
+  /// (the underlying engine has no incremental update API).
+  AdblockEngine? _rustEngine;
+
+  /// Whether the Rust engine is currently available — true only if
+  /// the build flag is on, the library loaded, and parsing succeeded.
+  /// Tested via [usingRustEngine] for diagnostics + tests.
+  bool get usingRustEngine => _rustEngine != null;
+
   /// All configured filter lists.
   List<FilterList> get lists => List.unmodifiable(_lists);
 
@@ -178,6 +206,19 @@ class ContentBlockerService {
   /// pure-domain decision; path lookups are unmemoised because the
   /// answer depends on the URL's path, not the host alone.
   bool isBlocked(String url) {
+    // Rust engine takes precedence when active. It gives correct
+    // answers for everything the Dart engine handles AND for $domain=
+    // / regex / resource-type rules the Dart engine drops on the
+    // floor. The Dart aggregations (`_blockedDomains` etc.) are still
+    // populated so [isHostBlocked] (host-only fast path used by the
+    // PerformanceObserver report) keeps working.
+    final engine = _rustEngine;
+    if (engine != null) {
+      // No source URL plumbed through this entry point yet — the
+      // engine treats empty source as "unknown", matching the Dart
+      // engine's host-only semantics.
+      return engine.shouldBlock(url);
+    }
     if (_blockedDomains.isEmpty && _blockedDomainPathRegexes.isEmpty) {
       return false;
     }
@@ -489,7 +530,40 @@ class ContentBlockerService {
     _styleRules = allStyleRules;
     _textHideRules = allTextRules;
     _isBlockedCache.clear();
+    _maybeRebuildRustEngine();
     _notifyRulesChanged();
+  }
+
+  /// Rebuild the Rust engine from the same cached filter files the
+  /// Dart engine consumes. No-op when [kUseRustEngineForNetwork] is
+  /// false or the native library is unavailable. Called from
+  /// [_rebuildRules] so the engine and Dart aggregations stay in sync.
+  Future<void> _maybeRebuildRustEngine() async {
+    _rustEngine?.dispose();
+    _rustEngine = null;
+    if (!kUseRustEngineForNetwork) return;
+    final buf = StringBuffer();
+    for (final list in _lists) {
+      if (!list.enabled) continue;
+      try {
+        final cacheFile = await _getCacheFile(list.id);
+        if (await cacheFile.exists()) {
+          buf.writeln(await cacheFile.readAsString());
+        }
+      } catch (_) {/* ignored — same-faith as the Dart parse path */}
+    }
+    if (buf.isEmpty) return;
+    final engine = AdblockEngine.load(buf.toString());
+    if (engine == null) {
+      LogService.instance.log('ContentBlocker',
+          'Rust engine flag is set but the library is not loadable on this platform — falling back to Dart engine.',
+          level: LogLevel.warning);
+      return;
+    }
+    _rustEngine = engine;
+    LogService.instance.log('ContentBlocker',
+        'Rust engine active: ${engine.version}',
+        level: LogLevel.info);
   }
 
   Future<void> _saveLists() async {
@@ -514,6 +588,16 @@ class ContentBlockerService {
     _styleRules = {};
     _textHideRules = {};
     _isBlockedCache.clear();
+    _rustEngine?.dispose();
+    _rustEngine = null;
+  }
+
+  /// Exposed for testing: install a Rust engine directly without
+  /// going through file I/O. Mirrors the post-rebuild state.
+  @visibleForTesting
+  void setRustEngineForTest(AdblockEngine? engine) {
+    _rustEngine?.dispose();
+    _rustEngine = engine;
   }
 
   /// Exposed for testing: seed path-anchored rules without going
