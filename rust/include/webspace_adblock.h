@@ -73,6 +73,36 @@ char *ws_engine_cosmetic_resources_json(struct WsEngine *engine,
                                         uintptr_t url_len);
 
 /**
+ * Generic cosmetic-selector lookup. Returns a JSON array of selector
+ * strings drawn from the engine's generic cosmetic ruleset that match
+ * at least one of the page's [classes] or [ids].
+ *
+ * This is the second half of the cosmetic story: domain-scoped rules
+ * come from `ws_engine_cosmetic_resources_json`; generic `##.ad`-style
+ * rules are kept out of that response (a busy filter list has tens
+ * of thousands of them) and surfaced here only when the page actually
+ * uses a class/id they target. Caller workflow:
+ *   1. JS scans the loaded DOM, collects unique classes and ids.
+ *   2. Sends them across the FFI as JSON arrays of strings.
+ *   3. Receives back the matching selectors and injects them into
+ *      a `<style>` tag the same way DOMAIN-SCOPED rules are handled.
+ *
+ * `exceptions_json` is the `exceptions` array from the prior call to
+ * `ws_engine_cosmetic_resources_json` — pass an empty array `[]` if
+ * you don't have one.
+ *
+ * Caller must free the returned pointer with [`ws_string_free`].
+ * Returns null on error.
+ */
+char *ws_engine_hidden_class_id_selectors_json(struct WsEngine *engine,
+                                               const char *classes_json,
+                                               uintptr_t classes_len,
+                                               const char *ids_json,
+                                               uintptr_t ids_len,
+                                               const char *exceptions_json,
+                                               uintptr_t exceptions_len);
+
+/**
  * Free a string returned by this library. Safe with null.
  */
 void ws_string_free(char *s);

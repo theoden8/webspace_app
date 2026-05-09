@@ -22,6 +22,7 @@ import 'package:webspace/services/abp_filter_parser.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
+import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
@@ -199,6 +200,13 @@ Map<String, String> buildAllFixtures() {
     selectors: multiBatchSelectors,
     textRules: multiTextRules,
   )!;
+
+  // Phase 5: generic class/id cosmetic scanner. The page-side half
+  // of the engine-backed pipeline that calls back to Dart with
+  // `{classes, ids}` and injects the returned selectors. jsdom test
+  // stubs the bridge handler and asserts the injection happens.
+  fixtures['content_blocker/generic_scanner.js'] =
+      buildGenericCosmeticScannerShim();
 
   // Fixture exercising uBO `:style(...)` rules — the parser emits
   // these instead of `display:none`, and the shim must apply the

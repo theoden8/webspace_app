@@ -158,6 +158,75 @@ pub extern "C" fn ws_engine_cosmetic_resources_json(
     }
 }
 
+/// Generic cosmetic-selector lookup. Returns a JSON array of selector
+/// strings drawn from the engine's generic cosmetic ruleset that match
+/// at least one of the page's [classes] or [ids].
+///
+/// This is the second half of the cosmetic story: domain-scoped rules
+/// come from `ws_engine_cosmetic_resources_json`; generic `##.ad`-style
+/// rules are kept out of that response (a busy filter list has tens
+/// of thousands of them) and surfaced here only when the page actually
+/// uses a class/id they target. Caller workflow:
+///   1. JS scans the loaded DOM, collects unique classes and ids.
+///   2. Sends them across the FFI as JSON arrays of strings.
+///   3. Receives back the matching selectors and injects them into
+///      a `<style>` tag the same way DOMAIN-SCOPED rules are handled.
+///
+/// `exceptions_json` is the `exceptions` array from the prior call to
+/// `ws_engine_cosmetic_resources_json` — pass an empty array `[]` if
+/// you don't have one.
+///
+/// Caller must free the returned pointer with [`ws_string_free`].
+/// Returns null on error.
+#[no_mangle]
+pub extern "C" fn ws_engine_hidden_class_id_selectors_json(
+    engine: *mut Engine,
+    classes_json: *const c_char,
+    classes_len: usize,
+    ids_json: *const c_char,
+    ids_len: usize,
+    exceptions_json: *const c_char,
+    exceptions_len: usize,
+) -> *mut c_char {
+    if engine.is_null() {
+        return std::ptr::null_mut();
+    }
+    let engine_ref = unsafe { &(*engine).inner };
+
+    let classes_s = match read_utf8(classes_json, classes_len) {
+        Some(s) => s,
+        None => return std::ptr::null_mut(),
+    };
+    let ids_s = match read_utf8(ids_json, ids_len) {
+        Some(s) => s,
+        None => return std::ptr::null_mut(),
+    };
+    let exceptions_s = read_utf8(exceptions_json, exceptions_len).unwrap_or("[]");
+
+    let classes: Vec<String> = match serde_json::from_str(classes_s) {
+        Ok(v) => v,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let ids: Vec<String> = match serde_json::from_str(ids_s) {
+        Ok(v) => v,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let exceptions: std::collections::HashSet<String> =
+        match serde_json::from_str(exceptions_s) {
+            Ok(v) => v,
+            Err(_) => return std::ptr::null_mut(),
+        };
+
+    let selectors = engine_ref.hidden_class_id_selectors(&classes, &ids, &exceptions);
+    match serde_json::to_string(&selectors) {
+        Ok(s) => CString::new(s)
+            .ok()
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 /// Free a string returned by this library. Safe with null.
 #[no_mangle]
 pub extern "C" fn ws_string_free(s: *mut c_char) {
@@ -249,6 +318,38 @@ mod tests {
     fn null_engine_safe() {
         ws_engine_free(std::ptr::null_mut());
         assert_eq!(check(std::ptr::null_mut(), "https://x.com/", "https://y.com/"), -1);
+    }
+
+    #[test]
+    fn hidden_class_id_selectors_returns_matching_selectors() {
+        // Generic cosmetic rules (no domain prefix) live in a separate
+        // bucket the engine surfaces only on demand. The page tells
+        // the engine which classes/ids it actually uses; the engine
+        // returns the selectors that target them.
+        let rules = "##.ad-banner\n##.unrelated\n##.foo:has(.bar)\n";
+        let engine = rules_to_engine(rules);
+
+        let classes_json = "[\"ad-banner\",\"foo\"]";
+        let ids_json = "[]";
+        let exceptions_json = "[]";
+
+        let ptr = ws_engine_hidden_class_id_selectors_json(
+            engine,
+            classes_json.as_ptr() as *const c_char,
+            classes_json.len(),
+            ids_json.as_ptr() as *const c_char,
+            ids_json.len(),
+            exceptions_json.as_ptr() as *const c_char,
+            exceptions_json.len(),
+        );
+        assert!(!ptr.is_null());
+        let json = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_owned();
+        // Must include rules that target classes the page uses, NOT
+        // include `.unrelated` (the page didn't list "unrelated").
+        assert!(json.contains(".ad-banner"), "payload was: {}", json);
+        assert!(!json.contains(".unrelated"), "payload was: {}", json);
+        ws_string_free(ptr);
+        ws_engine_free(engine);
     }
 
     #[test]

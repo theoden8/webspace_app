@@ -60,6 +60,25 @@ typedef _EngineCosmeticC = ffi.Pointer<Utf8> Function(
 typedef _EngineCosmeticDart = ffi.Pointer<Utf8> Function(
     ffi.Pointer<ffi.Void>, ffi.Pointer<Utf8>, int);
 
+typedef _EngineHiddenClassIdC = ffi.Pointer<Utf8> Function(
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+);
+typedef _EngineHiddenClassIdDart = ffi.Pointer<Utf8> Function(
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<Utf8>,
+  int,
+  ffi.Pointer<Utf8>,
+  int,
+  ffi.Pointer<Utf8>,
+  int,
+);
+
 typedef _StringFreeC = ffi.Void Function(ffi.Pointer<Utf8>);
 typedef _StringFreeDart = void Function(ffi.Pointer<Utf8>);
 
@@ -73,6 +92,7 @@ class _Bindings {
   final _EngineFreeDart engineFree;
   final _EngineCheckUrlDart engineCheckUrl;
   final _EngineCosmeticDart engineCosmetic;
+  final _EngineHiddenClassIdDart engineHiddenClassId;
   final _StringFreeDart stringFree;
   final _EngineVersionDart engineVersion;
 
@@ -81,6 +101,7 @@ class _Bindings {
     required this.engineFree,
     required this.engineCheckUrl,
     required this.engineCosmetic,
+    required this.engineHiddenClassId,
     required this.stringFree,
     required this.engineVersion,
   });
@@ -96,6 +117,9 @@ class _Bindings {
               'ws_engine_check_url'),
       engineCosmetic: lib.lookupFunction<_EngineCosmeticC, _EngineCosmeticDart>(
           'ws_engine_cosmetic_resources_json'),
+      engineHiddenClassId: lib.lookupFunction<_EngineHiddenClassIdC,
+              _EngineHiddenClassIdDart>(
+          'ws_engine_hidden_class_id_selectors_json'),
       stringFree:
           lib.lookupFunction<_StringFreeC, _StringFreeDart>('ws_string_free'),
       engineVersion: lib.lookupFunction<_EngineVersionC, _EngineVersionDart>(
@@ -182,6 +206,67 @@ class AdblockEngine {
       malloc.free(urlPtr);
       if (srcBytes.isNotEmpty) malloc.free(srcPtr);
       malloc.free(typPtr);
+    }
+  }
+
+  /// Look up generic cosmetic selectors that target any of the given
+  /// [classes] / [ids]. Pair with [cosmeticResources] to get the full
+  /// per-page rule set: domain-scoped rules come from
+  /// [cosmeticResources], generic ones come from this method.
+  ///
+  /// Caller workflow:
+  ///   1. Page loads. JS scans the DOM for unique classes and ids.
+  ///   2. Send them through this method to the engine.
+  ///   3. Inject the returned selectors into a `<style>` tag with
+  ///      `display: none !important`.
+  ///
+  /// [exceptions] is the engine's `exceptions` list for the page,
+  /// already collected via [cosmeticResources]; pass an empty set if
+  /// not available — the worst case is a few false-positive hides.
+  ///
+  /// Returns an empty list on FFI error (instead of throwing) so the
+  /// caller can degrade gracefully.
+  List<String> hiddenClassIdSelectors(
+    Set<String> classes,
+    Set<String> ids, {
+    Set<String> exceptions = const <String>{},
+  }) {
+    final classesJson = jsonEncode(classes.toList());
+    final idsJson = jsonEncode(ids.toList());
+    final exceptionsJson = jsonEncode(exceptions.toList());
+
+    final classesBytes = utf8.encode(classesJson);
+    final idsBytes = utf8.encode(idsJson);
+    final excBytes = utf8.encode(exceptionsJson);
+
+    final classesPtr = malloc.allocate<ffi.Uint8>(classesBytes.length);
+    final idsPtr = malloc.allocate<ffi.Uint8>(idsBytes.length);
+    final excPtr = malloc.allocate<ffi.Uint8>(excBytes.length);
+
+    try {
+      classesPtr.asTypedList(classesBytes.length).setAll(0, classesBytes);
+      idsPtr.asTypedList(idsBytes.length).setAll(0, idsBytes);
+      excPtr.asTypedList(excBytes.length).setAll(0, excBytes);
+
+      final ptr = _b.engineHiddenClassId(
+        _handle,
+        classesPtr.cast<Utf8>(),
+        classesBytes.length,
+        idsPtr.cast<Utf8>(),
+        idsBytes.length,
+        excPtr.cast<Utf8>(),
+        excBytes.length,
+      );
+      if (ptr == ffi.nullptr) return const [];
+      final json = ptr.toDartString();
+      _b.stringFree(ptr);
+      final decoded = jsonDecode(json);
+      if (decoded is! List) return const [];
+      return decoded.cast<String>();
+    } finally {
+      malloc.free(classesPtr);
+      malloc.free(idsPtr);
+      malloc.free(excPtr);
     }
   }
 

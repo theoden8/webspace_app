@@ -15,6 +15,7 @@ import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -1447,6 +1448,18 @@ class WebViewFactory {
           injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         ));
       }
+      // Phase 5: generic class/id cosmetic shim runs at DOCUMENT_END
+      // (after the body is parseable but before late mutations land)
+      // and queries the engine via the genericCosmeticScan bridge.
+      // Only useful when the engine is active — otherwise the bridge
+      // handler returns [] and the shim is a no-op.
+      if (ContentBlockerService.instance.usingRustEngine) {
+        userScripts.add(inapp.UserScript(
+          source:
+              '${buildGenericCosmeticScannerShim()}\n;null;',
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
+        ));
+      }
     }
 
     // ClearURLs: intercept clipboard writes and Web Share API to clean tracking
@@ -2092,6 +2105,35 @@ class WebViewFactory {
               return map;
             });
           }
+          // Phase 5: generic-cosmetic class/id lookup. The page-side
+          // shim from generic_cosmetic_shim.dart scans the loaded DOM
+          // for unique classes / ids, calls this handler with
+          // `{classes: [...], ids: [...]}`, and gets back a list of
+          // CSS selectors to inject as display:none. Only the engine
+          // surfaces these (the Dart parser keeps generic rules in
+          // _cosmeticSelectors, which already get injected the old
+          // way) — when no engine is active, we return an empty list
+          // and the shim is a no-op.
+          controller.addJavaScriptHandler(
+            handlerName: 'genericCosmeticScan',
+            callback: (args) {
+              if (!config.contentBlockEnabled) return const <String>[];
+              if (args.isEmpty || args[0] is! Map) return const <String>[];
+              final payload = Map<String, dynamic>.from(args[0] as Map);
+              final classes = (payload['classes'] as List? ?? const [])
+                  .cast<String>()
+                  .toSet();
+              final ids = (payload['ids'] as List? ?? const [])
+                  .cast<String>()
+                  .toSet();
+              return ContentBlockerService.instance
+                  .genericCosmeticSelectorsFor(
+                pageUrl: config.initialUrl,
+                classes: classes,
+                ids: ids,
+              );
+            },
+          );
         }
         if (config.siteId != null && config.notificationsEnabled) {
           controller.addJavaScriptHandler(

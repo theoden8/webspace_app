@@ -120,6 +120,26 @@ void main() {
       e.dispose();
     }, skip: libExists ? false : 'library not built');
 
+    test('returns generic selectors targeting page classes/ids', () {
+      // Generic ##.x rules don't appear in cosmeticResources(url)'s
+      // hide_selectors — they go through hiddenClassIdSelectors,
+      // gated on the page actually using a class/id the rule targets.
+      final e = AdblockEngine.load('##.ad-banner\n##.unrelated\n##.foo:has(.bar)\n')!;
+      final selectors = e.hiddenClassIdSelectors({'ad-banner', 'foo'}, {});
+      expect(selectors, contains('.ad-banner'),
+          reason: 'engine must return rules targeting classes the page lists');
+      expect(selectors, isNot(contains('.unrelated')),
+          reason: 'rules targeting unused classes must not appear');
+      e.dispose();
+    }, skip: libExists ? false : 'library not built');
+
+    test('hiddenClassIdSelectors returns empty when nothing matches', () {
+      final e = AdblockEngine.load('##.ad-banner\n')!;
+      final selectors = e.hiddenClassIdSelectors({'completely-different'}, {});
+      expect(selectors, isEmpty);
+      e.dispose();
+    }, skip: libExists ? false : 'library not built');
+
     test('parses a real curated EasyList sample without panicking', () {
       // Same fixture the existing parser-based test consumes. The
       // engine accepts every rule shape in it, including the ones

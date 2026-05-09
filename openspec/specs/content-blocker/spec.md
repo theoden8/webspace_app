@@ -544,12 +544,60 @@ When the `WEBSPACE_USE_RUST_ENGINE` build flag is set AND the platform ships the
 **Then** the handler passes `lastLoadStartUrl` (the page hosting the request) as `sourceUrl`
 **And** the engine can fire `$domain=` rules that target the page's domain
 
-#### Scenario: Cosmetic rules continue to use Dart engine
+#### Scenario: Domain-scoped cosmetic rules continue to use Dart engine
 
 **Given** the Rust engine is active
 **When** the cosmetic shim is built via `getEarlyCssScript` or `getCosmeticScript`
 **Then** the rules come from the Dart aggregations, NOT from the Rust engine
-**(Generic class/id selector handling via `hidden_class_id_selectors` is a separate phase.)**
+**(uBO splits cosmetic rules into domain-scoped vs generic; the engine has both, but only the generic path is wired to the engine — see CB-011.)**
+
+---
+
+### Requirement: CB-011 - Generic Cosmetic Selectors via Engine
+
+When the Rust engine is active, generic `##.x` cosmetic rules (no domain prefix) SHALL be looked up on demand via the engine's `hidden_class_id_selectors` API, gated on the loaded page actually using a class or id one of the rules targets. The result is injected as `display: none !important` into a `<style>` tag the same way domain-scoped rules are.
+
+#### Scenario: JS scanner collects classes and ids on DOMContentLoaded
+
+**Given** the engine is active for a page
+**When** the page reaches DOMContentLoaded
+**Then** the page-side scanner shim built by `buildGenericCosmeticScannerShim` walks every element
+**And** collects unique `classList` tokens and non-empty `id` attributes
+**And** sends them to the `genericCosmeticScan` bridge handler
+
+#### Scenario: Bridge handler returns engine-matched selectors
+
+**Given** the page reports classes `["ad-banner", "real-content"]` and ids `["leaderboard"]`
+**When** the bridge handler calls `ContentBlockerService.genericCosmeticSelectorsFor`
+**Then** the service forwards to `AdblockEngine.hiddenClassIdSelectors`
+**And** the engine returns only those generic selectors that target a listed class or id
+
+#### Scenario: Returned selectors are injected as display:none
+
+**Given** the engine returns `[".ad-banner", "#leaderboard"]`
+**When** the shim's bridge promise resolves
+**Then** a `<style id="_webspace_generic_cosmetic_style">` element is appended to `<head>`
+**And** its `textContent` contains `\.ad-banner { display: none !important; }` and `#leaderboard { display: none !important; }`
+**And** matching elements' computed `display` is `none`
+
+#### Scenario: Empty engine response is a no-op
+
+**Given** the engine returns `[]` (no generic rules target the page's classes/ids)
+**Then** no `<style>` tag is created
+**And** the existing cosmetic shim's CSS is unaffected
+
+#### Scenario: Bridge missing degrades silently
+
+**Given** `window.flutter_inappwebview` is undefined (cold-load race or bridge teardown)
+**Then** the scanner shim returns without throwing
+**And** the page renders normally
+
+#### Scenario: Generic shim only injected when engine is active
+
+**Given** the Rust engine is NOT active
+**Then** `buildGenericCosmeticScannerShim` is not added to `initialUserScripts`
+**And** the bridge handler returns `[]` regardless of payload
+**(The Dart parser path keeps its own generic-rule injection — generic rules from a list still hide on the legacy engine.)**
 
 #### Scenario: Linux bundle ships the library
 

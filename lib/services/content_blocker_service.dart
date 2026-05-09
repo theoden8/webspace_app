@@ -330,6 +330,34 @@ class ContentBlockerService {
     );
   }
 
+  /// Phase 5: generic class/id-targeted selectors from the Rust engine.
+  ///
+  /// The page-side shim (from `generic_cosmetic_shim.dart`) scans the
+  /// loaded DOM for unique classes and ids and sends them across the
+  /// `genericCosmeticScan` bridge handler. That handler calls into
+  /// here, which forwards to [AdblockEngine.hiddenClassIdSelectors].
+  /// Returns the selectors to inject as `display: none !important`.
+  ///
+  /// Returns empty when:
+  ///   * The engine isn't active (Dart parser path handles its own
+  ///     generic selectors via [_cosmeticSelectors] already).
+  ///   * No filter rule targets any of the page's classes/ids.
+  ///
+  /// [exceptions] is harvested from the prior `cosmeticResources`
+  /// call; passing an empty set is acceptable — the worst case is a
+  /// few extra hides on pages that explicitly carve out a selector.
+  List<String> genericCosmeticSelectorsFor({
+    required String pageUrl,
+    required Set<String> classes,
+    required Set<String> ids,
+    Set<String> exceptions = const <String>{},
+  }) {
+    final engine = _rustEngine;
+    if (engine == null) return const [];
+    if (classes.isEmpty && ids.isEmpty) return const [];
+    return engine.hiddenClassIdSelectors(classes, ids, exceptions: exceptions);
+  }
+
   /// Get full JavaScript for injection after page load.
   /// Sets up MutationObserver for dynamic content and text-based hiding.
   /// Returns null if no cosmetic rules apply.
