@@ -41,8 +41,9 @@ final class ShareViewController: NSViewController {
                     self.finish(); return
                 }
                 NSLog("[WebSpace.ShareExt.macOS] extracted URL: \(url)")
-                self.handOff(url)
-                self.finish()
+                self.handOff(url) {
+                    self.finish()
+                }
             }
         }
     }
@@ -111,7 +112,7 @@ final class ShareViewController: NSViewController {
         return String(trimmed[r])
     }
 
-    private func handOff(_ url: String) {
+    private func handOff(_ url: String, completion: @escaping () -> Void) {
         if let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) {
             defaults.set(url, forKey: ShareViewController.pendingUrlKey)
             NSLog("[WebSpace.ShareExt.macOS] wrote URL to app group")
@@ -122,10 +123,37 @@ final class ShareViewController: NSViewController {
         components.scheme = ShareViewController.hostScheme
         components.host = ShareViewController.hostHost
         components.queryItems = [URLQueryItem(name: "url", value: url)]
-        if let openUrl = components.url {
-            NSLog("[WebSpace.ShareExt.macOS] opening host app via \(openUrl.absoluteString)")
-            NSWorkspace.shared.open(openUrl)
+        guard let openUrl = components.url else {
+            completion()
+            return
         }
+        NSLog("[WebSpace.ShareExt.macOS] opening host app via \(openUrl.absoluteString)")
+        openHostApp(openUrl, completion: completion)
+    }
+
+    /// Tries `NSExtensionContext.open(_:completionHandler:)` first — the
+    /// documented cross-process URL-scheme dispatch, sandbox-aware,
+    /// available on macOS 10.10+ — and falls back to
+    /// `NSWorkspace.shared.open(_:)` if it returns false. Threads a
+    /// completion handler so the extension isn't torn down before the
+    /// dispatch lands.
+    private func openHostApp(_ url: URL, completion: @escaping () -> Void) {
+        if let ctx = extensionContext {
+            ctx.open(url) { success in
+                NSLog("[WebSpace.ShareExt.macOS] extensionContext.open returned \(success)")
+                DispatchQueue.main.async {
+                    if !success {
+                        let workspaceOk = NSWorkspace.shared.open(url)
+                        NSLog("[WebSpace.ShareExt.macOS] NSWorkspace.shared.open returned \(workspaceOk)")
+                    }
+                    completion()
+                }
+            }
+            return
+        }
+        let workspaceOk = NSWorkspace.shared.open(url)
+        NSLog("[WebSpace.ShareExt.macOS] NSWorkspace.shared.open returned \(workspaceOk) (no extensionContext)")
+        completion()
     }
 
     private func finish() {
