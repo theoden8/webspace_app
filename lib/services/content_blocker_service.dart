@@ -104,9 +104,18 @@ class ContentBlockerService {
   /// Aggregated exception domains (@@||domain^) that override blocked domains.
   Set<String> _exceptionDomains = {};
 
+  /// Aggregated path-anchored network rules: domain -> compiled
+  /// regexes for the path glob. Compiled once per `_rebuildRules` so
+  /// the hot path in [isBlocked] never re-compiles.
+  Map<String, List<RegExp>> _blockedDomainPathRegexes = {};
+
   /// Aggregated cosmetic selectors: domain -> selectors.
   /// Key '' = global selectors.
   Map<String, List<String>> _cosmeticSelectors = {};
+
+  /// Aggregated uBO `:style(...)` rules: domain -> selectors with
+  /// custom CSS declarations. Key convention matches [_cosmeticSelectors].
+  Map<String, List<StyleRule>> _styleRules = {};
 
   /// Aggregated text-based hiding rules: domain -> rules.
   Map<String, List<TextHideRule>> _textHideRules = {};
@@ -119,7 +128,12 @@ class ContentBlockerService {
       _lists.where((l) => l.enabled).fold(0, (sum, l) => sum + l.ruleCount);
 
   /// Whether any rules are loaded.
-  bool get hasRules => _blockedDomains.isNotEmpty || _cosmeticSelectors.isNotEmpty || _textHideRules.isNotEmpty;
+  bool get hasRules =>
+      _blockedDomains.isNotEmpty ||
+      _blockedDomainPathRegexes.isNotEmpty ||
+      _cosmeticSelectors.isNotEmpty ||
+      _styleRules.isNotEmpty ||
+      _textHideRules.isNotEmpty;
 
   /// Aggregated ABP blocked domains across all enabled lists. Shared with
   /// the sub-resource interceptor (native Android + iOS JS Bloom) so ABP
@@ -158,15 +172,34 @@ class ContentBlockerService {
   /// `Uri` object) by using [extractHost] and short-circuits via
   /// [_isBlockedCache] on repeated hosts. Exception domains (`@@||domain^`)
   /// override blocked domains.
+  ///
+  /// Path-anchored rules (`||domain^/path`) are checked when the host
+  /// has any registered path glob. The per-host cache only stores the
+  /// pure-domain decision; path lookups are unmemoised because the
+  /// answer depends on the URL's path, not the host alone.
   bool isBlocked(String url) {
-    if (_blockedDomains.isEmpty) return false;
+    if (_blockedDomains.isEmpty && _blockedDomainPathRegexes.isEmpty) {
+      return false;
+    }
     final host = extractHost(url);
     if (host == null || host.isEmpty) return false;
-    return isHostBlocked(host);
+    if (isHostBlocked(host)) return true;
+    if (_blockedDomainPathRegexes.isEmpty) return false;
+    if (_exceptionDomains.isNotEmpty && hostInSet(host, _exceptionDomains)) {
+      return false;
+    }
+    final pathRegexes = _collectPathRegexesFor(host);
+    if (pathRegexes.isEmpty) return false;
+    final pathPart = extractPathAndQuery(url);
+    for (final re in pathRegexes) {
+      if (re.hasMatch(pathPart)) return true;
+    }
+    return false;
   }
 
   /// Like [isBlocked] but the caller already has the host. Skips the
-  /// URL-parse step.
+  /// URL-parse step. Path-anchored rules are NOT considered here since
+  /// the path is unknown.
   bool isHostBlocked(String host) {
     if (_blockedDomains.isEmpty || host.isEmpty) return false;
     final cached = _isBlockedCache[host];
@@ -180,13 +213,40 @@ class ContentBlockerService {
     return result;
   }
 
-  /// Collect applicable selectors and text rules for a page URL.
-  ({List<String> selectors, List<TextHideRule> textRules}) _collectRules(String pageUrl) {
+  /// Collect every compiled path regex registered against [host] or any
+  /// parent domain (`a.b.c.example.com` → `b.c.example.com` → ... →
+  /// `example.com`). Stops before the eTLD label, mirroring [hostInSet].
+  List<RegExp> _collectPathRegexesFor(String host) {
+    if (_blockedDomainPathRegexes.isEmpty) return const [];
+    final out = <RegExp>[];
+    final exact = _blockedDomainPathRegexes[host];
+    if (exact != null) out.addAll(exact);
+    int dot = host.indexOf('.');
+    while (dot >= 0 && dot < host.length - 1) {
+      final parent = host.substring(dot + 1);
+      if (!parent.contains('.')) break;
+      final hit = _blockedDomainPathRegexes[parent];
+      if (hit != null) out.addAll(hit);
+      dot = host.indexOf('.', dot + 1);
+    }
+    return out;
+  }
+
+  /// Collect applicable selectors, style rules, and text rules for a
+  /// page URL.
+  ({
+    List<String> selectors,
+    List<StyleRule> styleRules,
+    List<TextHideRule> textRules,
+  }) _collectRules(String pageUrl) {
     final selectors = <String>[];
+    final styleRules = <StyleRule>[];
     final textRules = <TextHideRule>[];
 
     final globalSel = _cosmeticSelectors[''];
     if (globalSel != null) selectors.addAll(globalSel);
+    final globalStyle = _styleRules[''];
+    if (globalStyle != null) styleRules.addAll(globalStyle);
     final globalText = _textHideRules[''];
     if (globalText != null) textRules.addAll(globalText);
 
@@ -196,6 +256,8 @@ class ContentBlockerService {
       while (domain.isNotEmpty) {
         final ds = _cosmeticSelectors[domain];
         if (ds != null) selectors.addAll(ds);
+        final sr = _styleRules[domain];
+        if (sr != null) styleRules.addAll(sr);
         final tr = _textHideRules[domain];
         if (tr != null) textRules.addAll(tr);
         final dotIdx = domain.indexOf('.');
@@ -204,7 +266,7 @@ class ContentBlockerService {
       }
     }
 
-    return (selectors: selectors, textRules: textRules);
+    return (selectors: selectors, styleRules: styleRules, textRules: textRules);
   }
 
   /// Get CSS-only JavaScript for early injection at DOCUMENT_START.
@@ -212,7 +274,12 @@ class ContentBlockerService {
   /// Returns null if no CSS selectors apply.
   String? getEarlyCssScript(String pageUrl) {
     final rules = _collectRules(pageUrl);
-    return buildContentBlockerEarlyCssShim(rules.selectors);
+    return buildContentBlockerEarlyCssShim(
+      selectors: rules.selectors,
+      styleRules: rules.styleRules
+          .map((r) => (selector: r.selector, declarations: r.declarations))
+          .toList(),
+    );
   }
 
   /// Get full JavaScript for injection after page load.
@@ -222,6 +289,9 @@ class ContentBlockerService {
     final rules = _collectRules(pageUrl);
     return buildContentBlockerCosmeticShim(
       selectors: rules.selectors,
+      styleRules: rules.styleRules
+          .map((r) => (selector: r.selector, declarations: r.declarations))
+          .toList(),
       textRules: rules.textRules
           .map((r) => (selector: r.selector, patterns: r.textPatterns))
           .toList(),
@@ -367,7 +437,9 @@ class ContentBlockerService {
   Future<void> _rebuildRules() async {
     final allDomains = <String>{};
     final allExceptions = <String>{};
+    final allDomainPaths = <String, List<DomainPathRule>>{};
     final allSelectors = <String, List<String>>{};
+    final allStyleRules = <String, List<StyleRule>>{};
     final allTextRules = <String, List<TextHideRule>>{};
 
     for (final list in _lists) {
@@ -382,8 +454,14 @@ class ContentBlockerService {
         allDomains.addAll(result.blockedDomains);
         allExceptions.addAll(result.exceptionDomains);
 
+        for (final entry in result.blockedDomainPaths.entries) {
+          allDomainPaths.putIfAbsent(entry.key, () => []).addAll(entry.value);
+        }
         for (final entry in result.cosmeticSelectors.entries) {
           allSelectors.putIfAbsent(entry.key, () => []).addAll(entry.value);
+        }
+        for (final entry in result.styleRules.entries) {
+          allStyleRules.putIfAbsent(entry.key, () => []).addAll(entry.value);
         }
         for (final entry in result.textHideRules.entries) {
           allTextRules.putIfAbsent(entry.key, () => []).addAll(entry.value);
@@ -396,9 +474,19 @@ class ContentBlockerService {
       }
     }
 
+    // Compile path globs once per rebuild — runtime path matching does
+    // a per-domain RegExp.hasMatch on the URL's post-host portion.
+    final compiledPaths = <String, List<RegExp>>{};
+    for (final entry in allDomainPaths.entries) {
+      compiledPaths[entry.key] =
+          entry.value.map((r) => compileDomainPathGlob(r.pathGlob)).toList();
+    }
+
     _blockedDomains = allDomains;
     _exceptionDomains = allExceptions;
+    _blockedDomainPathRegexes = compiledPaths;
     _cosmeticSelectors = allSelectors;
+    _styleRules = allStyleRules;
     _textHideRules = allTextRules;
     _isBlockedCache.clear();
     _notifyRulesChanged();
@@ -421,9 +509,37 @@ class ContentBlockerService {
     _lists = [];
     _blockedDomains = {};
     _exceptionDomains = {};
+    _blockedDomainPathRegexes = {};
     _cosmeticSelectors = {};
+    _styleRules = {};
     _textHideRules = {};
     _isBlockedCache.clear();
+  }
+
+  /// Exposed for testing: seed path-anchored rules without going
+  /// through file I/O. Mirrors the compiled-regex shape produced by
+  /// [_rebuildRules].
+  @visibleForTesting
+  void setDomainPathRulesForTest(Map<String, List<String>> rulesByDomain) {
+    final compiled = <String, List<RegExp>>{};
+    for (final entry in rulesByDomain.entries) {
+      compiled[entry.key.toLowerCase()] =
+          entry.value.map(compileDomainPathGlob).toList();
+    }
+    _blockedDomainPathRegexes = compiled;
+    _isBlockedCache.clear();
+  }
+
+  /// Exposed for testing: seed `:style()` rules.
+  @visibleForTesting
+  void setStyleRulesForTest(Map<String, List<StyleRule>> rules) {
+    _styleRules = rules;
+  }
+
+  /// Exposed for testing: seed cosmetic selectors directly.
+  @visibleForTesting
+  void setCosmeticSelectorsForTest(Map<String, List<String>> selectors) {
+    _cosmeticSelectors = selectors;
   }
 
   /// Exposed for testing: set lists directly.

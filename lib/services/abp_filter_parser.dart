@@ -7,6 +7,27 @@ class TextHideRule {
   const TextHideRule({required this.selector, required this.textPatterns});
 }
 
+/// A uBO-style `:style(declarations)` rule: apply [declarations] to
+/// elements matching [selector] instead of `display: none`. Used for
+/// rules like `##.banner:style(height: 1px !important)` that don't
+/// fully hide an element but neutralise its layout impact.
+class StyleRule {
+  final String selector;
+  final String declarations;
+
+  const StyleRule({required this.selector, required this.declarations});
+}
+
+/// A path-anchored network rule: block requests to [domain] whose
+/// post-host portion matches [pathGlob] (with `*` and ABP separator
+/// `^` as wildcards). Stored unparsed; the consuming service compiles
+/// each glob to a regex once.
+class DomainPathRule {
+  final String pathGlob;
+
+  const DomainPathRule(this.pathGlob);
+}
+
 /// Result of parsing ABP filter list text.
 class AbpParseResult {
   /// Domain-anchored network block rules for O(1) lookup.
@@ -15,9 +36,18 @@ class AbpParseResult {
   /// Exception domains (@@||domain^) that override blocked domains.
   final Set<String> exceptionDomains;
 
+  /// Path-anchored network rules (`||domain^/path`, `||domain/foo*`)
+  /// keyed by domain. Domain match is required first; the path glob
+  /// is applied to the URL's post-host portion.
+  final Map<String, List<DomainPathRule>> blockedDomainPaths;
+
   /// CSS selectors to hide elements, grouped by scope.
   /// Key '' (empty) = global, key 'domain.com' = domain-specific.
   final Map<String, List<String>> cosmeticSelectors;
+
+  /// uBO `:style(...)` rules grouped by scope, sharing the same key
+  /// convention as [cosmeticSelectors].
+  final Map<String, List<StyleRule>> styleRules;
 
   /// Text-based hiding rules (from #?# rules with :-abp-contains), grouped by domain.
   final Map<String, List<TextHideRule>> textHideRules;
@@ -28,7 +58,9 @@ class AbpParseResult {
   const AbpParseResult({
     required this.blockedDomains,
     required this.exceptionDomains,
+    required this.blockedDomainPaths,
     required this.cosmeticSelectors,
+    required this.styleRules,
     required this.textHideRules,
     required this.convertedCount,
     required this.skippedCount,
@@ -47,6 +79,34 @@ const Set<String> _unsupportedOptions = {
 
 /// Regex matching simple domain-only rules: `||domain.com^`
 final _simpleDomainRule = RegExp(r'^\|\|([a-zA-Z0-9._-]+)\^?$');
+
+/// Regex matching domain + path rules: `||domain.com/path`,
+/// `||domain.com^/path`, `||domain.com^*tracker`. Group 1 is the
+/// domain, group 2 is the raw path glob (starting with `/` or `*`).
+/// Trailing `^` is allowed and folded into the glob.
+final _domainPathRule = RegExp(r'^\|\|([a-zA-Z0-9._-]+)\^?([/*][^|]*)$');
+
+/// Extract the inner declarations of a uBO `:style(...)` pseudo-class.
+/// Returns null if [rule] has no `:style(`.
+({String selector, String declarations})? _extractStyleRule(String rule) {
+  final styleIdx = rule.indexOf(':style(');
+  if (styleIdx < 0) return null;
+  final selectorPart = rule.substring(0, styleIdx).trim();
+  if (selectorPart.isEmpty) return null;
+  final start = styleIdx + ':style('.length;
+  // Match nested parens (rare for CSS values but cheap to handle).
+  int depth = 1;
+  int i = start;
+  while (i < rule.length && depth > 0) {
+    if (rule[i] == '(') depth++;
+    if (rule[i] == ')') depth--;
+    i++;
+  }
+  if (depth != 0) return null;
+  final declarations = rule.substring(start, i - 1).trim();
+  if (declarations.isEmpty) return null;
+  return (selector: selectorPart, declarations: declarations);
+}
 
 /// Parse :-abp-contains(/pattern1|pattern2/) or :-abp-contains(text) from a rule.
 /// Returns list of text patterns to match, or null if not parseable.
@@ -95,7 +155,9 @@ bool _parseLine(
   String line,
   Set<String> blockedDomains,
   Set<String> exceptionDomains,
+  Map<String, List<DomainPathRule>> blockedDomainPaths,
   Map<String, List<String>> cosmeticSelectors,
+  Map<String, List<StyleRule>> styleRules,
   Map<String, List<TextHideRule>> textHideRules,
 ) {
   // --- Extended CSS: #?# rules with text matching ---
@@ -148,6 +210,29 @@ bool _parseLine(
     if (selector.startsWith('^')) return false;
 
     final domainsStr = cosmeticIdx > 0 ? line.substring(0, cosmeticIdx) : '';
+
+    // Handle uBO :style(declarations) — emit a StyleRule that injects
+    // arbitrary CSS declarations instead of `display: none`. Must run
+    // before the :-abp- skip below since :style() coexists with plain
+    // selectors and shouldn't be confused with abp-only pseudos.
+    if (selector.contains(':style(')) {
+      final styled = _extractStyleRule(selector);
+      if (styled == null) return false;
+      final rule = StyleRule(
+        selector: styled.selector,
+        declarations: styled.declarations,
+      );
+      if (domainsStr.isEmpty) {
+        styleRules.putIfAbsent('', () => []).add(rule);
+      } else {
+        for (final d in domainsStr.split(',')) {
+          final trimmed = d.trim();
+          if (trimmed.isEmpty || trimmed.startsWith('~')) continue;
+          styleRules.putIfAbsent(trimmed, () => []).add(rule);
+        }
+      }
+      return true;
+    }
 
     // Handle :has-text() and :contains() — convert to TextHideRule
     if (selector.contains(':has-text(') || selector.contains(':contains(')) {
@@ -234,21 +319,75 @@ bool _parseLine(
     return false;
   }
 
-  // Only convert simple domain-anchored rules: ||domain.com^
+  // Convert simple domain-anchored rules: ||domain.com^
   final match = _simpleDomainRule.firstMatch(pattern);
   if (match != null) {
     blockedDomains.add(match.group(1)!.toLowerCase());
     return true;
   }
 
+  // Convert path-anchored rules: ||domain.com/path, ||domain.com^/path,
+  // ||domain.com^*tracker. The path glob is matched against the URL's
+  // post-host portion at lookup time.
+  final pathMatch = _domainPathRule.firstMatch(pattern);
+  if (pathMatch != null) {
+    final domain = pathMatch.group(1)!.toLowerCase();
+    final glob = pathMatch.group(2)!;
+    blockedDomainPaths
+        .putIfAbsent(domain, () => [])
+        .add(DomainPathRule(glob));
+    return true;
+  }
+
   return false;
+}
+
+/// Compile an ABP path glob to a `RegExp` anchored at the start of the
+/// URL's post-host portion (path + query + fragment). `*` and `^` both
+/// translate to `.*` — the latter is over-permissive vs. ABP's strict
+/// separator class but matches real-world rule intent and keeps the
+/// implementation cheap. The match is a prefix match (no end anchor)
+/// so `||example.com/ads` blocks `https://example.com/ads/banner.png`.
+RegExp compileDomainPathGlob(String glob) {
+  final buf = StringBuffer('^');
+  for (var i = 0; i < glob.length; i++) {
+    final ch = glob[i];
+    if (ch == '*' || ch == '^') {
+      buf.write('.*');
+    } else if ('\\.+?()[]{}|\$'.contains(ch)) {
+      buf.write('\\');
+      buf.write(ch);
+    } else {
+      buf.write(ch);
+    }
+  }
+  return RegExp(buf.toString(), caseSensitive: false);
+}
+
+/// Extract the URL's path + query + fragment portion (everything after
+/// the host, including the leading `/`). Returns `/` when there's no
+/// path. Avoids `Uri.parse` for the same hot-path reasons as
+/// [extractHost] in `host_lookup.dart`.
+String extractPathAndQuery(String url) {
+  final i = url.indexOf('://');
+  if (i < 0) return '/';
+  final start = i + 3;
+  for (var j = start; j < url.length; j++) {
+    final c = url.codeUnitAt(j);
+    if (c == 0x2F /* / */ || c == 0x3F /* ? */ || c == 0x23 /* # */) {
+      return url.substring(j);
+    }
+  }
+  return '/';
 }
 
 /// Parse ABP filter text synchronously.
 AbpParseResult parseAbpFilterListSync(String text) {
   final blockedDomains = <String>{};
   final exceptionDomains = <String>{};
+  final blockedDomainPaths = <String, List<DomainPathRule>>{};
   final cosmeticSelectors = <String, List<String>>{};
+  final styleRules = <String, List<StyleRule>>{};
   final textHideRules = <String, List<TextHideRule>>{};
   int converted = 0;
   int skipped = 0;
@@ -261,7 +400,15 @@ AbpParseResult parseAbpFilterListSync(String text) {
       continue;
     }
 
-    if (_parseLine(trimmed, blockedDomains, exceptionDomains, cosmeticSelectors, textHideRules)) {
+    if (_parseLine(
+      trimmed,
+      blockedDomains,
+      exceptionDomains,
+      blockedDomainPaths,
+      cosmeticSelectors,
+      styleRules,
+      textHideRules,
+    )) {
       converted++;
     } else {
       skipped++;
@@ -271,7 +418,9 @@ AbpParseResult parseAbpFilterListSync(String text) {
   return AbpParseResult(
     blockedDomains: blockedDomains,
     exceptionDomains: exceptionDomains,
+    blockedDomainPaths: blockedDomainPaths,
     cosmeticSelectors: cosmeticSelectors,
+    styleRules: styleRules,
     textHideRules: textHideRules,
     convertedCount: converted,
     skippedCount: skipped,

@@ -169,7 +169,7 @@ Map<String, String> buildAllFixtures() {
     (selector: 'div.article > p', patterns: ['Sponsored content']),
   ];
   fixtures['content_blocker/early_css.js'] =
-      buildContentBlockerEarlyCssShim(sampleSelectors)!;
+      buildContentBlockerEarlyCssShim(selectors: sampleSelectors)!;
   fixtures['content_blocker/cosmetic.js'] = buildContentBlockerCosmeticShim(
     selectors: sampleSelectors,
     textRules: sampleTextRules,
@@ -198,6 +198,23 @@ Map<String, String> buildAllFixtures() {
       buildContentBlockerCosmeticShim(
     selectors: multiBatchSelectors,
     textRules: multiTextRules,
+  )!;
+
+  // Fixture exercising uBO `:style(...)` rules — the parser emits
+  // these instead of `display:none`, and the shim must apply the
+  // raw declarations through the same early <style> tag without
+  // also emitting display:none for the same selector. Behavioural
+  // assertions live in test/js/content_blocker_style_rules.test.js.
+  const styleSelectors = ['.always-hidden'];
+  const styleRules = <ContentBlockerStyleRule>[
+    (selector: '.shrunk-banner', declarations: 'height: 1px !important'),
+    (selector: '.faded-promo', declarations: 'opacity: 0.1 !important'),
+  ];
+  fixtures['content_blocker/style_rules.js'] =
+      buildContentBlockerCosmeticShim(
+    selectors: styleSelectors,
+    styleRules: styleRules,
+    textRules: const [],
   )!;
 
   // Fixture for the wider ABP rule shapes the parser produces:
@@ -237,12 +254,21 @@ Map<String, String> buildAllFixtures() {
   // Collect rules a webview visiting [host] would see — globals plus
   // every parent-domain match — mirroring ContentBlockerService's
   // _collectRules walk-up.
-  ({List<String> selectors, List<ContentBlockerTextRule> textRules})
-      collectFor(String host) {
+  ({
+    List<String> selectors,
+    List<ContentBlockerStyleRule> styleRules,
+    List<ContentBlockerTextRule> textRules,
+  }) collectFor(String host) {
     final selectors = <String>[];
+    final styleRules = <ContentBlockerStyleRule>[];
     final textRules = <ContentBlockerTextRule>[];
     final globalSel = parsed.cosmeticSelectors[''];
     if (globalSel != null) selectors.addAll(globalSel);
+    final globalStyle = parsed.styleRules[''];
+    if (globalStyle != null) {
+      styleRules.addAll(globalStyle
+          .map((r) => (selector: r.selector, declarations: r.declarations)));
+    }
     final globalText = parsed.textHideRules[''];
     if (globalText != null) {
       textRules.addAll(globalText
@@ -252,6 +278,11 @@ Map<String, String> buildAllFixtures() {
     while (domain.isNotEmpty) {
       final ds = parsed.cosmeticSelectors[domain];
       if (ds != null) selectors.addAll(ds);
+      final sr = parsed.styleRules[domain];
+      if (sr != null) {
+        styleRules.addAll(
+            sr.map((r) => (selector: r.selector, declarations: r.declarations)));
+      }
       final tr = parsed.textHideRules[domain];
       if (tr != null) {
         textRules.addAll(
@@ -261,13 +292,18 @@ Map<String, String> buildAllFixtures() {
       if (dotIdx < 0) break;
       domain = domain.substring(dotIdx + 1);
     }
-    return (selectors: selectors, textRules: textRules);
+    return (
+      selectors: selectors,
+      styleRules: styleRules,
+      textRules: textRules,
+    );
   }
 
   final linkedinRules = collectFor('linkedin.com');
   fixtures['content_blocker/easylist_sample_linkedin.js'] =
       buildContentBlockerCosmeticShim(
     selectors: linkedinRules.selectors,
+    styleRules: linkedinRules.styleRules,
     textRules: linkedinRules.textRules,
   )!;
 

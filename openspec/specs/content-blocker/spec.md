@@ -101,6 +101,38 @@ The system SHALL parse filter lists in ABP/EasyList syntax, extracting three typ
 **When** the list is parsed
 **Then** `div:has(.ad-label)` is added as a cosmetic selector (rewritten to standard CSS)
 
+#### Scenario: Parse path-anchored network rules
+
+**Given** a filter list containing `||example.com/ads/`, `||example.com^/track`, or `||example.com^*pixel.gif`
+**When** the list is parsed
+**Then** each rule is added to `blockedDomainPaths['example.com']` with its raw glob preserved
+**And** `example.com` is NOT promoted to the whole-domain `blockedDomains` set
+
+#### Scenario: Path-anchored rules survive option strip
+
+**Given** a filter list containing `||ads.example.com/path$script,third-party`
+**When** the list is parsed
+**Then** the options are stripped (we don't classify resource types) and the residual `||ads.example.com/path` is converted to a path-anchored rule
+
+#### Scenario: Parse uBO `:style()` cosmetic extension
+
+**Given** a filter list containing `##.banner:style(height: 1px !important)`
+**When** the list is parsed
+**Then** a `StyleRule` is created with selector `.banner` and declarations `height: 1px !important`
+**And** `.banner` does NOT also appear in the `display:none` cosmetic-selector set
+
+#### Scenario: Parse domain-scoped `:style()` rule
+
+**Given** a filter list containing `linkedin.com##.promo:style(opacity: 0.1)`
+**When** the list is parsed
+**Then** the `StyleRule` is scoped to `linkedin.com`
+
+#### Scenario: Skip empty `:style()` declarations
+
+**Given** a filter list containing `##.banner:style()` or `##:style(color:red)`
+**When** the list is parsed
+**Then** the rule is skipped (empty declarations or missing selector)
+
 #### Scenario: Skip unsupported rule types
 
 **Given** a filter list containing rules with `#$#` (snippets), `##^` (HTML filters), `$redirect`, `$csp`, `$removeparam`, or regex patterns
@@ -184,7 +216,7 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 ### Requirement: CB-003 - Domain Blocking
 
-The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups, for both main-document navigations and sub-resource requests. Exception domains (`@@||domain^`) override blocked domains.
+The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups, for both main-document navigations and sub-resource requests. Path-anchored rules (`||domain^/path`, `||domain^*glob`) extend the same domain hash hit with a per-domain regex check against the URL's path. Exception domains (`@@||domain^`) override blocked domains.
 
 #### Scenario: Exact domain match
 
@@ -255,6 +287,32 @@ The system SHALL block navigation to domains matched by `||domain^` rules using 
 **Then** the interceptor attributes the hit to `dns` (DNS is checked first)
 **And** the ABP block counter is not incremented for that request
 
+#### Scenario: Path-anchored rule blocks matching URL
+
+**Given** the filter list contains `||example.com/ads/`
+**When** the webview navigates to `https://example.com/ads/banner.png`
+**Then** navigation is cancelled
+**When** the webview navigates to `https://example.com/news/`
+**Then** navigation is allowed
+
+#### Scenario: Path-anchored rule walks up to parent domain
+
+**Given** `||example.com/track` is registered against `example.com`
+**When** a sub-resource request goes to `https://cdn.example.com/track/x`
+**Then** the request matches the parent-domain glob (`cdn.example.com` walks up to `example.com`)
+
+#### Scenario: Path-anchored rule honours exception domains
+
+**Given** the filter list contains `||example.com/ads/` and `@@||example.com^`
+**When** the webview navigates to `https://example.com/ads/banner.png`
+**Then** the request is allowed (exception overrides path-anchored block)
+
+#### Scenario: isHostBlocked ignores path rules
+
+**Given** a path-anchored rule exists for `example.com` but no whole-domain rule
+**When** the host-only fast path (`isHostBlocked('example.com')`) is consulted
+**Then** it returns `false` — path matching requires the URL's path, which isn't available at this layer
+
 #### Scenario: Per-source counters preserved in stats
 
 **Given** a page load produces 10 DNS-blocked sub-resources and 3 ABP-blocked sub-resources
@@ -267,7 +325,7 @@ The system SHALL block navigation to domains matched by `||domain^` rules using 
 
 ### Requirement: CB-004 - CSS Cosmetic Filtering
 
-The system SHALL hide page elements by injecting CSS `display: none !important` rules, applied before content renders.
+The system SHALL hide page elements by injecting CSS `display: none !important` rules, applied before content renders. uBO `:style(declarations)` rules are emitted as ordinary CSS rules (`selector { declarations }`) in the same `<style>` tag, without the `display:none` decoration.
 
 #### Scenario: Early CSS injection via UserScript
 
@@ -315,6 +373,22 @@ The system SHALL hide page elements by injecting CSS `display: none !important` 
 **Given** a page has text-hide rules
 **When** new DOM nodes are inserted
 **Then** a debounced `MutationObserver` re-runs the text scan within 50ms — selector hides remain owned by the CSS engine
+
+#### Scenario: uBO `:style()` rule applies custom declarations
+
+**Given** a rule `##.banner:style(height: 1px !important)`
+**When** the page is loaded
+**Then** the early `<style>` tag contains `.banner { height: 1px !important }`
+**And** the matching element's computed `height` is `1px`
+**And** the element's computed `display` is NOT `none`
+
+#### Scenario: uBO `:style()` rule rides domain scoping
+
+**Given** a rule `linkedin.com##.promo:style(opacity: 0.1)`
+**When** the user visits `https://linkedin.com`
+**Then** the `<style>` tag contains the rule
+**When** the user visits `https://other.com`
+**Then** the rule is NOT in the `<style>` tag
 
 #### Scenario: Domain-scoped selectors
 

@@ -95,6 +95,104 @@ void main() {
     });
   });
 
+  group('ContentBlockerService.isBlocked path-anchored rules', () {
+    test('blocks URL whose path matches the glob', () {
+      service.setDomainPathRulesForTest({
+        'example.com': ['/ads/'],
+      });
+      expect(service.isBlocked('https://example.com/ads/banner.png'), isTrue);
+    });
+
+    test('does NOT block paths outside the glob', () {
+      service.setDomainPathRulesForTest({
+        'example.com': ['/ads/'],
+      });
+      expect(service.isBlocked('https://example.com/news/'), isFalse);
+      expect(service.isBlocked('https://example.com/'), isFalse);
+    });
+
+    test('star wildcard matches anywhere in the path', () {
+      service.setDomainPathRulesForTest({
+        'example.com': ['*tracker.js'],
+      });
+      expect(
+          service.isBlocked('https://example.com/foo/bar/tracker.js'), isTrue);
+      expect(service.isBlocked('https://example.com/tracker.js'), isTrue);
+      expect(service.isBlocked('https://example.com/foo/bar.js'), isFalse);
+    });
+
+    test('subdomain inherits parent domain path glob', () {
+      // walk-up: `cdn.example.com` should pick up the glob registered
+      // against `example.com`. Mirrors the host walk-up the pure-domain
+      // path uses via hostInSet.
+      service.setDomainPathRulesForTest({
+        'example.com': ['/track'],
+      });
+      expect(service.isBlocked('https://cdn.example.com/track/x'), isTrue);
+    });
+
+    test('path glob does not match unrelated host', () {
+      service.setDomainPathRulesForTest({
+        'example.com': ['/ads/'],
+      });
+      expect(service.isBlocked('https://other.com/ads/banner.png'), isFalse);
+    });
+
+    test('exception domain overrides path-anchored block', () {
+      service.setDomainPathRulesForTest({
+        'example.com': ['/ads/'],
+      });
+      service.setExceptionDomains({'example.com'});
+      expect(service.isBlocked('https://example.com/ads/banner.png'), isFalse);
+    });
+
+    test('pure-domain block wins without consulting paths', () {
+      service.setBlockedDomainsForTest({'example.com'});
+      service.setDomainPathRulesForTest({
+        'example.com': ['/never-matched'],
+      });
+      // Domain block fires first; the irrelevant path glob doesn't
+      // matter — every URL on example.com is blocked.
+      expect(service.isBlocked('https://example.com/'), isTrue);
+      expect(service.isBlocked('https://example.com/foo'), isTrue);
+    });
+
+    test('isHostBlocked ignores path-anchored rules', () {
+      // The host-only fast path can't see the URL path, so path-only
+      // rules MUST NOT report a hit through isHostBlocked. The
+      // PerformanceObserver/sub-resource path uses this method and
+      // would otherwise over-block.
+      service.setDomainPathRulesForTest({
+        'example.com': ['/ads/'],
+      });
+      expect(service.isHostBlocked('example.com'), isFalse);
+    });
+
+    test('case-insensitive path matching', () {
+      service.setDomainPathRulesForTest({
+        'example.com': ['/Ads/'],
+      });
+      expect(service.isBlocked('https://example.com/ADS/banner'), isTrue);
+    });
+
+    test('many path globs do not blow up', () {
+      // Sanity — registered rules compile once at setup, and runtime
+      // does at most N regex.hasMatch per blocked-domain hit.
+      final rules = <String>[];
+      for (var i = 0; i < 100; i++) {
+        rules.add('/path$i/');
+      }
+      service.setDomainPathRulesForTest({'example.com': rules});
+      final sw = Stopwatch()..start();
+      for (var i = 0; i < 200; i++) {
+        service.isBlocked('https://example.com/path${i % 100}/x');
+        service.isBlocked('https://example.com/no-match/y');
+      }
+      sw.stop();
+      expect(sw.elapsedMilliseconds, lessThan(2000));
+    });
+  });
+
   group('ContentBlockerService.isHostBlocked', () {
     test('skips URL parsing — host is the input', () {
       service.setBlockedDomainsForTest({'tracker.net'});

@@ -51,6 +51,15 @@ linkedin.com#?#div.feed-shared-actor:-abp-contains(/Promoted|Sponsored/)
 ! ---- Multi-domain cosmetic ----
 example.com,test.com##.cross-site-ad
 
+! ---- Path-anchored network rules (||domain/path, ||domain^*x) ----
+||pathblock.example/ads/
+||pathblock.example^/track
+||pathblock.example^*pixel.gif
+
+! ---- uBO :style() cosmetic extension ----
+##.styled-banner:style(height: 1px !important)
+linkedin.com##.styled-promo:style(opacity: 0.1 !important)
+
 ! ---- Skipped rule shapes (must not break parsing) ----
 ##^script[src*="ads.js"]
 ##.foo:matches-path(/section/)

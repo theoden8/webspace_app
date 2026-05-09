@@ -133,11 +133,19 @@ void main() {
       expect(result.skippedCount, equals(1));
     });
 
-    test('skips complex path rules (not domain-only)', () {
-      // Rules with paths/wildcards are skipped for performance
+    test('converts path-anchored rules with options stripped', () {
+      // The wider-ABP work converts these — pattern after `$`-strip
+      // is `||ads.example.com/path`, which matches the path-rule
+      // regex. Options like `script,third-party` aren't enforced
+      // (we don't classify resource types), but the URL still
+      // matches at navigation time.
       final result = parseAbpFilterListSync(r'||ads.example.com/path$script,third-party');
-      expect(result.convertedCount, equals(0));
-      expect(result.skippedCount, equals(1));
+      expect(result.convertedCount, equals(1));
+      expect(result.skippedCount, equals(0));
+      expect(result.blockedDomainPaths['ads.example.com']!.first.pathGlob,
+          equals('/path'));
+      expect(result.blockedDomains, isNot(contains('ads.example.com')),
+          reason: 'path-anchored rule must not promote to a whole-domain block');
     });
 
     test('skips \$redirect rules', () {
@@ -207,6 +215,130 @@ void main() {
     test('domain blocking is case-insensitive', () {
       final result = parseAbpFilterListSync('||ADS.Example.COM^');
       expect(result.blockedDomains, contains('ads.example.com'));
+    });
+
+    // ---- path-anchored network rules (||domain/path, ||domain^*x) ----
+
+    test('converts ||domain/path rule to path-anchored entry', () {
+      final result = parseAbpFilterListSync('||example.com/ads/');
+      expect(result.convertedCount, equals(1));
+      expect(result.blockedDomains, isEmpty,
+          reason: 'path-anchored rule must not be promoted to whole-domain block');
+      expect(result.blockedDomainPaths['example.com'], hasLength(1));
+      expect(result.blockedDomainPaths['example.com']!.first.pathGlob,
+          equals('/ads/'));
+    });
+
+    test('converts ||domain^/path rule (separator before path)', () {
+      final result = parseAbpFilterListSync('||cdn.example.com^/track');
+      expect(result.convertedCount, equals(1));
+      expect(result.blockedDomainPaths['cdn.example.com']!.first.pathGlob,
+          equals('/track'));
+    });
+
+    test('converts ||domain^*tracker glob path', () {
+      final result = parseAbpFilterListSync('||example.com^*tracker.js');
+      expect(result.convertedCount, equals(1));
+      expect(result.blockedDomainPaths['example.com']!.first.pathGlob,
+          equals('*tracker.js'));
+    });
+
+    test('aggregates multiple path globs against the same domain', () {
+      const input = '''
+||example.com/ads/
+||example.com/track/
+||example.com^*pixel.gif
+''';
+      final result = parseAbpFilterListSync(input);
+      expect(result.blockedDomainPaths['example.com'], hasLength(3));
+      expect(
+          result.blockedDomainPaths['example.com']!
+              .map((r) => r.pathGlob)
+              .toList(),
+          containsAll(['/ads/', '/track/', '*pixel.gif']));
+    });
+
+    test('keeps domain-only and path-anchored rules separate', () {
+      const input = '''
+||tracker.example.com^
+||example.com/ads/banner
+''';
+      final result = parseAbpFilterListSync(input);
+      expect(result.blockedDomains, contains('tracker.example.com'));
+      expect(result.blockedDomains, isNot(contains('example.com')));
+      expect(result.blockedDomainPaths['example.com'], hasLength(1));
+    });
+
+    test('compileDomainPathGlob translates wildcards correctly', () {
+      // `*` and `^` both become `.*`; literal regex specials are escaped.
+      final reSlash = compileDomainPathGlob('/ads/');
+      expect(reSlash.hasMatch('/ads/banner.png'), isTrue);
+      expect(reSlash.hasMatch('/foo/ads/'), isFalse,
+          reason: 'glob is anchored to start of path, not a substring search');
+
+      final reStar = compileDomainPathGlob('*tracker.js');
+      expect(reStar.hasMatch('/foo/bar/tracker.js'), isTrue);
+      expect(reStar.hasMatch('/foo/bar/tracker_js'), isFalse,
+          reason: 'literal "." in glob must be escaped');
+
+      final reCaret = compileDomainPathGlob('/track^');
+      expect(reCaret.hasMatch('/track/abc'), isTrue,
+          reason: 'ABP separator ^ should match path continuations');
+
+      final reSpecials = compileDomainPathGlob('/foo+bar?baz');
+      expect(reSpecials.hasMatch('/foo+bar?baz=1'), isTrue,
+          reason: 'regex specials (+, ?) must be escaped to match literally');
+    });
+
+    test('extractPathAndQuery returns post-host portion', () {
+      expect(extractPathAndQuery('https://example.com/ads/x.js'),
+          equals('/ads/x.js'));
+      expect(extractPathAndQuery('https://example.com'), equals('/'),
+          reason: 'no-path URL should report root');
+      expect(extractPathAndQuery('https://example.com/?q=1'), equals('/?q=1'));
+      expect(extractPathAndQuery('https://example.com#frag'), equals('#frag'));
+    });
+
+    // ---- uBO :style() cosmetic extension ----
+
+    test('converts global ##selector:style(decls) to a style rule', () {
+      final result =
+          parseAbpFilterListSync('##.banner:style(height: 1px !important)');
+      expect(result.convertedCount, equals(1));
+      expect(result.cosmeticSelectors, isEmpty,
+          reason: ':style() rule must not double-emit a display:none rule');
+      expect(result.styleRules[''], hasLength(1));
+      expect(result.styleRules['']!.first.selector, equals('.banner'));
+      expect(result.styleRules['']!.first.declarations,
+          equals('height: 1px !important'));
+    });
+
+    test('converts domain-scoped :style() rule', () {
+      final result =
+          parseAbpFilterListSync('example.com##.ad:style(visibility: hidden)');
+      expect(result.styleRules['example.com'], hasLength(1));
+      expect(result.styleRules['example.com']!.first.selector, equals('.ad'));
+      expect(result.styleRules['example.com']!.first.declarations,
+          equals('visibility: hidden'));
+    });
+
+    test('multi-domain :style() applies to each listed domain', () {
+      final result = parseAbpFilterListSync(
+          'a.example,b.example##.banner:style(height: 0)');
+      expect(result.styleRules['a.example'], hasLength(1));
+      expect(result.styleRules['b.example'], hasLength(1));
+    });
+
+    test(':style() with empty declarations is skipped', () {
+      final result = parseAbpFilterListSync('##.banner:style()');
+      expect(result.convertedCount, equals(0));
+      expect(result.skippedCount, equals(1));
+    });
+
+    test(':style() without selector prefix is skipped', () {
+      final result = parseAbpFilterListSync('##:style(color:red)');
+      expect(result.convertedCount, equals(0));
+      expect(result.skippedCount, equals(1));
     });
 
     test('aggregates selectors from multiple rules', () {
