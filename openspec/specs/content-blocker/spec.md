@@ -566,14 +566,31 @@ When the user opts in via the `useRustAdblockEngine` SharedPreferences flag (tog
 **Then** the handler passes `lastLoadStartUrl` (the page hosting the request) as `sourceUrl`
 **And** the engine can fire `$domain=` rules that target the page's domain
 
-#### Scenario: Android sub-resources use host-only native interceptor
+#### Scenario: Android sub-resources consult the engine via JNI
+
+**Given** the engine is active on Android AND `libwebspace_adblock.so` is bundled in `jniLibs/<abi>/`
+**When** a page issues a sub-resource request
+**Then** the native `FastSubresourceInterceptor.checkUrl` first walks the host-only DNS + ABP HashSets (cheap fast path)
+**And** for hosts the host-only path didn't already block, calls into the JNI bridge (`AdblockEngineNative.checkUrl`) with the request URL, current page URL as source, and a Sec-Fetch-Dest-derived resource type
+**And** the JNI layer dispatches to the same Brave adblock-rust engine the Dart side uses
+**And** `$domain=` / path-anchored / `$script` / `$image` / regex rules fire on every sub-resource — not just top-level nav
+
+#### Scenario: Android falls back to host-only when JNI library missing
+
+**Given** the engine flag is on but `libwebspace_adblock.so` failed to load on this ABI / build
+**Then** `AdblockEngineNative.active` is false
+**And** `FastSubresourceInterceptor.checkUrl` skips the engine consult entirely
+**And** sub-resources go through the host-only HashSet fast path seeded by the Dart parser's `_blockedDomains`
+**And** the activation log emits a warning surfacing the gap
+
+#### Scenario: Engine teardown reverts Android sub-resources to host-only
 
 **Given** the engine is active on Android
-**When** a page issues a sub-resource request
-**Then** the native `FastSubresourceInterceptor` decides via host-only HashSet lookup seeded by the Dart parser's `_blockedDomains`
-**And** the engine's `$domain=` / regex / resource-type rules do NOT fire for that sub-resource
-**(Main-document navigation and cosmetic still flow through the engine; this is a documented Android-only platform gap. Closing it requires native changes to route engine-relevant hosts through a per-request bridge, out of scope here.)**
-**And** the Settings toggle's subtitle and a startup info-level log surface the limitation when the engine activates on Android
+**When** the user flips the Settings toggle off
+**Then** Dart calls `WebInterceptNative.sendAdblockEngineRules('')`
+**And** the native side calls `AdblockEngineNative.setRules('')` which frees the engine handle
+**And** subsequent sub-resource requests skip the engine consult
+**And** `clearAllHostDecisionCaches` runs so previously-cached `ALLOWED` decisions don't shadow the host-only sets
 
 #### Scenario: Domain-scoped cosmetic rules continue to use Dart engine
 

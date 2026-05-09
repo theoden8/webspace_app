@@ -23,6 +23,9 @@
 use std::ffi::{c_char, CString};
 #[cfg(test)]
 use std::ffi::CStr;
+
+#[cfg(target_os = "android")]
+mod jni;
 use std::slice;
 
 use adblock::Engine as AdblockEngine;

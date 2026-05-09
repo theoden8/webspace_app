@@ -1370,15 +1370,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             subtitle: Text(
               !ContentBlockerService.instance.rustEngineSupportedOnPlatform
                   ? 'Native library not available on this platform.'
-                  : Platform.isAndroid
-                      ? 'Routes main-doc navigation + cosmetic decisions '
-                          'through Brave’s adblock-rust. Android sub-resource '
-                          'blocking continues to use the host-only native '
-                          'interceptor — \$domain= rules apply only to '
-                          'top-level navigation there.'
-                      : 'Routes network blocks through Brave’s adblock-rust '
-                          'engine. Adds support for \$domain=, regex network '
-                          'rules, and generic class/id cosmetic lookups.',
+                  : 'Routes network blocks through Brave’s adblock-rust '
+                      'engine. Adds support for \$domain=, regex network '
+                      'rules, resource-type modifiers, and generic class/id '
+                      'cosmetic lookups. On Android, sub-resource decisions '
+                      'go through a JNI bridge so \$domain= fires on every '
+                      'request, not just top-level navigation.',
             ),
             value: ContentBlockerService.instance.rustEngineEnabled,
             onChanged: ContentBlockerService.instance

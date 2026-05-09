@@ -6,6 +6,7 @@ import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
@@ -162,6 +163,18 @@ class ContentBlockerService {
   /// `DynamicLibrary.open` once and caches the result.
   bool get rustEngineSupportedOnPlatform {
     if (_rustEngineSupported != null) return _rustEngineSupported!;
+    if (Platform.isAndroid) {
+      // Android Dart-side has no FFI access to the bundled .so —
+      // probing AdblockEngine.load would always return null. The
+      // native side is what actually runs the engine on Android,
+      // so consult its support flag via the method channel. The
+      // Dart-side `_rustEngine` field stays null here; the engine
+      // lives entirely in JNI land. Cosmetic + main-doc decisions
+      // re-route through the native engine via a follow-up phase
+      // (currently they still use the Dart parser on Android).
+      // Probe is async; cache eagerly via initialize().
+      return _rustEngineSupported ?? false;
+    }
     final probe = AdblockEngine.load('');
     _rustEngineSupported = probe != null;
     probe?.dispose();
@@ -504,6 +517,12 @@ class ContentBlockerService {
       // first rebuild (just below) spins up the engine if the user
       // already opted in on a prior run.
       _rustEngineEnabled = prefs.getBool(kUseRustAdblockEngineKey) ?? false;
+      // Probe Android native support eagerly — the synchronous
+      // getter falls back to this cached value.
+      if (Platform.isAndroid) {
+        _rustEngineSupported =
+            await WebInterceptNative.isAdblockEngineSupported();
+      }
       final listsJson = prefs.getString(_listsKey);
 
       if (listsJson != null) {
@@ -703,7 +722,15 @@ class ContentBlockerService {
   Future<void> _maybeRebuildRustEngine() async {
     _rustEngine?.dispose();
     _rustEngine = null;
-    if (!_rustEngineEnabled) return;
+    // When the engine is off, also tear down the Android-side native
+    // engine if any. Empty rules string = "engine off" on the Kotlin
+    // side. Cheap no-op on non-Android.
+    if (!_rustEngineEnabled) {
+      if (Platform.isAndroid) {
+        await WebInterceptNative.sendAdblockEngineRules('');
+      }
+      return;
+    }
     final buf = StringBuffer();
     var listCount = 0;
     for (final list in _lists) {
@@ -721,6 +748,9 @@ class ContentBlockerService {
           'Rust engine enabled but no enabled lists have cached files — '
           'engine remains uninstantiated.',
           level: LogLevel.warning);
+      if (Platform.isAndroid) {
+        await WebInterceptNative.sendAdblockEngineRules('');
+      }
       return;
     }
     final sw = Stopwatch()..start();
@@ -739,12 +769,28 @@ class ContentBlockerService {
         '${sw.elapsedMilliseconds}ms)',
         level: LogLevel.info);
     if (Platform.isAndroid) {
-      LogService.instance.log('ContentBlocker',
-          'Note: on Android, sub-resource blocking continues to use the '
-          'host-only native FastSubresourceInterceptor seeded by the Dart '
-          'parser. Engine \$domain= / regex / resource-type rules apply to '
-          'main-document navigation and cosmetic only on this platform.',
-          level: LogLevel.info);
+      // Phase 9: also push the rules text to the native engine so
+      // FastSubresourceInterceptor can consult it without a Dart
+      // roundtrip per sub-resource. The native side spins up its
+      // own engine instance from the same text — separate from the
+      // Dart-side instance, but both are pure functions of the
+      // rules so they always agree on decisions.
+      final result =
+          await WebInterceptNative.sendAdblockEngineRules(buf.toString());
+      if (result == null || result['active'] != true) {
+        LogService.instance.log('ContentBlocker',
+            'Note: native adblock engine not active on this Android build '
+            '(library missing or load failed). Sub-resources keep the '
+            'host-only fast path seeded by the Dart parser; main-document '
+            'navigation + cosmetic still flow through the Dart engine.',
+            level: LogLevel.warning);
+      } else {
+        LogService.instance.log('ContentBlocker',
+            'Native adblock-rust active for Android sub-resources too — '
+            '\$domain= / path-anchored / resource-type rules now fire on '
+            'every request, not just top-level nav.',
+            level: LogLevel.info);
+      }
     }
   }
 

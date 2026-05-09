@@ -97,6 +97,32 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                         result.error("INVALID_ARGS", "domains list required", null)
                     }
                 }
+                "setAdblockEngineRules" -> {
+                    // Phase 9: Dart pushes the concatenated filter-list
+                    // text once when the user flips the engine toggle.
+                    // Empty string = engine off → tear down + revert
+                    // to host-only fast path. Non-empty = parse on the
+                    // Rust side and keep the handle for per-request
+                    // checkUrl calls in FastSubresourceInterceptor.
+                    val rulesText = call.argument<String>("rulesText") ?: ""
+                    AdblockEngineNative.setRules(rulesText)
+                    // host-decision cache keys on host only, but the
+                    // engine answers per (url, source, type). Hits
+                    // that previously read ALLOWED from the cache
+                    // would shadow the engine — clear so the engine
+                    // gets to vote.
+                    clearAllHostDecisionCaches()
+                    result.success(mapOf(
+                        "supported" to AdblockEngineNative.supported,
+                        "active" to AdblockEngineNative.active,
+                    ))
+                }
+                "isAdblockEngineSupported" -> {
+                    // Diagnostic for the Dart-side UI: lets the toggle
+                    // know whether the .so loaded so it can grey out
+                    // the switch when the build skipped the Rust step.
+                    result.success(AdblockEngineNative.supported)
+                }
                 "setCdnPatterns" -> {
                     val patterns = call.argument<List<String>>("patterns")
                     if (patterns != null) {
@@ -453,6 +479,30 @@ class FastSubresourceInterceptor(
             putHostDecision(host, decision)
         }
 
+        // 1b. When the Rust engine is active and the host-only sets
+        // didn't already decide BLOCKED, consult the engine. This is
+        // the fix for the Android sub-resource gap — `$domain=`,
+        // path-anchored, and resource-type rules don't appear in the
+        // bare host sets, so without this check they silently miss.
+        // We DON'T cache engine decisions in `hostDecision` because
+        // the answer depends on the URL + sourceUrl + requestType,
+        // not just the host. The host-only fast path remains the hot
+        // path; the engine only fires on hosts the cheap check let
+        // through.
+        if (decision == Decision.ALLOWED && AdblockEngineNative.active) {
+            val sourceUrl = try {
+                webView.url ?: ""
+            } catch (_: Throwable) { "" }
+            val requestType = mapResourceType(request)
+            if (AdblockEngineNative.checkUrl(url, sourceUrl, requestType)) {
+                decision = Decision.BLOCKED_ABP
+                if (checkCount <= 10 || checkCount % 100 == 0) {
+                    onLog("WebIntercept",
+                        "engine blocked sub-resource: host=$host source=$sourceUrl type=$requestType")
+                }
+            }
+        }
+
         // Always report — the WebInterceptPlugin layer dedupes at the
         // pending-drain level, collapsing repeat requests for the same
         // host into a single Dart-side log entry while still summing
@@ -567,6 +617,60 @@ class FastSubresourceInterceptor(
             dot = host.indexOf('.', dot + 1)
         }
         return false
+    }
+
+    /**
+     * Classify a sub-resource request into ABP's resource-type
+     * taxonomy so the engine's `$script`, `$image`, `$xhr`, etc.
+     * modifiers can fire. The Android WebResourceRequest doesn't
+     * carry a direct resource-type field — chromium only exposes
+     * URL + headers + method + isForMainFrame — so we triangulate:
+     *   1. `isForMainFrame` → "document".
+     *   2. `Sec-Fetch-Dest` header (Chromium adds it on most
+     *      requests as of WebView 96+).
+     *   3. URL extension fallback.
+     *   4. "other" as the final default — ABP rules without a
+     *      resource-type modifier still match this.
+     */
+    private fun mapResourceType(request: WebResourceRequestExt): String {
+        if (request.isForMainFrame()) return "document"
+        val headers = request.requestHeaders ?: emptyMap()
+        // Header keys come back as the original case the browser
+        // sent (typically lowercase for fetch metadata) — match
+        // both casings to survive future quirks.
+        val dest = headers["Sec-Fetch-Dest"] ?: headers["sec-fetch-dest"]
+        if (!dest.isNullOrEmpty()) {
+            return when (dest) {
+                "script" -> "script"
+                "style" -> "stylesheet"
+                "image" -> "image"
+                "font" -> "font"
+                "audio", "video", "track" -> "media"
+                "iframe", "frame", "embed", "object" -> "subdocument"
+                "empty" -> "xhr"
+                "document" -> "document"
+                "websocket" -> "websocket"
+                else -> "other"
+            }
+        }
+        val url = request.url ?: return "other"
+        val pathEnd = url.indexOfAny(charArrayOf('?', '#')).let {
+            if (it < 0) url.length else it
+        }
+        val tail = url.substring(0, pathEnd).lowercase()
+        return when {
+            tail.endsWith(".js") || tail.endsWith(".mjs") -> "script"
+            tail.endsWith(".css") -> "stylesheet"
+            tail.endsWith(".png") || tail.endsWith(".jpg") ||
+                tail.endsWith(".jpeg") || tail.endsWith(".gif") ||
+                tail.endsWith(".webp") || tail.endsWith(".svg") ||
+                tail.endsWith(".ico") -> "image"
+            tail.endsWith(".woff") || tail.endsWith(".woff2") ||
+                tail.endsWith(".ttf") || tail.endsWith(".otf") -> "font"
+            tail.endsWith(".mp4") || tail.endsWith(".webm") ||
+                tail.endsWith(".mp3") || tail.endsWith(".ogg") -> "media"
+            else -> "other"
+        }
     }
 
     companion object {
