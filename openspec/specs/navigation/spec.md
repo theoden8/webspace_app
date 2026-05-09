@@ -181,6 +181,39 @@ The menu back button (in both portrait and landscape layouts) SHALL navigate bac
 
 ---
 
+### Requirement: NAV-006 - Pull-to-Refresh
+
+All webviews (main and nested) SHALL support pull-to-refresh to reload the current page.
+
+#### Scenario: Pull to refresh
+
+**Given** a webview is visible
+**When** the user pulls down on the page
+**Then** the page reloads
+**And** the pull-to-refresh indicator animates
+**And** the indicator stops when `onLoadStop` fires
+
+---
+
+### Requirement: NAV-007 - URL Bar Sync
+
+The URL bar SHALL stay in sync with the current webview URL across all navigation types, including BFCache restorations.
+
+#### Scenario: Standard navigation
+
+**Given** a webview navigates to a new page
+**When** `onLoadStop` fires
+**Then** the URL bar updates to the new URL
+
+#### Scenario: iOS back gesture with BFCache
+
+**Given** an iOS webview restores a page from BFCache via back/forward gesture
+**When** `onLoadStop` does NOT fire
+**Then** `onUpdateVisitedHistory` fires instead
+**And** the URL bar updates to the restored URL
+
+---
+
 ### Requirement: NAV-008 - Nested WebView Back Gesture
 
 The system back gesture (Android back button, iOS edge swipe) on a nested
@@ -224,39 +257,6 @@ history first, then exit.
 **When** the second invocation arrives while the first is still awaiting `goBack()` / URL diff
 **Then** the second invocation drops (guarded by `_isBackHandling`)
 **And** at most one `goBack()` per gesture is dispatched
-
----
-
-### Requirement: NAV-006 - Pull-to-Refresh
-
-All webviews (main and nested) SHALL support pull-to-refresh to reload the current page.
-
-#### Scenario: Pull to refresh
-
-**Given** a webview is visible
-**When** the user pulls down on the page
-**Then** the page reloads
-**And** the pull-to-refresh indicator animates
-**And** the indicator stops when `onLoadStop` fires
-
----
-
-### Requirement: NAV-007 - URL Bar Sync
-
-The URL bar SHALL stay in sync with the current webview URL across all navigation types, including BFCache restorations.
-
-#### Scenario: Standard navigation
-
-**Given** a webview navigates to a new page
-**When** `onLoadStop` fires
-**Then** the URL bar updates to the new URL
-
-#### Scenario: iOS back gesture with BFCache
-
-**Given** an iOS webview restores a page from BFCache via back/forward gesture
-**When** `onLoadStop` does NOT fire
-**Then** `onUpdateVisitedHistory` fires instead
-**And** the URL bar updates to the restored URL
 
 ---
 
