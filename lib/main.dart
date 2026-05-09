@@ -1366,6 +1366,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// activate, persist, and apply the current theme. Shared by the
   /// "create new site for URL" and "create new site for HTML" flows.
   Future<void> _registerNewSite(WebViewModel model) async {
+    // Apply theme before _setCurrentIndex triggers the first build —
+    // initialHtml reads currentTheme to pick the dark prelude for cached
+    // HTML (file:// imports especially, which never reload to live), and
+    // the model defaults to WebViewTheme.light otherwise.
+    await model.setTheme(_themeModeToWebViewTheme(_themeSettings.themeMode));
     setState(() {
       _webViewModels.add(model);
     });
@@ -1382,8 +1387,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     setState(() {});
     await _saveCurrentIndex();
     await _saveWebViewModels();
-    final theme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-    await model.setTheme(theme);
   }
 
   Future<void> _saveWebViewModels() async {
@@ -2303,16 +2306,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
     }
 
-    // Set current index (async for cookie restoration)
-    await _setCurrentIndex(indexToRestore);
-    if (!mounted) return;
-    setState(() {}); // Trigger UI update after async operation
-
-    // Apply saved theme to all restored webviews
+    // Apply saved theme BEFORE _setCurrentIndex so the first build sees
+    // the right currentTheme — initialHtml reads it to pick the dark
+    // prelude for cached HTML (file:// imports especially, which never
+    // reload to live and so paint with whatever prelude the first build
+    // chose). Models default to WebViewTheme.light, so without this the
+    // first frame on a dark theme flashes white before the controller
+    // is created and re-applies via setController().
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
     for (var webViewModel in List.from(_webViewModels)) {
       await webViewModel.setTheme(webViewTheme);
     }
+
+    // Set current index (async for cookie restoration)
+    await _setCurrentIndex(indexToRestore);
+    if (!mounted) return;
+    setState(() {}); // Trigger UI update after async operation
 
     _startForegroundPollTimer();
 
@@ -3916,32 +3925,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
     }
 
-    setState(() {
-      _webViewModels.add(model);
-    });
-
-    final newSiteIndex = _webViewModels.length - 1;
-
-    // If a non-"All" webspace is currently selected, add the new site to it
-    if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
-      final webspaceIndex = _webspaces.indexWhere((ws) => ws.id == _selectedWebspaceId);
-      if (webspaceIndex != -1) {
-        _webspaces[webspaceIndex].siteIndices.add(newSiteIndex);
-        await _saveWebspaces();
-      }
-    }
-
-    // Set current index (async for cookie handling)
-    await _setCurrentIndex(newSiteIndex);
-    if (!mounted) return;
-    setState(() {}); // Update UI after async operation
-
-    await _saveCurrentIndex();
-    await _saveWebViewModels();
-
-    // Apply current theme to new webview
-    final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-    await model.setTheme(webViewTheme);
+    await _registerNewSite(model);
   }
 
   void _editSite(int index) async {

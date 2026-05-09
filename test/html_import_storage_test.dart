@@ -168,20 +168,44 @@ void main() {
   });
 
   group('HtmlImportStorage robustness', () {
-    test('corrupt entry on disk is reaped on preload, returns null on load',
+    test('corrupt entry stays on disk (not reaped) and returns null in memory',
         () async {
+      // Imports are user data, the only copy on the device — never delete
+      // on parse failure. The fallback page covers the unreadable case;
+      // the encrypted bytes stay in case the AES key recovers later
+      // (e.g. transient Android Keystore read failure on next launch).
       final s = await newStorage();
       await s.saveHtml('s', '<p>orig</p>', 'file:///s.html');
-      // Corrupt the on-disk file with garbage.
       final filePath = '${tempDir.path}/html_imports/s.enc';
       await File(filePath).writeAsString('not valid base64!!!');
 
-      // Fresh instance to drop in-memory state, then preload.
       final s2 = await newStorage();
       await s2.preloadAll();
 
       expect(s2.getHtmlSync('s'), isNull);
-      expect(await File(filePath).exists(), isFalse);
+      expect(await File(filePath).exists(), isTrue);
+    });
+
+    test('lost AES key does not destroy imports on preload', () async {
+      // Regression: a flutter_secure_storage read miss (Android Keystore
+      // reset, OEM bug, …) caused HtmlImportStorage to generate a fresh
+      // AES key on launch, fail to decrypt every existing import, and
+      // delete them — wiping the user's only copy of data they imported
+      // by hand. The bytes must survive.
+      final first = await newStorage();
+      await first.saveHtml('a', '<p>kept</p>', 'file:///a.html');
+      final filePath = '${tempDir.path}/html_imports/a.enc';
+      expect(await File(filePath).exists(), isTrue);
+
+      // Simulate the secure-storage key going missing between launches.
+      fakeStorage = MockFlutterSecureStorage();
+      final second = await newStorage();
+      await second.preloadAll();
+
+      // In-memory load is empty (decrypt failed under the new key),
+      // but the encrypted file MUST remain on disk.
+      expect(second.getHtmlSync('a'), isNull);
+      expect(await File(filePath).exists(), isTrue);
     });
 
     test('files larger than 10 MB are not saved', () async {
