@@ -118,46 +118,39 @@ final class ShareViewController: UIViewController {
 
     /// Opens the host app via the registered `webspace://` URL scheme.
     ///
-    /// Apple's docs say `extensionContext.open(_:completionHandler:)` is for
-    /// Today extensions, but in practice it works from share extensions too
-    /// — the runtime doesn't enforce the docs' restriction, and it's how
-    /// most cross-platform "share to app" extensions (e.g. LocalSend) get
-    /// their host apps to foreground on iOS 18+ where the older
-    /// responder-chain `openURL:` trick is silently dropped.
+    /// The trick is to walk the responder chain until we find the
+    /// `UIApplication` instance attached to the extension's window, then
+    /// call the **public** `application.open(_:options:completionHandler:)`
+    /// API on it (iOS 18+) or fall back to `perform("openURL:")` (iOS < 18).
     ///
-    /// We still walk the responder chain as a fallback for older iOS where
-    /// `extensionContext.open` returns false.
+    /// Apple gated the private `perform(openURL:)` selector and the
+    /// `extensionContext.open(_:)` path on share extensions in iOS 18+,
+    /// but the public `UIApplication.open` call invoked on a
+    /// responder-chain-discovered UIApplication still works — this is
+    /// what `share_handler`/LocalSend use.
     ///
-    /// The completion handler MUST run before the caller dismisses the
-    /// extension, otherwise iOS may tear us down mid-dispatch.
+    /// The completion runs synchronously after the dispatch is fired off.
+    /// `application.open` itself is best-effort and asynchronous; iOS
+    /// will continue the launch even after we call `completeRequest`.
     private func openHostApp(_ url: URL, completion: @escaping () -> Void) {
-        if let ctx = extensionContext {
-            ctx.open(url) { success in
-                NSLog("[WebSpace.ShareExt] extensionContext.open returned \(success)")
-                DispatchQueue.main.async {
-                    if !success {
-                        self.openHostAppViaResponderChain(url)
-                    }
-                    completion()
-                }
-            }
-            return
-        }
-        openHostAppViaResponderChain(url)
-        completion()
-    }
-
-    private func openHostAppViaResponderChain(_ url: URL) {
         var responder: UIResponder? = self
-        let selector = NSSelectorFromString("openURL:")
         while let r = responder {
-            if r.responds(to: selector) && !(r is UIViewController) {
-                _ = r.perform(selector, with: url)
-                NSLog("[WebSpace.ShareExt] dispatched openURL via responder: \(type(of: r))")
+            if let application = r as? UIApplication {
+                if #available(iOS 18.0, *) {
+                    application.open(url, options: [:]) { success in
+                        NSLog("[WebSpace.ShareExt] UIApplication.open returned \(success)")
+                    }
+                    NSLog("[WebSpace.ShareExt] dispatched open via responder-chain UIApplication (iOS 18+ public API)")
+                } else {
+                    let _ = application.perform(NSSelectorFromString("openURL:"), with: url)
+                    NSLog("[WebSpace.ShareExt] dispatched openURL via responder-chain UIApplication (legacy selector)")
+                }
+                completion()
                 return
             }
             responder = r.next
         }
-        NSLog("[WebSpace.ShareExt] no responder accepted openURL — host app fallback to app-group only")
+        NSLog("[WebSpace.ShareExt] no UIApplication on responder chain — host app fallback to app-group only")
+        completion()
     }
 }
