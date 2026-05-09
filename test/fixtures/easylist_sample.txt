@@ -52,13 +52,26 @@ linkedin.com#?#div.feed-shared-actor:-abp-contains(/Promoted|Sponsored/)
 example.com,test.com##.cross-site-ad
 
 ! ---- Path-anchored network rules (||domain/path, ||domain^*x) ----
+! Parser-only fixtures — the Dart-side isBlocked tests assert these
+! match correct URL paths. Not wired into abp_rule_probe.html's
+! network section because the verdict would split by platform: on
+! iOS/macOS the JS-bridge `blockCheck` calls Dart `isBlocked(url)`
+! which sees the path and fires; on Android the native
+! FastSubresourceInterceptor only sees host, so a sub-resource hit
+! won't fire (main-document navigation still does, since
+! `shouldOverrideUrlLoading` calls isBlocked with the full URL). A
+! probe row would need platform-specific "expected" labels to avoid
+! looking like a bug on Android — out of scope here.
 ||pathblock.example/ads/
 ||pathblock.example^/track
 ||pathblock.example^*pixel.gif
 
 ! ---- uBO :style() cosmetic extension ----
-##.styled-banner:style(height: 1px !important)
-linkedin.com##.styled-promo:style(opacity: 0.1 !important)
+! Namespaced under fp_probe_* so production lists won't collide with
+! the targets in test/fixtures/abp_rule_probe.html — same convention
+! the cosmetic FP guards use.
+##.fp_probe_styled_banner:style(height: 1px !important)
+linkedin.com##.fp_probe_styled_promo:style(opacity: 0.1 !important)
 
 ! ---- Skipped rule shapes (must not break parsing) ----
 ##^script[src*="ads.js"]

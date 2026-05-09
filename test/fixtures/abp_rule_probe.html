@@ -87,6 +87,28 @@
     <tbody id="supported-results"></tbody>
   </table>
 
+  <h2>1B. uBO <code>:style()</code> rules</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: declaration applied.</strong>
+    The parser converts <code>##sel:style(decls)</code> into a CSS rule
+    <code>sel { decls }</code> in the same early <code>&lt;style&gt;</code>
+    tag as the hide rules — the matching element should NOT be
+    <code>display:none</code> but its target declaration should be in
+    effect. A row reading "missed" means the parser dropped the rule
+    or your loaded list doesn't carry it.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 30%">Rule shape</th>
+        <th style="width: 12%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="style-results"></tbody>
+  </table>
+
   <h2>2. Host-dependent rules</h2>
   <div class="section-callout expect-host">
     <strong>Expected verdict per row: BLOCKED only when this page is hosted on the rule's domain.</strong>
@@ -271,6 +293,33 @@
       },
     ];
 
+    // ---- Section 1B: uBO :style() rules. Expected: declaration applied,
+    // element NOT display:none. The matching rule lives in
+    // test/fixtures/easylist_sample.txt under "uBO :style() cosmetic
+    // extension". Each row carries the property and value the rule
+    // installs so measure() can read it back via getComputedStyle.
+    // Note that the SECOND row is host-scoped to linkedin.com — it
+    // should miss off-host the same way HOST_CASES rows do.
+    const STYLE_CASES = [
+      {
+        id: 'style-shrink',
+        label: '##.fp_probe_styled_banner:style(height: 1px !important)',
+        html: '<div class="fp_probe_styled_banner">styled banner sample</div>',
+        prop: 'height',
+        value: '1px',
+        note: 'global :style() rule — height should be 1px regardless of host',
+      },
+      {
+        id: 'style-fade',
+        label: 'linkedin.com##.fp_probe_styled_promo:style(opacity: 0.1 !important)',
+        html: '<div class="fp_probe_styled_promo">styled promo sample</div>',
+        prop: 'opacity',
+        value: '0.1',
+        host: 'linkedin.com',
+        note: 'host-scoped :style() — applies only on linkedin.com',
+      },
+    ];
+
     // ---- Section 2: domain-scoped rules. Expected: BLOCKED iff host matches. ----
     const HOST_CASES = [
       {
@@ -385,6 +434,7 @@
     // section to its expected verdict and the target tbody.
     const SECTIONS = [
       { cases: SUPPORTED_CASES, tbody: 'supported-results',  expected: 'hide',     expectLabel: 'BLOCKED' },
+      { cases: STYLE_CASES,     tbody: 'style-results',      expected: 'style',    expectLabel: 'declaration applied' },
       { cases: HOST_CASES,      tbody: 'host-results',       expected: 'host',     expectLabel: 'BLOCKED on host' },
       { cases: SKIPPED_CASES,   tbody: 'skipped-results',    expected: 'keep',     expectLabel: 'visible' },
       { cases: FP_CASES,        tbody: 'fp-results',         expected: 'keep',     expectLabel: 'visible' },
@@ -412,9 +462,21 @@
             (c.note ? '<div class="desc">' + escapeHtml(c.note) + '</div>' : '');
           const expectedCell = document.createElement('td');
           expectedCell.className = 'expected-cell';
-          expectedCell.textContent = sec.expected === 'host'
-            ? (location.host && location.host.indexOf(c.host) !== -1 ? 'BLOCKED' : 'visible (off-host)')
-            : sec.expectLabel;
+          if (sec.expected === 'host') {
+            expectedCell.textContent =
+              location.host && location.host.indexOf(c.host) !== -1
+                ? 'BLOCKED' : 'visible (off-host)';
+          } else if (sec.expected === 'style') {
+            // Host-scoped :style() rows behave like Section 2 — the
+            // declaration only applies when the page host matches.
+            const onHost = !c.host ||
+              (location.host && location.host.indexOf(c.host) !== -1);
+            expectedCell.textContent = onHost
+              ? c.prop + ': ' + c.value
+              : 'unchanged (off-host)';
+          } else {
+            expectedCell.textContent = sec.expectLabel;
+          }
           const statusCell = document.createElement('td');
           statusCell.className = 'result-cell pending';
           statusCell.textContent = 'pending…';
@@ -456,6 +518,32 @@
             } else {
               cell.classList.add(hidden ? 'fail' : 'note');
               label = hidden ? 'BLOCKED — fired off-host!' : 'visible (host did not match)';
+            }
+          } else if (sec.expected === 'style') {
+            // Read the property the rule is supposed to install. If
+            // the value matches and display isn't none, the rule
+            // fired correctly. Off-host rows correctly read as
+            // "unchanged" — neutral note, not a fail.
+            const computed = getComputedStyle(target)[c.prop];
+            const onHost = !c.host ||
+              (location.host && location.host.indexOf(c.host) !== -1);
+            if (onHost) {
+              const matched = computed === c.value;
+              const broken = hidden;
+              cell.classList.add(matched && !broken ? 'ok' : 'fail');
+              if (matched && !broken) {
+                label = c.prop + ' = ' + computed;
+              } else if (broken) {
+                label = 'BLOCKED — :style() must NOT hide';
+              } else {
+                label = 'missed — ' + c.prop + ' is "' + computed + '" (want "' + c.value + '")';
+              }
+            } else {
+              const fired = computed === c.value;
+              cell.classList.add(fired ? 'fail' : 'note');
+              label = fired
+                ? ':style() fired off-host! ' + c.prop + ' = ' + computed
+                : 'unchanged — ' + c.prop + ' = "' + computed + '"';
             }
           }
           if (inlineDisplay) label += ' [inline:' + inlineDisplay + ']';
