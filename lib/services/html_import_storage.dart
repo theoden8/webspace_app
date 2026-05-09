@@ -102,6 +102,7 @@ class HtmlImportStorage {
 
     try {
       final files = await _storageDirectory!.list().toList();
+      var skipped = 0;
       for (final entity in files) {
         if (entity is File && entity.path.endsWith('.enc')) {
           try {
@@ -114,20 +115,26 @@ class HtmlImportStorage {
                 final html = decrypted.substring(newlineIndex + 1);
                 _memoryStore[siteId] = html;
               } else {
-                LogService.instance.log('HtmlImport', 'Discarded invalid import file: ${entity.path}', level: LogLevel.warning);
-                await entity.delete();
+                // Imports are the only copy of user-supplied data — never
+                // delete on parse failure. The fallback page renders if the
+                // bytes can't be loaded, but the file stays on disk in case
+                // the AES key is recoverable (e.g. flutter_secure_storage
+                // returns the original key on a later launch after a
+                // transient Android Keystore read failure).
+                LogService.instance.log('HtmlImport', 'Skipping invalid import file (kept on disk): ${entity.path}', level: LogLevel.warning);
+                skipped++;
               }
             } else {
-              LogService.instance.log('HtmlImport', 'Discarded undecryptable import file: ${entity.path}', level: LogLevel.warning);
-              await entity.delete();
+              LogService.instance.log('HtmlImport', 'Skipping undecryptable import file (kept on disk): ${entity.path}', level: LogLevel.warning);
+              skipped++;
             }
           } catch (e) {
-            LogService.instance.log('HtmlImport', 'Discarded corrupted import file: ${entity.path} ($e)', level: LogLevel.warning);
-            await entity.delete();
+            LogService.instance.log('HtmlImport', 'Skipping unreadable import file (kept on disk): ${entity.path} ($e)', level: LogLevel.warning);
+            skipped++;
           }
         }
       }
-      LogService.instance.log('HtmlImport', 'Pre-loaded ${_memoryStore.length} imported pages');
+      LogService.instance.log('HtmlImport', 'Pre-loaded ${_memoryStore.length} imported pages (skipped $skipped unreadable file(s))');
     } catch (e) {
       LogService.instance.log('HtmlImport', 'Error pre-loading imports: $e', level: LogLevel.error);
     }

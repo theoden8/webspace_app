@@ -118,6 +118,18 @@ via `buildFileImportFallbackHtml` instead of trying to load the
 synthetic `file:///<filename>` URL, which chromium would reject as
 `ERR_FILE_NOT_FOUND`.
 
+#### Scenario: Decrypt failure keeps the file on disk
+
+**Given** an import file exists on disk but `_preloadAll` cannot
+decrypt it (transient `flutter_secure_storage` read miss generates a
+fresh AES key, on-disk corruption, …)
+**When** the preload runs
+**Then** the file MUST be left untouched on disk and only skipped
+in-memory. Imports are the only copy of user-supplied data, so a
+parse failure must not destroy them — if the original AES key is
+later recoverable, the bytes are still there. The user sees the
+fallback page in the meantime (per the previous scenario).
+
 #### Scenario: No page title fetch
 
 **Given** a site is created from an HTML file
