@@ -22,8 +22,9 @@ final class ShareViewController: UIViewController {
                     self.finish(); return
                 }
                 NSLog("[WebSpace.ShareExt] extracted URL: \(url)")
-                self.handOff(url)
-                self.finish()
+                self.handOff(url) {
+                    self.finish()
+                }
             }
         }
     }
@@ -92,7 +93,7 @@ final class ShareViewController: UIViewController {
         return String(trimmed[r])
     }
 
-    private func handOff(_ url: String) {
+    private func handOff(_ url: String, completion: @escaping () -> Void) {
         if let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) {
             defaults.set(url, forKey: ShareViewController.pendingUrlKey)
             NSLog("[WebSpace.ShareExt] wrote URL to app group")
@@ -103,20 +104,50 @@ final class ShareViewController: UIViewController {
         components.scheme = ShareViewController.hostScheme
         components.host = ShareViewController.hostHost
         components.queryItems = [URLQueryItem(name: "url", value: url)]
-        if let openUrl = components.url {
-            NSLog("[WebSpace.ShareExt] opening host app via \(openUrl.absoluteString)")
-            openHostApp(openUrl)
+        guard let openUrl = components.url else {
+            completion()
+            return
         }
+        NSLog("[WebSpace.ShareExt] opening host app via \(openUrl.absoluteString)")
+        openHostApp(openUrl, completion: completion)
     }
 
     private func finish() {
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
     }
 
-    // extensionContext.open is restricted to today widgets; for share
-    // extensions the supported workaround is to walk the responder chain
-    // up to UIApplication and invoke openURL via the ObjC runtime.
-    private func openHostApp(_ url: URL) {
+    /// Opens the host app via the registered `webspace://` URL scheme.
+    ///
+    /// Apple's docs say `extensionContext.open(_:completionHandler:)` is for
+    /// Today extensions, but in practice it works from share extensions too
+    /// — the runtime doesn't enforce the docs' restriction, and it's how
+    /// most cross-platform "share to app" extensions (e.g. LocalSend) get
+    /// their host apps to foreground on iOS 18+ where the older
+    /// responder-chain `openURL:` trick is silently dropped.
+    ///
+    /// We still walk the responder chain as a fallback for older iOS where
+    /// `extensionContext.open` returns false.
+    ///
+    /// The completion handler MUST run before the caller dismisses the
+    /// extension, otherwise iOS may tear us down mid-dispatch.
+    private func openHostApp(_ url: URL, completion: @escaping () -> Void) {
+        if let ctx = extensionContext {
+            ctx.open(url) { success in
+                NSLog("[WebSpace.ShareExt] extensionContext.open returned \(success)")
+                DispatchQueue.main.async {
+                    if !success {
+                        self.openHostAppViaResponderChain(url)
+                    }
+                    completion()
+                }
+            }
+            return
+        }
+        openHostAppViaResponderChain(url)
+        completion()
+    }
+
+    private func openHostAppViaResponderChain(_ url: URL) {
         var responder: UIResponder? = self
         let selector = NSSelectorFromString("openURL:")
         while let r = responder {
