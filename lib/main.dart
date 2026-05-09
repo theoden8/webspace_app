@@ -59,7 +59,6 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/shortcut_service.dart';
-import 'package:webspace/services/android_foreground_service.dart';
 import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
@@ -921,18 +920,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         unawaited(_captureStateBytes(_webViewModels[activeIdx]));
       }
       // iOS: open a ~30s background-task window so notification webviews
-      // can flush in-flight setTimeouts before iOS suspends the process,
-      // and re-arm the periodic BGAppRefreshTask for opportunistic wakeups
-      // afterwards. No-op on other platforms (Android keeps the process
-      // alive via foreground service per NOTIF-005-A).
+      // can flush in-flight setTimeouts before iOS suspends the process.
+      // Android has no equivalent without a foreground service; it relies
+      // on the OS's implicit grace and the notif early-return in
+      // WebViewModel.pauseWebView so the renderer keeps ticking briefly.
       if (_anyNotificationSites()) {
         unawaited(BackgroundTaskService.instance.beginGracePeriod());
-        unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
       }
-      // Android: ensure the foreground service is up before the
-      // process gets backgrounded so the OS doesn't freeze the renderer.
-      // No-op on other platforms.
-      unawaited(_updateForegroundService());
+      // Both iOS and Android: ensure the periodic refresh is scheduled
+      // before the process gets backgrounded.
+      unawaited(_updateBackgroundRefreshSchedule());
     } else if (state == AppLifecycleState.resumed) {
       _startForegroundPollTimer();
       // Await any in-flight pause before resuming to prevent ordering inversion
@@ -946,13 +943,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // so we don't need the extension; iOS auto-ends after the expiration
       // handler fires, but explicit end is cleaner.
       unawaited(BackgroundTaskService.instance.endGracePeriod());
-      // Android: re-evaluate (idempotent). The service stays running
-      // whenever a notification site is loaded — the persistent
-      // notification is the user's signal that the app is holding the
-      // process alive — so this is mostly a no-op on resume, but
-      // ensures the state is correct if any sites were unloaded by a
-      // memory-pressure handler while we were backgrounded.
-      unawaited(_updateForegroundService());
+      // Re-evaluate (idempotent): if a memory-pressure handler unloaded
+      // every notif site while we were backgrounded the schedule should
+      // be torn down; if any are still loaded the schedule submission
+      // is a no-op.
+      unawaited(_updateBackgroundRefreshSchedule());
     }
   }
 
@@ -1605,9 +1600,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     // The user may have just toggled `notificationsEnabled` on/off, so
-    // re-evaluate whether the Android foreground service should be
-    // running. No-op on other platforms.
-    unawaited(_updateForegroundService());
+    // re-evaluate the background refresh schedule (iOS BGAppRefreshTask
+    // / Android WorkManager). No-op on other platforms.
+    unawaited(_updateBackgroundRefreshSchedule());
   }
 
   /// Dispose every loaded webview. Used after global user script edits,
@@ -1888,9 +1883,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
     // _loadedIndices may have changed (LRU eviction, conflict unload,
-    // first-load of target), so re-evaluate the Android foreground
-    // service. No-op on non-Android.
-    unawaited(_updateForegroundService());
+    // first-load of target), so re-evaluate the background refresh
+    // schedule. No-op on non-iOS / non-Android.
+    unawaited(_updateBackgroundRefreshSchedule());
     } finally {
       // Clear the in-flight marker only if we still own it; a newer
       // _setCurrentIndex caller will have already overwritten it with
@@ -2376,26 +2371,25 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         : (blocker.initUrl.isNotEmpty ? blocker.initUrl : 'Another site');
   }
 
-  /// NOTIF-005-A: keep the Android foreground service running iff at
-  /// least one notification site is loaded. The service holds the app
-  /// process alive across backgrounding so notification sites' page JS
-  /// keeps executing.
-  ///
-  /// Idempotent — [AndroidForegroundService] dedupes start calls with
-  /// the same count.
-  Future<void> _updateForegroundService() async {
-    if (!Platform.isAndroid) return;
-    int count = 0;
+  /// NOTIF-005-{I,A}: ensure a background refresh is scheduled iff at
+  /// least one notification site is loaded. iOS uses `BGAppRefreshTask`,
+  /// Android uses a `WorkManager` `PeriodicWorkRequest` (15-min minimum).
+  /// Both submissions are idempotent — the platform replaces any existing
+  /// pending request for the same identifier / unique-work name.
+  Future<void> _updateBackgroundRefreshSchedule() async {
+    if (!Platform.isIOS && !Platform.isAndroid) return;
+    bool any = false;
     for (int i = 0; i < _webViewModels.length; i++) {
       final m = _webViewModels[i];
       if (!m.notificationsEnabled) continue;
       if (!_loadedIndices.contains(i)) continue;
-      count++;
+      any = true;
+      break;
     }
-    if (count > 0) {
-      await AndroidForegroundService.instance.start(count);
+    if (any) {
+      await BackgroundTaskService.instance.scheduleNextRefresh();
     } else {
-      await AndroidForegroundService.instance.stop();
+      await BackgroundTaskService.instance.cancelScheduledRefreshes();
     }
   }
 
@@ -4206,9 +4200,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _stateStorage.removeOrphans(activeSiteIds);
 
     // Deletion may have just removed the last notification site; tear
-    // down the Android foreground service if so. No-op on other
+    // down the background refresh schedule if so. No-op on other
     // platforms.
-    unawaited(_updateForegroundService());
+    unawaited(_updateBackgroundRefreshSchedule());
 
     if (!mounted) return;
     Navigator.pop(context);

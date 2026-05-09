@@ -126,4 +126,8 @@ dependencies {
     // devices whose System WebView does not advertise it fall through
     // to the legacy capture-nuke-restore engine.
     implementation "androidx.webkit:webkit:1.12.1"
+    // WorkManager backs NOTIF-005-A: PeriodicWorkRequest schedules
+    // ~15-min refreshes that wake the app to reload notification sites,
+    // mirroring iOS BGAppRefreshTask without a foreground service.
+    implementation "androidx.work:work-runtime-ktx:2.9.1"
 }

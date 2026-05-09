@@ -19,7 +19,7 @@ class MainActivity: FlutterActivity() {
     private var webInterceptPlugin: WebInterceptPlugin? = null
     private var locationPlugin: LocationPlugin? = null
     private var webSpaceContainerPlugin: WebSpaceContainerPlugin? = null
-    private var backgroundPollPlugin: WebSpaceBackgroundPollPlugin? = null
+    private var backgroundTaskPlugin: BackgroundTaskAndroidPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
 
@@ -46,7 +46,7 @@ class MainActivity: FlutterActivity() {
         webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
         locationPlugin = LocationPlugin(this, flutterEngine)
         webSpaceContainerPlugin = WebSpaceContainerPlugin(flutterEngine)
-        backgroundPollPlugin = WebSpaceBackgroundPollPlugin(applicationContext, flutterEngine)
+        backgroundTaskPlugin = BackgroundTaskAndroidPlugin(applicationContext, flutterEngine)
         captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -245,6 +245,12 @@ class MainActivity: FlutterActivity() {
         } else {
             Regex("""https?://\S+""").find(text)?.value
         }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        backgroundTaskPlugin?.dispose()
+        backgroundTaskPlugin = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun onRequestPermissionsResult(

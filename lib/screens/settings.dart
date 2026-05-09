@@ -1276,13 +1276,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _notificationsEnabled = value;
                         });
                         if (!value) return;
-                        // First-time iOS info dialog (NOTIF-005-I); idempotent
-                        // via SharedPreferences flag. Show before requesting OS
-                        // permission so the user understands the iOS limits
-                        // before tapping Allow.
-                        if (Platform.isIOS) {
-                          await maybeShowIosNotificationLimitsDialog(context);
-                        }
+                        // First-time background-limits info dialog
+                        // (NOTIF-005-{I,A}); idempotent via a SharedPreferences
+                        // flag. Show before requesting OS permission so the
+                        // user understands what to expect before tapping Allow.
+                        await maybeShowBackgroundNotificationLimitsDialog(context);
                         // NOTIF-007 / 16.1: request OS permission proactively
                         // at toggle time, not lazily on first notification.
                         // Repeat calls after a denial are harmless (the OS
@@ -1364,28 +1362,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-const _kIosNotifInfoShownPrefKey = 'iosNotificationLimitsInfoShown';
+const _kBgNotifInfoShownPrefKey = 'bgNotificationLimitsInfoShown';
 
-/// Per NOTIF-005-I: surface iOS background-execution limits to the user
-/// the first time they enable Notifications on any site. Shown once per
-/// install; the "shown" flag is stored in SharedPreferences so a subsequent
-/// re-toggle (or a different site's toggle) doesn't repeat the dialog.
-Future<void> maybeShowIosNotificationLimitsDialog(BuildContext context) async {
-  if (!Platform.isIOS) return;
+/// Per NOTIF-005-{I,A}: surface OS background-execution limits the first
+/// time the user enables Notifications on any site. iOS and Android share
+/// the same shape — a brief grace window plus opportunistic ~15-30-min
+/// reloads — so one platform-aware dialog covers both. Shown once per
+/// install; the "shown" flag is stored in SharedPreferences so a
+/// subsequent re-toggle (or a different site's toggle) doesn't repeat it.
+Future<void> maybeShowBackgroundNotificationLimitsDialog(
+  BuildContext context,
+) async {
+  if (!Platform.isIOS && !Platform.isAndroid) return;
   final prefs = await SharedPreferences.getInstance();
-  if (prefs.getBool(_kIosNotifInfoShownPrefKey) == true) return;
+  if (prefs.getBool(_kBgNotifInfoShownPrefKey) == true) return;
   if (!context.mounted) return;
+  final isIOS = Platform.isIOS;
+  final title = isIOS
+      ? 'Background notifications on iOS'
+      : 'Background notifications on Android';
+  final body = isIOS
+      ? 'iOS limits background execution. Notifications arrive while '
+          'WebSpace is open or in the recent-tasks list. After WebSpace is '
+          'fully suspended, iOS schedules background refreshes opportunistically '
+          '— typically every 15-30 minutes — at which point your sites are '
+          'reloaded and any pending notifications fire.'
+      : 'Android limits background execution. Notifications arrive while '
+          'WebSpace is open or in recent tasks. While backgrounded, the app '
+          'reloads notification sites every ~15 minutes when the system '
+          'permits. If Android kills WebSpace under memory pressure, '
+          'notifications stop until the next launch.';
   await showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Background notifications on iOS'),
-      content: const Text(
-        'iOS limits background execution. Notifications arrive while '
-        'WebSpace is open or in the recent-tasks list. After WebSpace is '
-        'fully suspended, iOS schedules background refreshes opportunistically '
-        '— typically every 15-30 minutes — at which point your sites are '
-        'reloaded and any pending notifications fire.',
-      ),
+      title: Text(title),
+      content: Text(body),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(),
@@ -1394,7 +1405,7 @@ Future<void> maybeShowIosNotificationLimitsDialog(BuildContext context) async {
       ],
     ),
   );
-  await prefs.setBool(_kIosNotifInfoShownPrefKey, true);
+  await prefs.setBool(_kBgNotifInfoShownPrefKey, true);
 }
 
 /// Three-way segmented control state for the per-site geolocation row.
