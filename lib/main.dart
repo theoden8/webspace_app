@@ -992,9 +992,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _handlingShareIntent = false;
 
   Future<void> _handleShareIntent() async {
-    if (_handlingShareIntent) return;
+    if (_handlingShareIntent) {
+      LogService.instance.log('LinkIntent', 'poll skipped: re-entry guarded');
+      return;
+    }
     _handlingShareIntent = true;
     try {
+      LogService.instance.log('LinkIntent', 'poll: consumeLaunchHtml');
       // HTML file payload first — the native side clears it after read,
       // so a tag mismatch (e.g. an HTML file that *also* has EXTRA_TEXT)
       // won't double-fire.
@@ -1006,6 +1010,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               'HTML share dropped (link handling disabled)');
           return;
         }
+        LogService.instance.log('LinkIntent',
+            'HTML share received (${html.content.length} bytes, title=${html.title})');
         await _dispatchInbound(InboundHtml(
           content: html.content,
           suggestedTitle: html.title,
@@ -1013,12 +1019,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         ));
         return;
       }
+      LogService.instance.log('LinkIntent', 'poll: consumeLaunchUrl');
       final raw = await ShareIntentService.consumeLaunchUrl();
-      if (!mounted || raw == null || raw.isEmpty) return;
+      if (!mounted) return;
+      if (raw == null || raw.isEmpty) {
+        LogService.instance.log('LinkIntent', 'poll: no pending URL');
+        return;
+      }
+      LogService.instance.log('LinkIntent', 'received: $raw');
       if (raw.startsWith('webspace://qr/')) {
         final decoded = SiteSettingsQrCodec.decode(raw);
         if (decoded != null) {
           _addSite(qrSettings: decoded);
+        } else {
+          LogService.instance.log('LinkIntent',
+              'QR payload failed to decode: $raw',
+              level: LogLevel.warning);
         }
         return;
       }
@@ -1029,12 +1045,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       final parsed = Uri.tryParse(raw);
       if (parsed == null) {
+        LogService.instance.log('LinkIntent', 'unparseable URL: $raw',
+            level: LogLevel.warning);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Unsupported URL')),
         );
         return;
       }
       await _dispatchInbound(InboundUrl(parsed));
+    } catch (e, st) {
+      LogService.instance.log(
+          'LinkIntent', 'share intent handler threw: $e\n$st',
+          level: LogLevel.error);
     } finally {
       _handlingShareIntent = false;
     }
@@ -1053,7 +1075,36 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       sites: adapters,
     );
     final inboundUri = payload is InboundUrl ? payload.url : null;
+    LogService.instance.log(
+      'LinkIntent',
+      'dispatch ${inboundUri ?? '(html payload)'} -> ${_describeDispatchAction(action)}',
+    );
     await _executeDispatchAction(action, inboundUri);
+  }
+
+  String _describeDispatchAction(DispatchAction action) {
+    switch (action) {
+      case DispatchUnsupported(:final reason):
+        return 'Unsupported($reason)';
+      case DispatchOpenInMain(:final siteId, :final url, :final disposeBeforeLoad, :final wipeContainer, :final clearInMemoryCookies):
+        final flags = [
+          if (disposeBeforeLoad) 'dispose',
+          if (wipeContainer) 'wipeContainer',
+          if (clearInMemoryCookies) 'clearCookies',
+        ].join(',');
+        return 'OpenInMain(siteId=$siteId, url=$url${flags.isEmpty ? '' : ', $flags'})';
+      case DispatchOpenNested(:final siteId, :final url):
+        return 'OpenNested(siteId=$siteId, url=$url)';
+      case DispatchCreateSite(:final home, :final fullUrl):
+        return 'CreateSite(home=$home, fullUrl=$fullUrl)';
+      case DispatchCreateSiteFromHtml(:final suggestedTitle):
+        return 'CreateSiteFromHtml(title=$suggestedTitle)';
+      case DispatchBindAndOpen(:final chosenSiteId, :final claimAdditions):
+        return 'BindAndOpen(siteId=$chosenSiteId, +${claimAdditions.length} claims)';
+      case DispatchShowPicker(:final winnerSiteIds, :final offerBind, :final offerCreate):
+        return 'ShowPicker(winners=${winnerSiteIds.length}, '
+            'bind=$offerBind, create=$offerCreate)';
+    }
   }
 
   Future<void> _executeDispatchAction(
@@ -1132,7 +1183,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _executeOpenInMain(DispatchOpenInMain a) async {
     final index =
         _webViewModels.indexWhere((m) => m.siteId == a.siteId);
-    if (index < 0) return;
+    if (index < 0) {
+      LogService.instance.log(
+        'LinkIntent',
+        'OpenInMain bailed: site ${a.siteId} not found',
+        level: LogLevel.warning,
+      );
+      return;
+    }
     final model = _webViewModels[index];
     await _maybeSwitchToAllForSite(model, index);
     if (a.disposeBeforeLoad) {
@@ -1158,14 +1216,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _saveWebViewModels,
       globalUserScripts: _globalUserScripts,
     );
-    if (controller != null) {
-      await controller.loadUrl(a.url, language: model.language);
-      if (!mounted) return;
-      setState(() {
-        model.currentUrl = a.url;
-      });
-      await _saveWebViewModels();
+    if (controller == null) {
+      LogService.instance.log(
+        'LinkIntent',
+        'OpenInMain: controller not yet ready for "${model.name}" '
+        '(siteId: ${model.siteId}); ${a.url} may queue until first frame',
+        level: LogLevel.warning,
+      );
+      return;
     }
+    await controller.loadUrl(a.url, language: model.language);
+    if (!mounted) return;
+    setState(() {
+      model.currentUrl = a.url;
+    });
+    await _saveWebViewModels();
   }
 
   /// LIR-011: open as a nested webview using the chosen site's settings.

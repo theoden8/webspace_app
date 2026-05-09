@@ -46,6 +46,7 @@ import UserNotifications
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
+    NSLog("[WebSpace] application(_:open:) url=\(url.absoluteString)")
     capturePendingShareUrl(from: url)
     drainAppGroupPendingUrl()
     return super.application(app, open: url, options: options)
@@ -60,6 +61,7 @@ import UserNotifications
         self.drainAppGroupPendingUrl()
         let url = self.pendingShareUrl
         self.pendingShareUrl = nil
+        NSLog("[WebSpace] consumeLaunchUrl returning: \(url ?? "nil")")
         result(url)
       case "consumeLaunchHtml":
         // LIR-012: iOS Share Extension HTML delivery isn't wired yet
@@ -74,7 +76,10 @@ import UserNotifications
   }
 
   private func capturePendingShareUrl(from url: URL) {
-    guard url.scheme?.lowercased() == "webspace" else { return }
+    guard url.scheme?.lowercased() == "webspace" else {
+      NSLog("[WebSpace] ignoring non-webspace scheme: \(url.scheme ?? "nil")")
+      return
+    }
     let host = url.host?.lowercased()
     // LIR-004: webspace://open?url=<encoded http(s)> is the canonical form
     // for "Open in WebSpace" links from external apps. Pass the WHOLE URL
@@ -83,26 +88,38 @@ import UserNotifications
     // form is preserved below for back-compat.
     if host == "open" {
       pendingShareUrl = url.absoluteString
+      NSLog("[WebSpace] captured open URL: \(url.absoluteString)")
     } else if host == "share" {
       guard
         let inner = URLComponents(url: url, resolvingAgainstBaseURL: false)?
           .queryItems?.first(where: { $0.name == "url" })?.value,
         let httpScheme = URL(string: inner)?.scheme?.lowercased(),
         httpScheme == "http" || httpScheme == "https"
-      else { return }
+      else {
+        NSLog("[WebSpace] share URL has no valid http(s) inner: \(url.absoluteString)")
+        return
+      }
       pendingShareUrl = inner
+      NSLog("[WebSpace] captured share inner URL: \(inner)")
     } else if host == "qr" {
       // Pass the original webspace:// URL through; Dart routes it to the
       // QR-apply path by scheme.
       pendingShareUrl = url.absoluteString
+      NSLog("[WebSpace] captured qr URL")
+    } else {
+      NSLog("[WebSpace] unrecognized webspace host: \(host ?? "nil")")
     }
   }
 
   private func drainAppGroupPendingUrl() {
-    guard let defaults = UserDefaults(suiteName: appGroupId) else { return }
+    guard let defaults = UserDefaults(suiteName: appGroupId) else {
+      NSLog("[WebSpace] app group \(appGroupId) unavailable; cannot drain pending URL")
+      return
+    }
     if let stored = defaults.string(forKey: pendingUrlKey), !stored.isEmpty {
       pendingShareUrl = stored
       defaults.removeObject(forKey: pendingUrlKey)
+      NSLog("[WebSpace] drained pending URL from app group: \(stored)")
     }
   }
 }

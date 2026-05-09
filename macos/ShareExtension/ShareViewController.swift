@@ -1,27 +1,46 @@
-import UIKit
-import Social
-import MobileCoreServices
+import Cocoa
 import UniformTypeIdentifiers
 
+/// macOS Share Extension principal class. Mirrors
+/// `ios/ShareExtension/ShareViewController.swift` but uses AppKit /
+/// NSExtensionContext, and hands off to the host app via
+/// `NSWorkspace.shared.open(url:)` (no responder-chain trick required —
+/// macOS sandboxed extensions are allowed to invoke the host app's
+/// registered URL scheme directly).
+///
+/// Activation rule: any web URL (HTTP/HTTPS) and shared plain text. See
+/// `Info.plist > NSExtensionAttributes > NSExtensionActivationRule`.
 @objc(ShareViewController)
-final class ShareViewController: UIViewController {
+final class ShareViewController: NSViewController {
 
-    private static let appGroupId = "group.org.codeberg.theoden8.webspace"
+    /// macOS sandboxed app groups require the team-prefixed form
+    /// `<TEAMID>.group.<id>`. The team ID below MUST match the
+    /// DEVELOPMENT_TEAM the host app + extension are signed under
+    /// (Runner.xcodeproj on iOS uses 7NGC2P87LM). If you sign with a
+    /// different team, update both this constant and the matching one
+    /// in `macos/Runner/AppDelegate.swift`.
+    private static let appGroupId = "7NGC2P87LM.group.org.codeberg.theoden8.webspace"
     private static let pendingUrlKey = "pending_share_url"
     private static let hostScheme = "webspace"
     private static let hostHost = "share"
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .clear
-        NSLog("[WebSpace.ShareExt] viewDidLoad")
+    override func loadView() {
+        // No UI — extract → hand off → complete. macOS allows extensions
+        // with an invisible NSView; users see a brief "Add to WebSpace"
+        // chip in the share menu and the host app is launched.
+        view = NSView(frame: NSRect(x: 0, y: 0, width: 1, height: 1))
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        NSLog("[WebSpace.ShareExt.macOS] viewDidAppear")
         extractURL { url in
             DispatchQueue.main.async {
                 guard let url = url, !url.isEmpty else {
-                    NSLog("[WebSpace.ShareExt] no URL extracted; dismissing")
+                    NSLog("[WebSpace.ShareExt.macOS] no URL extracted; dismissing")
                     self.finish(); return
                 }
-                NSLog("[WebSpace.ShareExt] extracted URL: \(url)")
+                NSLog("[WebSpace.ShareExt.macOS] extracted URL: \(url)")
                 self.handOff(url) {
                     self.finish()
                 }
@@ -96,9 +115,9 @@ final class ShareViewController: UIViewController {
     private func handOff(_ url: String, completion: @escaping () -> Void) {
         if let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) {
             defaults.set(url, forKey: ShareViewController.pendingUrlKey)
-            NSLog("[WebSpace.ShareExt] wrote URL to app group")
+            NSLog("[WebSpace.ShareExt.macOS] wrote URL to app group")
         } else {
-            NSLog("[WebSpace.ShareExt] app group \(ShareViewController.appGroupId) unavailable; URL not persisted")
+            NSLog("[WebSpace.ShareExt.macOS] app group \(ShareViewController.appGroupId) unavailable; URL not persisted")
         }
         var components = URLComponents()
         components.scheme = ShareViewController.hostScheme
@@ -108,49 +127,36 @@ final class ShareViewController: UIViewController {
             completion()
             return
         }
-        NSLog("[WebSpace.ShareExt] opening host app via \(openUrl.absoluteString)")
+        NSLog("[WebSpace.ShareExt.macOS] opening host app via \(openUrl.absoluteString)")
         openHostApp(openUrl, completion: completion)
+    }
+
+    /// Tries `NSExtensionContext.open(_:completionHandler:)` first — the
+    /// documented cross-process URL-scheme dispatch, sandbox-aware,
+    /// available on macOS 10.10+ — and falls back to
+    /// `NSWorkspace.shared.open(_:)` if it returns false. Threads a
+    /// completion handler so the extension isn't torn down before the
+    /// dispatch lands.
+    private func openHostApp(_ url: URL, completion: @escaping () -> Void) {
+        if let ctx = extensionContext {
+            ctx.open(url) { success in
+                NSLog("[WebSpace.ShareExt.macOS] extensionContext.open returned \(success)")
+                DispatchQueue.main.async {
+                    if !success {
+                        let workspaceOk = NSWorkspace.shared.open(url)
+                        NSLog("[WebSpace.ShareExt.macOS] NSWorkspace.shared.open returned \(workspaceOk)")
+                    }
+                    completion()
+                }
+            }
+            return
+        }
+        let workspaceOk = NSWorkspace.shared.open(url)
+        NSLog("[WebSpace.ShareExt.macOS] NSWorkspace.shared.open returned \(workspaceOk) (no extensionContext)")
+        completion()
     }
 
     private func finish() {
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
-    }
-
-    /// Opens the host app via the registered `webspace://` URL scheme.
-    ///
-    /// The trick is to walk the responder chain until we find the
-    /// `UIApplication` instance attached to the extension's window, then
-    /// call the **public** `application.open(_:options:completionHandler:)`
-    /// API on it (iOS 18+) or fall back to `perform("openURL:")` (iOS < 18).
-    ///
-    /// Apple gated the private `perform(openURL:)` selector and the
-    /// `extensionContext.open(_:)` path on share extensions in iOS 18+,
-    /// but the public `UIApplication.open` call invoked on a
-    /// responder-chain-discovered UIApplication still works — this is
-    /// what `share_handler`/LocalSend use.
-    ///
-    /// The completion runs synchronously after the dispatch is fired off.
-    /// `application.open` itself is best-effort and asynchronous; iOS
-    /// will continue the launch even after we call `completeRequest`.
-    private func openHostApp(_ url: URL, completion: @escaping () -> Void) {
-        var responder: UIResponder? = self
-        while let r = responder {
-            if let application = r as? UIApplication {
-                if #available(iOS 18.0, *) {
-                    application.open(url, options: [:]) { success in
-                        NSLog("[WebSpace.ShareExt] UIApplication.open returned \(success)")
-                    }
-                    NSLog("[WebSpace.ShareExt] dispatched open via responder-chain UIApplication (iOS 18+ public API)")
-                } else {
-                    let _ = application.perform(NSSelectorFromString("openURL:"), with: url)
-                    NSLog("[WebSpace.ShareExt] dispatched openURL via responder-chain UIApplication (legacy selector)")
-                }
-                completion()
-                return
-            }
-            responder = r.next
-        }
-        NSLog("[WebSpace.ShareExt] no UIApplication on responder chain — host app fallback to app-group only")
-        completion()
     }
 }
