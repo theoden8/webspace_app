@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -116,6 +117,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   bool _isFindVisible = false;
   late bool _showUrlBar;
   FindMatchesResult findMatches = FindMatchesResult();
+
+  /// Race guard for the PopScope handler. Async swipe gestures (iOS edge
+  /// swipe) can re-enter `onPopInvokedWithResult` while the previous
+  /// invocation is still awaiting `goBack()` / URL diff, which would
+  /// double-pop the route or fire `goBack()` twice. Cleared in `finally`.
+  bool _isBackHandling = false;
 
   /// DevTools host for this nested webview. Captures console output and
   /// tracks the current URL/controller so the user can open Developer
@@ -350,7 +357,43 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      // Always intercept so we can try goBack() in the nested webview's own
+      // history before letting the route pop. Mirrors NAV-002 (main app):
+      // canGoBack() is unreliable for pushState SPAs, so we always attempt
+      // goBack() and decide via URL comparison.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || _isBackHandling) return;
+        _isBackHandling = true;
+        // Capture navigator before any awaits so we don't touch BuildContext
+        // across async gaps after the route may have been disposed.
+        final navigator = Navigator.of(context);
+        try {
+          final controller = _controller;
+          if (controller == null) {
+            if (mounted) navigator.pop();
+            return;
+          }
+          final urlBefore = (await controller.getUrl())?.toString();
+          await controller.goBack();
+          await Future.delayed(const Duration(milliseconds: 150));
+          if (!mounted) return;
+          final urlAfter = (await controller.getUrl())?.toString();
+          if (!mounted) return;
+          if (urlBefore == urlAfter) {
+            LogService.instance.log('Navigation',
+                'Nested back gesture: no history ($urlAfter), exiting nested');
+            navigator.pop();
+          } else {
+            LogService.instance.log('Navigation',
+                'Nested back gesture: navigated $urlBefore -> $urlAfter');
+          }
+        } finally {
+          _isBackHandling = false;
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(title ?? 'In-App WebView'),
         actions: [
@@ -491,6 +534,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               ),
             ),
         ],
+      ),
       ),
     );
   }

@@ -181,6 +181,52 @@ The menu back button (in both portrait and landscape layouts) SHALL navigate bac
 
 ---
 
+### Requirement: NAV-008 - Nested WebView Back Gesture
+
+The system back gesture (Android back button, iOS edge swipe) on a nested
+`InAppWebViewScreen` SHALL navigate back in the nested webview's history when
+possible, and only pop the nested route when there is no back history.
+
+**Rationale:** Cross-domain links open a nested webview that maintains its own
+history. Without intercepting, the iOS swipe-back gesture exits the nested
+screen on the first swipe — discarding the nested page the user just clicked
+into and any subsequent in-page navigation. Mirroring NAV-002's URL-comparison
+fallback inside the nested screen lets users walk back through the nested
+history first, then exit.
+
+#### Scenario: Nested webview has back history
+
+**Given** a nested `InAppWebViewScreen` is open
+**And** the user has navigated within it (e.g. via in-page links)
+**When** the user triggers the system back gesture (iOS edge swipe / Android back)
+**Then** the nested webview navigates back in its own history
+**And** the nested route stays open
+
+#### Scenario: Nested webview has no back history
+
+**Given** a nested `InAppWebViewScreen` is open at its initial URL
+**When** the user triggers the system back gesture
+**Then** the nested route pops back to the parent webview
+
+#### Scenario: SPA with pushState in nested webview
+
+**Given** the nested webview has navigated via `history.pushState()`
+**And** `canGoBack()` returns `false`
+**When** the user triggers the system back gesture
+**Then** `goBack()` is called regardless
+**And** URL comparison (150ms settle) decides whether the back succeeded
+**And** if the URL changed, the nested route stays open
+**And** if the URL did NOT change, the nested route pops
+
+#### Scenario: Rapid back gestures (race guard)
+
+**Given** the user triggers the back gesture twice in quick succession
+**When** the second invocation arrives while the first is still awaiting `goBack()` / URL diff
+**Then** the second invocation drops (guarded by `_isBackHandling`)
+**And** at most one `goBack()` per gesture is dispatched
+
+---
+
 ### Requirement: NAV-006 - Pull-to-Refresh
 
 All webviews (main and nested) SHALL support pull-to-refresh to reload the current page.
