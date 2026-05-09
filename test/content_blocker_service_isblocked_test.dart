@@ -247,6 +247,42 @@ void main() {
     }, skip: libExists ? false : 'Rust library not built');
   });
 
+  group('ContentBlockerService cosmetic routing through engine', () {
+    final libExists = _rustLibExists();
+
+    test('engine domain-scoped hides win over Dart aggregations', () {
+      // Dart aggregations carry one selector; the engine carries a
+      // different one. When the engine is active the page's <style>
+      // tag should reflect the engine's view, not the Dart parser's.
+      // Same routing pattern as isBlocked — phase 7 contract.
+      final engine = AdblockEngine.load('example.com##.engine-promo\n')!;
+      service.setCosmeticSelectorsForTest({
+        'example.com': ['.dart-promo'],
+      });
+      service.setRustEngineForTest(engine);
+
+      final css = service.getEarlyCssScript('https://example.com/');
+      expect(css, isNotNull);
+      expect(css!, contains('.engine-promo'),
+          reason: 'engine selector must appear in early CSS');
+      expect(css, isNot(contains('.dart-promo')),
+          reason: 'Dart aggregation must NOT shadow the engine result');
+    }, skip: libExists ? false : 'Rust library not built');
+
+    test('genericCosmeticSelectorsFor returns empty when no engine', () {
+      // When the engine isn't active, the Dart parser path handles
+      // generic rules — this entry returns empty so the JS scanner
+      // shim is a no-op and we don't double-inject.
+      service.setRustEngineForTest(null);
+      final selectors = service.genericCosmeticSelectorsFor(
+        pageUrl: 'https://example.com/',
+        classes: {'ad'},
+        ids: {},
+      );
+      expect(selectors, isEmpty);
+    });
+  });
+
   group('ContentBlockerService.isHostBlocked', () {
     test('skips URL parsing — host is the input', () {
       service.setBlockedDomainsForTest({'tracker.net'});

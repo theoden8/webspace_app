@@ -2126,12 +2126,22 @@ class WebViewFactory {
               final ids = (payload['ids'] as List? ?? const [])
                   .cast<String>()
                   .toSet();
-              return ContentBlockerService.instance
-                  .genericCosmeticSelectorsFor(
+              final selectors =
+                  ContentBlockerService.instance.genericCosmeticSelectorsFor(
                 pageUrl: config.initialUrl,
                 classes: classes,
                 ids: ids,
               );
+              if (selectors.isNotEmpty) {
+                LogService.instance.log(
+                  'WebView',
+                  'genericCosmeticScan ${config.initialUrl}: '
+                      '${classes.length} class / ${ids.length} id → '
+                      '${selectors.length} hide(s)',
+                  level: LogLevel.debug,
+                );
+              }
+              return selectors;
             },
           );
         }

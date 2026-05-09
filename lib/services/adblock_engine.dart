@@ -137,7 +137,9 @@ class AdblockEngine {
 
   /// Try to load the shared library and parse [rulesText] into a
   /// new engine. Returns `null` if the library can't be loaded on
-  /// this platform/arch, or if parsing fails.
+  /// this platform/arch, or if parsing fails. Caller is responsible
+  /// for logging null-return diagnostics — this layer is intentionally
+  /// dependency-free and doesn't pull in the app logger.
   static AdblockEngine? load(String rulesText) {
     final lib = _tryOpenLibrary();
     if (lib == null) return null;

@@ -174,6 +174,9 @@ class ContentBlockerService {
   /// an app restart. Safe to call repeatedly.
   Future<void> setRustEngineEnabled(bool enabled) async {
     if (_rustEngineEnabled == enabled) return;
+    LogService.instance.log('ContentBlocker',
+        'Rust engine toggle flipped to $enabled (was ${!enabled})',
+        level: LogLevel.info);
     _rustEngineEnabled = enabled;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kUseRustAdblockEngineKey, enabled);
@@ -312,8 +315,52 @@ class ContentBlockerService {
     return out;
   }
 
+  /// Cached engine result per page URL within one navigation. The
+  /// engine call is non-trivial (JSON marshal across FFI), and we
+  /// hit it twice per page (early-CSS + post-load cosmetic) plus
+  /// once more for the generic scanner exceptions. Cache keyed on
+  /// pageUrl; cleared in [_rebuildRules] alongside [_isBlockedCache].
+  final Map<String, _EngineCosmeticCache> _engineCosmeticCache = {};
+
+  /// Read-through wrapper around `engine.cosmeticResources(pageUrl)`
+  /// returning the slice we care about, with caching. Returns null
+  /// when the engine isn't active or returns null.
+  _EngineCosmeticCache? _engineCosmeticFor(String pageUrl) {
+    final engine = _rustEngine;
+    if (engine == null) return null;
+    final cached = _engineCosmeticCache[pageUrl];
+    if (cached != null) return cached;
+    final raw = engine.cosmeticResources(pageUrl);
+    if (raw == null) return null;
+    final hides = (raw['hide_selectors'] as List? ?? const [])
+        .cast<String>()
+        .toList();
+    final exceptions = (raw['exceptions'] as List? ?? const [])
+        .cast<String>()
+        .toSet();
+    final genericHide = raw['generichide'] == true;
+    final entry = _EngineCosmeticCache(
+      hides: hides,
+      exceptions: exceptions,
+      genericHide: genericHide,
+    );
+    _engineCosmeticCache[pageUrl] = entry;
+    LogService.instance.log('ContentBlocker',
+        'engine.cosmeticResources($pageUrl) → '
+        '${hides.length} hide(s), ${exceptions.length} exception(s)'
+        '${genericHide ? ", generichide" : ""}',
+        level: LogLevel.debug);
+    return entry;
+  }
+
   /// Collect applicable selectors, style rules, and text rules for a
-  /// page URL.
+  /// page URL. When the engine is active, the engine's domain-scoped
+  /// hide selectors REPLACE the Dart-aggregated ones — adblock-rust's
+  /// rule set is the authoritative source. Style rules and text rules
+  /// stay on the Dart aggregations until [`procedural_actions`] are
+  /// wired through (own phase). Generic class/id selectors continue
+  /// to flow through the JS scanner shim, gated on the engine's
+  /// `generichide` flag.
   ({
     List<String> selectors,
     List<StyleRule> styleRules,
@@ -323,8 +370,21 @@ class ContentBlockerService {
     final styleRules = <StyleRule>[];
     final textRules = <TextHideRule>[];
 
-    final globalSel = _cosmeticSelectors[''];
-    if (globalSel != null) selectors.addAll(globalSel);
+    final engineHides = _engineCosmeticFor(pageUrl);
+    if (engineHides != null) {
+      // Engine returns the full per-URL list (global + domain walk-up
+      // + first-party exceptions already applied). Use it verbatim.
+      selectors.addAll(engineHides.hides);
+      // Style + text rules: Dart parser still owns these. The engine
+      // exposes them in `procedural_actions`, but mapping that shape
+      // is a separate refactor. Falling through means a list with
+      // both engine-supported and engine-unsupported rules still
+      // gets full coverage from the Dart side.
+    } else {
+      final globalSel = _cosmeticSelectors[''];
+      if (globalSel != null) selectors.addAll(globalSel);
+    }
+
     final globalStyle = _styleRules[''];
     if (globalStyle != null) styleRules.addAll(globalStyle);
     final globalText = _textHideRules[''];
@@ -334,8 +394,12 @@ class ContentBlockerService {
     if (host != null && host.isNotEmpty) {
       String domain = host;
       while (domain.isNotEmpty) {
-        final ds = _cosmeticSelectors[domain];
-        if (ds != null) selectors.addAll(ds);
+        // Selector walk-up only when engine is NOT active — the
+        // engine already did the walk-up internally.
+        if (engineHides == null) {
+          final ds = _cosmeticSelectors[domain];
+          if (ds != null) selectors.addAll(ds);
+        }
         final sr = _styleRules[domain];
         if (sr != null) styleRules.addAll(sr);
         final tr = _textHideRules[domain];
@@ -387,7 +451,33 @@ class ContentBlockerService {
     final engine = _rustEngine;
     if (engine == null) return const [];
     if (classes.isEmpty && ids.isEmpty) return const [];
-    return engine.hiddenClassIdSelectors(classes, ids, exceptions: exceptions);
+    // Carry the page's exception set into the generic lookup so a
+    // first-party `#@#.x` allowlist suppresses the matching generic
+    // rule. Also short-circuit when the engine's `generichide` flag
+    // (effectively `$generichide` in @@||) is set for the page.
+    final engineCtx = _engineCosmeticFor(pageUrl);
+    if (engineCtx?.genericHide == true) {
+      LogService.instance.log('ContentBlocker',
+          'engine.hiddenClassIdSelectors($pageUrl) skipped — '
+          'page has \$generichide allowlist',
+          level: LogLevel.debug);
+      return const [];
+    }
+    final mergedExceptions =
+        engineCtx == null || engineCtx.exceptions.isEmpty
+            ? exceptions
+            : <String>{...exceptions, ...engineCtx.exceptions};
+    final result = engine.hiddenClassIdSelectors(
+      classes,
+      ids,
+      exceptions: mergedExceptions,
+    );
+    LogService.instance.log('ContentBlocker',
+        'engine.hiddenClassIdSelectors($pageUrl): '
+        '${classes.length} class(es), ${ids.length} id(s) → '
+        '${result.length} selector(s)',
+        level: LogLevel.debug);
+    return result;
   }
 
   /// Get full JavaScript for injection after page load.
@@ -601,6 +691,7 @@ class ContentBlockerService {
     _styleRules = allStyleRules;
     _textHideRules = allTextRules;
     _isBlockedCache.clear();
+    _engineCosmeticCache.clear();
     _maybeRebuildRustEngine();
     _notifyRulesChanged();
   }
@@ -614,17 +705,27 @@ class ContentBlockerService {
     _rustEngine = null;
     if (!_rustEngineEnabled) return;
     final buf = StringBuffer();
+    var listCount = 0;
     for (final list in _lists) {
       if (!list.enabled) continue;
       try {
         final cacheFile = await _getCacheFile(list.id);
         if (await cacheFile.exists()) {
           buf.writeln(await cacheFile.readAsString());
+          listCount++;
         }
       } catch (_) {/* ignored — same-faith as the Dart parse path */}
     }
-    if (buf.isEmpty) return;
+    if (buf.isEmpty) {
+      LogService.instance.log('ContentBlocker',
+          'Rust engine enabled but no enabled lists have cached files — '
+          'engine remains uninstantiated.',
+          level: LogLevel.warning);
+      return;
+    }
+    final sw = Stopwatch()..start();
     final engine = AdblockEngine.load(buf.toString());
+    sw.stop();
     if (engine == null) {
       LogService.instance.log('ContentBlocker',
           'Rust engine flag is set but the library is not loadable on this platform — falling back to Dart engine.',
@@ -633,7 +734,9 @@ class ContentBlockerService {
     }
     _rustEngine = engine;
     LogService.instance.log('ContentBlocker',
-        'Rust engine active: ${engine.version}',
+        'Rust engine active: ${engine.version} '
+        '(parsed $listCount list(s), ${buf.length} bytes, '
+        '${sw.elapsedMilliseconds}ms)',
         level: LogLevel.info);
   }
 
@@ -726,4 +829,19 @@ class ContentBlockerService {
     _exceptionDomains = domains;
     _isBlockedCache.clear();
   }
+}
+
+/// Per-page slice of the engine's cosmetic response we keep around
+/// for the lifetime of one rebuild. Cached so the early-CSS shim,
+/// the post-load cosmetic shim, and the generic-scanner exception
+/// merge all share the same FFI roundtrip.
+class _EngineCosmeticCache {
+  final List<String> hides;
+  final Set<String> exceptions;
+  final bool genericHide;
+  _EngineCosmeticCache({
+    required this.hides,
+    required this.exceptions,
+    required this.genericHide,
+  });
 }
