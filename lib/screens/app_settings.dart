@@ -1368,11 +1368,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           SwitchListTile(
             title: const Text('Use Rust adblock engine (experimental)'),
             subtitle: Text(
-              ContentBlockerService.instance.rustEngineSupportedOnPlatform
-                  ? 'Routes network blocks through Brave’s adblock-rust engine. '
-                      'Adds support for \$domain=, regex network rules, and '
-                      'generic class/id cosmetic lookups.'
-                  : 'Native library not available on this platform.',
+              !ContentBlockerService.instance.rustEngineSupportedOnPlatform
+                  ? 'Native library not available on this platform.'
+                  : Platform.isAndroid
+                      ? 'Routes main-doc navigation + cosmetic decisions '
+                          'through Brave’s adblock-rust. Android sub-resource '
+                          'blocking continues to use the host-only native '
+                          'interceptor — \$domain= rules apply only to '
+                          'top-level navigation there.'
+                      : 'Routes network blocks through Brave’s adblock-rust '
+                          'engine. Adds support for \$domain=, regex network '
+                          'rules, and generic class/id cosmetic lookups.',
             ),
             value: ContentBlockerService.instance.rustEngineEnabled,
             onChanged: ContentBlockerService.instance

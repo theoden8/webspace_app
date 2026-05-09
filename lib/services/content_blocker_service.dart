@@ -738,6 +738,14 @@ class ContentBlockerService {
         '(parsed $listCount list(s), ${buf.length} bytes, '
         '${sw.elapsedMilliseconds}ms)',
         level: LogLevel.info);
+    if (Platform.isAndroid) {
+      LogService.instance.log('ContentBlocker',
+          'Note: on Android, sub-resource blocking continues to use the '
+          'host-only native FastSubresourceInterceptor seeded by the Dart '
+          'parser. Engine \$domain= / regex / resource-type rules apply to '
+          'main-document navigation and cosmetic only on this platform.',
+          level: LogLevel.info);
+    }
   }
 
   Future<void> _saveLists() async {

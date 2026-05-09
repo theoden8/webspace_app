@@ -566,6 +566,15 @@ When the user opts in via the `useRustAdblockEngine` SharedPreferences flag (tog
 **Then** the handler passes `lastLoadStartUrl` (the page hosting the request) as `sourceUrl`
 **And** the engine can fire `$domain=` rules that target the page's domain
 
+#### Scenario: Android sub-resources use host-only native interceptor
+
+**Given** the engine is active on Android
+**When** a page issues a sub-resource request
+**Then** the native `FastSubresourceInterceptor` decides via host-only HashSet lookup seeded by the Dart parser's `_blockedDomains`
+**And** the engine's `$domain=` / regex / resource-type rules do NOT fire for that sub-resource
+**(Main-document navigation and cosmetic still flow through the engine; this is a documented Android-only platform gap. Closing it requires native changes to route engine-relevant hosts through a per-request bridge, out of scope here.)**
+**And** the Settings toggle's subtitle and a startup info-level log surface the limitation when the engine activates on Android
+
 #### Scenario: Domain-scoped cosmetic rules continue to use Dart engine
 
 **Given** the Rust engine is active
