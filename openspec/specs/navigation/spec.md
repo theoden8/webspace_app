@@ -216,16 +216,9 @@ The URL bar SHALL stay in sync with the current webview URL across all navigatio
 
 ### Requirement: NAV-008 - Nested WebView Back Gesture
 
-The system back gesture (Android back button, iOS edge swipe) on a nested
-`InAppWebViewScreen` SHALL navigate back in the nested webview's history when
-possible, and only pop the nested route when there is no back history.
+The system back gesture (Android back button, iOS edge swipe) on a nested `InAppWebViewScreen` SHALL navigate back in the nested webview's history when possible, and only pop the nested route when there is no back history.
 
-**Rationale:** Cross-domain links open a nested webview that maintains its own
-history. Without intercepting, the iOS swipe-back gesture exits the nested
-screen on the first swipe — discarding the nested page the user just clicked
-into and any subsequent in-page navigation. Mirroring NAV-002's URL-comparison
-fallback inside the nested screen lets users walk back through the nested
-history first, then exit.
+**Rationale:** Cross-domain links open a nested webview that maintains its own history. Without intercepting, the iOS swipe-back gesture exits the nested screen on the first swipe — discarding the nested page the user just clicked into and any subsequent in-page navigation. Mirroring NAV-002's URL-comparison fallback inside the nested screen lets users walk back through the nested history first, then exit.
 
 #### Scenario: Nested webview has back history
 
