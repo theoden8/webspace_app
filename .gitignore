@@ -75,3 +75,7 @@ vendor/
 /.vscode
 /.claude/settings.local.json
 rust/webspace_adblock/target/
+linux/lib/libwebspace_adblock.so
+android/app/src/main/jniLibs/
+ios/Frameworks/WebspaceAdblock.xcframework/
+macos/Frameworks/libwebspace_adblock.dylib

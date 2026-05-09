@@ -127,6 +127,32 @@ jobs:
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/webspace_adblock/target
+          key: cargo-android-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
+          restore-keys: |
+            cargo-android-${{ runner.os }}-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk
+
+      - name: Build adblock-rust libraries (all Android ABIs)
+        # Continue on failure so the legacy Dart engine fallback path
+        # still ships an APK if the Rust build is broken — the Dart
+        # AdblockEngine.load() returns null when the .so is missing.
+        continue-on-error: true
+        run: ./scripts/build_rust.sh android-all
+
       - name: Run tests
         run: fvm flutter test
 
@@ -385,6 +411,24 @@ jobs:
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            /root/.cargo/registry
+            /root/.cargo/git
+            rust/webspace_adblock/target
+          key: cargo-linux-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
+          restore-keys: |
+            cargo-linux-${{ runner.os }}-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build adblock-rust library (Linux native)
+        continue-on-error: true
+        run: ./scripts/build_rust.sh linux
+
       - name: Build Linux
         run: fvm flutter build linux --release
 
@@ -602,6 +646,30 @@ jobs:
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/webspace_adblock/target
+          key: cargo-apple-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
+          restore-keys: |
+            cargo-apple-${{ runner.os }}-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Build adblock-rust library (iOS XCFramework)
+        continue-on-error: true
+        run: ./scripts/build_rust.sh ios
+
+      - name: Build adblock-rust library (macOS universal dylib)
+        continue-on-error: true
+        run: ./scripts/build_rust.sh macos
 
       - name: Run tests
         run: fvm flutter test
