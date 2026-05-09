@@ -74,3 +74,4 @@ vendor/
 
 /.vscode
 /.claude/settings.local.json
+rust/webspace_adblock/target/

@@ -1,0 +1,25 @@
+[package]
+name = "webspace_adblock"
+version = "0.1.0"
+edition = "2021"
+description = "C FFI surface around the `adblock` crate (Brave's adblock-rust engine), tailored for WebSpace's content blocker."
+license = "MPL-2.0"
+publish = false
+
+[lib]
+name = "webspace_adblock"
+# `cdylib` for Android (.so) and Linux (.so).
+# `staticlib` for iOS / macOS (XCFramework + dylib).
+# Both produced from one build.
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+adblock = { version = "0.12", default-features = false, features = ["embedded-domain-resolver", "full-regex-handling"] }
+serde_json = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+strip = true
+panic = "abort"
