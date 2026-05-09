@@ -5,9 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/screens/settings.dart';
 
-/// NOTIF-005-I: the "iOS background limits" info dialog SHALL be shown the
-/// first time the user enables Notifications on any site, and exactly
-/// once per install. The "shown" flag persists in SharedPreferences.
+/// NOTIF-005-{I,A}: the background-limits info dialog SHALL be shown the
+/// first time the user enables Notifications on any site (on iOS or
+/// Android), and exactly once per install. The "shown" flag persists in
+/// SharedPreferences under `bgNotificationLimitsInfoShown`.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -15,13 +16,14 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('non-iOS hosts: dialog never shows, flag never written',
+  testWidgets('non-mobile hosts: dialog never shows, flag never written',
       (tester) async {
-    if (Platform.isIOS) return; // tested on non-iOS hosts only
+    if (Platform.isIOS || Platform.isAndroid) return;
     await tester.pumpWidget(MaterialApp(
       home: Builder(
         builder: (ctx) => ElevatedButton(
-          onPressed: () => maybeShowIosNotificationLimitsDialog(ctx),
+          onPressed: () =>
+              maybeShowBackgroundNotificationLimitsDialog(ctx),
           child: const Text('go'),
         ),
       ),
@@ -29,16 +31,17 @@ void main() {
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
     expect(find.text('Background notifications on iOS'), findsNothing);
+    expect(find.text('Background notifications on Android'), findsNothing);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool('iosNotificationLimitsInfoShown'), isNull);
+    expect(prefs.getBool('bgNotificationLimitsInfoShown'), isNull);
   });
 
-  testWidgets('SharedPreferences flag is named iosNotificationLimitsInfoShown',
+  testWidgets('SharedPreferences flag is named bgNotificationLimitsInfoShown',
       (tester) async {
     SharedPreferences.setMockInitialValues({
-      'iosNotificationLimitsInfoShown': true,
+      'bgNotificationLimitsInfoShown': true,
     });
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool('iosNotificationLimitsInfoShown'), isTrue);
+    expect(prefs.getBool('bgNotificationLimitsInfoShown'), isTrue);
   });
 }

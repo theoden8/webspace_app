@@ -4,26 +4,30 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:webspace/services/log_service.dart';
 
-/// Dart-side bridge to the iOS native background task plugin
-/// (`ios/Runner/BackgroundTaskPlugin.swift`). Implements NOTIF-005-I:
+/// Dart-side bridge to the platform background-task plugins. Implements
+/// NOTIF-005-I (iOS, `BackgroundTaskPlugin.swift`) and NOTIF-005-A
+/// (Android, `BackgroundTaskAndroidPlugin.kt`). Both speak the same
+/// method-channel protocol so the call site is platform-agnostic.
 ///
-///   - [beginGracePeriod] — wraps the app's transition to background in
-///     `UIApplication.beginBackgroundTask`, buying ~30 seconds of CPU time
-///     before iOS suspends the process. Used by the lifecycle handler to
-///     keep notification webviews polling for one last burst.
+///   - [beginGracePeriod] / [endGracePeriod] — iOS only. Wraps the
+///     transition to background in `UIApplication.beginBackgroundTask`,
+///     buying ~30s before iOS suspends. No-op on Android (the OS gives
+///     a brief grace period implicitly; an explicit equivalent would
+///     require a foreground service, which NOTIF-005-A deliberately
+///     avoids).
 ///
-///   - [endGracePeriod] — releases the grace task (called on resume; iOS
-///     also auto-ends via the expiration handler if we don't).
+///   - [scheduleNextRefresh] — submits a `BGAppRefreshTaskRequest` on
+///     iOS, an `androidx.work` `PeriodicWorkRequest` on Android (15-min
+///     minimum, `NetworkType.CONNECTED`). The system fires whenever it
+///     deems appropriate.
 ///
-///   - [scheduleNextRefresh] — submits a `BGAppRefreshTaskRequest` so iOS
-///     wakes us up opportunistically (typically every 15-30 minutes) to
-///     reload notification sites. The native handler invokes
-///     [onBackgroundRefresh] in Dart; the consumer calls [bgRefreshDidComplete]
-///     when done so iOS can finalize the task.
+///   - [cancelScheduledRefreshes] — cancels the iOS request / Android
+///     unique work. Use when the last notification site goes away.
 ///
-/// On non-iOS platforms every method is a no-op — Android keeps webviews
-/// alive via a foreground service (NOTIF-005-A); other platforms have no
-/// suspension contract.
+///   - [bgRefreshDidComplete] — closes out the in-flight task on the
+///     native side once the Dart-side reload finishes.
+///
+/// On non-iOS / non-Android platforms every method is a no-op.
 class BackgroundTaskService {
   static final instance = BackgroundTaskService._();
   BackgroundTaskService._();
@@ -31,25 +35,27 @@ class BackgroundTaskService {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/background_task');
 
-  /// Called by the native side when iOS hands the app a BGAppRefreshTask.
-  /// The consumer (main.dart) should reload every notification webview so
-  /// page JS gets a chance to fire pending notifications, then call
-  /// [bgRefreshDidComplete].
+  /// Called by the native side when iOS hands the app a BGAppRefreshTask
+  /// or Android's WorkManager fires a NotificationRefreshWorker. The
+  /// consumer (main.dart) reloads every notification webview, then this
+  /// service auto-completes the task on the native side.
   Future<void> Function()? onBackgroundRefresh;
 
   bool _initialized = false;
+
+  bool get _enabled => Platform.isIOS || Platform.isAndroid;
 
   /// Wires the method-call handler. Call once during app startup, after
   /// the first frame, before the first lifecycle transition.
   void initialize() {
     if (_initialized) return;
     _initialized = true;
-    if (!Platform.isIOS) return;
+    if (!_enabled) return;
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'onBackgroundRefresh':
-          LogService.instance
-              .log('BackgroundTask', 'BGAppRefreshTask fired — reloading notif sites');
+          LogService.instance.log(
+              'BackgroundTask', 'background refresh fired — reloading notif sites');
           try {
             final cb = onBackgroundRefresh;
             if (cb != null) {
@@ -59,7 +65,7 @@ class BackgroundTaskService {
           } catch (e, st) {
             LogService.instance.log(
               'BackgroundTask',
-              'BGAppRefreshTask handler threw: $e\n$st',
+              'background refresh handler threw: $e\n$st',
               level: LogLevel.error,
             );
             await bgRefreshDidComplete(success: false);
@@ -99,7 +105,7 @@ class BackgroundTaskService {
   }
 
   Future<void> scheduleNextRefresh() async {
-    if (!Platform.isIOS) return;
+    if (!_enabled) return;
     try {
       await _channel.invokeMethod('scheduleRefresh');
     } on PlatformException catch (e) {
@@ -112,7 +118,7 @@ class BackgroundTaskService {
   }
 
   Future<void> cancelScheduledRefreshes() async {
-    if (!Platform.isIOS) return;
+    if (!_enabled) return;
     try {
       await _channel.invokeMethod('cancelScheduledRefreshes');
     } on PlatformException catch (e) {
@@ -125,9 +131,10 @@ class BackgroundTaskService {
   }
 
   Future<void> bgRefreshDidComplete({required bool success}) async {
-    if (!Platform.isIOS) return;
+    if (!_enabled) return;
     try {
-      await _channel.invokeMethod('bgRefreshDidComplete', {'success': success});
+      await _channel
+          .invokeMethod('bgRefreshDidComplete', {'success': success});
     } on PlatformException catch (e) {
       LogService.instance.log(
         'BackgroundTask',
