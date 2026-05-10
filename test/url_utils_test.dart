@@ -16,6 +16,7 @@ void main() {
       expect(hasUrlScheme('javascript:alert(1)'), isTrue);
       expect(hasUrlScheme('data:text/html,<h1>hi</h1>'), isTrue);
       expect(hasUrlScheme('mailto:foo@example.com'), isTrue);
+      expect(hasUrlScheme('gemini://example.com'), isTrue);
     });
 
     test('bare hostnames have no scheme', () {
@@ -44,6 +45,20 @@ void main() {
       expect(ensureUrlScheme('file:///tmp/x.html'), 'file:///tmp/x.html');
       expect(ensureUrlScheme('http://example.com'), 'http://example.com');
       expect(ensureUrlScheme('https://example.com'), 'https://example.com');
+      expect(ensureUrlScheme('gemini://example.com'), 'gemini://example.com');
+    });
+  });
+
+  group('isGeminiUrl', () {
+    test('returns true for gemini:// URLs', () {
+      expect(isGeminiUrl('gemini://example.com'), isTrue);
+      expect(isGeminiUrl('gemini://example.com/path'), isTrue);
+    });
+
+    test('returns false for non-gemini URLs', () {
+      expect(isGeminiUrl('https://example.com'), isFalse);
+      expect(isGeminiUrl('http://example.com'), isFalse);
+      expect(isGeminiUrl(''), isFalse);
     });
   });
 
