@@ -102,29 +102,35 @@ const HOST_HTML = `<!doctype html><html><head>
 const SELECTOR_IDS =
   ['ad1', 'sp1', 'sidebar-ad', 'slot', 'trk', 'keep', 'text-no-match'];
 
-function startHost() {
-  return new Promise((resolve) => {
-    const server = http.createServer((req, res) => {
+// One HTTP server reused across every test in the file. Each test was
+// previously starting/stopping its own server twice (once per shim
+// variant); on slower CI runners those 10 listen()/close() round trips
+// alone consumed enough of the 30s per-test budget to push the file
+// over its --test-timeout. Hosting the same fixture once is fine —
+// pages don't observe each other through the static GET.
+let host = null;
+test.before(async () => {
+  await new Promise((resolve) => {
+    const s = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(HOST_HTML);
     });
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      resolve({
-        url: `http://127.0.0.1:${port}/`,
-        close: () => new Promise((r) => server.close(r)),
-      });
+    s.listen(0, '127.0.0.1', () => {
+      host = { url: `http://127.0.0.1:${s.address().port}/`, server: s };
+      resolve();
     });
   });
-}
+});
+test.after(async () => {
+  if (host) await new Promise((r) => host.server.close(r));
+});
 
 // Run the shim post-load (same workaround as content_blocker_real.test.js)
 // so document.head exists when the <style> tag is appended.
 async function snapshotComputedAfterShim(shim, mutate) {
-  const server = await startHost();
   const page = await browser.browser.newPage();
   try {
-    await page.goto(server.url, { waitUntil: 'load' });
+    await page.goto(host.url, { waitUntil: 'load' });
     await page.evaluate(shim);
     if (mutate) await mutate(page);
     return await page.evaluate((ids) => {
@@ -137,7 +143,6 @@ async function snapshotComputedAfterShim(shim, mutate) {
     }, SELECTOR_IDS);
   } finally {
     await page.close();
-    await server.close();
   }
 }
 
@@ -146,8 +151,10 @@ async function snapshotComputedAfterShim(shim, mutate) {
 test('tier-2 equivalence: static DOM, both shapes agree on getComputedStyle',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
-    const a = await snapshotComputedAfterShim(COSMETIC);
-    const b = await snapshotComputedAfterShim(COSMETIC_CSS_ONLY);
+    const [a, b] = await Promise.all([
+      snapshotComputedAfterShim(COSMETIC),
+      snapshotComputedAfterShim(COSMETIC_CSS_ONLY),
+    ]);
     assert.deepEqual(b, a,
       `Real-engine: CSS-only must match current shim per-id. ` +
       `current=${JSON.stringify(a)} css-only=${JSON.stringify(b)}`);
@@ -164,10 +171,9 @@ test('tier-2 equivalence: late-added .ad-banner agrees in both shapes',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
     async function lateAdd(shim) {
-      const server = await startHost();
       const page = await browser.browser.newPage();
       try {
-        await page.goto(server.url, { waitUntil: 'load' });
+        await page.goto(host.url, { waitUntil: 'load' });
         await page.evaluate(shim);
         return await page.evaluate(async () => {
           const newAd = document.createElement('div');
@@ -181,11 +187,12 @@ test('tier-2 equivalence: late-added .ad-banner agrees in both shapes',
         });
       } finally {
         await page.close();
-        await server.close();
       }
     }
-    const a = await lateAdd(COSMETIC);
-    const b = await lateAdd(COSMETIC_CSS_ONLY);
+    const [a, b] = await Promise.all([
+      lateAdd(COSMETIC),
+      lateAdd(COSMETIC_CSS_ONLY),
+    ]);
     assert.equal(a, b,
       `late-added .ad-banner: current=${a} css-only=${b}`);
     assert.equal(a, 'none', 'both must hide the late-added ad');
@@ -197,10 +204,9 @@ test('tier-2 equivalence: class flip from no-match to .ad-banner agrees',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
     async function flip(shim) {
-      const server = await startHost();
       const page = await browser.browser.newPage();
       try {
-        await page.goto(server.url, { waitUntil: 'load' });
+        await page.goto(host.url, { waitUntil: 'load' });
         await page.evaluate(shim);
         return await page.evaluate(async () => {
           // #keep starts as a no-match. Flip its class to .ad-banner —
@@ -216,11 +222,12 @@ test('tier-2 equivalence: class flip from no-match to .ad-banner agrees',
         });
       } finally {
         await page.close();
-        await server.close();
       }
     }
-    const a = await flip(COSMETIC);
-    const b = await flip(COSMETIC_CSS_ONLY);
+    const [a, b] = await Promise.all([
+      flip(COSMETIC),
+      flip(COSMETIC_CSS_ONLY),
+    ]);
     assert.equal(a, b,
       `class flip: current=${a} css-only=${b}`);
     assert.equal(a, 'none',
@@ -233,10 +240,9 @@ test('tier-2 equivalence: text-content rules agree in both shapes',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
     async function snap(shim) {
-      const server = await startHost();
       const page = await browser.browser.newPage();
       try {
-        await page.goto(server.url, { waitUntil: 'load' });
+        await page.goto(host.url, { waitUntil: 'load' });
         await page.evaluate(shim);
         return await page.evaluate(() => ({
           match: getComputedStyle(document.getElementById('text-match')).display,
@@ -244,11 +250,12 @@ test('tier-2 equivalence: text-content rules agree in both shapes',
         }));
       } finally {
         await page.close();
-        await server.close();
       }
     }
-    const a = await snap(COSMETIC);
-    const b = await snap(COSMETIC_CSS_ONLY);
+    const [a, b] = await Promise.all([
+      snap(COSMETIC),
+      snap(COSMETIC_CSS_ONLY),
+    ]);
     assert.deepEqual(b, a, `text rules: current=${JSON.stringify(a)} ` +
       `css-only=${JSON.stringify(b)}`);
     assert.equal(a.match, 'none',
@@ -263,10 +270,9 @@ test('tier-2: inline el.style.display empty for selector matches in both shapes'
   async (t) => {
     if (!requireBrowser(browser, t)) return;
     async function snap(shim) {
-      const server = await startHost();
       const page = await browser.browser.newPage();
       try {
-        await page.goto(server.url, { waitUntil: 'load' });
+        await page.goto(host.url, { waitUntil: 'load' });
         await page.evaluate(shim);
         return await page.evaluate(() => ({
           inline: document.getElementById('ad1').style.display,
@@ -274,11 +280,12 @@ test('tier-2: inline el.style.display empty for selector matches in both shapes'
         }));
       } finally {
         await page.close();
-        await server.close();
       }
     }
-    const a = await snap(COSMETIC);
-    const b = await snap(COSMETIC_CSS_ONLY);
+    const [a, b] = await Promise.all([
+      snap(COSMETIC),
+      snap(COSMETIC_CSS_ONLY),
+    ]);
     // Computed style — what affects rendering — MUST agree.
     assert.equal(a.computed, b.computed,
       `computed-display must match: current=${a.computed} ` +
