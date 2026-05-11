@@ -148,6 +148,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLiveLocation = false;
   late WebRtcPolicy _webRtcPolicy;
 
+  /// Snapshot of every form field captured after [_loadFromModel] (and again
+  /// after a successful save). [_isDirty] compares the live form against
+  /// this map to decide whether to prompt before pop. Text-controller
+  /// listeners poke setState on every keystroke so [PopScope.canPop] gets
+  /// re-evaluated.
+  late Map<String, Object?> _initialSnapshot;
+
   String getResetUserAgent() {
     return (widget.webViewModel.userAgent == '') ? (widget.webViewModel.defaultUserAgent ?? '') : widget.webViewModel.userAgent;
   }
@@ -163,7 +170,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _longitudeController = TextEditingController();
     _accuracyController = TextEditingController();
     _loadFromModel();
+    _initialSnapshot = _currentSnapshot();
+    _userAgentController.addListener(_onAnyFieldChanged);
+    _proxyAddressController.addListener(_onAnyFieldChanged);
+    _proxyUsernameController.addListener(_onAnyFieldChanged);
+    _proxyPasswordController.addListener(_onAnyFieldChanged);
+    _latitudeController.addListener(_onAnyFieldChanged);
+    _longitudeController.addListener(_onAnyFieldChanged);
+    _accuracyController.addListener(_onAnyFieldChanged);
     NotificationService.instance.addPermissionListener(_onPermissionChanged);
+  }
+
+  void _onAnyFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Map<String, Object?> _currentSnapshot() => {
+        'proxyType': _proxySettings.type,
+        'proxyAddress': _proxyAddressController.text,
+        'proxyUsername': _proxyUsernameController.text,
+        'proxyPassword': _proxyPasswordController.text,
+        'showProxyCredentials': _showProxyCredentials,
+        'userAgent': _userAgentController.text,
+        'javascriptEnabled': _javascriptEnabled,
+        'thirdPartyCookiesEnabled': _thirdPartyCookiesEnabled,
+        'incognito': _incognito,
+        'alwaysOpenHome': _alwaysOpenHome,
+        'clearUrlEnabled': _clearUrlEnabled,
+        'dnsBlockEnabled': _dnsBlockEnabled,
+        'contentBlockEnabled': _contentBlockEnabled,
+        'trackingProtectionEnabled': _trackingProtectionEnabled,
+        'localCdnEnabled': _localCdnEnabled,
+        'blockAutoRedirects': _blockAutoRedirects,
+        'fullscreenMode': _fullscreenMode,
+        'notificationsEnabled': _notificationsEnabled,
+        'selectedLanguage': _selectedLanguage,
+        'latitude': _latitudeController.text,
+        'longitude': _longitudeController.text,
+        'accuracy': _accuracyController.text,
+        'spoofTimezone': _spoofTimezone,
+        'spoofTimezoneFromLocation': _spoofTimezoneFromLocation,
+        'isLiveLocation': _isLiveLocation,
+        'webRtcPolicy': _webRtcPolicy,
+      };
+
+  bool _isDirty() {
+    final cur = _currentSnapshot();
+    for (final key in _initialSnapshot.keys) {
+      if (cur[key] != _initialSnapshot[key]) return true;
+    }
+    return false;
+  }
+
+  Future<bool> _confirmDiscard() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text(
+          'You have unsaved changes to this site\'s settings. '
+          'Leaving now will discard them.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Discard',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   void _onPermissionChanged() {
@@ -409,6 +492,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       // Update current URL to ensure reload
       widget.webViewModel.currentUrl = currentUrl;
+
+      // Mark the form clean so the PopScope guard (canPop: !_isDirty()) lets
+      // this pop through without prompting for discard. Wait one frame so
+      // the rebuild commits the new canPop value before we call pop.
+      setState(() {
+        _initialSnapshot = _currentSnapshot();
+      });
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
 
       // Pop first so the Settings route leaves the tree before the parent
       // rebuilds. Notifying the parent inline would mark the Navigator dirty
@@ -800,7 +892,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_isDirty(),
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final navigator = Navigator.of(context);
+        final discard = await _confirmDiscard();
+        if (discard != true || !mounted) return;
+        setState(() {
+          _initialSnapshot = _currentSnapshot();
+        });
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
+        navigator.pop();
+      },
+      child: Scaffold(
       appBar: AppBar(title: Text('Settings')),
       body: ListView(
         children: [
@@ -1357,6 +1463,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

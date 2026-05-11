@@ -109,6 +109,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late TextEditingController _outboundProxyPasswordController;
   bool _outboundProxyShowCredentials = false;
   bool _outboundProxyObscurePassword = true;
+  /// Snapshot of the outbound proxy fields at last persisted state. Most
+  /// of this screen auto-applies on change, but the proxy text fields only
+  /// flush via `onEditingComplete` / `onFieldSubmitted`, so a user who
+  /// types a partial value and pops via the system back gesture would
+  /// silently lose the edit. [_isOutboundProxyDirty] drives the PopScope
+  /// guard so we prompt instead.
+  late Map<String, Object?> _initialOutboundProxy;
 
   // DNS Blocklist state
   bool _isDownloadingBlocklist = false;
@@ -152,6 +159,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       text: _outboundProxy.password ?? '',
     );
     _outboundProxyShowCredentials = _outboundProxy.hasCredentials;
+    _initialOutboundProxy = _currentOutboundProxySnapshot();
+    _outboundProxyAddressController.addListener(_onProxyFieldChanged);
+    _outboundProxyUsernameController.addListener(_onProxyFieldChanged);
+    _outboundProxyPasswordController.addListener(_onProxyFieldChanged);
     _spinController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -257,6 +268,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     await GlobalOutboundProxy.update(settings);
     setState(() {
       _outboundProxy = settings;
+      _initialOutboundProxy = _currentOutboundProxySnapshot();
     });
     // Force every loaded webview to be rebuilt so the new global proxy
     // takes effect immediately. Without this the change only applies to
@@ -284,6 +296,53 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         const SnackBar(content: Text('Outbound proxy updated')),
       );
     }
+  }
+
+  void _onProxyFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Map<String, Object?> _currentOutboundProxySnapshot() => {
+        'type': _outboundProxy.type,
+        'address': _outboundProxyAddressController.text,
+        'username': _outboundProxyUsernameController.text,
+        'password': _outboundProxyPasswordController.text,
+        'showCreds': _outboundProxyShowCredentials,
+      };
+
+  bool _isOutboundProxyDirty() {
+    final cur = _currentOutboundProxySnapshot();
+    for (final key in _initialOutboundProxy.keys) {
+      if (cur[key] != _initialOutboundProxy[key]) return true;
+    }
+    return false;
+  }
+
+  Future<bool> _confirmDiscardProxy() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text(
+          'You have unsaved changes to the outbound proxy. '
+          'Leaving now will discard them.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Discard',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   Future<void> _loadBlocklistState() async {
@@ -571,7 +630,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_isOutboundProxyDirty(),
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final navigator = Navigator.of(context);
+        final discard = await _confirmDiscardProxy();
+        if (discard != true || !mounted) return;
+        setState(() {
+          _initialOutboundProxy = _currentOutboundProxySnapshot();
+        });
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
+        navigator.pop();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('App Settings'),
       ),
@@ -1309,6 +1382,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             },
           ),
         ],
+      ),
       ),
     );
   }
