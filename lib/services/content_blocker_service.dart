@@ -367,13 +367,25 @@ class ContentBlockerService {
   }
 
   /// Collect applicable selectors, style rules, and text rules for a
-  /// page URL. When the engine is active, the engine's domain-scoped
-  /// hide selectors REPLACE the Dart-aggregated ones — adblock-rust's
-  /// rule set is the authoritative source. Style rules and text rules
-  /// stay on the Dart aggregations until [`procedural_actions`] are
-  /// wired through (own phase). Generic class/id selectors continue
-  /// to flow through the JS scanner shim, gated on the engine's
-  /// `generichide` flag.
+  /// page URL.
+  ///
+  /// Cosmetic source-of-truth split:
+  ///   * Generic rules (`##sel`, including pure attribute selectors
+  ///     and compound selectors with `:has()`) come from the Dart
+  ///     parser's `_cosmeticSelectors`. The engine's
+  ///     `hidden_class_id_selectors` API only surfaces rules
+  ///     indexed by class/id token — it CAN'T return
+  ///     `##div[data-ad-slot]` (no class/id) and may not surface
+  ///     `##div.article:has(...)` (compound). Letting the Dart
+  ///     parser keep ownership of generic rules avoids that gap.
+  ///   * Domain-scoped rules from the engine's `cosmeticResources`
+  ///     are added ON TOP, contributing whatever extra adblock-rust
+  ///     knows (e.g. `$style()` rules in `procedural_actions` once
+  ///     we wire those through, exception handling, etc.).
+  ///
+  /// Net: when the engine is on, every Dart-parsed cosmetic still
+  /// fires; the engine is purely additive. When the engine is off,
+  /// only the Dart parser path runs. No regression in either mode.
   ({
     List<String> selectors,
     List<StyleRule> styleRules,
@@ -383,36 +395,34 @@ class ContentBlockerService {
     final styleRules = <StyleRule>[];
     final textRules = <TextHideRule>[];
 
-    final engineHides = _engineCosmeticFor(pageUrl);
-    if (engineHides != null) {
-      // Engine returns the full per-URL list (global + domain walk-up
-      // + first-party exceptions already applied). Use it verbatim.
-      selectors.addAll(engineHides.hides);
-      // Style + text rules: Dart parser still owns these. The engine
-      // exposes them in `procedural_actions`, but mapping that shape
-      // is a separate refactor. Falling through means a list with
-      // both engine-supported and engine-unsupported rules still
-      // gets full coverage from the Dart side.
-    } else {
-      final globalSel = _cosmeticSelectors[''];
-      if (globalSel != null) selectors.addAll(globalSel);
-    }
-
+    // Globals — always from Dart parser, regardless of engine state.
+    // Catches attribute-only and compound generic selectors the
+    // engine's class/id index can't surface.
+    final globalSel = _cosmeticSelectors[''];
+    if (globalSel != null) selectors.addAll(globalSel);
     final globalStyle = _styleRules[''];
     if (globalStyle != null) styleRules.addAll(globalStyle);
     final globalText = _textHideRules[''];
     if (globalText != null) textRules.addAll(globalText);
 
+    // Engine's per-URL domain-scoped hides on top — only when the
+    // engine is active. Cheap duplicate suppression by the CSS
+    // engine, so we don't bother deduplicating Dart-side.
+    final engineHides = _engineCosmeticFor(pageUrl);
+    if (engineHides != null) {
+      selectors.addAll(engineHides.hides);
+    }
+
     final host = extractHost(pageUrl);
     if (host != null && host.isNotEmpty) {
       String domain = host;
       while (domain.isNotEmpty) {
-        // Selector walk-up only when engine is NOT active — the
-        // engine already did the walk-up internally.
-        if (engineHides == null) {
-          final ds = _cosmeticSelectors[domain];
-          if (ds != null) selectors.addAll(ds);
-        }
+        // Dart-parser domain walk-up always runs. Same rationale as
+        // globals: ensures the parser's view of domain-scoped rules
+        // isn't silently dropped when the engine is on. Engine's
+        // domain-scoped rules came in via cosmeticResources(url) above.
+        final ds = _cosmeticSelectors[domain];
+        if (ds != null) selectors.addAll(ds);
         final sr = _styleRules[domain];
         if (sr != null) styleRules.addAll(sr);
         final tr = _textHideRules[domain];

@@ -250,11 +250,16 @@ void main() {
   group('ContentBlockerService cosmetic routing through engine', () {
     final libExists = _rustLibExists();
 
-    test('engine domain-scoped hides win over Dart aggregations', () {
-      // Dart aggregations carry one selector; the engine carries a
-      // different one. When the engine is active the page's <style>
-      // tag should reflect the engine's view, not the Dart parser's.
-      // Same routing pattern as isBlocked — phase 7 contract.
+    test('engine domain-scoped hides ADD to Dart aggregations (post-phase-14 contract)',
+        () {
+      // Phase 7 replaced Dart globals with engine.cosmeticResources
+      // when the engine was on. That dropped attribute-only and
+      // compound-selector generics the engine's class/id-indexed
+      // API can't surface (probe page section 1's failures came from
+      // exactly this gap). Phase 14 reverts to additive: engine hides
+      // come ON TOP of Dart, never instead of. So a selector only
+      // the Dart parser knows MUST keep appearing in the CSS even
+      // when the engine is on.
       final engine = AdblockEngine.load('example.com##.engine-promo\n')!;
       service.setCosmeticSelectorsForTest({
         'example.com': ['.dart-promo'],
@@ -265,8 +270,10 @@ void main() {
       expect(css, isNotNull);
       expect(css!, contains('.engine-promo'),
           reason: 'engine selector must appear in early CSS');
-      expect(css, isNot(contains('.dart-promo')),
-          reason: 'Dart aggregation must NOT shadow the engine result');
+      expect(css, contains('.dart-promo'),
+          reason: 'Dart parser cosmetic must STILL fire when engine is on '
+              '— it owns attribute-only and compound selectors the engine '
+              'class/id API cannot surface');
     }, skip: libExists ? false : 'Rust library not built');
 
     test('genericCosmeticSelectorsFor returns empty when no engine', () {
