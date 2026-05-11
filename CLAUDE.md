@@ -15,6 +15,7 @@ WebSpace: Flutter app managing multiple websites with per-site cookie isolation 
 - Never push to master. Branch first.
 - `git pull --rebase` always.
 - Before pushing a branch, check it still exists on remote; if merged+deleted, branch fresh from master.
+- **Don't commit derivatives.** If a file is the output of a script, parser, compiler, dumper, or any build step that reads from elsewhere — it doesn't belong in the repo. Commit the inputs (sources you author, pinned upstream refs) and the *runner* (build.rs, scripts, Cargo features); regenerate the output at build time into `$OUT_DIR`/`build/`/`target/`. Same applies to vendored third-party source: if a script can fetch + assemble it from upstream at a pinned ref, don't check the upstream tree in. Concrete check before staging: "could I delete this file and reproduce it by running one command from a clean clone?" — if yes, it's a derivative; ignore it. See `rust/webspace_adblock/build.rs` for an example.
 
 ## Sandbox bootstrap
 
