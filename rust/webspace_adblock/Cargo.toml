@@ -14,6 +14,14 @@ name = "webspace_adblock"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
+# IMPORTANT: `default-features = false` is load-bearing. The crate's
+# default features include `single-thread`, which trades Send + Sync
+# on `Engine` for slightly better single-threaded perf. We need
+# Send + Sync because JNI hands the engine handle to the chromium IO
+# thread on every `shouldInterceptRequest` call — different thread
+# than the one that built the engine. Without disabling defaults,
+# `nativeCheckUrl` would race; with defaults disabled, all reads on
+# the engine are safe across threads (we never take `&mut`).
 adblock = { version = "0.12", default-features = false, features = [
   "embedded-domain-resolver",
   "full-regex-handling",

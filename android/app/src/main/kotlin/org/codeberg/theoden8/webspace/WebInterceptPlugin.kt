@@ -563,9 +563,15 @@ class FastSubresourceInterceptor(
         // path; the engine only fires on hosts the cheap check let
         // through.
         if (decision == Decision.ALLOWED && AdblockEngineNative.active) {
-            val sourceUrl = try {
-                webView.url ?: ""
-            } catch (_: Throwable) { "" }
+            // shouldInterceptRequest runs on chromium's IO thread, so
+            // we CANNOT call webView.getUrl() here — WebView methods
+            // are main-thread-only and StrictMode flags the violation.
+            // The Referer header carries the page URL the request
+            // originated from, which is exactly what the engine needs
+            // for $domain= matching. Both casings to survive header
+            // normalization quirks across chromium versions.
+            val headers = request.headers ?: emptyMap()
+            val sourceUrl = headers["Referer"] ?: headers["referer"] ?: ""
             val requestType = mapResourceType(request)
             if (AdblockEngineNative.checkUrl(url, sourceUrl, requestType)) {
                 decision = Decision.BLOCKED_ABP
