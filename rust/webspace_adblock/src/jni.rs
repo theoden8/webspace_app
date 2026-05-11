@@ -90,7 +90,11 @@ pub extern "system" fn Java_org_codeberg_theoden8_webspace_AdblockEngineNative_n
     }
     let mut filter_set = FilterSet::new(false);
     filter_set.add_filter_list(&text, ParseOptions::default());
-    let engine = AdblockEngine::from_filter_set(filter_set, true);
+    let mut engine = AdblockEngine::from_filter_set(filter_set, true);
+    let resources = crate::load_ubo_resources();
+    if !resources.is_empty() {
+        engine.use_resources(resources);
+    }
     let boxed = Box::new(Engine { inner: engine });
     let ptr = Box::into_raw(boxed);
     android_log(
@@ -171,6 +175,46 @@ mod log {
         Debug,
         #[allow(dead_code)]
         Trace,
+    }
+}
+
+/// JNIEXPORT for `AdblockEngineNative.redirectFor(handle, url, source, type)`.
+/// Mirrors `ws_engine_redirect_for`: returns the data: URL string for
+/// the redirect resource, or null when no $redirect= applies. Caller
+/// (Kotlin) handles parsing the data URL into a real WebResourceResponse.
+///
+/// The returned Java String is a fresh allocation; JNI manages its
+/// lifetime, no manual free needed on the Kotlin side.
+#[no_mangle]
+pub extern "system" fn Java_org_codeberg_theoden8_webspace_AdblockEngineNative_nativeRedirectFor<'local>(
+    mut env: JNIEnv<'local>,
+    _class: JClass,
+    handle: jlong,
+    url: JString,
+    source_url: JString,
+    request_type: JString,
+) -> jni::objects::JString<'local> {
+    let null_ret = jni::objects::JString::default();
+    if handle == 0 {
+        return null_ret;
+    }
+    let url_s = read_jstring(&mut env, &url);
+    if url_s.is_empty() {
+        return null_ret;
+    }
+    let src_s = read_jstring(&mut env, &source_url);
+    let typ_raw = read_jstring(&mut env, &request_type);
+    let typ_s: &str = if typ_raw.is_empty() { "other" } else { &typ_raw };
+
+    let engine = unsafe { &(*(handle as *mut Engine)).inner };
+    let request = match Request::new(&url_s, &src_s, typ_s) {
+        Ok(r) => r,
+        Err(_) => return null_ret,
+    };
+    let result = engine.check_network_request(&request);
+    match result.redirect {
+        Some(data_url) => env.new_string(data_url).unwrap_or(null_ret),
+        None => null_ret,
     }
 }
 

@@ -603,6 +603,35 @@ class FastSubresourceInterceptor(
         // `partition_alloc_support.cc:770`. An empty stream gives chromium
         // a real (zero-byte) object with no null dereference.
         if (decision == Decision.BLOCKED_DNS || decision == Decision.BLOCKED_ABP) {
+            // ABP-only: try to serve the uBO redirect body if the
+            // matched rule was a `$redirect=`. Falls through to the
+            // empty-body response when:
+            //   * decision was DNS (DNS rules don't carry $redirect)
+            //   * engine isn't active (host-only fast-path block)
+            //   * matched rule has no $redirect= option
+            //   * resource name in the rule isn't in the loaded pool
+            // The empty-body path is the legacy / status-quo block; the
+            // redirect path is the upgrade that keeps sites probing for
+            // the replacement library working (Google Analytics
+            // shims, AdSense neutered scripts, etc.).
+            if (decision == Decision.BLOCKED_ABP && AdblockEngineNative.active) {
+                val headers = request.headers ?: emptyMap()
+                val sourceUrl = headers["Referer"] ?: headers["referer"] ?: ""
+                val requestType = mapResourceType(request)
+                val dataUrl = AdblockEngineNative.redirectFor(
+                    url, sourceUrl, requestType)
+                if (dataUrl != null) {
+                    val response = redirectResponseFor(dataUrl)
+                    if (response != null) {
+                        if (verbose) {
+                            onLog("WebIntercept",
+                                "engine served \$redirect= body for host=$host " +
+                                "type=$requestType")
+                        }
+                        return response
+                    }
+                }
+            }
             return WebResourceResponse(
                 "text/plain", "utf-8", ByteArrayInputStream(EMPTY_BODY))
         }
@@ -711,6 +740,46 @@ class FastSubresourceInterceptor(
      *   4. "other" as the final default — ABP rules without a
      *      resource-type modifier still match this.
      */
+    /**
+     * Build a `WebResourceResponse` from an adblock-rust redirect
+     * data URL (`data:<mime>;base64,<body>`). Returns null when the
+     * URL doesn't parse — caller falls back to the empty-body
+     * response. Supports both base64 (the format adblock-rust emits
+     * for binary + JS resources) and plain (rare; defensively
+     * handled).
+     */
+    internal fun redirectResponseFor(dataUrl: String): WebResourceResponse? {
+        if (!dataUrl.startsWith("data:")) return null
+        val semi = dataUrl.indexOf(';', startIndex = 5)
+        val comma = dataUrl.indexOf(',', startIndex = if (semi >= 0) semi else 5)
+        if (comma < 0) return null
+        val mime = if (semi >= 0) {
+            dataUrl.substring(5, semi).ifEmpty { "application/octet-stream" }
+        } else {
+            dataUrl.substring(5, comma).ifEmpty { "application/octet-stream" }
+        }
+        val encoding = if (semi >= 0) dataUrl.substring(semi + 1, comma) else ""
+        val payload = dataUrl.substring(comma + 1)
+        val body = try {
+            if (encoding == "base64") {
+                // java.util.Base64 over android.util.Base64: the JDK
+                // version is available in JVM unit tests too (the
+                // Android variant returns null under returnDefault
+                // Values=true, NPE-ing the ByteArrayInputStream ctor).
+                java.util.Base64.getDecoder().decode(payload)
+            } else {
+                // Percent-decoded payload would be more correct here,
+                // but adblock-rust emits base64 for every redirect
+                // resource it produces, so plain just round-trips
+                // the UTF-8 bytes.
+                payload.toByteArray(Charsets.UTF_8)
+            }
+        } catch (_: Throwable) {
+            return null
+        }
+        return WebResourceResponse(mime, "utf-8", ByteArrayInputStream(body))
+    }
+
     internal fun mapResourceType(request: WebResourceRequestExt): String {
         if (request.isForMainFrame()) return "document"
         val headers = request.headers ?: emptyMap()

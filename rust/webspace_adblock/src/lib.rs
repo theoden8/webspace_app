@@ -31,6 +31,25 @@ use std::slice;
 use adblock::Engine as AdblockEngine;
 use adblock::lists::{FilterSet, ParseOptions};
 use adblock::request::Request;
+use adblock::resources::Resource;
+
+/// uBO's web-accessible resources, pre-parsed by
+/// `bin/regen_ubo_resources.rs` and embedded at compile time.
+/// Populates `engine.use_resources(...)` so the engine returns
+/// real redirect bodies for `$redirect=` rules instead of empty
+/// 200s. See `vendor/ubo/README.md` for the vendoring contract.
+const UBO_RESOURCES_JSON: &str = include_str!("ubo_resources.json");
+
+fn load_ubo_resources() -> Vec<Resource> {
+    serde_json::from_str(UBO_RESOURCES_JSON).unwrap_or_else(|e| {
+        eprintln!(
+            "[webspace_adblock] failed to parse embedded uBO resources: {} — \
+             $redirect= rules will silently miss",
+            e
+        );
+        Vec::new()
+    })
+}
 
 /// Opaque engine handle. Heap-allocated via `Box`; the C side sees
 /// only a `*mut Engine` and never dereferences it. cbindgen prefixes
@@ -64,7 +83,11 @@ pub extern "C" fn ws_engine_new(
     // we want.
     let mut filter_set = FilterSet::new(false);
     filter_set.add_filter_list(text, ParseOptions::default());
-    let engine = AdblockEngine::from_filter_set(filter_set, true);
+    let mut engine = AdblockEngine::from_filter_set(filter_set, true);
+    let resources = load_ubo_resources();
+    if !resources.is_empty() {
+        engine.use_resources(resources);
+    }
     Box::into_raw(Box::new(Engine { inner: engine }))
 }
 
@@ -121,6 +144,59 @@ pub extern "C" fn ws_engine_check_url(
         1
     } else {
         0
+    }
+}
+
+/// Per-request redirect lookup. Returns the redirect resource as a
+/// `data:` URL string when:
+///   * a network filter matches this URL, AND
+///   * the matched filter carries a `$redirect=` (or `$redirect-rule=`)
+///     option pointing at a resource present in the loaded pool.
+///
+/// Callers should invoke this AFTER a positive [`ws_engine_check_url`]
+/// to decide whether the blocked response should be served as an
+/// empty body (no redirect) or as the resource body extracted from
+/// the data URL. The data URL format is
+/// `data:<mime>;base64,<encoded-body>` — callers split on the first
+/// `;base64,` to extract MIME + base64 body.
+///
+/// Caller must free the returned pointer with [`ws_string_free`].
+/// Returns null when no redirect applies, on bad arguments, or on
+/// internal error.
+#[no_mangle]
+pub extern "C" fn ws_engine_redirect_for(
+    engine: *mut Engine,
+    url: *const c_char,
+    url_len: usize,
+    source_url: *const c_char,
+    source_url_len: usize,
+    request_type: *const c_char,
+    request_type_len: usize,
+) -> *mut c_char {
+    if engine.is_null() || url.is_null() {
+        return std::ptr::null_mut();
+    }
+    let engine_ref = unsafe { &(*engine).inner };
+
+    let url_s = match read_utf8(url, url_len) {
+        Some(s) => s,
+        None => return std::ptr::null_mut(),
+    };
+    let src_s = read_utf8(source_url, source_url_len).unwrap_or("");
+    let typ_raw = read_utf8(request_type, request_type_len).unwrap_or("other");
+    let typ_s: &str = if typ_raw.is_empty() { "other" } else { typ_raw };
+
+    let request = match Request::new(url_s, src_s, typ_s) {
+        Ok(r) => r,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let result = engine_ref.check_network_request(&request);
+    match result.redirect {
+        Some(data_url) => CString::new(data_url)
+            .ok()
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        None => std::ptr::null_mut(),
     }
 }
 
@@ -369,6 +445,38 @@ mod tests {
     fn null_engine_safe() {
         ws_engine_free(std::ptr::null_mut());
         assert_eq!(check(std::ptr::null_mut(), "https://x.com/", "https://y.com/"), -1);
+    }
+
+    #[test]
+    fn redirect_rules_return_data_url_when_resources_loaded() {
+        // With uBO's web_accessible_resources vendored + loaded via
+        // engine.use_resources(...) in `ws_engine_new`, a rule like
+        // `$redirect=noopjs` should surface the redirect resource on
+        // matching requests. Without resources the redirect field
+        // stays None and the rule silently degrades to "drop the
+        // request" — exactly what we want to avoid for sites that
+        // probe for the replacement library.
+        let engine_ptr = rules_to_engine("||tracker.example.com^$redirect=noopjs\n");
+        // We can't easily probe `BlockerResult.redirect` through the
+        // existing FFI (which collapses to 0/1), so reach into the
+        // engine directly. Internal-API test only.
+        let engine = unsafe { &(*engine_ptr).inner };
+        let request = adblock::request::Request::new(
+            "https://tracker.example.com/foo.js",
+            "https://news.com/",
+            "script",
+        ).unwrap();
+        let result = engine.check_network_request(&request);
+        assert!(result.matched, "rule must match");
+        assert!(result.redirect.is_some(),
+            "engine.use_resources(...) must populate the resource pool — \
+             redirect was None despite ubo_resources.json being included. \
+             Did the embedded JSON parse fail?");
+        let redirect = result.redirect.unwrap();
+        assert!(redirect.starts_with("data:"),
+            "redirect must be a data: URL; got: {}",
+            &redirect[..redirect.len().min(80)]);
+        ws_engine_free(engine_ptr);
     }
 
     #[test]

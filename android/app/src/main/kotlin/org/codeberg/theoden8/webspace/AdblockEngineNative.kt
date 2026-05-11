@@ -100,6 +100,25 @@ object AdblockEngineNative {
         return nativeCheckUrl(handle, url, sourceUrl, requestType)
     }
 
+    /**
+     * If a `$redirect=` (or `$redirect-rule=`) rule matches this
+     * request, returns the redirect target as a data: URL — i.e.
+     * `data:<mime>;base64,<body>`. Returns null when no redirect
+     * applies, when the engine isn't active, or when the loaded
+     * resource pool doesn't contain the redirect target named by
+     * the rule.
+     *
+     * Call this AFTER [checkUrl] has reported blocked, to decide
+     * whether the synthetic response should carry the redirect
+     * body (recommended — sites that probe for the redirected
+     * resource keep working) or just an empty 200.
+     */
+    fun redirectFor(url: String, sourceUrl: String, requestType: String): String? {
+        val handle = enginePtr
+        if (!loaded || handle == 0L) return null
+        return nativeRedirectFor(handle, url, sourceUrl, requestType)
+    }
+
     /** Tear down the engine; idempotent. */
     @Synchronized
     fun dispose() {
@@ -127,4 +146,12 @@ object AdblockEngineNative {
         sourceUrl: String,
         requestType: String,
     ): Boolean
+
+    @JvmStatic
+    private external fun nativeRedirectFor(
+        handle: Long,
+        url: String,
+        sourceUrl: String,
+        requestType: String,
+    ): String?
 }
