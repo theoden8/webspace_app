@@ -43,38 +43,43 @@ const HOST_HTML = `<!doctype html><html><head>
   <p id="keep">unrelated</p>
 </body></html>`;
 
-function startHost() {
-  return new Promise((resolve) => {
-    const server = http.createServer((req, res) => {
+// One HTTP server reused across every test in the file. Each test was
+// previously starting/stopping its own server; on slower CI runners
+// those listen()/close() round trips plus the per-test page.goto
+// pushed the file past --test-timeout=30000. Same fix as #321 for
+// content_blocker_shim_equivalence.test.js — pages don't observe each
+// other through the static GET.
+let host = null;
+test.before(async () => {
+  await new Promise((resolve) => {
+    const s = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(HOST_HTML);
     });
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      resolve({
-        url: `http://127.0.0.1:${port}/`,
-        close: () => new Promise((r) => server.close(r)),
-      });
+    s.listen(0, '127.0.0.1', () => {
+      host = { url: `http://127.0.0.1:${s.address().port}/`, server: s };
+      resolve();
     });
   });
-}
+});
+test.after(async () => {
+  if (host) await new Promise((r) => host.server.close(r));
+});
 
 async function withShim(t, shim, fn, { atDocStart = true } = {}) {
   if (!requireBrowser(browser, t)) return;
-  const server = await startHost();
   const page = await browser.browser.newPage();
   try {
     if (atDocStart) {
       await page.evaluateOnNewDocument(shim);
-      await page.goto(server.url, { waitUntil: 'load' });
+      await page.goto(host.url, { waitUntil: 'load' });
     } else {
-      await page.goto(server.url, { waitUntil: 'load' });
+      await page.goto(host.url, { waitUntil: 'load' });
       await page.evaluate(shim);
     }
     await fn(page);
   } finally {
     await page.close();
-    await server.close();
   }
 }
 

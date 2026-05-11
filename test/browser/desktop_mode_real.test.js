@@ -31,39 +31,41 @@ const WINDOWS = readFixture('desktop_mode/windows.js');
 const browser = setupBrowser();
 
 // Tiny page with a viewport meta tag so the existing-meta rewrite
-// path runs. Tests that need a different viewport pass a custom value.
-function startServer(viewportContent) {
-  return new Promise((resolve) => {
-    const server = http.createServer((req, res) => {
+// path runs. One server shared across the file — every caller wants
+// the same viewport content, and pages don't observe each other
+// through the static GET. Same fix as #321 / content_blocker_real;
+// the per-test listen()/close() round trips were the main risk of
+// pushing this file past --test-timeout=30000 on slow runners.
+const VIEWPORT_CONTENT = 'width=device-width, initial-scale=1';
+let host = null;
+test.before(async () => {
+  await new Promise((resolve) => {
+    const s = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`<!doctype html><html><head>` +
-        (viewportContent !== null
-          ? `<meta name="viewport" content="${viewportContent}">`
-          : '') +
+        `<meta name="viewport" content="${VIEWPORT_CONTENT}">` +
         `</head><body></body></html>`);
     });
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      resolve({
-        url: `http://127.0.0.1:${port}/`,
-        close: () => new Promise((r) => server.close(r)),
-      });
+    s.listen(0, '127.0.0.1', () => {
+      host = { url: `http://127.0.0.1:${s.address().port}/`, server: s };
+      resolve();
     });
   });
-}
+});
+test.after(async () => {
+  if (host) await new Promise((r) => host.server.close(r));
+});
 
-async function withPage(t, shim, fn, { viewportContent = 'width=device-width, initial-scale=1' } = {}) {
+async function withPage(t, shim, fn) {
   if (!requireBrowser(browser, t)) return;
-  const server = await startServer(viewportContent);
   const page = await browser.browser.newPage();
   await page.setViewport({ width: 1280, height: 720 });
   await page.evaluateOnNewDocument(shim);
   try {
-    await page.goto(server.url, { waitUntil: 'load' });
+    await page.goto(host.url, { waitUntil: 'load' });
     await fn(page);
   } finally {
     await page.close();
-    await server.close();
   }
 }
 
@@ -105,10 +107,9 @@ test('navigator.userAgentData is undefined under real Chromium', async (t) => {
 test('navigator.userAgentData IS populated without the shim (premise check)',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
-    const server = await startServer('width=device-width, initial-scale=1');
     const page = await browser.browser.newPage();
     try {
-      await page.goto(server.url, { waitUntil: 'load' });
+      await page.goto(host.url, { waitUntil: 'load' });
       // If this ever fails, headless Chromium has stopped exposing
       // Client Hints by default and the spoof above is testing
       // nothing — re-evaluate the shim's premise.
@@ -120,7 +121,6 @@ test('navigator.userAgentData IS populated without the shim (premise check)',
         'if not, the desktop_mode shim no longer needs to blank it');
     } finally {
       await page.close();
-      await server.close();
     }
   });
 
@@ -254,10 +254,9 @@ test('viewport rewrite covers existing AND dynamically inserted metas',
     // installs — using the real CSS engine's HTMLMetaElement and
     // MutationObserver implementations rather than jsdom's.
     if (!requireBrowser(browser, t)) return;
-    const server = await startServer('width=device-width, initial-scale=1');
     const page = await browser.browser.newPage();
     try {
-      await page.goto(server.url, { waitUntil: 'load' });
+      await page.goto(host.url, { waitUntil: 'load' });
       await page.evaluate(LINUX);
       const beforeInsert = await page.evaluate(() =>
         document.querySelector('meta[name="viewport" i]').getAttribute('content'));
@@ -278,7 +277,6 @@ test('viewport rewrite covers existing AND dynamically inserted metas',
         'MutationObserver must catch dynamically inserted viewport metas');
     } finally {
       await page.close();
-      await server.close();
     }
   });
 
