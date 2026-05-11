@@ -68,25 +68,41 @@ post_install do |installer|
       next unless runner_target.name == 'Runner'
 
       # 1. Build phase that produces the per-platform .a files.
+      #
+      # PATH note: xcodebuild starts shell phases with a constrained
+      # PATH (Xcode's DEVELOPER_DIR + /usr/bin:/bin:/usr/sbin:/sbin)
+      # that does NOT include ~/.cargo/bin or Homebrew prefixes. We
+      # prepend the usual cargo install locations so `command -v cargo`
+      # actually finds the toolchain that was installed by either
+      # `rustup-init` (developer machine) or dtolnay/rust-toolchain
+      # (CI). Without this prepend, the script previously skipped
+      # silently, no .a was produced, and the -force_load LDFLAG
+      # (step 2 below) failed with "file not found" at link time.
       phase_name = '[webspace] Build adblock-rust static lib'
-      unless runner_target.build_phases.any? { |p| p.respond_to?(:name) && p.name == phase_name }
-        phase = runner_target.new_shell_script_build_phase(phase_name)
-        phase.shell_script = <<~BASH
-          set -e
-          if ! command -v cargo >/dev/null 2>&1; then
-            echo "[webspace] cargo not found; skipping adblock-rust build (engine will fall back to Dart parser)."
-            exit 0
-          fi
-          REPO_ROOT="${SRCROOT}/.."
-          bash "${REPO_ROOT}/scripts/build_rust.sh" ios
-        BASH
-        # Run before Compile Sources so the .a exists by the time
-        # the linker runs.
-        compile_idx = runner_target.build_phases.index { |p|
-          p.respond_to?(:display_name) && p.display_name.include?('Sources')
-        }
-        runner_target.build_phases.move(phase, compile_idx) if compile_idx
+      runner_target.build_phases.delete_if do |p|
+        p.respond_to?(:name) && p.name == phase_name
       end
+      phase = runner_target.new_shell_script_build_phase(phase_name)
+      phase.shell_script = <<~BASH
+        set -e
+        export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+        if ! command -v cargo >/dev/null 2>&1; then
+          echo "[webspace] cargo not found on PATH ($PATH)."
+          echo "[webspace] Install Rust toolchain or the linker -force_load"
+          echo "[webspace] will fail later in this build. AdblockEngine"
+          echo "[webspace] would then return null; legacy Dart parser is"
+          echo "[webspace] the runtime fallback."
+          exit 1
+        fi
+        REPO_ROOT="${SRCROOT}/.."
+        bash "${REPO_ROOT}/scripts/build_rust.sh" ios
+      BASH
+      # Run before Compile Sources so the .a exists by the time
+      # the linker runs.
+      compile_idx = runner_target.build_phases.index { |p|
+        p.respond_to?(:display_name) && p.display_name.include?('Sources')
+      }
+      runner_target.build_phases.move(phase, compile_idx) if compile_idx
 
       # 2. force-load LDFLAG keyed on $(PLATFORM_NAME). Xcode
       # substitutes the value at link time:

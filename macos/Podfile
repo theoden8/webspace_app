@@ -50,23 +50,28 @@ post_install do |installer|
     aggregate.user_project.targets.each do |runner_target|
       next unless runner_target.name == 'Runner'
 
+      # See ios/Podfile for the PATH-prepend rationale.
       phase_name = '[webspace] Build adblock-rust static lib'
-      unless runner_target.build_phases.any? { |p| p.respond_to?(:name) && p.name == phase_name }
-        phase = runner_target.new_shell_script_build_phase(phase_name)
-        phase.shell_script = <<~BASH
-          set -e
-          if ! command -v cargo >/dev/null 2>&1; then
-            echo "[webspace] cargo not found; skipping adblock-rust build (engine will fall back to Dart parser)."
-            exit 0
-          fi
-          REPO_ROOT="${SRCROOT}/.."
-          bash "${REPO_ROOT}/scripts/build_rust.sh" macos
-        BASH
-        compile_idx = runner_target.build_phases.index { |p|
-          p.respond_to?(:display_name) && p.display_name.include?('Sources')
-        }
-        runner_target.build_phases.move(phase, compile_idx) if compile_idx
+      runner_target.build_phases.delete_if do |p|
+        p.respond_to?(:name) && p.name == phase_name
       end
+      phase = runner_target.new_shell_script_build_phase(phase_name)
+      phase.shell_script = <<~BASH
+        set -e
+        export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+        if ! command -v cargo >/dev/null 2>&1; then
+          echo "[webspace] cargo not found on PATH ($PATH)."
+          echo "[webspace] Install Rust toolchain or the linker -force_load"
+          echo "[webspace] will fail later in this build."
+          exit 1
+        fi
+        REPO_ROOT="${SRCROOT}/.."
+        bash "${REPO_ROOT}/scripts/build_rust.sh" macos
+      BASH
+      compile_idx = runner_target.build_phases.index { |p|
+        p.respond_to?(:display_name) && p.display_name.include?('Sources')
+      }
+      runner_target.build_phases.move(phase, compile_idx) if compile_idx
 
       force_load = '-force_load $(SRCROOT)/Frameworks/libwebspace_adblock.a'
       runner_target.build_configurations.each do |config|

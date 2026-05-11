@@ -693,12 +693,17 @@ jobs:
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
 
-      # The Rust .a / .dylib are built by Run Script Build Phases that
-      # phase 11 installed via the Pods post_install hook (see
-      # ios/Podfile and macos/Podfile). flutter build ipa / macos run
-      # them automatically before linking. No explicit step needed —
-      # but we keep the cargo cache + rust toolchain setup above so
-      # the auto-build hits warm caches.
+      # Pre-build the Rust .a files OUTSIDE xcodebuild so CI doesn't
+      # depend on the inline Pod shell phase finding cargo on its
+      # constrained PATH. The Pod hook still runs (idempotent: cargo
+      # skips on cache hit), but if its PATH lookup ever regresses,
+      # the linker still finds a valid .a at ios/Frameworks/.
+      - name: Build Rust adblock static libs (iOS + macOS)
+        run: |
+          bash scripts/build_rust.sh ios
+          bash scripts/build_rust.sh macos
+          ls -la ios/Frameworks macos/Frameworks
+
       - name: Run tests
         run: fvm flutter test
 
