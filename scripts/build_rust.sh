@@ -23,11 +23,18 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CRATE_DIR="$REPO_ROOT/rust/webspace_adblock"
+# Resolve our own path BEFORE the `cd` below — recursive self-invocation
+# (the android-all loop) uses this. `$0` alone breaks when the caller
+# passed a relative path: Gradle's Exec task runs us as
+# `bash scripts/build_rust.sh android-all` from the repo root, then we
+# cd into rust/webspace_adblock/ where `scripts/build_rust.sh` no longer
+# exists.
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
 cd "$CRATE_DIR"
 
 usage() {
-  sed -n '2,18p' "$0" >&2
+  sed -n '2,18p' "$SELF" >&2
   exit 64
 }
 
@@ -61,7 +68,7 @@ case "${1:-}" in
 
   android-all)
     for abi in arm64-v8a armeabi-v7a x86_64 x86; do
-      "$0" android "$abi"
+      "$SELF" android "$abi"
     done
     ;;
 
