@@ -40,7 +40,7 @@ usage() {
 
 case "${1:-}" in
   linux)
-    cargo build --release
+    cargo build --release --locked
     mkdir -p "$REPO_ROOT/linux/lib"
     cp target/release/libwebspace_adblock.so "$REPO_ROOT/linux/lib/"
     echo "Built: linux/lib/libwebspace_adblock.so"
@@ -59,7 +59,7 @@ case "${1:-}" in
     rustup target add "$target" 2>/dev/null || true
     # cargo-ndk drives the NDK toolchains so we don't have to thread
     # CC_/AR_/CARGO_TARGET_*_LINKER ourselves.
-    cargo ndk --target "$abi" --platform 21 -- build --release
+    cargo ndk --target "$abi" --platform 21 -- build --release --locked
     out_dir="$REPO_ROOT/android/app/src/main/jniLibs/$abi"
     mkdir -p "$out_dir"
     cp "target/$target/release/libwebspace_adblock.so" "$out_dir/"
@@ -75,7 +75,7 @@ case "${1:-}" in
   ios)
     for target in aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios; do
       rustup target add "$target" 2>/dev/null || true
-      cargo build --release --target "$target"
+      cargo build --release --locked --target "$target"
     done
     out="$REPO_ROOT/ios/Frameworks/WebspaceAdblock.xcframework"
     rm -rf "$out"
@@ -100,7 +100,7 @@ case "${1:-}" in
   macos)
     for target in aarch64-apple-darwin x86_64-apple-darwin; do
       rustup target add "$target" 2>/dev/null || true
-      cargo build --release --target "$target"
+      cargo build --release --locked --target "$target"
     done
     out_dir="$REPO_ROOT/macos/Frameworks"
     mkdir -p "$out_dir"
