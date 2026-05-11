@@ -73,31 +73,37 @@ case "${1:-}" in
     ;;
 
   ios)
+    # Output static `.a` files stamped by Xcode's $(PLATFORM_NAME).
+    # The Pod hook uses `-force_load $(SRCROOT)/Frameworks/libwebspace_
+    # adblock-$(PLATFORM_NAME).a` so the linker keeps every FFI
+    # symbol in the .app binary (otherwise dead-stripped — Dart FFI
+    # has no compile-time references to surface them). Dropping the
+    # XCFramework wrapper because Xcode's xcframework processing
+    # doesn't play nicely with -force_load (path-to-slice isn't a
+    # stable Xcode variable).
     for target in aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios; do
       rustup target add "$target" 2>/dev/null || true
       cargo build --release --locked --target "$target"
     done
-    out="$REPO_ROOT/ios/Frameworks/WebspaceAdblock.xcframework"
-    rm -rf "$out"
-    mkdir -p "$REPO_ROOT/ios/Frameworks"
-    # Combine sim arches into a fat lib; device stays single-arch.
-    sim_dir="$REPO_ROOT/ios/Frameworks/.sim"
-    mkdir -p "$sim_dir"
+    out_dir="$REPO_ROOT/ios/Frameworks"
+    mkdir -p "$out_dir"
+    # Device: single arch arm64.
+    cp "target/aarch64-apple-ios/release/libwebspace_adblock.a" \
+      "$out_dir/libwebspace_adblock-iphoneos.a"
+    # Simulator: arm64 (M-series Mac) + x86_64 (Intel Mac) combined.
     lipo -create \
       "target/aarch64-apple-ios-sim/release/libwebspace_adblock.a" \
       "target/x86_64-apple-ios/release/libwebspace_adblock.a" \
-      -output "$sim_dir/libwebspace_adblock.a"
-    xcodebuild -create-xcframework \
-      -library "target/aarch64-apple-ios/release/libwebspace_adblock.a" \
-      -headers "$REPO_ROOT/rust/include" \
-      -library "$sim_dir/libwebspace_adblock.a" \
-      -headers "$REPO_ROOT/rust/include" \
-      -output "$out"
-    rm -rf "$sim_dir"
-    echo "Built: $out"
+      -output "$out_dir/libwebspace_adblock-iphonesimulator.a"
+    echo "Built: ios/Frameworks/libwebspace_adblock-iphoneos.a"
+    echo "Built: ios/Frameworks/libwebspace_adblock-iphonesimulator.a"
     ;;
 
   macos)
+    # Same pattern as iOS: universal static `.a`, force-loaded by
+    # the Pod hook so DynamicLibrary.process() can resolve symbols.
+    # macOS doesn't split device/simulator slices — one fat `.a`
+    # covering both arm64 and x86_64 hosts is enough.
     for target in aarch64-apple-darwin x86_64-apple-darwin; do
       rustup target add "$target" 2>/dev/null || true
       cargo build --release --locked --target "$target"
@@ -105,10 +111,10 @@ case "${1:-}" in
     out_dir="$REPO_ROOT/macos/Frameworks"
     mkdir -p "$out_dir"
     lipo -create \
-      "target/aarch64-apple-darwin/release/libwebspace_adblock.dylib" \
-      "target/x86_64-apple-darwin/release/libwebspace_adblock.dylib" \
-      -output "$out_dir/libwebspace_adblock.dylib"
-    echo "Built: $out_dir/libwebspace_adblock.dylib"
+      "target/aarch64-apple-darwin/release/libwebspace_adblock.a" \
+      "target/x86_64-apple-darwin/release/libwebspace_adblock.a" \
+      -output "$out_dir/libwebspace_adblock.a"
+    echo "Built: macos/Frameworks/libwebspace_adblock.a"
     ;;
 
   header)

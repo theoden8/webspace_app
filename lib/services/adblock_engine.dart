@@ -458,12 +458,14 @@ ffi.DynamicLibrary? _tryOpenLibrary() {
         return ffi.DynamicLibrary.open('$exeDir/lib/libwebspace_adblock.so');
       }
     }
-    if (Platform.isMacOS) {
-      return ffi.DynamicLibrary.open('libwebspace_adblock.dylib');
-    }
-    if (Platform.isIOS) {
-      // Static-linked into the runner; symbols available in the
-      // process image.
+    if (Platform.isMacOS || Platform.isIOS) {
+      // Both Apple targets statically link the adblock-rust .a into
+      // the Runner binary via the Pod hook's -force_load LDFLAG
+      // (see ios/Podfile + macos/Podfile). Symbols are in the
+      // process image; DynamicLibrary.process() resolves them
+      // through dlsym(). DynamicLibrary.open(dylib) wouldn't work
+      // — the build doesn't produce a runtime dylib on these
+      // platforms, only the static archive baked into the app.
       return ffi.DynamicLibrary.process();
     }
   } catch (_) {
