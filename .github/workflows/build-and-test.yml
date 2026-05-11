@@ -159,14 +159,14 @@ jobs:
           ndk-version: r26d
           add-to-path: false
 
-      - name: Build adblock-rust libraries (all Android ABIs)
-        # Continue on failure so the legacy Dart engine fallback path
-        # still ships an APK if the Rust build is broken — the Dart
-        # AdblockEngine.load() returns null when the .so is missing.
-        continue-on-error: true
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-        run: ./scripts/build_rust.sh android-all
+      # The Rust .so is built by the buildRustAdblock Gradle task that
+      # phase 11 wired into the Android build (see android/app/build.
+      # gradle). It auto-runs as a dependency of mergeJniLibFolders, so
+      # we don't need an explicit build step here — but the task needs
+      # ANDROID_NDK_HOME set on the env, which we export here so every
+      # downstream gradle invocation (Kotlin tests + APK build) sees it.
+      - name: Export ANDROID_NDK_HOME
+        run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -455,10 +455,10 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build adblock-rust library (Linux native)
-        continue-on-error: true
-        run: ./scripts/build_rust.sh linux
-
+      # The Linux Rust .so is built by the CMake custom target wired
+      # into linux/CMakeLists.txt (phase 11). flutter build linux
+      # invokes CMake which auto-builds the crate as a dependency of
+      # the runner binary — no explicit step needed.
       - name: Build Linux
         run: fvm flutter build linux --release
 
@@ -693,14 +693,12 @@ jobs:
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
 
-      - name: Build adblock-rust library (iOS XCFramework)
-        continue-on-error: true
-        run: ./scripts/build_rust.sh ios
-
-      - name: Build adblock-rust library (macOS universal dylib)
-        continue-on-error: true
-        run: ./scripts/build_rust.sh macos
-
+      # The Rust .a / .dylib are built by Run Script Build Phases that
+      # phase 11 installed via the Pods post_install hook (see
+      # ios/Podfile and macos/Podfile). flutter build ipa / macos run
+      # them automatically before linking. No explicit step needed —
+      # but we keep the cargo cache + rust toolchain setup above so
+      # the auto-build hits warm caches.
       - name: Run tests
         run: fvm flutter test
 

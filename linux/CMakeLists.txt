@@ -133,7 +133,48 @@ endforeach(bundled_library)
 # AdblockEngine.load() returning null).
 set(WEBSPACE_ADBLOCK_SO
   "${CMAKE_CURRENT_SOURCE_DIR}/lib/libwebspace_adblock.so")
-if(EXISTS "${WEBSPACE_ADBLOCK_SO}")
+
+# Auto-build the Rust .so as part of the Flutter Linux build. The
+# custom command keys on Cargo.lock + every src file under the crate
+# so unchanged builds skip the cargo invocation entirely. Skipping
+# the rule (when cargo isn't available, or the crate dir is missing)
+# falls through to the install-when-present rule below — same
+# graceful-fallback contract as Android's -PskipRustAdblock=true.
+set(RUST_CRATE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../rust/webspace_adblock")
+set(RUST_BUILD_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../scripts/build_rust.sh")
+
+find_program(CARGO_EXECUTABLE cargo)
+set(WEBSPACE_ADBLOCK_AUTOBUILT FALSE)
+if(EXISTS "${RUST_CRATE_DIR}/Cargo.toml" AND CARGO_EXECUTABLE)
+  file(GLOB_RECURSE RUST_SRC_FILES "${RUST_CRATE_DIR}/src/*.rs")
+  add_custom_command(
+    OUTPUT "${WEBSPACE_ADBLOCK_SO}"
+    COMMAND bash "${RUST_BUILD_SCRIPT}" linux
+    DEPENDS
+      "${RUST_CRATE_DIR}/Cargo.toml"
+      "${RUST_CRATE_DIR}/Cargo.lock"
+      ${RUST_SRC_FILES}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    COMMENT "Building webspace_adblock (Rust)"
+    VERBATIM
+  )
+  add_custom_target(webspace_adblock_so ALL
+    DEPENDS "${WEBSPACE_ADBLOCK_SO}")
+  add_dependencies(${BINARY_NAME} webspace_adblock_so)
+  set(WEBSPACE_ADBLOCK_AUTOBUILT TRUE)
+else()
+  message(STATUS
+    "webspace_adblock: cargo or crate dir not found; "
+    "skipping Rust auto-build. Engine will fall back to Dart parser at runtime.")
+endif()
+
+# Install when auto-built (the OUTPUT will exist post-build) OR when a
+# pre-built .so is already on disk (legacy `scripts/build_rust.sh` path).
+if(WEBSPACE_ADBLOCK_AUTOBUILT)
+  install(FILES "${WEBSPACE_ADBLOCK_SO}"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+elseif(EXISTS "${WEBSPACE_ADBLOCK_SO}")
   install(FILES "${WEBSPACE_ADBLOCK_SO}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)

@@ -41,4 +41,39 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end
+
+  # Auto-build the Rust adblock-rust XCFramework before each Runner
+  # build so `flutter run -d ios` ships the engine without a manual
+  # `scripts/build_rust.sh ios` step. Idempotent: scripts/build_rust.sh
+  # is itself a thin wrapper around `cargo build --release` for the
+  # iOS targets, and cargo skips when nothing changed in the crate.
+  #
+  # Skipped silently when cargo isn't on PATH (CI builds without the
+  # Rust toolchain) — AdblockEngine.load() returns null at runtime
+  # and the legacy Dart parser engine remains the fallback.
+  installer.aggregate_targets.each do |aggregate|
+    next unless aggregate.name == 'Pods-Runner'
+    aggregate.user_project.targets.each do |runner_target|
+      next unless runner_target.name == 'Runner'
+      phase_name = '[webspace] Build adblock-rust XCFramework'
+      next if runner_target.build_phases.any? { |p| p.respond_to?(:name) && p.name == phase_name }
+      phase = runner_target.new_shell_script_build_phase(phase_name)
+      phase.shell_script = <<~BASH
+        set -e
+        if ! command -v cargo >/dev/null 2>&1; then
+          echo "[webspace] cargo not found; skipping adblock-rust build (engine will fall back to Dart parser)."
+          exit 0
+        fi
+        REPO_ROOT="${SRCROOT}/.."
+        bash "${REPO_ROOT}/scripts/build_rust.sh" ios
+      BASH
+      # Run before the standard "Compile Sources" phase so the
+      # XCFramework is on disk by the time linking happens.
+      compile_idx = runner_target.build_phases.index { |p|
+        p.respond_to?(:display_name) && p.display_name.include?('Sources')
+      }
+      runner_target.build_phases.move(phase, compile_idx) if compile_idx
+    end
+    aggregate.user_project.save
+  end
 end

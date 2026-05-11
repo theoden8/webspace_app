@@ -131,6 +131,98 @@ flutter {
     source '../..'
 }
 
+// =====================================================================
+// Rust adblock-rust auto-build. Runs `scripts/build_rust.sh android-all`
+// before Gradle merges jniLibs, dropping the per-ABI .so into
+// android/app/src/main/jniLibs/<abi>/. Up-to-date checks key on the
+// crate's Cargo.lock + every src file, so unchanged builds are a no-op.
+//
+// Hard prerequisites:
+//   * `cargo` on PATH (rustup recommended)
+//   * `cargo-ndk` (auto-installed on first run via `cargo install` if absent)
+//   * `ANDROID_NDK_HOME` env var pointing at an NDK install. Most installs
+//     have it under `$ANDROID_HOME/ndk/<version>`. If unset, we try to
+//     locate the highest-versioned NDK under `local.properties`'s
+//     sdk.dir → ndk/ subdir.
+//
+// Skip with `-PskipRustAdblock=true` (e.g. for CI jobs that don't need
+// the .so, or for IDE indexing where the build_rust.sh side-effects
+// would be surprising).
+// =====================================================================
+def rustCrateDir = file("${rootProject.projectDir}/../rust/webspace_adblock")
+def rustScript   = file("${rootProject.projectDir}/../scripts/build_rust.sh")
+def jniLibsRoot  = file("${projectDir}/src/main/jniLibs")
+def abis         = ["arm64-v8a", "armeabi-v7a", "x86_64", "x86"]
+
+tasks.register("buildRustAdblock", Exec) {
+    description = "Build webspace_adblock Rust library for every Android ABI"
+    group = "build"
+
+    inputs.file rustScript
+    inputs.file new File(rustCrateDir, "Cargo.toml")
+    inputs.file new File(rustCrateDir, "Cargo.lock")
+    inputs.dir new File(rustCrateDir, "src")
+    abis.each { abi ->
+        outputs.file new File(jniLibsRoot, "${abi}/libwebspace_adblock.so")
+    }
+    onlyIf {
+        if (project.hasProperty("skipRustAdblock") &&
+            project.property("skipRustAdblock").toString() == "true") {
+            logger.lifecycle("buildRustAdblock: skipped via -PskipRustAdblock=true")
+            return false
+        }
+        true
+    }
+
+    workingDir rootProject.projectDir.parentFile
+    executable "bash"
+    args "scripts/build_rust.sh", "android-all"
+
+    // Resolve ANDROID_NDK_HOME from env, then fall back to the NDK
+    // sub-directory of the SDK declared in local.properties. cargo-ndk
+    // refuses to run without it. The NDK version under sdk/ndk/ is
+    // platform-version-stamped and may be a single dir; pick the
+    // newest if multiple are present.
+    doFirst {
+        def ndkHome = System.getenv("ANDROID_NDK_HOME") ?: System.getenv("ANDROID_NDK_ROOT")
+        if (ndkHome == null || ndkHome.isEmpty()) {
+            def localProps = new Properties()
+            def localPropsFile = rootProject.file('local.properties')
+            if (localPropsFile.exists()) {
+                localPropsFile.withReader('UTF-8') { localProps.load(it) }
+            }
+            def sdkDir = localProps.getProperty('sdk.dir')
+            if (sdkDir != null) {
+                def ndkBase = new File(sdkDir, 'ndk')
+                if (ndkBase.isDirectory()) {
+                    def candidates = ndkBase.listFiles { f -> f.isDirectory() }?.sort()
+                    if (candidates && candidates.size() > 0) {
+                        ndkHome = candidates.last().absolutePath
+                    }
+                }
+            }
+        }
+        if (ndkHome == null) {
+            throw new GradleException(
+                "ANDROID_NDK_HOME not set and no NDK found under \$ANDROID_HOME/ndk/. " +
+                "Install one with sdkmanager 'ndk;26.3.11579264' or set the env var. " +
+                "Alternatively run with -PskipRustAdblock=true to ship without engine support.")
+        }
+        environment "ANDROID_NDK_HOME", ndkHome
+        logger.lifecycle("buildRustAdblock: ANDROID_NDK_HOME=${ndkHome}")
+    }
+}
+
+// Hook so any APK/AAB assembly waits for the .so to exist. mergeJniLibs
+// is the moment Gradle copies jniLibs/<abi>/ into the assembled output;
+// running our task before that ensures the file is present to merge.
+android.applicationVariants.configureEach { variant ->
+    def variantName = variant.name.capitalize()
+    tasks.matching { it.name == "merge${variantName}JniLibFolders" }.configureEach {
+        dependsOn "buildRustAdblock"
+    }
+}
+
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
     // Profile API for per-site cookie/storage isolation. Used by the

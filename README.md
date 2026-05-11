@@ -73,19 +73,28 @@ fvm flutter pub get
 
 ### Optional: Rust adblock engine
 
-The content blocker can be backed by Brave's [adblock-rust](https://github.com/brave/adblock-rust) engine via `rust/webspace_adblock`. Off by default; opt in from App Settings → Content Blocker → "Use Rust adblock engine" once the library is built. Adds support for `$domain=`, regex network rules, generic class/id cosmetic lookups, and every other rule shape adblock-rust accepts.
+The content blocker can be backed by Brave's [adblock-rust](https://github.com/brave/adblock-rust) engine via `rust/webspace_adblock`. Off by default; opt in from App Settings → Content Blocker → "Use Rust adblock engine". Adds support for `$domain=`, regex network rules, generic class/id cosmetic lookups, and every other rule shape adblock-rust accepts.
+
+The Rust crate auto-builds as part of the platform build:
+- **Android** — Gradle `buildRustAdblock` task runs before `mergeJniLibFolders`. Requires `cargo` on PATH and `ANDROID_NDK_HOME` (or NDK installed under the SDK). Skip with `-PskipRustAdblock=true`.
+- **Linux** — CMake `webspace_adblock_so` target runs before linking the runner.
+- **iOS / macOS** — Xcode "Build adblock-rust" Run Script Phase added by the Pods post_install hook.
 
 ```bash
-# Native shared library for the current platform.
-# Targets: linux | android <abi> | android-all | ios | macos
-./scripts/build_rust.sh linux
-
-# Build the app — the .so is bundled under <bundle>/lib/ on Linux,
-# jniLibs/<abi>/ on Android, and as an XCFramework on iOS/macOS.
+# Just build the app — the .so is built and bundled automatically.
+fvm flutter build apk --flavor fdroid --release
 fvm flutter build linux --release
+fvm flutter build ipa --release
+fvm flutter build macos --release
+
+# Or invoke the script directly when you want to rebuild without the
+# full Flutter build (e.g. iterating on rust/webspace_adblock/ alone):
+./scripts/build_rust.sh linux         # or: android <abi> | android-all | ios | macos
 ```
 
-Toggle the engine in the app, no rebuild required after the .so is installed. The legacy Dart engine remains the canonical fallback — flipping the toggle off restores it instantly.
+Without `cargo` on PATH the Flutter build still succeeds — the Rust step prints a "skipping" notice and `AdblockEngine.load()` returns null at runtime, leaving the legacy Dart parser engine as the fallback.
+
+Toggle the engine in the app, no rebuild required after the .so is bundled. Flipping the toggle off restores the legacy engine instantly.
 
 ## Platform Support
 
