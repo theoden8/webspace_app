@@ -35,6 +35,17 @@ adblock = { version = "0.12", default-features = false, features = [
   # ruleset so the Pod hook can compile + install it; the JS bridge
   # stays as the canonical stats source.
   "content-blocking",
+  # uBO resource format parsers. Exposes `lists::ResourceAssembler`
+  # and the runtime side of `engine.use_resources(...)` — required
+  # for $redirect= rule serving (noop.js, etc.) and #$# snippet
+  # injection. Enabling the parser is zero-cost; activating those
+  # rule shapes also requires bundling uBO's resources directory
+  # and wiring redirect serving in the native interceptor +
+  # injected_script in the cosmetic shim. Currently only the
+  # parser side is on; the resource pool is empty so $redirect=
+  # rules silently become drop-the-request and #$# becomes a
+  # no-op. Same observable behaviour as before the feature flag.
+  "resource-assembler",
 ] }
 serde_json = "1"
 
