@@ -306,6 +306,18 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
             "found=${webViews.size} alreadyAttached=$alreadyAttached " +
             "willAttach=${webViews.size - alreadyAttached}")
 
+        // PlatformView attachment race: onWebViewCreated fires on the
+        // Dart side BEFORE the native android.view.WebView has been
+        // added to the activity's view tree (Flutter's hybrid composition
+        // path materialises the platform view asynchronously). When we
+        // get called too early, decorView traversal finds zero views
+        // and we silently no-op — and the new site loads its first
+        // resources without an interceptor attached. Schedule retries
+        // with exponential backoff until we actually find something.
+        if (webViews.isEmpty() && newSiteId != null) {
+            scheduleAttachRetry(newSiteId, attempt = 1)
+        }
+
         // Prune `siteIdMap` of entries whose webview is no longer in the
         // activity tree. Without this the map retains hard refs to disposed
         // InAppWebView instances forever, which keeps their native peer
@@ -356,6 +368,41 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     }
 
     private val siteIdMap = HashMap<InAppWebView, String>()
+
+    /// Exponential backoff: 50, 100, 200, 400, 800 ms. The platform-
+    /// view materialisation lag is usually 1-2 frames; this gives us
+    /// up to ~1.5s before we give up. If we still find nothing the
+    /// site simply doesn't have a visible webview (e.g. lazy-loaded
+    /// site in IndexedStack waiting for first navigation) and the
+    /// next `attachToWebViews` call from Dart at navigation time
+    /// will pick it up cleanly.
+    private val attachRetryDelaysMs = intArrayOf(50, 100, 200, 400, 800)
+
+    private fun scheduleAttachRetry(siteId: String, attempt: Int) {
+        if (attempt > attachRetryDelaysMs.size) {
+            log("WebIntercept",
+                "attachToAllWebViews retries exhausted for siteId=$siteId — " +
+                "webview not yet in tree, will reattach on next navigation")
+            return
+        }
+        val delayMs = attachRetryDelaysMs[attempt - 1].toLong()
+        mainHandler.postDelayed({
+            val rootView = activity.window.decorView.rootView
+            val webViews = mutableListOf<InAppWebView>()
+            findInAppWebViews(rootView, webViews)
+            if (webViews.isEmpty()) {
+                log("WebIntercept",
+                    "attach retry $attempt for siteId=$siteId: still found=0, " +
+                    "will retry in ${if (attempt < attachRetryDelaysMs.size)
+                        attachRetryDelaysMs[attempt] else "—"}ms")
+                scheduleAttachRetry(siteId, attempt + 1)
+                return@postDelayed
+            }
+            log("WebIntercept",
+                "attach retry $attempt for siteId=$siteId: found=${webViews.size}, attaching")
+            attachToAllWebViews(siteId)
+        }, delayMs)
+    }
 
     private fun findInAppWebViews(view: View, results: MutableList<InAppWebView>) {
         if (view is InAppWebView) {
