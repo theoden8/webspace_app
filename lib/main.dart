@@ -795,12 +795,85 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // "Home Shortcut" menu item can hide for sites that are already pinned.
   Set<String> _pinnedSiteIds = const <String>{};
 
+  // HS-006/007: iOS 16+ exposes home shortcuts via App Intents. Probed once
+  // at startup so the menu can render synchronously without a future on
+  // every overflow-menu open.
+  bool _iosAppIntentsSupported = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _restoreAppState();
     _refreshPinnedSiteIds();
+    _probeIosAppIntents();
+  }
+
+  Future<void> _probeIosAppIntents() async {
+    final supported = await ShortcutService.isAppIntentsSupported();
+    if (!mounted || supported == _iosAppIntentsSupported) return;
+    setState(() {
+      _iosAppIntentsSupported = supported;
+    });
+  }
+
+  /// HS-004 / HS-005: gate the "Home Shortcut" menu item. On Android, hide
+  /// once the site already has a pinned shortcut (HS-005). On iOS 16+ the
+  /// item is always visible (iOS has no API to detect home-screen pinning).
+  /// Other platforms hide it.
+  bool _isHomeShortcutMenuVisible(int index) {
+    if (index >= _webViewModels.length) return false;
+    if (Platform.isAndroid) {
+      return !_pinnedSiteIds.contains(_webViewModels[index].siteId);
+    }
+    if (Platform.isIOS) {
+      return _iosAppIntentsSupported;
+    }
+    return false;
+  }
+
+  /// Routes the "Home Shortcut" menu tap. Android pins directly; iOS shows
+  /// the HS-008 instructional dialog then deep-links to Shortcuts.app.
+  Future<void> _handleAddToHome(WebViewModel model) async {
+    if (Platform.isAndroid) {
+      final faviconUrl = FaviconUrlCache.get(model.initUrl);
+      final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
+      await ShortcutService.pinShortcut(
+        siteId: model.siteId,
+        label: model.name,
+        iconUrl: isSvg ? null : faviconUrl,
+      );
+      return;
+    }
+    if (Platform.isIOS && _iosAppIntentsSupported) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Add to Home Screen'),
+          content: Text(
+            'iOS adds WebSpace sites through the Shortcuts app.\n\n'
+            'In Shortcuts, find the "Open Site" action under WebSpace, pick '
+            '"${model.name}", then tap "Add to Home Screen" from the share menu.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Open Shortcuts'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        await ShortcutService.pinShortcut(
+          siteId: model.siteId,
+          label: model.name,
+        );
+      }
+    }
   }
 
   Future<void> _refreshPinnedSiteIds() async {
@@ -1428,6 +1501,23 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       return jsonEncode(json);
     }).toList();
     await prefs.setStringList('webViewModels', webViewModelsJson);
+    _syncShortcutSites();
+  }
+
+  /// HS-007: push the current site list to the iOS App Intents picker so
+  /// renames / additions / deletions show up in Shortcuts.app the next time
+  /// the user touches it. No-op on non-iOS platforms.
+  void _syncShortcutSites() {
+    if (!Platform.isIOS) return;
+    final sites = [
+      for (final m in _webViewModels)
+        ShortcutSite(
+          siteId: m.siteId,
+          label: m.name,
+          iconUrl: FaviconUrlCache.get(m.initUrl),
+        ),
+    ];
+    unawaited(ShortcutService.syncSites(sites));
   }
 
   Future<void> _saveCurrentIndex() async {
@@ -3402,9 +3492,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     ],
                   ),
                 ),
-                if (Platform.isAndroid &&
-                    _currentIndex != null &&
-                    !_pinnedSiteIds.contains(_webViewModels[_currentIndex!].siteId))
+                if (_currentIndex != null && _isHomeShortcutMenuVisible(_currentIndex!))
                   PopupMenuItem<String>(
                     value: "addToHome",
                     child: Row(
@@ -3462,14 +3550,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 break;
                 case 'addToHome':
                   if (_currentIndex != null) {
-                    final model = _webViewModels[_currentIndex!];
-                    final faviconUrl = FaviconUrlCache.get(model.initUrl);
-                    final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
-                    await ShortcutService.pinShortcut(
-                      siteId: model.siteId,
-                      label: model.name,
-                      iconUrl: isSvg ? null : faviconUrl,
-                    );
+                    await _handleAddToHome(_webViewModels[_currentIndex!]);
                   }
                 break;
                 case 'devTools':
@@ -3770,9 +3851,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               ],
             ),
           ),
-          if (Platform.isAndroid &&
-              _currentIndex != null &&
-              !_pinnedSiteIds.contains(_webViewModels[_currentIndex!].siteId))
+          if (_currentIndex != null && _isHomeShortcutMenuVisible(_currentIndex!))
             PopupMenuItem<String>(
               value: "addToHome",
               child: Row(
@@ -3830,14 +3909,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           break;
           case 'addToHome':
             if (_currentIndex != null) {
-              final model = _webViewModels[_currentIndex!];
-              final faviconUrl = FaviconUrlCache.get(model.initUrl);
-              final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
-              await ShortcutService.pinShortcut(
-                siteId: model.siteId,
-                label: model.name,
-                iconUrl: isSvg ? null : faviconUrl,
-              );
+              await _handleAddToHome(_webViewModels[_currentIndex!]);
             }
           break;
           case 'devTools':
