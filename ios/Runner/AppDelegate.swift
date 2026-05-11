@@ -7,6 +7,7 @@ import UserNotifications
 @objc class AppDelegate: FlutterAppDelegate {
   private var locationPlugin: LocationPlugin?
   private var backgroundTaskPlugin: BackgroundTaskPlugin?
+  private var shortcutsPlugin: ShortcutsPlugin?
   private var pendingShareUrl: String?
 
   private let shareChannelName = "org.codeberg.theoden8.webspace/share_intent"
@@ -32,6 +33,7 @@ import UserNotifications
     if let controller = window?.rootViewController as? FlutterViewController {
       locationPlugin = LocationPlugin(messenger: controller.binaryMessenger)
       backgroundTaskPlugin = BackgroundTaskPlugin(messenger: controller.binaryMessenger)
+      shortcutsPlugin = ShortcutsPlugin(messenger: controller.binaryMessenger)
       registerShareChannel(controller.binaryMessenger)
     }
     if let url = launchOptions?[.url] as? URL {
