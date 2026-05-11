@@ -195,7 +195,11 @@ tasks.register("buildRustAdblock", Exec) {
             if (sdkDir != null) {
                 def ndkBase = new File(sdkDir, 'ndk')
                 if (ndkBase.isDirectory()) {
-                    def candidates = ndkBase.listFiles { f -> f.isDirectory() }?.sort()
+                    // listFiles(Closure) is ambiguous in Groovy
+                    // (FileFilter vs FilenameFilter overloads), so use
+                    // the no-arg form and findAll. Returns null if the
+                    // dir doesn't exist — handled by `?.`.
+                    def candidates = ndkBase.listFiles()?.findAll { it.isDirectory() }?.sort()
                     if (candidates && candidates.size() > 0) {
                         ndkHome = candidates.last().absolutePath
                     }
