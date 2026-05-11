@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show ServiceWorkerController;
+    show ServiceWorkerController, SslCertificate;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -65,6 +65,7 @@ import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
@@ -78,6 +79,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/root_messenger.dart';
+import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 
 // Accent color enum
 enum AccentColor {
@@ -640,6 +642,11 @@ void main() async {
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
   await GlobalOutboundProxy.initialize();
+  // Hydrate user-approved TLS exceptions so a self-signed site the user
+  // already trusted in a previous session loads without a prompt — and
+  // so the Dart-side `HttpClient.badCertificateCallback` (favicon
+  // probes, downloads, …) sees the same pinned set.
+  await TrustedHostsService.instance.initialize();
   runApp(WebSpaceApp());
 }
 
@@ -2510,6 +2517,25 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           notificationsEnabled: notificationsEnabled,
         ),
       ),
+    );
+  }
+
+  /// Stable callback for the untrusted-TLS-certificate prompt. Used by
+  /// both parent and nested webviews so a self-signed site looks the
+  /// same regardless of where it was opened. Persistence (and pinning to
+  /// the cert's SHA-256) happens inside [WebViewFactory] when this
+  /// returns true — the dialog itself only collects user intent.
+  Future<bool> _promptUntrustedCertificate(
+    String host,
+    int port,
+    inapp.SslCertificate? certificate,
+  ) {
+    if (!mounted) return Future.value(false);
+    return promptUntrustedCertificate(
+      context,
+      host: host,
+      port: port,
+      certificate: certificate,
     );
   }
 
@@ -4632,6 +4658,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                         }(),
                                   isActive: () => _currentIndex == index,
                                   onConfirmScriptFetch: _confirmScriptFetch,
+                                  onUntrustedCertificate: _promptUntrustedCertificate,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;
                                     await confirmAndLaunchExternalUrl(

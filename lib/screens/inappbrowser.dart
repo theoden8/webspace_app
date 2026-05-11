@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
+    show PullToRefreshController, PullToRefreshSettings, SslCertificate;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,6 +16,7 @@ import 'package:webspace/web_view_model.dart' show extractDomain;
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
 class InAppWebViewScreen extends StatefulWidget {
@@ -195,6 +197,15 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           }
         },
         onWindowRequested: _showPopupWindow,
+        onUntrustedCertificate: (host, port, cert) async {
+          if (!mounted) return false;
+          return promptUntrustedCertificate(
+            context,
+            host: host,
+            port: port,
+            certificate: cert,
+          );
+        },
         onExternalSchemeUrl: (url, info) async {
           if (!mounted) return;
           await confirmAndLaunchExternalUrl(

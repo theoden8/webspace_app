@@ -5,7 +5,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp show PullToRefreshController, PullToRefreshSettings;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
+    show PullToRefreshController, PullToRefreshSettings, SslCertificate;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/domain_claim.dart';
@@ -564,6 +565,11 @@ class WebViewModel {
     String? initialHtml,
     bool Function()? isActive,
     Future<bool> Function(String url)? onConfirmScriptFetch,
+    Future<bool> Function(
+      String host,
+      int port,
+      inapp.SslCertificate? certificate,
+    )? onUntrustedCertificate,
     Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
@@ -649,6 +655,7 @@ class WebViewModel {
           notificationsEnabled: notificationsEnabled,
           userScripts: combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
+          onUntrustedCertificate: onUntrustedCertificate,
           onExternalSchemeUrl: onExternalSchemeUrl,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
