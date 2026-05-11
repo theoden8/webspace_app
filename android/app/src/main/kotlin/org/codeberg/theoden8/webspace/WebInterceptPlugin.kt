@@ -92,6 +92,17 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                         abpBlockedDomains.clear()
                         abpBlockedDomains.addAll(domains)
                         clearAllHostDecisionCaches()
+                        // Confirm specific well-known hosts made it
+                        // across the MethodChannel — easier than
+                        // reading 100k entries out of the log.
+                        val canaries = listOf(
+                            "doubleclick.net",
+                            "googlesyndication.com",
+                            "google-analytics.com")
+                        val present = canaries.filter { abpBlockedDomains.contains(it) }
+                        log("WebIntercept",
+                            "setAbpBlockedDomains: size=${abpBlockedDomains.size}, " +
+                            "canaries-present=$present")
                         result.success(abpBlockedDomains.size)
                     } else {
                         result.error("INVALID_ARGS", "domains list required", null)
@@ -287,6 +298,13 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
         findInAppWebViews(rootView, webViews)
+        val alreadyAttached = webViews.count {
+            it.contentBlockerHandler is FastSubresourceInterceptor
+        }
+        log("WebIntercept",
+            "attachToAllWebViews(newSiteId=$newSiteId): " +
+            "found=${webViews.size} alreadyAttached=$alreadyAttached " +
+            "willAttach=${webViews.size - alreadyAttached}")
 
         // Prune `siteIdMap` of entries whose webview is no longer in the
         // activity tree. Without this the map retains hard refs to disposed
@@ -460,7 +478,8 @@ class FastSubresourceInterceptor(
         if (host.isEmpty()) return null
 
         checkCount++
-        if (checkCount <= 10 || checkCount % 100 == 0) {
+        val verbose = checkCount <= 10 || checkCount % 100 == 0
+        if (verbose) {
             onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
         }
 
@@ -470,6 +489,7 @@ class FastSubresourceInterceptor(
         // once doesn't need to look up `tracker.example.com`,
         // `example.com`, then fail again on every subsequent fetch.
         var decision = hostDecision[host]
+        val cached = decision != null
         if (decision == null) {
             decision = when {
                 isInSet(host, dnsBlockedDomains) -> Decision.BLOCKED_DNS
@@ -477,6 +497,12 @@ class FastSubresourceInterceptor(
                 else -> Decision.ALLOWED
             }
             putHostDecision(host, decision)
+        }
+        if (verbose) {
+            onLog("WebIntercept",
+                "  host-only decision=$decision (cached=$cached, " +
+                "dnsSetSize=${dnsBlockedDomains.size}, " +
+                "abpSetSize=${abpBlockedDomains.size})")
         }
 
         // 1b. When the Rust engine is active and the host-only sets

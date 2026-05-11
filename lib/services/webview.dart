@@ -2274,6 +2274,16 @@ class WebViewFactory {
         // populated, and the references are shared with the plugin so
         // subsequent updates are picked up without re-attaching.
         if (Platform.isAndroid) {
+          // Track attach attempts so we can correlate with the
+          // native-side "attachToAllWebViews" log. Phase 14: helps
+          // debug the case where Android sub-resources aren't blocked
+          // — first thing to check is whether attach is even running.
+          LogService.instance.log(
+            'WebView',
+            'requesting native interceptor attach: siteId=${config.siteId} '
+                'initialUrl=${config.initialUrl}',
+            level: LogLevel.debug,
+          );
           Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
         }
       },

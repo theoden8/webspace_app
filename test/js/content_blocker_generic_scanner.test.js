@@ -118,3 +118,108 @@ test('generic scanner: selectors with quotes are escaped before injection',
     assert.equal(cs.display, 'none',
       'attribute selector must survive escaping and apply');
   });
+
+test('generic scanner: late-added matching elements hide via mutation observer',
+  async () => {
+    // The phase-5 one-shot scanner missed any element appended
+    // AFTER DOMContentLoaded fired — every SPA framework appends
+    // its UI in an inline <script> at the end of body, exactly
+    // that timing. Phase 14 installs a MutationObserver that
+    // rescans for new class/id tokens (deltas, not full DOM) and
+    // queries the engine. The bridge stub here pretends the
+    // engine sees `.late-promo` only after the page reports it.
+    const dom = makeDom({ html: '<!doctype html><html><body></body></html>' });
+    const seenClasses = new Set();
+    let callIndex = 0;
+    dom.window.flutter_inappwebview = {
+      callHandler: function(name, payload) {
+        callIndex++;
+        payload.classes.forEach((c) => seenClasses.add(c));
+        // Stubbed engine: return `.late-promo` selector iff the
+        // scanner reported the `late-promo` class.
+        if (seenClasses.has('late-promo')) {
+          return Promise.resolve(['.late-promo']);
+        }
+        return Promise.resolve([]);
+      },
+    };
+    runInDom(dom, SCANNER);
+    // First scan: empty body → no class/id deltas → bridge skipped
+    // (the shim short-circuits empty payloads to avoid wasteful
+    // roundtrips). callIndex stays 0.
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(callIndex, 0, 'empty page must not invoke bridge');
+
+    // Page appends an element with a new class. The scanner's
+    // MutationObserver fires, picks up `late-promo` as a delta,
+    // queries the engine, gets back the hide selector.
+    const late = dom.window.document.createElement('div');
+    late.className = 'late-promo';
+    late.id = 'late';
+    dom.window.document.body.appendChild(late);
+    // Debounce window is 50ms; allow some slack.
+    await new Promise((r) => setTimeout(r, 200));
+    assert.ok(callIndex >= 1,
+      'mutation observer must trigger at least one rescan');
+    assert.equal(dom.window.getComputedStyle(late).display, 'none',
+      'late-added .late-promo element must hide after engine returns selector');
+  });
+
+test('generic scanner: class flip on existing element triggers rescan',
+  async () => {
+    // Different mutation type — attribute change on an existing
+    // element. The observer is configured with attributeFilter
+    // for "class" / "id", so adding a tracked class to an
+    // already-present element should also fire a rescan.
+    const dom = makeDom({ html: '<!doctype html><html><body>' +
+      '<div id="el">starts plain</div></body></html>' });
+    let seenLateClass = false;
+    dom.window.flutter_inappwebview = {
+      callHandler: function(name, payload) {
+        if (payload.classes.includes('flipped-ad')) seenLateClass = true;
+        return Promise.resolve(seenLateClass ? ['.flipped-ad'] : []);
+      },
+    };
+    runInDom(dom, SCANNER);
+    await new Promise((r) => setTimeout(r, 30));
+    const el = dom.window.document.getElementById('el');
+    el.className = 'flipped-ad';
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(dom.window.getComputedStyle(el).display, 'none',
+      'element whose class flipped to a matching one must hide');
+  });
+
+test('generic scanner: scanner reports only new tokens (delta scanning)',
+  async () => {
+    // Performance contract: re-scans after the initial one only
+    // send classes/ids we haven't already asked the engine about.
+    // Otherwise a busy SPA would re-marshall its entire class
+    // vocabulary on every DOM burst.
+    const dom = makeDom({ html: '<!doctype html><html><body>' +
+      '<div class="a"></div><div class="b"></div></body></html>' });
+    const callPayloads = [];
+    dom.window.flutter_inappwebview = {
+      callHandler: function(name, payload) {
+        callPayloads.push(payload);
+        return Promise.resolve([]);
+      },
+    };
+    runInDom(dom, SCANNER);
+    await new Promise((r) => setTimeout(r, 30));
+    // Add a third class — only `c` should be in the next payload.
+    const late = dom.window.document.createElement('div');
+    late.className = 'c';
+    dom.window.document.body.appendChild(late);
+    await new Promise((r) => setTimeout(r, 200));
+    // First payload has both initial classes.
+    assert.deepEqual(new Set(callPayloads[0].classes),
+      new Set(['a', 'b']));
+    // Subsequent payloads ONLY carry the new tokens.
+    const latePayload = callPayloads.slice(1).find(
+      (p) => p.classes.includes('c'));
+    assert.ok(latePayload, 'observer must report `c`');
+    assert.equal(latePayload.classes.length, 1,
+      'delta scan must NOT include already-seen `a` and `b`; '
+        + 'got: ' + JSON.stringify(latePayload.classes));
+    assert.equal(latePayload.classes[0], 'c');
+  });
