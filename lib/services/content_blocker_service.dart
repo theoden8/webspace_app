@@ -261,6 +261,32 @@ class ContentBlockerService {
   /// (`document|subdocument|stylesheet|script|image|font|media|xhr|other`)
   /// and gates `$script`/`$image`/etc. modifiers; pass `'other'` (the
   /// default) when unknown.
+  /// Engine-only lookup: when a `$redirect=` rule matches this
+  /// request, returns the redirect target as a `data:` URL. Null
+  /// when no redirect applies OR when the engine isn't active (the
+  /// Dart parser doesn't support `$redirect=` rules; only the
+  /// engine does).
+  ///
+  /// Called from the iOS/macOS JS bridge's `blockCheck` handler so
+  /// the JS interceptor can swap the request URL with the data URL
+  /// instead of dropping it. Android wires the same FFI symbol
+  /// directly through JNI (`AdblockEngineNative.redirectFor`), so
+  /// this Dart path is iOS/macOS/Linux-only — `AdblockEngine` is
+  /// only loaded on those platforms.
+  String? redirectFor(
+    String url, {
+    String sourceUrl = '',
+    String requestType = 'other',
+  }) {
+    final engine = _rustEngine;
+    if (engine == null) return null;
+    return engine.redirectFor(
+      url,
+      sourceUrl: sourceUrl,
+      requestType: requestType,
+    );
+  }
+
   bool isBlocked(
     String url, {
     String sourceUrl = '',

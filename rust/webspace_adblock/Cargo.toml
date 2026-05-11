@@ -49,6 +49,18 @@ adblock = { version = "0.12", default-features = false, features = [
 ] }
 serde_json = "1"
 
+# Build-time only: we use the adblock crate's resource_assembler to
+# parse a downloaded uBO tarball into a serializable Vec<Resource>,
+# then embed the result via include_str!. The runtime engine
+# dependency above does NOT enable resource-assembler (no need at
+# runtime — we already have the JSON baked in).
+[build-dependencies]
+adblock = { version = "0.12", default-features = false, features = [
+  "embedded-domain-resolver",
+  "resource-assembler",
+] }
+serde_json = "1"
+
 # Android-only: JNI exports so Kotlin's FastSubresourceInterceptor can
 # consult the engine on every sub-resource without a Dart roundtrip.
 # The `jni` crate is excluded from non-Android builds — it pulls in

@@ -71,10 +71,6 @@ screenshots
 # Ruby/Bundler
 vendor/
 .bundle/
-# But: re-include our pinned vendored uBO resources, which the
-# blanket `vendor/` swallows otherwise. See
-# rust/webspace_adblock/vendor/ubo/README.md.
-!rust/webspace_adblock/vendor/
 
 /.vscode
 /.claude/settings.local.json

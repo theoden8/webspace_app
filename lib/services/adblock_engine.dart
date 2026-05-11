@@ -84,6 +84,25 @@ typedef _FiltersToContentBlockingC = ffi.Pointer<Utf8> Function(
 typedef _FiltersToContentBlockingDart = ffi.Pointer<Utf8> Function(
     ffi.Pointer<Utf8>, int);
 
+typedef _EngineRedirectForC = ffi.Pointer<Utf8> Function(
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+);
+typedef _EngineRedirectForDart = ffi.Pointer<Utf8> Function(
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<Utf8>,
+  int,
+  ffi.Pointer<Utf8>,
+  int,
+  ffi.Pointer<Utf8>,
+  int,
+);
+
 typedef _StringFreeC = ffi.Void Function(ffi.Pointer<Utf8>);
 typedef _StringFreeDart = void Function(ffi.Pointer<Utf8>);
 
@@ -99,6 +118,7 @@ class _Bindings {
   final _EngineCosmeticDart engineCosmetic;
   final _EngineHiddenClassIdDart engineHiddenClassId;
   final _FiltersToContentBlockingDart filtersToContentBlocking;
+  final _EngineRedirectForDart engineRedirectFor;
   final _StringFreeDart stringFree;
   final _EngineVersionDart engineVersion;
 
@@ -109,6 +129,7 @@ class _Bindings {
     required this.engineCosmetic,
     required this.engineHiddenClassId,
     required this.filtersToContentBlocking,
+    required this.engineRedirectFor,
     required this.stringFree,
     required this.engineVersion,
   });
@@ -130,6 +151,9 @@ class _Bindings {
       filtersToContentBlocking: lib.lookupFunction<_FiltersToContentBlockingC,
               _FiltersToContentBlockingDart>(
           'ws_filters_to_content_blocking_json'),
+      engineRedirectFor: lib.lookupFunction<_EngineRedirectForC,
+              _EngineRedirectForDart>(
+          'ws_engine_redirect_for'),
       stringFree:
           lib.lookupFunction<_StringFreeC, _StringFreeDart>('ws_string_free'),
       engineVersion: lib.lookupFunction<_EngineVersionC, _EngineVersionDart>(
@@ -279,6 +303,58 @@ class AdblockEngine {
       malloc.free(classesPtr);
       malloc.free(idsPtr);
       malloc.free(excPtr);
+    }
+  }
+
+  /// If a `$redirect=` (or `$redirect-rule=`) rule matches this
+  /// request, returns the redirect target as a data: URL
+  /// (`data:<mime>;base64,<body>`). Returns null when no redirect
+  /// applies — caller should fall back to the empty-body block
+  /// response.
+  ///
+  /// Called from the iOS/macOS JS bridge's `blockCheck` handler so
+  /// the JS interceptor can swap the request URL with the data URL
+  /// instead of dropping it. Same FFI symbol the JNI bridge calls
+  /// on Android (`ws_engine_redirect_for`).
+  String? redirectFor(
+    String url, {
+    String sourceUrl = '',
+    String requestType = 'other',
+  }) {
+    final urlBytes = utf8.encode(url);
+    final srcBytes = utf8.encode(sourceUrl);
+    final typBytes = utf8.encode(requestType);
+
+    final urlPtr = malloc.allocate<ffi.Uint8>(urlBytes.length);
+    final srcPtr = srcBytes.isEmpty
+        ? ffi.nullptr.cast<ffi.Uint8>()
+        : malloc.allocate<ffi.Uint8>(srcBytes.length);
+    final typPtr = malloc.allocate<ffi.Uint8>(typBytes.length);
+
+    try {
+      urlPtr.asTypedList(urlBytes.length).setAll(0, urlBytes);
+      if (srcBytes.isNotEmpty) {
+        srcPtr.asTypedList(srcBytes.length).setAll(0, srcBytes);
+      }
+      typPtr.asTypedList(typBytes.length).setAll(0, typBytes);
+
+      final resultPtr = _b.engineRedirectFor(
+        _handle,
+        urlPtr.cast<Utf8>(),
+        urlBytes.length,
+        srcPtr.cast<Utf8>(),
+        srcBytes.length,
+        typPtr.cast<Utf8>(),
+        typBytes.length,
+      );
+      if (resultPtr == ffi.nullptr) return null;
+      final dataUrl = resultPtr.toDartString();
+      _b.stringFree(resultPtr);
+      return dataUrl;
+    } finally {
+      malloc.free(urlPtr);
+      if (srcBytes.isNotEmpty) malloc.free(srcPtr);
+      malloc.free(typPtr);
     }
   }
 

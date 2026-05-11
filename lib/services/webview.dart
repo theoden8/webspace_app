@@ -1700,6 +1700,15 @@ class WebViewFactory {
   }
   loadBloom();
 
+  // Async decision encoding (returned by callHandler('blockCheck')):
+  //   false       — allow
+  //   true        — block (drop)
+  //   <string>    — block + redirect; string is a `data:` URL to
+  //                 swap the request with. Engine's \$redirect= path.
+  // checkSync only knows bool (bloom prefilter answers host membership,
+  // not redirect specifics) — redirect lookup always goes through Dart.
+  function isRedirect(d) { return typeof d === 'string' && d.indexOf('data:') === 0; }
+
   // fetch — sync fast-path on misses, async only on bloom hits.
   var origFetch = window.fetch;
   if (origFetch) {
@@ -1709,14 +1718,20 @@ class WebViewFactory {
       if (sync === false) return origFetch.call(this, input, init);
       if (sync === true) return Promise.reject(new TypeError('Blocked: ' + url));
       var self = this;
-      return checkAsync(url).then(function(blocked) {
-        if (blocked) return Promise.reject(new TypeError('Blocked: ' + url));
+      return checkAsync(url).then(function(decision) {
+        if (isRedirect(decision)) return origFetch.call(self, decision, init);
+        if (decision) return Promise.reject(new TypeError('Blocked: ' + url));
         return origFetch.call(self, input, init);
       });
     };
   }
 
-  // XMLHttpRequest
+  // XMLHttpRequest. Redirect can't easily swap the URL after open();
+  // chromium has already configured the request. Drop the XHR
+  // entirely on a redirect decision — equivalent observable
+  // behaviour to a plain block. Better-engineered redirect for XHR
+  // would intercept earlier (at open()) and re-issue against the
+  // data URL, but XHR is rare for tracker scripts so skip.
   var origOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url) {
     this.__dnsBlockUrl = url;
@@ -1730,8 +1745,8 @@ class WebViewFactory {
     if (sync === true) { try { this.abort(); } catch (e) {} return; }
     var self = this;
     var args = arguments;
-    checkAsync(url).then(function(blocked) {
-      if (blocked) { try { self.abort(); } catch (e) {} return; }
+    checkAsync(url).then(function(decision) {
+      if (decision) { try { self.abort(); } catch (e) {} return; }
       origSend.apply(self, args);
     });
   };
@@ -1754,8 +1769,9 @@ class WebViewFactory {
         if (sync === false) { origSet.call(this, value); return; }
         if (sync === true) { return; }
         var el = this;
-        checkAsync(value).then(function(blocked) {
-          if (!blocked) origSet.call(el, value);
+        checkAsync(value).then(function(decision) {
+          if (isRedirect(decision)) origSet.call(el, decision);
+          else if (!decision) origSet.call(el, value);
         });
       }
     });
@@ -1767,7 +1783,8 @@ class WebViewFactory {
 
   // MutationObserver for statically-parsed HTML elements. Bloom-miss
   // path is a no-op (the element is allowed to keep the attribute);
-  // only confirmed-blocked elements are stripped.
+  // only confirmed-blocked elements are stripped (or rewritten when
+  // the engine offers a redirect body).
   function checkElement(el) {
     var attr = null;
     if (el.tagName === 'IMG' || el.tagName === 'SCRIPT' || el.tagName === 'IFRAME') attr = 'src';
@@ -1782,8 +1799,12 @@ class WebViewFactory {
       if (el.parentNode) el.parentNode.removeChild(el);
       return;
     }
-    checkAsync(url).then(function(blocked) {
-      if (blocked) {
+    checkAsync(url).then(function(decision) {
+      if (isRedirect(decision)) {
+        el.setAttribute(attr, decision);
+        return;
+      }
+      if (decision) {
         el.removeAttribute(attr);
         if (el.parentNode) el.parentNode.removeChild(el);
       }
@@ -2075,6 +2096,16 @@ class WebViewFactory {
           // Only the bloom-hit minority of requests hits this path.
           if (!Platform.isAndroid) {
             controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
+              // Return value contract for the JS shim:
+              //   false       — allow (call origSet / origFetch as-is)
+              //   true        — block (drop the request)
+              //   String      — block + redirect; the string is a
+              //                 `data:` URL the shim should swap the
+              //                 request URL with so the page sees the
+              //                 neutered uBO stub body instead of an
+              //                 empty 200. Maintains stats parity:
+              //                 we still record the block before
+              //                 returning the redirect URL.
               if (args.isEmpty || args[0] is! String) return false;
               final url = args[0] as String;
               final dnsSvc = DnsBlockService.instance;
@@ -2092,7 +2123,13 @@ class WebViewFactory {
                       sourceUrl: lastLoadStartUrl ?? '')) {
                 dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.abp);
-                return true;
+                // Try the engine's $redirect= lookup. Only meaningful
+                // when the engine is on; returns null otherwise.
+                final redirect = abpSvc.redirectFor(
+                  url,
+                  sourceUrl: lastLoadStartUrl ?? '',
+                );
+                return redirect ?? true;
               }
               dnsSvc.recordRequest(config.siteId!, url, false);
               return false;

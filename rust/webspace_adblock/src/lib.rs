@@ -33,12 +33,15 @@ use adblock::lists::{FilterSet, ParseOptions};
 use adblock::request::Request;
 use adblock::resources::Resource;
 
-/// uBO's web-accessible resources, pre-parsed by
-/// `bin/regen_ubo_resources.rs` and embedded at compile time.
-/// Populates `engine.use_resources(...)` so the engine returns
-/// real redirect bodies for `$redirect=` rules instead of empty
-/// 200s. See `vendor/ubo/README.md` for the vendoring contract.
-const UBO_RESOURCES_JSON: &str = include_str!("ubo_resources.json");
+/// adblock-rust resource bundle, fetched at build time from
+/// github.com/brave/adblock-resources at a pinned commit (see
+/// `build.rs`). Empty `[]` when the fetcher couldn't reach the
+/// upstream (offline build) — engine then runs without
+/// `$redirect=` support. Pre-baked into the .so via `include_str!`;
+/// no runtime file IO, no committed third-party data.
+const UBO_RESOURCES_JSON: &str = include_str!(
+    concat!(env!("OUT_DIR"), "/ubo_resources.json")
+);
 
 fn load_ubo_resources() -> Vec<Resource> {
     serde_json::from_str(UBO_RESOURCES_JSON).unwrap_or_else(|e| {
