@@ -79,6 +79,11 @@ typedef _EngineHiddenClassIdDart = ffi.Pointer<Utf8> Function(
   int,
 );
 
+typedef _FiltersToContentBlockingC = ffi.Pointer<Utf8> Function(
+    ffi.Pointer<Utf8>, ffi.UintPtr);
+typedef _FiltersToContentBlockingDart = ffi.Pointer<Utf8> Function(
+    ffi.Pointer<Utf8>, int);
+
 typedef _StringFreeC = ffi.Void Function(ffi.Pointer<Utf8>);
 typedef _StringFreeDart = void Function(ffi.Pointer<Utf8>);
 
@@ -93,6 +98,7 @@ class _Bindings {
   final _EngineCheckUrlDart engineCheckUrl;
   final _EngineCosmeticDart engineCosmetic;
   final _EngineHiddenClassIdDart engineHiddenClassId;
+  final _FiltersToContentBlockingDart filtersToContentBlocking;
   final _StringFreeDart stringFree;
   final _EngineVersionDart engineVersion;
 
@@ -102,6 +108,7 @@ class _Bindings {
     required this.engineCheckUrl,
     required this.engineCosmetic,
     required this.engineHiddenClassId,
+    required this.filtersToContentBlocking,
     required this.stringFree,
     required this.engineVersion,
   });
@@ -120,6 +127,9 @@ class _Bindings {
       engineHiddenClassId: lib.lookupFunction<_EngineHiddenClassIdC,
               _EngineHiddenClassIdDart>(
           'ws_engine_hidden_class_id_selectors_json'),
+      filtersToContentBlocking: lib.lookupFunction<_FiltersToContentBlockingC,
+              _FiltersToContentBlockingDart>(
+          'ws_filters_to_content_blocking_json'),
       stringFree:
           lib.lookupFunction<_StringFreeC, _StringFreeDart>('ws_string_free'),
       engineVersion: lib.lookupFunction<_EngineVersionC, _EngineVersionDart>(
@@ -291,6 +301,40 @@ class AdblockEngine {
       return jsonDecode(json) as Map<String, dynamic>;
     } finally {
       malloc.free(urlPtr);
+    }
+  }
+
+  /// Convert an ABP filter list to Apple's WKContentRuleListStore
+  /// JSON format. Static — needs no engine instance (this is a
+  /// pure parse+convert pass through the underlying crate).
+  ///
+  /// The result is suitable for
+  /// `WKContentRuleListStore.compileContentRuleList`. Returns null
+  /// when the native library isn't loadable on this platform, or
+  /// when the filter list fails to parse.
+  ///
+  /// Heads-up: WebKit doesn't fire any callback when a content rule
+  /// matches. Use this for the speedup (native sub-resource blocking
+  /// without a JS bridge round-trip per request), but keep the JS
+  /// bridge installed if you want per-request stats.
+  static String? filterListToAppleContentBlockingJson(String rulesText) {
+    final lib = _tryOpenLibrary();
+    if (lib == null) return null;
+    final bindings = _Bindings.fromLib(lib);
+    final bytes = utf8.encode(rulesText);
+    final ptr = malloc.allocate<ffi.Uint8>(bytes.length);
+    try {
+      ptr.asTypedList(bytes.length).setAll(0, bytes);
+      final resultPtr = bindings.filtersToContentBlocking(
+        ptr.cast<Utf8>(),
+        bytes.length,
+      );
+      if (resultPtr == ffi.nullptr) return null;
+      final json = resultPtr.toDartString();
+      bindings.stringFree(resultPtr);
+      return json;
+    } finally {
+      malloc.free(ptr);
     }
   }
 

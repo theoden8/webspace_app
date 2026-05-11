@@ -230,6 +230,54 @@ pub extern "C" fn ws_engine_hidden_class_id_selectors_json(
     }
 }
 
+/// Apple WKContentRuleList JSON export. Converts an ABP filter list
+/// into the JSON format that `WKContentRuleListStore.compileContentRuleList`
+/// accepts. The Pod hook on iOS/macOS compiles the result into WebKit
+/// bytecode at install time, giving native sub-resource blocking
+/// without a JS bridge round-trip.
+///
+/// Trade-off: WebKit fires NO callback when a rule matches (Apple's
+/// privacy design), so per-request stats stay on the JS-bridge path
+/// — the content rule list is an additive accelerator, not a
+/// replacement for the existing pipeline.
+///
+/// Takes a UTF-8 filter list (same input as `ws_engine_new`) and
+/// returns a JSON string. Caller must free with [`ws_string_free`].
+/// Returns null on UTF-8 / parser failure.
+#[no_mangle]
+pub extern "C" fn ws_filters_to_content_blocking_json(
+    rules_text: *const c_char,
+    len: usize,
+) -> *mut c_char {
+    if rules_text.is_null() {
+        return std::ptr::null_mut();
+    }
+    let bytes = unsafe { std::slice::from_raw_parts(rules_text as *const u8, len) };
+    let text = match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    // `into_content_blocking` requires the FilterSet to be in debug
+    // mode (carries source filter strings) so it can emit them in
+    // the JSON action payload. Build a fresh FilterSet for the
+    // conversion rather than reusing the runtime engine's optimised
+    // (non-debug) one.
+    let mut filter_set = FilterSet::new(true);
+    filter_set.add_filter_list(text, ParseOptions::default());
+    let rules = match filter_set.into_content_blocking() {
+        Ok((rules, _used)) => rules,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    match serde_json::to_string(&rules) {
+        Ok(s) => CString::new(s)
+            .ok()
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 /// Free a string returned by this library. Safe with null.
 #[no_mangle]
 pub extern "C" fn ws_string_free(s: *mut c_char) {
@@ -321,6 +369,28 @@ mod tests {
     fn null_engine_safe() {
         ws_engine_free(std::ptr::null_mut());
         assert_eq!(check(std::ptr::null_mut(), "https://x.com/", "https://y.com/"), -1);
+    }
+
+    #[test]
+    fn content_blocking_json_export() {
+        // Mirrors `WKContentRuleListStore.compileContentRuleList`'s
+        // expected JSON shape: array of {action, trigger} objects.
+        let rules = "||doubleclick.net^\n||tracker.com^$third-party\n##.ad\n";
+        let ptr = ws_filters_to_content_blocking_json(
+            rules.as_ptr() as *const c_char,
+            rules.len(),
+        );
+        assert!(!ptr.is_null(), "content_blocking conversion returned null");
+        let json = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().to_owned();
+        ws_string_free(ptr);
+
+        // It IS a JSON array.
+        assert!(json.starts_with('['), "payload: {}", json);
+        // The Apple format wraps every rule in `{"action": ..., "trigger": ...}`.
+        assert!(json.contains("\"action\""), "payload: {}", json);
+        assert!(json.contains("\"trigger\""), "payload: {}", json);
+        // doubleclick should map to a block action.
+        assert!(json.contains("doubleclick"), "payload: {}", json);
     }
 
     #[test]

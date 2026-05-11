@@ -14,7 +14,20 @@ name = "webspace_adblock"
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-adblock = { version = "0.12", default-features = false, features = ["embedded-domain-resolver", "full-regex-handling"] }
+adblock = { version = "0.12", default-features = false, features = [
+  "embedded-domain-resolver",
+  "full-regex-handling",
+  # Apple WKContentRuleList JSON export — see
+  # `ws_engine_content_blocking_rules_json` in src/lib.rs. Compiles to
+  # bytecode by WKContentRuleListStore on iOS/macOS, giving native
+  # WebKit-level sub-resource blocking without a JS bridge roundtrip.
+  # The trade-off is documented in openspec/specs/content-blocker/spec.md
+  # CB-012: WebKit doesn't fire any "rule matched" callback, so per-
+  # request stats live only on the JS-bridge path. We export the
+  # ruleset so the Pod hook can compile + install it; the JS bridge
+  # stays as the canonical stats source.
+  "content-blocking",
+] }
 serde_json = "1"
 
 # Android-only: JNI exports so Kotlin's FastSubresourceInterceptor can

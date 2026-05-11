@@ -140,6 +140,26 @@ void main() {
       e.dispose();
     }, skip: libExists ? false : 'library not built');
 
+    test('content-blocking export emits WKContentRuleList-shaped JSON', () {
+      // The Pod hook will pipe this JSON into
+      // `WKContentRuleListStore.compileContentRuleList` at install
+      // time. Asserting the shape (array of {action, trigger}
+      // objects) matches what Apple's API expects keeps the iOS
+      // integration honest without needing a real WebKit instance
+      // to test against.
+      final json = AdblockEngine.filterListToAppleContentBlockingJson(
+        '||doubleclick.net^\n||tracker.com^\$third-party\n##.ad-banner\n',
+      );
+      expect(json, isNotNull,
+          reason: 'export must succeed with the library loaded');
+      expect(json!.startsWith('['), isTrue,
+          reason: 'Apple format is a JSON array of rules');
+      expect(json, contains('"action"'));
+      expect(json, contains('"trigger"'));
+      expect(json, contains('doubleclick'),
+          reason: 'concrete rule must surface in the exported JSON');
+    }, skip: libExists ? false : 'library not built');
+
     test('parses a real curated EasyList sample without panicking', () {
       // Same fixture the existing parser-based test consumes. The
       // engine accepts every rule shape in it, including the ones
