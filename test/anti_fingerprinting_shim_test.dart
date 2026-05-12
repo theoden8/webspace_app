@@ -150,4 +150,101 @@ void main() {
       expect(js, contains('[native code]'));
     });
   });
+
+  group('computeAntiFingerprintingSeed', () {
+    // Issue #327 / ETP-019: incognito sites must randomize their
+    // fingerprint per launch, while non-incognito sites keep the
+    // ETP-004 stable-per-site posture.
+
+    test('non-incognito returns siteId verbatim', () {
+      final seed = computeAntiFingerprintingSeed(
+        siteId: 'site-A',
+        incognito: false,
+        launchNonce: 'nonce-1',
+      );
+      expect(seed, equals('site-A'));
+    });
+
+    test('non-incognito ignores the launch nonce entirely', () {
+      // Stable per-site fingerprint across launches: same siteId, two
+      // different launches, same seed.
+      final s1 = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'nonce-1',
+      );
+      final s2 = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'nonce-2',
+      );
+      expect(s1, equals(s2));
+    });
+
+    test('incognito mixes in the nonce', () {
+      final seed = computeAntiFingerprintingSeed(
+        siteId: 'site-A',
+        incognito: true,
+        launchNonce: 'nonce-1',
+      );
+      expect(seed, isNot(equals('site-A')));
+      expect(seed, contains('site-A'));
+      expect(seed, contains('nonce-1'));
+    });
+
+    test('incognito + same (siteId, nonce) -> same seed (in-session stability)',
+        () {
+      // Same fingerprint across iframe re-injection within one app
+      // session — flicker would itself be a fingerprintable signal.
+      final s1 = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+      );
+      final s2 = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+      );
+      expect(s1, equals(s2));
+    });
+
+    test('incognito + different nonces -> different seeds (per-launch reroll)',
+        () {
+      final s1 = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+      );
+      final s2 = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: true, launchNonce: 'nonce-2',
+      );
+      expect(s1, isNot(equals(s2)));
+    });
+
+    test('incognito + different siteIds, same nonce -> different seeds', () {
+      // Two incognito tabs in the same launch must still see distinct
+      // fingerprints (cross-site uniqueness, ETP-004).
+      final a = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+      );
+      final b = computeAntiFingerprintingSeed(
+        siteId: 'site-B', incognito: true, launchNonce: 'nonce-1',
+      );
+      expect(a, isNot(equals(b)));
+    });
+
+    test('toggling incognito for the same site changes the seed', () {
+      // The whole point of issue #327: the user enabled incognito to opt
+      // out of the stable identity, so the seed MUST differ from the
+      // non-incognito case.
+      final stable = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'nonce-1',
+      );
+      final ephemeral = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+      );
+      expect(ephemeral, isNot(equals(stable)));
+    });
+
+    test('seed flows through buildAntiFingerprintingShim end-to-end', () {
+      // Sanity: the seed string we compute appears in the generated
+      // shim source, so the JS-side PRNG is keyed off the right value.
+      final seed = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
+      );
+      final shim = buildAntiFingerprintingShim(seed);
+      expect(shim, contains('"site-A:nonce-1"'));
+    });
+  });
 }

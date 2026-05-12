@@ -45,9 +45,30 @@
 
 import 'dart:convert';
 
+/// Compute the seed string passed to [buildAntiFingerprintingShim].
+///
+/// Non-incognito sites seed with `siteId` verbatim — the fingerprint stays
+/// stable across launches (ETP-004 baseline).
+///
+/// Incognito sites mix in a process-lifetime [launchNonce] (typically
+/// `LaunchNonce.value`) so the fingerprint is stable within a single app
+/// session — no flicker on iframe re-injection or nested webview opens —
+/// but randomizes across cold restarts. The `incognito` flag already implies
+/// the user wants a fresh-visitor posture each launch; reusing the same
+/// fingerprint across launches would itself be a stable cross-session
+/// identifier (issue #327, ETP-019).
+String computeAntiFingerprintingSeed({
+  required String siteId,
+  required bool incognito,
+  required String launchNonce,
+}) {
+  return incognito ? '$siteId:$launchNonce' : siteId;
+}
+
 /// Build the per-site anti-fingerprinting shim seeded by [seed]. The seed
-/// MUST be stable per site (we pass `siteId`) so the same site always
-/// reports the same fingerprint across launches.
+/// is computed via [computeAntiFingerprintingSeed] — siteId-only for
+/// non-incognito (stable per site) or `siteId:launchNonce` for incognito
+/// (stable per session, randomized per launch).
 String buildAntiFingerprintingShim(String seed) {
   final encodedSeed = jsonEncode(seed);
   return '''
