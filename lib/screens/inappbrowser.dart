@@ -45,6 +45,10 @@ class InAppWebViewScreen extends StatefulWidget {
   /// working when the user follows an outbound link into a nested screen.
   final List<UserScriptConfig> userScripts;
   final Future<bool> Function(String url)? onConfirmScriptFetch;
+  /// Invoked when the user toggles the URL bar from this nested screen's
+  /// popup menu. Threaded back to `_WebSpacePageState` so the change
+  /// updates the same global preference shown in the parent menu.
+  final Future<void> Function(bool show)? onShowUrlBarChanged;
   /// Per-site proxy of the parent site that opened this nested browser.
   /// Forwarded into the nested [WebViewConfig] so cross-domain links from
   /// a proxied site stay proxied. Resolves through the global outbound
@@ -75,6 +79,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.userScripts = const [],
     this.onConfirmScriptFetch,
+    this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
   }) : proxySettings = proxySettings ??
@@ -109,6 +114,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   late final Widget _webView;
 
   bool _isFindVisible = false;
+  late bool _showUrlBar;
   FindMatchesResult findMatches = FindMatchesResult();
 
   /// DevTools host for this nested webview. Captures console output and
@@ -124,6 +130,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     // Use home site title if provided
     title = widget.homeTitle;
     _currentUrl = widget.url;
+    _showUrlBar = widget.showUrlBar;
     _devToolsHost = NestedDevToolsHost(
       name: widget.homeTitle ?? extractDomain(widget.url),
       siteId: widget.siteId,
@@ -392,6 +399,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   ),
                 ),
                 PopupMenuItem<String>(
+                  value: "toggleUrlBar",
+                  child: Row(
+                    children: [
+                      Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
+                      SizedBox(width: 8),
+                      Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
                   value: "devTools",
                   child: Row(
                     children: [
@@ -427,6 +444,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 case 'search':
                   _toggleFind();
                   break;
+                case 'toggleUrlBar':
+                  setState(() {
+                    _showUrlBar = !_showUrlBar;
+                  });
+                  await widget.onShowUrlBarChanged?.call(_showUrlBar);
+                  break;
                 case 'refresh':
                   _controller?.reload();
                   break;
@@ -457,12 +480,15 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               },
             ),
           Expanded(child: _webView),
-          if (widget.showUrlBar)
-            UrlBar(
-              currentUrl: _currentUrl,
-              onUrlSubmitted: (url) {
-                _controller?.loadUrl(url, language: widget.language);
-              },
+          if (_showUrlBar)
+            SafeArea(
+              top: false,
+              child: UrlBar(
+                currentUrl: _currentUrl,
+                onUrlSubmitted: (url) {
+                  _controller?.loadUrl(url, language: widget.language);
+                },
+              ),
             ),
         ],
       ),
