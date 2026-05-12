@@ -1103,6 +1103,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// Other platforms hide it.
   bool _isHomeShortcutMenuVisible(int index) {
     if (index >= _webViewModels.length) return false;
+    // ARCH-006: archive-tier sites must not get OS-level pinned
+    // shortcuts (visible in the launcher / Shortcuts.app indefinitely).
+    if (_webViewModels[index].isArchiveTier) return false;
     if (Platform.isAndroid) {
       return !_pinnedSiteIds.contains(_webViewModels[index].siteId);
     }
@@ -1275,7 +1278,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        if (!_webViewModels[_currentIndex!].notificationsEnabled) {
+        if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
           _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
         }
         final activeIdx = _currentIndex!;
@@ -1319,7 +1322,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _lifecyclePauseFuture = null;
     }
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      if (!_webViewModels[_currentIndex!].notificationsEnabled) {
+      if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
         await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
       }
     }
@@ -1627,7 +1630,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       clearUrlEnabled: model.clearUrlEnabled,
       dnsBlockEnabled: model.dnsBlockEnabled,
       contentBlockEnabled: model.contentBlockEnabled,
-      localCdnEnabled: model.localCdnEnabled,
+      localCdnEnabled: model.effectiveLocalCdnEnabled,
       trackingProtectionEnabled: model.trackingProtectionEnabled,
       language: model.language,
       locationMode: model.locationMode,
@@ -1640,7 +1643,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       webRtcPolicy: model.webRtcPolicy,
       userScripts: model.userScripts,
       proxySettings: model.proxySettings,
-      notificationsEnabled: model.notificationsEnabled,
+      notificationsEnabled: model.effectiveNotificationsEnabled,
     );
   }
 
@@ -3024,7 +3027,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Auto-load notification sites so they start polling immediately and
     // can fire notifications without waiting for the user to open them.
     for (int i = 0; i < _webViewModels.length; i++) {
-      if (_webViewModels[i].notificationsEnabled) {
+      if (_webViewModels[i].effectiveNotificationsEnabled) {
         _loadedIndices.add(i);
       }
     }
@@ -3068,7 +3071,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   bool _anyNotificationSites() {
     for (final m in _webViewModels) {
-      if (m.notificationsEnabled) return true;
+      if (m.effectiveNotificationsEnabled) return true;
     }
     return false;
   }
@@ -3086,7 +3089,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final others = <WebViewModel>[];
     for (final m in _webViewModels) {
       if (identical(m, target)) continue;
-      if (!m.notificationsEnabled) continue;
+      if (!m.effectiveNotificationsEnabled) continue;
       others.add(m);
     }
     final conflict = ProxyConflictEngine.firstConflict(
@@ -3113,7 +3116,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     bool any = false;
     for (int i = 0; i < _webViewModels.length; i++) {
       final m = _webViewModels[i];
-      if (!m.notificationsEnabled) continue;
+      if (!m.effectiveNotificationsEnabled) continue;
       if (!_loadedIndices.contains(i)) continue;
       any = true;
       break;
@@ -3134,7 +3137,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _refreshNotificationSites({bool excludeActive = false}) async {
     for (int i = 0; i < _webViewModels.length; i++) {
       final m = _webViewModels[i];
-      if (!m.notificationsEnabled) continue;
+      if (!m.effectiveNotificationsEnabled) continue;
       if (excludeActive && i == _currentIndex) continue;
       if (!_loadedIndices.contains(i)) continue;
       try {
@@ -3178,7 +3181,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (index == _activationInFlightIndex) return SiteRetentionPriority.activating;
     if (index >= 0 && index < _webViewModels.length) {
       final m = _webViewModels[index];
-      if (m.notificationsEnabled) {
+      if (m.effectiveNotificationsEnabled) {
         return SiteRetentionPriority.notification;
       }
     }
