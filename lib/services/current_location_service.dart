@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 enum CurrentLocationStatus {
@@ -10,6 +11,22 @@ enum CurrentLocationStatus {
   unsupported,
   error,
 }
+
+/// Requested precision for a single fix. Maps to OS-level provider /
+/// permission tier:
+///
+/// - [fine]: Android `ACCESS_FINE_LOCATION` (GPS + NETWORK + PASSIVE),
+///   iOS `kCLLocationAccuracyBest`. The OS may use the GPS chip.
+/// - [coarse]: Android `ACCESS_COARSE_LOCATION` only, NETWORK provider
+///   only (cell-tower / Wi-Fi triangulation, never GPS). iOS
+///   `kCLLocationAccuracyKilometer` so CoreLocation returns a coarse
+///   fix without powering up the GPS chip. Reported accuracy is
+///   typically 100-5000 m.
+///
+/// Coarse never asks the user for the fine-location permission, so a
+/// site that only needs general-area positioning (regional weather,
+/// "stores nearby") never escalates the app's permission posture.
+enum LocationAccuracy { fine, coarse }
 
 class CurrentLocationFix {
   final double latitude;
@@ -46,10 +63,18 @@ class CurrentLocationService {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/location');
 
-  static bool get isSupported => Platform.isAndroid || Platform.isIOS;
+  /// Test-only override for [isSupported]. When non-null it short-circuits
+  /// the platform probe so unit tests on a Linux host can exercise the
+  /// channel-arg shape via `setMockMethodCallHandler`.
+  @visibleForTesting
+  static bool? debugIsSupportedOverride;
+
+  static bool get isSupported =>
+      debugIsSupportedOverride ?? (Platform.isAndroid || Platform.isIOS);
 
   static Future<CurrentLocationResult> getCurrentLocation({
     Duration timeout = const Duration(seconds: 30),
+    LocationAccuracy accuracy = LocationAccuracy.fine,
   }) async {
     if (!isSupported) {
       return CurrentLocationResult.failure(
@@ -60,6 +85,7 @@ class CurrentLocationService {
     try {
       final raw = await _channel.invokeMethod<dynamic>('getCurrentLocation', {
         'timeoutMs': timeout.inMilliseconds,
+        'accuracy': accuracy.name,
       });
       if (raw is! Map) {
         return CurrentLocationResult.failure(

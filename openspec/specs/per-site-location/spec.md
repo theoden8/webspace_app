@@ -117,9 +117,9 @@ When `locationMode = live`, the JS shim SHALL forward `navigator.geolocation.get
 The shape of the fix surfaced to the page in live mode is controlled by a per-site `liveLocationGranularity` field with two values:
 
 - `fine` (default): the real device coordinates and accuracy, jittered by ~2 m like the spoof path. Use when the site genuinely needs metre-level positioning.
-- `coarse`: the platform fix is snapped to a ~1.1 km grid before being handed to the page — latitude rounds to the nearest `0.01°`, longitude rounds to the nearest `0.01° / cos(snappedLat)` so cells stay roughly square at higher latitudes, and the reported `accuracy` is inflated to at least 1100 m (or the platform-reported accuracy, whichever is larger — a NETWORK-only 5 km fix must not be silently sharpened by coarse mode). The longitude step is derived from the snapped (not raw) latitude so two fixes that round into the same cell row share an identical step and re-snap to the same column.
+- `coarse`: the platform fix is requested at the OS-level coarse tier — Android `ACCESS_COARSE_LOCATION` only with `NETWORK_PROVIDER` only (cell-tower / Wi-Fi triangulation, never GPS), iOS `kCLLocationAccuracyKilometer` so CoreLocation does not power up the GPS chip even under full Precise authorization. The returned fix is then snapped to a ~1.1 km grid before being handed to the page — latitude rounds to the nearest `0.01°`, longitude rounds to the nearest `0.01° / cos(snappedLat)` so cells stay roughly square at higher latitudes, and the reported `accuracy` is inflated to at least 1100 m (or the platform-reported accuracy, whichever is larger — a NETWORK-only 5 km fix must not be silently sharpened by coarse mode). The longitude step is derived from the snapped (not raw) latitude so two fixes that round into the same cell row share an identical step and re-snap to the same column.
 
-This is a privacy-only override applied *after* the platform fix is obtained; the OS-level fine/coarse permission split is independent. Granularity is `fine` by default for backwards compatibility — existing sites that read live location keep their metre-level precision until the user opts into coarse for that site.
+Granularity is `fine` by default for backwards compatibility — existing sites that read live location keep their metre-level precision until the user opts into coarse for that site. The fine/coarse selection threads through to the platform plugin via a `'accuracy'` arg on the `getCurrentLocation` method-channel call (string `'fine'` or `'coarse'`); a coarse-only site therefore never escalates the app's permission posture or causes the OS prompt to offer the Precise toggle for that call.
 
 `liveLocationGranularity` SHALL round-trip through `WebViewModel.toJson` / `fromJson`. The default `fine` value SHALL be omitted from JSON so on-disk and QR-payload sizes stay byte-stable for users who never opt into coarse. Older backups predating the field SHALL rehydrate as `fine`.
 
@@ -179,6 +179,15 @@ The Dart-side handler for `getRealLocation` SHALL be registered in `webview.dart
 **And** the platform fix is `(35.6762, 139.6503)` with accuracy 5000 m (NETWORK provider)
 **When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
 **Then** `coords.accuracy == 5000` (the coarse path uses `max(real, 1100)`, never sharpens a less-accurate fix)
+
+#### Scenario: Coarse granularity never requests fine-location permission
+
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = coarse`
+**And** the app holds neither `ACCESS_FINE_LOCATION` nor `ACCESS_COARSE_LOCATION` (Android), or `notDetermined` authorization (iOS)
+**When** the site calls `navigator.geolocation.getCurrentPosition(cb)` for the first time
+**Then** the OS permission prompt requests only `ACCESS_COARSE_LOCATION` on Android (the system "Precise" toggle is not offered for this call)
+**And** on Android the fix is sourced exclusively from `LocationManager.NETWORK_PROVIDER`; the `GPS_PROVIDER` is not started even if it is enabled and even if the app already held `ACCESS_FINE_LOCATION` from a previous fine-mode call
+**And** on iOS `CLLocationManager.desiredAccuracy = kCLLocationAccuracyKilometer` is set before `requestLocation()`, so CoreLocation serves the fix from cell-tower / Wi-Fi positioning rather than powering up the GPS chip
 
 #### Scenario: Coarse granularity hides sub-cell movement
 

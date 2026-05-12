@@ -1946,10 +1946,22 @@ class WebViewFactory {
         // getCurrentPosition / watchPosition. The handler returns a
         // serialisable map matching CurrentLocationService's JSON shape.
         if (config.locationMode == LocationMode.live) {
+          // Coarse-granularity sites get their fixes from the platform's
+          // network-positioning provider only (Android NETWORK_PROVIDER /
+          // iOS kCLLocationAccuracyKilometer). The OS never escalates to
+          // the fine-location permission and never powers up the GPS
+          // chip — the JS shim's grid-snapping is then layered on top
+          // for an extra ~1.1 km of consistency across consecutive fixes.
+          final requestAccuracy =
+              config.liveLocationGranularity == LocationGranularity.coarse
+                  ? LocationAccuracy.coarse
+                  : LocationAccuracy.fine;
           controller.addJavaScriptHandler(
             handlerName: 'getRealLocation',
             callback: (args) async {
-              final res = await CurrentLocationService.getCurrentLocation();
+              final res = await CurrentLocationService.getCurrentLocation(
+                accuracy: requestAccuracy,
+              );
               if (res.status == CurrentLocationStatus.ok && res.fix != null) {
                 return {
                   'status': 'ok',
