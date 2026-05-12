@@ -11,8 +11,9 @@
 // jsdom is not a real browser. APIs missing from jsdom (canvas fingerprint,
 // WebGL, audio context, real CSS layout) cannot be exercised here — assert
 // on shim *shape* (constructors replaced, getters defined, properties set)
-// rather than on real-engine behaviour. For end-to-end privacy proofing run
-// the same fixture through Playwright + CreepJS in a follow-up tier.
+// rather than on real-engine behaviour. End-to-end privacy proofing runs
+// the same fixture through Puppeteer + FingerprintJS in
+// test/browser/fingerprint_real_engine.test.js.
 
 const fs = require('node:fs');
 const path = require('node:path');

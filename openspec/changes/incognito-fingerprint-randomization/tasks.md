@@ -18,7 +18,36 @@
 
 - [ ] 4.1 Add `openspec/changes/incognito-fingerprint-randomization/specs/tracking-protection/spec.md` with MODIFIED ETP-004 (incognito carve-out) and ADDED ETP-019 (launch-nonce contract).
 
-## 5. Verification
+## 5. Tier 3 real-engine coverage
 
-- [ ] 5.1 `fvm flutter test test/anti_fingerprinting_shim_test.dart test/launch_nonce_test.dart`
-- [ ] 5.2 `fvm flutter analyze`
+- [ ] 5.1 Add two pinned-seed fixtures to `tool/dump_shim_js.dart` —
+      `anti_fingerprinting/shim_seed_alpha_launch_one.js` and
+      `shim_seed_alpha_launch_two.js` — built via
+      `computeAntiFingerprintingSeed(siteId: 'alpha-fixture-seed',
+      incognito: true, launchNonce: 'nonce-launch-one' | 'nonce-launch-two')`.
+- [ ] 5.2 Re-dump fixtures: `fvm dart run tool/dump_shim_js.dart`. The drift
+      test in `test/js_fixtures_drift_test.dart` enforces these are in
+      sync with the builders going forward.
+- [ ] 5.3 Add a `#327 incognito fingerprint rerolls per launch` block in
+      `test/browser/fingerprint_real_engine.test.js` asserting under
+      headless Chromium + FingerprintJS: (a) two simulated launches with
+      different nonces produce distinct `canvas` components for the same
+      siteId; (b) the same shim loaded twice yields identical components
+      (in-launch stability); (c) the non-incognito (siteId-only) shim
+      differs from the incognito (siteId:nonce) shim for the same siteId.
+
+## 6. Doc cleanup
+
+- [ ] 6.1 Replace the stale "Playwright + CreepJS follow-up tier" phrasing
+      in `lib/services/anti_fingerprinting_shim.dart`,
+      `openspec/specs/tracking-protection/spec.md`,
+      `test/js/anti_fingerprinting_shim.test.js`,
+      `test/js/helpers/load_shim.js`, and `test/js_fixtures/README.md`.
+      The Tier 3 harness already exists and runs under Puppeteer +
+      FingerprintJS; the leftover "follow-up tier" comments predate it.
+
+## 7. Verification
+
+- [ ] 7.1 `fvm flutter test test/anti_fingerprinting_shim_test.dart test/launch_nonce_test.dart test/js_fixtures_drift_test.dart`
+- [ ] 7.2 `npm run test:browser -- test/browser/fingerprint_real_engine.test.js`
+- [ ] 7.3 `fvm flutter analyze` (no new issues from changed files)

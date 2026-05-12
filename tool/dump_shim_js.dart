@@ -109,6 +109,24 @@ Map<String, String> buildAllFixtures() {
   fixtures['anti_fingerprinting/shim_seed_beta.js'] =
       buildAntiFingerprintingShim('beta-fixture-seed');
 
+  // Issue #327 / ETP-019: two simulated incognito launches under the
+  // SAME siteId but DIFFERENT process-lifetime nonces. The real-engine
+  // tier asserts FingerprintJS sees distinct canvas/WebGL/audio
+  // signatures across these, proving the per-launch reroll lands at
+  // an off-the-shelf fingerprinter (not just at our own Dart probes).
+  fixtures['anti_fingerprinting/shim_seed_alpha_launch_one.js'] =
+      buildAntiFingerprintingShim(computeAntiFingerprintingSeed(
+    siteId: 'alpha-fixture-seed',
+    incognito: true,
+    launchNonce: 'nonce-launch-one',
+  ));
+  fixtures['anti_fingerprinting/shim_seed_alpha_launch_two.js'] =
+      buildAntiFingerprintingShim(computeAntiFingerprintingSeed(
+    siteId: 'alpha-fixture-seed',
+    incognito: true,
+    launchNonce: 'nonce-launch-two',
+  ));
+
   fixtures['language/en.js'] = buildLanguageShim('en');
   fixtures['language/fr_FR.js'] = buildLanguageShim('fr-FR');
   fixtures['language/ja.js'] = buildLanguageShim('ja');
