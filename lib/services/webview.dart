@@ -486,6 +486,11 @@ class WebViewConfig {
   /// if the polygon dataset is absent or the lookup misses, this falls
   /// through to no-timezone-spoof.
   final bool spoofTimezoneFromLocation;
+  /// Granularity of the fix reported to the page in [LocationMode.live].
+  /// Fine (default) reveals the real device coordinates; coarse snaps
+  /// to a ~1.1 km grid and inflates accuracy. Ignored when
+  /// [locationMode] is not [LocationMode.live].
+  final LocationGranularity liveLocationGranularity;
   /// WebRTC policy — prevents real-IP leak that bypasses HTTP(S)/SOCKS proxies.
   final WebRtcPolicy webRtcPolicy;
   /// Per-site proxy. Carried into:
@@ -541,6 +546,7 @@ class WebViewConfig {
     this.spoofAccuracy = 50.0,
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
+    this.liveLocationGranularity = LocationGranularity.fine,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.proxySettings,
     this.notificationsEnabled = false,
@@ -1403,6 +1409,7 @@ class WebViewFactory {
       spoofLongitude: config.spoofLongitude,
       spoofAccuracy: config.spoofAccuracy,
       spoofTimezone: effectiveSpoofTimezone,
+      liveLocationGranularity: config.liveLocationGranularity,
       webRtcPolicy: config.webRtcPolicy,
     );
     if (locationShim != null) {

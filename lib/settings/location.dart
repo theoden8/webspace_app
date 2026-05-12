@@ -10,6 +10,28 @@
 ///   change as the device moves.
 enum LocationMode { off, spoof, live }
 
+/// Granularity of the fix surfaced by [LocationMode.live]. The platform
+/// always hands back the highest-precision fix it has (the OS-level
+/// fine/coarse permission split is for native callers, not the WebView).
+/// This enum controls what the JS shim reveals to the page after the fact:
+///
+/// - [fine]: the real device coordinates and accuracy, jittered by ~2 m
+///   like the spoof path so `watchPosition` doesn't return byte-identical
+///   frames. Use when the site genuinely needs metre-level positioning
+///   (turn-by-turn navigation, hyper-local search, AR overlays).
+/// - [coarse]: lat/lng snapped to a ~1.1 km grid (0.01° in latitude,
+///   `0.01° / cos(lat)` in longitude so cells stay roughly square at
+///   higher latitudes) and the reported `accuracy` inflated to at least
+///   ~1100 m so the page knows the fix is approximate. Use when the site
+///   just needs the user's general area (regional weather, "find stores
+///   nearby", "drive on the highway" geofences). The grid is recomputed
+///   on every call, so a stationary device returns the same cell and a
+///   moving device crosses cell boundaries with the actual displacement.
+///
+/// Static [LocationMode.spoof] coordinates are user-supplied and not
+/// rounded — the user already chose the precision they want to expose.
+enum LocationGranularity { fine, coarse }
+
 /// Per-site WebRTC policy. HTTP(S)/SOCKS5 proxies only tunnel TCP — WebRTC
 /// UDP candidates leak the real client IP even with proxy enabled. This
 /// policy controls how the app neutralizes that leak.

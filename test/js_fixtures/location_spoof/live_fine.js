@@ -2,12 +2,12 @@
   if (window.__wsLocShimInstalled) return;
   window.__wsLocShimInstalled = true;
 
-  var STATIC_LOC = true;
-  var LIVE_LOC = false;
+  var STATIC_LOC = false;
+  var LIVE_LOC = true;
   var LIVE_COARSE = false;
-  var LAT = 35.6762;
-  var LNG = 139.6503;
-  var ACC = 25.0;
+  var LAT = 0.0;
+  var LNG = 0.0;
+  var ACC = 50.0;
   var TZ = null;
   var WRTC = "default";
 

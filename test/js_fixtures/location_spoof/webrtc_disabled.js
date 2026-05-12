@@ -4,11 +4,38 @@
 
   var STATIC_LOC = false;
   var LIVE_LOC = false;
+  var LIVE_COARSE = false;
   var LAT = 0.0;
   var LNG = 0.0;
   var ACC = 50.0;
   var TZ = null;
   var WRTC = "off";
+
+  // Grid cell size for coarse live location. 0.01 degrees latitude is
+  // ~1.11 km on the WGS-84 ellipsoid; the longitude step is divided by
+  // cos(lat) so cells stay roughly square as we approach the poles.
+  // Reported accuracy is inflated to the cell's diagonal half-extent so
+  // the page sees an honest "this is approximate" value — sites that
+  // refuse to use low-accuracy fixes will skip the call, which is the
+  // intended trade-off.
+  var COARSE_STEP_DEG = 0.01;
+  var COARSE_MIN_ACC_M = 1100;
+  function coarsenFix(lat, lng, acc) {
+    var latStep = COARSE_STEP_DEG;
+    var snappedLat = Math.round(lat / latStep) * latStep;
+    // Compute the longitude step from the SNAPPED latitude, not the raw
+    // one. If we used the raw lat, two adjacent fixes inside the same
+    // cell could produce slightly different lngStep values and re-snap
+    // to neighbouring grid columns — leaking the device's position
+    // within the cell. The snapped lat is constant per row, so all
+    // fixes that round into the same row share an identical lngStep.
+    // Guard against the polar singularity where cos(lat) -> 0.
+    var cosLat = Math.cos(snappedLat * Math.PI / 180);
+    var lngStep = latStep / Math.max(Math.abs(cosLat), 1e-6);
+    var snappedLng = Math.round(lng / lngStep) * lngStep;
+    var inflated = Math.max(acc || 0, COARSE_MIN_ACC_M);
+    return { lat: snappedLat, lng: snappedLng, acc: inflated };
+  }
 
   // --- Function.prototype.toString hardening ---
   // Keyed by WeakMap so overridden functions stringify as native. Patched
@@ -89,10 +116,20 @@
     // {error, payload}. The handler is registered Dart-side only when the
     // mode is `live`; if it's missing here we still defensively fail
     // closed so a legacy/no-handler page doesn't hang forever.
+    //
+    // When LIVE_COARSE is true, the platform fix is snapped to a ~1.1 km
+    // grid before being handed to makePositionFrom — sub-meter jitter
+    // applied below sits well inside the grid cell so the page can't
+    // distinguish a stationary device from one moving a few metres, but
+    // watchPosition still doesn't return byte-identical frames.
     function getLiveFix() {
       if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
         return window.flutter_inappwebview.callHandler('getRealLocation').then(function(res) {
           if (res && res.status === 'ok') {
+            if (LIVE_COARSE) {
+              var c = coarsenFix(res.latitude, res.longitude, res.accuracy);
+              return { ok: true, lat: c.lat, lng: c.lng, acc: c.acc };
+            }
             return { ok: true, lat: res.latitude, lng: res.longitude, acc: res.accuracy };
           }
           return { ok: false, payload: res };

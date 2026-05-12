@@ -114,7 +114,16 @@ The spoof SHALL resist trivial detection by:
 
 When `locationMode = live`, the JS shim SHALL forward `navigator.geolocation.getCurrentPosition` and `navigator.geolocation.watchPosition` calls to the platform's native location service via a `flutter_inappwebview` JavaScript handler named `getRealLocation`. Each call returns a fresh fix; coordinates change as the device moves. The same shim hardening as `spoof` mode applies (prototype overrides, toString native reporting, Permissions API → granted).
 
-The shim variable controlling the static-coordinates path SHALL be named `STATIC_LOC` (not `SPOOF_LOC`) for clarity, since both `spoof` and `live` are technically "spoofs" of `navigator.geolocation` — `STATIC_LOC` specifically gates the path that returns hardcoded coords.
+The shape of the fix surfaced to the page in live mode is controlled by a per-site `liveLocationGranularity` field with two values:
+
+- `fine` (default): the real device coordinates and accuracy, jittered by ~2 m like the spoof path. Use when the site genuinely needs metre-level positioning.
+- `coarse`: the platform fix is snapped to a ~1.1 km grid before being handed to the page — latitude rounds to the nearest `0.01°`, longitude rounds to the nearest `0.01° / cos(snappedLat)` so cells stay roughly square at higher latitudes, and the reported `accuracy` is inflated to at least 1100 m (or the platform-reported accuracy, whichever is larger — a NETWORK-only 5 km fix must not be silently sharpened by coarse mode). The longitude step is derived from the snapped (not raw) latitude so two fixes that round into the same cell row share an identical step and re-snap to the same column.
+
+This is a privacy-only override applied *after* the platform fix is obtained; the OS-level fine/coarse permission split is independent. Granularity is `fine` by default for backwards compatibility — existing sites that read live location keep their metre-level precision until the user opts into coarse for that site.
+
+`liveLocationGranularity` SHALL round-trip through `WebViewModel.toJson` / `fromJson`. The default `fine` value SHALL be omitted from JSON so on-disk and QR-payload sizes stay byte-stable for users who never opt into coarse. Older backups predating the field SHALL rehydrate as `fine`.
+
+The shim variable controlling the static-coordinates path SHALL be named `STATIC_LOC` (not `SPOOF_LOC`) for clarity, since both `spoof` and `live` are technically "spoofs" of `navigator.geolocation` — `STATIC_LOC` specifically gates the path that returns hardcoded coords. The shim variable gating coarse live granularity SHALL be named `LIVE_COARSE`.
 
 The Dart-side handler for `getRealLocation` SHALL be registered in `webview.dart`'s `onWebViewCreated` only when `config.locationMode == LocationMode.live`. The handler delegates to `CurrentLocationService.getCurrentLocation()` (Android `LocationManager` / iOS `CLLocationManager`, no Google Play Services). The platform permission prompt fires the first time the page actually calls `getCurrentPosition` — not at app launch, not at site activation.
 
@@ -147,6 +156,37 @@ The Dart-side handler for `getRealLocation` SHALL be registered in `webview.dart
 **When** the site reads `Intl.DateTimeFormat().resolvedOptions().timeZone` and constructs a new `RTCPeerConnection`
 **Then** `Intl` reports `'Asia/Tokyo'` (the timezone override is unaffected by live mode)
 **And** `RTCPeerConnection` is neutered per the policy
+
+#### Scenario: Fine granularity preserves platform precision
+
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = fine`
+**And** the platform fix is `(35.6762, 139.6503)` with accuracy 12 m
+**When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
+**Then** `cb` is invoked with `coords.latitude ≈ 35.6762`, `coords.longitude ≈ 139.6503` (within ~2 m of sub-meter jitter)
+**And** `coords.accuracy == 12` (the platform-reported value, unchanged)
+
+#### Scenario: Coarse granularity snaps to a ~1.1 km grid
+
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = coarse`
+**And** the platform fix is `(35.6762, 139.6503)` with accuracy 12 m
+**When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
+**Then** `cb` is invoked with coords snapped so `coords.latitude` rounds to a multiple of `0.01°` and `coords.longitude` rounds to a multiple of `0.01° / cos(snappedLat)` (each modulo the ~2 m jitter applied on top)
+**And** `coords.accuracy >= 1100` (inflated to reflect the grid extent)
+
+#### Scenario: Coarse granularity does not sharpen an already-coarse fix
+
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = coarse`
+**And** the platform fix is `(35.6762, 139.6503)` with accuracy 5000 m (NETWORK provider)
+**When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
+**Then** `coords.accuracy == 5000` (the coarse path uses `max(real, 1100)`, never sharpens a less-accurate fix)
+
+#### Scenario: Coarse granularity hides sub-cell movement
+
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = coarse`
+**And** two consecutive platform fixes 100 m apart inside the same grid cell
+**When** the site calls `watchPosition(cb)` and receives both fixes
+**Then** the two reported `(latitude, longitude)` values are within sub-meter jitter of each other
+**And** the cell row's longitude step is derived from the snapped latitude (not the raw one), so two neighbouring real latitudes that round into the same row never produce different snapped longitudes for the same cell
 
 ---
 
@@ -388,7 +428,7 @@ This is a manual user action that fills inputs the user can still edit. It does 
 
 ### Requirement: LOC-007 - Settings apply to nested webviews
 
-Every per-site field on `WebViewModel` that controls privacy behavior (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, `spoofTimezone`, `spoofTimezoneFromLocation`, `webRtcPolicy`) SHALL propagate to every `InAppWebViewScreen` spawned by cross-domain navigation from the parent site via `launchUrl` in `lib/main.dart`. The JS shim SHALL be injected into cross-origin iframes as well as the top frame by setting `forMainFrameOnly: false` on the `inapp.UserScript`.
+Every per-site field on `WebViewModel` that controls privacy behavior (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, `spoofTimezone`, `spoofTimezoneFromLocation`, `liveLocationGranularity`, `webRtcPolicy`) SHALL propagate to every `InAppWebViewScreen` spawned by cross-domain navigation from the parent site via `launchUrl` in `lib/main.dart`. The JS shim SHALL be injected into cross-origin iframes as well as the top frame by setting `forMainFrameOnly: false` on the `inapp.UserScript`.
 
 When the parent's mode is `live`, nested webviews SHALL inherit the live behavior — including the `getRealLocation` JS handler registration in `webview.dart`'s `onWebViewCreated` — so that a nested browser opened from the parent site continues to read fresh device coords through the shim, not platform-default geolocation.
 
