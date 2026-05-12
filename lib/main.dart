@@ -4886,6 +4886,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final isCustomWebspace = _selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId;
     final filteredIndices = _getFilteredSiteIndices();
     final listIndex = filteredIndices.indexOf(index);
+    final isArchiveSite =
+        index >= 0 && index < _webViewModels.length && _webViewModels[index].isArchiveTier;
 
     showMenu<String>(
       context: context,
@@ -4898,10 +4900,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           PopupMenuItem(value: 'move_up', child: ListTile(leading: Icon(Icons.arrow_upward), title: Text('Move Up'), dense: true, visualDensity: VisualDensity.compact)),
         if (isCustomWebspace && listIndex >= 0 && listIndex < filteredIndices.length - 1)
           PopupMenuItem(value: 'move_down', child: ListTile(leading: Icon(Icons.arrow_downward), title: Text('Move Down'), dense: true, visualDensity: VisualDensity.compact)),
+        if (isArchiveSite)
+          PopupMenuItem(value: 'close_archive', child: ListTile(leading: Icon(Icons.lock_outline), title: Text('Close archive'), dense: true, visualDensity: VisualDensity.compact)),
       ],
     ).then((value) async {
       if (value == null) return;
       switch (value) {
+        case 'close_archive':
+          final siteId = index < _webViewModels.length
+              ? _webViewModels[index].siteId
+              : null;
+          if (siteId == null) return;
+          final handle = _archiveSlices.entries
+              .where((e) => e.value.siteIds.contains(siteId))
+              .map((e) => e.key)
+              .firstOrNull;
+          if (handle == null) return;
+          await _closeArchive(handle);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Archive closed')),
+          );
+          break;
         case 'refresh':
           final url = _webViewModels[index].initUrl;
           await FaviconUrlCache.invalidate(url);
