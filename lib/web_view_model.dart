@@ -655,6 +655,7 @@ class WebViewModel {
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
           siteId: siteId,
+          archiveContainerId: archiveContainerId,
           initialUrl: currentUrl,
           javascriptEnabled: javascriptEnabled,
           userAgent: userAgent.isNotEmpty ? userAgent : null,
@@ -1264,6 +1265,14 @@ class WebViewModel {
   /// webview rebuild, so the IndexedStack repaint and the
   /// `restoreState` call land in the same render cycle.
   Uint8List? _pendingRestoreState;
+
+  /// Opaque per-site container identifier for archive-tier sites
+  /// (ARCH-007). Format mirrors [siteId] (radix-36-dash-radix-36) so a
+  /// listing of the on-disk container directory shows uniform-looking
+  /// names; the value itself is HMAC-derived from the archive key and
+  /// the original siteId. Null for app-tier sites — the normal
+  /// `ws-<siteId>` naming continues.
+  String? archiveContainerId;
 
   /// Cookies queued by the archive open flow to be pushed into the
   /// per-site container as soon as the WebView controller exists.

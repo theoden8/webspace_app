@@ -391,6 +391,14 @@ class WebViewConfig {
   final Key? key;
   /// Site ID for per-site DNS statistics tracking.
   final String? siteId;
+  /// Archive-tier opaque container identifier (ARCH-007). When set,
+  /// substitutes for [siteId] in the on-disk container name so a
+  /// directory listing under
+  /// `<XDG_DATA_HOME>/flutter_inappwebview/containers/` or the
+  /// OS-managed equivalents does not enumerate the cleartext archive
+  /// siteIds. Cookies, DNS stats, and other in-app per-site bookkeeping
+  /// continue to key off [siteId].
+  final String? archiveContainerId;
   final String initialUrl;
   final bool javascriptEnabled;
   final String? userAgent;
@@ -518,6 +526,7 @@ class WebViewConfig {
   WebViewConfig({
     this.key,
     this.siteId,
+    this.archiveContainerId,
     required this.initialUrl,
     this.javascriptEnabled = true,
     this.userAgent,
@@ -1946,9 +1955,15 @@ class WebViewFactory {
     // container before any session-bound op runs. `cachedSupported` is
     // already platform-aware (Windows / web fall through to the stub
     // which returns false); no extra Platform gate needed.
+    // Archive-tier sites (ARCH-007) pass an opaque
+    // [archiveContainerId] derived from `HMAC(archiveKey, "container:" +
+    // siteId)`, so directory listings under the native container roots
+    // expose neither the cleartext archive siteId nor a count delta
+    // that correlates 1:1 with archive contents.
+    final containerSiteIdentifier = config.archiveContainerId ?? config.siteId;
     final containerId = (ContainerNative.instance.cachedSupported &&
-            config.siteId != null)
-        ? 'ws-${config.siteId}'
+            containerSiteIdentifier != null)
+        ? 'ws-$containerSiteIdentifier'
         : null;
 
     // Per-site proxy delivery: only iOS 17+ / macOS 14+ honor the

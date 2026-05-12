@@ -38,6 +38,7 @@ import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/archive.dart';
+import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -811,9 +812,17 @@ class WebSpacePage extends StatefulWidget {
 /// handle, so closing one archive can remove exactly its rows from the
 /// parallel runtime collections without touching others.
 class _ArchiveSlice {
-  _ArchiveSlice({required this.siteIds, required this.webspaceIds});
+  _ArchiveSlice({
+    required this.siteIds,
+    required this.webspaceIds,
+    required this.containerIds,
+  });
   final Set<String> siteIds;
   final Set<String> webspaceIds;
+  /// Opaque container identifiers owned by this archive — passed to
+  /// `ContainerNative.deleteContainer` on close so archive-tier
+  /// container directories don't survive past the close call (ARCH-007).
+  final Set<String> containerIds;
 }
 
 class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver {
@@ -1847,8 +1856,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// sites never enter SharedPreferences. Webspaces inside the archive
   /// state are ignored in v1 — archive sites appear in the "All" view.
   /// Caller triggers setState.
-  void _materialiseArchive(ArchiveHandle handle) {
+  Future<void> _materialiseArchive(ArchiveHandle handle) async {
     final siteIds = <String>{};
+    final containerIds = <String>{};
     final stateSetter = () {
       if (mounted) setState(() {});
     };
@@ -1858,14 +1868,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         stateSetter,
         isArchiveTier: true,
       );
+      // ARCH-007 opaque container id: HMAC of the archive key + site id,
+      // truncated and reformatted to match the radix-36-dash-radix-36
+      // shape of an app-tier siteId so directory listings look uniform.
+      model.archiveContainerId =
+          await _deriveArchiveContainerId(handle.key, model.siteId);
+      containerIds.add(model.archiveContainerId!);
       final cookieList = handle.state.cookies[model.siteId];
       if (cookieList != null && cookieList.isNotEmpty) {
         final cookies = cookieList
             .map((c) => cookieFromJson(Map<String, dynamic>.from(c)))
             .toList();
-        // Both seeds in-Dart state (cookie-blocking machinery) and
-        // queues the cookies to be written into the per-site container
-        // on the next webview construction.
         model.setPendingArchiveCookies(cookies);
       }
       _webViewModels.add(model);
@@ -1874,7 +1887,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _archiveSlices[handle] = _ArchiveSlice(
       siteIds: siteIds,
       webspaceIds: const <String>{},
+      containerIds: containerIds,
     );
+  }
+
+  Future<String> _deriveArchiveContainerId(
+    Uint8List archiveKey,
+    String siteId,
+  ) async {
+    final mac = await ArchiveCrypto.hmac(archiveKey, 'container:$siteId');
+    final bd = ByteData.view(mac.buffer, mac.offsetInBytes);
+    final v1 =
+        (bd.getUint16(0) * 0x100000000) + bd.getUint32(2); // 48-bit group
+    final v2 = bd.getUint32(6);
+    return '${v1.toRadixString(36)}-${v2.toRadixString(36)}';
   }
 
   /// Opens an archive by passphrase. Returns the handle on success or
@@ -1934,6 +1960,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // orphan controllers.
     for (final m in ownedSites) {
       m.disposeWebView();
+    }
+    // ARCH-007: tear down per-site containers owned by this archive so
+    // their on-disk directories don't outlive the close. Best-effort —
+    // underlying filesystems may retain freed blocks.
+    for (final cid in slice.containerIds) {
+      await _containerIsolation.containerNative.deleteContainer(cid);
     }
     final removedSet = slice.siteIds;
     if (_currentIndex != null) {
