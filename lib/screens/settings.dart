@@ -582,12 +582,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Derive the active segment from current state. `Static` is selected
     // when there are coords AND we're not in live mode; `Live` is selected
     // when the live flag is on (regardless of whether stale coords linger
-    // — they're ignored on save in that branch). Tracking Protection
-    // disallows live (it leaks real GPS around the proxy and shim) and
-    // forces the segment to Off when no coords are picked.
-    final bool liveBlocked = _trackingProtectionEnabled;
+    // — they're ignored on save in that branch).
     final _LocationSegment selected = _isLiveLocation
-        ? (liveBlocked ? _LocationSegment.off : _LocationSegment.live)
+        ? _LocationSegment.live
         : (hasCoords ? _LocationSegment.staticCoords : _LocationSegment.off);
 
     void onSegmentChanged(Set<_LocationSegment> values) {
@@ -630,11 +627,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _LocationSegment.staticCoords,
             icon: Icon(Icons.map_outlined),
             label: Text('Static')),
-        ButtonSegment(
+        const ButtonSegment(
             value: _LocationSegment.live,
-            icon: const Icon(Icons.my_location),
-            label: const Text('Live'),
-            enabled: !liveBlocked),
+            icon: Icon(Icons.my_location),
+            label: Text('Live')),
       ],
       selected: {selected},
       onSelectionChanged: onSegmentChanged,
@@ -644,14 +640,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget detail;
     switch (selected) {
       case _LocationSegment.off:
-        detail = Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        detail = const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Text(
-            liveBlocked
-                ? 'Sites use the webview default (typically denied). '
-                    'Live tracking is blocked by Tracking Protection.'
-                : 'Sites use the webview default (typically denied).',
-            style: const TextStyle(fontSize: 12),
+            'Sites use the webview default (typically denied).',
+            style: TextStyle(fontSize: 12),
           ),
         );
         break;

@@ -149,15 +149,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
         trackingProtectionEnabled: widget.trackingProtectionEnabled,
         language: widget.language,
-        // Live geolocation leaks the device's real position around any
-        // proxy and through every spoof shim, so the umbrella demotes
-        // it to off; static spoof coords are kept and force the
-        // timezone to "From picked location". With no coords the
-        // umbrella leaves the timezone alone.
-        locationMode: widget.trackingProtectionEnabled &&
-                widget.locationMode == LocationMode.live
-            ? LocationMode.off
-            : widget.locationMode,
+        // Geolocation mode is independent of the umbrella. Static
+        // spoof coords still force the timezone to "From picked
+        // location" so Date/Intl match the spoofed geo. With no coords
+        // the umbrella leaves the timezone alone.
+        locationMode: widget.locationMode,
         spoofLatitude: widget.spoofLatitude,
         spoofLongitude: widget.spoofLongitude,
         spoofAccuracy: widget.spoofAccuracy,
