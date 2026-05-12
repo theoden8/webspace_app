@@ -482,11 +482,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             ),
           Expanded(child: _webView),
           if (_showUrlBar)
-            UrlBar(
-              currentUrl: _currentUrl,
-              onUrlSubmitted: (url) {
-                _controller?.loadUrl(url, language: widget.language);
-              },
+            SafeArea(
+              top: false,
+              child: UrlBar(
+                currentUrl: _currentUrl,
+                onUrlSubmitted: (url) {
+                  _controller?.loadUrl(url, language: widget.language);
+                },
+              ),
             ),
         ],
       ),
