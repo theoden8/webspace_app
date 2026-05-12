@@ -2,7 +2,7 @@
 
 ## Status
 
-In development. Foundation services have landed: `ArchiveCrypto`, `ArchiveKeyDerivation`, `WebspaceArchiveStorage`, and `WebspaceArchive` orchestrator, with unit tests covering KDF determinism, AEAD round-trip, slot-pool initialization, open/close lifecycle, and multi-archive concurrency. Runtime integration — `WebViewModel` archive-tier flag and override matrix (ARCH-006), `_WebSpacePageState` parallel collections, container lifecycle for archive-tier sites (ARCH-007), settings UI entry point (ARCH-008), background snapshot masking (ARCH-009), and the export/import opt-in tick (ARCH-010) — is deferred to follow-up work. The byte-identity invariant (ARCH-001) is preserved trivially in this state because the foundation services are not yet called from any app-tier code path; the regression test that asserts it is part of the runtime-integration follow-up.
+In development. Foundation services have landed: `ArchiveCrypto`, `ArchiveKeyDerivation`, `ArchiveStorage`, and `Archive` orchestrator, with unit tests covering KDF determinism, AEAD round-trip, slot-pool initialization, open/close lifecycle, and multi-archive concurrency. Runtime integration — `WebViewModel` archive-tier flag and override matrix (ARCH-006), `_WebSpacePageState` parallel collections, container lifecycle for archive-tier sites (ARCH-007), settings UI entry point (ARCH-008), background snapshot masking (ARCH-009), and the export/import opt-in tick (ARCH-010) — is deferred to follow-up work. The byte-identity invariant (ARCH-001) is preserved trivially in this state because the foundation services are not yet called from any app-tier code path; the regression test that asserts it is part of the runtime-integration follow-up.
 
 ## Purpose
 
@@ -72,7 +72,7 @@ The active app state SHALL be byte-identical regardless of whether the device ha
 
 **Given** an app process where no archive has been created and no passphrase has been entered
 **When** the app runs normally through startup, site activation, settings, export, import
-**Then** every code path that touches `WebspaceArchiveStorage` returns early as a no-op
+**Then** every code path that touches `ArchiveStorage` returns early as a no-op
 **And** no `flutter_secure_storage` write occurs that wouldn't have occurred on a build without the feature, except for the one-time slot-pool initialization on first launch
 
 ### Requirement: ARCH-002 — Passphrase-based key derivation
@@ -83,7 +83,7 @@ Archive keys SHALL be derived from the user's passphrase via Argon2id, determini
 
 **Given** the archive key derivation service
 **When** a key is derived from passphrase P
-**Then** the salt is `HKDF-SHA256(P, info: "webspace-archive-salt-v1", L: 16)`
+**Then** the salt is `HKDF-SHA256(P, info: "archive-salt-v1", L: 16)`
 **And** the key is `Argon2id(password: P, salt: salt, m: 64MiB, t: 3, p: 4, hashLen: 32)`
 **And** the derivation completes in roughly 0.5–2 seconds on target hardware
 **And** the parameters are constants in `ArchiveKeyDerivation`, not configurable at runtime
@@ -367,11 +367,11 @@ class ArchiveCrypto {
 
 ### Key derivation
 
-`lib/services/archive_key_derivation.dart` is a thin wrapper around `ArchiveCrypto.deriveSalt + deriveKey`. The salt domain string is the constant `"webspace-archive-salt-v1"`. Argon2id parameters: memory 64 MiB, time 3 iterations, parallelism 4, output 32 bytes. These constants are not user-configurable.
+`lib/services/archive_key_derivation.dart` is a thin wrapper around `ArchiveCrypto.deriveSalt + deriveKey`. The salt domain string is the constant `"archive-salt-v1"`. Argon2id parameters: memory 64 MiB, time 3 iterations, parallelism 4, output 32 bytes. These constants are not user-configurable.
 
 ### Slot pool
 
-`lib/services/webspace_archive_storage.dart` owns the K slots in `flutter_secure_storage`. Slot count `K = 16`. Slot size `S = 256 KiB` (covers a typical archive — webspace list + cookies for ~50 sites — with comfortable headroom; oversize archives currently fail at write time, surfacing as a "this archive is too large" error to the user). Slot entry names are `ws_slot_00 ... ws_slot_15` — fixed constants.
+`lib/services/archive_storage.dart` owns the K slots in `flutter_secure_storage`. Slot count `K = 16`. Slot size `S = 256 KiB` (covers a typical archive — webspace list + cookies for ~50 sites — with comfortable headroom; oversize archives currently fail at write time, surfacing as a "this archive is too large" error to the user). Slot entry names are `ws_slot_00 ... ws_slot_15` — fixed constants.
 
 Initialization on first launch writes `K` slots of `S` random bytes each. The check is idempotent: missing slots are filled; existing ones are not rewritten.
 
@@ -387,20 +387,20 @@ Write flow (create or update):
 
 ### Archive service
 
-`lib/services/webspace_archive.dart` is the orchestrator. Public API:
+`lib/services/archive.dart` is the orchestrator. Public API:
 
 ```dart
-class WebspaceArchive {
+class Archive {
   Future<OpenArchiveResult> open(String passphrase);
   Future<void> create(String passphrase, {String? initialWebspaceName});
-  Future<void> close(WebspaceArchiveHandle handle);
+  Future<void> close(ArchiveHandle handle);
   Future<void> closeAll();
-  Future<void> save(WebspaceArchiveHandle handle);
-  List<WebspaceArchiveHandle> get openArchives;
+  Future<void> save(ArchiveHandle handle);
+  List<ArchiveHandle> get openArchives;
 }
 ```
 
-`WebspaceArchiveHandle` is an opaque token containing the in-memory `MK_arch` (`Uint8List`), the slot index it was loaded from, and the archive's plaintext state. The handle owns the lifetime of the key: on close, `ArchiveCrypto.zeroize(key)` runs before the handle is discarded.
+`ArchiveHandle` is an opaque token containing the in-memory `MK_arch` (`Uint8List`), the slot index it was loaded from, and the archive's plaintext state. The handle owns the lifetime of the key: on close, `ArchiveCrypto.zeroize(key)` runs before the handle is discarded.
 
 ### Runtime integration
 
@@ -425,9 +425,9 @@ App-tier `CookieSecureStorage` behavior is unchanged.
 
 ### Settings UI
 
-The existing settings-backup section in `lib/screens/settings.dart` already exposes export and restore. The restore dialog grows a passphrase field and routes the entered passphrase through `WebspaceArchive.open`. If a backup file was also selected, the import proceeds for app-tier; if not, the passphrase is the only input and the archive open / create flow runs.
+The existing settings-backup section in `lib/screens/settings.dart` already exposes export and restore. The restore dialog grows a passphrase field and routes the entered passphrase through `Archive.open`. If a backup file was also selected, the import proceeds for app-tier; if not, the passphrase is the only input and the archive open / create flow runs.
 
-The per-webspace long-press menu adds "Close this archive" when the webspace's home model has `isArchiveTier == true`. The settings-backup section adds "Close all archives" when `WebspaceArchive.openArchives.isNotEmpty`.
+The per-webspace long-press menu adds "Close this archive" when the webspace's home model has `isArchiveTier == true`. The settings-backup section adds "Close all archives" when `Archive.openArchives.isNotEmpty`.
 
 ### Background snapshot
 
@@ -437,7 +437,7 @@ The per-webspace long-press menu adds "Close this archive" when the webspace's h
 
 ### Active state neutrality
 
-`test/webspace_archive_neutrality_test.dart` runs the following with an injected `FakeFlutterSecureStorage` + `MemoryWebspaceArchiveStorage`:
+`test/archive_neutrality_test.dart` runs the following with an injected `FakeFlutterSecureStorage` + `MemoryArchiveStorage`:
 
 - Initial SharedPreferences snapshot vs post-archive-cycle snapshot — assert byte-equal.
 - `_webViewModels` length, `_loadedIndices`, `_selectedWebspaceId` before / after archive ops — assert equal.
@@ -457,7 +457,7 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 
 ### Slot pool
 
-`test/webspace_archive_storage_test.dart`:
+`test/archive_storage_test.dart`:
 
 - First-launch initialization writes K slots of S bytes each.
 - Trial-decrypt scans all slots and returns the right one.
@@ -467,7 +467,7 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 
 ### Lifecycle
 
-`test/webspace_archive_test.dart`:
+`test/archive_test.dart`:
 
 - Open / close cycle leaves `MK_arch` zeroized.
 - Multiple archives open concurrently; closing one preserves the other.
@@ -486,13 +486,13 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 
 - `lib/services/archive_crypto.dart` — Argon2id / HKDF / HMAC / AES-GCM wrappers
 - `lib/services/archive_key_derivation.dart` — passphrase → `MK_arch` derivation
-- `lib/services/webspace_archive_storage.dart` — fixed slot pool
-- `lib/services/webspace_archive.dart` — orchestrator (open / create / close)
+- `lib/services/archive_storage.dart` — fixed slot pool
+- `lib/services/archive.dart` — orchestrator (open / create / close)
 - `test/archive_crypto_test.dart`
-- `test/webspace_archive_storage_test.dart`
-- `test/webspace_archive_test.dart`
-- `test/webspace_archive_neutrality_test.dart`
-- `openspec/specs/webspace-archive/spec.md` — this specification
+- `test/archive_storage_test.dart`
+- `test/archive_test.dart`
+- `test/archive_neutrality_test.dart`
+- `openspec/specs/archive/spec.md` — this specification
 
 ### Modified
 

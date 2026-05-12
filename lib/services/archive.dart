@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'archive_crypto.dart';
 import 'archive_key_derivation.dart';
-import 'webspace_archive_storage.dart';
+import 'archive_storage.dart';
 
 const int kArchiveStateVersion = 1;
 
@@ -69,8 +69,8 @@ class ArchiveState {
   }
 }
 
-class WebspaceArchiveHandle {
-  WebspaceArchiveHandle._({
+class ArchiveHandle {
+  ArchiveHandle._({
     required Uint8List key,
     required this.slotIndex,
     required this.state,
@@ -98,24 +98,24 @@ class WebspaceArchiveHandle {
   }
 }
 
-class WebspaceArchive {
-  WebspaceArchive({WebspaceArchiveStorage? storage})
-      : _storage = storage ?? WebspaceArchiveStorage();
+class Archive {
+  Archive({ArchiveStorage? storage})
+      : _storage = storage ?? ArchiveStorage();
 
-  final WebspaceArchiveStorage _storage;
-  final List<WebspaceArchiveHandle> _openHandles = <WebspaceArchiveHandle>[];
+  final ArchiveStorage _storage;
+  final List<ArchiveHandle> _openHandles = <ArchiveHandle>[];
 
-  List<WebspaceArchiveHandle> get openArchives =>
-      List<WebspaceArchiveHandle>.unmodifiable(_openHandles);
+  List<ArchiveHandle> get openArchives =>
+      List<ArchiveHandle>.unmodifiable(_openHandles);
 
   Future<void> ensureInitialized() => _storage.ensureInitialized();
 
-  Future<WebspaceArchiveHandle?> tryOpen(String passphrase) async {
+  Future<ArchiveHandle?> tryOpen(String passphrase) async {
     final key = await ArchiveKeyDerivation.derive(passphrase);
     return tryOpenWithKey(key);
   }
 
-  Future<WebspaceArchiveHandle?> tryOpenWithKey(Uint8List key) async {
+  Future<ArchiveHandle?> tryOpenWithKey(Uint8List key) async {
     await ensureInitialized();
     final match = await _scanSlots(key);
     if (match == null) {
@@ -127,7 +127,7 @@ class WebspaceArchive {
       ArchiveCrypto.zeroize(key);
       return existing;
     }
-    final handle = WebspaceArchiveHandle._(
+    final handle = ArchiveHandle._(
       key: key,
       slotIndex: match.slotIndex,
       state: ArchiveState.fromJson(
@@ -138,12 +138,12 @@ class WebspaceArchive {
     return handle;
   }
 
-  Future<WebspaceArchiveHandle> create(String passphrase) async {
+  Future<ArchiveHandle> create(String passphrase) async {
     final key = await ArchiveKeyDerivation.derive(passphrase);
     return createWithKey(key);
   }
 
-  Future<WebspaceArchiveHandle> createWithKey(Uint8List key) async {
+  Future<ArchiveHandle> createWithKey(Uint8List key) async {
     await ensureInitialized();
     final claimed = <int>{for (final h in _openHandles) h.slotIndex};
     final scan = await _scanSlots(key);
@@ -154,7 +154,7 @@ class WebspaceArchive {
       );
     }
     final slotIndex = _storage.pickRandomUnclaimedSlot(claimed);
-    final handle = WebspaceArchiveHandle._(
+    final handle = ArchiveHandle._(
       key: key,
       slotIndex: slotIndex,
       state: ArchiveState(),
@@ -164,7 +164,7 @@ class WebspaceArchive {
     return handle;
   }
 
-  Future<void> save(WebspaceArchiveHandle handle) async {
+  Future<void> save(ArchiveHandle handle) async {
     if (handle.isClosed) {
       throw StateError('cannot save a closed archive handle');
     }
@@ -174,7 +174,7 @@ class WebspaceArchive {
     await _persist(handle);
   }
 
-  Future<void> close(WebspaceArchiveHandle handle) async {
+  Future<void> close(ArchiveHandle handle) async {
     if (handle.isClosed) return;
     if (_openHandles.contains(handle)) {
       await _persist(handle);
@@ -195,7 +195,7 @@ class WebspaceArchive {
       final padded = await ArchiveCrypto.open(
         key,
         slots[i],
-        aad: WebspaceArchiveStorage.aadForSlot(i),
+        aad: ArchiveStorage.aadForSlot(i),
       );
       if (padded == null) continue;
       if (padded.length != kArchiveSlotPlaintextSize) continue;
@@ -212,14 +212,14 @@ class WebspaceArchive {
     return null;
   }
 
-  WebspaceArchiveHandle? _findOpenBySlot(int slotIndex) {
+  ArchiveHandle? _findOpenBySlot(int slotIndex) {
     for (final h in _openHandles) {
       if (h.slotIndex == slotIndex) return h;
     }
     return null;
   }
 
-  Future<void> _persist(WebspaceArchiveHandle handle) async {
+  Future<void> _persist(ArchiveHandle handle) async {
     final payload =
         Uint8List.fromList(utf8.encode(jsonEncode(handle.state.toJson())));
     if (payload.length > kArchiveSlotMaxPayload) {
@@ -240,7 +240,7 @@ class WebspaceArchive {
     final wire = await ArchiveCrypto.seal(
       handle.key,
       padded,
-      aad: WebspaceArchiveStorage.aadForSlot(handle.slotIndex),
+      aad: ArchiveStorage.aadForSlot(handle.slotIndex),
     );
     await _storage.writeSlot(handle.slotIndex, wire);
   }

@@ -1,15 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/webspace_archive_storage.dart';
+import 'package:webspace/services/archive_storage.dart';
 
 import 'helpers/mock_secure_storage.dart';
 
 void main() {
-  group('WebspaceArchiveStorage.ensureInitialized', () {
+  group('ArchiveStorage.ensureInitialized', () {
     test('writes K slots of S bytes each on fresh storage', () async {
       final secureStorage = MockFlutterSecureStorage();
-      final storage = WebspaceArchiveStorage(secureStorage: secureStorage);
+      final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       expect(secureStorage.storage.length, equals(kArchiveSlotCount));
       for (var i = 0; i < kArchiveSlotCount; i++) {
@@ -25,11 +25,11 @@ void main() {
 
     test('does not overwrite existing slots on subsequent calls', () async {
       final secureStorage = MockFlutterSecureStorage();
-      final storage = WebspaceArchiveStorage(secureStorage: secureStorage);
+      final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       final firstRead = await storage.readSlot(3);
       // Fresh instance pointed at the same backing storage.
-      final reopened = WebspaceArchiveStorage(secureStorage: secureStorage);
+      final reopened = ArchiveStorage(secureStorage: secureStorage);
       await reopened.ensureInitialized();
       final secondRead = await reopened.readSlot(3);
       expect(firstRead, equals(secondRead));
@@ -39,17 +39,17 @@ void main() {
       final secureStorage = MockFlutterSecureStorage();
       // Pre-populate slot 5 with a known value.
       await secureStorage.write(key: 'archive_slot_05', value: 'preexisting');
-      final storage = WebspaceArchiveStorage(secureStorage: secureStorage);
+      final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       expect(secureStorage.storage['archive_slot_05'], equals('preexisting'));
       expect(secureStorage.storage.length, equals(kArchiveSlotCount));
     });
   });
 
-  group('WebspaceArchiveStorage.writeSlot', () {
+  group('ArchiveStorage.writeSlot', () {
     test('writes exact-size bytes and reads them back', () async {
       final secureStorage = MockFlutterSecureStorage();
-      final storage = WebspaceArchiveStorage(secureStorage: secureStorage);
+      final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       final bytes =
           Uint8List.fromList(List<int>.generate(kArchiveSlotSize, (i) => i & 0xff));
@@ -60,7 +60,7 @@ void main() {
 
     test('rejects payloads not equal to slot size', () async {
       final secureStorage = MockFlutterSecureStorage();
-      final storage = WebspaceArchiveStorage(secureStorage: secureStorage);
+      final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       expect(
         () async => storage.writeSlot(0, Uint8List(kArchiveSlotSize - 1)),
@@ -74,7 +74,7 @@ void main() {
 
     test('rejects out-of-range slot index', () async {
       final secureStorage = MockFlutterSecureStorage();
-      final storage = WebspaceArchiveStorage(secureStorage: secureStorage);
+      final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       expect(
         () async => storage.writeSlot(kArchiveSlotCount, Uint8List(kArchiveSlotSize)),
@@ -87,11 +87,11 @@ void main() {
     });
   });
 
-  group('WebspaceArchiveStorage.aadForSlot', () {
+  group('ArchiveStorage.aadForSlot', () {
     test('produces distinct AAD per slot', () {
       final seen = <List<int>>{};
       for (var i = 0; i < kArchiveSlotCount; i++) {
-        final aad = WebspaceArchiveStorage.aadForSlot(i);
+        final aad = ArchiveStorage.aadForSlot(i);
         expect(aad.length, equals(4));
         seen.add(aad.toList());
       }
@@ -99,14 +99,14 @@ void main() {
     });
 
     test('encodes slot index in big-endian uint32', () {
-      final aad = WebspaceArchiveStorage.aadForSlot(259);
+      final aad = ArchiveStorage.aadForSlot(259);
       expect(aad, equals(Uint8List.fromList([0, 0, 1, 3])));
     });
   });
 
-  group('WebspaceArchiveStorage.pickRandomUnclaimedSlot', () {
+  group('ArchiveStorage.pickRandomUnclaimedSlot', () {
     test('returns a slot not in the claimed set', () async {
-      final storage = WebspaceArchiveStorage(
+      final storage = ArchiveStorage(
         secureStorage: MockFlutterSecureStorage(),
       );
       final claimed = <int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
@@ -115,7 +115,7 @@ void main() {
     });
 
     test('throws when all slots are claimed', () async {
-      final storage = WebspaceArchiveStorage(
+      final storage = ArchiveStorage(
         secureStorage: MockFlutterSecureStorage(),
       );
       final claimed = {for (var i = 0; i < kArchiveSlotCount; i++) i};
