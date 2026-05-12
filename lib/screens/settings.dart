@@ -1113,7 +1113,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'screen dimensions, hardware concurrency, plugins, battery, '
                       'speech voices, high-resolution timers, and bounding-box '
                       'measurements. The fingerprint stays stable per site across '
-                      'launches but differs between sites and between users.',
+                      'launches but differs between sites and between users. '
+                      'When Incognito is also enabled for this site, the '
+                      'fingerprint is rerolled on every app launch so the '
+                      'site cannot re-identify you across cold restarts.',
                 ),
               ],
             ),
