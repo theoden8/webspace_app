@@ -1923,6 +1923,99 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
+  /// Settings-screen entry point: prompts for a passphrase, then attempts
+  /// to open a matching archive. If none matches, asks the user whether
+  /// to create a new archive with that passphrase. Snackbars report the
+  /// result without revealing existence of other archives.
+  Future<void> _promptRestoreArchive() async {
+    final passphrase = await _showPassphraseDialog(
+      title: 'Restore archive',
+      hint: 'Passphrase',
+      submitLabel: 'Open',
+    );
+    if (passphrase == null || passphrase.isEmpty) return;
+    if (!mounted) return;
+    try {
+      final handle = await _openArchive(passphrase);
+      if (handle != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Archive opened (${handle.state.sites.length} sites, '
+              '${handle.state.webspaces.length} webspaces)',
+            ),
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+      final shouldCreate = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No matching archive'),
+          content: const Text(
+            'No archive exists for this passphrase. '
+            'Create a new archive with it?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+      if (shouldCreate != true) return;
+      await _createArchive(passphrase);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('New archive created')),
+      );
+    } on StateError catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open: ${e.message}')),
+      );
+    }
+  }
+
+  Future<String?> _showPassphraseDialog({
+    required String title,
+    required String hint,
+    required String submitLabel,
+  }) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            obscureText: true,
+            decoration: InputDecoration(hintText: hint),
+            onSubmitted: (value) => Navigator.pop(ctx, value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: Text(submitLabel),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// HS-007: push the current site list to the iOS App Intents picker so
   /// renames / additions / deletions show up in Shortcuts.app the next time
   /// the user touches it. No-op on non-iOS platforms.
@@ -3993,6 +4086,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     },
                     onExportSettings: _exportSettings,
                     onImportSettings: _importSettings,
+                    onRestoreArchive: _promptRestoreArchive,
+                    hasOpenArchives: _archiveSlices.isNotEmpty,
+                    onCloseAllArchives: () async {
+                      await _closeAllArchives();
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Archives closed'),
+                        ),
+                      );
+                    },
                     showTabStrip: _showTabStrip,
                     onShowTabStripChanged: (value) {
                       setState(() {
