@@ -2,7 +2,45 @@
 
 ## Status
 
-In development. Foundation services have landed: `ArchiveCrypto`, `ArchiveKeyDerivation`, `ArchiveStorage`, and `Archive` orchestrator, with unit tests covering KDF determinism, AEAD round-trip, slot-pool initialization, open/close lifecycle, and multi-archive concurrency. Runtime integration — `WebViewModel` archive-tier flag and override matrix (ARCH-006), `_WebSpacePageState` parallel collections, container lifecycle for archive-tier sites (ARCH-007), settings UI entry point (ARCH-008), background snapshot masking (ARCH-009), and the export/import opt-in tick (ARCH-010) — is deferred to follow-up work. The byte-identity invariant (ARCH-001) is preserved trivially in this state because the foundation services are not yet called from any app-tier code path; the regression test that asserts it is part of the runtime-integration follow-up.
+Implemented; manual hardware validation pending. All requirements
+ARCH-001 through ARCH-009 are wired end-to-end:
+
+- **ARCH-001 (active-state neutrality):** enforced by filtering on
+  `WebViewModel.isArchiveTier` in `_saveWebViewModels`,
+  `_syncShortcutSites`, and `_exportSettings`. Regression tests in
+  `test/archive_neutrality_test.dart`.
+- **ARCH-002 (passphrase KDF):** `ArchiveCrypto.deriveSalt` (HKDF) +
+  `deriveKey` (Argon2id 64 MiB / t=3 / p=4 / 32 bytes).
+- **ARCH-003 (fixed slot pool):** 16 slots × 128 KiB each in
+  `flutter_secure_storage`; slot bytes = full AEAD wire size with
+  length-prefixed plaintext padding.
+- **ARCH-004 (open/close lifecycle):** `_openArchive` / `_createArchive`
+  / `_closeArchive` / `_closeAllArchives` on `_WebSpacePageState`.
+  In-memory key only; zeroed on close.
+- **ARCH-005 (multi-archive concurrency):** per-handle slices in
+  `_archiveSlices`; closing one leaves the others intact.
+- **ARCH-006 (per-site override matrix):** `effectiveNotificationsEnabled`
+  / `effectiveLocalCdnEnabled` getters; home-shortcut menu hides for
+  archive-tier sites; persistence and iOS App Intents shortcut sync
+  filter on `isArchiveTier`.
+- **ARCH-007 (opaque container ids):** HMAC-derived
+  `archiveContainerId` plumbed through `WebViewConfig`; teardown on
+  close via `ContainerNative.deleteContainer`.
+- **ARCH-008 (settings entry point):** Restore archive / Close all
+  archives tiles in the Data section of `AppSettingsScreen`; per-site
+  "Close archive" item in the site context menu.
+- **ARCH-009 (background snapshot mask):** `_maskBackground` overlay
+  paints over the running tree on `inactive` / `paused` / `hidden` when
+  at least one archive is open.
+
+**Deferred from v1:**
+
+- **ARCH-010 (export tick):** exports remain app-tier-only with no
+  opt-in switch. Adding the tick later is additive and won't break the
+  existing on-device invariant.
+- **Archive-tier webspaces** — sites inside an open archive appear in
+  the "All" view alongside app-tier sites; named-archive-webspace
+  support is a follow-up.
 
 ## Purpose
 
