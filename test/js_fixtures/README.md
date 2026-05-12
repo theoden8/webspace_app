@@ -43,8 +43,10 @@ date — useful in pre-commit hooks.
   constructors replaced, getters defined, properties set — not against
   real-engine behaviour.
 - For end-to-end privacy proofing (does the shim actually hide what
-  fingerprinters see?), a Tier 2 setup using Playwright + an open-source
-  detector like [CreepJS](https://github.com/abrahamjuliot/creepjs) or
+  fingerprinters see?), the Tier 3 harness under `test/browser/` loads
+  these fixtures into headless Chromium via Puppeteer and runs
   [fingerprintjs/fingerprintjs](https://github.com/fingerprintjs/fingerprintjs)
-  is the natural follow-up. That tier hasn't been built yet; the jsdom
-  tests here only prove the patches install correctly.
+  against them — see `test/browser/fingerprint_real_engine.test.js`.
+  CreepJS-style lie-detection probes (toString leaks, own-property
+  leaks, iframe-prototype escape) live in
+  `test/browser/lie_detection.test.js`.

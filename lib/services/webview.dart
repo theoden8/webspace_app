@@ -11,6 +11,7 @@ import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
+import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -1326,10 +1327,22 @@ class WebViewFactory {
     // sees a stable fingerprint across launches but different sites see
     // different ones. Must run before site scripts capture the unpatched
     // references and must reach iframes.
-    if (config.trackingProtectionEnabled && config.siteId != null) {
+    //
+    // Incognito carve-out (issue #327, ETP-019): when the site is incognito
+    // the seed mixes in `LaunchNonce.value` so the fingerprint randomizes
+    // across cold restarts. Within one process the nonce is constant, so
+    // every iframe / nested webview / tab switch in the same launch sees
+    // the same fingerprint.
+    final antiFpSource = buildAntiFingerprintingScriptSource(
+      siteId: config.siteId,
+      trackingProtectionEnabled: config.trackingProtectionEnabled,
+      incognito: config.incognito,
+      launchNonce: LaunchNonce.value,
+    );
+    if (antiFpSource != null) {
       userScripts.add(inapp.UserScript(
         groupName: 'anti_fingerprinting',
-        source: '${buildAntiFingerprintingShim(config.siteId!)}\n;null;',
+        source: antiFpSource,
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));

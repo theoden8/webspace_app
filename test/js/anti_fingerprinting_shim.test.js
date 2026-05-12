@@ -7,8 +7,8 @@
 // patch prototypes and surface seeded noise — we assert the patch shape
 // (wrapper installed, [native code] toString, return value transformed)
 // rather than the noise's effect on real engine output, which jsdom
-// can't reproduce. Real-engine fingerprint proofing belongs to a follow-
-// up Playwright + CreepJS tier.
+// can't reproduce. Real-engine fingerprint proofing runs under Puppeteer
+// + FingerprintJS in test/browser/fingerprint_real_engine.test.js.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');

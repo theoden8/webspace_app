@@ -34,6 +34,18 @@ const TZ_TOKYO = readFixture('location_spoof/timezone_only_tokyo.js');
 const FULL_COMBO = readFixture('location_spoof/full_combo.js');
 const STATIC_TOKYO = readFixture('location_spoof/static_tokyo.js');
 
+// Issue #327 fixtures: same siteId ('alpha-fixture-seed'), two
+// different process-lifetime nonces. Building these in the Dart fixture
+// dumper (tool/dump_shim_js.dart) keeps the seed strings under spec
+// control and prevents this test from accidentally generating its own
+// shim with a divergent JS-side hashing rule.
+const ANTI_FP_LAUNCH_ONE =
+    readFixture('anti_fingerprinting/shim_seed_alpha_launch_one.js');
+const ANTI_FP_LAUNCH_TWO =
+    readFixture('anti_fingerprinting/shim_seed_alpha_launch_two.js');
+const ANTI_FP_STABLE =
+    readFixture('anti_fingerprinting/shim_seed_alpha.js');
+
 const browser = setupBrowser();
 
 // Run the FingerprintJS detector inside the page and return its
@@ -151,6 +163,70 @@ test('FingerprintJS: full_combo dateTimeLocale embeds spoofed zone',
       assert.ok(c.dateTimeLocale.length > 0,
         'dateTimeLocale should be a non-empty formatted date');
     });
+  });
+
+// ---------- #327 incognito fingerprint rerolls per launch ----------
+//
+// Tier 1 (Dart unit tests on `computeAntiFingerprintingSeed` /
+// `buildAntiFingerprintingScriptSource`) and Tier 2 (jsdom shape
+// tests) prove the seed-derivation logic and shim shape. This tier
+// closes the loop under real Chromium: load FingerprintJS against
+// two shims that share a siteId but differ only in the launch nonce,
+// and assert the report's noise-bearing components diverge. If a
+// future refactor accidentally drops the nonce (siteId-only seed),
+// the two reports would coincide and this test fails.
+
+async function fingerprintWith(t, shim) {
+  let result;
+  await withShim(t, shim, async (page) => {
+    result = await runFingerprintJS(page);
+  });
+  return result;
+}
+
+test('FingerprintJS: incognito launches under same siteId produce ' +
+     'distinct canvas signatures (#327)',
+  async (t) => {
+    const r1 = await fingerprintWith(t, ANTI_FP_LAUNCH_ONE);
+    const r2 = await fingerprintWith(t, ANTI_FP_LAUNCH_TWO);
+    if (!r1 || !r2) return; // requireBrowser already skipped
+    // FingerprintJS's `canvas` component is an object with `winding`
+    // (a boolean) and two data-URL strings — `text` and `geometry` —
+    // hashed from the painted canvas. Our shim noises ~1/32 pixels
+    // via a seeded PRNG, so two different seeds must produce two
+    // different data URLs. Comparing the full object lets either
+    // string diverge.
+    assert.notDeepEqual(r1.canvas, r2.canvas,
+      'two incognito launches with different nonces must yield ' +
+      'different canvas fingerprints (issue #327)');
+  });
+
+test('FingerprintJS: same shim loaded twice yields identical canvas ' +
+     '(in-launch stability)',
+  async (t) => {
+    // Within one launch the nonce is constant, so two page-loads of
+    // the same shim must produce the same canvas hash — otherwise
+    // FingerprintJS would re-identify the SAME session as a new one
+    // on every page load.
+    const r1 = await fingerprintWith(t, ANTI_FP_LAUNCH_ONE);
+    const r2 = await fingerprintWith(t, ANTI_FP_LAUNCH_ONE);
+    if (!r1 || !r2) return;
+    assert.deepEqual(r1.canvas, r2.canvas,
+      'same shim must produce the same canvas fingerprint on repeat');
+  });
+
+test('FingerprintJS: non-incognito (siteId-only seed) differs from ' +
+     'incognito (siteId:nonce seed) for the same siteId',
+  async (t) => {
+    // The user's opt-in to Incognito must visibly change what a real
+    // fingerprinter sees, otherwise the toggle is cosmetic. Same
+    // siteId, ETP-004 stable seed vs ETP-019 nonced seed.
+    const stable = await fingerprintWith(t, ANTI_FP_STABLE);
+    const ephemeral = await fingerprintWith(t, ANTI_FP_LAUNCH_ONE);
+    if (!stable || !ephemeral) return;
+    assert.notDeepEqual(stable.canvas, ephemeral.canvas,
+      'toggling incognito for the same site must change the canvas '
+      + 'fingerprint a real fingerprinter sees');
   });
 
 test('FingerprintJS: shim survives full report without throwing',

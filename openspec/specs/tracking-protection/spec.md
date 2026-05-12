@@ -671,5 +671,6 @@ jsdom omits real Canvas/WebGL/Audio engines. Tests stub these with inert
 classes that record calls; they assert wrapper shape (prototype methods
 replaced, `[native code]` toString, return value transformed) rather
 than the noise's effect on real engine output. Real-engine fingerprint
-proofing belongs to a follow-up Playwright + CreepJS tier (not in scope
-for this change).
+proofing runs under Puppeteer + FingerprintJS in
+`test/browser/fingerprint_real_engine.test.js`, with CreepJS-style
+lie-detection probes in `test/browser/lie_detection.test.js`.
