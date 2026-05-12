@@ -1327,15 +1327,16 @@ class WebViewFactory {
     // across cold restarts. Within one process the nonce is constant, so
     // every iframe / nested webview / tab switch in the same launch sees
     // the same fingerprint.
-    if (config.trackingProtectionEnabled && config.siteId != null) {
-      final seed = computeAntiFingerprintingSeed(
-        siteId: config.siteId!,
-        incognito: config.incognito,
-        launchNonce: LaunchNonce.value,
-      );
+    final antiFpSource = buildAntiFingerprintingScriptSource(
+      siteId: config.siteId,
+      trackingProtectionEnabled: config.trackingProtectionEnabled,
+      incognito: config.incognito,
+      launchNonce: LaunchNonce.value,
+    );
+    if (antiFpSource != null) {
       userScripts.add(inapp.UserScript(
         groupName: 'anti_fingerprinting',
-        source: '${buildAntiFingerprintingShim(seed)}\n;null;',
+        source: antiFpSource,
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));

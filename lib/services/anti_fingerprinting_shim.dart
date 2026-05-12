@@ -65,6 +65,28 @@ String computeAntiFingerprintingSeed({
   return incognito ? '$siteId:$launchNonce' : siteId;
 }
 
+/// Compose the full anti-fingerprinting `UserScript.source` (shim body
+/// plus the trailing `\n;null;` evaluator-return) for the given site
+/// configuration, or `null` if the umbrella is off / no siteId is set.
+///
+/// Lives alongside [computeAntiFingerprintingSeed] so the entire chain —
+/// gate → seed derivation → shim text — is exercisable from `flutter test`
+/// without standing up `WebViewFactory.createWebView`.
+String? buildAntiFingerprintingScriptSource({
+  required String? siteId,
+  required bool trackingProtectionEnabled,
+  required bool incognito,
+  required String launchNonce,
+}) {
+  if (!trackingProtectionEnabled || siteId == null) return null;
+  final seed = computeAntiFingerprintingSeed(
+    siteId: siteId,
+    incognito: incognito,
+    launchNonce: launchNonce,
+  );
+  return '${buildAntiFingerprintingShim(seed)}\n;null;';
+}
+
 /// Build the per-site anti-fingerprinting shim seeded by [seed]. The seed
 /// is computed via [computeAntiFingerprintingSeed] — siteId-only for
 /// non-incognito (stable per site) or `siteId:launchNonce` for incognito

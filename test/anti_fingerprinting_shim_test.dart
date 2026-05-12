@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
+import 'package:webspace/services/launch_nonce.dart';
 
 void main() {
   group('buildAntiFingerprintingShim', () {
@@ -245,6 +246,140 @@ void main() {
       );
       final shim = buildAntiFingerprintingShim(seed);
       expect(shim, contains('"site-A:nonce-1"'));
+    });
+  });
+
+  group('fingerprint ephemerality (issue #327)', () {
+    // Parallel to the `incognito ephemerality (issue #298)` group in
+    // web_view_model_test.dart, but for the anti-fingerprinting shim:
+    // exercises the full gate -> seed -> shim chain so a regression in
+    // the wiring at WebViewFactory.createWebView (siteId/incognito arg
+    // mix-ups, dropped gate, missed LaunchNonce read) gets caught.
+
+    setUp(LaunchNonce.resetForTesting);
+    tearDown(LaunchNonce.resetForTesting);
+
+    String? scriptFor({
+      required String siteId,
+      required bool trackingProtectionEnabled,
+      required bool incognito,
+    }) {
+      return buildAntiFingerprintingScriptSource(
+        siteId: siteId,
+        trackingProtectionEnabled: trackingProtectionEnabled,
+        incognito: incognito,
+        launchNonce: LaunchNonce.value,
+      );
+    }
+
+    test('TP off -> no shim regardless of incognito', () {
+      expect(
+        scriptFor(siteId: 's1', trackingProtectionEnabled: false, incognito: false),
+        isNull,
+      );
+      expect(
+        scriptFor(siteId: 's1', trackingProtectionEnabled: false, incognito: true),
+        isNull,
+      );
+    });
+
+    test('TP on without siteId -> no shim', () {
+      // Mirrors ETP-003 "Shim NOT injected without siteId" — exercised
+      // through the script-source helper to pin the gate at the wiring
+      // layer too, not just the JS-side builder.
+      final src = buildAntiFingerprintingScriptSource(
+        siteId: null,
+        trackingProtectionEnabled: true,
+        incognito: true,
+        launchNonce: LaunchNonce.value,
+      );
+      expect(src, isNull);
+    });
+
+    test('non-incognito: fingerprint identical across launches (ETP-004)', () {
+      // Simulate launch 1.
+      final launch1 = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: false,
+      );
+      // Simulate launch 2 by tearing down the process-lifetime nonce.
+      LaunchNonce.resetForTesting();
+      final launch2 = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: false,
+      );
+      expect(launch1, isNotNull);
+      expect(launch2, equals(launch1),
+          reason: 'non-incognito sites must keep a stable per-site '
+              'fingerprint across cold restarts (ETP-004 baseline)');
+    });
+
+    test('incognito: fingerprint differs across launches (#327)', () {
+      // The exact behaviour the user reported missing in v0.2.3: with
+      // both TP and Incognito on, the fingerprint persisted across
+      // launches because the seed was siteId-only.
+      final launch1 = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+      );
+      LaunchNonce.resetForTesting();
+      final launch2 = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+      );
+      expect(launch1, isNotNull);
+      expect(launch2, isNot(equals(launch1)),
+          reason: 'incognito + TP must reroll the fingerprint per launch '
+              '(issue #327 / ETP-019)');
+    });
+
+    test('incognito: fingerprint stable within one launch', () {
+      // Same launch — same nonce — same fingerprint. Prevents flicker
+      // across iframe re-injection, nested webview opens, and tab
+      // switches within one app session.
+      LaunchNonce.overrideForTesting('pinned-nonce');
+      final first = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+      );
+      final second = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+      );
+      expect(second, equals(first));
+    });
+
+    test('two incognito sites in one launch keep cross-site uniqueness', () {
+      LaunchNonce.overrideForTesting('pinned-nonce');
+      final a = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+      );
+      final b = scriptFor(
+        siteId: 'site-B', trackingProtectionEnabled: true, incognito: true,
+      );
+      expect(a, isNotNull);
+      expect(b, isNot(equals(a)),
+          reason: 'sharing the launch nonce must not collapse two sites '
+              'into the same fingerprint');
+    });
+
+    test('toggling incognito changes the fingerprint for the same site', () {
+      LaunchNonce.overrideForTesting('pinned-nonce');
+      final stable = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: false,
+      );
+      final ephemeral = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: true,
+      );
+      expect(ephemeral, isNot(equals(stable)),
+          reason: 'enabling incognito is the user opt-out from the stable '
+              'per-site identity — the fingerprint must change');
+    });
+
+    test('script source carries the InAppWebView return-value sentinel', () {
+      // WebViewFactory.createWebView appends `\n;null;` to every shim
+      // source so the evaluator returns null instead of the IIFE return
+      // value (which the platform channel cannot serialize for some
+      // shapes). Keep that contract pinned in the helper.
+      LaunchNonce.overrideForTesting('pinned-nonce');
+      final src = scriptFor(
+        siteId: 'site-A', trackingProtectionEnabled: true, incognito: false,
+      );
+      expect(src, endsWith('\n;null;'));
     });
   });
 }

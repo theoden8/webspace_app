@@ -10,8 +10,9 @@
 
 ## 3. Wire into the shim-injection site
 
-- [ ] 3.1 In `lib/services/webview.dart` (`WebViewFactory.createWebView`, ~line 1326), replace `buildAntiFingerprintingShim(config.siteId!)` with `buildAntiFingerprintingShim(computeAntiFingerprintingSeed(siteId: config.siteId!, incognito: config.incognito, launchNonce: LaunchNonce.value))`.
-- [ ] 3.2 Update the inline comment block above the injection so it documents the incognito carve-out.
+- [ ] 3.1 Add `buildAntiFingerprintingScriptSource({siteId, trackingProtectionEnabled, incognito, launchNonce})` in `lib/services/anti_fingerprinting_shim.dart` returning `String?` — encapsulates the umbrella + siteId gate, the seed derivation, and the `\n;null;` evaluator-return contract, so the entire chain is exercisable from `flutter test`.
+- [ ] 3.2 In `lib/services/webview.dart` (`WebViewFactory.createWebView`, ~line 1326), replace the direct `buildAntiFingerprintingShim(config.siteId!)` call with `buildAntiFingerprintingScriptSource(...)` driven by `LaunchNonce.value`; keep the inline comment block documenting the incognito carve-out.
+- [ ] 3.3 Add a `fingerprint ephemerality (issue #327)` group in `test/anti_fingerprinting_shim_test.dart` (parallel to `incognito ephemerality (issue #298)` in `test/web_view_model_test.dart`) covering: TP off → no shim; TP on + null siteId → no shim; non-incognito identical across simulated launches; incognito differs across simulated launches; incognito stable within one launch; cross-site uniqueness preserved under a shared launch nonce; toggling incognito changes the fingerprint; `\n;null;` sentinel preserved.
 
 ## 4. Spec
 
