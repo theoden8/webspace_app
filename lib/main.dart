@@ -838,21 +838,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// `flutter_secure_storage` write at startup (ARCH-001).
   final Archive _archive = Archive();
 
-  /// In-memory archive-tier sites, parallel to `_webViewModels`. Sourced
-  /// from the plaintext state of currently-open `ArchiveHandle`s. Never
-  /// merged with `_webViewModels` in any persistence or export path;
-  /// the IndexedStack-rendering code concatenates the two for display
-  /// only. Closing an archive removes its slice in one operation.
-  final List<WebViewModel> _archiveWebViewModels = [];
-
-  /// Webspaces sourced from currently-open archives, parallel to
-  /// `_webspaces`. Same persistence-isolation rules as
-  /// [_archiveWebViewModels].
-  final List<Webspace> _archiveWebspaces = [];
-
-  /// Tracks which archive owns which slice of [_archiveWebViewModels] /
-  /// [_archiveWebspaces]. Keyed by [ArchiveHandle] so closing one
-  /// archive can identify and remove exactly its rows.
+  /// Tracks which `WebViewModel`s in [_webViewModels] belong to each
+  /// open archive handle. Archive sites live in the same list as
+  /// app-tier sites with `isArchiveTier=true`; the persistence path in
+  /// [_saveWebViewModels] filters by that flag so archive state never
+  /// enters SharedPreferences. Closing one archive removes exactly its
+  /// rows by `siteId` lookup against this slice.
   final Map<ArchiveHandle, _ArchiveSlice> _archiveSlices = {};
 
   /// Container-mode cookie manager. Non-null when `_useContainers ==
@@ -1786,9 +1777,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
+    // Archive-tier sites live in `_webViewModels` for runtime rendering
+    // but must not enter app-tier persistence (ARCH-001 byte-identity
+    // invariant). Cookies, proxy passwords, and the SharedPreferences
+    // model list all filter on `!m.isArchiveTier`.
+    final appTierModels = _webViewModels.where((m) => !m.isArchiveTier);
+
     // Save cookies to secure storage, keyed by siteId for per-site isolation
     final Map<String, List<Cookie>> cookiesBySiteId = {};
-    for (final webViewModel in _webViewModels) {
+    for (final webViewModel in appTierModels) {
       if (webViewModel.cookies.isNotEmpty && !webViewModel.incognito) {
         cookiesBySiteId[webViewModel.siteId] = List.from(webViewModel.cookies);
       }
@@ -1800,7 +1797,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // `model.toJson()` (which omits password by default).
     final existingPasswords = await _proxyPasswordStorage.loadAll();
     final updatedPasswords = <String, String?>{...existingPasswords};
-    for (final m in _webViewModels) {
+    for (final m in appTierModels) {
       updatedPasswords[m.siteId] = m.proxySettings.password;
     }
     await _proxyPasswordStorage.saveAll(updatedPasswords);
@@ -1808,7 +1805,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Save models to SharedPreferences (cookies will be empty in
     // SharedPreferences; proxy password is omitted by `toJson()` default —
     // it lives in secure storage).
-    List<String> webViewModelsJson = _webViewModels.map((webViewModel) {
+    List<String> webViewModelsJson = appTierModels.map((webViewModel) {
       final json = webViewModel.toJson();
       json['cookies'] = []; // Don't store cookies in SharedPreferences
       return jsonEncode(json);
@@ -1817,12 +1814,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _syncShortcutSites();
   }
 
-  /// Materialises an open [ArchiveHandle]'s state into
-  /// [_archiveWebViewModels] and [_archiveWebspaces], records the slice
-  /// for later teardown. Caller is responsible for triggering setState.
+  /// Materialises an open [ArchiveHandle]'s sites into [_webViewModels]
+  /// (appended at the end with `isArchiveTier=true`). The persistence
+  /// path in [_saveWebViewModels] filters by `isArchiveTier` so archive
+  /// sites never enter SharedPreferences. Webspaces inside the archive
+  /// state are ignored in v1 — archive sites appear in the "All" view.
+  /// Caller triggers setState.
   void _materialiseArchive(ArchiveHandle handle) {
     final siteIds = <String>{};
-    final webspaceIds = <String>{};
     final stateSetter = () {
       if (mounted) setState(() {});
     };
@@ -1838,17 +1837,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             .map((c) => cookieFromJson(Map<String, dynamic>.from(c)))
             .toList();
       }
-      _archiveWebViewModels.add(model);
+      _webViewModels.add(model);
       siteIds.add(model.siteId);
-    }
-    for (final wsJson in handle.state.webspaces) {
-      final ws = Webspace.fromJson(Map<String, dynamic>.from(wsJson));
-      _archiveWebspaces.add(ws);
-      webspaceIds.add(ws.id);
     }
     _archiveSlices[handle] = _ArchiveSlice(
       siteIds: siteIds,
-      webspaceIds: webspaceIds,
+      webspaceIds: const <String>{},
     );
   }
 
@@ -1878,19 +1872,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     return handle;
   }
 
-  /// Closes an open archive: captures current cookies + state back into
+  /// Closes an open archive: captures current cookies + sites back into
   /// the handle, persists, zeroes the key, and removes the archive's
-  /// rows from the parallel runtime collections.
+  /// rows from [_webViewModels]. If the current selection points into
+  /// the removed range, it falls back to the home view.
   Future<void> _closeArchive(ArchiveHandle handle) async {
     final slice = _archiveSlices.remove(handle);
     if (slice == null) return;
     final ownedSites = [
-      for (final m in _archiveWebViewModels)
+      for (final m in _webViewModels)
         if (slice.siteIds.contains(m.siteId)) m,
-    ];
-    final ownedSpaces = [
-      for (final w in _archiveWebspaces)
-        if (slice.webspaceIds.contains(w.id)) w,
     ];
     handle.state.cookies
       ..clear()
@@ -1905,13 +1896,25 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     handle.state.sites
       ..clear()
       ..addAll(ownedSites.map((m) => m.toJson()));
-    handle.state.webspaces
-      ..clear()
-      ..addAll(ownedSpaces.map((w) => w.toJson()));
     await _archive.save(handle);
     await _archive.close(handle);
-    _archiveWebViewModels.removeWhere((m) => slice.siteIds.contains(m.siteId));
-    _archiveWebspaces.removeWhere((w) => slice.webspaceIds.contains(w.id));
+    // Dispose webviews owned by this archive before removing them from
+    // the list, so the IndexedStack rebuild doesn't try to render
+    // orphan controllers.
+    for (final m in ownedSites) {
+      m.disposeWebView();
+    }
+    final removedSet = slice.siteIds;
+    if (_currentIndex != null) {
+      final cur = _currentIndex!;
+      if (cur < _webViewModels.length &&
+          removedSet.contains(_webViewModels[cur].siteId)) {
+        _currentIndex = null;
+      }
+    }
+    _loadedIndices
+        .removeWhere((i) => i < _webViewModels.length && removedSet.contains(_webViewModels[i].siteId));
+    _webViewModels.removeWhere((m) => removedSet.contains(m.siteId));
     if (mounted) setState(() {});
   }
 
@@ -2023,11 +2026,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!Platform.isIOS) return;
     final sites = [
       for (final m in _webViewModels)
-        ShortcutSite(
-          siteId: m.siteId,
-          label: m.name,
-          iconUrl: FaviconUrlCache.get(m.initUrl),
-        ),
+        if (!m.isArchiveTier)
+          ShortcutSite(
+            siteId: m.siteId,
+            label: m.name,
+            iconUrl: FaviconUrlCache.get(m.initUrl),
+          ),
     ];
     unawaited(ShortcutService.syncSites(sites));
   }
@@ -3573,14 +3577,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // The global proxy password is in secure storage, not in the prefs
     // value `readExportedAppPrefs` reads — and per PWD-005 we do NOT
     // re-inject it for export (same as secure cookies).
+    // ARCH-010: exports never include archive-tier state, even when an
+    // archive is open. Filter on `isArchiveTier` so the export bytes
+    // match what a user with zero archives would produce.
+    final appTierModels =
+        _webViewModels.where((m) => !m.isArchiveTier).toList();
     await SettingsBackupService.exportAndSave(
       context,
-      webViewModels: _webViewModels,
+      webViewModels: appTierModels,
       webspaces: _webspaces,
       themeMode: _themeSettings.toStorageIndex(),
       globalPrefs: readExportedAppPrefs(prefs),
       selectedWebspaceId: _selectedWebspaceId,
-      currentIndex: _currentIndex,
+      currentIndex: _currentIndex != null &&
+              _currentIndex! < appTierModels.length
+          ? _currentIndex
+          : null,
       suggestedSites: _suggestedSites
           .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
           .toList(),
