@@ -372,7 +372,49 @@ void main() {
       expect(model.spoofLongitude, isNull);
       expect(model.spoofAccuracy, equals(50.0));
       expect(model.spoofTimezone, isNull);
+      expect(model.liveLocationGranularity, equals(LocationGranularity.fine));
       expect(model.webRtcPolicy, equals(WebRtcPolicy.defaultPolicy));
+    });
+
+    test('liveLocationGranularity round-trips when non-default', () {
+      // Default fine: omitted from JSON so on-disk size stays the same
+      // for users who never touch live mode.
+      final defaultModel = WebViewModel(
+        initUrl: 'https://example.com',
+        locationMode: LocationMode.live,
+      );
+      final defaultJson = defaultModel.toJson();
+      expect(defaultJson.containsKey('liveLocationGranularity'), isFalse,
+          reason: 'fine is the default; omit to keep on-disk JSON byte-stable '
+              'for users who never opt into coarse');
+
+      final coarseModel = WebViewModel(
+        initUrl: 'https://example.com',
+        locationMode: LocationMode.live,
+        liveLocationGranularity: LocationGranularity.coarse,
+      );
+      final coarseJson = coarseModel.toJson();
+      expect(coarseJson['liveLocationGranularity'], equals('coarse'));
+
+      final restored = WebViewModel.fromJson(coarseJson, null);
+      expect(restored.liveLocationGranularity,
+          equals(LocationGranularity.coarse));
+    });
+
+    test('liveLocationGranularity defaults to fine when absent from JSON', () {
+      // Older backups predate the field — they must rehydrate as fine.
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+        'locationMode': 'live',
+      };
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.liveLocationGranularity, equals(LocationGranularity.fine));
     });
 
     test('location spoof fields round-trip through JSON', () {

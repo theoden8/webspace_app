@@ -21,7 +21,8 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
 
-export 'package:webspace/settings/location.dart' show LocationMode, WebRtcPolicy;
+export 'package:webspace/settings/location.dart'
+    show LocationMode, LocationGranularity, WebRtcPolicy;
 
 class ConsoleLogEntry {
   final DateTime timestamp;
@@ -326,6 +327,12 @@ class WebViewModel {
   /// in `webview.dart`, not here, because it depends on a separately-
   /// loadable polygon dataset that may not be present.
   bool spoofTimezoneFromLocation;
+  /// Granularity applied to the real GPS fix surfaced by
+  /// [LocationMode.live]. Default [LocationGranularity.fine] preserves
+  /// the existing pre-feature behavior; [LocationGranularity.coarse]
+  /// snaps the lat/lng to a ~1.1 km grid and inflates the reported
+  /// accuracy. Ignored for [LocationMode.off] / [LocationMode.spoof].
+  LocationGranularity liveLocationGranularity;
   WebRtcPolicy webRtcPolicy;
 
   /// User-defined domain-claim list used by `LinkRoutingService` to route
@@ -404,6 +411,7 @@ class WebViewModel {
     this.spoofAccuracy = 50.0,
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
+    this.liveLocationGranularity = LocationGranularity.fine,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.domainClaims,
     this.stateSetterF,
@@ -554,7 +562,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -645,6 +653,7 @@ class WebViewModel {
                   spoofLongitude != null)
               ? true
               : spoofTimezoneFromLocation,
+          liveLocationGranularity: liveLocationGranularity,
           webRtcPolicy: webRtcPolicy,
           // Per-site proxy. Honored at WebView construction on iOS 17+ /
           // macOS 14+ via the patched `preWKWebViewConfiguration` (see
@@ -691,7 +700,7 @@ class WebViewModel {
                 return false;
               case NavigationDecision.blockOpenNested:
                 LogService.instance.log('WebView', '  -> CANCEL (opening nested webview)');
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                 return false;
             }
           },
@@ -761,7 +770,7 @@ class WebViewModel {
                 case NavigationDecision.blockOpenNested:
                   LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                   }
                   return;
                 case NavigationDecision.allow:
@@ -917,7 +926,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -1189,6 +1198,8 @@ class WebViewModel {
         'spoofAccuracy': spoofAccuracy,
         if (spoofTimezone != null) 'spoofTimezone': spoofTimezone,
         if (spoofTimezoneFromLocation) 'spoofTimezoneFromLocation': true,
+        if (liveLocationGranularity != LocationGranularity.fine)
+          'liveLocationGranularity': liveLocationGranularity.name,
         'webRtcPolicy': webRtcPolicy.name,
         if (domainClaims != null && domainClaims!.isNotEmpty)
           'domainClaims': domainClaims!.map((c) => c.toJson()).toList(),
@@ -1251,6 +1262,10 @@ class WebViewModel {
       spoofTimezone: json['spoofTimezone'] as String?,
       spoofTimezoneFromLocation:
           json['spoofTimezoneFromLocation'] as bool? ?? false,
+      liveLocationGranularity: LocationGranularity.values.firstWhere(
+        (g) => g.name == json['liveLocationGranularity'],
+        orElse: () => LocationGranularity.fine,
+      ),
       webRtcPolicy: WebRtcPolicy.values.firstWhere(
         (p) => p.name == json['webRtcPolicy'],
         orElse: () => WebRtcPolicy.defaultPolicy,

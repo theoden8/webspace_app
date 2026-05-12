@@ -149,6 +149,60 @@ void main() {
       expect(script, contains("'granted'"));
     });
 
+    test('live mode without granularity defaults to fine', () {
+      // Backwards-compat: callers that omit `liveLocationGranularity`
+      // must still build a live shim that does NOT coarsen — coarsening
+      // is opt-in only.
+      final script = LocationSpoofService.buildScript(
+        locationMode: LocationMode.live,
+        spoofLatitude: null,
+        spoofLongitude: null,
+        spoofAccuracy: 50.0,
+        spoofTimezone: null,
+        webRtcPolicy: WebRtcPolicy.defaultPolicy,
+      );
+      expect(script, isNotNull);
+      expect(script, contains('var LIVE_LOC = true'));
+      expect(script, contains('var LIVE_COARSE = false'));
+    });
+
+    test('live mode with coarse granularity flips LIVE_COARSE', () {
+      final script = LocationSpoofService.buildScript(
+        locationMode: LocationMode.live,
+        spoofLatitude: null,
+        spoofLongitude: null,
+        spoofAccuracy: 50.0,
+        spoofTimezone: null,
+        liveLocationGranularity: LocationGranularity.coarse,
+        webRtcPolicy: WebRtcPolicy.defaultPolicy,
+      );
+      expect(script, isNotNull);
+      expect(script, contains('var LIVE_LOC = true'));
+      expect(script, contains('var LIVE_COARSE = true'));
+      // Grid snapping logic must be present in the live-mode shim.
+      expect(script, contains('coarsenFix'));
+      expect(script, contains('COARSE_STEP_DEG'));
+    });
+
+    test('granularity is ignored for spoof mode (static coords are user-chosen)', () {
+      // Static spoof coords reflect what the user typed/picked; the
+      // builder must not flip LIVE_COARSE when the mode isn't live, even
+      // if the caller passes coarse.
+      final script = LocationSpoofService.buildScript(
+        locationMode: LocationMode.spoof,
+        spoofLatitude: 35.6762,
+        spoofLongitude: 139.6503,
+        spoofAccuracy: 25.0,
+        spoofTimezone: null,
+        liveLocationGranularity: LocationGranularity.coarse,
+        webRtcPolicy: WebRtcPolicy.defaultPolicy,
+      );
+      expect(script, isNotNull);
+      expect(script, contains('var STATIC_LOC = true'));
+      expect(script, contains('var LIVE_LOC = false'));
+      expect(script, contains('var LIVE_COARSE = false'));
+    });
+
     test('installs only once via window flag', () {
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.spoof,

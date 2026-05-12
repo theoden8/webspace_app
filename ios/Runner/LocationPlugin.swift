@@ -11,6 +11,10 @@ class LocationPlugin: NSObject, CLLocationManagerDelegate {
   private var pendingResult: FlutterResult?
   private var timeoutWorkItem: DispatchWorkItem?
   private var pendingTimeoutSeconds: TimeInterval = 30
+  // "fine" or "coarse" — selects desiredAccuracy when the next fix
+  // starts. Defaults to fine for back-compat with callers that don't
+  // pass the argument.
+  private var pendingAccuracy: String = "fine"
 
   init(messenger: FlutterBinaryMessenger) {
     self.channel = FlutterMethodChannel(
@@ -19,7 +23,6 @@ class LocationPlugin: NSObject, CLLocationManagerDelegate {
     )
     super.init()
     self.locationManager.delegate = self
-    self.locationManager.desiredAccuracy = kCLLocationAccuracyBest
     self.channel.setMethodCallHandler { [weak self] call, result in
       self?.handle(call: call, result: result)
     }
@@ -28,8 +31,13 @@ class LocationPlugin: NSObject, CLLocationManagerDelegate {
   private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "getCurrentLocation":
-      if let args = call.arguments as? [String: Any], let ms = args["timeoutMs"] as? Int {
-        pendingTimeoutSeconds = TimeInterval(ms) / 1000.0
+      if let args = call.arguments as? [String: Any] {
+        if let ms = args["timeoutMs"] as? Int {
+          pendingTimeoutSeconds = TimeInterval(ms) / 1000.0
+        }
+        if let acc = args["accuracy"] as? String {
+          pendingAccuracy = acc
+        }
       }
       requestLocation(result: result)
     default:
@@ -71,6 +79,18 @@ class LocationPlugin: NSObject, CLLocationManagerDelegate {
   }
 
   private func startSingleFix() {
+    // Set desiredAccuracy per the caller's request. CoreLocation uses
+    // this as a hint to decide whether to power up the GPS chip:
+    // kCLLocationAccuracyKilometer / kCLLocationAccuracyThreeKilometers
+    // can be served entirely from cell-tower / Wi-Fi positioning, so
+    // coarse mode never spins up GPS even if the user has granted full
+    // (Precise) location authorization. This is the iOS equivalent of
+    // routing through Android's NETWORK_PROVIDER for coarse.
+    if pendingAccuracy == "coarse" {
+      locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
+    } else {
+      locationManager.desiredAccuracy = kCLLocationAccuracyBest
+    }
     let work = DispatchWorkItem { [weak self] in
       guard let self = self, let pending = self.pendingResult else { return }
       self.pendingResult = nil

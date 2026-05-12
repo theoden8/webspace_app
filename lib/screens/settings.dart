@@ -146,6 +146,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Tracks the "live" geolocation mode. Mutually exclusive with static
   // coordinates: enabling live clears coords; picking coords clears live.
   bool _isLiveLocation = false;
+  // Granularity applied to the live fix before the shim surfaces it to
+  // the page. Only meaningful when `_isLiveLocation` is true; persists
+  // across switches between segments so the user's preference isn't lost
+  // when they toggle Off → Live again.
+  LocationGranularity _liveLocationGranularity = LocationGranularity.fine;
   late WebRtcPolicy _webRtcPolicy;
 
   /// Snapshot of every form field captured after [_loadFromModel] (and again
@@ -211,6 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'spoofTimezone': _spoofTimezone,
         'spoofTimezoneFromLocation': _spoofTimezoneFromLocation,
         'isLiveLocation': _isLiveLocation,
+        'liveLocationGranularity': _liveLocationGranularity,
         'webRtcPolicy': _webRtcPolicy,
       };
 
@@ -290,6 +296,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _spoofTimezone = m.spoofTimezone;
     _spoofTimezoneFromLocation = m.spoofTimezoneFromLocation;
     _isLiveLocation = m.locationMode == LocationMode.live;
+    _liveLocationGranularity = m.liveLocationGranularity;
     _webRtcPolicy = m.webRtcPolicy;
     _showProxyCredentials = _proxySettings.hasCredentials;
   }
@@ -480,6 +487,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.spoofTimezone = _spoofTimezone;
       widget.webViewModel.spoofTimezoneFromLocation =
           _spoofTimezoneFromLocation;
+      widget.webViewModel.liveLocationGranularity = _liveLocationGranularity;
       widget.webViewModel.webRtcPolicy = _webRtcPolicy;
 
       if (!mounted) return;
@@ -576,7 +584,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'position tracks the device as it moves. The shim still '
           'overrides Geolocation.prototype and hides the patch from '
           'Function.prototype.toString — so timezone override and WebRTC '
-          'policy still apply, but the coordinates are real and current.',
+          'policy still apply, but the coordinates are real and current.\n\n'
+          'In Live mode, pick a granularity:\n'
+          'Fine: real device coordinates and accuracy. Use when the site '
+          'needs metre-level positioning (turn-by-turn navigation, AR, '
+          'hyper-local search).\n'
+          'Coarse: lat/lng snapped to a ~1.1 km grid and accuracy '
+          'inflated to match. Use for sites that only need your general '
+          'area (regional weather, "stores nearby"). The OS still hands '
+          'the app the high-precision fix; the shim fuzzes it before the '
+          'site sees anything.',
     );
 
     // Derive the active segment from current state. `Static` is selected
@@ -649,12 +666,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
         break;
       case _LocationSegment.live:
-        detail = const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Text(
-            'Tracks the device\'s real GPS via the platform location '
-            'service. Permission is requested on the first call.',
-            style: TextStyle(fontSize: 12),
+        detail = Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Tracks the device\'s real GPS via the platform location '
+                'service. Permission is requested on the first call.',
+                style: TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<LocationGranularity>(
+                  segments: const [
+                    ButtonSegment(
+                      value: LocationGranularity.fine,
+                      icon: Icon(Icons.gps_fixed),
+                      label: Text('Fine'),
+                    ),
+                    ButtonSegment(
+                      value: LocationGranularity.coarse,
+                      icon: Icon(Icons.gps_not_fixed),
+                      label: Text('Coarse'),
+                    ),
+                  ],
+                  selected: {_liveLocationGranularity},
+                  onSelectionChanged: (vs) => setState(
+                      () => _liveLocationGranularity = vs.first),
+                  showSelectedIcon: false,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _liveLocationGranularity == LocationGranularity.fine
+                    ? 'Fine: real device coordinates and accuracy. Use for '
+                        'turn-by-turn navigation or hyper-local search.'
+                    : 'Coarse: lat/lng snapped to a ~1.1 km grid and '
+                        'reported accuracy inflated to match. Use when the '
+                        'site only needs your general area.',
+                style: const TextStyle(fontSize: 11),
+              ),
+            ],
           ),
         );
         break;

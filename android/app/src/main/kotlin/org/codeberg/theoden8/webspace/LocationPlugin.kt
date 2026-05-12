@@ -34,11 +34,14 @@ class LocationPlugin(
     companion object {
         private const val CHANNEL = "org.codeberg.theoden8.webspace/location"
         private const val REQ_PERMISSION = 0x10C
+        private const val ACCURACY_COARSE = "coarse"
+        private const val ACCURACY_FINE = "fine"
     }
 
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
     private var pendingResult: MethodChannel.Result? = null
     private var pendingTimeoutMs: Long = 30_000
+    private var pendingAccuracy: String = ACCURACY_FINE
 
     init {
         channel.setMethodCallHandler(this)
@@ -48,6 +51,7 @@ class LocationPlugin(
         when (call.method) {
             "getCurrentLocation" -> {
                 pendingTimeoutMs = (call.argument<Number>("timeoutMs")?.toLong() ?: 30_000)
+                pendingAccuracy = call.argument<String>("accuracy") ?: ACCURACY_FINE
                 handleGetCurrentLocation(result)
             }
             else -> result.notImplemented()
@@ -66,16 +70,25 @@ class LocationPlugin(
             activity, Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-        if (!fineGranted && !coarseGranted) {
+        // Coarse-only request: never escalate to FINE. If neither permission
+        // is held, request only ACCESS_COARSE_LOCATION so the system prompt
+        // does not offer the "Precise" toggle for this call. A site that
+        // only ever needs general-area positioning therefore never causes
+        // the app's fine-location permission to be granted.
+        val coarseOnly = pendingAccuracy == ACCURACY_COARSE
+        val have = if (coarseOnly) coarseGranted else (fineGranted || coarseGranted)
+
+        if (!have) {
             pendingResult = result
-            ActivityCompat.requestPermissions(
-                activity,
+            val perms = if (coarseOnly) {
+                arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)
+            } else {
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION,
-                ),
-                REQ_PERMISSION,
-            )
+                )
+            }
+            ActivityCompat.requestPermissions(activity, perms, REQ_PERMISSION)
             return
         }
         requestSingleLocation(result)
@@ -116,14 +129,29 @@ class LocationPlugin(
             result.success(mapOf("status" to "error", "message" to "LocationManager unavailable."))
             return
         }
+        // Coarse mode: NETWORK provider only (cell-tower / Wi-Fi). Skipping
+        // GPS_PROVIDER is what makes coarse honest — even with FINE
+        // permission already granted, we never light up the GPS chip when
+        // the caller asked for coarse, so the OS-reported fix is
+        // genuinely cell/wifi-resolution and the device's exact position
+        // never enters this process.
+        val coarseOnly = pendingAccuracy == ACCURACY_COARSE
         val providers = mutableListOf<String>()
-        if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) providers.add(LocationManager.GPS_PROVIDER)
-        if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) providers.add(LocationManager.NETWORK_PROVIDER)
+        if (!coarseOnly && lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            providers.add(LocationManager.GPS_PROVIDER)
+        }
+        if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            providers.add(LocationManager.NETWORK_PROVIDER)
+        }
         if (providers.isEmpty()) {
-            result.success(mapOf(
-                "status" to "service_disabled",
-                "message" to "Location services are disabled.",
-            ))
+            // Distinguish "all providers off" from "GPS off and we asked
+            // for coarse-only" so the user gets a useful message.
+            val msg = if (coarseOnly) {
+                "Network-based location is disabled (no cell/Wi-Fi positioning)."
+            } else {
+                "Location services are disabled."
+            }
+            result.success(mapOf("status" to "service_disabled", "message" to msg))
             return
         }
 

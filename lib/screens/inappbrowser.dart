@@ -38,6 +38,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final double spoofAccuracy;
   final String? spoofTimezone;
   final bool spoofTimezoneFromLocation;
+  final LocationGranularity liveLocationGranularity;
   final WebRtcPolicy webRtcPolicy;
   /// Pre-combined per-site + opted-in global user scripts to inject. Carried
   /// over from the parent webview so cosmetic/privacy/custom scripts keep
@@ -70,6 +71,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.spoofAccuracy = 50.0,
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
+    this.liveLocationGranularity = LocationGranularity.fine,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.userScripts = const [],
     this.onConfirmScriptFetch,
@@ -167,6 +169,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 widget.spoofLongitude != null)
             ? true
             : widget.spoofTimezoneFromLocation,
+        liveLocationGranularity: widget.liveLocationGranularity,
         webRtcPolicy: widget.webRtcPolicy,
         proxySettings: widget.proxySettings,
         userScripts: widget.userScripts,

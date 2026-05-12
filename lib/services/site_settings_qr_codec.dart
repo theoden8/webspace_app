@@ -50,6 +50,7 @@ class SiteSettingsQrCodec {
     'spoofAccuracy',
     'spoofTimezone',
     'spoofTimezoneFromLocation',
+    'liveLocationGranularity',
     'webRtcPolicy',
   };
 
