@@ -1836,9 +1836,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       );
       final cookieList = handle.state.cookies[model.siteId];
       if (cookieList != null && cookieList.isNotEmpty) {
-        model.cookies = cookieList
+        final cookies = cookieList
             .map((c) => cookieFromJson(Map<String, dynamic>.from(c)))
             .toList();
+        // Both seeds in-Dart state (cookie-blocking machinery) and
+        // queues the cookies to be written into the per-site container
+        // on the next webview construction.
+        model.setPendingArchiveCookies(cookies);
       }
       _webViewModels.add(model);
       siteIds.add(model.siteId);

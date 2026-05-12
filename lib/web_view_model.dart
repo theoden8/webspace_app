@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show PullToRefreshController, PullToRefreshSettings, SslCertificate;
+    show CookieManager, PullToRefreshController, PullToRefreshSettings, SslCertificate, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/domain_claim.dart';
@@ -967,6 +967,7 @@ class WebViewModel {
           );
           controller = ctrl;
           setController();
+          unawaited(_pushPendingArchiveCookies(ctrl));
           // Apply any state queued by the activation flow when this
           // model came back from SavedForRestore. The InAppWebView's
           // `initialUrlRequest` already kicked off a navigation to
@@ -1263,6 +1264,56 @@ class WebViewModel {
   /// webview rebuild, so the IndexedStack repaint and the
   /// `restoreState` call land in the same render cycle.
   Uint8List? _pendingRestoreState;
+
+  /// Cookies queued by the archive open flow to be pushed into the
+  /// per-site container as soon as the WebView controller exists.
+  /// Without this, an archive-tier site that uses native containers
+  /// would load with an empty cookie jar even though
+  /// [`ArchiveHandle.state.cookies`] holds the user's saved login.
+  /// Consumed once by [getWebView]'s `onControllerCreated`.
+  List<Cookie>? _pendingArchiveCookies;
+
+  /// Queues [cookies] to be written into the per-site container on the
+  /// next WebView construction. Idempotent: caller replaces the queue
+  /// each time (e.g. on archive re-open). Setting also seeds
+  /// [cookies] so the in-Dart cookie-blocking machinery
+  /// (`onCookiesChanged`) starts from the right baseline.
+  void setPendingArchiveCookies(List<Cookie> archiveCookies) {
+    _pendingArchiveCookies = List<Cookie>.from(archiveCookies);
+    cookies = List<Cookie>.from(archiveCookies);
+  }
+
+  Future<void> _pushPendingArchiveCookies(WebViewController ctrl) async {
+    final pending = _pendingArchiveCookies;
+    if (pending == null || pending.isEmpty) return;
+    _pendingArchiveCookies = null;
+    final mgr = inapp.CookieManager.instance();
+    for (final cookie in pending) {
+      if (cookie.value.isEmpty) continue;
+      final dom = cookie.domain ?? '';
+      final cleanDomain = dom.startsWith('.') ? dom.substring(1) : dom;
+      if (cleanDomain.isEmpty) continue;
+      final path = cookie.path ?? '/';
+      try {
+        await mgr.setCookie(
+          url: inapp.WebUri('https://$cleanDomain$path'),
+          name: cookie.name,
+          value: cookie.value.toString(),
+          domain: cookie.domain,
+          path: path,
+          expiresDate: cookie.expiresDate,
+          isSecure: cookie.isSecure,
+          isHttpOnly: cookie.isHttpOnly,
+          webViewController: ctrl.nativeController,
+        );
+      } catch (_) {
+        // Best effort. A cookie that fails to insert (malformed
+        // attributes from a legacy import, expired, etc.) is simply
+        // dropped from the runtime jar; archive state still has it for
+        // future round-trips.
+      }
+    }
+  }
 
   /// Schedule [state] to be applied to the next freshly-created
   /// controller for this model. Cleared automatically once the
