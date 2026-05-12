@@ -623,16 +623,15 @@ class WebViewModel {
           contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
           localCdnEnabled: localCdnEnabled || trackingProtectionEnabled,
           trackingProtectionEnabled: trackingProtectionEnabled,
-          // Live geolocation leaks the device's real position around any
-          // proxy and through every spoof shim, so the umbrella demotes
-          // it to off. Static spoof coords are kept and force the
-          // timezone to "From picked location" so Date/Intl values
-          // match the spoofed geo. When no coords are picked the
-          // umbrella does NOT touch the timezone — the stored choice
-          // (or system default) stands.
-          locationMode: trackingProtectionEnabled && locationMode == LocationMode.live
-              ? LocationMode.off
-              : locationMode,
+          // Geolocation mode is independent of the umbrella: legitimate
+          // uses (maps, ride-share, weather) need real GPS even when
+          // the user wants tracker-blocking + fingerprinting protection
+          // active. Static spoof coords still force the timezone to
+          // "From picked location" so Date/Intl values match the
+          // spoofed geo. When no coords are picked the umbrella does
+          // NOT touch the timezone — the stored choice (or system
+          // default) stands.
+          locationMode: locationMode,
           spoofLatitude: spoofLatitude,
           spoofLongitude: spoofLongitude,
           spoofAccuracy: spoofAccuracy,
