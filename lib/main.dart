@@ -37,6 +37,7 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
+import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -806,6 +807,15 @@ class WebSpacePage extends StatefulWidget {
   _WebSpacePageState createState() => _WebSpacePageState();
 }
 
+/// Records which site IDs and webspace IDs belong to one open archive
+/// handle, so closing one archive can remove exactly its rows from the
+/// parallel runtime collections without touching others.
+class _ArchiveSlice {
+  _ArchiveSlice({required this.siteIds, required this.webspaceIds});
+  final Set<String> siteIds;
+  final Set<String> webspaceIds;
+}
+
 class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
@@ -820,6 +830,30 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   );
   late final ContainerIsolationEngine _containerIsolation =
       ContainerIsolationEngine(containerNative: ContainerNative.instance);
+
+  /// Orchestrates the passphrase-gated archive layer (spec
+  /// `openspec/specs/archive/spec.md`). Constructed eagerly but the slot
+  /// pool is lazily initialised inside the orchestrator on first
+  /// open/create so users who never touch the feature pay no
+  /// `flutter_secure_storage` write at startup (ARCH-001).
+  final Archive _archive = Archive();
+
+  /// In-memory archive-tier sites, parallel to `_webViewModels`. Sourced
+  /// from the plaintext state of currently-open `ArchiveHandle`s. Never
+  /// merged with `_webViewModels` in any persistence or export path;
+  /// the IndexedStack-rendering code concatenates the two for display
+  /// only. Closing an archive removes its slice in one operation.
+  final List<WebViewModel> _archiveWebViewModels = [];
+
+  /// Webspaces sourced from currently-open archives, parallel to
+  /// `_webspaces`. Same persistence-isolation rules as
+  /// [_archiveWebViewModels].
+  final List<Webspace> _archiveWebspaces = [];
+
+  /// Tracks which archive owns which slice of [_archiveWebViewModels] /
+  /// [_archiveWebspaces]. Keyed by [ArchiveHandle] so closing one
+  /// archive can identify and remove exactly its rows.
+  final Map<ArchiveHandle, _ArchiveSlice> _archiveSlices = {};
 
   /// Container-mode cookie manager. Non-null when `_useContainers ==
   /// true`; null in legacy mode (the existing `_cookieManager` covers
@@ -1774,6 +1808,112 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }).toList();
     await prefs.setStringList('webViewModels', webViewModelsJson);
     _syncShortcutSites();
+  }
+
+  /// Materialises an open [ArchiveHandle]'s state into
+  /// [_archiveWebViewModels] and [_archiveWebspaces], records the slice
+  /// for later teardown. Caller is responsible for triggering setState.
+  void _materialiseArchive(ArchiveHandle handle) {
+    final siteIds = <String>{};
+    final webspaceIds = <String>{};
+    final stateSetter = () {
+      if (mounted) setState(() {});
+    };
+    for (final siteJson in handle.state.sites) {
+      final model = WebViewModel.fromJson(
+        Map<String, dynamic>.from(siteJson),
+        stateSetter,
+        isArchiveTier: true,
+      );
+      final cookieList = handle.state.cookies[model.siteId];
+      if (cookieList != null && cookieList.isNotEmpty) {
+        model.cookies = cookieList
+            .map((c) => cookieFromJson(Map<String, dynamic>.from(c)))
+            .toList();
+      }
+      _archiveWebViewModels.add(model);
+      siteIds.add(model.siteId);
+    }
+    for (final wsJson in handle.state.webspaces) {
+      final ws = Webspace.fromJson(Map<String, dynamic>.from(wsJson));
+      _archiveWebspaces.add(ws);
+      webspaceIds.add(ws.id);
+    }
+    _archiveSlices[handle] = _ArchiveSlice(
+      siteIds: siteIds,
+      webspaceIds: webspaceIds,
+    );
+  }
+
+  /// Opens an archive by passphrase. Returns the handle on success or
+  /// null when no archive matches this passphrase (caller may then offer
+  /// to create a new one). Cookies and webspace metadata for the archive
+  /// are materialised into the parallel runtime collections.
+  Future<ArchiveHandle?> _openArchive(String passphrase) async {
+    final handle = await _archive.tryOpen(passphrase);
+    if (handle == null) return null;
+    if (_archiveSlices.containsKey(handle)) {
+      // Already open. tryOpen on an already-open archive returns the same
+      // handle, no extra materialisation needed.
+      return handle;
+    }
+    _materialiseArchive(handle);
+    if (mounted) setState(() {});
+    return handle;
+  }
+
+  /// Creates a new archive with this passphrase and materialises an
+  /// empty slice.
+  Future<ArchiveHandle> _createArchive(String passphrase) async {
+    final handle = await _archive.create(passphrase);
+    _materialiseArchive(handle);
+    if (mounted) setState(() {});
+    return handle;
+  }
+
+  /// Closes an open archive: captures current cookies + state back into
+  /// the handle, persists, zeroes the key, and removes the archive's
+  /// rows from the parallel runtime collections.
+  Future<void> _closeArchive(ArchiveHandle handle) async {
+    final slice = _archiveSlices.remove(handle);
+    if (slice == null) return;
+    final ownedSites = [
+      for (final m in _archiveWebViewModels)
+        if (slice.siteIds.contains(m.siteId)) m,
+    ];
+    final ownedSpaces = [
+      for (final w in _archiveWebspaces)
+        if (slice.webspaceIds.contains(w.id)) w,
+    ];
+    handle.state.cookies
+      ..clear()
+      ..addEntries(
+        ownedSites.map(
+          (m) => MapEntry(
+            m.siteId,
+            m.cookies.map((c) => c.toJson()).toList(),
+          ),
+        ),
+      );
+    handle.state.sites
+      ..clear()
+      ..addAll(ownedSites.map((m) => m.toJson()));
+    handle.state.webspaces
+      ..clear()
+      ..addAll(ownedSpaces.map((w) => w.toJson()));
+    await _archive.save(handle);
+    await _archive.close(handle);
+    _archiveWebViewModels.removeWhere((m) => slice.siteIds.contains(m.siteId));
+    _archiveWebspaces.removeWhere((w) => slice.webspaceIds.contains(w.id));
+    if (mounted) setState(() {});
+  }
+
+  /// Closes every currently-open archive in sequence.
+  Future<void> _closeAllArchives() async {
+    final handles = List<ArchiveHandle>.from(_archiveSlices.keys);
+    for (final h in handles) {
+      await _closeArchive(h);
+    }
   }
 
   /// HS-007: push the current site list to the iOS App Intents picker so

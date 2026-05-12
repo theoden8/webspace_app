@@ -376,6 +376,26 @@ class WebViewModel {
   /// while a load is in flight.
   bool isLoading = false;
 
+  /// Runtime-only marker set when this model was materialised from an
+  /// open [Archive] handle rather than restored from app-tier
+  /// SharedPreferences. Never serialised. Per the archive feature audit
+  /// (ARCH-006), services that touch disk, background scheduling, or
+  /// OS-level UI must consult this flag and skip writes for archive-tier
+  /// sites.
+  final bool isArchiveTier;
+
+  /// Effective notification permission for runtime gating. Archive-tier
+  /// sites never participate in [`NotificationService`] background
+  /// polling or `flutter_local_notifications` delivery regardless of
+  /// stored value.
+  bool get effectiveNotificationsEnabled =>
+      isArchiveTier ? false : notificationsEnabled;
+
+  /// Effective LocalCDN cache write enable. Archive-tier sites never
+  /// write the per-site CDN cache to disk regardless of stored value.
+  bool get effectiveLocalCdnEnabled =>
+      isArchiveTier ? false : localCdnEnabled;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
@@ -425,6 +445,7 @@ class WebViewModel {
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.domainClaims,
     this.stateSetterF,
+    this.isArchiveTier = false,
   })  : userScripts = userScripts ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
@@ -1312,7 +1333,11 @@ class WebViewModel {
       };
   }
 
-  factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
+  factory WebViewModel.fromJson(
+    Map<String, dynamic> json,
+    Function? stateSetterF, {
+    bool isArchiveTier = false,
+  }) {
     final isIncognito = json['incognito'] as bool? ?? false;
     final isAlwaysOpenHome = json['alwaysOpenHome'] as bool? ?? false;
     // Either flag drops persisted currentUrl/pageTitle on rehydrate; only
@@ -1380,6 +1405,7 @@ class WebViewModel {
           ?.map((e) => DomainClaim.fromJson(e as Map<String, dynamic>))
           .toList(),
       stateSetterF: stateSetterF,
+      isArchiveTier: isArchiveTier,
     )..pageTitle = dropUrl ? null : json['pageTitle'];
   }
 }
