@@ -2603,6 +2603,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           webRtcPolicy: webRtcPolicy,
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
+          onShowUrlBarChanged: (show) async {
+            if (!mounted) return;
+            setState(() {
+              _showUrlBar = show;
+            });
+            await _saveShowUrlBar();
+          },
           proxySettings: proxySettings,
           notificationsEnabled: notificationsEnabled,
         ),
