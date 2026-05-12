@@ -19,8 +19,8 @@ String _slotKeyName(int index) {
   return 'archive_slot_$s';
 }
 
-class WebspaceArchiveStorage {
-  WebspaceArchiveStorage({FlutterSecureStorage? secureStorage})
+class ArchiveStorage {
+  ArchiveStorage({FlutterSecureStorage? secureStorage})
       : _storage = secureStorage ??
             const FlutterSecureStorage(
               aOptions:

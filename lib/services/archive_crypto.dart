@@ -8,7 +8,7 @@ const int kArchiveKeyLength = 32;
 const int kArchiveNonceLength = 12;
 const int kArchiveMacLength = 16;
 
-const String _saltDomain = 'webspace-archive-salt-v1';
+const String _saltDomain = 'archive-salt-v1';
 
 final Argon2id _argon2id = Argon2id(
   parallelism: 4,
