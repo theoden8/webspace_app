@@ -868,6 +868,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isBackHandling = false;
   bool _isFindVisible = false;
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
+  /// When true, a full-screen opaque mask covers every webview so the
+  /// OS task-switcher / recents snapshot doesn't capture archive-tier
+  /// content (ARCH-009). Set on `inactive`/`paused` when at least one
+  /// archive is open; cleared on `resumed`. Apps without an open
+  /// archive get the normal screenshot as before — this is a purely
+  /// additive guard.
+  bool _maskBackground = false;
   bool _showUrlBar = false;
   bool _showTabStrip = false;
   bool _linkHandlingEnabled = true;
@@ -1262,6 +1269,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Mask any visible archive content the moment focus leaves the app
+    // (well before `paused`) so the OS snapshot for the task switcher
+    // / recents preview never captures an archive-tier site. False
+    // positives (popup dialog, app-switcher peek) cost a brief visual
+    // overlay flash, not data — acceptable trade for the snapshot
+    // guarantee. The mask is only armed while at least one archive is
+    // open; the no-archive code path is unchanged.
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      if (_archiveSlices.isNotEmpty && !_maskBackground) {
+        setState(() => _maskBackground = true);
+      }
+    }
     // Only treat `paused` as a real backgrounding event. `inactive` fires for
     // any transient focus loss — native <select> popup dialog, app-switcher
     // peek, system permission prompt, incoming call on iOS — where pausing
@@ -1289,6 +1310,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // before the process gets backgrounded.
       unawaited(_updateBackgroundRefreshSchedule());
     } else if (state == AppLifecycleState.resumed) {
+      if (_maskBackground) {
+        setState(() => _maskBackground = false);
+      }
       _startForegroundPollTimer();
       // Await any in-flight pause before resuming to prevent ordering inversion
       _resumeAfterLifecyclePause();
@@ -5542,6 +5566,35 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final bool webviewIsVisible = _currentIndex != null && _currentIndex! < _webViewModels.length;
+    final mainTree = _buildMainTree(context, webviewIsVisible);
+    if (!_maskBackground) {
+      return mainTree;
+    }
+    // Snapshot-time mask: an opaque surface overlays everything so the
+    // task-switcher / recents preview never captures archive content
+    // (ARCH-009). Wrapping the existing tree keeps the running webview
+    // state intact — only the painted output is replaced.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        mainTree,
+        Positioned.fill(
+          child: ColoredBox(
+            color: Theme.of(context).colorScheme.surface,
+            child: Center(
+              child: Icon(
+                Icons.lock_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainTree(BuildContext context, bool webviewIsVisible) {
     return PopScope(
       // On Android, always intercept back so we can implement the two-step
       // exit pattern (back → open drawer → back → exit app).
