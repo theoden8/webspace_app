@@ -78,7 +78,7 @@ class TrustedHostsService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(kTrustedHostsKey) ?? const <String>[];
     _byHostPort.clear();
-    bool migrated = false;
+    final migrated = <TrustedHostEntry>[];
     for (final s in raw) {
       final entry = TrustedHostEntry.decode(s);
       if (entry == null) continue;
@@ -88,13 +88,30 @@ class TrustedHostsService {
       // protocol default (443) so dart:io `badCertificateCallback`,
       // which always sees the real socket port, can match.
       if (entry.port <= 0) {
-        _byHostPort[_key(entry.host, 443)] = entry.sha256Hex;
-        migrated = true;
+        final fixed = TrustedHostEntry(
+          host: entry.host,
+          port: 443,
+          sha256Hex: entry.sha256Hex,
+        );
+        _byHostPort[_key(fixed.host, fixed.port)] = fixed.sha256Hex;
+        migrated.add(fixed);
       } else {
         _byHostPort[_key(entry.host, entry.port)] = entry.sha256Hex;
       }
     }
-    if (migrated) await _persist();
+    if (migrated.isNotEmpty) {
+      await _persist();
+      // Surface migrated pins on the trustChanges stream so listeners
+      // (e.g. IconService's favicon invalidator) can retro-fetch
+      // resources that previously failed against the wrong port key.
+      // Schedule for the next tick so subscribers wired immediately
+      // after `initialize()` returns still observe these events.
+      scheduleMicrotask(() {
+        for (final entry in migrated) {
+          _trustController.add(entry);
+        }
+      });
+    }
     _initialized = true;
   }
 
