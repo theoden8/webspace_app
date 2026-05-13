@@ -417,6 +417,14 @@ class WebViewModel {
   bool get effectiveHtmlCachingEnabled =>
       isArchiveTier ? false : htmlCachingEnabled;
 
+  /// Drains the per-WebView settle Timer in `WebViewFactory.createWebView`.
+  /// Populated via `WebViewConfig.onSettleHandlerReady`. Called from
+  /// [disposeWebView] before the controller is nulled, so a Timer
+  /// armed by an onLoadStop ~1s before unload cannot fire and commit
+  /// transient state (cached HTML / lastSettledUrl) for a site the
+  /// user has already switched away from. See #333.
+  VoidCallback? _cancelPendingSettle;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
@@ -740,6 +748,7 @@ class WebViewModel {
           onExternalSchemeUrl: onExternalSchemeUrl,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
+          onSettleHandlerReady: (cancel) => _cancelPendingSettle = cancel,
           shouldOverrideUrlLoading: (url, hasGesture) {
             LogService.instance.log(
               'WebView',
@@ -1205,6 +1214,8 @@ class WebViewModel {
       'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
       sensitivity: LogSensitivity.sensitive,
     );
+    _cancelPendingSettle?.call();
+    _cancelPendingSettle = null;
     webview = null;
     controller = null;
   }
