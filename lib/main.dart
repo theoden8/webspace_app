@@ -843,6 +843,30 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   void _onPinRevoked(TrustedHostEntry entry) {
     final host = entry.host.toLowerCase();
+    // Android's System WebView remembers `handler.proceed()` decisions
+    // in a process-wide SSL preferences table — keyed by host, NOT
+    // tied to any WebView instance. Disposing the WebView leaves the
+    // table intact; the next WebView created reuses the cached
+    // "accepted" verdict and `onReceivedSslError` never fires again.
+    // `WebView.clearSslPreferences()` wipes the table for the whole
+    // app, and per Android docs is a method on a WebView instance but
+    // affects all of them. So we call it on any live native
+    // controller we can find (matching site preferred, but any loaded
+    // webview works since the side-effect is global). No-op on
+    // iOS/macOS/Linux — those platforms have no equivalent table.
+    inapp.InAppWebViewController? anyLive;
+    for (final i in _loadedIndices) {
+      if (i >= _webViewModels.length) continue;
+      final c = _webViewModels[i].controller?.nativeController;
+      if (c != null) {
+        anyLive ??= c;
+      }
+    }
+    if (anyLive != null) {
+      try {
+        anyLive.clearSslPreferences();
+      } catch (_) {}
+    }
     bool changed = false;
     for (var i = 0; i < _webViewModels.length; i++) {
       final model = _webViewModels[i];
@@ -855,12 +879,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (port != entry.port) continue;
       HtmlCacheService.instance.deleteCache(model.siteId);
       if (!_loadedIndices.contains(i)) continue;
-      // Always unload. Foreground OR background — same path. The
-      // user revoked their decision; the webview keeps no rendered
-      // DOM, no native SSL preferences, no HTTP cache. Next time
-      // the user navigates to the site, the lazy loader creates a
-      // fresh webview, runs a fresh TLS handshake, fires the trust
-      // callback with no pin, and prompts.
+      // Unload regardless of foreground/background. The lazy loader
+      // recreates the webview on the next visit, runs a fresh TLS
+      // handshake against the no-longer-cached SSL preferences, fires
+      // the trust callback with no pin, and prompts.
       model.disposeWebView();
       _loadedIndices.remove(i);
       changed = true;
