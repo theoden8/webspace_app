@@ -2911,14 +2911,29 @@ class WebViewFactory {
     if (!_inflightSslPrompts.add(key)) return true;
     try {
       final cert = _sslCertificateCache[key];
+      final fingerprint =
+          TrustedHostsService.fingerprintFromInappCertificate(cert);
+      // iOS fires `didFailProvisionalNavigation` for the original
+      // (failed) nav even after we've reloaded over it, so this
+      // handler re-enters once the pin is already in place. Treat any
+      // matching pin as "already handled" and stop the prompt+reload
+      // loop. If the cert genuinely rotated the fingerprint won't
+      // match and we fall through to the prompt below.
+      if (TrustedHostsService.instance.isTrusted(
+        host: host,
+        port: port,
+        fingerprint: fingerprint,
+      )) {
+        LogService.instance.log('TLS',
+            'ignoring stale ssl error for $host:$port — already pinned');
+        return true;
+      }
       final approved = await prompt(host, port, cert);
       if (!approved) {
         LogService.instance.log(
             'TLS', 'user rejected untrusted cert for $host:$port');
         return false;
       }
-      final fingerprint =
-          TrustedHostsService.fingerprintFromInappCertificate(cert);
       if (fingerprint == null) {
         LogService.instance.log('TLS',
             'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again');
