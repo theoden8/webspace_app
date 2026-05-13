@@ -2827,6 +2827,9 @@ class WebViewFactory {
     )) {
       LogService.instance.log(
           'TLS', 'pinned cert accepted for $host:$port (sha256=$fingerprint)');
+      // The reload's trust callback firing means the new connection
+      // is past the lower-layer failure that motivated the guard.
+      _clearReloadGuard(_certCacheKey(host, port));
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
     }
@@ -2892,42 +2895,83 @@ class WebViewFactory {
   /// (main frame + favicon + service worker probes).
   static final Set<String> _inflightSslPrompts = {};
 
-  /// iOS/macOS post-failure path. The trust callback returned no-action
-  /// (deferring to OS), the OS rejected, and now we get a chance to ask
-  /// the user. On approval we pin the cert we cached during the trust
-  /// callback and reload the URL — the next attempt's trust callback
-  /// finds the pin and returns PROCEED.
+  /// Hosts we have already attempted to reload after a TLS failure
+  /// when a pin existed. iOS WKWebView fires `onReceivedError` for
+  /// every failed connection even when our async `.useCredential`
+  /// would have eventually succeeded — the underlying NSURLSession
+  /// has already entered a failed state by the time the trust
+  /// callback's response arrives. Reloading kicks off a fresh
+  /// connection that does see our PROCEED in time. We need exactly
+  /// one reload per nav, otherwise the post-reload's own stale
+  /// `onReceivedError` triggers another reload, ad infinitum. The
+  /// entry is cleared by [_clearReloadGuard] on the next successful
+  /// trust-callback PROCEED for the same host (means the reload's
+  /// TLS is in flight) or via [_reloadGuardTimeout] as a fail-safe.
+  static final Map<String, DateTime> _pendingSslReloads = {};
+  static const Duration _reloadGuardTimeout = Duration(seconds: 10);
+
+  static bool _claimReloadGuard(String key) {
+    final now = DateTime.now();
+    final prev = _pendingSslReloads[key];
+    if (prev != null && now.difference(prev) < _reloadGuardTimeout) {
+      return false;
+    }
+    _pendingSslReloads[key] = now;
+    return true;
+  }
+
+  static void _clearReloadGuard(String key) {
+    _pendingSslReloads.remove(key);
+  }
+
+  /// iOS/macOS post-failure path. The trust callback returned `null`
+  /// (deferring to OS), the OS rejected, and now we get a chance to
+  /// act. Two cases:
+  ///   * Cert is already pinned (cached fingerprint matches) — the OS
+  ///     rejection was lower-layer (the trust callback's async
+  ///     `.useCredential` didn't beat NSURLSession's failure state).
+  ///     A fresh reload starts a new connection where our PROCEED
+  ///     wins. Guarded so a single nav can only trigger one reload.
+  ///   * Not pinned — show the prompt; on approval pin the cached
+  ///     cert and reload. The reload's trust callback finds the pin
+  ///     and returns PROCEED.
   static Future<bool> _handleSslLoadError({
     required inapp.InAppWebViewController controller,
     required String url,
     required Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
   }) async {
-    if (prompt == null) return false;
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasAuthority) return false;
     final host = uri.host;
     final port = uri.hasPort ? uri.port : (uri.scheme == 'https' ? 443 : 80);
     final key = _certCacheKey(host, port);
-    if (!_inflightSslPrompts.add(key)) return true;
-    try {
-      final cert = _sslCertificateCache[key];
-      final fingerprint =
-          TrustedHostsService.fingerprintFromInappCertificate(cert);
-      // iOS fires `didFailProvisionalNavigation` for the original
-      // (failed) nav even after we've reloaded over it, so this
-      // handler re-enters once the pin is already in place. Treat any
-      // matching pin as "already handled" and stop the prompt+reload
-      // loop. If the cert genuinely rotated the fingerprint won't
-      // match and we fall through to the prompt below.
-      if (TrustedHostsService.instance.isTrusted(
-        host: host,
-        port: port,
-        fingerprint: fingerprint,
-      )) {
+    final cert = _sslCertificateCache[key];
+    final fingerprint =
+        TrustedHostsService.fingerprintFromInappCertificate(cert);
+    if (TrustedHostsService.instance.isTrusted(
+      host: host,
+      port: port,
+      fingerprint: fingerprint,
+    )) {
+      if (!_claimReloadGuard(key)) {
         LogService.instance.log('TLS',
-            'ignoring stale ssl error for $host:$port — already pinned');
+            'ignoring further ssl errors for $host:$port — reload already in flight');
         return true;
       }
+      LogService.instance.log('TLS',
+          'pin matches but iOS reported error for $host:$port — reloading once');
+      Future.microtask(() async {
+        try {
+          await controller.loadUrl(
+            urlRequest: inapp.URLRequest(url: inapp.WebUri(url)),
+          );
+        } catch (_) {}
+      });
+      return true;
+    }
+    if (prompt == null) return false;
+    if (!_inflightSslPrompts.add(key)) return true;
+    try {
       final approved = await prompt(host, port, cert);
       if (!approved) {
         LogService.instance.log(
