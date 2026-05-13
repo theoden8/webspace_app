@@ -78,10 +78,23 @@ class TrustedHostsService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(kTrustedHostsKey) ?? const <String>[];
     _byHostPort.clear();
+    bool migrated = false;
     for (final s in raw) {
       final entry = TrustedHostEntry.decode(s);
-      if (entry != null) _byHostPort[_key(entry.host, entry.port)] = entry.sha256Hex;
+      if (entry == null) continue;
+      // Earlier builds stored `(host, -1, fp)` on Android when the
+      // platform surfaced `NSURLProtectionSpace.port = -1` and the
+      // trust handler's `??` fallback didn't fire. Rewrite to the
+      // protocol default (443) so dart:io `badCertificateCallback`,
+      // which always sees the real socket port, can match.
+      if (entry.port <= 0) {
+        _byHostPort[_key(entry.host, 443)] = entry.sha256Hex;
+        migrated = true;
+      } else {
+        _byHostPort[_key(entry.host, entry.port)] = entry.sha256Hex;
+      }
     }
+    if (migrated) await _persist();
     _initialized = true;
   }
 

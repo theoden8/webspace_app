@@ -2816,8 +2816,17 @@ class WebViewFactory {
   ) async {
     final space = challenge.protectionSpace;
     final host = space.host;
-    final port = space.port ??
-        (space.protocol?.toLowerCase() == 'https' ? 443 : 0);
+    // `space.port` is `int?` but on Android the upstream plugin
+    // surfaces `-1` (NSURLProtectionSpace sentinel) rather than null,
+    // which slips past the `??`. Coalesce any non-positive value to
+    // the protocol default. Otherwise pins land as
+    // `(host, -1, sha256)` and the dart:io `badCertificateCallback`
+    // (which always sees the real socket port, e.g. 443) never
+    // matches → favicon stays on the public-CA fallback.
+    final rawPort = space.port;
+    final port = (rawPort != null && rawPort > 0)
+        ? rawPort
+        : (space.protocol?.toLowerCase() == 'https' ? 443 : 80);
     final cert = space.sslCertificate;
     final fingerprint = TrustedHostsService.fingerprintFromInappCertificate(cert);
     if (cert != null) {
