@@ -95,10 +95,10 @@ accept.
 
 ### Requirement: TLS-002 - Untrusted certs trigger a single user prompt
 
-When the OS rejects a server certificate AND the cert is not pinned, the
-app SHALL show exactly one "Untrusted certificate" dialog per host
-across the lifetime of the failure (re-entrant calls during prompt
-display SHALL be coalesced).
+The app SHALL show exactly one "Untrusted certificate" dialog per host
+when the OS rejects a server cert and the cert is not pinned. Re-entrant
+calls during prompt display SHALL be coalesced so a cascade of failed
+sub-resource requests does not stack identical dialogs.
 
 #### Scenario: First visit to a self-signed host on iOS/macOS
 
@@ -132,9 +132,10 @@ display SHALL be coalesced).
 
 ### Requirement: TLS-003 - Stale post-failure events are dropped after a pin
 
-After the user pins a cert and the URL is reloaded, the platform MAY
-deliver the original failed-nav callback `onReceivedError` event late.
-The app SHALL detect this and skip the redundant prompt.
+The app SHALL detect and ignore stale `onReceivedError` events for hosts
+that are already pinned. After the user pins a cert and the URL is
+reloaded, the platform MAY deliver the original failed-nav callback
+late; the redundant prompt MUST NOT be re-shown.
 
 #### Scenario: iOS delivers a stale `didFailProvisionalNavigation` after reload
 
@@ -150,10 +151,10 @@ The app SHALL detect this and skip the redundant prompt.
 
 ### Requirement: TLS-004 - Dart-side HTTP client honors the same pin list
 
-`HttpClient.badCertificateCallback` for every `HttpClient` created via
-`OutboundHttp._newHttpClient()` SHALL consult `TrustedHostsService` so
-favicon probes, downloads, and the SOCKS5 raw-socket secure tunnel work
-for any host the user trusted in the webview.
+Every `HttpClient` created via `OutboundHttp._newHttpClient()` SHALL
+install a `badCertificateCallback` that consults `TrustedHostsService`,
+so favicon probes, downloads, and the SOCKS5 raw-socket secure tunnel
+work for any host the user trusted in the webview.
 
 #### Scenario: Favicon probe to a trusted self-signed host succeeds
 
@@ -177,9 +178,10 @@ for any host the user trusted in the webview.
 
 ### Requirement: TLS-005 - Cert rotation forces a re-prompt
 
-The pin is keyed on the cert's SHA-256, not the host alone. If the
-remote cert changes the pin SHALL no longer match and the user SHALL be
-re-prompted, matching desktop-browser exception semantics.
+Pins SHALL be keyed on the cert's SHA-256, not the host alone, so that a
+rotated cert no longer matches the pin and the user is re-prompted.
+This matches desktop-browser exception semantics: a self-signed site
+swapping its cert mid-session is treated as a fresh, untrusted host.
 
 #### Scenario: Self-signed cert rotates
 
@@ -194,10 +196,11 @@ re-prompted, matching desktop-browser exception semantics.
 
 ### Requirement: TLS-006 - DER bytes missing → no pin
 
-Some platforms (Linux/WPE in particular) may not surface DER bytes via
-`SslCertificate.x509Certificate.encoded`. The trust prompt SHALL still
-work, but the user's decision CANNOT be persisted. The same dialog will
-appear on the next visit.
+The prompt SHALL still appear when the platform's `SslCertificate` has
+no DER bytes, but the user's decision MUST NOT be persisted (the pin
+key requires a SHA-256 fingerprint). The dialog will reappear on the
+next visit. Linux/WPE WebKit is the most common platform that omits the
+DER payload.
 
 #### Scenario: Platform doesn't surface DER bytes
 
@@ -235,10 +238,13 @@ exporting and re-importing the settings file preserves them.
 
 ### Requirement: TLS-008 - Spurious pins from the pre-fix release are wiped on first launch
 
-The initial release of the prompt feature (commit `5ef1174`) caused
-users to pin dozens of legitimate public CA leaf fingerprints because
-the handler intercepted every TLS handshake on iOS/macOS. A one-shot
-migration on first launch after this fix SHALL clear the pin list.
+The app SHALL run a one-shot `TrustedHostsService.clear()` on the first
+launch after this fix, gated by SharedPreferences key
+`trustedHostsResetForOsDefaultV1`. The initial release of the prompt
+feature (commit `5ef1174`) intercepted every TLS handshake on iOS/macOS
+and caused users to pin dozens of legitimate public CA leaf
+fingerprints; the wipe gives the new OS-default-first flow a clean
+slate. Subsequent launches MUST NOT re-run the wipe.
 
 #### Scenario: One-shot reset runs once
 
