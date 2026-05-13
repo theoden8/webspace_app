@@ -319,8 +319,8 @@ packages:
     dependency: "direct main"
     description:
       path: flutter_inappwebview
-      ref: "claude/merge-privacy-webspace-patches-UFPxT"
-      resolved-ref: ff22050d102785da8044fc98b090446c90362950
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -328,8 +328,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_android
-      ref: "claude/merge-privacy-webspace-patches-UFPxT"
-      resolved-ref: ff22050d102785da8044fc98b090446c90362950
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -345,8 +345,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_ios
-      ref: "claude/merge-privacy-webspace-patches-UFPxT"
-      resolved-ref: ff22050d102785da8044fc98b090446c90362950
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -354,8 +354,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_linux
-      ref: "claude/merge-privacy-webspace-patches-UFPxT"
-      resolved-ref: ff22050d102785da8044fc98b090446c90362950
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "0.1.0-beta.2"
@@ -363,8 +363,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_macos
-      ref: "claude/merge-privacy-webspace-patches-UFPxT"
-      resolved-ref: ff22050d102785da8044fc98b090446c90362950
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -372,8 +372,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: flutter_inappwebview_platform_interface
-      ref: "claude/merge-privacy-webspace-patches-UFPxT"
-      resolved-ref: ff22050d102785da8044fc98b090446c90362950
+      ref: "v6.2.0-beta.3-privacy-v1"
+      resolved-ref: e4f06052c0b7d0447e0210ccc522b8811d4fa641
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
