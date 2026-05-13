@@ -856,9 +856,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (_loadedIndices.contains(i)) {
         final controller = model.controller;
         if (controller != null) {
-          // Best-effort: clear the in-WebView HTTP cache before
-          // reloading so a stale Cache-Control:max-age response
-          // can't substitute for a real TLS handshake.
+          // Android's System WebView remembers `handler.proceed()`
+          // decisions in its own SSL preferences table — keyed by
+          // host, process-wide, surviving WebView dispose. Our
+          // Dart-level untrust does not touch that table, so the
+          // next nav reuses the remembered "accepted" verdict and
+          // skips `onReceivedSslError` entirely. Wipe the WebView's
+          // preferences before reloading so the platform actually
+          // re-evaluates the cert and re-fires our trust callback.
+          // No-op on iOS/macOS/Linux (Apple/WPE don't have an
+          // equivalent persistent in-process trust table).
+          try {
+            controller.nativeController.clearSslPreferences();
+          } catch (_) {}
+          // Best-effort: clear the in-WebView HTTP cache too so a
+          // stale Cache-Control:max-age response can't substitute
+          // for the fresh TLS handshake.
           try {
             // ignore: deprecated_member_use
             controller.nativeController.clearCache();
