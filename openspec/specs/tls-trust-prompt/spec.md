@@ -40,18 +40,20 @@ The contract below collapses that asymmetry into one user-visible flow:
 "if and only if the OS rejected the cert, ask the user once and pin the
 decision."
 
-**macOS is the exception.** macOS 15+ WKWebView ignores
-`URLCredential(trust:)` for self-signed / unknown-CA certs at the
-`nw_protocol_boringssl` layer regardless of how the credential is
-delivered (sync / async, with / without `SecTrustSetExceptions`, with /
-without `SecTrustEvaluateWithError`). The only OS-supported override is
-installing the cert into the user trust store via
-`SecTrustSettingsSetTrustSettings(kSecTrustSettingsDomainUser, ...)`,
-which the macOS app sandbox blocks. Safari uses a private WebKit SPI no
-third-party app has access to. The trust-prompt path is therefore
-**skipped on macOS**: public CA-signed sites work via the OS-default
-path, but self-signed sites fail closed and the user must install the
-cert in Keychain Access manually if needed.
+**Modern Apple platforms are the exception.** macOS 15+ and iOS 26+
+WKWebView ignore `URLCredential(trust:)` for self-signed / unknown-CA
+certs at the `nw_protocol_boringssl` layer regardless of how the
+credential is delivered (sync / async, with / without
+`SecTrustSetExceptions`, with / without `SecTrustEvaluateWithError`).
+The only OS-supported override is installing the cert into the system
+trust store, which app sandboxing blocks (`SecTrustSettingsSetTrustSettings`
+on macOS, profile installation through MDM on iOS). Safari uses a
+private WebKit SPI no third-party app has access to. The trust-prompt
+path is therefore **skipped on iOS and macOS**: public CA-signed sites
+work via the OS-default path, but self-signed sites fail closed and the
+user must install the cert manually if needed (Keychain Access on macOS,
+Settings → General → VPN & Device Management → Certificate Trust
+Settings on iOS).
 
 ## Solution
 
@@ -106,26 +108,13 @@ accept.
 
 ---
 
-### Requirement: TLS-002 - Untrusted certs trigger a single user prompt on supported platforms
+### Requirement: TLS-002 - Untrusted certs trigger a single user prompt on Android/Linux
 
 The app SHALL show exactly one "Untrusted certificate" dialog per host
-when the OS rejects a server cert and the cert is not pinned, on iOS,
-Android, and Linux. Re-entrant calls during prompt display SHALL be
+when the OS rejects a server cert and the cert is not pinned, on
+Android and Linux. Re-entrant calls during prompt display SHALL be
 coalesced so a cascade of failed sub-resource requests does not stack
-identical dialogs. macOS is excluded — see TLS-009.
-
-#### Scenario: First visit to a self-signed host on iOS
-
-**Given** `https://self-signed.example.com` presents a self-signed cert
-**And** no pin exists for `self-signed.example.com:443`
-**When** the user navigates to it
-**Then** `_handleServerTrust` returns `null`
-**And** Apple Keychain rejects the chain
-**And** WKWebView fires `onReceivedError` with type `SERVER_CERTIFICATE_UNTRUSTED`
-**And** `_handleSslLoadError` shows the prompt with subject/issuer/fingerprint
-**And** if the user taps "Trust this site" the cert SHA-256 is persisted to `TrustedHostsService`
-**And** the URL is reloaded via `controller.loadUrl(...)`
-**And** the reload's trust callback returns `PROCEED` because the pin matches
+identical dialogs. iOS and macOS are excluded — see TLS-009.
 
 #### Scenario: First visit to a self-signed host on Android/Linux
 
@@ -134,6 +123,7 @@ identical dialogs. macOS is excluded — see TLS-009.
 **Then** the OS rejects the chain pre-callback and fires the trust callback
 **And** `_handleServerTrust` shows the prompt inline (no reload round-trip)
 **And** approval pins the cert and the response action is `PROCEED`
+**And** the reload succeeds and the page loads
 
 #### Scenario: Prompt re-entrancy is coalesced
 
@@ -277,42 +267,43 @@ slate. Subsequent launches MUST NOT re-run the wipe.
 
 ---
 
-### Requirement: TLS-009 - macOS skips the trust-prompt path entirely
+### Requirement: TLS-009 - Apple platforms skip the trust-prompt path entirely
 
-The app SHALL NOT show the trust prompt on macOS, SHALL NOT reload on
-SSL load errors, and SHALL NOT pin self-signed certs from macOS user
-input. `_handleSslLoadError` returns `false` immediately on macOS so
-the load fails with the OS's native error and no prompt-or-reload loop
-runs. The pin store remains active on macOS for the Dart-side
+The app SHALL NOT show the trust prompt on iOS or macOS, SHALL NOT
+reload on SSL load errors, and SHALL NOT pin self-signed certs from
+user input collected on those platforms. `_handleSslLoadError` returns
+`false` immediately when `Platform.isIOS || Platform.isMacOS` so the
+load fails with the OS's native error and no prompt-or-reload loop
+runs. The pin store remains active for the Dart-side
 `HttpClient.badCertificateCallback` path (TLS-004) — pins created on
-other platforms / restored from a settings backup still apply to
-favicon probes and downloads.
+Android/Linux or restored from a settings backup still apply to favicon
+probes and downloads.
 
-#### Scenario: Self-signed host on macOS fails closed without a prompt
+#### Scenario: Self-signed host on iOS/macOS fails closed without a prompt
 
-**Given** the user is on macOS
+**Given** the user is on iOS or macOS
 **And** `https://self-signed.example.com` presents a self-signed cert
 **When** the user navigates to it
 **Then** `_handleServerTrust` returns `null`
 **And** Apple Keychain rejects the chain
 **And** `onReceivedError` fires with `SECURE_CONNECTION_FAILED`
-**And** `_handleSslLoadError` returns `false` immediately on macOS
+**And** `_handleSslLoadError` returns `false` immediately
 **And** no dialog is shown
 **And** no pin is created
 **And** the WebView shows the OS's native SSL failure state
 
-#### Scenario: Public CA-signed sites still work on macOS
+#### Scenario: Public CA-signed sites still work on iOS/macOS
 
-**Given** the user is on macOS
+**Given** the user is on iOS or macOS
 **And** the cert chain for `https://github.com` is trusted by Apple Keychain
 **When** the user navigates to it
 **Then** `_handleServerTrust` returns `null`
 **And** the OS-default path accepts the chain
 **And** the page loads without any TLS-related code firing
 
-#### Scenario: Pre-existing pin still applies to Dart HttpClient on macOS
+#### Scenario: Pre-existing pin still applies to Dart HttpClient on Apple platforms
 
-**Given** a settings backup imported on macOS contains a pin for `self-signed.example.com:443`
+**Given** a settings backup imported on iOS or macOS contains a pin for `self-signed.example.com:443`
 **When** the favicon service issues `HttpClient.getUrl(https://self-signed.example.com/favicon.ico)`
 **Then** `badCertificateCallback` consults `TrustedHostsService` (TLS-004 unchanged)
 **And** the favicon request succeeds
