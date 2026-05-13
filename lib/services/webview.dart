@@ -474,6 +474,14 @@ class WebViewConfig {
   )? onUntrustedCertificate;
   /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
   final inapp.PullToRefreshController? pullToRefreshController;
+  /// Fires when the underlying renderer terminates unexpectedly. On Android
+  /// this maps to `WebView.onRenderProcessGone` — the OS sometimes kills the
+  /// renderer to reclaim memory after the app has been backgrounded for a
+  /// while, leaving the WebView's surface in an unusable "black screen"
+  /// state until it's destroyed and recreated. The host is expected to drop
+  /// the controller and rebuild the widget. If unset, the WebView is left
+  /// in its post-crash state (visible to the user as a black rectangle).
+  final void Function(bool didCrash)? onRendererGone;
   /// Per-site geolocation mode. [LocationMode.spoof] injects a shim that
   /// overrides `navigator.geolocation` with [spoofLatitude]/[spoofLongitude].
   final LocationMode locationMode;
@@ -543,6 +551,7 @@ class WebViewConfig {
     this.onExternalSchemeUrl,
     this.onUntrustedCertificate,
     this.pullToRefreshController,
+    this.onRendererGone,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
     this.spoofLongitude,
@@ -3015,6 +3024,35 @@ class WebViewFactory {
       },
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
           _handleServerTrust(controller, challenge, config.onUntrustedCertificate),
+      // Android `WebView.onRenderProcessGone`: the OS can kill the renderer
+      // process while the app is backgrounded to reclaim memory. Coming back
+      // to a renderer-gone WebView shows a black surface because the view is
+      // alive but has no renderer driving it. Android docs require the host
+      // to destroy and rebuild the WebView — we hand the event up to the
+      // owning model, which clears `webview`/`controller` and triggers a
+      // setState so the IndexedStack child rebuilds at the same `currentUrl`.
+      // Fixes issue #333.
+      onRenderProcessGone: (controller, detail) {
+        LogService.instance.log(
+          'WebView',
+          'onRenderProcessGone: siteId=${config.siteId} didCrash=${detail.didCrash} '
+              'priority=${detail.rendererPriorityAtExit}',
+          level: LogLevel.warning,
+        );
+        config.onRendererGone?.call(detail.didCrash);
+      },
+      // iOS/macOS parity for `onRenderProcessGone`: WKWebView raises this
+      // when the web content process is killed (OS memory pressure during
+      // backgrounding, or a page-induced crash). Same recovery path —
+      // throw the WebView away and let the host rebuild.
+      onWebContentProcessDidTerminate: (controller) {
+        LogService.instance.log(
+          'WebView',
+          'onWebContentProcessDidTerminate: siteId=${config.siteId}',
+          level: LogLevel.warning,
+        );
+        config.onRendererGone?.call(true);
+      },
     );
   }
 

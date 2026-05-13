@@ -883,6 +883,7 @@ class WebViewModel {
           onHtmlLoaded: onHtmlLoaded,
           shouldFetchHtml: shouldFetchHtml,
           initialHtml: initialHtml,
+          onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onConsoleMessage: (message, level) {
             consoleLogs.add(ConsoleLogEntry(
               timestamp: DateTime.now(),
@@ -981,6 +982,25 @@ class WebViewModel {
     if (incognito) return; // Don't capture cookies for incognito sites
     final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
     cookies = await cookieManager.getCookies(url: url);
+  }
+
+  /// Drop the cached webview widget and controller, then ask the host to
+  /// rebuild. Used when the renderer process is killed (Android `onRender-
+  /// ProcessGone`, iOS/macOS `onWebContentProcessDidTerminate`) — the view
+  /// is alive but has no renderer driving it, which paints as a black
+  /// surface on resume from background (issue #333). Recreation is the only
+  /// supported recovery per Android docs; the native WebView cannot recover
+  /// in place. The user loses the live JS heap and DOM, which is unavoidable
+  /// since the process holding them is gone — `currentUrl` is reloaded so
+  /// the back-/forward stack is the only thing dropped.
+  void handleRendererGone({required bool didCrash}) {
+    LogService.instance.log(
+      'WebView',
+      'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating',
+    );
+    webview = null;
+    controller = null;
+    stateSetterF?.call();
   }
 
   /// Per-instance pause for site switches.

@@ -387,6 +387,48 @@ The two systems are complementary: HTML cache provides instant first-paint of th
 
 ---
 
+### Requirement: PAUSE-013 — Renderer-Gone Recovery
+
+The system SHALL recover from renderer-process termination by destroying and rebuilding the affected webview at its `currentUrl`. When the OS kills the WebView's renderer (Android `onRenderProcessGone`, iOS/macOS `onWebContentProcessDidTerminate`) — typically to reclaim memory after the app has been backgrounded for a while — the native WebView is alive but has no renderer driving it. Visually this paints as a **black surface** that does not recover on its own; per Android docs the WebView object is unusable and must be destroyed.
+
+Recovery runs entirely in the host (`WebViewModel`), not in the engine:
+
+- `WebViewModel.handleRendererGone({required bool didCrash})` drops the cached widget (`webview = null`) and controller (`controller = null`), then invokes `stateSetterF`.
+- The host `setState` rebuild calls `getWebView()`, which sees `webview == null` and constructs a fresh `InAppWebView` with `initialUrlRequest` pointing at `currentUrl`.
+- The live JS heap and DOM are unavoidably lost — the process holding them is gone. Back/forward stack is dropped too (no `saveState()` is possible after the renderer is dead); the user lands on the URL they were on.
+
+The wrapper exposes a single `WebViewConfig.onRendererGone(bool didCrash)` callback fed by both platform events. `didCrash` is forwarded as-is for logging, but the recovery path is identical for `didCrash=true` (renderer crashed) and `didCrash=false` (renderer killed by the system) — the WebView object is equally unusable in both cases.
+
+#### Scenario: Android renderer killed after app is backgrounded
+
+**Given** the user is on site A in the foreground
+**And** they background the app and switch to another app for several minutes
+**And** the Android OS kills the WebView renderer process to reclaim memory
+**When** the user switches back to our app
+**Then** `WebView.onRenderProcessGone` fires with `didCrash=false`
+**And** `WebViewConfig.onRendererGone(false)` is invoked on the owning model
+**And** `model.webview` and `model.controller` are set to null
+**And** `stateSetterF` is called, triggering a parent rebuild
+**And** the IndexedStack child reconstructs the `InAppWebView` at `currentUrl`
+**And** the user sees the page reload instead of a stuck black screen
+
+#### Scenario: iOS web content process terminates
+
+**Given** site A is loaded on iOS
+**When** WKWebView raises `onWebContentProcessDidTerminate` (page-induced crash or OS reclaim)
+**Then** `WebViewConfig.onRendererGone(true)` is invoked (treated as a hard termination)
+**And** the same destroy-and-rebuild path runs — the WebView is reconstructed at `currentUrl`
+
+#### Scenario: Recovery is safe when `stateSetterF` is unset
+
+**Given** a `WebViewModel` constructed without a `stateSetterF` (e.g. test fixtures, pre-mount initialisation)
+**When** `handleRendererGone` runs
+**Then** `webview` and `controller` are cleared
+**And** no exception is thrown
+**Because** the null-aware `stateSetterF?.call()` makes the host hook optional. The next time the model is wired into a tree, the caller assigns `stateSetterF` and any subsequent rebuild reconstructs the WebView.
+
+---
+
 ### Requirement: PAUSE-004 — Null-Safe Controller Access
 
 `pauseWebView()`, `resumeWebView()`, `pauseForAppLifecycle()`, and `resumeFromAppLifecycle()` SHALL be no-ops when the underlying controller has not yet been initialized or has been disposed.
