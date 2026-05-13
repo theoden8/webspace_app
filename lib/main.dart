@@ -843,6 +843,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   void _onPinRevoked(TrustedHostEntry entry) {
     final host = entry.host.toLowerCase();
+    bool changed = false;
     for (var i = 0; i < _webViewModels.length; i++) {
       final model = _webViewModels[i];
       final uri = Uri.tryParse(model.initUrl);
@@ -853,35 +854,46 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           : (uri.scheme == 'https' ? 443 : (uri.scheme == 'http' ? 80 : 0));
       if (port != entry.port) continue;
       HtmlCacheService.instance.deleteCache(model.siteId);
-      if (_loadedIndices.contains(i)) {
-        final controller = model.controller;
-        if (controller != null) {
-          // Android's System WebView remembers `handler.proceed()`
-          // decisions in its own SSL preferences table — keyed by
-          // host, process-wide, surviving WebView dispose. Our
-          // Dart-level untrust does not touch that table, so the
-          // next nav reuses the remembered "accepted" verdict and
-          // skips `onReceivedSslError` entirely. Wipe the WebView's
-          // preferences before reloading so the platform actually
-          // re-evaluates the cert and re-fires our trust callback.
-          // No-op on iOS/macOS/Linux (Apple/WPE don't have an
-          // equivalent persistent in-process trust table).
-          try {
-            controller.nativeController.clearSslPreferences();
-          } catch (_) {}
-          // Best-effort: clear the in-WebView HTTP cache too so a
-          // stale Cache-Control:max-age response can't substitute
-          // for the fresh TLS handshake.
-          try {
-            // ignore: deprecated_member_use
-            controller.nativeController.clearCache();
-          } catch (_) {}
-          try {
-            controller.reload();
-          } catch (_) {}
-        }
+      if (!_loadedIndices.contains(i)) continue;
+      if (i != _currentIndex) {
+        // Background webview: evict it so the next on-demand load
+        // creates a fresh instance and re-validates the cert. Avoids
+        // popping a trust prompt over an unrelated foreground screen.
+        model.disposeWebView();
+        _loadedIndices.remove(i);
+        changed = true;
+        continue;
+      }
+      // Foreground webview: reload in place so the user sees the
+      // re-prompt against the page they just revoked from.
+      final controller = model.controller;
+      if (controller != null) {
+        // Android's System WebView remembers `handler.proceed()`
+        // decisions in its own SSL preferences table — keyed by
+        // host, process-wide, surviving WebView dispose. Our
+        // Dart-level untrust does not touch that table, so the
+        // next nav reuses the remembered "accepted" verdict and
+        // skips `onReceivedSslError` entirely. Wipe the WebView's
+        // preferences before reloading so the platform actually
+        // re-evaluates the cert and re-fires our trust callback.
+        // No-op on iOS/macOS/Linux (Apple/WPE don't have an
+        // equivalent persistent in-process trust table).
+        try {
+          controller.nativeController.clearSslPreferences();
+        } catch (_) {}
+        // Best-effort: clear the in-WebView HTTP cache too so a
+        // stale Cache-Control:max-age response can't substitute
+        // for the fresh TLS handshake.
+        try {
+          // ignore: deprecated_member_use
+          controller.nativeController.clearCache();
+        } catch (_) {}
+        try {
+          controller.reload();
+        } catch (_) {}
       }
     }
+    if (changed && mounted) setState(() {});
   }
 
   Future<void> _probeIosAppIntents() async {
