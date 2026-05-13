@@ -821,6 +821,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // every overflow-menu open.
   bool _iosAppIntentsSupported = false;
 
+  StreamSubscription<TrustedHostEntry>? _untrustSub;
+
   @override
   void initState() {
     super.initState();
@@ -828,6 +830,45 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _restoreAppState();
     _refreshPinnedSiteIds();
     _probeIosAppIntents();
+    // When a pin is revoked while the site is still rendered, the
+    // existing webview keeps showing the cached DOM and the live
+    // reload may serve from WebView HTTP cache without doing a fresh
+    // TLS handshake. The user expects revocation to "take effect"
+    // immediately, so wipe the per-site HTML cache and force-reload
+    // any loaded matching webview. The reload re-establishes TLS,
+    // the trust callback finds no pin, and the prompt fires again.
+    _untrustSub =
+        TrustedHostsService.instance.untrustChanges.listen(_onPinRevoked);
+  }
+
+  void _onPinRevoked(TrustedHostEntry entry) {
+    final host = entry.host.toLowerCase();
+    for (var i = 0; i < _webViewModels.length; i++) {
+      final model = _webViewModels[i];
+      final uri = Uri.tryParse(model.initUrl);
+      if (uri == null) continue;
+      if (uri.host.toLowerCase() != host) continue;
+      final port = uri.hasPort
+          ? uri.port
+          : (uri.scheme == 'https' ? 443 : (uri.scheme == 'http' ? 80 : 0));
+      if (port != entry.port) continue;
+      HtmlCacheService.instance.deleteCache(model.siteId);
+      if (_loadedIndices.contains(i)) {
+        final controller = model.controller;
+        if (controller != null) {
+          // Best-effort: clear the in-WebView HTTP cache before
+          // reloading so a stale Cache-Control:max-age response
+          // can't substitute for a real TLS handshake.
+          try {
+            // ignore: deprecated_member_use
+            controller.nativeController.clearCache();
+          } catch (_) {}
+          try {
+            controller.reload();
+          } catch (_) {}
+        }
+      }
+    }
   }
 
   Future<void> _probeIosAppIntents() async {
@@ -912,6 +953,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   @override
   void dispose() {
     _foregroundPollTimer?.cancel();
+    _untrustSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

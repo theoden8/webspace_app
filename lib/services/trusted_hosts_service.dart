@@ -73,6 +73,15 @@ class TrustedHostsService {
       StreamController<TrustedHostEntry>.broadcast();
   Stream<TrustedHostEntry> get trustChanges => _trustController.stream;
 
+  /// Fires after every successful [untrust] or [clear] call. The host
+  /// page's webview manager subscribes so revoking a pin while the
+  /// site is already rendered forces a fresh navigation, exposing the
+  /// no-longer-trusted state instead of leaving the previously-loaded
+  /// DOM in place.
+  final StreamController<TrustedHostEntry> _untrustController =
+      StreamController<TrustedHostEntry>.broadcast();
+  Stream<TrustedHostEntry> get untrustChanges => _untrustController.stream;
+
   Future<void> initialize() async {
     if (_initialized) return;
     final prefs = await SharedPreferences.getInstance();
@@ -145,16 +154,26 @@ class TrustedHostsService {
   }
 
   Future<void> untrust({required String host, required int port}) async {
-    if (_byHostPort.remove(_key(host, port)) != null) {
+    final removed = _byHostPort.remove(_key(host, port));
+    if (removed != null) {
       await _persist();
+      _untrustController.add(TrustedHostEntry(
+        host: host,
+        port: port,
+        sha256Hex: removed,
+      ));
     }
   }
 
   /// Drop every pinned entry. Used by the one-shot migration in
-  /// `main.dart`, the future settings UI, and tests.
+  /// `main.dart`, the settings UI, and tests.
   Future<void> clear() async {
+    final snapshot = all();
     _byHostPort.clear();
     await _persist();
+    for (final entry in snapshot) {
+      _untrustController.add(entry);
+    }
   }
 
   List<TrustedHostEntry> all() {
