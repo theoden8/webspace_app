@@ -2827,9 +2827,6 @@ class WebViewFactory {
     )) {
       LogService.instance.log(
           'TLS', 'pinned cert accepted for $host:$port (sha256=$fingerprint)');
-      // The reload's trust callback firing means the new connection
-      // is past the lower-layer failure that motivated the guard.
-      _clearReloadGuard(_certCacheKey(host, port));
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
     }
@@ -2895,18 +2892,19 @@ class WebViewFactory {
   /// (main frame + favicon + service worker probes).
   static final Set<String> _inflightSslPrompts = {};
 
-  /// Hosts we have already attempted to reload after a TLS failure
-  /// when a pin existed. iOS WKWebView fires `onReceivedError` for
-  /// every failed connection even when our async `.useCredential`
-  /// would have eventually succeeded — the underlying NSURLSession
-  /// has already entered a failed state by the time the trust
-  /// callback's response arrives. Reloading kicks off a fresh
-  /// connection that does see our PROCEED in time. We need exactly
-  /// one reload per nav, otherwise the post-reload's own stale
-  /// `onReceivedError` triggers another reload, ad infinitum. The
-  /// entry is cleared by [_clearReloadGuard] on the next successful
-  /// trust-callback PROCEED for the same host (means the reload's
-  /// TLS is in flight) or via [_reloadGuardTimeout] as a fail-safe.
+  /// Hosts we have recently reloaded after a TLS failure when a pin
+  /// existed. iOS WKWebView fires `onReceivedError` for every failed
+  /// connection even when our async `.useCredential` would have
+  /// succeeded — the underlying NSURLSession has already entered a
+  /// failed state by the time the trust callback's response arrives.
+  /// Reloading kicks off a fresh connection that does see our PROCEED
+  /// in time. We need exactly one reload per failure burst, otherwise
+  /// the post-reload's own stale `onReceivedError` triggers another
+  /// reload, ad infinitum. Time-based: any reload claim within
+  /// [_reloadGuardTimeout] of a previous one for the same host is
+  /// suppressed. The timeout is the only clear path, so a genuine
+  /// new TLS problem at the host (cert rotation, etc.) is allowed
+  /// through after the window expires.
   static final Map<String, DateTime> _pendingSslReloads = {};
   static const Duration _reloadGuardTimeout = Duration(seconds: 10);
 
@@ -2918,10 +2916,6 @@ class WebViewFactory {
     }
     _pendingSslReloads[key] = now;
     return true;
-  }
-
-  static void _clearReloadGuard(String key) {
-    _pendingSslReloads.remove(key);
   }
 
   /// iOS/macOS post-failure path. The trust callback returned `null`
