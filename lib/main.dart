@@ -854,17 +854,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // controller we can find (matching site preferred, but any loaded
     // webview works since the side-effect is global). No-op on
     // iOS/macOS/Linux — those platforms have no equivalent table.
-    inapp.InAppWebViewController? anyLive;
+    WebViewController? anyLive;
     for (final i in _loadedIndices) {
       if (i >= _webViewModels.length) continue;
-      final c = _webViewModels[i].controller?.nativeController;
-      if (c != null) {
-        anyLive ??= c;
-      }
+      anyLive ??= _webViewModels[i].controller;
     }
     if (anyLive != null) {
       try {
-        anyLive.clearSslPreferences();
+        anyLive.nativeController.clearSslPreferences();
       } catch (_) {}
     }
     bool changed = false;
