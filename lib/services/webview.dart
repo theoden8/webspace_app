@@ -2792,11 +2792,14 @@ class WebViewFactory {
   ///
   /// Platform contract:
   ///   * iOS/macOS — the upstream plugin fires this for **every** HTTPS
-  ///     handshake, not just rejected ones. Returning a no-action
-  ///     response makes the Swift side fall through to
-  ///     `URLSession.AuthChallengeDisposition.performDefaultHandling`,
-  ///     which delegates the verdict to Apple Keychain (system + any
-  ///     CAs the user installed). A genuine failure then arrives via
+  ///     handshake, not just rejected ones. Returning `null` makes the
+  ///     plugin's `nullSuccess` path run, which falls through to
+  ///     `URLSession.AuthChallengeDisposition.performDefaultHandling`
+  ///     and delegates the verdict to Apple Keychain (system + any CAs
+  ///     the user installed). NOTE: `ServerTrustAuthResponse()` looks
+  ///     like a no-action response but its Dart constructor defaults
+  ///     `action` to `CANCEL`, which silently kills the handshake —
+  ///     null is the only way to defer. A genuine failure surfaces via
   ///     `onReceivedError` with a `SERVER_CERTIFICATE_*` error type,
   ///     where the prompt fires and an approved cert is pinned for the
   ///     next attempt.
@@ -2804,7 +2807,7 @@ class WebViewFactory {
   ///     post-failure (`WebViewClient.onReceivedSslError` /
   ///     `load-failed-with-tls-errors`), so the callback only runs when
   ///     the OS has rejected the cert. Prompt the user inline.
-  static Future<inapp.ServerTrustAuthResponse> _handleServerTrust(
+  static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(
     inapp.ServerTrustChallenge challenge,
     Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
   ) async {
@@ -2827,12 +2830,15 @@ class WebViewFactory {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
     }
-    // Pre-evaluation platforms: defer to the OS trust store. A
-    // no-action response triggers the plugin's `performDefaultHandling`
+    // Pre-evaluation platforms: defer to the OS trust store. Returning
+    // null (not `ServerTrustAuthResponse()`, which means CANCEL)
+    // triggers the plugin's `nullSuccess` → `performDefaultHandling`
     // fallback; valid public CAs load silently, only genuine failures
     // surface to `onReceivedError`.
     if (Platform.isIOS || Platform.isMacOS) {
-      return inapp.ServerTrustAuthResponse();
+      LogService.instance.log(
+          'TLS', 'deferring trust verdict to OS for $host:$port');
+      return null;
     }
     // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.
