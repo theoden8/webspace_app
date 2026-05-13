@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import '../third_party/favicon/favicon.dart';
@@ -103,6 +104,49 @@ Future<String?> getSvgContent(
 void invalidateFaviconFor(String siteUrl) {
   _faviconCache.remove(siteUrl);
   _faviconQualityCache.remove(siteUrl);
+  _invalidationController.add(siteUrl);
+}
+
+/// Fires the site URL whenever its cached favicon entry is invalidated.
+/// `UnifiedFaviconImage` subscribes so a TLS pin granted after the
+/// initial fetch (which would have died with CERTIFICATE_VERIFY_FAILED
+/// before the user had a chance to approve) reliably triggers a
+/// re-fetch without waiting for a page rebuild.
+final StreamController<String> _invalidationController =
+    StreamController<String>.broadcast();
+Stream<String> get faviconInvalidations => _invalidationController.stream;
+
+bool _trustListenerWired = false;
+
+/// One-shot bootstrap: subscribes the icon service to
+/// [TrustedHostsService.trustChanges]. After every new pin, every
+/// favicon cache entry whose URL host (case-insensitive, port aware)
+/// matches the trusted entry is invalidated and re-fetched.
+void wireFaviconTrustInvalidation() {
+  if (_trustListenerWired) return;
+  _trustListenerWired = true;
+  TrustedHostsService.instance.trustChanges.listen((entry) {
+    final host = entry.host.toLowerCase();
+    final keys = _faviconCache.keys.toList();
+    final hits = <String>[];
+    for (final key in keys) {
+      final uri = Uri.tryParse(key);
+      if (uri == null) continue;
+      if (uri.host.toLowerCase() != host) continue;
+      final port = uri.hasPort
+          ? uri.port
+          : (uri.scheme == 'https' ? 443 : (uri.scheme == 'http' ? 80 : 0));
+      if (port != entry.port) continue;
+      hits.add(key);
+    }
+    if (hits.isEmpty) return;
+    LogService.instance.log(
+        'Icon', 'Trust granted for ${entry.host}:${entry.port} — '
+            'invalidating ${hits.length} cached favicon(s)');
+    for (final key in hits) {
+      invalidateFaviconFor(key);
+    }
+  });
 }
 
 // Verified URLs cache

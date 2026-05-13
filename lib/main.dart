@@ -647,6 +647,11 @@ void main() async {
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon
   // probes, downloads, …) sees the same pinned set.
   await TrustedHostsService.instance.initialize();
+  // Re-fetch favicons whose initial request died on
+  // CERTIFICATE_VERIFY_FAILED once the user later approves the cert
+  // via the webview trust prompt. Subscribes before any pin can fire,
+  // so even an immediate trust on first launch is observed.
+  wireFaviconTrustInvalidation();
   // One-shot reset: the initial release of the trust prompt
   // (commit 5ef1174) intercepted every TLS handshake on iOS/macOS
   // because the Dart handler short-circuited Apple Keychain

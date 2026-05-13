@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -61,6 +62,17 @@ class TrustedHostsService {
   final Map<String, String> _byHostPort = <String, String>{};
   bool _initialized = false;
 
+  /// Fires after every successful [trust] call with the newly-pinned
+  /// entry. Listeners use this to retro-actively retry work that
+  /// `HttpClient.badCertificateCallback` rejected before the trust
+  /// decision existed — most notably the favicon fetch, which kicks
+  /// off when a site is first added and dies with
+  /// `CERTIFICATE_VERIFY_FAILED` before the user has had a chance to
+  /// approve. Broadcast so multiple listeners can coexist.
+  final StreamController<TrustedHostEntry> _trustController =
+      StreamController<TrustedHostEntry>.broadcast();
+  Stream<TrustedHostEntry> get trustChanges => _trustController.stream;
+
   Future<void> initialize() async {
     if (_initialized) return;
     final prefs = await SharedPreferences.getInstance();
@@ -92,8 +104,14 @@ class TrustedHostsService {
     required int port,
     required String fingerprint,
   }) async {
-    _byHostPort[_key(host, port)] = fingerprint.toLowerCase();
+    final normalized = fingerprint.toLowerCase();
+    _byHostPort[_key(host, port)] = normalized;
     await _persist();
+    _trustController.add(TrustedHostEntry(
+      host: host,
+      port: port,
+      sha256Hex: normalized,
+    ));
   }
 
   Future<void> untrust({required String host, required int port}) async {
