@@ -102,8 +102,8 @@ class TrustedHostsService {
     }
   }
 
-  /// Drop every pinned entry. Used by tests and the future settings UI.
-  @visibleForTesting
+  /// Drop every pinned entry. Used by the one-shot migration in
+  /// `main.dart`, the future settings UI, and tests.
   Future<void> clear() async {
     _byHostPort.clear();
     await _persist();

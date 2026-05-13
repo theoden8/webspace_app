@@ -2676,6 +2676,17 @@ class WebViewFactory {
         //   * external scheme + no host UI → best-effort reload.
         if (request.isForMainFrame != true) return;
         final reqUrl = request.url.toString();
+        // iOS/macOS post-failure TLS path: `_handleServerTrust` deferred
+        // to the OS and the OS rejected. Show the user prompt; on
+        // approval pin the cached cert and reload.
+        if (_isSslError(error.type)) {
+          final handled = await _handleSslLoadError(
+            controller: controller,
+            url: reqUrl,
+            prompt: config.onUntrustedCertificate,
+          );
+          if (handled) return;
+        }
         final externalInfo = ExternalUrlParser.parse(reqUrl);
         if (externalInfo == null) return;
         if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
@@ -2771,10 +2782,28 @@ class WebViewFactory {
     );
   }
 
-  /// Routes the platform's certificate-validation failure through
-  /// [TrustedHostsService]. A previously-pinned (host, port, sha256)
-  /// triple proceeds silently; otherwise the host UI prompt decides,
-  /// and an "always trust" decision is persisted via the service.
+  /// Cert objects observed via [_handleServerTrust], keyed by host:port.
+  /// On iOS/macOS the post-failure prompt fires from `onReceivedError`,
+  /// which doesn't carry the cert; we stash whatever the trust callback
+  /// saw so the prompt can show subject/issuer/dates.
+  static final Map<String, inapp.SslCertificate> _sslCertificateCache = {};
+
+  /// Routes a TLS server-trust challenge.
+  ///
+  /// Platform contract:
+  ///   * iOS/macOS — the upstream plugin fires this for **every** HTTPS
+  ///     handshake, not just rejected ones. Returning a no-action
+  ///     response makes the Swift side fall through to
+  ///     `URLSession.AuthChallengeDisposition.performDefaultHandling`,
+  ///     which delegates the verdict to Apple Keychain (system + any
+  ///     CAs the user installed). A genuine failure then arrives via
+  ///     `onReceivedError` with a `SERVER_CERTIFICATE_*` error type,
+  ///     where the prompt fires and an approved cert is pinned for the
+  ///     next attempt.
+  ///   * Android & Linux — the underlying signal is already
+  ///     post-failure (`WebViewClient.onReceivedSslError` /
+  ///     `load-failed-with-tls-errors`), so the callback only runs when
+  ///     the OS has rejected the cert. Prompt the user inline.
   static Future<inapp.ServerTrustAuthResponse> _handleServerTrust(
     inapp.ServerTrustChallenge challenge,
     Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
@@ -2783,8 +2812,11 @@ class WebViewFactory {
     final host = space.host;
     final port = space.port ??
         (space.protocol?.toLowerCase() == 'https' ? 443 : 0);
-    final fingerprint =
-        TrustedHostsService.fingerprintFromInappCertificate(space.sslCertificate);
+    final cert = space.sslCertificate;
+    final fingerprint = TrustedHostsService.fingerprintFromInappCertificate(cert);
+    if (cert != null) {
+      _sslCertificateCache[_certCacheKey(host, port)] = cert;
+    }
     if (TrustedHostsService.instance.isTrusted(
       host: host,
       port: port,
@@ -2795,13 +2827,22 @@ class WebViewFactory {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
     }
+    // Pre-evaluation platforms: defer to the OS trust store. A
+    // no-action response triggers the plugin's `performDefaultHandling`
+    // fallback; valid public CAs load silently, only genuine failures
+    // surface to `onReceivedError`.
+    if (Platform.isIOS || Platform.isMacOS) {
+      return inapp.ServerTrustAuthResponse();
+    }
+    // Post-failure platforms (Android, Linux): the OS already rejected
+    // the chain. Prompt the user now.
     if (prompt == null) {
       LogService.instance.log('TLS',
           'untrusted cert for $host:$port and no host UI — cancelling load');
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
-    final approved = await prompt(host, port, space.sslCertificate);
+    final approved = await prompt(host, port, cert);
     if (!approved) {
       LogService.instance.log(
           'TLS', 'user rejected untrusted cert for $host:$port');
@@ -2822,6 +2863,77 @@ class WebViewFactory {
     }
     return inapp.ServerTrustAuthResponse(
         action: inapp.ServerTrustAuthResponseAction.PROCEED);
+  }
+
+  static String _certCacheKey(String host, int port) =>
+      '${host.toLowerCase()}:$port';
+
+  /// Whether [error] indicates the OS rejected the server certificate.
+  /// Used by the iOS/macOS post-failure branch in `onReceivedError`.
+  static bool _isSslError(inapp.WebResourceErrorType type) {
+    return type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_UNTRUSTED ||
+        type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_HAS_UNKNOWN_ROOT ||
+        type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_HAS_BAD_DATE ||
+        type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_NOT_YET_VALID ||
+        type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_REVOKED ||
+        type == inapp.WebResourceErrorType.SERVER_CERTIFICATE_BAD_IDENTITY ||
+        type == inapp.WebResourceErrorType.SECURE_CONNECTION_FAILED ||
+        type == inapp.WebResourceErrorType.FAILED_SSL_HANDSHAKE;
+  }
+
+  /// Hosts with an in-flight prompt — guards against the cascade of
+  /// duplicate `onReceivedError` calls a single failed nav can fire
+  /// (main frame + favicon + service worker probes).
+  static final Set<String> _inflightSslPrompts = {};
+
+  /// iOS/macOS post-failure path. The trust callback returned no-action
+  /// (deferring to OS), the OS rejected, and now we get a chance to ask
+  /// the user. On approval we pin the cert we cached during the trust
+  /// callback and reload the URL — the next attempt's trust callback
+  /// finds the pin and returns PROCEED.
+  static Future<bool> _handleSslLoadError({
+    required inapp.InAppWebViewController controller,
+    required String url,
+    required Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
+  }) async {
+    if (prompt == null) return false;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasAuthority) return false;
+    final host = uri.host;
+    final port = uri.hasPort ? uri.port : (uri.scheme == 'https' ? 443 : 80);
+    final key = _certCacheKey(host, port);
+    if (!_inflightSslPrompts.add(key)) return true;
+    try {
+      final cert = _sslCertificateCache[key];
+      final approved = await prompt(host, port, cert);
+      if (!approved) {
+        LogService.instance.log(
+            'TLS', 'user rejected untrusted cert for $host:$port');
+        return false;
+      }
+      final fingerprint =
+          TrustedHostsService.fingerprintFromInappCertificate(cert);
+      if (fingerprint == null) {
+        LogService.instance.log('TLS',
+            'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again');
+        return false;
+      }
+      await TrustedHostsService.instance.trust(
+        host: host,
+        port: port,
+        fingerprint: fingerprint,
+      );
+      LogService.instance.log('TLS',
+          'user trusted cert for $host:$port (pinned sha256=$fingerprint) — reloading');
+      try {
+        await controller.loadUrl(
+          urlRequest: inapp.URLRequest(url: inapp.WebUri(url)),
+        );
+      } catch (_) {}
+      return true;
+    } finally {
+      _inflightSslPrompts.remove(key);
+    }
   }
 
   static Future<void> _handleDownloadRequest(

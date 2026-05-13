@@ -647,6 +647,22 @@ void main() async {
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon
   // probes, downloads, …) sees the same pinned set.
   await TrustedHostsService.instance.initialize();
+  // One-shot reset: the initial release of the trust prompt
+  // (commit 5ef1174) intercepted every TLS handshake on iOS/macOS
+  // because the Dart handler short-circuited Apple Keychain
+  // validation. Users ended up pinning leaf fingerprints for dozens
+  // of valid public CA sites. Clear those pins once so the new
+  // OS-default-first flow has a clean slate; legitimate self-signed
+  // pins (the only ones a user would have wanted) get re-prompted on
+  // next visit.
+  {
+    final prefs = await SharedPreferences.getInstance();
+    const resetKey = 'trustedHostsResetForOsDefaultV1';
+    if (!(prefs.getBool(resetKey) ?? false)) {
+      await TrustedHostsService.instance.clear();
+      await prefs.setBool(resetKey, true);
+    }
+  }
   runApp(WebSpaceApp());
 }
 
