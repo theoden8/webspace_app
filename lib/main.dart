@@ -4981,7 +4981,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // a re-fetchable snapshot — the canonical bytes live in
                                   // HtmlImportStorage and never change after import, so
                                   // skip the live-snapshot save path entirely.
-                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                  onHtmlLoaded: (webViewModel.incognito || !webViewModel.htmlCacheEnabled || webViewModel.initUrl.startsWith('file://'))
                                       ? null
                                       : (url, html) =>
                                           HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url),
@@ -4990,7 +4990,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // renderer-DOM-serializations that fired on every SPA pseudo-
                                   // navigation (8+ Saved events per page on LinkedIn) — each one
                                   // a candidate for racing chromium's frame-lifecycle teardown.
-                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                  shouldFetchHtml: (webViewModel.incognito || !webViewModel.htmlCacheEnabled || webViewModel.initUrl.startsWith('file://'))
                                       ? null
                                       : () => HtmlCacheService.instance.shouldSave(webViewModel.siteId),
                                   initialHtml: webViewModel.incognito
@@ -5024,7 +5024,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                           }
                                           final cached = isFileImport
                                               ? HtmlImportStorage.instance.getHtmlSync(webViewModel.siteId)
-                                              : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId);
+                                              : (webViewModel.htmlCacheEnabled
+                                                  ? HtmlCacheService.instance.getHtmlSync(webViewModel.siteId)
+                                                  : null);
                                           if (cached == null) return null;
                                           final isDark = webViewModel.currentTheme == WebViewTheme.dark ||
                                               (webViewModel.currentTheme == WebViewTheme.system &&

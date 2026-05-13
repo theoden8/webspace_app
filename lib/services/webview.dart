@@ -458,6 +458,14 @@ class WebViewConfig {
   /// backgrounds the app after reading a page for ~3 s gets the right
   /// URL persisted. Tests inject a shorter delay.
   final Duration settleDelay;
+  /// Receives a callback that cancels (and bumps the epoch of) the
+  /// per-WebView settle Timer. Wired from the host so
+  /// `WebViewModel.disposeWebView` can drain a pending settle before
+  /// the controller is torn down — otherwise a Timer scheduled by an
+  /// onLoadStop fired ~1 s before unload can still fire and commit
+  /// transient state (cached HTML / settled URL) for a site the user
+  /// has already switched away from.
+  final void Function(void Function() cancelPendingSettle)? onSettleHandlerReady;
   /// Optional cached HTML to display when offline. Sub-resources (CSS/JS/images)
   /// load from the browser's HTTP cache via LOAD_CACHE_ELSE_NETWORK mode.
   final String? initialHtml;
@@ -573,6 +581,7 @@ class WebViewConfig {
     this.onHtmlLoaded,
     this.shouldFetchHtml,
     this.settleDelay = const Duration(seconds: 3),
+    this.onSettleHandlerReady,
     this.initialHtml,
     this.onConsoleMessage,
     this.userScripts = const [],
@@ -2001,6 +2010,7 @@ class WebViewFactory {
       pendingSettleTimer = null;
       settleEpoch++;
     }
+    config.onSettleHandlerReady?.call(cancelPendingSettle);
     void schedulePageSettle(inapp.InAppWebViewController controller, String url) {
       cancelPendingSettle();
       if (config.onHtmlLoaded == null && config.onPageSettled == null) return;

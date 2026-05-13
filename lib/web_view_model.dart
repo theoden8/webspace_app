@@ -309,6 +309,14 @@ class WebViewModel {
   /// When false, the three sub-toggles act independently as before.
   bool trackingProtectionEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
+  /// When true (default), the post-settle DOM snapshot is persisted via
+  /// [HtmlCacheService] and replayed on cold launch as an instant
+  /// first paint before the live reload. Turn off for sites where the
+  /// cached HTML interferes with normal load (cached Cloudflare
+  /// interstitials, cached logged-in views shown to logged-out
+  /// sessions, etc.). Disabling also evicts any existing cached
+  /// snapshot for the site. Independent of the persisted currentUrl.
+  bool htmlCacheEnabled;
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
   /// When true, the cached HTML snapshot is rendered as `initialData` for
@@ -385,6 +393,14 @@ class WebViewModel {
   /// while a load is in flight.
   bool isLoading = false;
 
+  /// Drains the per-WebView settle Timer in `WebViewFactory.createWebView`.
+  /// Populated via `WebViewConfig.onSettleHandlerReady`. Called from
+  /// [disposeWebView] before the controller is nulled, so a Timer
+  /// armed by an onLoadStop ~1s before unload cannot fire and commit
+  /// transient state (cached HTML / lastSettledUrl) for a site the
+  /// user has already switched away from. See #333.
+  VoidCallback? _cancelPendingSettle;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
@@ -417,6 +433,7 @@ class WebViewModel {
     this.contentBlockEnabled = true,
     this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
+    this.htmlCacheEnabled = true,
     this.blockAutoRedirects = true,
     this.fullscreenMode = false,
     this.htmlCachingEnabled = false,
@@ -687,6 +704,7 @@ class WebViewModel {
           onExternalSchemeUrl: onExternalSchemeUrl,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
+          onSettleHandlerReady: (cancel) => _cancelPendingSettle = cancel,
           shouldOverrideUrlLoading: (url, hasGesture) {
             LogService.instance.log('WebView', 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture');
             final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
@@ -1101,6 +1119,8 @@ class WebViewModel {
     final grandparent = stack.length > 2 ? stack[2].trim() : '<unknown>';
     LogService.instance.log('WebView',
         'disposeWebView called for "$name" (siteId: $siteId) caller=$caller via=$grandparent');
+    _cancelPendingSettle?.call();
+    _cancelPendingSettle = null;
     webview = null;
     controller = null;
   }
@@ -1268,6 +1288,7 @@ class WebViewModel {
         'contentBlockEnabled': contentBlockEnabled,
         'trackingProtectionEnabled': trackingProtectionEnabled,
         'localCdnEnabled': localCdnEnabled,
+        'htmlCacheEnabled': htmlCacheEnabled,
         'blockAutoRedirects': blockAutoRedirects,
         'fullscreenMode': fullscreenMode,
         'htmlCachingEnabled': htmlCachingEnabled,
@@ -1322,6 +1343,7 @@ class WebViewModel {
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,
       trackingProtectionEnabled: json['trackingProtectionEnabled'] ?? true,
       localCdnEnabled: json['localCdnEnabled'] ?? true,
+      htmlCacheEnabled: json['htmlCacheEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       fullscreenMode: json['fullscreenMode'] ?? false,
       htmlCachingEnabled: json['htmlCachingEnabled'] as bool? ?? false,
