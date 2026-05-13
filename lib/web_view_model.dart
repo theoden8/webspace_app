@@ -1073,7 +1073,16 @@ class WebViewModel {
   /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
-    LogService.instance.log('WebView', 'disposeWebView called for "$name" (siteId: $siteId)');
+    // Capture two frames of caller context so logs identify which path
+    // disposed the webview when there's no surrounding context log
+    // (e.g. settings save, link-intent recreate, container-engine unload).
+    // Helps diagnose #333-style reports where a webview disappears
+    // without an obvious trigger.
+    final stack = StackTrace.current.toString().split('\n');
+    final caller = stack.length > 1 ? stack[1].trim() : '<unknown>';
+    final grandparent = stack.length > 2 ? stack[2].trim() : '<unknown>';
+    LogService.instance.log('WebView',
+        'disposeWebView called for "$name" (siteId: $siteId) caller=$caller via=$grandparent');
     webview = null;
     controller = null;
   }
