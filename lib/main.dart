@@ -841,19 +841,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         TrustedHostsService.instance.untrustChanges.listen(_onPinRevoked);
   }
 
-  void _onPinRevoked(TrustedHostEntry entry) {
+  Future<void> _onPinRevoked(TrustedHostEntry entry) async {
     final host = entry.host.toLowerCase();
-    // Android's System WebView remembers `handler.proceed()` decisions
-    // in a process-wide SSL preferences table — keyed by host, NOT
-    // tied to any WebView instance. Disposing the WebView leaves the
-    // table intact; the next WebView created reuses the cached
-    // "accepted" verdict and `onReceivedSslError` never fires again.
-    // `WebView.clearSslPreferences()` wipes the table for the whole
-    // app, and per Android docs is a method on a WebView instance but
-    // affects all of them. So we call it on any live native
-    // controller we can find (matching site preferred, but any loaded
-    // webview works since the side-effect is global). No-op on
-    // iOS/macOS/Linux — those platforms have no equivalent table.
+    // Android's System WebView keeps an in-process SSL preferences
+    // table populated by `handler.proceed()` calls. The table is
+    // shared across all WebViews in the app and survives WebView
+    // dispose. Wiping it here is the difference between the next nav
+    // re-firing `onReceivedSslError` and silently reusing the
+    // remembered "accepted" verdict. Await the call so it completes
+    // before the dispose loop tears down the channel.
+    // No-op on iOS/macOS/Linux — those platforms have no equivalent.
     WebViewController? anyLive;
     for (final i in _loadedIndices) {
       if (i >= _webViewModels.length) continue;
@@ -861,9 +858,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
     if (anyLive != null) {
       try {
-        anyLive.nativeController.clearSslPreferences();
-      } catch (_) {}
+        await anyLive.nativeController.clearSslPreferences();
+        LogService.instance.log('TLS',
+            'clearSslPreferences() completed for ${entry.host}:${entry.port} '
+            '(via loaded controller)');
+      } catch (e) {
+        LogService.instance.log('TLS',
+            'clearSslPreferences() failed: $e',
+            level: LogLevel.error);
+      }
+    } else {
+      LogService.instance.log('TLS',
+          'no loaded controller to call clearSslPreferences() for '
+          '${entry.host}:${entry.port} — SSL prefs table may retain stale '
+          'host decisions until next app restart');
     }
+    if (!mounted) return;
     bool changed = false;
     for (var i = 0; i < _webViewModels.length; i++) {
       final model = _webViewModels[i];
