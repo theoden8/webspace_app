@@ -1348,6 +1348,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
         await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
       }
+      // Android-only: nudge the active WebView's renderer to issue a paint
+      // after the platform view's surface has been re-attached on activity
+      // restart. Without this nudge, the hybrid-composition surface can
+      // come back blank — the page is still alive (taps, scrolls, JS all
+      // work), but the user sees a black rectangle until something forces
+      // a layout pass. Reading `document.body.offsetHeight` is a no-op
+      // that triggers a synchronous layout, which schedules a paint.
+      // See issue #333. Fire-and-forget; failure is benign.
+      if (Platform.isAndroid) {
+        final ctrl = _webViewModels[_currentIndex!].controller;
+        if (ctrl != null) {
+          unawaited(ctrl.evaluateJavascript(
+              'void (document.body && document.body.offsetHeight);'));
+        }
+      }
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
