@@ -2680,6 +2680,8 @@ class WebViewFactory {
         // to the OS and the OS rejected. Show the user prompt; on
         // approval pin the cached cert and reload.
         if (_isSslError(error.type)) {
+          LogService.instance.log('TLS',
+              'onReceivedError ssl: type=${error.type} url=$reqUrl description="${error.description}"');
           final handled = await _handleSslLoadError(
             controller: controller,
             url: reqUrl,
@@ -2953,7 +2955,8 @@ class WebViewFactory {
         return true;
       }
       LogService.instance.log('TLS',
-          'pin matches but iOS reported error for $host:$port — reloading once');
+          'pin matches but iOS reported error for $host:$port — reloading once '
+          '(os: ${Platform.operatingSystem} ${Platform.operatingSystemVersion})');
       Future.microtask(() async {
         try {
           await controller.loadUrl(
