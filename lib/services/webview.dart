@@ -1225,7 +1225,7 @@ class WebViewFactory {
       // verification iframe would be more confusing than the cancel
       // it falls back to.
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          _handleServerTrust(challenge, null),
+          _handleServerTrust(controller, challenge, null),
     );
   }
 
@@ -2780,7 +2780,7 @@ class WebViewFactory {
         }
       },
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          _handleServerTrust(challenge, config.onUntrustedCertificate),
+          _handleServerTrust(controller, challenge, config.onUntrustedCertificate),
     );
   }
 
@@ -2810,6 +2810,7 @@ class WebViewFactory {
   ///     `load-failed-with-tls-errors`), so the callback only runs when
   ///     the OS has rejected the cert. Prompt the user inline.
   static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(
+    inapp.InAppWebViewController controller,
     inapp.ServerTrustChallenge challenge,
     Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
   ) async {
@@ -2869,6 +2870,18 @@ class WebViewFactory {
       LogService.instance.log('TLS',
           'user trusted cert for $host:$port (no DER from platform — not pinned)');
     }
+    // Android's SslErrorHandler (and WPE's TLS-error proxy) may have
+    // been invalidated during the async prompt — the WebView gives up
+    // on the request long before the user finishes reading the dialog,
+    // so handler.proceed() lands on a dead request and the page never
+    // paints. Reload re-issues the failed nav; this PROCEED arm
+    // short-circuits via the now-matching pin synchronously on the
+    // new attempt.
+    Future.microtask(() async {
+      try {
+        await controller.reload();
+      } catch (_) {}
+    });
     return inapp.ServerTrustAuthResponse(
         action: inapp.ServerTrustAuthResponseAction.PROCEED);
   }
