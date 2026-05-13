@@ -4983,9 +4983,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // skip the live-snapshot save path entirely.
                                   onHtmlLoaded: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
                                       ? null
-                                      : (url, html) {
-                                          HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
-                                        },
+                                      : (url, html) =>
+                                          HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url),
                                   // Skip the per-onLoadStop getHtml() IPC into chromium when
                                   // a save would be debounced anyway. Drops the storm of
                                   // renderer-DOM-serializations that fired on every SPA pseudo-

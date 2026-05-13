@@ -271,6 +271,17 @@ class WebViewModel {
   final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
   String currentUrl;
+  /// The most recent URL the page has held for the settle window
+  /// (`WebViewConfig.settleDelay`, default 3 s) without a new
+  /// `onLoadStart` firing. Updated by the deferred-settle path in
+  /// `WebViewFactory` via `onPageSettled` together with the matching
+  /// HTML cache write — both fire from the same Timer callback so the
+  /// pair stays atomic. The persisted "currentUrl" JSON field reflects
+  /// THIS, not the live [currentUrl], so transient navigation states
+  /// (Cloudflare js_challenge callbacks, in-flight redirects, browser
+  /// interstitials) can't poison the next launch's initial URL
+  /// + cached-HTML baseUrl pairing. See #333.
+  String lastSettledUrl;
   String name; // Custom name for the site
   String? pageTitle; // Current page title from webview
   List<Cookie> cookies;
@@ -428,6 +439,7 @@ class WebViewModel {
         blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
+        lastSettledUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
 
@@ -576,7 +588,7 @@ class WebViewModel {
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
-    Function(String url, String html)? onHtmlLoaded,
+    Future<void> Function(String url, String html)? onHtmlLoaded,
     bool Function()? shouldFetchHtml,
     String? initialHtml,
     bool Function()? isActive,
@@ -882,6 +894,12 @@ class WebViewModel {
           },
           onHtmlLoaded: onHtmlLoaded,
           shouldFetchHtml: shouldFetchHtml,
+          // Settled URL is what toJson persists — see field doc on
+          // `lastSettledUrl`. Fires from the same deferred Timer as
+          // `onHtmlLoaded` so the (URL, HTML) pair stays atomic.
+          onPageSettled: (url) {
+            lastSettledUrl = url;
+          },
           initialHtml: initialHtml,
           onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onConsoleMessage: (message, level) {
@@ -1225,7 +1243,14 @@ class WebViewModel {
     return {
         'siteId': siteId,
         'initUrl': initUrl,
-        if (!dropUrl) 'currentUrl': currentUrl,
+        // Persist the SETTLED URL, not the live one. Live currentUrl can hold
+        // a transient navigation state (Cloudflare js_challenge callback,
+        // mid-redirect interstitial) at the moment we're serialised. On next
+        // launch that URL would feed the WebView's initialUrlRequest and the
+        // cached-HTML baseUrl, the live-reload one-shot would hit a stale
+        // single-use token, and the page would sit on about:blank until the
+        // user manually goes home. See #333.
+        if (!dropUrl) 'currentUrl': lastSettledUrl,
         'name': name,
         if (!dropUrl) 'pageTitle': pageTitle,
         'cookies': incognito
