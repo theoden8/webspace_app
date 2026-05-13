@@ -2936,6 +2936,18 @@ class WebViewFactory {
     required String url,
     required Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
   }) async {
+    // macOS 15+ WKWebView does not honor URLCredential(trust:) for
+    // self-signed certs at the nw_protocol_boringssl layer. There is no
+    // sandboxed-app workaround: SecTrustSettingsSetTrustSettings is
+    // blocked by the sandbox and Safari uses a private SPI we don't
+    // have. Skip the prompt + reload entirely on macOS — both would
+    // loop on the same SECURE_CONNECTION_FAILED. Public CA-signed
+    // sites still load via the normal OS-default path; only self-signed
+    // / unknown-CA sites fail closed here. The user can install the
+    // cert in Keychain Access manually.
+    if (Platform.isMacOS) {
+      return false;
+    }
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasAuthority) return false;
     final host = uri.host;

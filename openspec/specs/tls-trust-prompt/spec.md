@@ -40,6 +40,19 @@ The contract below collapses that asymmetry into one user-visible flow:
 "if and only if the OS rejected the cert, ask the user once and pin the
 decision."
 
+**macOS is the exception.** macOS 15+ WKWebView ignores
+`URLCredential(trust:)` for self-signed / unknown-CA certs at the
+`nw_protocol_boringssl` layer regardless of how the credential is
+delivered (sync / async, with / without `SecTrustSetExceptions`, with /
+without `SecTrustEvaluateWithError`). The only OS-supported override is
+installing the cert into the user trust store via
+`SecTrustSettingsSetTrustSettings(kSecTrustSettingsDomainUser, ...)`,
+which the macOS app sandbox blocks. Safari uses a private WebKit SPI no
+third-party app has access to. The trust-prompt path is therefore
+**skipped on macOS**: public CA-signed sites work via the OS-default
+path, but self-signed sites fail closed and the user must install the
+cert in Keychain Access manually if needed.
+
 ## Solution
 
 Three coordinated pieces:
@@ -93,14 +106,15 @@ accept.
 
 ---
 
-### Requirement: TLS-002 - Untrusted certs trigger a single user prompt
+### Requirement: TLS-002 - Untrusted certs trigger a single user prompt on supported platforms
 
 The app SHALL show exactly one "Untrusted certificate" dialog per host
-when the OS rejects a server cert and the cert is not pinned. Re-entrant
-calls during prompt display SHALL be coalesced so a cascade of failed
-sub-resource requests does not stack identical dialogs.
+when the OS rejects a server cert and the cert is not pinned, on iOS,
+Android, and Linux. Re-entrant calls during prompt display SHALL be
+coalesced so a cascade of failed sub-resource requests does not stack
+identical dialogs. macOS is excluded — see TLS-009.
 
-#### Scenario: First visit to a self-signed host on iOS/macOS
+#### Scenario: First visit to a self-signed host on iOS
 
 **Given** `https://self-signed.example.com` presents a self-signed cert
 **And** no pin exists for `self-signed.example.com:443`
@@ -260,6 +274,49 @@ slate. Subsequent launches MUST NOT re-run the wipe.
 **When** the app starts
 **Then** `TrustedHostsService.instance.clear()` is NOT invoked
 **And** the user's legitimately-approved pins from after the migration are preserved
+
+---
+
+### Requirement: TLS-009 - macOS skips the trust-prompt path entirely
+
+The app SHALL NOT show the trust prompt on macOS, SHALL NOT reload on
+SSL load errors, and SHALL NOT pin self-signed certs from macOS user
+input. `_handleSslLoadError` returns `false` immediately on macOS so
+the load fails with the OS's native error and no prompt-or-reload loop
+runs. The pin store remains active on macOS for the Dart-side
+`HttpClient.badCertificateCallback` path (TLS-004) — pins created on
+other platforms / restored from a settings backup still apply to
+favicon probes and downloads.
+
+#### Scenario: Self-signed host on macOS fails closed without a prompt
+
+**Given** the user is on macOS
+**And** `https://self-signed.example.com` presents a self-signed cert
+**When** the user navigates to it
+**Then** `_handleServerTrust` returns `null`
+**And** Apple Keychain rejects the chain
+**And** `onReceivedError` fires with `SECURE_CONNECTION_FAILED`
+**And** `_handleSslLoadError` returns `false` immediately on macOS
+**And** no dialog is shown
+**And** no pin is created
+**And** the WebView shows the OS's native SSL failure state
+
+#### Scenario: Public CA-signed sites still work on macOS
+
+**Given** the user is on macOS
+**And** the cert chain for `https://github.com` is trusted by Apple Keychain
+**When** the user navigates to it
+**Then** `_handleServerTrust` returns `null`
+**And** the OS-default path accepts the chain
+**And** the page loads without any TLS-related code firing
+
+#### Scenario: Pre-existing pin still applies to Dart HttpClient on macOS
+
+**Given** a settings backup imported on macOS contains a pin for `self-signed.example.com:443`
+**When** the favicon service issues `HttpClient.getUrl(https://self-signed.example.com/favicon.ico)`
+**Then** `badCertificateCallback` consults `TrustedHostsService` (TLS-004 unchanged)
+**And** the favicon request succeeds
+**And** the WebView still cannot load the page (TLS-009 stands)
 
 ---
 
