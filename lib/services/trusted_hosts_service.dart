@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -61,14 +62,55 @@ class TrustedHostsService {
   final Map<String, String> _byHostPort = <String, String>{};
   bool _initialized = false;
 
+  /// Fires after every successful [trust] call with the newly-pinned
+  /// entry. Listeners use this to retro-actively retry work that
+  /// `HttpClient.badCertificateCallback` rejected before the trust
+  /// decision existed — most notably the favicon fetch, which kicks
+  /// off when a site is first added and dies with
+  /// `CERTIFICATE_VERIFY_FAILED` before the user has had a chance to
+  /// approve. Broadcast so multiple listeners can coexist.
+  final StreamController<TrustedHostEntry> _trustController =
+      StreamController<TrustedHostEntry>.broadcast();
+  Stream<TrustedHostEntry> get trustChanges => _trustController.stream;
+
   Future<void> initialize() async {
     if (_initialized) return;
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(kTrustedHostsKey) ?? const <String>[];
     _byHostPort.clear();
+    final migrated = <TrustedHostEntry>[];
     for (final s in raw) {
       final entry = TrustedHostEntry.decode(s);
-      if (entry != null) _byHostPort[_key(entry.host, entry.port)] = entry.sha256Hex;
+      if (entry == null) continue;
+      // Earlier builds stored `(host, -1, fp)` on Android when the
+      // platform surfaced `NSURLProtectionSpace.port = -1` and the
+      // trust handler's `??` fallback didn't fire. Rewrite to the
+      // protocol default (443) so dart:io `badCertificateCallback`,
+      // which always sees the real socket port, can match.
+      if (entry.port <= 0) {
+        final fixed = TrustedHostEntry(
+          host: entry.host,
+          port: 443,
+          sha256Hex: entry.sha256Hex,
+        );
+        _byHostPort[_key(fixed.host, fixed.port)] = fixed.sha256Hex;
+        migrated.add(fixed);
+      } else {
+        _byHostPort[_key(entry.host, entry.port)] = entry.sha256Hex;
+      }
+    }
+    if (migrated.isNotEmpty) {
+      await _persist();
+      // Surface migrated pins on the trustChanges stream so listeners
+      // (e.g. IconService's favicon invalidator) can retro-fetch
+      // resources that previously failed against the wrong port key.
+      // Schedule for the next tick so subscribers wired immediately
+      // after `initialize()` returns still observe these events.
+      scheduleMicrotask(() {
+        for (final entry in migrated) {
+          _trustController.add(entry);
+        }
+      });
     }
     _initialized = true;
   }
@@ -92,8 +134,14 @@ class TrustedHostsService {
     required int port,
     required String fingerprint,
   }) async {
-    _byHostPort[_key(host, port)] = fingerprint.toLowerCase();
+    final normalized = fingerprint.toLowerCase();
+    _byHostPort[_key(host, port)] = normalized;
     await _persist();
+    _trustController.add(TrustedHostEntry(
+      host: host,
+      port: port,
+      sha256Hex: normalized,
+    ));
   }
 
   Future<void> untrust({required String host, required int port}) async {
@@ -102,8 +150,8 @@ class TrustedHostsService {
     }
   }
 
-  /// Drop every pinned entry. Used by tests and the future settings UI.
-  @visibleForTesting
+  /// Drop every pinned entry. Used by the one-shot migration in
+  /// `main.dart`, the future settings UI, and tests.
   Future<void> clear() async {
     _byHostPort.clear();
     await _persist();

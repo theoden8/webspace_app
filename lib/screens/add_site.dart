@@ -8,7 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart' show extractDomain;
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, IconUpdate;
+import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate;
 import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
 import 'site_settings_qr.dart';
@@ -99,6 +99,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   int _currentQuality = 0;
   bool _isLoading = true;
   Stream<IconUpdate>? _iconStream;
+  StreamSubscription<String>? _invalidationSub;
 
   bool _isSvgUrl(String url) {
     return url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
@@ -107,7 +108,22 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   @override
   void initState() {
     super.initState();
+    // A TLS pin granted after this widget mounted can rescue a favicon
+    // fetch that originally died on CERTIFICATE_VERIFY_FAILED — listen
+    // for invalidations targeting our URL and reset.
+    _invalidationSub = faviconInvalidations.listen((invalidatedUrl) {
+      if (invalidatedUrl == widget.url && mounted) {
+        FaviconUrlCache.invalidate(widget.url);
+        _resetAndLoad();
+      }
+    });
     _loadIcon();
+  }
+
+  @override
+  void dispose() {
+    _invalidationSub?.cancel();
+    super.dispose();
   }
 
   @override
