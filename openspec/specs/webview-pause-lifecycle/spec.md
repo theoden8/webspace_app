@@ -95,6 +95,21 @@ The system SHALL pause both the active webview and process-global JS timers when
 **And** `resumeFromAppLifecycle()` is called on the active webview
 **And** the controller receives `resume()` followed by `resumeAllJsTimers()`
 
+#### Scenario: Android — paint nudge after activity restart
+
+**Given** the user backgrounds the app, switches to another app, then returns
+**And** the platform view's surface was torn down and recreated by the activity restart
+**When** `AppLifecycleState.resumed` fires and `_resumeAfterLifecyclePause()` runs
+**Then** after `resumeFromAppLifecycle()` resolves, the active webview receives a
+no-op `evaluateJavascript` (`void (document.body && document.body.offsetHeight);`)
+**Because** Android's hybrid-composition pipeline can leave the freshly re-attached
+surface blank until something forces a layout pass. Reading `offsetHeight`
+synchronously triggers layout, which schedules a paint, which fills the surface
+with the page's pixels. The page itself is never paused-stuck — taps and JS still
+work — but without the nudge the user sees a black rectangle. iOS/macOS use the
+WebKit content process model and don't exhibit this; the nudge is gated on
+`Platform.isAndroid`. Fire-and-forget; failure is benign.
+
 ---
 
 ### Requirement: PAUSE-003 — API Separation Is Documented at the Type Level
