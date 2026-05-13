@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show ServiceWorkerController, SslCertificate;
+    show InAppWebViewController, ServiceWorkerController, SslCertificate;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -821,6 +821,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // every overflow-menu open.
   bool _iosAppIntentsSupported = false;
 
+  StreamSubscription<TrustedHostEntry>? _untrustSub;
+
   @override
   void initState() {
     super.initState();
@@ -828,6 +830,132 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _restoreAppState();
     _refreshPinnedSiteIds();
     _probeIosAppIntents();
+    // When a pin is revoked while the site is still rendered, the
+    // existing webview keeps showing the cached DOM and the live
+    // reload may serve from WebView HTTP cache without doing a fresh
+    // TLS handshake. The user expects revocation to "take effect"
+    // immediately, so wipe the per-site HTML cache and force-reload
+    // any loaded matching webview. The reload re-establishes TLS,
+    // the trust callback finds no pin, and the prompt fires again.
+    _untrustSub =
+        TrustedHostsService.instance.untrustChanges.listen(_onPinRevoked);
+  }
+
+  Future<void> _onPinRevoked(TrustedHostEntry entry) async {
+    LogService.instance.log('TLS',
+        '_onPinRevoked fired for ${entry.host}:${entry.port} '
+        '(loaded=${_loadedIndices.toList()..sort()}, '
+        'webViewModels=${_webViewModels.length})');
+    final host = entry.host.toLowerCase();
+    // Android's cert-acceptance state lives in multiple layers:
+    //   1. App-level SSL preferences table (WebView.clearSslPreferences) —
+    //      where `handler.proceed()` decisions are kept. Doc-claimed
+    //      shared across WebViews; we call on the matching host's
+    //      controller first if available since some Android versions
+    //      key this per-instance despite docs.
+    //   2. Chromium network-service HTTP cache + connection pool —
+    //      nuked by `InAppWebViewController.clearAllCache(includeDiskFiles: true)`,
+    //      a static call that flushes the process-shared cache.
+    //   3. Per-site container storage (cookies, localStorage, IDB, SW,
+    //      service-worker registrations) — wiped in the loop below.
+    // We hit all three because empirically just (1)+(3) doesn't stop
+    // the network service from reusing a remembered "trusted" verdict.
+    WebViewController? matching;
+    WebViewController? anyLive;
+    for (final i in _loadedIndices) {
+      if (i >= _webViewModels.length) continue;
+      final m = _webViewModels[i];
+      final c = m.controller;
+      if (c == null) continue;
+      anyLive ??= c;
+      final uri = Uri.tryParse(m.initUrl);
+      if (uri == null) continue;
+      if (uri.host.toLowerCase() != host) continue;
+      final port = uri.hasPort
+          ? uri.port
+          : (uri.scheme == 'https' ? 443 : (uri.scheme == 'http' ? 80 : 0));
+      if (port == entry.port) {
+        matching ??= c;
+      }
+    }
+    final preferred = matching ?? anyLive;
+    if (preferred != null) {
+      try {
+        await preferred.nativeController.clearSslPreferences();
+        LogService.instance.log('TLS',
+            'clearSslPreferences() completed for ${entry.host}:${entry.port} '
+            '(via ${matching != null ? "matching-host" : "any-loaded"} controller)');
+      } catch (e) {
+        LogService.instance.log('TLS',
+            'clearSslPreferences() failed: $e',
+            level: LogLevel.error);
+      }
+    } else {
+      LogService.instance.log('TLS',
+          'no loaded controller to call clearSslPreferences() for '
+          '${entry.host}:${entry.port} — SSL prefs table may retain stale '
+          'host decisions until next app restart');
+    }
+    // Process-wide cache flush. Static — no instance needed; affects
+    // the Chromium network service shared by all WebViews + Profiles.
+    try {
+      await inapp.InAppWebViewController.clearAllCache(includeDiskFiles: true);
+      LogService.instance.log('TLS',
+          'clearAllCache(disk=true) completed for revoke of '
+          '${entry.host}:${entry.port}');
+    } catch (e) {
+      LogService.instance.log('TLS',
+          'clearAllCache failed: $e',
+          level: LogLevel.error);
+    }
+    if (!mounted) return;
+    bool changed = false;
+    final wipedSiteIds = <String>[];
+    for (var i = 0; i < _webViewModels.length; i++) {
+      final model = _webViewModels[i];
+      final uri = Uri.tryParse(model.initUrl);
+      if (uri == null) continue;
+      if (uri.host.toLowerCase() != host) continue;
+      final port = uri.hasPort
+          ? uri.port
+          : (uri.scheme == 'https' ? 443 : (uri.scheme == 'http' ? 80 : 0));
+      if (port != entry.port) continue;
+      HtmlCacheService.instance.deleteCache(model.siteId);
+      if (_loadedIndices.contains(i)) {
+        model.disposeWebView();
+        _loadedIndices.remove(i);
+        changed = true;
+      }
+      wipedSiteIds.add(model.siteId);
+    }
+    // `WebView.clearSslPreferences()` clears the app-level table of
+    // user "proceed" decisions but does NOT clear the network
+    // service's per-host TLS state — once the network process has
+    // accepted a cert during the original handshake, subsequent
+    // connections to the same host reuse that decision via the
+    // connection pool / TLS session cache, never re-firing
+    // `onReceivedSslError`. Empirically observed: dispose + recreate
+    // + clearSslPreferences + clearCache → page still loads silently.
+    // Wiping the per-site container forces the network service to
+    // discard its session state for those hosts. Trade-off: also
+    // drops cookies/localStorage/IndexedDB for the site — acceptable
+    // for self-signed hosts where the user has no meaningful session
+    // (the typical use case), and the in-app pin had to be approved
+    // again for the site to load anyway.
+    if (wipedSiteIds.isNotEmpty) {
+      try {
+        final wiped =
+            await _containerIsolation.wipeContainers(wipedSiteIds);
+        LogService.instance.log('TLS',
+            'wiped $wiped container(s) after revoke of '
+            '${entry.host}:${entry.port}');
+      } catch (e) {
+        LogService.instance.log('TLS',
+            'container wipe failed after revoke: $e',
+            level: LogLevel.error);
+      }
+    }
+    if (changed && mounted) setState(() {});
   }
 
   Future<void> _probeIosAppIntents() async {
@@ -912,6 +1040,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   @override
   void dispose() {
     _foregroundPollTimer?.cancel();
+    _untrustSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
