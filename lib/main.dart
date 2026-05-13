@@ -855,43 +855,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (port != entry.port) continue;
       HtmlCacheService.instance.deleteCache(model.siteId);
       if (!_loadedIndices.contains(i)) continue;
-      if (i != _currentIndex) {
-        // Background webview: evict it so the next on-demand load
-        // creates a fresh instance and re-validates the cert. Avoids
-        // popping a trust prompt over an unrelated foreground screen.
-        model.disposeWebView();
-        _loadedIndices.remove(i);
-        changed = true;
-        continue;
-      }
-      // Foreground webview: reload in place so the user sees the
-      // re-prompt against the page they just revoked from.
-      final controller = model.controller;
-      if (controller != null) {
-        // Android's System WebView remembers `handler.proceed()`
-        // decisions in its own SSL preferences table — keyed by
-        // host, process-wide, surviving WebView dispose. Our
-        // Dart-level untrust does not touch that table, so the
-        // next nav reuses the remembered "accepted" verdict and
-        // skips `onReceivedSslError` entirely. Wipe the WebView's
-        // preferences before reloading so the platform actually
-        // re-evaluates the cert and re-fires our trust callback.
-        // No-op on iOS/macOS/Linux (Apple/WPE don't have an
-        // equivalent persistent in-process trust table).
-        try {
-          controller.nativeController.clearSslPreferences();
-        } catch (_) {}
-        // Best-effort: clear the in-WebView HTTP cache too so a
-        // stale Cache-Control:max-age response can't substitute
-        // for the fresh TLS handshake.
-        try {
-          // ignore: deprecated_member_use
-          controller.nativeController.clearCache();
-        } catch (_) {}
-        try {
-          controller.reload();
-        } catch (_) {}
-      }
+      // Always unload. Foreground OR background — same path. The
+      // user revoked their decision; the webview keeps no rendered
+      // DOM, no native SSL preferences, no HTTP cache. Next time
+      // the user navigates to the site, the lazy loader creates a
+      // fresh webview, runs a fresh TLS handshake, fires the trust
+      // callback with no pin, and prompts.
+      model.disposeWebView();
+      _loadedIndices.remove(i);
+      changed = true;
     }
     if (changed && mounted) setState(() {});
   }
