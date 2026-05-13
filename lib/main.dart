@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show ServiceWorkerController, SslCertificate;
+    show InAppWebViewController, ServiceWorkerController, SslCertificate;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
@@ -847,25 +847,44 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         '(loaded=${_loadedIndices.toList()..sort()}, '
         'webViewModels=${_webViewModels.length})');
     final host = entry.host.toLowerCase();
-    // Android's System WebView keeps an in-process SSL preferences
-    // table populated by `handler.proceed()` calls. The table is
-    // shared across all WebViews in the app and survives WebView
-    // dispose. Wiping it here is the difference between the next nav
-    // re-firing `onReceivedSslError` and silently reusing the
-    // remembered "accepted" verdict. Await the call so it completes
-    // before the dispose loop tears down the channel.
-    // No-op on iOS/macOS/Linux — those platforms have no equivalent.
+    // Android's cert-acceptance state lives in multiple layers:
+    //   1. App-level SSL preferences table (WebView.clearSslPreferences) —
+    //      where `handler.proceed()` decisions are kept. Doc-claimed
+    //      shared across WebViews; we call on the matching host's
+    //      controller first if available since some Android versions
+    //      key this per-instance despite docs.
+    //   2. Chromium network-service HTTP cache + connection pool —
+    //      nuked by `InAppWebViewController.clearAllCache(includeDiskFiles: true)`,
+    //      a static call that flushes the process-shared cache.
+    //   3. Per-site container storage (cookies, localStorage, IDB, SW,
+    //      service-worker registrations) — wiped in the loop below.
+    // We hit all three because empirically just (1)+(3) doesn't stop
+    // the network service from reusing a remembered "trusted" verdict.
+    WebViewController? matching;
     WebViewController? anyLive;
     for (final i in _loadedIndices) {
       if (i >= _webViewModels.length) continue;
-      anyLive ??= _webViewModels[i].controller;
+      final m = _webViewModels[i];
+      final c = m.controller;
+      if (c == null) continue;
+      anyLive ??= c;
+      final uri = Uri.tryParse(m.initUrl);
+      if (uri == null) continue;
+      if (uri.host.toLowerCase() != host) continue;
+      final port = uri.hasPort
+          ? uri.port
+          : (uri.scheme == 'https' ? 443 : (uri.scheme == 'http' ? 80 : 0));
+      if (port == entry.port) {
+        matching ??= c;
+      }
     }
-    if (anyLive != null) {
+    final preferred = matching ?? anyLive;
+    if (preferred != null) {
       try {
-        await anyLive.nativeController.clearSslPreferences();
+        await preferred.nativeController.clearSslPreferences();
         LogService.instance.log('TLS',
             'clearSslPreferences() completed for ${entry.host}:${entry.port} '
-            '(via loaded controller)');
+            '(via ${matching != null ? "matching-host" : "any-loaded"} controller)');
       } catch (e) {
         LogService.instance.log('TLS',
             'clearSslPreferences() failed: $e',
@@ -876,6 +895,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           'no loaded controller to call clearSslPreferences() for '
           '${entry.host}:${entry.port} — SSL prefs table may retain stale '
           'host decisions until next app restart');
+    }
+    // Process-wide cache flush. Static — no instance needed; affects
+    // the Chromium network service shared by all WebViews + Profiles.
+    try {
+      await inapp.InAppWebViewController.clearAllCache(includeDiskFiles: true);
+      LogService.instance.log('TLS',
+          'clearAllCache(disk=true) completed for revoke of '
+          '${entry.host}:${entry.port}');
+    } catch (e) {
+      LogService.instance.log('TLS',
+          'clearAllCache failed: $e',
+          level: LogLevel.error);
     }
     if (!mounted) return;
     bool changed = false;
