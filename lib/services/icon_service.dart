@@ -101,10 +101,17 @@ Future<String?> getSvgContent(
 }
 
 /// Invalidate in-memory caches for a URL so icons are re-fetched.
+/// Emits on [faviconInvalidations] only when an entry actually
+/// existed, so re-entrant calls (widget listener → FaviconUrlCache
+/// → here) terminate instead of looping forever.
 void invalidateFaviconFor(String siteUrl) {
+  final hadEntry = _faviconCache.containsKey(siteUrl) ||
+      _faviconQualityCache.containsKey(siteUrl);
   _faviconCache.remove(siteUrl);
   _faviconQualityCache.remove(siteUrl);
-  _invalidationController.add(siteUrl);
+  if (hadEntry) {
+    _invalidationController.add(siteUrl);
+  }
 }
 
 /// Fires the site URL whenever its cached favicon entry is invalidated.
