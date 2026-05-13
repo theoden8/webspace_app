@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -1027,6 +1028,40 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ),
             ),
           ),
+          // Trusted certificates — only Android and Linux can create
+          // pins via the in-app prompt. On iOS/macOS the prompt is
+          // skipped entirely (TLS-009) because Apple's WKWebView
+          // rejects every URLCredential(trust:) override, so the list
+          // would always be empty there. Imported pins from a backup
+          // still apply via HttpClient.badCertificateCallback even on
+          // Apple platforms, but the rare "inspect-imported-pins-on-
+          // iOS" case doesn't justify an always-empty settings tile.
+          if (Platform.isAndroid || Platform.isLinux)
+            ListTile(
+              leading: const Icon(Icons.lock_outline),
+              title: const Row(
+                children: [
+                  Text('Trusted certificates'),
+                  HintButton(
+                    title: 'Trusted certificates',
+                    description:
+                        'When a site presents a self-signed or otherwise-untrusted TLS certificate and you tap "Trust this site" in the prompt, '
+                        'the fingerprint is pinned here. Future visits to that host load silently as long as the same certificate is served. '
+                        'Open this screen to inspect and revoke any pin.',
+                  ),
+                ],
+              ),
+              subtitle: const Text('User-approved self-signed certificates'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TrustedCertificatesScreen(),
+                  ),
+                );
+              },
+            ),
           ListTile(
             leading: const Icon(Icons.cleaning_services),
             title: const Row(
