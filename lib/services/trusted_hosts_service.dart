@@ -157,11 +157,17 @@ class TrustedHostsService {
     final removed = _byHostPort.remove(_key(host, port));
     if (removed != null) {
       await _persist();
+      debugPrint(
+          '[TLS/debug] untrust($host:$port) removed pin; emitting on untrustChanges');
       _untrustController.add(TrustedHostEntry(
         host: host,
         port: port,
         sha256Hex: removed,
       ));
+    } else {
+      debugPrint(
+          '[TLS/debug] untrust($host:$port) no-op (no matching pin); '
+          'in-memory keys: ${_byHostPort.keys.toList()}');
     }
   }
 

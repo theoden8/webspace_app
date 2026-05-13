@@ -842,6 +842,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _onPinRevoked(TrustedHostEntry entry) async {
+    LogService.instance.log('TLS',
+        '_onPinRevoked fired for ${entry.host}:${entry.port} '
+        '(loaded=${_loadedIndices.toList()..sort()}, '
+        'webViewModels=${_webViewModels.length})');
     final host = entry.host.toLowerCase();
     // Android's System WebView keeps an in-process SSL preferences
     // table populated by `handler.proceed()` calls. The table is
@@ -875,6 +879,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
     if (!mounted) return;
     bool changed = false;
+    final wipedSiteIds = <String>[];
     for (var i = 0; i < _webViewModels.length; i++) {
       final model = _webViewModels[i];
       final uri = Uri.tryParse(model.initUrl);
@@ -885,14 +890,39 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           : (uri.scheme == 'https' ? 443 : (uri.scheme == 'http' ? 80 : 0));
       if (port != entry.port) continue;
       HtmlCacheService.instance.deleteCache(model.siteId);
-      if (!_loadedIndices.contains(i)) continue;
-      // Unload regardless of foreground/background. The lazy loader
-      // recreates the webview on the next visit, runs a fresh TLS
-      // handshake against the no-longer-cached SSL preferences, fires
-      // the trust callback with no pin, and prompts.
-      model.disposeWebView();
-      _loadedIndices.remove(i);
-      changed = true;
+      if (_loadedIndices.contains(i)) {
+        model.disposeWebView();
+        _loadedIndices.remove(i);
+        changed = true;
+      }
+      wipedSiteIds.add(model.siteId);
+    }
+    // `WebView.clearSslPreferences()` clears the app-level table of
+    // user "proceed" decisions but does NOT clear the network
+    // service's per-host TLS state — once the network process has
+    // accepted a cert during the original handshake, subsequent
+    // connections to the same host reuse that decision via the
+    // connection pool / TLS session cache, never re-firing
+    // `onReceivedSslError`. Empirically observed: dispose + recreate
+    // + clearSslPreferences + clearCache → page still loads silently.
+    // Wiping the per-site container forces the network service to
+    // discard its session state for those hosts. Trade-off: also
+    // drops cookies/localStorage/IndexedDB for the site — acceptable
+    // for self-signed hosts where the user has no meaningful session
+    // (the typical use case), and the in-app pin had to be approved
+    // again for the site to load anyway.
+    if (wipedSiteIds.isNotEmpty) {
+      try {
+        final wiped =
+            await _containerIsolation.wipeContainers(wipedSiteIds);
+        LogService.instance.log('TLS',
+            'wiped $wiped container(s) after revoke of '
+            '${entry.host}:${entry.port}');
+      } catch (e) {
+        LogService.instance.log('TLS',
+            'container wipe failed after revoke: $e',
+            level: LogLevel.error);
+      }
     }
     if (changed && mounted) setState(() {});
   }
