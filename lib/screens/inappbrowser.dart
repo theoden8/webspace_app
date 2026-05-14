@@ -410,6 +410,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       },
       child: Scaffold(
       appBar: AppBar(
+        // Custom back button that bypasses PopScope by calling
+        // Navigator.pop directly (vs maybePop), so the AppBar back
+        // arrow always closes the nested screen. Only the system back
+        // gesture (iOS edge swipe / Android back) routes through
+        // PopScope and walks the nested webview's history first.
+        leading: IconButton(
+          icon: const BackButtonIcon(),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Text(title ?? 'In-App WebView'),
         actions: [
           const DownloadButton(),
