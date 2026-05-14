@@ -79,21 +79,38 @@ The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL
 
 ---
 
-### Requirement: NAV-002 - PopScope canGoBack Distrust
+### Requirement: NAV-002 - PopScope canGoBack Distrust (iOS/macOS)
 
-The PopScope back handler SHALL NOT trust `canGoBack()` for determining back navigation capability. It SHALL use URL comparison as the authoritative check.
+On iOS and macOS, the PopScope back handler SHALL NOT trust `canGoBack()` for determining back navigation capability. It SHALL use URL comparison as the authoritative check.
 
-**Rationale:** `canGoBack()` can return `false` for `history.pushState()` entries on iOS. Trusting it would prevent back navigation in SPAs.
+On Android, the PopScope back handler SHALL trust `canGoBack()` directly. Chromium reports `pushState` entries correctly, so URL comparison adds no information and its 150ms window can false-positive when a slow `goBack()` (e.g. BFCache miss) leaves the URL unchanged at the time of the post-delay sample — which incorrectly opens the drawer instead of letting the navigation complete.
 
-#### Scenario: SPA with pushState history
+**Rationale:** `canGoBack()` can return `false` for `history.pushState()` entries on iOS WKWebView. Trusting it would prevent back navigation in SPAs. Android System WebView (Chromium) does not have this bug.
 
-**Given** a single-page app has navigated via `history.pushState()`
+#### Scenario: SPA with pushState history (iOS)
+
+**Given** a single-page app has navigated via `history.pushState()` on iOS
 **And** `canGoBack()` returns `false`
 **When** the user triggers the system back gesture
 **Then** `goBack()` is called regardless
 **And** the URL is compared before/after with a 150ms delay
 **And** if the URL changed, back navigation succeeded
 **And** if the URL did NOT change, the drawer opens as fallback
+
+#### Scenario: Slow back navigation (Android)
+
+**Given** a webview is visible on Android with back history
+**And** `canGoBack()` returns `true`
+**When** the user triggers the system back gesture
+**Then** `goBack()` is called
+**And** the drawer does NOT open, even if the new page takes longer than 150ms to update its URL
+
+#### Scenario: No back history (Android)
+
+**Given** a webview is visible on Android
+**And** `canGoBack()` returns `false`
+**When** the user triggers the system back gesture
+**Then** the drawer opens as the exit-warning fallback
 
 ---
 
@@ -284,7 +301,11 @@ System back gesture received
   │
   ├─ No controller? ───────────── open drawer
   │
-  └─ Has controller:
+  ├─ Android && has controller:
+  │   ├─ canGoBack()? ─────────── goBack()
+  │   └─ else ─────────────────── open drawer
+  │
+  └─ iOS/macOS && has controller:
       ├─ urlBefore = getUrl()
       ├─ goBack()
       ├─ wait 150ms
