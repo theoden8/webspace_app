@@ -4980,16 +4980,30 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             return;
           }
           // Webview is visible - try to go back in its history.
-          // Don't trust canGoBack(): it can return false for pushState
-          // entries on some webview versions. Instead, always attempt
-          // goBack() (which is a no-op when there's no history) and
-          // check whether the URL actually changed.
           final controller = getController();
           if (controller == null) {
             LogService.instance.log('Navigation', 'Back gesture: no controller, opening drawer');
             scaffoldState?.openDrawer();
             return;
           }
+          // Android's canGoBack() is reliable (including for pushState/SPA
+          // entries on Chromium). Trust it directly: URL-comparison can
+          // false-positive when goBack() succeeds but the navigation
+          // hasn't propagated within the timeout, causing the drawer to
+          // open instead of navigating back.
+          if (Platform.isAndroid) {
+            if (await controller.canGoBack()) {
+              await controller.goBack();
+              LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');
+            } else {
+              LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
+              scaffoldState?.openDrawer();
+            }
+            return;
+          }
+          // iOS/macOS: canGoBack() can return false for pushState entries,
+          // so attempt goBack() unconditionally and use URL comparison as
+          // the authoritative check.
           final urlBefore = (await controller.getUrl())?.toString();
           await controller.goBack();
           // Give the native webview time to process the navigation
