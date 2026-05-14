@@ -214,6 +214,66 @@ The URL bar SHALL stay in sync with the current webview URL across all navigatio
 
 ---
 
+### Requirement: NAV-008 - Nested WebView Back Gesture
+
+The **system back gesture** (Android back button, iOS edge swipe) on a nested `InAppWebViewScreen` SHALL navigate back in the nested webview's history when possible, and only pop the nested route when there is no back history. The decision policy SHALL mirror NAV-002: on Android, trust `canGoBack()` directly; on iOS/macOS, attempt `goBack()` unconditionally and decide via URL comparison with a 150ms settle.
+
+The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close the nested route immediately, regardless of the webview's history. It bypasses PopScope by calling `Navigator.pop` directly.
+
+**Rationale:** Cross-domain links open a nested webview that maintains its own history. The two affordances serve different intents: the system back gesture (iOS edge swipe) is the user saying "go back in what I'm reading" — walking the nested history first matches Safari and prevents discarding pages on the first swipe. The AppBar back button is the user explicitly saying "leave this nested view and return to my parent site" — making it depend on history would surprise the user when the back arrow does nothing visible.
+
+#### Scenario: Nested webview has back history (Android)
+
+**Given** a nested `InAppWebViewScreen` is open on Android
+**And** `canGoBack()` returns `true`
+**When** the user presses the system back button
+**Then** the nested webview navigates back in its own history
+**And** the nested route stays open
+
+#### Scenario: Nested webview has no back history (Android)
+
+**Given** a nested `InAppWebViewScreen` is open on Android
+**And** `canGoBack()` returns `false`
+**When** the user presses the system back button
+**Then** the nested route pops back to the parent webview
+
+#### Scenario: Nested webview has back history (iOS/macOS)
+
+**Given** a nested `InAppWebViewScreen` is open on iOS or macOS
+**And** the user has navigated within it (e.g. via in-page links)
+**When** the user triggers the system back gesture (iOS edge swipe)
+**Then** `goBack()` is called regardless of `canGoBack()`
+**And** the URL is compared before/after with a 150ms delay
+**And** if the URL changed, the nested route stays open
+**And** if the URL did NOT change, the nested route pops
+
+#### Scenario: SPA with pushState in nested webview (iOS/macOS)
+
+**Given** the nested webview on iOS has navigated via `history.pushState()`
+**And** `canGoBack()` returns `false`
+**When** the user triggers the system back gesture
+**Then** `goBack()` is called regardless
+**And** URL comparison decides whether the back succeeded
+**And** if the URL changed, the nested route stays open
+**And** if the URL did NOT change, the nested route pops
+
+#### Scenario: AppBar back button always closes nested
+
+**Given** a nested `InAppWebViewScreen` is open
+**And** the nested webview has back history
+**When** the user taps the AppBar back button (top-left arrow)
+**Then** the nested route pops immediately
+**And** `goBack()` is NOT called on the nested webview
+
+#### Scenario: Rapid back gestures (race guard)
+
+**Given** the user triggers the back gesture twice in quick succession
+**When** the second invocation arrives while the first is still awaiting `goBack()` / URL diff
+**Then** the second invocation drops (guarded by `_isBackHandling`)
+**And** at most one `goBack()` per gesture is dispatched
+
+---
+
 ## Race Condition Guards
 
 ### Guard: RACE-001 - _canGoBackVersion Counter

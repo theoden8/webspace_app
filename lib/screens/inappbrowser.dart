@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -116,6 +117,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   bool _isFindVisible = false;
   late bool _showUrlBar;
   FindMatchesResult findMatches = FindMatchesResult();
+
+  /// Race guard for the PopScope handler. Async swipe gestures (iOS edge
+  /// swipe) can re-enter `onPopInvokedWithResult` while the previous
+  /// invocation is still awaiting `goBack()` / URL diff, which would
+  /// double-pop the route or fire `goBack()` twice. Cleared in `finally`.
+  bool _isBackHandling = false;
 
   /// DevTools host for this nested webview. Captures console output and
   /// tracks the current URL/controller so the user can open Developer
@@ -350,8 +357,69 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      // Always intercept so we can try goBack() in the nested webview's own
+      // history before letting the route pop. Mirrors NAV-002 (main app):
+      // Android trusts canGoBack() directly (Chromium reports pushState
+      // correctly, and URL-diff false-positives on slow back navigations).
+      // iOS/macOS attempt goBack() unconditionally and decide via URL
+      // comparison since WKWebView's canGoBack() lies for pushState SPAs.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || _isBackHandling) return;
+        _isBackHandling = true;
+        // Capture navigator before any awaits so we don't touch BuildContext
+        // across async gaps after the route may have been disposed.
+        final navigator = Navigator.of(context);
+        try {
+          final controller = _controller;
+          if (controller == null) {
+            if (mounted) navigator.pop();
+            return;
+          }
+          if (Platform.isAndroid) {
+            if (await controller.canGoBack()) {
+              await controller.goBack();
+              LogService.instance.log('Navigation',
+                  'Nested back gesture: navigated back (canGoBack)');
+            } else {
+              if (!mounted) return;
+              LogService.instance.log('Navigation',
+                  'Nested back gesture: no history, exiting nested');
+              navigator.pop();
+            }
+            return;
+          }
+          final urlBefore = (await controller.getUrl())?.toString();
+          await controller.goBack();
+          await Future.delayed(const Duration(milliseconds: 150));
+          if (!mounted) return;
+          final urlAfter = (await controller.getUrl())?.toString();
+          if (!mounted) return;
+          if (urlBefore == urlAfter) {
+            LogService.instance.log('Navigation',
+                'Nested back gesture: no history ($urlAfter), exiting nested');
+            navigator.pop();
+          } else {
+            LogService.instance.log('Navigation',
+                'Nested back gesture: navigated $urlBefore -> $urlAfter');
+          }
+        } finally {
+          _isBackHandling = false;
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
+        // Custom back button that bypasses PopScope by calling
+        // Navigator.pop directly (vs maybePop), so the AppBar back
+        // arrow always closes the nested screen. Only the system back
+        // gesture (iOS edge swipe / Android back) routes through
+        // PopScope and walks the nested webview's history first.
+        leading: IconButton(
+          icon: const BackButtonIcon(),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Text(title ?? 'In-App WebView'),
         actions: [
           const DownloadButton(),
@@ -491,6 +559,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               ),
             ),
         ],
+      ),
       ),
     );
   }
