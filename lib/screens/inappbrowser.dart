@@ -360,8 +360,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     return PopScope(
       // Always intercept so we can try goBack() in the nested webview's own
       // history before letting the route pop. Mirrors NAV-002 (main app):
-      // canGoBack() is unreliable for pushState SPAs, so we always attempt
-      // goBack() and decide via URL comparison.
+      // Android trusts canGoBack() directly (Chromium reports pushState
+      // correctly, and URL-diff false-positives on slow back navigations).
+      // iOS/macOS attempt goBack() unconditionally and decide via URL
+      // comparison since WKWebView's canGoBack() lies for pushState SPAs.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _isBackHandling) return;
@@ -373,6 +375,19 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           final controller = _controller;
           if (controller == null) {
             if (mounted) navigator.pop();
+            return;
+          }
+          if (Platform.isAndroid) {
+            if (await controller.canGoBack()) {
+              await controller.goBack();
+              LogService.instance.log('Navigation',
+                  'Nested back gesture: navigated back (canGoBack)');
+            } else {
+              if (!mounted) return;
+              LogService.instance.log('Navigation',
+                  'Nested back gesture: no history, exiting nested');
+              navigator.pop();
+            }
             return;
           }
           final urlBefore = (await controller.getUrl())?.toString();

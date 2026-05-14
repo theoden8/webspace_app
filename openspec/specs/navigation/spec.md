@@ -218,29 +218,42 @@ The URL bar SHALL stay in sync with the current webview URL across all navigatio
 
 The system back gesture (Android back button, iOS edge swipe) on a nested `InAppWebViewScreen` SHALL navigate back in the nested webview's history when possible, and only pop the nested route when there is no back history.
 
-**Rationale:** Cross-domain links open a nested webview that maintains its own history. Without intercepting, the iOS swipe-back gesture exits the nested screen on the first swipe — discarding the nested page the user just clicked into and any subsequent in-page navigation. Mirroring NAV-002's URL-comparison fallback inside the nested screen lets users walk back through the nested history first, then exit.
+The decision policy SHALL mirror NAV-002: on Android, trust `canGoBack()` directly; on iOS/macOS, attempt `goBack()` unconditionally and decide via URL comparison with a 150ms settle.
 
-#### Scenario: Nested webview has back history
+**Rationale:** Cross-domain links open a nested webview that maintains its own history. Without intercepting, the iOS swipe-back gesture exits the nested screen on the first swipe — discarding the nested page the user just clicked into and any subsequent in-page navigation. Letting the user walk back through the nested history first, then exit on the second back gesture, matches user intent and the parent-app pattern.
 
-**Given** a nested `InAppWebViewScreen` is open
-**And** the user has navigated within it (e.g. via in-page links)
-**When** the user triggers the system back gesture (iOS edge swipe / Android back)
+#### Scenario: Nested webview has back history (Android)
+
+**Given** a nested `InAppWebViewScreen` is open on Android
+**And** `canGoBack()` returns `true`
+**When** the user presses the system back button
 **Then** the nested webview navigates back in its own history
 **And** the nested route stays open
 
-#### Scenario: Nested webview has no back history
+#### Scenario: Nested webview has no back history (Android)
 
-**Given** a nested `InAppWebViewScreen` is open at its initial URL
-**When** the user triggers the system back gesture
+**Given** a nested `InAppWebViewScreen` is open on Android
+**And** `canGoBack()` returns `false`
+**When** the user presses the system back button
 **Then** the nested route pops back to the parent webview
 
-#### Scenario: SPA with pushState in nested webview
+#### Scenario: Nested webview has back history (iOS/macOS)
 
-**Given** the nested webview has navigated via `history.pushState()`
+**Given** a nested `InAppWebViewScreen` is open on iOS or macOS
+**And** the user has navigated within it (e.g. via in-page links)
+**When** the user triggers the system back gesture (iOS edge swipe)
+**Then** `goBack()` is called regardless of `canGoBack()`
+**And** the URL is compared before/after with a 150ms delay
+**And** if the URL changed, the nested route stays open
+**And** if the URL did NOT change, the nested route pops
+
+#### Scenario: SPA with pushState in nested webview (iOS/macOS)
+
+**Given** the nested webview on iOS has navigated via `history.pushState()`
 **And** `canGoBack()` returns `false`
 **When** the user triggers the system back gesture
 **Then** `goBack()` is called regardless
-**And** URL comparison (150ms settle) decides whether the back succeeded
+**And** URL comparison decides whether the back succeeded
 **And** if the URL changed, the nested route stays open
 **And** if the URL did NOT change, the nested route pops
 
