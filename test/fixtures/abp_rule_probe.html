@@ -568,6 +568,11 @@
           wrap.id = 'probe-' + c.id;
           wrap.innerHTML = c.html;
           stage.appendChild(wrap);
+          // Stash the wrap on the case so measure() can recover it
+          // when a procedural :upward(N):remove() detaches it from
+          // the DOM. Without this, getElementById returns null and
+          // the row sits at "pending…" forever.
+          c._wrap = wrap;
 
           const row = document.createElement('tr');
           row.id = 'row-' + c.id;
@@ -609,7 +614,10 @@
     function measure() {
       for (const sec of SECTIONS) {
         for (const c of sec.cases) {
-          const wrap = document.getElementById('probe-' + c.id);
+          // Prefer the cached wrap reference from renderSections —
+          // procedural :upward(N):remove() can detach the wrap so
+          // getElementById would miss it.
+          const wrap = c._wrap || document.getElementById('probe-' + c.id);
           if (!wrap) continue;
           const cell = document.querySelector('#row-' + c.id + ' [data-result]');
           cell.className = 'result-cell';

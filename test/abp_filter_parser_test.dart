@@ -391,6 +391,37 @@ void main() {
       expect(json, contains('"action":"remove"'));
     });
 
+    test(':style() with an ABP pseudo in the selector routes to '
+        'proceduralActions, not styleRules', () {
+      // Bug that landed in production: this rule got emitted as a
+      // StyleRule, injected into the early-CSS <style> tag, and the
+      // browser's CSS parser silently dropped it because
+      // `:has-text(` isn't valid CSS. The fix routes it through
+      // ProceduralActionRule with action=style, where the
+      // page-side shim resolves the pseudo before applying the
+      // declarations.
+      final result = parseAbpFilterListSync(
+          '##div.banner:has-text(Sponsored):style(outline: 2px solid red !important)');
+      expect(result.styleRules, isEmpty,
+          reason: 'rule must NOT land in the early-CSS styleRules bucket');
+      expect(result.proceduralActions[''], hasLength(1));
+      final r = result.proceduralActions['']!.first;
+      expect(r.actionType, equals('style'));
+      expect(r.actionArg, equals('outline: 2px solid red !important'));
+      expect(r.selector, equals('div.banner:has-text(Sponsored)'));
+    });
+
+    test(':style() with a pure-CSS selector stays in styleRules', () {
+      // Companion to the previous test — make sure the routing
+      // doesn't false-positive on plain CSS. Browsers handle
+      // `.banner { height: 1px !important; }` natively; sending it
+      // through the procedural shim would be wasteful overhead.
+      final result = parseAbpFilterListSync(
+          '##.banner:style(height: 1px !important)');
+      expect(result.styleRules[''], hasLength(1));
+      expect(result.proceduralActions, isEmpty);
+    });
+
     test('aggregates selectors from multiple rules', () {
       const input = '''
 ##.ad-banner

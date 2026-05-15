@@ -258,6 +258,25 @@ String? _extractContainerSelector(String selectorPart) {
   return null;
 }
 
+/// Does this selector portion contain an ABP-style procedural pseudo
+/// that native CSS engines can't parse? If yes, a `:style()` rule
+/// with this selector must NOT go through the early-CSS path (the
+/// browser would silently drop the whole rule when its CSS parser
+/// hits the unknown pseudo). The procedural shim resolves the
+/// pseudos in-page instead.
+bool _hasAbpProceduralPseudo(String selector) {
+  return selector.contains(':has-text(') ||
+      selector.contains(':contains(') ||
+      selector.contains(':-abp-has-text(') ||
+      selector.contains(':-abp-contains(') ||
+      selector.contains(':upward(') ||
+      selector.contains(':nth-ancestor(') ||
+      selector.contains(':min-text-length(') ||
+      selector.contains(':matches-attr(') ||
+      selector.contains(':matches-css(') ||
+      selector.contains(':matches-path(');
+}
+
 bool _parseLine(
   String line,
   Set<String> blockedDomains,
@@ -359,6 +378,30 @@ bool _parseLine(
     if (selector.contains(':style(')) {
       final styled = _extractStyleRule(selector);
       if (styled == null) return false;
+      // If the selector portion has ABP pseudos that the browser's
+      // CSS engine doesn't understand (:has-text, :upward, etc.),
+      // emit a ProceduralActionRule with action=style instead — the
+      // page-side shim resolves the pseudos before applying the
+      // declarations. Without this branch the CSS engine would see
+      // `div.foo:has-text(x) { ... }`, fail to parse the selector,
+      // and silently drop the rule.
+      if (_hasAbpProceduralPseudo(styled.selector)) {
+        final rule = ProceduralActionRule(
+          selector: styled.selector,
+          actionType: 'style',
+          actionArg: styled.declarations,
+        );
+        if (domainsStr.isEmpty) {
+          proceduralActions.putIfAbsent('', () => []).add(rule);
+        } else {
+          for (final d in domainsStr.split(',')) {
+            final trimmed = d.trim();
+            if (trimmed.isEmpty || trimmed.startsWith('~')) continue;
+            proceduralActions.putIfAbsent(trimmed, () => []).add(rule);
+          }
+        }
+        return true;
+      }
       final rule = StyleRule(
         selector: styled.selector,
         declarations: styled.declarations,
