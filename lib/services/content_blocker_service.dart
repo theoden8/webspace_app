@@ -198,6 +198,47 @@ class ContentBlockerService {
     await _rebuildRules();
   }
 
+  // ---- DevTools: per-request engine timing ----
+  //
+  // Ring buffer of recent engine decisions. Off by default (the
+  // Stopwatch overhead is small but non-zero, and the buffer write
+  // is wasted bytes when no one's looking). DevTools flips
+  // [engineTimingEnabled] on entry to the ABP tab and off on exit;
+  // observers also bump a notify counter so the tab can rebuild.
+
+  static const int _engineDecisionBuffer = 200;
+  final List<EngineDecisionSample> _recentEngineDecisions = [];
+  bool _engineTimingEnabled = false;
+
+  /// Toggle per-request engine timing capture. When false, [isBlocked]
+  /// skips the Stopwatch + buffer write — no overhead. DevTools turns
+  /// this on while its ABP tab is visible.
+  set engineTimingEnabled(bool v) {
+    if (_engineTimingEnabled == v) return;
+    _engineTimingEnabled = v;
+    if (!v) _recentEngineDecisions.clear();
+  }
+  bool get engineTimingEnabled => _engineTimingEnabled;
+
+  /// Last [_engineDecisionBuffer] decisions, newest last. Empty when
+  /// timing is disabled or the engine hasn't decided yet.
+  List<EngineDecisionSample> get recentEngineDecisions =>
+      List.unmodifiable(_recentEngineDecisions);
+
+  void _recordEngineDecision(
+      String url, String requestType, int micros, bool blocked) {
+    if (_recentEngineDecisions.length >= _engineDecisionBuffer) {
+      _recentEngineDecisions.removeAt(0);
+    }
+    _recentEngineDecisions.add(EngineDecisionSample(
+      url: url,
+      requestType: requestType,
+      micros: micros,
+      blocked: blocked,
+      timestamp: DateTime.now(),
+    ));
+  }
+
   /// Whether uBO web_accessible_resources/ is wired into the engine.
   /// Drives the `$redirect=` rule output: when on, the engine returns
   /// the matching stub body (noop.js, 1x1.gif, …); when off, redirect
@@ -367,6 +408,22 @@ class ContentBlockerService {
   }) {
     final engine = _rustEngine;
     if (engine != null) {
+      // Time the engine call so DevTools can show per-request latency
+      // distribution. Stopwatch overhead is ~50ns — negligible against
+      // even a sub-microsecond engine hit. Skip when DevTools recording
+      // is off (default) so production runs aren't paying for an empty
+      // ring buffer write.
+      if (_engineTimingEnabled) {
+        final sw = Stopwatch()..start();
+        final blocked = engine.shouldBlock(
+          url,
+          sourceUrl: sourceUrl,
+          requestType: requestType,
+        );
+        sw.stop();
+        _recordEngineDecision(url, requestType, sw.elapsedMicroseconds, blocked);
+        return blocked;
+      }
       return engine.shouldBlock(
         url,
         sourceUrl: sourceUrl,
@@ -1140,6 +1197,23 @@ class ContentBlockerService {
 /// for the lifetime of one rebuild. Cached so the early-CSS shim,
 /// the post-load cosmetic shim, and the generic-scanner exception
 /// merge all share the same FFI roundtrip.
+/// One row in [ContentBlockerService.recentEngineDecisions] — what the
+/// engine answered for one sub-resource check, how long it took, when.
+class EngineDecisionSample {
+  final String url;
+  final String requestType;
+  final int micros;
+  final bool blocked;
+  final DateTime timestamp;
+  const EngineDecisionSample({
+    required this.url,
+    required this.requestType,
+    required this.micros,
+    required this.blocked,
+    required this.timestamp,
+  });
+}
+
 class _EngineCosmeticCache {
   final List<String> hides;
   final Set<String> exceptions;

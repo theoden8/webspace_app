@@ -12,6 +12,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/user_script.dart';
 
@@ -191,6 +192,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       n += 1; // Cookies
       if (_hasDnsBlocklist) n += 1; // DNS
     }
+    if (ContentBlockerService.instance.usingRustEngine) n += 1; // ABP
     return n;
   }
 
@@ -206,6 +208,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         : <BlockedCookie>{};
     LogService.instance.addListener(_onLogUpdate);
     DnsBlockService.instance.addDnsLogListener(_onDnsLogUpdate);
+    // ABP timing buffer is off in normal app runs (small but non-zero
+    // Stopwatch + ring-buffer cost on every sub-resource decision).
+    // Enable while DevTools is open so the ABP tab has fresh data;
+    // disable on close so production runs aren't paying the overhead.
+    if (ContentBlockerService.instance.usingRustEngine) {
+      ContentBlockerService.instance.engineTimingEnabled = true;
+    }
     if (_hasHost) {
       widget.host!.onConsoleLogChanged = _onConsoleUpdate;
     }
@@ -215,6 +224,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   void dispose() {
     LogService.instance.removeListener(_onLogUpdate);
     DnsBlockService.instance.removeDnsLogListener(_onDnsLogUpdate);
+    ContentBlockerService.instance.engineTimingEnabled = false;
     if (_hasHost) {
       widget.host!.onConsoleLogChanged = null;
     }
@@ -261,6 +271,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           const Tab(icon: Icon(Icons.cookie_outlined, size: 18), text: 'Cookies'),
         if (_hasSiteState && _hasDnsBlocklist)
           const Tab(icon: Icon(Icons.shield_outlined, size: 18), text: 'DNS'),
+        if (ContentBlockerService.instance.usingRustEngine)
+          const Tab(icon: Icon(Icons.speed, size: 18), text: 'ABP'),
         const Tab(icon: Icon(Icons.list_alt, size: 18), text: 'Logs'),
       ];
 
@@ -351,6 +363,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   if (_hasHost) _buildConsoleTab(),
                   if (_hasSiteState) _buildCookiesTab(),
                   if (_hasSiteState && _hasDnsBlocklist) _buildDnsTab(),
+                  if (ContentBlockerService.instance.usingRustEngine)
+                    _buildAbpTab(),
                   _buildAppLogsTab(),
                 ],
               ),
@@ -1334,6 +1348,140 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── ABP (Rust engine) Tab ──
+
+  Widget _buildAbpTab() {
+    final svc = ContentBlockerService.instance;
+    final samples = svc.recentEngineDecisions;
+    final reversed = samples.reversed.toList();
+    // Compute summary stats over the window.
+    int blockedCount = 0;
+    int allowedCount = 0;
+    int totalMicros = 0;
+    int maxMicros = 0;
+    for (final s in samples) {
+      if (s.blocked) {
+        blockedCount++;
+      } else {
+        allowedCount++;
+      }
+      totalMicros += s.micros;
+      if (s.micros > maxMicros) maxMicros = s.micros;
+    }
+    final avgMicros = samples.isEmpty ? 0 : totalMicros ~/ samples.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              _abpStatChip(
+                  'avg', '$avgMicros µs', Colors.blueGrey),
+              _abpStatChip('max', '$maxMicros µs',
+                  maxMicros > 1000 ? Colors.orange : Colors.blueGrey),
+              _abpStatChip('blocked', '$blockedCount', Colors.red),
+              _abpStatChip('allowed', '$allowedCount', Colors.green),
+              _abpStatChip('uBO', svc.useUboResources ? 'on' : 'off',
+                  svc.useUboResources ? Colors.green : Colors.grey),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          child: Row(
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh'),
+                onPressed: () => setState(() {}),
+              ),
+              const Spacer(),
+              if (samples.isNotEmpty)
+                Text('${samples.length} sample(s)',
+                    style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: samples.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'No engine decisions captured yet — browse a site\n'
+                      'and tap Refresh.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: reversed.length,
+                  itemBuilder: (context, i) {
+                    final s = reversed[i];
+                    final urlForSearch = '${s.url} ${s.requestType}';
+                    if (!_matchesSearch(urlForSearch)) {
+                      return const SizedBox.shrink();
+                    }
+                    return _buildAbpRow(s);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _abpStatChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withAlpha(36),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: Theme.of(context).textTheme.bodySmall,
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: TextStyle(color: color),
+            ),
+            TextSpan(
+              text: value,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAbpRow(EngineDecisionSample s) {
+    final color = s.blocked ? Colors.red.shade400 : Colors.green.shade600;
+    return ListTile(
+      dense: true,
+      leading: Icon(
+        s.blocked ? Icons.block : Icons.check_circle_outline,
+        color: color,
+        size: 20,
+      ),
+      title: Text(
+        s.url,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+      ),
+      subtitle: Text(
+        '${s.requestType} · ${s.micros} µs',
+        style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }
