@@ -605,6 +605,10 @@ void main() async {
     (['ClearURLs (rules data)'], 'assets/licenses/clearurls.txt'),
     (['Hagezi DNS Blocklists (domain data)'], 'assets/licenses/hagezi.txt'),
     (['EasyList filter lists (filter data)'], 'assets/licenses/easylist.txt'),
+    (
+      ['adblock-rust + uBlock Origin resources (engine code + redirect bodies)'],
+      'assets/licenses/adblock_rust.txt'
+    ),
     (['cdnjs (LocalCDN resource data)'], 'assets/licenses/cdnjs.txt'),
     (['OpenStreetMap (map data and tiles)'], 'assets/licenses/openstreetmap.txt'),
   ];

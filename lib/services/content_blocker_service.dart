@@ -716,6 +716,18 @@ class ContentBlockerService {
 
         final text = await cacheFile.readAsString();
         final result = parseAbpFilterListSync(text);
+        final globalStyleN = (result.styleRules[''] ?? const []).length;
+        final domainStyleN = result.styleRules.entries
+            .where((e) => e.key.isNotEmpty)
+            .fold<int>(0, (a, e) => a + e.value.length);
+        LogService.instance.log(
+            'ContentBlocker',
+            'list "${list.name}" (${text.length}B): '
+            'converted=${result.convertedCount} skipped=${result.skippedCount} '
+            'global hides=${(result.cosmeticSelectors[''] ?? const []).length} '
+            'global :style()=$globalStyleN '
+            'domain :style()=$domainStyleN',
+            level: LogLevel.debug);
         allDomains.addAll(result.blockedDomains);
         allExceptions.addAll(result.exceptionDomains);
 
