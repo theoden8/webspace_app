@@ -2170,11 +2170,12 @@ class WebViewFactory {
                 ids: ids,
               );
               if (selectors.isNotEmpty) {
+                final preview = selectors.take(8).join(', ');
                 LogService.instance.log(
                   'WebView',
                   'genericCosmeticScan ${config.initialUrl}: '
                       '${classes.length} class / ${ids.length} id → '
-                      '${selectors.length} hide(s)',
+                      '${selectors.length} hide(s): [$preview${selectors.length > 8 ? ", …" : ""}]',
                   level: LogLevel.debug,
                 );
               }
@@ -2961,6 +2962,16 @@ class WebViewFactory {
     if (cert != null) {
       _sslCertificateCache[_certCacheKey(host, port)] = cert;
     }
+    // Apple: defer to OS unconditionally. The pin store doesn't help
+    // here — modern macOS/iOS reject self-signed at the BoringSSL layer
+    // before our PROCEED can take effect, and valid public-CA certs
+    // are accepted by the OS without consulting the pin store. Pins
+    // remain useful for Android post-failure and for dart:io
+    // `HttpClient.badCertificateCallback` (favicon fetch, etc.), but
+    // querying them in this code path on Apple was log noise at best.
+    if (Platform.isIOS || Platform.isMacOS) {
+      return null;
+    }
     if (TrustedHostsService.instance.isTrusted(
       host: host,
       port: port,
@@ -2970,16 +2981,6 @@ class WebViewFactory {
           'TLS', 'pinned cert accepted for $host:$port (sha256=$fingerprint)');
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
-    }
-    // Pre-evaluation platforms: defer to the OS trust store. Returning
-    // null (not `ServerTrustAuthResponse()`, which means CANCEL)
-    // triggers the plugin's `nullSuccess` → `performDefaultHandling`
-    // fallback; valid public CAs load silently, only genuine failures
-    // surface to `onReceivedError`.
-    if (Platform.isIOS || Platform.isMacOS) {
-      LogService.instance.log(
-          'TLS', 'deferring trust verdict to OS for $host:$port');
-      return null;
     }
     // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.

@@ -467,12 +467,20 @@ class ContentBlockerService {
   /// Returns null if no CSS selectors apply.
   String? getEarlyCssScript(String pageUrl) {
     final rules = _collectRules(pageUrl);
-    return buildContentBlockerEarlyCssShim(
+    final script = buildContentBlockerEarlyCssShim(
       selectors: rules.selectors,
       styleRules: rules.styleRules
           .map((r) => (selector: r.selector, declarations: r.declarations))
           .toList(),
     );
+    LogService.instance.log(
+        'ContentBlocker',
+        'getEarlyCssScript($pageUrl): '
+        '${rules.selectors.length} hide(s), '
+        '${rules.styleRules.length} :style() rule(s) '
+        '→ ${script == null ? "no script" : "${script.length} bytes"}',
+        level: LogLevel.debug);
+    return script;
   }
 
   /// Phase 5: generic class/id-targeted selectors from the Rust engine.
@@ -747,6 +755,24 @@ class ContentBlockerService {
     _textHideRules = allTextRules;
     _isBlockedCache.clear();
     _engineCosmeticCache.clear();
+    // Diagnostic: surface per-scope counts so a missing sample list /
+    // parser drop is visible without re-running with extra logs.
+    final globalSelCount = (_cosmeticSelectors[''] ?? const []).length;
+    final globalStyleCount = (_styleRules[''] ?? const []).length;
+    final globalTextCount = (_textHideRules[''] ?? const []).length;
+    final domainStyleCount =
+        _styleRules.entries.where((e) => e.key.isNotEmpty).fold<int>(
+              0,
+              (acc, e) => acc + e.value.length,
+            );
+    LogService.instance.log(
+        'ContentBlocker',
+        'rule store: global hides=$globalSelCount '
+        'global :style()=$globalStyleCount '
+        'global text=$globalTextCount '
+        'domain :style()=$domainStyleCount '
+        'distinct domains=${_styleRules.keys.where((k) => k.isNotEmpty).length}',
+        level: LogLevel.debug);
     _maybeRebuildRustEngine();
     _notifyRulesChanged();
   }
