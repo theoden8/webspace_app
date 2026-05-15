@@ -138,6 +138,14 @@ class ContentBlockerService {
   /// Aggregated text-based hiding rules: domain -> rules.
   Map<String, List<TextHideRule>> _textHideRules = {};
 
+  /// Aggregated uBO procedural action rules (`:remove()`,
+  /// `:remove-attr(...)`, `:remove-class(...)`): domain -> rules.
+  /// Backfills for adblock-rust which drops every generic procedural
+  /// rule at parse time (see `cosmetic_filter_cache_builder.rs:106`),
+  /// so these fire on `file://` and other URLs where the engine's
+  /// hostname-keyed procedural bucket is empty.
+  Map<String, List<ProceduralActionRule>> _proceduralActions = {};
+
   /// Optional Rust-backed engine for network-block decisions. Built
   /// lazily on the first [_rebuildRules] call when the
   /// [kUseRustEngineForNetwork] flag is set AND the platform ships
@@ -378,12 +386,45 @@ class ContentBlockerService {
   /// `:remove()`, etc.) for [pageUrl] as raw adblock-rust JSON strings.
   /// Each entry parses into a tree the page-side shim walks.
   ///
-  /// Returns an empty list when the engine isn't active or the page
-  /// has no procedural rules — the typical case (most filter rules
-  /// are plain hides).
+  /// Two sources merged:
+  ///   * Rust engine's `url_cosmetic_resources(url).procedural_actions`
+  ///     — hostname-keyed; covers production filter lists that scope
+  ///     procedural rules to specific sites.
+  ///   * Dart parser's `_proceduralActions` map — captures the rule
+  ///     shapes adblock-rust silently drops (every generic `##sel:
+  ///     remove()` line, see `cosmetic_filter_cache_builder.rs:106`).
+  ///     The Dart bucket fires on `file://` and any other URL where
+  ///     the engine returns nothing.
+  ///
+  /// Empty list when both sources are silent.
   List<String> proceduralActionsFor(String pageUrl) {
+    final out = <String>[];
     final ctx = _engineCosmeticFor(pageUrl);
-    return ctx?.proceduralActions ?? const [];
+    if (ctx != null) out.addAll(ctx.proceduralActions);
+
+    // Globals — always apply (matches the rest of the Dart cosmetic
+    // path which adds `_cosmeticSelectors['']` on top of engine
+    // results).
+    final globalProc = _proceduralActions[''];
+    if (globalProc != null) {
+      for (final r in globalProc) out.add(r.toEngineJson());
+    }
+    // Domain walk-up for hostname-scoped rules. Matches the same
+    // pattern `_collectRules` uses for hides/styles/text-rules.
+    final host = extractHost(pageUrl);
+    if (host != null && host.isNotEmpty) {
+      var domain = host;
+      while (domain.isNotEmpty) {
+        final scoped = _proceduralActions[domain];
+        if (scoped != null) {
+          for (final r in scoped) out.add(r.toEngineJson());
+        }
+        final dotIdx = domain.indexOf('.');
+        if (dotIdx < 0) break;
+        domain = domain.substring(dotIdx + 1);
+      }
+    }
+    return out;
   }
 
   /// Apple-only: ruleset to hand WebKit via WKContentRuleListStore.
@@ -954,6 +995,7 @@ class ContentBlockerService {
     final allSelectors = <String, List<String>>{};
     final allStyleRules = <String, List<StyleRule>>{};
     final allTextRules = <String, List<TextHideRule>>{};
+    final allProceduralActions = <String, List<ProceduralActionRule>>{};
 
     for (final list in _lists) {
       if (!list.enabled) continue;
@@ -968,13 +1010,19 @@ class ContentBlockerService {
         final domainStyleN = result.styleRules.entries
             .where((e) => e.key.isNotEmpty)
             .fold<int>(0, (a, e) => a + e.value.length);
+        final globalProcN = (result.proceduralActions[''] ?? const []).length;
+        final domainProcN = result.proceduralActions.entries
+            .where((e) => e.key.isNotEmpty)
+            .fold<int>(0, (a, e) => a + e.value.length);
         LogService.instance.log(
             'ContentBlocker',
             'list "${list.name}" (${text.length}B): '
             'converted=${result.convertedCount} skipped=${result.skippedCount} '
             'global hides=${(result.cosmeticSelectors[''] ?? const []).length} '
             'global :style()=$globalStyleN '
-            'domain :style()=$domainStyleN',
+            'domain :style()=$domainStyleN '
+            'global procedural=$globalProcN '
+            'domain procedural=$domainProcN',
             level: LogLevel.debug);
         allDomains.addAll(result.blockedDomains);
         allExceptions.addAll(result.exceptionDomains);
@@ -990,6 +1038,11 @@ class ContentBlockerService {
         }
         for (final entry in result.textHideRules.entries) {
           allTextRules.putIfAbsent(entry.key, () => []).addAll(entry.value);
+        }
+        for (final entry in result.proceduralActions.entries) {
+          allProceduralActions
+              .putIfAbsent(entry.key, () => [])
+              .addAll(entry.value);
         }
 
         list.ruleCount = result.convertedCount;
@@ -1013,6 +1066,7 @@ class ContentBlockerService {
     _cosmeticSelectors = allSelectors;
     _styleRules = allStyleRules;
     _textHideRules = allTextRules;
+    _proceduralActions = allProceduralActions;
     _isBlockedCache.clear();
     _engineCosmeticCache.clear();
     // Engine state changes invalidate the Apple ruleset cache too —

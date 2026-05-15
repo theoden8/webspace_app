@@ -341,6 +341,56 @@ void main() {
       expect(result.skippedCount, equals(1));
     });
 
+    // ---- uBO procedural action pseudos ----
+
+    test('global ##sel:remove() emits a ProceduralActionRule', () {
+      final result =
+          parseAbpFilterListSync('##div.foo:has-text(REMOVE-ME):remove()');
+      expect(result.proceduralActions[''], hasLength(1));
+      final r = result.proceduralActions['']!.first;
+      expect(r.selector, equals('div.foo:has-text(REMOVE-ME)'));
+      expect(r.actionType, equals('remove'));
+      expect(r.actionArg, isEmpty);
+      expect(result.cosmeticSelectors, isEmpty,
+          reason: 'procedural rule must NOT also emit a hide selector');
+    });
+
+    test('##sel:remove-attr(name) captures attribute name', () {
+      final result = parseAbpFilterListSync(
+          '##div[data-tracker]:remove-attr(data-tracker)');
+      expect(result.proceduralActions[''], hasLength(1));
+      final r = result.proceduralActions['']!.first;
+      expect(r.selector, equals('div[data-tracker]'));
+      expect(r.actionType, equals('remove-attr'));
+      expect(r.actionArg, equals('data-tracker'));
+    });
+
+    test('##sel:remove-class(name) captures class name', () {
+      final result = parseAbpFilterListSync('##div.foo:remove-class(bar)');
+      expect(result.proceduralActions[''], hasLength(1));
+      final r = result.proceduralActions['']!.first;
+      expect(r.actionType, equals('remove-class'));
+      expect(r.actionArg, equals('bar'));
+    });
+
+    test('domain-scoped procedural rule lands in the right bucket', () {
+      final result = parseAbpFilterListSync(
+          'example.com##div.ad:remove()\n##div.global:remove()');
+      expect(result.proceduralActions['example.com'], hasLength(1));
+      expect(result.proceduralActions[''], hasLength(1));
+    });
+
+    test('procedural rule JSON output matches engine wire format', () {
+      final result =
+          parseAbpFilterListSync('##div.foo:has-text(needle):remove()');
+      final json = result.proceduralActions['']!.first.toEngineJson();
+      expect(
+          json,
+          contains(
+              '"selector":[{"type":"css-selector","arg":"div.foo:has-text(needle)"}]'));
+      expect(json, contains('"action":"remove"'));
+    });
+
     test('aggregates selectors from multiple rules', () {
       const input = '''
 ##.ad-banner

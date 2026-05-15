@@ -57,6 +57,55 @@ String? buildProceduralCosmeticShim(List<String> proceduralActions) {
   try { RULES = JSON.parse('$rulesJsonEscaped'); } catch (e) { return; }
   if (!RULES || !RULES.length) return;
 
+  // adblock-rust emits the `selector` chain with procedural pseudos
+  // embedded INSIDE the css-selector arg, not split into separate
+  // operators. e.g. `##div.foo:has-text(X):upward(2):remove()` comes
+  // back as `selector=[{type:"css-selector", arg:"div.foo:has-text(X)
+  // :upward(2)"}], action:"remove"`. Native querySelectorAll throws
+  // on `:has-text(` (it's a uBO extension, not standard CSS), so
+  // without this splitter the whole rule is dropped at runtime.
+  //
+  // Returns `{css: pureCssPrefix, ops: [{type, arg}, ...]}`. The
+  // pure-CSS prefix (possibly "*" if no CSS portion exists) is queried
+  // first; each subsequent op is applied as a filter.
+  var ABP_PSEUDOS = ['has-text', 'contains', '-abp-has-text',
+      '-abp-contains', 'upward', 'nth-ancestor'];
+  function splitAbpPseudos(sel) {
+    var ops = [];
+    var css = sel;
+    while (true) {
+      var earliest = -1;
+      var earliestPseudo = null;
+      for (var pi = 0; pi < ABP_PSEUDOS.length; pi++) {
+        var token = ':' + ABP_PSEUDOS[pi] + '(';
+        var i = css.indexOf(token);
+        if (i >= 0 && (earliest < 0 || i < earliest)) {
+          earliest = i;
+          earliestPseudo = ABP_PSEUDOS[pi];
+        }
+      }
+      if (earliest < 0) break;
+      var startArg = earliest + (':' + earliestPseudo + '(').length;
+      var depth = 1;
+      var j = startArg;
+      while (j < css.length && depth > 0) {
+        if (css.charAt(j) === '(') depth++;
+        else if (css.charAt(j) === ')') depth--;
+        j++;
+      }
+      if (depth !== 0) break; // unbalanced — give up, treat as CSS
+      var arg = css.substring(startArg, j - 1);
+      // Normalise aliases.
+      var opType = earliestPseudo;
+      if (opType === 'contains' || opType === '-abp-contains' ||
+          opType === '-abp-has-text') opType = 'has-text';
+      if (opType === 'nth-ancestor') opType = 'upward';
+      ops.push({type: opType, arg: arg});
+      css = css.substring(0, earliest) + css.substring(j);
+    }
+    return {css: css || '*', ops: ops};
+  }
+
   // Apply one operator to a candidate element set. Returns the
   // (possibly narrowed) array; or null when the operator isn't
   // supported, which skips the whole rule.
@@ -64,20 +113,29 @@ String? buildProceduralCosmeticShim(List<String> proceduralActions) {
     var type = op && op.type;
     var arg = op && op.arg;
     if (type === 'css-selector') {
-      // First operator: elements is null → query the whole document.
-      // Subsequent css-selector ops: re-query inside each element.
+      // adblock-rust ships ABP pseudos embedded in this arg. Split
+      // them out so the pure CSS portion goes through
+      // querySelectorAll and each pseudo runs as its own filter step.
+      var split = splitAbpPseudos(arg);
+      var base;
       if (elements === null) {
-        try { return Array.from(document.querySelectorAll(arg)); }
+        try { base = Array.from(document.querySelectorAll(split.css)); }
         catch (_) { return null; }
+      } else {
+        base = [];
+        for (var i = 0; i < elements.length; i++) {
+          try {
+            var found = elements[i].querySelectorAll(split.css);
+            for (var j = 0; j < found.length; j++) base.push(found[j]);
+          } catch (_) {}
+        }
       }
-      var out = [];
-      for (var i = 0; i < elements.length; i++) {
-        try {
-          var found = elements[i].querySelectorAll(arg);
-          for (var j = 0; j < found.length; j++) out.push(found[j]);
-        } catch (_) {}
+      var result = base;
+      for (var k = 0; k < split.ops.length; k++) {
+        result = applyOp(result, split.ops[k]);
+        if (result === null) return null;
       }
-      return out;
+      return result;
     }
     if (type === 'has-text') {
       if (elements === null) return null;

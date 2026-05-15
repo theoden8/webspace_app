@@ -121,15 +121,13 @@
     engine is off. The shim runner lives in
     <code>lib/services/procedural_cosmetic_shim.dart</code>.
     <br><br>
-    <strong>This section requires an HTTP host.</strong> adblock-rust
-    silently drops <em>global</em> procedural rules at parse time
-    (<code>cosmetic_filter_cache_builder.rs:106</code>) — they must
-    be hostname-scoped. The sample list scopes them to
-    <code>localhost</code>. Serve the probe over HTTP to exercise
-    them: <code>cd test/fixtures && python3 -m http.server 8000</code>
-    then open <code>http://localhost:8000/abp_rule_probe.html</code>.
-    On <code>file://</code> every row in this section will read
-    "missed" — that's the expected fail mode, not a bug.
+    Works on both <code>file://</code> and HTTP origins. The Dart
+    parser captures generic procedural rules (adblock-rust silently
+    drops these at <code>cosmetic_filter_cache_builder.rs:106</code>,
+    so we backfill with our own parsed bucket) and the page-side
+    shim splits embedded ABP pseudos like <code>:has-text()</code>
+    / <code>:upward()</code> out of the css-selector string before
+    feeding the pure-CSS portion to <code>querySelectorAll</code>.
   </div>
   <table class="probe">
     <thead>

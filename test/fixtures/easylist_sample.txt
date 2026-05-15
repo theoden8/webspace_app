@@ -93,25 +93,31 @@ linkedin.com##.fp_probe_styled_promo:style(opacity: 0.1 !important)
 ||fp.probe.csp.example$csp=script-src 'none'
 
 ! ---- Procedural cosmetic (uBO action operators) ----
-! :remove(), :upward(), :style(), :remove-attr(), :remove-class().
-! Resolved by the Rust engine; rendered via
-! procedural_cosmetic_shim.dart at DOCUMENT_END.
+! :remove(), :remove-attr(), :remove-class() — uBO's action-bearing
+! procedural rule family. Plus :style() (separate path) and
+! :has-text() / :upward() (procedural selectors that compose with
+! the actions).
 !
-! IMPORTANT: adblock-rust silently DROPS global procedural rules at
-! parse time (cosmetic_filter_cache_builder.rs:106 — "Procedural
-! cosmetic filters cannot be generic"). They MUST be hostname-
-! scoped or the engine ignores them entirely. Scoping to `localhost`
-! makes the abp_rule_probe.html section fire when the user serves
-! the probe via `python3 -m http.server` — the canonical way to
-! test the feature, since file:/// has no hostname for the engine
-! to scope against either. Production filter lists (EasyList,
-! AdGuard, …) ship these rules already hostname-scoped to real
-! domains; this section mirrors their shape.
-localhost##div.fp_probe_proc_remove:has-text(REMOVE-ME):remove()
-localhost##div.fp_probe_proc_upward:has-text(LEAF):upward(1):remove()
-localhost##div.fp_probe_proc_style:has-text(Sponsored):style(outline: 2px solid red !important)
-localhost##div.fp_probe_proc_remove_attr[data-tracker]:remove-attr(data-tracker)
-localhost##div.fp_probe_proc_remove_class.fp_probe_remove_me:remove-class(fp_probe_remove_me)
+! Two sources back the probe's Section 1C:
+!   1. Rust engine's `procedural_actions` — when the rule is
+!      hostname-scoped to the page's host. adblock-rust drops every
+!      generic procedural rule at parse time
+!      (cosmetic_filter_cache_builder.rs:106), so the engine path
+!      only fires for `domain.com##sel:remove()` shapes — never for
+!      bare `##sel:remove()`.
+!   2. Dart parser's _proceduralActions fallback — picks up the
+!      generic rules adblock-rust dropped, runs them on every URL
+!      (including file://). Lets the probe fire on file:/// without
+!      requiring an HTTP host.
+!
+! Keeping the rules bare-`##` here exercises path (2). For path (1)
+! the probe needs a hostname-scoped variant (any production list
+! provides these naturally; we don't ship one in the sample).
+##div.fp_probe_proc_remove:has-text(REMOVE-ME):remove()
+##div.fp_probe_proc_upward:has-text(LEAF):upward(1):remove()
+##div.fp_probe_proc_style:has-text(Sponsored):style(outline: 2px solid red !important)
+##div.fp_probe_proc_remove_attr[data-tracker]:remove-attr(data-tracker)
+##div.fp_probe_proc_remove_class.fp_probe_remove_me:remove-class(fp_probe_remove_me)
 
 ! ---- Synthetic rules used by test/fixtures/abp_rule_probe.html ----
 ! False-positive guards in the probe page rely on these — selectors

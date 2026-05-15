@@ -18,6 +18,54 @@ class StyleRule {
   const StyleRule({required this.selector, required this.declarations});
 }
 
+/// A uBO procedural cosmetic rule with an action other than the
+/// default hide: `:remove()` / `:remove-attr(name)` /
+/// `:remove-class(name)`. Carried alongside [StyleRule] / hide
+/// selectors but applied via the page-side procedural shim.
+///
+/// [actionType] is one of: `remove`, `remove-attr`, `remove-class`.
+/// [actionArg] is the attribute or class name for the latter two;
+/// empty for `remove`. We capture these from the Dart parser so they
+/// also fire on `file://` and other URLs where adblock-rust's
+/// hostname-keyed procedural bucket can't help (it drops every
+/// generic procedural rule per
+/// `cosmetic_filter_cache_builder.rs:106` — "Procedural cosmetic
+/// filters cannot be generic").
+///
+/// Adblock-rust JSON output shape this maps to (so the page-side
+/// shim can read both engine + Dart sources identically):
+/// `{"selector":[{"type":"css-selector","arg":<sel>}],
+///   "action":{"type":<actionType>,"arg":<actionArg>}}` — or with
+/// `"action":<actionType>` when there's no arg.
+class ProceduralActionRule {
+  final String selector;
+  final String actionType;
+  final String actionArg;
+
+  const ProceduralActionRule({
+    required this.selector,
+    required this.actionType,
+    required this.actionArg,
+  });
+
+  /// Serialise to the JSON shape adblock-rust emits in
+  /// `UrlSpecificResources.procedural_actions`. Lets the procedural
+  /// shim consume engine + Dart rules from the same code path.
+  String toEngineJson() {
+    final action = actionArg.isEmpty
+        ? '"$actionType"'
+        : '{"type":"$actionType","arg":${_jsonEscape(actionArg)}}';
+    return '{"selector":[{"type":"css-selector","arg":${_jsonEscape(selector)}}],"action":$action}';
+  }
+
+  static String _jsonEscape(String s) {
+    final escaped = s
+        .replaceAll('\\', '\\\\')
+        .replaceAll('"', '\\"');
+    return '"$escaped"';
+  }
+}
+
 /// A path-anchored network rule: block requests to [domain] whose
 /// post-host portion matches [pathGlob] (with `*` and ABP separator
 /// `^` as wildcards). Stored unparsed; the consuming service compiles
@@ -52,6 +100,13 @@ class AbpParseResult {
   /// Text-based hiding rules (from #?# rules with :-abp-contains), grouped by domain.
   final Map<String, List<TextHideRule>> textHideRules;
 
+  /// uBO procedural action rules (`:remove()` / `:remove-attr(...)` /
+  /// `:remove-class(...)`) grouped by scope. Backfills for the
+  /// adblock-rust path which silently drops every generic procedural
+  /// rule — letting these fire on `file://` and other URLs where the
+  /// engine's hostname-keyed bucket is empty.
+  final Map<String, List<ProceduralActionRule>> proceduralActions;
+
   final int convertedCount;
   final int skippedCount;
 
@@ -62,6 +117,7 @@ class AbpParseResult {
     required this.cosmeticSelectors,
     required this.styleRules,
     required this.textHideRules,
+    required this.proceduralActions,
     required this.convertedCount,
     required this.skippedCount,
   });
@@ -151,6 +207,57 @@ String? _extractContainerSelector(String selectorPart) {
 
 /// Parse a single line, adding to the appropriate data structure.
 /// Returns true if converted, false if skipped.
+/// Detect uBO procedural action pseudos at the end of a cosmetic
+/// selector: `:remove()`, `:remove-attr(name)`, `:remove-class(name)`.
+/// Returns the parsed pieces or null if no action pseudo applies
+/// (or the selector is malformed at the pseudo's close-paren).
+///
+/// `:style()` is handled separately via `_extractStyleRule` because
+/// it overlaps with the hide-rule emission path in a different way.
+({String selector, String actionType, String actionArg})?
+    _extractProceduralAction(String rule) {
+  // Each pseudo is mutually exclusive at this layer — uBO procedural
+  // action operators terminate the selector. Try the longest token
+  // first so `:remove-attr(` doesn't accidentally match `:remove()`.
+  for (final spec in const [
+    (':remove-attr(', 'remove-attr'),
+    (':remove-class(', 'remove-class'),
+    (':remove()', 'remove'),
+  ]) {
+    final token = spec.$1;
+    final action = spec.$2;
+    final idx = rule.indexOf(token);
+    if (idx < 0) continue;
+    final selectorPart = rule.substring(0, idx).trim();
+    if (selectorPart.isEmpty) return null;
+    if (action == 'remove') {
+      // `:remove()` — no arg. The rule must END here for the bare-
+      // remove shape; trailing characters mean something else is
+      // going on and we should let the regular path handle it.
+      final tail = rule.substring(idx + token.length).trim();
+      if (tail.isNotEmpty) return null;
+      return (selector: selectorPart, actionType: 'remove', actionArg: '');
+    }
+    // Two-arg variants: find the matching `)` (handles nested parens
+    // even though the args here don't normally contain any).
+    final start = idx + token.length;
+    var depth = 1;
+    var i = start;
+    while (i < rule.length && depth > 0) {
+      if (rule[i] == '(') depth++;
+      if (rule[i] == ')') depth--;
+      i++;
+    }
+    if (depth != 0) return null;
+    final arg = rule.substring(start, i - 1).trim();
+    if (arg.isEmpty) return null;
+    final tail = rule.substring(i).trim();
+    if (tail.isNotEmpty) return null;
+    return (selector: selectorPart, actionType: action, actionArg: arg);
+  }
+  return null;
+}
+
 bool _parseLine(
   String line,
   Set<String> blockedDomains,
@@ -159,6 +266,7 @@ bool _parseLine(
   Map<String, List<String>> cosmeticSelectors,
   Map<String, List<StyleRule>> styleRules,
   Map<String, List<TextHideRule>> textHideRules,
+  Map<String, List<ProceduralActionRule>> proceduralActions,
 ) {
   // --- Extended CSS: #?# rules with text matching ---
   final extIdx = line.indexOf('#?#');
@@ -210,6 +318,39 @@ bool _parseLine(
     if (selector.startsWith('^')) return false;
 
     final domainsStr = cosmeticIdx > 0 ? line.substring(0, cosmeticIdx) : '';
+
+    // Handle uBO procedural action pseudos (:remove(), :remove-attr(),
+    // :remove-class()) — emit a ProceduralActionRule consumed by the
+    // page-side procedural shim. adblock-rust silently drops generic
+    // ##sel:action(...) rules (`cosmetic_filter_cache_builder.rs:106`)
+    // so without this fallback they'd never fire on file:// or any
+    // URL whose hostname-keyed procedural bucket is empty.
+    //
+    // Detection sits BEFORE :style() so that
+    // `##sel:has-text(x):remove()` lands as a procedural action
+    // rather than getting half-handled by the text path.
+    if (selector.contains(':remove(') ||
+        selector.contains(':remove-attr(') ||
+        selector.contains(':remove-class(')) {
+      final proc = _extractProceduralAction(selector);
+      if (proc != null) {
+        final rule = ProceduralActionRule(
+          selector: proc.selector,
+          actionType: proc.actionType,
+          actionArg: proc.actionArg,
+        );
+        if (domainsStr.isEmpty) {
+          proceduralActions.putIfAbsent('', () => []).add(rule);
+        } else {
+          for (final d in domainsStr.split(',')) {
+            final trimmed = d.trim();
+            if (trimmed.isEmpty || trimmed.startsWith('~')) continue;
+            proceduralActions.putIfAbsent(trimmed, () => []).add(rule);
+          }
+        }
+        return true;
+      }
+    }
 
     // Handle uBO :style(declarations) — emit a StyleRule that injects
     // arbitrary CSS declarations instead of `display: none`. Must run
@@ -389,6 +530,7 @@ AbpParseResult parseAbpFilterListSync(String text) {
   final cosmeticSelectors = <String, List<String>>{};
   final styleRules = <String, List<StyleRule>>{};
   final textHideRules = <String, List<TextHideRule>>{};
+  final proceduralActions = <String, List<ProceduralActionRule>>{};
   int converted = 0;
   int skipped = 0;
 
@@ -408,6 +550,7 @@ AbpParseResult parseAbpFilterListSync(String text) {
       cosmeticSelectors,
       styleRules,
       textHideRules,
+      proceduralActions,
     )) {
       converted++;
     } else {
@@ -422,6 +565,7 @@ AbpParseResult parseAbpFilterListSync(String text) {
     cosmeticSelectors: cosmeticSelectors,
     styleRules: styleRules,
     textHideRules: textHideRules,
+    proceduralActions: proceduralActions,
     convertedCount: converted,
     skippedCount: skipped,
   );
