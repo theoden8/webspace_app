@@ -161,6 +161,9 @@ typedef _StringFreeDart = void Function(ffi.Pointer<Utf8>);
 typedef _EngineVersionC = ffi.Pointer<Utf8> Function();
 typedef _EngineVersionDart = ffi.Pointer<Utf8> Function();
 
+typedef _DepLicensesC = ffi.Pointer<Utf8> Function();
+typedef _DepLicensesDart = ffi.Pointer<Utf8> Function();
+
 /// Bundle of resolved C entry points for one library handle. Cached
 /// so the symbol-lookup cost is paid once per process, not per call.
 class _Bindings {
@@ -178,6 +181,7 @@ class _Bindings {
   final _BufFreeDart bufFree;
   final _StringFreeDart stringFree;
   final _EngineVersionDart engineVersion;
+  final _DepLicensesDart depLicenses;
 
   _Bindings._({
     required this.engineNew,
@@ -194,6 +198,7 @@ class _Bindings {
     required this.bufFree,
     required this.stringFree,
     required this.engineVersion,
+    required this.depLicenses,
   });
 
   factory _Bindings.fromLib(ffi.DynamicLibrary lib) {
@@ -233,6 +238,8 @@ class _Bindings {
           lib.lookupFunction<_StringFreeC, _StringFreeDart>('ws_string_free'),
       engineVersion: lib.lookupFunction<_EngineVersionC, _EngineVersionDart>(
           'ws_engine_version'),
+      depLicenses: lib.lookupFunction<_DepLicensesC, _DepLicensesDart>(
+          'ws_dep_licenses_json'),
     );
   }
 }
@@ -320,6 +327,32 @@ class AdblockEngine {
       return copy;
     } finally {
       malloc.free(lenPtr);
+    }
+  }
+
+  /// JSON-encoded list of the Rust-side transitive dependency tree
+  /// with SPDX licenses. Built at compile time by
+  /// `rust/webspace_adblock/build.rs` via `cargo metadata`. Surfaces
+  /// adblock-rust + every transitive crate's attribution without
+  /// vendoring any license text into the repo.
+  ///
+  /// Returns an empty list when the native library can't be loaded
+  /// on this platform — same fallback shape as the engine itself.
+  /// Static — no engine instance required.
+  static List<Map<String, dynamic>> depLicenses() {
+    final lib = _tryOpenLibrary();
+    if (lib == null) return const [];
+    final bindings = _Bindings.fromLib(lib);
+    final ptr = bindings.depLicenses();
+    if (ptr == ffi.nullptr) return const [];
+    // ws_dep_licenses_json returns a pointer to .rodata — DO NOT free.
+    final json = ptr.toDartString();
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is! List) return const [];
+      return decoded.cast<Map<String, dynamic>>();
+    } catch (_) {
+      return const [];
     }
   }
 

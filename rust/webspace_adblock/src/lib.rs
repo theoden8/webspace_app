@@ -39,6 +39,22 @@ use adblock::resources::Resource;
 /// upstream (offline build) — engine then runs without
 /// `$redirect=` support. Pre-baked into the .so via `include_str!`;
 /// no runtime file IO, no committed third-party data.
+/// JSON list of transitive Rust dependencies + SPDX licenses, produced
+/// by build.rs via `cargo metadata`. Surfaced through
+/// [`ws_dep_licenses_json`].
+const DEP_LICENSES_JSON: &str = include_str!(
+    concat!(env!("OUT_DIR"), "/dep_licenses.json")
+);
+
+/// Null-terminated copy of [`DEP_LICENSES_JSON`] for the C FFI.
+/// Static, lives in .rodata for the process lifetime — caller MUST
+/// NOT free.
+static DEP_LICENSES_JSON_CSTR: std::sync::LazyLock<std::ffi::CString> =
+    std::sync::LazyLock::new(|| {
+        std::ffi::CString::new(DEP_LICENSES_JSON)
+            .unwrap_or_else(|_| std::ffi::CString::new("[]").unwrap())
+    });
+
 const UBO_RESOURCES_JSON: &str = include_str!(
     concat!(env!("OUT_DIR"), "/ubo_resources.json")
 );
@@ -560,6 +576,25 @@ pub extern "C" fn ws_engine_version() -> *mut c_char {
         env!("CARGO_PKG_VERSION"),
         adblock_version());
     CString::new(v).ok().map(|c| c.into_raw()).unwrap_or(std::ptr::null_mut())
+}
+
+/// JSON-encoded list of the Rust-side transitive dependency tree
+/// with SPDX licenses, produced at build time by `cargo metadata`
+/// (see build.rs). Each entry:
+///
+///   {"name":"...","version":"...","license":"MIT OR Apache-2.0",
+///    "repository":"https://github.com/...","description":"..."}
+///
+/// The Dart side reads this once and registers an entry per crate
+/// in Flutter's LicenseRegistry — surfacing all transitive Rust
+/// attribution in About → Open Source Licenses without us
+/// vendoring any license text into the repo.
+///
+/// Static string baked at compile time — no allocation, just a
+/// pointer to .rodata; do NOT free.
+#[no_mangle]
+pub extern "C" fn ws_dep_licenses_json() -> *const c_char {
+    DEP_LICENSES_JSON_CSTR.as_ptr()
 }
 
 fn adblock_version() -> &'static str {

@@ -39,6 +39,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use adblock::resources::resource_assembler::assemble_web_accessible_resources;
+use serde_json::{json, Value};
 
 const UBO_TAG: &str = "1.59.0";
 const UBO_TARBALL_URL: &str =
@@ -47,6 +48,13 @@ const UBO_TARBALL_URL: &str =
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
+
+    // Always re-enumerate the dep tree on every build — `cargo
+    // metadata` is fast (no compilation, just lockfile + manifest
+    // parse) and we want a license blob that exactly mirrors what
+    // got linked into this binary.
+    write_dep_licenses(&out_dir);
+
     let output_json = out_dir.join("ubo_resources.json");
 
     // Cache hit. Bumping UBO_TAG above also triggers a refetch
@@ -121,6 +129,99 @@ fn main() {
     // Free disk: tarball and extract dir served their purpose.
     let _ = fs::remove_file(&tarball_path);
     let _ = fs::remove_dir_all(&extract_dir);
+}
+
+/// Run `cargo metadata` against the crate and emit a slim JSON list
+/// of (name, version, license SPDX, repository, description) for every
+/// resolved dependency. The result is embedded into the .so/.a via
+/// `include_str!` and surfaced to Flutter's LicenseRegistry on app
+/// startup — that satisfies attribution requirements for the
+/// permissive licenses every transitive crate carries without us
+/// vendoring any license text.
+///
+/// `cargo metadata` parses Cargo.lock + Cargo.toml; it never compiles.
+/// Failure path: cargo not on PATH (theoretically impossible — we
+/// were just invoked by cargo) → write `[]`, app shows no deps. Same
+/// fallback as the uBO fetch path: app keeps working.
+fn write_dep_licenses(out_dir: &Path) {
+    let out_path = out_dir.join("dep_licenses.json");
+    let metadata = match Command::new(env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
+        .args(["metadata", "--format-version", "1", "--all-features"])
+        .output()
+    {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
+        Ok(o) => {
+            println!(
+                "cargo:warning=cargo metadata exit {}: {}",
+                o.status,
+                String::from_utf8_lossy(&o.stderr).trim()
+            );
+            fs::write(&out_path, b"[]").expect("write empty dep_licenses");
+            return;
+        }
+        Err(e) => {
+            println!("cargo:warning=cargo metadata failed: {}", e);
+            fs::write(&out_path, b"[]").expect("write empty dep_licenses");
+            return;
+        }
+    };
+
+    let parsed: Value = match serde_json::from_str(&metadata) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("cargo:warning=cargo metadata parse failed: {}", e);
+            fs::write(&out_path, b"[]").expect("write empty dep_licenses");
+            return;
+        }
+    };
+
+    let packages = match parsed.get("packages").and_then(|v| v.as_array()) {
+        Some(p) => p,
+        None => {
+            fs::write(&out_path, b"[]").expect("write empty dep_licenses");
+            return;
+        }
+    };
+
+    let mut out = Vec::new();
+    for pkg in packages {
+        let name = pkg.get("name").and_then(|v| v.as_str()).unwrap_or("");
+        // Skip the crate itself — already covered by the WebSpace
+        // bundle entry in lib/main.dart.
+        if name == "webspace_adblock" {
+            continue;
+        }
+        out.push(json!({
+            "name": name,
+            "version": pkg.get("version").and_then(|v| v.as_str()).unwrap_or(""),
+            "license": pkg
+                .get("license")
+                .and_then(|v| v.as_str())
+                .unwrap_or("<unspecified>"),
+            "repository": pkg
+                .get("repository")
+                .and_then(|v| v.as_str())
+                .unwrap_or(""),
+            "description": pkg
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or(""),
+        }));
+    }
+    // Stable order — sort by name so successive builds with the same
+    // Cargo.lock produce byte-identical output (deterministic .so).
+    out.sort_by(|a, b| {
+        a.get("name").and_then(|v| v.as_str()).unwrap_or("")
+            .cmp(b.get("name").and_then(|v| v.as_str()).unwrap_or(""))
+    });
+
+    let json_blob = serde_json::to_string(&out).expect("serialise dep_licenses");
+    fs::write(&out_path, &json_blob).expect("write dep_licenses.json");
+    println!(
+        "cargo:warning=dep_licenses.json: {} crates ({} bytes)",
+        out.len(),
+        json_blob.len()
+    );
 }
 
 fn fetch(out_path: &Path, url: &str) -> std::io::Result<()> {
