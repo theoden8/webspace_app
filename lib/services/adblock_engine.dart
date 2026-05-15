@@ -23,6 +23,7 @@
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
@@ -103,6 +104,57 @@ typedef _EngineRedirectForDart = ffi.Pointer<Utf8> Function(
   int,
 );
 
+typedef _EngineRewrittenUrlC = ffi.Pointer<Utf8> Function(
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+);
+typedef _EngineRewrittenUrlDart = ffi.Pointer<Utf8> Function(
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<Utf8>,
+  int,
+  ffi.Pointer<Utf8>,
+  int,
+  ffi.Pointer<Utf8>,
+  int,
+);
+
+typedef _EngineCspForC = ffi.Pointer<Utf8> Function(
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+  ffi.Pointer<Utf8>,
+  ffi.UintPtr,
+);
+typedef _EngineCspForDart = ffi.Pointer<Utf8> Function(
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<Utf8>,
+  int,
+  ffi.Pointer<Utf8>,
+  int,
+  ffi.Pointer<Utf8>,
+  int,
+);
+
+typedef _EngineSerializeC = ffi.Pointer<ffi.Uint8> Function(
+    ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.UintPtr>);
+typedef _EngineSerializeDart = ffi.Pointer<ffi.Uint8> Function(
+    ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.UintPtr>);
+
+typedef _EngineNewFromSerializedC = ffi.Pointer<ffi.Void> Function(
+    ffi.Pointer<ffi.Uint8>, ffi.UintPtr, ffi.Bool);
+typedef _EngineNewFromSerializedDart = ffi.Pointer<ffi.Void> Function(
+    ffi.Pointer<ffi.Uint8>, int, bool);
+
+typedef _BufFreeC = ffi.Void Function(ffi.Pointer<ffi.Uint8>, ffi.UintPtr);
+typedef _BufFreeDart = void Function(ffi.Pointer<ffi.Uint8>, int);
+
 typedef _StringFreeC = ffi.Void Function(ffi.Pointer<Utf8>);
 typedef _StringFreeDart = void Function(ffi.Pointer<Utf8>);
 
@@ -113,23 +165,33 @@ typedef _EngineVersionDart = ffi.Pointer<Utf8> Function();
 /// so the symbol-lookup cost is paid once per process, not per call.
 class _Bindings {
   final _EngineNewDart engineNew;
+  final _EngineNewFromSerializedDart engineNewFromSerialized;
   final _EngineFreeDart engineFree;
   final _EngineCheckUrlDart engineCheckUrl;
   final _EngineCosmeticDart engineCosmetic;
   final _EngineHiddenClassIdDart engineHiddenClassId;
   final _FiltersToContentBlockingDart filtersToContentBlocking;
   final _EngineRedirectForDart engineRedirectFor;
+  final _EngineRewrittenUrlDart engineRewrittenUrl;
+  final _EngineCspForDart engineCspFor;
+  final _EngineSerializeDart engineSerialize;
+  final _BufFreeDart bufFree;
   final _StringFreeDart stringFree;
   final _EngineVersionDart engineVersion;
 
   _Bindings._({
     required this.engineNew,
+    required this.engineNewFromSerialized,
     required this.engineFree,
     required this.engineCheckUrl,
     required this.engineCosmetic,
     required this.engineHiddenClassId,
     required this.filtersToContentBlocking,
     required this.engineRedirectFor,
+    required this.engineRewrittenUrl,
+    required this.engineCspFor,
+    required this.engineSerialize,
+    required this.bufFree,
     required this.stringFree,
     required this.engineVersion,
   });
@@ -138,6 +200,9 @@ class _Bindings {
     return _Bindings._(
       engineNew: lib
           .lookupFunction<_EngineNewC, _EngineNewDart>('ws_engine_new'),
+      engineNewFromSerialized: lib.lookupFunction<_EngineNewFromSerializedC,
+              _EngineNewFromSerializedDart>(
+          'ws_engine_new_from_serialized'),
       engineFree: lib
           .lookupFunction<_EngineFreeC, _EngineFreeDart>('ws_engine_free'),
       engineCheckUrl: lib
@@ -154,6 +219,16 @@ class _Bindings {
       engineRedirectFor: lib.lookupFunction<_EngineRedirectForC,
               _EngineRedirectForDart>(
           'ws_engine_redirect_for'),
+      engineRewrittenUrl: lib.lookupFunction<_EngineRewrittenUrlC,
+              _EngineRewrittenUrlDart>(
+          'ws_engine_rewritten_url'),
+      engineCspFor: lib
+          .lookupFunction<_EngineCspForC, _EngineCspForDart>(
+              'ws_engine_csp_for'),
+      engineSerialize: lib.lookupFunction<_EngineSerializeC,
+          _EngineSerializeDart>('ws_engine_serialize'),
+      bufFree:
+          lib.lookupFunction<_BufFreeC, _BufFreeDart>('ws_buf_free'),
       stringFree:
           lib.lookupFunction<_StringFreeC, _StringFreeDart>('ws_string_free'),
       engineVersion: lib.lookupFunction<_EngineVersionC, _EngineVersionDart>(
@@ -189,6 +264,62 @@ class AdblockEngine {
       return AdblockEngine._(bindings, handle);
     } finally {
       malloc.free(ptr);
+    }
+  }
+
+  /// Build an engine from the binary blob produced by [serialize].
+/// Skips the multi-megabyte ABP rule parse — used to cache the
+/// parsed engine state across app launches.
+///
+/// Returns null when:
+///   * the library can't be loaded on this platform/arch,
+///   * the blob is corrupt / from an incompatible adblock-rust version,
+///   * a panic crosses the FFI boundary (release builds abort instead).
+///
+/// Caller should treat null as "cache miss, fall back to parse".
+  static AdblockEngine? loadFromSerialized(Uint8List bytes,
+      {bool enableUboResources = true}) {
+    if (bytes.isEmpty) return null;
+    final lib = _tryOpenLibrary();
+    if (lib == null) return null;
+    final bindings = _Bindings.fromLib(lib);
+    final ptr = malloc.allocate<ffi.Uint8>(bytes.length);
+    try {
+      ptr.asTypedList(bytes.length).setAll(0, bytes);
+      final handle = bindings.engineNewFromSerialized(
+          ptr, bytes.length, enableUboResources);
+      if (handle == ffi.nullptr) return null;
+      return AdblockEngine._(bindings, handle);
+    } finally {
+      malloc.free(ptr);
+    }
+  }
+
+  /// Serialize the engine's parsed state to a flatbuffer blob suitable
+  /// for [loadFromSerialized]. Used to cache the engine across app
+  /// launches and skip the multi-second rule parse on warm start.
+  ///
+  /// Returns null on any error (panic, OOM). Caller treats null as
+  /// "don't write a cache file this rebuild".
+  Uint8List? serialize() {
+    if (_handle == ffi.nullptr) return null;
+    final lenPtr = malloc.allocate<ffi.UintPtr>(1);
+    try {
+      final bufPtr = _b.engineSerialize(_handle, lenPtr);
+      if (bufPtr == ffi.nullptr) return null;
+      final len = lenPtr.value;
+      if (len == 0) {
+        _b.bufFree(bufPtr, 0);
+        return null;
+      }
+      // Copy out of native memory before freeing the buffer — the
+      // Uint8List we return must own a Dart heap allocation, not
+      // borrow from the C side.
+      final copy = Uint8List.fromList(bufPtr.asTypedList(len));
+      _b.bufFree(bufPtr, len);
+      return copy;
+    } finally {
+      malloc.free(lenPtr);
     }
   }
 
@@ -352,6 +483,97 @@ class AdblockEngine {
       final dataUrl = resultPtr.toDartString();
       _b.stringFree(resultPtr);
       return dataUrl;
+    } finally {
+      malloc.free(urlPtr);
+      if (srcBytes.isNotEmpty) malloc.free(srcPtr);
+      malloc.free(typPtr);
+    }
+  }
+
+  /// `$removeparam=` lookup. Returns the URL after adblock-rust strips
+  /// matching query parameters. Returns null when no rewrite applies.
+  ///
+  /// This is independent of [shouldBlock]: a URL can be both blocked
+  /// AND rewritten. Callers typically check block first; if not
+  /// blocked, check rewritten then issue the rewritten URL.
+  String? rewrittenUrl(
+    String url, {
+    String sourceUrl = '',
+    String requestType = 'other',
+  }) =>
+      _callStringFn(
+        _b.engineRewrittenUrl,
+        url,
+        sourceUrl,
+        requestType,
+      );
+
+  /// `$csp=` lookup. Returns the CSP directives the engine wants to
+  /// apply at this URL (joined `;`-separated string). Returns null
+  /// when no `$csp=` rule matches.
+  ///
+  /// Caller injects the result either as a response header
+  /// (Android, where we control sub-resource responses) or as a
+  /// `<meta http-equiv="Content-Security-Policy">` tag injected at
+  /// DOCUMENT_START (Apple, where we can't rewrite headers).
+  String? cspFor(
+    String url, {
+    String sourceUrl = '',
+    String requestType = 'other',
+  }) =>
+      _callStringFn(
+        _b.engineCspFor,
+        url,
+        sourceUrl,
+        requestType,
+      );
+
+  /// Helper to invoke the (engine, url, src, type) → cstring FFI shape
+  /// without duplicating the malloc/copy/free boilerplate.
+  String? _callStringFn(
+    ffi.Pointer<Utf8> Function(
+      ffi.Pointer<ffi.Void>,
+      ffi.Pointer<Utf8>,
+      int,
+      ffi.Pointer<Utf8>,
+      int,
+      ffi.Pointer<Utf8>,
+      int,
+    ) fn,
+    String url,
+    String sourceUrl,
+    String requestType,
+  ) {
+    final urlBytes = utf8.encode(url);
+    final srcBytes = utf8.encode(sourceUrl);
+    final typBytes = utf8.encode(requestType);
+
+    final urlPtr = malloc.allocate<ffi.Uint8>(urlBytes.length);
+    final srcPtr = srcBytes.isEmpty
+        ? ffi.nullptr.cast<ffi.Uint8>()
+        : malloc.allocate<ffi.Uint8>(srcBytes.length);
+    final typPtr = malloc.allocate<ffi.Uint8>(typBytes.length);
+
+    try {
+      urlPtr.asTypedList(urlBytes.length).setAll(0, urlBytes);
+      if (srcBytes.isNotEmpty) {
+        srcPtr.asTypedList(srcBytes.length).setAll(0, srcBytes);
+      }
+      typPtr.asTypedList(typBytes.length).setAll(0, typBytes);
+
+      final ptr = fn(
+        _handle,
+        urlPtr.cast<Utf8>(),
+        urlBytes.length,
+        srcPtr.cast<Utf8>(),
+        srcBytes.length,
+        typPtr.cast<Utf8>(),
+        typBytes.length,
+      );
+      if (ptr == ffi.nullptr) return null;
+      final s = ptr.toDartString();
+      _b.stringFree(ptr);
+      return s;
     } finally {
       malloc.free(urlPtr);
       if (srcBytes.isNotEmpty) malloc.free(srcPtr);

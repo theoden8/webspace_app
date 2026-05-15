@@ -103,6 +103,89 @@ pub extern "C" fn ws_engine_new(
     Box::into_raw(Box::new(Engine { inner: engine }))
 }
 
+/// Build an engine from the binary blob produced by [`ws_engine_serialize`].
+/// Skips the multi-megabyte ABP rule parse — same observable engine
+/// state, just hydrated from flatbuffers instead of text. The uBO
+/// resource pool is not part of the serialized format, so we re-apply
+/// it here (gated on `enable_ubo_resources` the same way `ws_engine_new`
+/// is).
+///
+/// Returns null on UTF-8/flatbuffer parse failure, on a panic, or when
+/// the serialized blob came from an incompatible adblock-rust version.
+/// Caller must treat null as "cache miss, fall back to parse" — never
+/// abort.
+#[no_mangle]
+pub extern "C" fn ws_engine_new_from_serialized(
+    bytes: *const u8,
+    len: usize,
+    enable_ubo_resources: bool,
+) -> *mut Engine {
+    if bytes.is_null() || len == 0 {
+        return std::ptr::null_mut();
+    }
+    let blob = unsafe { slice::from_raw_parts(bytes, len) };
+    // Build a fresh empty engine then deserialize into it — matches the
+    // adblock-rust API shape (`Engine::deserialize(&mut self, ...)`).
+    let mut engine =
+        AdblockEngine::from_filter_set(FilterSet::new(false), true);
+    if engine.deserialize(blob).is_err() {
+        return std::ptr::null_mut();
+    }
+    if enable_ubo_resources {
+        let resources = load_ubo_resources();
+        if !resources.is_empty() {
+            engine.use_resources(resources);
+        }
+    }
+    Box::into_raw(Box::new(Engine { inner: engine }))
+}
+
+/// Serialize the engine state to a flatbuffer blob suitable for
+/// rehydration via [`ws_engine_new_from_serialized`]. Writes the
+/// resulting byte count to `out_len`. The returned pointer is owned
+/// by the caller and MUST be released with [`ws_buf_free`].
+///
+/// On any error (null engine, panic), returns null and leaves `out_len`
+/// untouched.
+///
+/// Note: the format includes a self-describing version stamp; later
+/// adblock-rust releases may bump it. A rehydration mismatch surfaces
+/// as null from `ws_engine_new_from_serialized`; the caller falls back
+/// to text parsing.
+#[no_mangle]
+pub extern "C" fn ws_engine_serialize(
+    engine: *mut Engine,
+    out_len: *mut usize,
+) -> *mut u8 {
+    if engine.is_null() || out_len.is_null() {
+        return std::ptr::null_mut();
+    }
+    let engine_ref = unsafe { &(*engine).inner };
+    let blob = engine_ref.serialize();
+    let len = blob.len();
+    // Move the Vec into a heap allocation under our exclusive
+    // ownership so the C side can free it via `ws_buf_free`.
+    let mut boxed = blob.into_boxed_slice();
+    let ptr = boxed.as_mut_ptr();
+    std::mem::forget(boxed);
+    unsafe {
+        *out_len = len;
+    }
+    ptr
+}
+
+/// Release a buffer returned by [`ws_engine_serialize`]. Safe with null.
+#[no_mangle]
+pub extern "C" fn ws_buf_free(ptr: *mut u8, len: usize) {
+    if ptr.is_null() || len == 0 {
+        return;
+    }
+    unsafe {
+        let slice = std::slice::from_raw_parts_mut(ptr, len);
+        drop(Box::from_raw(slice as *mut [u8]));
+    }
+}
+
 /// Drop the engine. Safe to call with a null pointer (no-op).
 #[no_mangle]
 pub extern "C" fn ws_engine_free(engine: *mut Engine) {
@@ -156,6 +239,97 @@ pub extern "C" fn ws_engine_check_url(
         1
     } else {
         0
+    }
+}
+
+/// Per-request `$removeparam=` lookup. Returns the rewritten URL when
+/// adblock-rust would strip one or more query parameters from the
+/// request URL. Returns null when no rewrite applies (no matching
+/// filter, or the URL has no query string).
+///
+/// This is a SEPARATE call from [`ws_engine_check_url`] because the two
+/// outcomes can co-occur — a URL can be both blocked AND rewritten if
+/// two filters match. The caller decides priority. Typical pattern:
+///   1. Check block — if blocked, drop / serve redirect body.
+///   2. Else check rewrite — if rewritten, swap URL on the navigation.
+///
+/// Caller must free the returned pointer with [`ws_string_free`].
+#[no_mangle]
+pub extern "C" fn ws_engine_rewritten_url(
+    engine: *mut Engine,
+    url: *const c_char,
+    url_len: usize,
+    source_url: *const c_char,
+    source_url_len: usize,
+    request_type: *const c_char,
+    request_type_len: usize,
+) -> *mut c_char {
+    if engine.is_null() || url.is_null() {
+        return std::ptr::null_mut();
+    }
+    let engine_ref = unsafe { &(*engine).inner };
+
+    let url_s = match read_utf8(url, url_len) {
+        Some(s) => s,
+        None => return std::ptr::null_mut(),
+    };
+    let src_s = read_utf8(source_url, source_url_len).unwrap_or("");
+    let typ_raw = read_utf8(request_type, request_type_len).unwrap_or("other");
+    let typ_s: &str = if typ_raw.is_empty() { "other" } else { typ_raw };
+
+    let request = match Request::new(url_s, src_s, typ_s) {
+        Ok(r) => r,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let res = engine_ref.check_network_request(&request);
+    match res.rewritten_url {
+        Some(s) => CString::new(s)
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        None => std::ptr::null_mut(),
+    }
+}
+
+/// Per-request `$csp=` lookup. Returns the joined CSP directives for
+/// matching `$csp=...` rules at this URL — the caller injects them
+/// into the response as `Content-Security-Policy` (Android response
+/// header path) or as a `<meta http-equiv="Content-Security-Policy">`
+/// tag (Apple, where we can't rewrite headers).
+///
+/// Returns null when no CSP applies. Caller must free with
+/// [`ws_string_free`].
+#[no_mangle]
+pub extern "C" fn ws_engine_csp_for(
+    engine: *mut Engine,
+    url: *const c_char,
+    url_len: usize,
+    source_url: *const c_char,
+    source_url_len: usize,
+    request_type: *const c_char,
+    request_type_len: usize,
+) -> *mut c_char {
+    if engine.is_null() || url.is_null() {
+        return std::ptr::null_mut();
+    }
+    let engine_ref = unsafe { &(*engine).inner };
+
+    let url_s = match read_utf8(url, url_len) {
+        Some(s) => s,
+        None => return std::ptr::null_mut(),
+    };
+    let src_s = read_utf8(source_url, source_url_len).unwrap_or("");
+    let typ_raw = read_utf8(request_type, request_type_len).unwrap_or("other");
+    let typ_s: &str = if typ_raw.is_empty() { "other" } else { typ_raw };
+
+    let request = match Request::new(url_s, src_s, typ_s) {
+        Ok(r) => r,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    match engine_ref.get_csp_directives(&request) {
+        Some(s) if !s.is_empty() => CString::new(s)
+            .map(|c| c.into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        _ => std::ptr::null_mut(),
     }
 }
 

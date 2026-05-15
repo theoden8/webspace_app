@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
@@ -215,6 +217,9 @@ class ContentBlockerService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kUseUboResourcesKey, enabled);
     if (_rustEngineEnabled) {
+      // Sidecar invalidation handles this on the next read, but
+      // doing it here too keeps the cache directory tidy.
+      await _clearEngineCache();
       await _maybeRebuildRustEngine();
     }
   }
@@ -401,16 +406,21 @@ class ContentBlockerService {
         .cast<String>()
         .toSet();
     final genericHide = raw['generichide'] == true;
+    final procedural = (raw['procedural_actions'] as List? ?? const [])
+        .cast<String>()
+        .toList();
     final entry = _EngineCosmeticCache(
       hides: hides,
       exceptions: exceptions,
       genericHide: genericHide,
+      proceduralActions: procedural,
     );
     _engineCosmeticCache[pageUrl] = entry;
     LogService.instance.log('ContentBlocker',
         'engine.cosmeticResources($pageUrl) → '
         '${hides.length} hide(s), ${exceptions.length} exception(s)'
-        '${genericHide ? ", generichide" : ""}',
+        '${genericHide ? ", generichide" : ""}'
+        '${procedural.isNotEmpty ? ", ${procedural.length} procedural" : ""}',
         level: LogLevel.debug);
     return entry;
   }
@@ -851,8 +861,29 @@ class ContentBlockerService {
       }
       return;
     }
+    final rulesText = buf.toString();
+    final rulesHash = sha256.convert(utf8.encode(rulesText)).toString();
+    AdblockEngine? engine;
+    String loadMode = 'parse';
     final sw = Stopwatch()..start();
-    final engine = AdblockEngine.load(buf.toString(),
+
+    // Warm-path: try the on-disk cache before re-parsing 5MB of text.
+    // Cache invalidates when the rule text hash OR the uBO toggle
+    // changes (the resource pool is re-applied post-deserialize, but
+    // the parsed rule set itself is tied to the source text).
+    final cached = await _readEngineCache(rulesHash);
+    if (cached != null) {
+      engine = AdblockEngine.loadFromSerialized(cached,
+          enableUboResources: _useUboResources);
+      if (engine != null) {
+        loadMode = 'deserialize';
+      } else {
+        // Corrupted blob OR adblock-rust version mismatch. Wipe so
+        // the parse path below can write a fresh one.
+        await _clearEngineCache();
+      }
+    }
+    engine ??= AdblockEngine.load(rulesText,
         enableUboResources: _useUboResources);
     sw.stop();
     if (engine == null) {
@@ -864,9 +895,16 @@ class ContentBlockerService {
     _rustEngine = engine;
     LogService.instance.log('ContentBlocker',
         'Rust engine active: ${engine.version} '
-        '(parsed $listCount list(s), ${buf.length} bytes, '
+        '($loadMode $listCount list(s), ${rulesText.length} bytes, '
         '${sw.elapsedMilliseconds}ms)',
         level: LogLevel.info);
+    // Write the cache on the parse path so the NEXT startup hits it.
+    // Don't bother on the deserialize path — it was already a hit.
+    if (loadMode == 'parse') {
+      // Don't block the Rust engine availability on the cache write —
+      // the engine is live; we can persist in the background.
+      unawaited(_writeEngineCache(rulesHash, engine));
+    }
     if (Platform.isAndroid) {
       // Phase 9: also push the rules text to the native engine so
       // FastSubresourceInterceptor can consult it without a Dart
@@ -903,6 +941,74 @@ class ContentBlockerService {
   Future<File> _getCacheFile(String id) async {
     final appDir = await getApplicationDocumentsDirectory();
     return File('${appDir.path}/$_cacheDir/$id.txt');
+  }
+
+  /// Filesystem location of the binary engine cache. Two files:
+  ///   `<dir>/.engine.bin`  — flatbuffer blob from `engine.serialize()`.
+  ///   `<dir>/.engine.meta` — `<rulesHash>:<uboEnabled>` sidecar.
+  ///
+  /// The sidecar invalidates the cache when the user toggles uBO
+  /// resources or downloads a different list — the .bin only matches
+  /// the rule text it was serialized from.
+  Future<File> _engineCacheFile() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    return File('${appDir.path}/$_cacheDir/.engine.bin');
+  }
+
+  Future<File> _engineCacheMetaFile() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    return File('${appDir.path}/$_cacheDir/.engine.meta');
+  }
+
+  /// Read the cache when the sidecar matches the current state.
+  /// Returns null on miss (file absent, hash mismatch, IO error).
+  Future<Uint8List?> _readEngineCache(String expectedHash) async {
+    try {
+      final meta = await _engineCacheMetaFile();
+      if (!await meta.exists()) return null;
+      final metaText = await meta.readAsString();
+      // sidecar format: "<rulesHash>:<uboEnabled 0/1>"
+      final parts = metaText.split(':');
+      if (parts.length != 2) return null;
+      if (parts[0] != expectedHash) return null;
+      if ((parts[1] == '1') != _useUboResources) return null;
+      final bin = await _engineCacheFile();
+      if (!await bin.exists()) return null;
+      return await bin.readAsBytes();
+    } catch (e) {
+      LogService.instance.log('ContentBlocker',
+          'engine cache read failed: $e — falling back to parse',
+          level: LogLevel.debug);
+      return null;
+    }
+  }
+
+  Future<void> _writeEngineCache(String hash, AdblockEngine engine) async {
+    try {
+      final blob = engine.serialize();
+      if (blob == null) return;
+      final bin = await _engineCacheFile();
+      await bin.parent.create(recursive: true);
+      await bin.writeAsBytes(blob, flush: true);
+      final meta = await _engineCacheMetaFile();
+      await meta.writeAsString('$hash:${_useUboResources ? '1' : '0'}');
+      LogService.instance.log('ContentBlocker',
+          'engine cache written: ${blob.length} bytes (hash=${hash.substring(0, 8)}…)',
+          level: LogLevel.debug);
+    } catch (e) {
+      LogService.instance.log('ContentBlocker',
+          'engine cache write failed: $e',
+          level: LogLevel.warning);
+    }
+  }
+
+  Future<void> _clearEngineCache() async {
+    try {
+      final bin = await _engineCacheFile();
+      if (await bin.exists()) await bin.delete();
+      final meta = await _engineCacheMetaFile();
+      if (await meta.exists()) await meta.delete();
+    } catch (_) {}
   }
 
   /// Exposed for testing: reset singleton state.
@@ -993,9 +1099,15 @@ class _EngineCosmeticCache {
   final List<String> hides;
   final Set<String> exceptions;
   final bool genericHide;
+  /// Procedural cosmetic actions (`##selector:remove()`,
+  /// `##selector:upward(N)`, `##selector:nth-ancestor(N)`, etc.) as raw
+  /// JSON strings — uBO's wire format. Each entry parses into a tree
+  /// the page-side shim walks at runtime.
+  final List<String> proceduralActions;
   _EngineCosmeticCache({
     required this.hides,
     required this.exceptions,
     required this.genericHide,
+    required this.proceduralActions,
   });
 }
