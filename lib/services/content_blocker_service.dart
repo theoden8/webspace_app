@@ -433,14 +433,23 @@ class ContentBlockerService {
   /// compiled list keyed by identifier across WebViews, so the per-
   /// WebView cost after the first compile is just a lookup.
   ///
-  /// Returns an empty list on:
-  ///   * non-Apple platforms (irrelevant API there),
-  ///   * Rust engine off (no JSON to export),
-  ///   * filter set too large for WebKit's 50,000-rules-per-ruleset cap
-  ///     (we log + drop — the JS-bridge `blockCheck` path still runs).
+  /// WebKit caps each ruleset at 50,000 rules. With production filter
+  /// stacks (5 lists ≈ 200k rules) we'd blow the cap. Pragmatic trim:
   ///
-  /// First call rebuilds; subsequent calls hit the cache until the next
-  /// _rebuildRules() invalidates.
+  ///   1. Drop css-display-none rules. Native cosmetic via
+  ///      WKContentRuleList fires no callback (no DevTools visibility,
+  ///      no per-rule stat counter) and our early-CSS shim already
+  ///      handles cosmetic — installing them natively too is pure
+  ///      duplicate work.
+  ///   2. If still > 50k, slice to the first 50k. The export's
+  ///      ordering mirrors the input filter list, so the most-used
+  ///      rules (canonical EasyList block lines at top of file) stay.
+  ///      The dropped tail is also covered by the JS-bridge
+  ///      `blockCheck` path.
+  ///
+  /// True chunking (up to 8 rulesets ≈ 400k rules) needs a fork patch
+  /// to the plugin's contentBlockers setting, which currently only
+  /// supports ONE compiled rule list per WebView. That's a follow-up.
   List<inapp.ContentBlocker> appleContentBlockers() {
     if (!Platform.isIOS && !Platform.isMacOS) return const [];
     if (!_rustEngineEnabled) return const [];
@@ -464,17 +473,25 @@ class ContentBlockerService {
       return const [];
     }
     final blockers = <inapp.ContentBlocker>[];
+    var totalRaw = 0;
+    var droppedCosmetic = 0;
     try {
       final decoded = jsonDecode(json);
       if (decoded is! List) {
         _appleContentBlockersCache = const [];
         return const [];
       }
+      totalRaw = decoded.length;
       for (final raw in decoded) {
         if (raw is! Map) continue;
         final trigger = raw['trigger'];
         final action = raw['action'];
         if (trigger is! Map || action is! Map) continue;
+        // Drop cosmetic — handled by the early-CSS shim already.
+        if (action['type'] == 'css-display-none') {
+          droppedCosmetic++;
+          continue;
+        }
         final triggerMap = Map<String, dynamic>.from(trigger);
         // ContentBlockerTrigger.fromMap reads `url-filter-is-case-
         // sensitive` without a null-default — passing it through
@@ -503,27 +520,17 @@ class ContentBlockerService {
       _appleContentBlockersCache = const [];
       return const [];
     }
-    // WebKit caps each ruleset at 50,000 rules. Beyond that the
-    // compileContentRuleList callback returns an error and the plugin
-    // silently logs + drops. Surface it loudly here so the user
-    // knows their filter set was too big for the native path; the
-    // JS-bridge fallback still covers them.
+    // Trim to the cap if cosmetic-drop didn't get us under.
+    final preSlice = blockers.length;
     if (blockers.length > 50000) {
-      LogService.instance.log(
-        'ContentBlocker',
-        'WKContentRuleList: ${blockers.length} rules exceeds WebKit\'s '
-        '50000-per-ruleset cap. Chunking across rulesets is a follow-up; '
-        'for now native sub-resource blocking is disabled and the JS '
-        'bridge handles everything.',
-        level: LogLevel.warning,
-      );
-      _appleContentBlockersCache = const [];
-      return const [];
+      blockers.removeRange(50000, blockers.length);
     }
     LogService.instance.log(
       'ContentBlocker',
       'WKContentRuleList ready: ${blockers.length} rules '
-      '(${json.length} bytes JSON, ${sw.elapsedMilliseconds}ms export)',
+      '(raw=$totalRaw, dropped cosmetic=$droppedCosmetic, '
+      '${preSlice > blockers.length ? "sliced ${preSlice - blockers.length}, " : ""}'
+      '${json.length} bytes JSON, ${sw.elapsedMilliseconds}ms export)',
       level: LogLevel.info,
     );
     _appleContentBlockersCache = List.unmodifiable(blockers);
