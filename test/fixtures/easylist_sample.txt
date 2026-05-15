@@ -96,11 +96,22 @@ linkedin.com##.fp_probe_styled_promo:style(opacity: 0.1 !important)
 ! :remove(), :upward(), :style(), :remove-attr(), :remove-class().
 ! Resolved by the Rust engine; rendered via
 ! procedural_cosmetic_shim.dart at DOCUMENT_END.
-##div.fp_probe_proc_remove:has-text(REMOVE-ME):remove()
-##div.fp_probe_proc_upward:has-text(LEAF):upward(1):remove()
-##div.fp_probe_proc_style:has-text(Sponsored):style(outline: 2px solid red !important)
-##div.fp_probe_proc_remove_attr[data-tracker]:remove-attr(data-tracker)
-##div.fp_probe_proc_remove_class.fp_probe_remove_me:remove-class(fp_probe_remove_me)
+!
+! IMPORTANT: adblock-rust silently DROPS global procedural rules at
+! parse time (cosmetic_filter_cache_builder.rs:106 — "Procedural
+! cosmetic filters cannot be generic"). They MUST be hostname-
+! scoped or the engine ignores them entirely. Scoping to `localhost`
+! makes the abp_rule_probe.html section fire when the user serves
+! the probe via `python3 -m http.server` — the canonical way to
+! test the feature, since file:/// has no hostname for the engine
+! to scope against either. Production filter lists (EasyList,
+! AdGuard, …) ship these rules already hostname-scoped to real
+! domains; this section mirrors their shape.
+localhost##div.fp_probe_proc_remove:has-text(REMOVE-ME):remove()
+localhost##div.fp_probe_proc_upward:has-text(LEAF):upward(1):remove()
+localhost##div.fp_probe_proc_style:has-text(Sponsored):style(outline: 2px solid red !important)
+localhost##div.fp_probe_proc_remove_attr[data-tracker]:remove-attr(data-tracker)
+localhost##div.fp_probe_proc_remove_class.fp_probe_remove_me:remove-class(fp_probe_remove_me)
 
 ! ---- Synthetic rules used by test/fixtures/abp_rule_probe.html ----
 ! False-positive guards in the probe page rely on these — selectors

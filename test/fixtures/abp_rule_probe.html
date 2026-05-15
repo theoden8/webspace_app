@@ -120,6 +120,16 @@
     Engine-only — these all read "missed" when the Rust adblock
     engine is off. The shim runner lives in
     <code>lib/services/procedural_cosmetic_shim.dart</code>.
+    <br><br>
+    <strong>This section requires an HTTP host.</strong> adblock-rust
+    silently drops <em>global</em> procedural rules at parse time
+    (<code>cosmetic_filter_cache_builder.rs:106</code>) — they must
+    be hostname-scoped. The sample list scopes them to
+    <code>localhost</code>. Serve the probe over HTTP to exercise
+    them: <code>cd test/fixtures && python3 -m http.server 8000</code>
+    then open <code>http://localhost:8000/abp_rule_probe.html</code>.
+    On <code>file://</code> every row in this section will read
+    "missed" — that's the expected fail mode, not a bug.
   </div>
   <table class="probe">
     <thead>
