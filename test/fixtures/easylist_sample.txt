@@ -83,6 +83,26 @@ linkedin.com##.fp_probe_styled_promo:style(opacity: 0.1 !important)
 /banner-\d+\.gif/
 #$#log "snippet"
 
+! ---- Advanced CSS cosmetic (combinators + attribute matchers) ----
+! Pure-CSS shapes the browser's selector engine handles natively.
+! Probes the parser's ability to round-trip these without mangling
+! AND the early-CSS path's ability to inject + match them.
+##.fp_probe_parent_child > .fp_probe_child_ad
+##.fp_probe_sibling_adjacent + .fp_probe_promoted
+##.fp_probe_sibling_general ~ .fp_probe_ad_later
+##div:is(.fp_probe_is_a, .fp_probe_is_b)
+##a[href^="https://fp.prefix.example/"]
+##a[href$=".fpsuffix"]
+##span[data-fp-ad-type*="tracker"]
+
+! ---- Procedural extras within current shim support ----
+! Tests procedural shapes the page-side shim already speaks:
+! :has() (native CSS in modern engines), :upward(.selector) with a
+! string argument (walk-until-match), and chained :has-text() filters.
+##div.fp_probe_proc_has:has(.fp_probe_inner_ad):remove()
+##span.fp_probe_proc_upward_sel:has-text(MARKER):upward(.fp_probe_outer_box):remove()
+##div.fp_probe_proc_chained_text:has-text(KEEP):has-text(REMOVE):remove()
+
 ! ---- Rust-engine-only rules ----
 ! Handled by adblock-rust when the Rust engine flag is on; ignored by
 ! the Dart parser. Probe targets are namespaced `fp_probe_*` to keep

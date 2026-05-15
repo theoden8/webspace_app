@@ -141,6 +141,47 @@
     <tbody id="proc-results"></tbody>
   </table>
 
+  <h2>1D. Advanced CSS cosmetic shapes</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: BLOCKED.</strong> CSS pseudo-
+    classes and combinators the browser handles natively. Tests that
+    the parser round-trips the rule shape AND the early-CSS path
+    injects + matches it correctly. <code>:is(a, b)</code> needs
+    Chromium 88 / Safari 14 (i.e. all platforms we target).
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th>Rule shape</th>
+        <th style="width: 18%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="advcss-results"></tbody>
+  </table>
+
+  <h2>1E. Procedural cosmetic extras</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: action fired.</strong> Less
+    common procedural shapes the page-side shim handles:
+    <code>:has()</code> within a procedural selector,
+    <code>:upward(.selector)</code> with a string argument
+    (walk-until-match instead of walk-N-parents), and chained
+    <code>:has-text()</code> filters that all need to hit.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th>Rule shape</th>
+        <th style="width: 18%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="procextra-results"></tbody>
+  </table>
+
   <h2>2. Host-dependent rules</h2>
   <div class="section-callout expect-host">
     <strong>Expected verdict per row: BLOCKED only when this page is hosted on the rule's domain.</strong>
@@ -433,6 +474,109 @@
       },
     ];
 
+    // ---- Section 1D: advanced CSS cosmetic shapes. Expected: BLOCKED.
+    // Pure-CSS pseudoclasses and combinators the browser handles
+    // natively — exercises the parser's ability to round-trip the
+    // shape and the early-CSS path's ability to inject + match it.
+    const ADVANCED_CSS_CASES = [
+      {
+        id: 'adv-child-combinator',
+        label: '##.fp_probe_parent_child > .fp_probe_child_ad',
+        html: '<div class="fp_probe_parent_child"><span class="fp_probe_child_ad">child ad</span></div>',
+        note: 'CSS child combinator (>)',
+      },
+      {
+        id: 'adv-adjacent-sibling',
+        label: '##.fp_probe_sibling_adjacent + .fp_probe_promoted',
+        // Two siblings; the matching child is the SECOND one. The
+        // wrap holds both, and the rule hides .fp_probe_promoted —
+        // which is what the row checks.
+        html: '<span class="fp_probe_sibling_adjacent">trigger</span><span class="fp_probe_promoted">promoted slot</span>',
+        note: 'CSS adjacent sibling combinator (+)',
+        // Multiple top-level elements — measure the second one.
+        targetIndex: 1,
+      },
+      {
+        id: 'adv-general-sibling',
+        label: '##.fp_probe_sibling_general ~ .fp_probe_ad_later',
+        html: '<span class="fp_probe_sibling_general">trigger</span><span>middle</span><span class="fp_probe_ad_later">ad later</span>',
+        note: 'CSS general sibling combinator (~)',
+        targetIndex: 2,
+      },
+      {
+        id: 'adv-is-composite',
+        label: '##div:is(.fp_probe_is_a, .fp_probe_is_b)',
+        html: '<div class="fp_probe_is_b">composite is() target</div>',
+        note: ':is(a, b) — modern composite pseudoclass',
+      },
+      {
+        id: 'adv-attr-prefix',
+        label: '##a[href^="https://fp.prefix.example/"]',
+        html: '<a href="https://fp.prefix.example/x">prefix match</a>',
+        note: 'attribute prefix match ([attr^=...])',
+      },
+      {
+        id: 'adv-attr-suffix',
+        label: '##a[href$=".fpsuffix"]',
+        html: '<a href="https://anyhost.example/page.fpsuffix">suffix match</a>',
+        note: 'attribute suffix match ([attr$=...])',
+      },
+      {
+        id: 'adv-attr-contains',
+        label: '##span[data-fp-ad-type*="tracker"]',
+        html: '<span data-fp-ad-type="left-tracker-banner">substring match</span>',
+        note: 'attribute substring match ([attr*=...])',
+      },
+    ];
+
+    // ---- Section 1E: procedural cosmetic extras (shapes within
+    // the page-side shim's current support). Adds :has() within
+    // procedural, :upward(.selector) string-arg walk-until-match,
+    // and chained :has-text() filters that all must fire for the
+    // action to apply.
+    const PROC_EXTRA_CASES = [
+      {
+        id: 'proc-has',
+        label: '##div.fp_probe_proc_has:has(.fp_probe_inner_ad):remove()',
+        html: '<div class="fp_probe_proc_has"><span class="fp_probe_inner_ad">inner</span></div>',
+        note: ':has() within a procedural rule',
+        check: function(wrap) {
+          // Whole wrap not removed (only the matched div is); but
+          // the matched div had the wrap as its parent, so the
+          // wrap loses its child.
+          return wrap.firstElementChild == null;
+        },
+        verb: 'removed',
+      },
+      {
+        id: 'proc-upward-selector',
+        label: '##span.fp_probe_proc_upward_sel:has-text(MARKER):upward(.fp_probe_outer_box):remove()',
+        // span sits inside .fp_probe_outer_box which is inside the
+        // wrap. :upward(.fp_probe_outer_box) walks until finding the
+        // outer box; :remove() drops it. wrap stays; its
+        // firstElementChild (the outer box) is gone.
+        html: '<div class="fp_probe_outer_box"><span class="fp_probe_proc_upward_sel">MARKER text</span></div>',
+        note: ':upward(.selector) walks ancestors until selector match',
+        check: function(wrap) {
+          return wrap.firstElementChild == null;
+        },
+        verb: 'upward-removed',
+      },
+      {
+        id: 'proc-chained-text',
+        label: '##div.fp_probe_proc_chained_text:has-text(KEEP):has-text(REMOVE):remove()',
+        // Both :has-text() patterns must match. Markup includes
+        // both keywords so the chain narrows to this element and
+        // the action fires.
+        html: '<div class="fp_probe_proc_chained_text">KEEP marker plus REMOVE marker</div>',
+        note: 'chained :has-text() — both patterns must hit',
+        check: function(wrap) {
+          return wrap.firstElementChild == null;
+        },
+        verb: 'removed',
+      },
+    ];
+
     // ---- Section 2: domain-scoped rules. Expected: BLOCKED iff host matches. ----
     const HOST_CASES = [
       {
@@ -546,13 +690,15 @@
     // Group registry for measure() / render(). Each tuple binds a
     // section to its expected verdict and the target tbody.
     const SECTIONS = [
-      { cases: SUPPORTED_CASES, tbody: 'supported-results',  expected: 'hide',     expectLabel: 'BLOCKED' },
-      { cases: STYLE_CASES,     tbody: 'style-results',      expected: 'style',    expectLabel: 'declaration applied' },
-      { cases: PROC_CASES,      tbody: 'proc-results',       expected: 'proc',     expectLabel: 'action fired' },
-      { cases: HOST_CASES,      tbody: 'host-results',       expected: 'host',     expectLabel: 'BLOCKED on host' },
-      { cases: SKIPPED_CASES,   tbody: 'skipped-results',    expected: 'keep',     expectLabel: 'visible' },
-      { cases: FP_CASES,        tbody: 'fp-results',         expected: 'keep',     expectLabel: 'visible' },
-      { cases: CONTROL_CASES,   tbody: 'control-results',    expected: 'keep',     expectLabel: 'visible' },
+      { cases: SUPPORTED_CASES,    tbody: 'supported-results',    expected: 'hide',     expectLabel: 'BLOCKED' },
+      { cases: STYLE_CASES,        tbody: 'style-results',        expected: 'style',    expectLabel: 'declaration applied' },
+      { cases: PROC_CASES,         tbody: 'proc-results',         expected: 'proc',     expectLabel: 'action fired' },
+      { cases: ADVANCED_CSS_CASES, tbody: 'advcss-results',       expected: 'hide',     expectLabel: 'BLOCKED' },
+      { cases: PROC_EXTRA_CASES,   tbody: 'procextra-results',    expected: 'proc',     expectLabel: 'action fired' },
+      { cases: HOST_CASES,         tbody: 'host-results',         expected: 'host',     expectLabel: 'BLOCKED on host' },
+      { cases: SKIPPED_CASES,      tbody: 'skipped-results',      expected: 'keep',     expectLabel: 'visible' },
+      { cases: FP_CASES,           tbody: 'fp-results',           expected: 'keep',     expectLabel: 'visible' },
+      { cases: CONTROL_CASES,      tbody: 'control-results',      expected: 'keep',     expectLabel: 'visible' },
     ];
 
     function escapeHtml(s) {
@@ -634,7 +780,14 @@
             cell.textContent = label;
             continue;
           }
-          const target = wrap.firstElementChild || wrap;
+          // Most rows put one element under wrap (`wrap.firstElementChild`).
+          // Advanced-CSS rows with sibling combinators put multiple
+          // top-level elements under wrap, and the rule targets one
+          // specific sibling — case carries `targetIndex` so we pick
+          // the right one.
+          const target = (typeof c.targetIndex === 'number'
+              ? wrap.children[c.targetIndex]
+              : wrap.firstElementChild) || wrap;
           const computedDisplay = getComputedStyle(target).display;
           const inlineDisplay = target.style.display;
           const hidden = computedDisplay === 'none';
