@@ -74,6 +74,25 @@ jobs:
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
     steps:
+      # GitHub-hosted ubuntu-latest ships with ~14 GB free, but the
+      # job's working set is closer to 25 GB once you add: Android
+      # SDK/NDK (~10 GB preinstalled), Gradle caches, four Rust
+      # target dirs (~2 GB each for the Android cross-compiles), the
+      # Flutter build dir, and pub-cache. We've been hitting "No
+      # space left on device" mid-build (seen as a CI diag-log write
+      # failure, no actual build output). Free the preinstalled
+      # heavies we don't use — saves ~30 GB and the disk-pressure
+      # margin keeps the build deterministic.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false  # keep the preinstalled JDK we use below
+          android: false     # keep the Android SDK we use below
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
       - name: Checkout code
         uses: actions/checkout@v4
 
