@@ -3306,6 +3306,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _webViewModels[_currentIndex!].userDrivenReload();
   }
 
+  Future<void> _stopCurrentSiteLoading() async {
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
+    await _webViewModels[_currentIndex!].userStopLoading();
+  }
+
   /// Update _canGoBack from the current webview's controller.
   /// Used on iOS to enable drawer edge-swipe when there's no back history.
   /// Note: canGoBack() can return false for pushState/SPA navigations even
@@ -3591,7 +3596,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           onPressed: () {
                             Navigator.pop(context);
                             if (loading) {
-                              getController()?.stopLoading();
+                              _stopCurrentSiteLoading();
                             } else {
                               _refreshCurrentSite();
                             }
@@ -3950,7 +3955,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     onPressed: () {
                       Navigator.pop(context);
                       if (loading) {
-                        getController()?.stopLoading();
+                        _stopCurrentSiteLoading();
                       } else {
                         _refreshCurrentSite();
                       }
