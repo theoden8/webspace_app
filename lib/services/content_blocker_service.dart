@@ -450,75 +450,91 @@ class ContentBlockerService {
   /// True chunking (up to 8 rulesets ≈ 400k rules) needs a fork patch
   /// to the plugin's contentBlockers setting, which currently only
   /// supports ONE compiled rule list per WebView. That's a follow-up.
-  /// Synchronous accessor — returns the cached ruleset if a previous
-  /// [prebuildAppleContentBlockers] call populated it, otherwise the
-  /// empty list. WebView creation reads this synchronously; the heavy
-  /// 22MB-JSON / 50k-object construction happens off the main isolate.
-  ///
-  /// First call before warmup returns []. The webview falls back to the
-  /// JS-bridge `blockCheck` path until warmup completes; subsequent
-  /// webview creations get the native rule list.
   List<inapp.ContentBlocker> appleContentBlockers() {
     if (!Platform.isIOS && !Platform.isMacOS) return const [];
     if (!_rustEngineEnabled) return const [];
-    return _appleContentBlockersCache ?? const [];
-  }
-
-  /// Build the WKContentRuleList payload in a background isolate so the
-  /// FFI export (~1s for production stacks), JSON parse (~200ms), and
-  /// cosmetic-filter pass (~hundreds of ms across 200k entries) don't
-  /// stall the UI. Caches the result for [appleContentBlockers].
-  /// Called from [_maybeRebuildRustEngine] once per engine rebuild;
-  /// the engine itself is rebuilt synchronously, but this part rides
-  /// async since the first webview doesn't strictly need the native
-  /// path on its first navigation.
-  ///
-  /// No-op on non-Apple or when the Rust engine is off — same shape
-  /// as the sync accessor's guards.
-  Future<void> prebuildAppleContentBlockers() async {
-    if (!Platform.isIOS && !Platform.isMacOS) return;
-    if (!_rustEngineEnabled) return;
+    final cached = _appleContentBlockersCache;
+    if (cached != null) return cached;
     final aggregated = _aggregatedListsText;
     if (aggregated == null || aggregated.isEmpty) {
       _appleContentBlockersCache = const [];
-      return;
+      return const [];
     }
     final sw = Stopwatch()..start();
-    final List<Map<String, dynamic>>? maps;
+    final json =
+        AdblockEngine.filterListToAppleContentBlockingJson(aggregated);
+    sw.stop();
+    if (json == null) {
+      LogService.instance.log('ContentBlocker',
+          'WKContentRuleList export failed — sub-resource blocking falls '
+          'back to the JS bridge only',
+          level: LogLevel.warning);
+      _appleContentBlockersCache = const [];
+      return const [];
+    }
+    final blockers = <inapp.ContentBlocker>[];
+    var totalRaw = 0;
+    var droppedCosmetic = 0;
     try {
-      maps = await compute(_isolateBuildAppleContentBlockersMaps, aggregated);
+      final decoded = jsonDecode(json);
+      if (decoded is! List) {
+        _appleContentBlockersCache = const [];
+        return const [];
+      }
+      totalRaw = decoded.length;
+      for (final raw in decoded) {
+        if (raw is! Map) continue;
+        final trigger = raw['trigger'];
+        final action = raw['action'];
+        if (trigger is! Map || action is! Map) continue;
+        // Drop cosmetic — handled by the early-CSS shim already.
+        if (action['type'] == 'css-display-none') {
+          droppedCosmetic++;
+          continue;
+        }
+        final triggerMap = Map<String, dynamic>.from(trigger);
+        // ContentBlockerTrigger.fromMap reads `url-filter-is-case-
+        // sensitive` without a null-default — passing it through
+        // straight from adblock-rust (which omits the field) throws
+        // "type 'Null' is not a subtype of type 'bool'". Pre-inject
+        // the WKContentRuleList default so the parse succeeds.
+        triggerMap.putIfAbsent('url-filter-is-case-sensitive', () => false);
+        blockers.add(inapp.ContentBlocker.fromMap(
+          {
+            'trigger': triggerMap,
+            'action': Map<String, dynamic>.from(action),
+          },
+          // EnumMethod.value: use the cross-platform identifier
+          // ('block', 'css-display-none', etc. — exactly what
+          // adblock-rust emits). `nativeValue` (the default) varies
+          // by `defaultTargetPlatform`, which in flutter_test can
+          // be a value none of the cases cover, returning null and
+          // tripping the `!` in ContentBlockerAction.fromMap.
+          enumMethod: inapp.EnumMethod.value,
+        ));
+      }
     } catch (e) {
       LogService.instance.log('ContentBlocker',
-          'WKContentRuleList build (isolate) failed: $e',
+          'WKContentRuleList parse failed: $e',
           level: LogLevel.warning);
       _appleContentBlockersCache = const [];
-      return;
+      return const [];
     }
-    if (maps == null) {
-      LogService.instance.log('ContentBlocker',
-          'WKContentRuleList export returned null — JS bridge handles blocking',
-          level: LogLevel.warning);
-      _appleContentBlockersCache = const [];
-      return;
+    // Trim to the cap if cosmetic-drop didn't get us under.
+    final preSlice = blockers.length;
+    if (blockers.length > 50000) {
+      blockers.removeRange(50000, blockers.length);
     }
-    // ContentBlocker.fromMap stays on the main isolate — the plugin's
-    // types pull in dart:ui via flutter_inappwebview and aren't
-    // guaranteed isolate-safe. Cheap per-object: ~hundreds of ns.
-    final blockers = <inapp.ContentBlocker>[];
-    for (final m in maps) {
-      blockers.add(inapp.ContentBlocker.fromMap(
-        m.cast<dynamic, Map<dynamic, dynamic>>(),
-        enumMethod: inapp.EnumMethod.value,
-      ));
-    }
-    sw.stop();
     LogService.instance.log(
       'ContentBlocker',
       'WKContentRuleList ready: ${blockers.length} rules '
-      '(${sw.elapsedMilliseconds}ms end-to-end, background isolate)',
+      '(raw=$totalRaw, dropped cosmetic=$droppedCosmetic, '
+      '${preSlice > blockers.length ? "sliced ${preSlice - blockers.length}, " : ""}'
+      '${json.length} bytes JSON, ${sw.elapsedMilliseconds}ms export)',
       level: LogLevel.info,
     );
     _appleContentBlockersCache = List.unmodifiable(blockers);
+    return _appleContentBlockersCache!;
   }
 
   List<inapp.ContentBlocker>? _appleContentBlockersCache;
@@ -1194,15 +1210,6 @@ class ContentBlockerService {
             level: LogLevel.info);
       }
     }
-    // Fire-and-forget the WKContentRuleList build on a background
-    // isolate. Pre-warms the cache so the first webview navigation
-    // doesn't pay the 22MB-JSON / 50k-object cost synchronously. If
-    // the user navigates before the warmup completes, the webview
-    // skips the native rule list and the JS bridge handles blocking
-    // — degraded but not broken. Subsequent webviews hit the cache.
-    if (Platform.isIOS || Platform.isMacOS) {
-      unawaited(prebuildAppleContentBlockers());
-    }
   }
 
   Future<void> _saveLists() async {
@@ -1368,40 +1375,6 @@ class ContentBlockerService {
 /// for the lifetime of one rebuild. Cached so the early-CSS shim,
 /// the post-load cosmetic shim, and the generic-scanner exception
 /// merge all share the same FFI roundtrip.
-/// Runs entirely on a background isolate via `compute()`. Loads the
-/// adblock library fresh in the new isolate (FFI is per-isolate — each
-/// gets its own DynamicLibrary handle), exports the WKContentRuleList
-/// JSON, drops cosmetic rules (the early-CSS shim already handles
-/// them and native cosmetic via WKContentRuleList offers no callback
-/// hook), and slices to ≤50,000 rules. Returns the parsed maps; the
-/// main isolate wraps each in inapp.ContentBlocker.
-///
-/// Returns null on FFI failure (e.g. library missing). Returns an
-/// empty list on JSON-parse failure or empty filter set.
-List<Map<String, dynamic>>? _isolateBuildAppleContentBlockersMaps(
-    String rulesText) {
-  final json = AdblockEngine.filterListToAppleContentBlockingJson(rulesText);
-  if (json == null) return null;
-  final decoded = jsonDecode(json);
-  if (decoded is! List) return const [];
-  final out = <Map<String, dynamic>>[];
-  for (final raw in decoded) {
-    if (raw is! Map) continue;
-    final trigger = raw['trigger'];
-    final action = raw['action'];
-    if (trigger is! Map || action is! Map) continue;
-    if (action['type'] == 'css-display-none') continue;
-    final triggerMap = Map<String, dynamic>.from(trigger);
-    triggerMap.putIfAbsent('url-filter-is-case-sensitive', () => false);
-    out.add({
-      'trigger': triggerMap,
-      'action': Map<String, dynamic>.from(action),
-    });
-    if (out.length >= 50000) break;
-  }
-  return out;
-}
-
 /// One row in [ContentBlockerService.recentEngineDecisions] — what the
 /// engine answered for one sub-resource check, how long it took, when.
 class EngineDecisionSample {
