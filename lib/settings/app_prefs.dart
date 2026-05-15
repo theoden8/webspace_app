@@ -58,21 +58,11 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // Turn off to make $redirect= drop the request instead — see
   // openspec/specs/content-blocker/spec.md CB-013.
   'useUboResources': true,
-  // Gates the WKContentRuleList native sub-resource blocking path on
-  // iOS/macOS. Off by default: each WebView creation marshals 50k
-  // typed ContentBlocker objects across the MethodChannel (~10s on a
-  // production filter stack), and the JS-bridge `blockCheck` path
-  // already covers the same blocks with no per-WebView setup. Turn
-  // on if you want native WebKit-layer enforcement and can accept
-  // the per-WebView latency. True chunking + JSON-string passthrough
-  // would need fork patches to flutter_inappwebview.
-  'useWkContentRuleList': false,
 };
 
 const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';
 const String kUseRustAdblockEngineKey = 'useRustAdblockEngine';
 const String kUseUboResourcesKey = 'useUboResources';
-const String kUseWkContentRuleListKey = 'useWkContentRuleList';
 
 /// Read every registered pref from [prefs] into a map suitable for embedding
 /// in a `SettingsBackup`. Missing keys fall back to their registry default.

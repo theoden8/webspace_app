@@ -1413,35 +1413,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   }
                 : null,
           ),
-          // WKContentRuleList native sub-resource blocking. Off by
-          // default: each WebView creation marshals 50k typed
-          // ContentBlocker objects across MethodChannel — production
-          // filter stacks (200k+ rules) burn ~10s per webview load.
-          // Native blocking is silent (no per-rule callback), and the
-          // JS-bridge `blockCheck` path covers the same rules with no
-          // setup cost, so this is a perf trade-off the user picks.
-          if (Platform.isIOS || Platform.isMacOS)
-            SwitchListTile(
-              title: const Text(
-                  'WebKit-native sub-resource blocking (slow)'),
-              subtitle: Text(
-                !ContentBlockerService.instance.rustEngineEnabled
-                    ? 'Requires the Rust adblock engine (toggle above).'
-                    : 'Compile ABP rules into a WKContentRuleList for '
-                        'native WebKit-layer enforcement. Adds ~5-10s '
-                        'to each WebView load with a production '
-                        'filter stack. The JS-bridge path runs '
-                        'regardless and blocks the same requests.',
-              ),
-              value: ContentBlockerService.instance.useWkContentRuleList,
-              onChanged: ContentBlockerService.instance.rustEngineEnabled
-                  ? (value) async {
-                      await ContentBlockerService.instance
-                          .setUseWkContentRuleList(value);
-                      if (mounted) setState(() {});
-                    }
-                  : null,
-            ),
 
           const Divider(height: 32),
 
