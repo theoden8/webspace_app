@@ -1100,6 +1100,28 @@ class WebViewModel {
     }
   }
 
+  /// User tapped the Stop button. Cancels the in-flight load and
+  /// eagerly clears [isLoading] so the URL-bar action button flips
+  /// back to Refresh on the next rebuild. `onLoadStop` is not
+  /// guaranteed to fire after `stopLoading()` on every engine
+  /// (WebKit in particular can swallow it when the cancel races a
+  /// commit), which leaves the menu stuck on the Stop icon. The
+  /// guard in [onLoadingChanged] suppresses the duplicate rebuild
+  /// when the callback does fire.
+  Future<void> userStopLoading() async {
+    if (controller != null) {
+      try {
+        await controller!.stopLoading();
+      } catch (_) {
+        // Controller may have been disposed while the cancel was in flight.
+      }
+    }
+    if (isLoading) {
+      isLoading = false;
+      stateSetterF?.call();
+    }
+  }
+
   /// Capture the WebView's navigation state as bytes. Returns null
   /// when there's nothing to save (controller is null, page never
   /// navigated, or the platform refused). Pair with the matching
