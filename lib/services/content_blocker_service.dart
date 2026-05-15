@@ -255,6 +255,31 @@ class ContentBlockerService {
   bool get useUboResources => _useUboResources;
   bool _useUboResources = true;
 
+  /// Whether the WKContentRuleList native sub-resource blocking path is
+  /// enabled on iOS/macOS. Off by default — each WebView creation
+  /// marshals 50k typed ContentBlocker objects across the MethodChannel
+  /// (~10s on production filter stacks). Turn on for native WebKit-
+  /// layer enforcement at the cost of webview-load latency.
+  bool get useWkContentRuleList => _useWkContentRuleList;
+  bool _useWkContentRuleList = false;
+
+  /// Persist + apply the WKContentRuleList toggle. On flip-on, kicks
+  /// off the background-isolate rule-list build; on flip-off, clears
+  /// the cache so the next WebView won't pay the MethodChannel cost.
+  Future<void> setUseWkContentRuleList(bool enabled) async {
+    if (_useWkContentRuleList == enabled) return;
+    LogService.instance.log('ContentBlocker',
+        'WKContentRuleList toggle flipped to $enabled (was ${!enabled})',
+        level: LogLevel.info);
+    _useWkContentRuleList = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kUseWkContentRuleListKey, enabled);
+    _appleContentBlockersCache = null;
+    if (enabled && _rustEngineEnabled) {
+      unawaited(prebuildAppleContentBlockers());
+    }
+  }
+
   /// Persist + apply the uBO resources toggle. Rebuilds the engine so
   /// the change takes effect immediately. Hot, but the cost is the same
   /// as toggling the engine itself — single rebuild from cache files.
@@ -461,6 +486,7 @@ class ContentBlockerService {
   List<inapp.ContentBlocker> appleContentBlockers() {
     if (!Platform.isIOS && !Platform.isMacOS) return const [];
     if (!_rustEngineEnabled) return const [];
+    if (!_useWkContentRuleList) return const [];
     return _appleContentBlockersCache ?? const [];
   }
 
@@ -478,6 +504,7 @@ class ContentBlockerService {
   Future<void> prebuildAppleContentBlockers() async {
     if (!Platform.isIOS && !Platform.isMacOS) return;
     if (!_rustEngineEnabled) return;
+    if (!_useWkContentRuleList) return;
     final aggregated = _aggregatedListsText;
     if (aggregated == null || aggregated.isEmpty) {
       _appleContentBlockersCache = const [];
@@ -841,6 +868,8 @@ class ContentBlockerService {
       // already opted in on a prior run.
       _rustEngineEnabled = prefs.getBool(kUseRustAdblockEngineKey) ?? false;
       _useUboResources = prefs.getBool(kUseUboResourcesKey) ?? true;
+      _useWkContentRuleList =
+          prefs.getBool(kUseWkContentRuleListKey) ?? false;
       // Probe Android native support eagerly — the synchronous
       // getter falls back to this cached value.
       if (Platform.isAndroid) {
