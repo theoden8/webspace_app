@@ -29,9 +29,9 @@ import 'package:ffi/ffi.dart';
 // ---------- C function signatures ----------
 
 typedef _EngineNewC = ffi.Pointer<ffi.Void> Function(
-    ffi.Pointer<Utf8>, ffi.UintPtr);
+    ffi.Pointer<Utf8>, ffi.UintPtr, ffi.Bool);
 typedef _EngineNewDart = ffi.Pointer<ffi.Void> Function(
-    ffi.Pointer<Utf8>, int);
+    ffi.Pointer<Utf8>, int, bool);
 
 typedef _EngineFreeC = ffi.Void Function(ffi.Pointer<ffi.Void>);
 typedef _EngineFreeDart = void Function(ffi.Pointer<ffi.Void>);
@@ -174,7 +174,8 @@ class AdblockEngine {
   /// this platform/arch, or if parsing fails. Caller is responsible
   /// for logging null-return diagnostics — this layer is intentionally
   /// dependency-free and doesn't pull in the app logger.
-  static AdblockEngine? load(String rulesText) {
+  static AdblockEngine? load(String rulesText,
+      {bool enableUboResources = true}) {
     final lib = _tryOpenLibrary();
     if (lib == null) return null;
     final bindings = _Bindings.fromLib(lib);
@@ -182,8 +183,8 @@ class AdblockEngine {
     final ptr = malloc.allocate<ffi.Uint8>(bytes.length);
     try {
       ptr.asTypedList(bytes.length).setAll(0, bytes);
-      final handle =
-          bindings.engineNew(ptr.cast<Utf8>(), bytes.length);
+      final handle = bindings.engineNew(
+          ptr.cast<Utf8>(), bytes.length, enableUboResources);
       if (handle == ffi.nullptr) return null;
       return AdblockEngine._(bindings, handle);
     } finally {

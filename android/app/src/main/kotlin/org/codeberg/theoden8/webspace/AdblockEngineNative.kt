@@ -71,7 +71,7 @@ object AdblockEngineNative {
      * as [dispose]).
      */
     @Synchronized
-    fun setRules(rulesText: String) {
+    fun setRules(rulesText: String, enableUboResources: Boolean = true) {
         if (!loaded) return
         if (enginePtr != 0L) {
             nativeEngineFree(enginePtr)
@@ -81,10 +81,10 @@ object AdblockEngineNative {
             Log.i(TAG, "engine torn down")
             return
         }
-        val ptr = nativeEngineNew(rulesText)
+        val ptr = nativeEngineNew(rulesText, enableUboResources)
         enginePtr = ptr
         Log.i(TAG, if (ptr != 0L)
-            "engine built (${rulesText.length} bytes, handle=0x${java.lang.Long.toHexString(ptr)})"
+            "engine built (${rulesText.length} bytes, handle=0x${java.lang.Long.toHexString(ptr)}, ubo=$enableUboResources)"
         else
             "engine build failed")
     }
@@ -134,7 +134,7 @@ object AdblockEngineNative {
     private external fun nativeProbe(): Boolean
 
     @JvmStatic
-    private external fun nativeEngineNew(rulesText: String): Long
+    private external fun nativeEngineNew(rulesText: String, enableUboResources: Boolean): Long
 
     @JvmStatic
     private external fun nativeEngineFree(handle: Long)

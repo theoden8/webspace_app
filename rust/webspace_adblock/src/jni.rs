@@ -82,6 +82,7 @@ pub extern "system" fn Java_org_codeberg_theoden8_webspace_AdblockEngineNative_n
     mut env: JNIEnv,
     _class: JClass,
     rules_text: JString,
+    enable_ubo_resources: jboolean,
 ) -> jlong {
     let text = read_jstring(&mut env, &rules_text);
     if text.is_empty() {
@@ -91,9 +92,11 @@ pub extern "system" fn Java_org_codeberg_theoden8_webspace_AdblockEngineNative_n
     let mut filter_set = FilterSet::new(false);
     filter_set.add_filter_list(&text, ParseOptions::default());
     let mut engine = AdblockEngine::from_filter_set(filter_set, true);
-    let resources = crate::load_ubo_resources();
-    if !resources.is_empty() {
-        engine.use_resources(resources);
+    if enable_ubo_resources != 0 {
+        let resources = crate::load_ubo_resources();
+        if !resources.is_empty() {
+            engine.use_resources(resources);
+        }
     }
     let boxed = Box::new(Engine { inner: engine });
     let ptr = Box::into_raw(boxed);

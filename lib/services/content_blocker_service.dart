@@ -196,6 +196,29 @@ class ContentBlockerService {
     await _rebuildRules();
   }
 
+  /// Whether uBO web_accessible_resources/ is wired into the engine.
+  /// Drives the `$redirect=` rule output: when on, the engine returns
+  /// the matching stub body (noop.js, 1x1.gif, …); when off, redirect
+  /// rules become plain blocks (drop the request).
+  bool get useUboResources => _useUboResources;
+  bool _useUboResources = true;
+
+  /// Persist + apply the uBO resources toggle. Rebuilds the engine so
+  /// the change takes effect immediately. Hot, but the cost is the same
+  /// as toggling the engine itself — single rebuild from cache files.
+  Future<void> setUseUboResources(bool enabled) async {
+    if (_useUboResources == enabled) return;
+    LogService.instance.log('ContentBlocker',
+        'uBO resources toggle flipped to $enabled (was ${!enabled})',
+        level: LogLevel.info);
+    _useUboResources = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kUseUboResourcesKey, enabled);
+    if (_rustEngineEnabled) {
+      await _maybeRebuildRustEngine();
+    }
+  }
+
   /// All configured filter lists.
   List<FilterList> get lists => List.unmodifiable(_lists);
 
@@ -561,6 +584,7 @@ class ContentBlockerService {
       // first rebuild (just below) spins up the engine if the user
       // already opted in on a prior run.
       _rustEngineEnabled = prefs.getBool(kUseRustAdblockEngineKey) ?? false;
+      _useUboResources = prefs.getBool(kUseUboResourcesKey) ?? true;
       // Probe Android native support eagerly — the synchronous
       // getter falls back to this cached value.
       if (Platform.isAndroid) {
@@ -828,7 +852,8 @@ class ContentBlockerService {
       return;
     }
     final sw = Stopwatch()..start();
-    final engine = AdblockEngine.load(buf.toString());
+    final engine = AdblockEngine.load(buf.toString(),
+        enableUboResources: _useUboResources);
     sw.stop();
     if (engine == null) {
       LogService.instance.log('ContentBlocker',
@@ -850,7 +875,8 @@ class ContentBlockerService {
       // Dart-side instance, but both are pure functions of the
       // rules so they always agree on decisions.
       final result =
-          await WebInterceptNative.sendAdblockEngineRules(buf.toString());
+          await WebInterceptNative.sendAdblockEngineRules(buf.toString(),
+              enableUboResources: _useUboResources);
       if (result == null || result['active'] != true) {
         LogService.instance.log('ContentBlocker',
             'Note: native adblock engine not active on this Android build '

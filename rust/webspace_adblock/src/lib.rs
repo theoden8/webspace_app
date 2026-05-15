@@ -70,6 +70,7 @@ pub struct Engine {
 pub extern "C" fn ws_engine_new(
     rules_text: *const c_char,
     len: usize,
+    enable_ubo_resources: bool,
 ) -> *mut Engine {
     if rules_text.is_null() {
         return std::ptr::null_mut();
@@ -87,9 +88,17 @@ pub extern "C" fn ws_engine_new(
     let mut filter_set = FilterSet::new(false);
     filter_set.add_filter_list(text, ParseOptions::default());
     let mut engine = AdblockEngine::from_filter_set(filter_set, true);
-    let resources = load_ubo_resources();
-    if !resources.is_empty() {
-        engine.use_resources(resources);
+    // `enable_ubo_resources` gates the uBO web_accessible_resources pool
+    // embedded at build time (see build.rs). When off, $redirect= rules
+    // become drop-the-request (engine.redirect_for returns None for every
+    // URL). Useful when a downstream wants the rule engine without the
+    // bundled resource payload — e.g. a paranoid user who'd rather see
+    // empty bodies than a stub from a third-party tarball.
+    if enable_ubo_resources {
+        let resources = load_ubo_resources();
+        if !resources.is_empty() {
+            engine.use_resources(resources);
+        }
     }
     Box::into_raw(Box::new(Engine { inner: engine }))
 }

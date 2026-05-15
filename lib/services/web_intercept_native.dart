@@ -137,11 +137,13 @@ class WebInterceptNative {
   /// (no Android, library not bundled). Returns `{supported, active}`
   /// otherwise.
   static Future<Map<String, bool>?> sendAdblockEngineRules(
-      String rulesText) async {
+      String rulesText,
+      {bool enableUboResources = true}) async {
     if (!isSupported) return null;
     try {
       final raw = await _channel.invokeMethod('setAdblockEngineRules', {
         'rulesText': rulesText,
+        'enableUboResources': enableUboResources,
       });
       final map = (raw as Map?)
           ?.map((k, v) => MapEntry(k.toString(), v == true)) ??

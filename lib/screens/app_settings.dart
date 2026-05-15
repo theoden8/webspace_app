@@ -1387,6 +1387,32 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   }
                 : null,
           ),
+          // uBO resources toggle. Only meaningful while the Rust engine
+          // is active — the Dart parser doesn't read the resource pool.
+          // When off, $redirect= rules become plain blocks (drop the
+          // request) instead of returning a stub body. Tradeoff: some
+          // ad/tracker sites detect the missing API surface and break
+          // (white page, infinite spinner), so default on.
+          SwitchListTile(
+            title: const Text('Serve uBO redirect stubs'),
+            subtitle: Text(
+              !ContentBlockerService.instance.rustEngineEnabled
+                  ? 'Requires the Rust adblock engine (toggle above).'
+                  : 'Returns uBO\'s stub bodies (noop.js, 1x1.gif, '
+                      'neutered tracker shims) for \$redirect= rule '
+                      'matches. Improves compatibility with sites that '
+                      'break when their tracker script returns empty. '
+                      'Off → \$redirect= rules drop the request.',
+            ),
+            value: ContentBlockerService.instance.useUboResources,
+            onChanged: ContentBlockerService.instance.rustEngineEnabled
+                ? (value) async {
+                    await ContentBlockerService.instance
+                        .setUseUboResources(value);
+                    if (mounted) setState(() {});
+                  }
+                : null,
+          ),
 
           const Divider(height: 32),
 

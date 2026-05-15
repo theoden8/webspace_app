@@ -116,7 +116,9 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     // Rust side and keep the handle for per-request
                     // checkUrl calls in FastSubresourceInterceptor.
                     val rulesText = call.argument<String>("rulesText") ?: ""
-                    AdblockEngineNative.setRules(rulesText)
+                    val enableUboResources =
+                        call.argument<Boolean>("enableUboResources") ?: true
+                    AdblockEngineNative.setRules(rulesText, enableUboResources)
                     // host-decision cache keys on host only, but the
                     // engine answers per (url, source, type). Hits
                     // that previously read ALLOWED from the cache
