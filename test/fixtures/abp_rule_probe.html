@@ -482,7 +482,11 @@
       {
         id: 'adv-child-combinator',
         label: '##.fp_probe_parent_child > .fp_probe_child_ad',
+        // The rule hides the SPAN, which is a descendant of the
+        // wrap's first child. Pin the measure point to the span via
+        // targetSelector.
         html: '<div class="fp_probe_parent_child"><span class="fp_probe_child_ad">child ad</span></div>',
+        targetSelector: '.fp_probe_child_ad',
         note: 'CSS child combinator (>)',
       },
       {
@@ -785,9 +789,19 @@
           // top-level elements under wrap, and the rule targets one
           // specific sibling — case carries `targetIndex` so we pick
           // the right one.
-          const target = (typeof c.targetIndex === 'number'
-              ? wrap.children[c.targetIndex]
-              : wrap.firstElementChild) || wrap;
+          // Rows where the rule targets a DESCENDANT (e.g.
+          // `parent > child`) need to look inside the wrap rather
+          // than at its first child — `targetSelector` is a CSS
+          // selector the case carries to pin the exact element the
+          // rule should hide.
+          let target;
+          if (typeof c.targetSelector === 'string') {
+            target = wrap.querySelector(c.targetSelector) || wrap;
+          } else if (typeof c.targetIndex === 'number') {
+            target = wrap.children[c.targetIndex] || wrap;
+          } else {
+            target = wrap.firstElementChild || wrap;
+          }
           const computedDisplay = getComputedStyle(target).display;
           const inlineDisplay = target.style.display;
           const hidden = computedDisplay === 'none';
