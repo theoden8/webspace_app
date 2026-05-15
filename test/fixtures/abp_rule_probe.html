@@ -379,14 +379,16 @@
         id: 'proc-upward',
         label: '##div.fp_probe_proc_upward:has-text(LEAF):upward(1):remove()',
         // The :upward(1):remove() rule walks ONE parent up from the
-        // matching element and removes that. Markup nests an inner
-        // <span> inside the target div; engine matches the div by
-        // has-text, walks up 1 → the wrap div itself, removes it.
-        // wrap.firstElementChild therefore goes null too.
+        // matching element and removes that. CSS-selector matches
+        // the inner div (the .fp_probe_proc_upward), :upward(1)
+        // walks to its parent — the probe's `wrap` scaffolding div
+        // — and :remove() drops THAT. The `wrap` JS reference
+        // survives but is detached, so isConnected is the
+        // detection signal, not firstElementChild.
         html: '<div class="fp_probe_proc_upward"><span>LEAF text</span></div>',
         note: ':upward(N) walks N ancestors before applying the action',
         check: function(wrap) {
-          return wrap.firstElementChild == null;
+          return !wrap.isConnected;
         },
         verb: 'upward-removed',
       },

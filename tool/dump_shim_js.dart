@@ -22,6 +22,7 @@ import 'package:webspace/services/abp_filter_parser.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
+import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
@@ -314,6 +315,21 @@ Map<String, String> buildAllFixtures() {
     styleRules: linkedinRules.styleRules,
     textRules: linkedinRules.textRules,
   )!;
+
+  // Procedural shim fixture covers every rule shape Section 1C of
+  // abp_rule_probe.html tests: :remove(), :upward():remove(),
+  // :style(...), :remove-attr(), :remove-class(). Each rule has at
+  // least one ABP pseudo embedded in the css-selector arg
+  // (:has-text(...)) so the fixture exercises the splitter on the
+  // page-side runtime.
+  fixtures['content_blocker/procedural_actions.js'] =
+      buildProceduralCosmeticShim([
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_remove:has-text(REMOVE-ME)"}],"action":"remove"}',
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_upward:has-text(LEAF):upward(1)"}],"action":"remove"}',
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_style:has-text(Sponsored)"}],"action":{"type":"style","arg":"outline: 2px solid red !important"}}',
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_remove_attr[data-tracker]"}],"action":{"type":"remove-attr","arg":"data-tracker"}}',
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_remove_class.fp_probe_remove_me"}],"action":{"type":"remove-class","arg":"fp_probe_remove_me"}}',
+  ])!;
 
   return fixtures;
 }
