@@ -97,6 +97,25 @@ post_install do |installer|
         REPO_ROOT="${SRCROOT}/.."
         bash "${REPO_ROOT}/scripts/build_rust.sh" ios
       BASH
+      # Declare the .a outputs so Xcode's new build system schedules
+      # this phase before link AND treats the files as produced (not
+      # missing inputs). Without output_paths, xcodebuild errors with
+      # "Build input file cannot be found" when ld scans the
+      # -force_load LDFLAG path and the file isn't in the dependency
+      # graph yet, even though the script would produce it.
+      phase.output_paths = [
+        '$(SRCROOT)/Frameworks/libwebspace_adblock-iphoneos.a',
+        '$(SRCROOT)/Frameworks/libwebspace_adblock-iphonesimulator.a',
+      ]
+      # Re-run when build.rs or the source changes. Cargo handles
+      # finer-grained dep tracking inside; this is the coarse signal
+      # to Xcode so the phase isn't always-dirty.
+      phase.input_paths = [
+        '$(SRCROOT)/../rust/webspace_adblock/Cargo.toml',
+        '$(SRCROOT)/../rust/webspace_adblock/build.rs',
+        '$(SRCROOT)/../rust/webspace_adblock/src/lib.rs',
+        '$(SRCROOT)/../scripts/build_rust.sh',
+      ]
       # Run before Compile Sources so the .a exists by the time
       # the linker runs.
       compile_idx = runner_target.build_phases.index { |p|

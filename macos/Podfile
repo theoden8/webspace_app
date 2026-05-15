@@ -68,6 +68,14 @@ post_install do |installer|
         REPO_ROOT="${SRCROOT}/.."
         bash "${REPO_ROOT}/scripts/build_rust.sh" macos
       BASH
+      # See ios/Podfile for output_paths rationale.
+      phase.output_paths = ['$(SRCROOT)/Frameworks/libwebspace_adblock.a']
+      phase.input_paths = [
+        '$(SRCROOT)/../rust/webspace_adblock/Cargo.toml',
+        '$(SRCROOT)/../rust/webspace_adblock/build.rs',
+        '$(SRCROOT)/../rust/webspace_adblock/src/lib.rs',
+        '$(SRCROOT)/../scripts/build_rust.sh',
+      ]
       compile_idx = runner_target.build_phases.index { |p|
         p.respond_to?(:display_name) && p.display_name.include?('Sources')
       }
