@@ -160,6 +160,91 @@ void main() {
           reason: 'concrete rule must surface in the exported JSON');
     }, skip: libExists ? false : 'library not built');
 
+    test('rewrittenUrl strips \$removeparam= keys', () {
+      // Global $removeparam rule (no host scope) — applies wherever
+      // the URL has the targeted query key. Same shape uBO ships in
+      // EasyList/AdGuard "URL Tracking Protection" lists.
+      final e = AdblockEngine.load(r'*$removeparam=utm_source');
+      try {
+        // Matching param → rewrite returns the URL without the
+        // stripped key, with other params preserved.
+        //
+        // requestType='document' is load-bearing: adblock-rust gates
+        // $removeparam= application on resource type (document /
+        // subdocument / xhr). The default 'other' returns None for
+        // queryless or untargeted URLs, which would mask the real
+        // miss case below.
+        final out = e!.rewrittenUrl(
+            'https://tracker.example.com/x?utm_source=fb&keep=1',
+            requestType: 'document');
+        expect(out, isNotNull,
+            reason: 'engine should produce a rewrite when the param matches');
+        expect(out!, isNot(contains('utm_source')),
+            reason: 'utm_source must be gone after rewrite');
+        expect(out, contains('keep=1'),
+            reason: 'non-targeted params must survive');
+
+        // No query string: nothing to rewrite.
+        expect(
+            e.rewrittenUrl('https://example.org/x', requestType: 'document'),
+            isNull,
+            reason: 'queryless URL must not produce a rewrite');
+
+        // Query without the targeted key: also no rewrite.
+        expect(
+            e.rewrittenUrl('https://example.org/x?keep=1',
+                requestType: 'document'),
+            isNull,
+            reason: 'URL without the targeted param must not be rewritten');
+      } finally {
+        e?.dispose();
+      }
+    }, skip: libExists ? false : 'library not built');
+
+    test('cspFor returns directives for \$csp= rules', () {
+      final e = AdblockEngine.load(
+          r"||cspy.example^$csp=script-src 'none'");
+      try {
+        final csp = e!.cspFor('https://cspy.example/page',
+            sourceUrl: '', requestType: 'document');
+        expect(csp, isNotNull,
+            reason: 'engine should surface CSP for a matching rule');
+        expect(csp!, contains("script-src"),
+            reason: 'directives string must include the rule\'s policy');
+
+        expect(e.cspFor('https://other.example/page', requestType: 'document'),
+            isNull,
+            reason: 'unrelated host must not produce CSP');
+      } finally {
+        e?.dispose();
+      }
+    }, skip: libExists ? false : 'library not built');
+
+    test('serialize / loadFromSerialized round-trips an engine', () {
+      final src = AdblockEngine.load(
+          '||doubleclick.net^\n||googlesyndication.com^');
+      try {
+        final blob = src!.serialize();
+        expect(blob, isNotNull, reason: 'serialize must succeed');
+        expect(blob!.isNotEmpty, isTrue,
+            reason: 'serialized blob should be non-empty');
+
+        final rehydrated = AdblockEngine.loadFromSerialized(blob);
+        try {
+          expect(rehydrated, isNotNull,
+              reason: 'deserialize must accept its own output');
+          // Rules should behave identically.
+          expect(rehydrated!.shouldBlock('https://doubleclick.net/x'),
+              isTrue);
+          expect(rehydrated.shouldBlock('https://example.org/x'), isFalse);
+        } finally {
+          rehydrated?.dispose();
+        }
+      } finally {
+        src?.dispose();
+      }
+    }, skip: libExists ? false : 'library not built');
+
     test('parses a real curated EasyList sample without panicking', () {
       // Same fixture the existing parser-based test consumes. The
       // engine accepts every rule shape in it, including the ones

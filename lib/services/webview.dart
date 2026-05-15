@@ -2471,8 +2471,13 @@ class WebViewFactory {
         if (config.contentBlockEnabled &&
             ContentBlockerService.instance.usingRustEngine &&
             url.contains('?')) {
-          final rewritten =
-              ContentBlockerService.instance.rewrittenUrl(url);
+          // requestType: 'document' — adblock-rust restricts
+          // \$removeparam= to document/subdocument/xhr by default,
+          // and a main-frame nav IS a document fetch. Without this
+          // the engine returns no rewrite even when a matching
+          // filter is loaded.
+          final rewritten = ContentBlockerService.instance
+              .rewrittenUrl(url, requestType: 'document');
           if (rewritten != null && rewritten != url) {
             LogService.instance.log('ContentBlocker',
                 '\$removeparam= rewrote $url → $rewritten',

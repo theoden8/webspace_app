@@ -74,13 +74,33 @@ example.com,test.com##.cross-site-ad
 linkedin.com##.fp_probe_styled_promo:style(opacity: 0.1 !important)
 
 ! ---- Skipped rule shapes (must not break parsing) ----
+! These are intentional gaps in the Dart parser. The Rust engine
+! (`useRustAdblockEngine` opt-in) DOES handle the redirect / csp /
+! removeparam shapes below; the Dart parser skips them.
 ##^script[src*="ads.js"]
 ##.foo:matches-path(/section/)
 ##.bar:min-text-length(20)
-||badads.example^$csp=script-src 'none'
-||example.com^$removeparam=utm_source
 /banner-\d+\.gif/
 #$#log "snippet"
+
+! ---- Rust-engine-only rules ----
+! Handled by adblock-rust when the Rust engine flag is on; ignored by
+! the Dart parser. Probe targets are namespaced `fp_probe_*` to keep
+! production list collisions away from the abp_rule_probe.html FP
+! rows.
+||fp.probe.removeparam.example$removeparam=utm_source
+||fp.probe.removeparam.example$removeparam=fbclid
+||fp.probe.csp.example$csp=script-src 'none'
+
+! ---- Procedural cosmetic (uBO action operators) ----
+! :remove(), :upward(), :style(), :remove-attr(), :remove-class().
+! Resolved by the Rust engine; rendered via
+! procedural_cosmetic_shim.dart at DOCUMENT_END.
+##div.fp_probe_proc_remove:has-text(REMOVE-ME):remove()
+##div.fp_probe_proc_upward:has-text(LEAF):upward(1):remove()
+##div.fp_probe_proc_style:has-text(Sponsored):style(outline: 2px solid red !important)
+##div.fp_probe_proc_remove_attr[data-tracker]:remove-attr(data-tracker)
+##div.fp_probe_proc_remove_class.fp_probe_remove_me:remove-class(fp_probe_remove_me)
 
 ! ---- Synthetic rules used by test/fixtures/abp_rule_probe.html ----
 ! False-positive guards in the probe page rely on these — selectors

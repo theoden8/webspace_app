@@ -109,6 +109,30 @@
     <tbody id="style-results"></tbody>
   </table>
 
+  <h2>1C. Procedural cosmetic actions</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: action fired.</strong> uBO's
+    procedural operators end in an action other than the default
+    hide: <code>:remove()</code> (drop the element from the DOM),
+    <code>:upward(N):remove()</code> (walk N ancestors first),
+    <code>:style(...)</code> on a procedural selector,
+    <code>:remove-attr()</code>, and <code>:remove-class()</code>.
+    Engine-only — these all read "missed" when the Rust adblock
+    engine is off. The shim runner lives in
+    <code>lib/services/procedural_cosmetic_shim.dart</code>.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th>Rule shape</th>
+        <th style="width: 18%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="proc-results"></tbody>
+  </table>
+
   <h2>2. Host-dependent rules</h2>
   <div class="section-callout expect-host">
     <strong>Expected verdict per row: BLOCKED only when this page is hosted on the rule's domain.</strong>
@@ -320,6 +344,85 @@
       },
     ];
 
+    // ---- Section 1C: procedural cosmetic actions (uBO action operators).
+    // Each rule lives in test/fixtures/easylist_sample.txt under
+    // "Procedural cosmetic". Engine-only — these miss when
+    // useRustAdblockEngine is off. The shim runner that interprets
+    // them lives in lib/services/procedural_cosmetic_shim.dart.
+    //
+    // Probe layout: each case carries `check(wrap)` returning truthy
+    // when the action fired. wrap is the per-row container; the inner
+    // element is wrap.firstElementChild. measure() ignores
+    // display:none for this section — the rules don't always hide.
+    const PROC_CASES = [
+      {
+        id: 'proc-remove',
+        label: '##div.fp_probe_proc_remove:has-text(REMOVE-ME):remove()',
+        html: '<div class="fp_probe_proc_remove">REMOVE-ME marker</div>',
+        note: ':remove() should drop the element from the DOM entirely',
+        check: function(wrap) {
+          // After :remove() fires, the target is detached from the
+          // DOM — wrap.firstElementChild is null.
+          return wrap.firstElementChild == null;
+        },
+        verb: 'removed',
+      },
+      {
+        id: 'proc-upward',
+        label: '##div.fp_probe_proc_upward:has-text(LEAF):upward(1):remove()',
+        // The :upward(1):remove() rule walks ONE parent up from the
+        // matching element and removes that. Markup nests an inner
+        // <span> inside the target div; engine matches the div by
+        // has-text, walks up 1 → the wrap div itself, removes it.
+        // wrap.firstElementChild therefore goes null too.
+        html: '<div class="fp_probe_proc_upward"><span>LEAF text</span></div>',
+        note: ':upward(N) walks N ancestors before applying the action',
+        check: function(wrap) {
+          return wrap.firstElementChild == null;
+        },
+        verb: 'upward-removed',
+      },
+      {
+        id: 'proc-style',
+        label: '##div.fp_probe_proc_style:has-text(Sponsored):style(outline: 2px solid red !important)',
+        html: '<div class="fp_probe_proc_style">Sponsored content</div>',
+        note: ':style() on a procedural selector — outline must apply',
+        check: function(wrap) {
+          var el = wrap.firstElementChild;
+          if (!el) return false;
+          var outline = getComputedStyle(el).outline;
+          // jsdom-style "rgb(255, 0, 0)" or real-browser "2px solid".
+          return outline && outline.indexOf('rgb(255, 0, 0)') >= 0
+              || outline && outline.indexOf('red') >= 0;
+        },
+        verb: 'styled',
+      },
+      {
+        id: 'proc-remove-attr',
+        label: '##div.fp_probe_proc_remove_attr[data-tracker]:remove-attr(data-tracker)',
+        html: '<div class="fp_probe_proc_remove_attr" data-tracker="x">attr target</div>',
+        note: ':remove-attr() strips the named attribute',
+        check: function(wrap) {
+          var el = wrap.firstElementChild;
+          if (!el) return false;
+          return !el.hasAttribute('data-tracker');
+        },
+        verb: 'attr-removed',
+      },
+      {
+        id: 'proc-remove-class',
+        label: '##div.fp_probe_proc_remove_class.fp_probe_remove_me:remove-class(fp_probe_remove_me)',
+        html: '<div class="fp_probe_proc_remove_class fp_probe_remove_me">class target</div>',
+        note: ':remove-class() strips the named class token',
+        check: function(wrap) {
+          var el = wrap.firstElementChild;
+          if (!el) return false;
+          return !el.classList.contains('fp_probe_remove_me');
+        },
+        verb: 'class-removed',
+      },
+    ];
+
     // ---- Section 2: domain-scoped rules. Expected: BLOCKED iff host matches. ----
     const HOST_CASES = [
       {
@@ -435,6 +538,7 @@
     const SECTIONS = [
       { cases: SUPPORTED_CASES, tbody: 'supported-results',  expected: 'hide',     expectLabel: 'BLOCKED' },
       { cases: STYLE_CASES,     tbody: 'style-results',      expected: 'style',    expectLabel: 'declaration applied' },
+      { cases: PROC_CASES,      tbody: 'proc-results',       expected: 'proc',     expectLabel: 'action fired' },
       { cases: HOST_CASES,      tbody: 'host-results',       expected: 'host',     expectLabel: 'BLOCKED on host' },
       { cases: SKIPPED_CASES,   tbody: 'skipped-results',    expected: 'keep',     expectLabel: 'visible' },
       { cases: FP_CASES,        tbody: 'fp-results',         expected: 'keep',     expectLabel: 'visible' },
@@ -497,13 +601,25 @@
         for (const c of sec.cases) {
           const wrap = document.getElementById('probe-' + c.id);
           if (!wrap) continue;
+          const cell = document.querySelector('#row-' + c.id + ' [data-result]');
+          cell.className = 'result-cell';
+          let label;
+          // Procedural cosmetic checks run against the wrap directly:
+          // :remove() deletes the target, so wrap.firstElementChild
+          // may be null. The other branches still need target +
+          // computedDisplay, so compute those AFTER procedural.
+          if (sec.expected === 'proc') {
+            let ok;
+            try { ok = c.check(wrap); } catch (e) { ok = false; }
+            cell.classList.add(ok ? 'ok' : 'fail');
+            label = ok ? c.verb : 'missed — action did not fire';
+            cell.textContent = label;
+            continue;
+          }
           const target = wrap.firstElementChild || wrap;
           const computedDisplay = getComputedStyle(target).display;
           const inlineDisplay = target.style.display;
           const hidden = computedDisplay === 'none';
-          const cell = document.querySelector('#row-' + c.id + ' [data-result]');
-          cell.className = 'result-cell';
-          let label;
           if (sec.expected === 'hide') {
             cell.classList.add(hidden ? 'ok' : 'fail');
             label = hidden ? 'BLOCKED' : 'visible (rule did not fire)';
