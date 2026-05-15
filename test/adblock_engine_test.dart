@@ -12,10 +12,8 @@
 @TestOn('linux || mac-os')
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/adblock_engine.dart';
 
@@ -245,45 +243,6 @@ void main() {
       } finally {
         src?.dispose();
       }
-    }, skip: libExists ? false : 'library not built');
-
-    test('content-blocking JSON parses into ContentBlocker objects', () {
-      // Round-trip the FFI's WKContentRuleList JSON through
-      // flutter_inappwebview's ContentBlocker.fromMap to confirm the
-      // shape lines up — that's what InAppWebViewSettings.contentBlockers
-      // expects when wiring native sub-resource enforcement on
-      // iOS/macOS. If the shape ever drifts (adblock-rust serde
-      // rename, plugin's parser changes), this test catches it
-      // before the runtime "WKContentRuleList parse failed" warning.
-      final json = AdblockEngine.filterListToAppleContentBlockingJson(
-          '||doubleclick.net^\n||googlesyndication.com^');
-      expect(json, isNotNull);
-      final decoded = jsonDecode(json!) as List;
-      expect(decoded, isNotEmpty);
-      var parsed = 0;
-      for (final raw in decoded) {
-        if (raw is! Map) continue;
-        final trigger = raw['trigger'];
-        final action = raw['action'];
-        if (trigger is! Map || action is! Map) continue;
-        final triggerMap = Map<String, dynamic>.from(trigger);
-        triggerMap.putIfAbsent('url-filter-is-case-sensitive', () => false);
-        // Just constructing without throwing is enough — the typed
-        // representation works downstream. Match what
-        // ContentBlockerService.appleContentBlockers does: pass
-        // EnumMethod.value so the lookup matches the cross-platform
-        // identifiers adblock-rust emits.
-        inapp.ContentBlocker.fromMap(
-          {
-            'trigger': triggerMap,
-            'action': Map<String, dynamic>.from(action),
-          },
-          enumMethod: inapp.EnumMethod.value,
-        );
-        parsed++;
-      }
-      expect(parsed, greaterThan(0),
-          reason: 'at least one rule should round-trip through fromMap');
     }, skip: libExists ? false : 'library not built');
 
     test('parses a real curated EasyList sample without panicking', () {

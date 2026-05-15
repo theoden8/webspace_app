@@ -2010,24 +2010,6 @@ class WebViewFactory {
       // Enable DevTools inspection in debug mode (chrome://inspect on Android)
       ..isInspectable = kDebugMode;
 
-    // WKContentRuleList: when the Rust engine is active on iOS/macOS,
-    // hand WebKit the compiled-once block ruleset for native-layer
-    // sub-resource enforcement. Zero JS bridge overhead per request;
-    // no callback when a rule matches (per Apple's API design), so
-    // the JS-bridge `blockCheck` path stays installed for per-request
-    // stats. WKContentRuleListStore caches the compiled list keyed by
-    // identifier across WebViews — first compile is the expensive
-    // one, subsequent are a disk-cache lookup. The plugin's existing
-    // `contentBlockers` setting handles compilation + install.
-    if (config.contentBlockEnabled &&
-        (Platform.isIOS || Platform.isMacOS) &&
-        ContentBlockerService.instance.usingRustEngine) {
-      final cbList = ContentBlockerService.instance.appleContentBlockers();
-      if (cbList.isNotEmpty) {
-        settings.contentBlockers = cbList;
-      }
-    }
-
     return inapp.InAppWebView(
       key: config.key,
       initialUrlRequest: renderInitialData ? null : inapp.URLRequest(

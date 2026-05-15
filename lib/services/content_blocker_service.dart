@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
@@ -426,117 +425,6 @@ class ContentBlockerService {
     }
     return out;
   }
-
-  /// Apple-only: ruleset to hand WebKit via WKContentRuleListStore.
-  /// Built once per engine rebuild from the Rust crate's content-blocking
-  /// JSON export, cached as List<inapp.ContentBlocker>. WebKit caches the
-  /// compiled list keyed by identifier across WebViews, so the per-
-  /// WebView cost after the first compile is just a lookup.
-  ///
-  /// Returns an empty list on:
-  ///   * non-Apple platforms (irrelevant API there),
-  ///   * Rust engine off (no JSON to export),
-  ///   * filter set too large for WebKit's 50,000-rules-per-ruleset cap
-  ///     (we log + drop — the JS-bridge `blockCheck` path still runs).
-  ///
-  /// First call rebuilds; subsequent calls hit the cache until the next
-  /// _rebuildRules() invalidates.
-  List<inapp.ContentBlocker> appleContentBlockers() {
-    if (!Platform.isIOS && !Platform.isMacOS) return const [];
-    if (!_rustEngineEnabled) return const [];
-    final cached = _appleContentBlockersCache;
-    if (cached != null) return cached;
-    final aggregated = _aggregatedListsText;
-    if (aggregated == null || aggregated.isEmpty) {
-      _appleContentBlockersCache = const [];
-      return const [];
-    }
-    final sw = Stopwatch()..start();
-    final json =
-        AdblockEngine.filterListToAppleContentBlockingJson(aggregated);
-    sw.stop();
-    if (json == null) {
-      LogService.instance.log('ContentBlocker',
-          'WKContentRuleList export failed — sub-resource blocking falls '
-          'back to the JS bridge only',
-          level: LogLevel.warning);
-      _appleContentBlockersCache = const [];
-      return const [];
-    }
-    final blockers = <inapp.ContentBlocker>[];
-    try {
-      final decoded = jsonDecode(json);
-      if (decoded is! List) {
-        _appleContentBlockersCache = const [];
-        return const [];
-      }
-      for (final raw in decoded) {
-        if (raw is! Map) continue;
-        final trigger = raw['trigger'];
-        final action = raw['action'];
-        if (trigger is! Map || action is! Map) continue;
-        final triggerMap = Map<String, dynamic>.from(trigger);
-        // ContentBlockerTrigger.fromMap reads `url-filter-is-case-
-        // sensitive` without a null-default — passing it through
-        // straight from adblock-rust (which omits the field) throws
-        // "type 'Null' is not a subtype of type 'bool'". Pre-inject
-        // the WKContentRuleList default so the parse succeeds.
-        triggerMap.putIfAbsent('url-filter-is-case-sensitive', () => false);
-        blockers.add(inapp.ContentBlocker.fromMap(
-          {
-            'trigger': triggerMap,
-            'action': Map<String, dynamic>.from(action),
-          },
-          // EnumMethod.value: use the cross-platform identifier
-          // ('block', 'css-display-none', etc. — exactly what
-          // adblock-rust emits). `nativeValue` (the default) varies
-          // by `defaultTargetPlatform`, which in flutter_test can
-          // be a value none of the cases cover, returning null and
-          // tripping the `!` in ContentBlockerAction.fromMap.
-          enumMethod: inapp.EnumMethod.value,
-        ));
-      }
-    } catch (e) {
-      LogService.instance.log('ContentBlocker',
-          'WKContentRuleList parse failed: $e',
-          level: LogLevel.warning);
-      _appleContentBlockersCache = const [];
-      return const [];
-    }
-    // WebKit caps each ruleset at 50,000 rules. Beyond that the
-    // compileContentRuleList callback returns an error and the plugin
-    // silently logs + drops. Surface it loudly here so the user
-    // knows their filter set was too big for the native path; the
-    // JS-bridge fallback still covers them.
-    if (blockers.length > 50000) {
-      LogService.instance.log(
-        'ContentBlocker',
-        'WKContentRuleList: ${blockers.length} rules exceeds WebKit\'s '
-        '50000-per-ruleset cap. Chunking across rulesets is a follow-up; '
-        'for now native sub-resource blocking is disabled and the JS '
-        'bridge handles everything.',
-        level: LogLevel.warning,
-      );
-      _appleContentBlockersCache = const [];
-      return const [];
-    }
-    LogService.instance.log(
-      'ContentBlocker',
-      'WKContentRuleList ready: ${blockers.length} rules '
-      '(${json.length} bytes JSON, ${sw.elapsedMilliseconds}ms export)',
-      level: LogLevel.info,
-    );
-    _appleContentBlockersCache = List.unmodifiable(blockers);
-    return _appleContentBlockersCache!;
-  }
-
-  List<inapp.ContentBlocker>? _appleContentBlockersCache;
-
-  /// Concatenated filter-list text from the last engine rebuild. Set
-  /// from `_maybeRebuildRustEngine` so [appleContentBlockers] can
-  /// re-export without another async file-read pass. Null until the
-  /// first rebuild; reset on every subsequent rebuild.
-  String? _aggregatedListsText;
 
   /// `$csp=` lookup. Returns joined Content-Security-Policy directives
   /// for matching rules at this URL. Engine-only.
@@ -1069,9 +957,6 @@ class ContentBlockerService {
     _proceduralActions = allProceduralActions;
     _isBlockedCache.clear();
     _engineCosmeticCache.clear();
-    // Engine state changes invalidate the Apple ruleset cache too —
-    // the JSON depends on the current filter set and the toggle.
-    _appleContentBlockersCache = null;
     // Diagnostic: surface per-scope counts so a missing sample list /
     // parser drop is visible without re-running with extra logs.
     final globalSelCount = (_cosmeticSelectors[''] ?? const []).length;
@@ -1133,8 +1018,6 @@ class ContentBlockerService {
       return;
     }
     final rulesText = buf.toString();
-    _aggregatedListsText = rulesText;
-    _appleContentBlockersCache = null;
     final rulesHash = sha256.convert(utf8.encode(rulesText)).toString();
     AdblockEngine? engine;
     String loadMode = 'parse';
