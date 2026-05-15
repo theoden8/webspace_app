@@ -16,6 +16,7 @@ import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
+import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -1448,6 +1449,31 @@ class WebViewFactory {
           injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         ));
       }
+      // ABP $csp= rules. Engine-only — the Dart parser doesn't handle
+      // them. <meta http-equiv> is the most portable path: works on
+      // every platform without needing response-header rewrite (which
+      // WKWebView doesn't expose). Browsers honour <meta> CSP as
+      // equivalent to the header when injected before the first
+      // resource fetch, which DOCUMENT_START is.
+      final cspDirectives =
+          ContentBlockerService.instance.cspFor(config.initialUrl);
+      if (cspDirectives != null && cspDirectives.isNotEmpty) {
+        final escaped =
+            cspDirectives.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+        userScripts.add(inapp.UserScript(
+          source: '''
+(function() {
+  if (document.documentElement) {
+    var m = document.createElement('meta');
+    m.setAttribute('http-equiv', 'Content-Security-Policy');
+    m.setAttribute('content', '$escaped');
+    (document.head || document.documentElement).appendChild(m);
+  }
+})();
+;null;''',
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        ));
+      }
       // Phase 5: generic class/id cosmetic shim runs at DOCUMENT_END
       // (after the body is parseable but before late mutations land)
       // and queries the engine via the genericCosmeticScan bridge.
@@ -1459,6 +1485,22 @@ class WebViewFactory {
               '${buildGenericCosmeticScannerShim()}\n;null;',
           injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
         ));
+        // Procedural actions: ##selector:has-text(...), :remove(),
+        // :upward(N), :style(...), etc. Their selectors can't be
+        // expressed in pure CSS, so they need an in-page runner.
+        // The shim builder returns null when there are no procedural
+        // rules for this URL (most pages — most rules are plain hides).
+        final procedural = ContentBlockerService.instance
+            .proceduralActionsFor(config.initialUrl);
+        if (procedural.isNotEmpty) {
+          final shim = buildProceduralCosmeticShim(procedural);
+          if (shim != null) {
+            userScripts.add(inapp.UserScript(
+              source: '$shim\n;null;',
+              injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
+            ));
+          }
+        }
       }
     }
 
@@ -2418,6 +2460,25 @@ class WebViewFactory {
           if (cleanedUrl.isEmpty) return inapp.NavigationActionPolicy.CANCEL;
           if (cleanedUrl != url) {
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl)));
+            return inapp.NavigationActionPolicy.CANCEL;
+          }
+        }
+        // ABP $removeparam=: a rule-driven sibling of ClearURLs. EasyList
+        // & co. ship $removeparam=utm_source (etc.); the Rust engine
+        // strips matching keys. Runs AFTER ClearURLs so the static
+        // rules go first and the filter list catches what they miss.
+        // No-op when the engine is off or the URL has no query.
+        if (config.contentBlockEnabled &&
+            ContentBlockerService.instance.usingRustEngine &&
+            url.contains('?')) {
+          final rewritten =
+              ContentBlockerService.instance.rewrittenUrl(url);
+          if (rewritten != null && rewritten != url) {
+            LogService.instance.log('ContentBlocker',
+                '\$removeparam= rewrote $url → $rewritten',
+                level: LogLevel.debug);
+            controller.loadUrl(
+                urlRequest: inapp.URLRequest(url: inapp.WebUri(rewritten)));
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }

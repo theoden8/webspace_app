@@ -315,6 +315,51 @@ class ContentBlockerService {
     );
   }
 
+  /// `$removeparam=` lookup. Returns the URL after the engine strips
+  /// matching query keys. Null when no rewrite applies. Engine-only —
+  /// the Dart parser doesn't handle this rule shape.
+  String? rewrittenUrl(
+    String url, {
+    String sourceUrl = '',
+    String requestType = 'other',
+  }) {
+    final engine = _rustEngine;
+    if (engine == null) return null;
+    return engine.rewrittenUrl(
+      url,
+      sourceUrl: sourceUrl,
+      requestType: requestType,
+    );
+  }
+
+  /// Procedural cosmetic actions (uBO's `:has-text()`, `:upward(N)`,
+  /// `:remove()`, etc.) for [pageUrl] as raw adblock-rust JSON strings.
+  /// Each entry parses into a tree the page-side shim walks.
+  ///
+  /// Returns an empty list when the engine isn't active or the page
+  /// has no procedural rules — the typical case (most filter rules
+  /// are plain hides).
+  List<String> proceduralActionsFor(String pageUrl) {
+    final ctx = _engineCosmeticFor(pageUrl);
+    return ctx?.proceduralActions ?? const [];
+  }
+
+  /// `$csp=` lookup. Returns joined Content-Security-Policy directives
+  /// for matching rules at this URL. Engine-only.
+  String? cspFor(
+    String url, {
+    String sourceUrl = '',
+    String requestType = 'other',
+  }) {
+    final engine = _rustEngine;
+    if (engine == null) return null;
+    return engine.cspFor(
+      url,
+      sourceUrl: sourceUrl,
+      requestType: requestType,
+    );
+  }
+
   bool isBlocked(
     String url, {
     String sourceUrl = '',
