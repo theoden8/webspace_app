@@ -516,6 +516,15 @@ iOS and macOS WebViews SHALL apply ABP rules as a compiled `WKContentRuleList` i
 **And** the fork's helper calls `removeAllContentRuleLists()` to drop the previously-installed list on the next WebView creation
 **And** the new identifier compiles once and goes into the store for future hits
 
+#### Scenario: Stale identifiers purged from the on-disk store
+
+**Given** a previous ruleset compiled identifier `iaw-rl-A` into `WKContentRuleListStore`
+**And** the current ruleset compiles to `iaw-rl-B`
+**When** `ContentRuleListCache` installs `iaw-rl-B`
+**Then** the helper calls `WKContentRuleListStore.getAvailableContentRuleListIdentifiers` and removes every `iaw-rl-*` entry that isn't `iaw-rl-B`
+**And** `iaw-rl-A` no longer occupies disk space
+**(Without this purge every rule edit leaves the previously-compiled bytecode on disk forever. The purge runs after the new identifier is in the store so a transient enumeration during compile can't return an empty set.)**
+
 #### Scenario: Concurrent WebView creates coalesce one compile
 
 **Given** the disk cache for the current identifier is cold

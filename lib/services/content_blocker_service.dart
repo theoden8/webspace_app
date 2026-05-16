@@ -61,9 +61,17 @@ class FilterList {
 
 /// Convert ABP filter text to a list of `inapp.ContentBlocker`
 /// objects via adblock-rust's `into_content_blocking()` exporter.
-/// Top-level so it can be invoked through `compute()` on a
-/// background isolate. Returns null if the native library isn't
-/// loadable in the worker isolate or the parser rejects the text.
+///
+/// Runs synchronously on the caller's isolate — the FFI call dives
+/// into the Rust crate, parses the rules, and returns a JSON string;
+/// crossing isolate boundaries with an FFI-loaded library is
+/// brittle and the conversion is fast enough on a modern phone
+/// (single-digit milliseconds for ~30K rules) that the main-thread
+/// cost is acceptable. Matches the pattern `_rebuildEngine` uses
+/// when it parses the same rules text into the runtime engine.
+///
+/// Returns null when the native library isn't loadable or the
+/// parser rejects the input.
 List<inapp.ContentBlocker>? _appleContentBlockersFromText(String rulesText) {
   final json = AdblockEngine.filterListToAppleContentBlockingJson(rulesText);
   if (json == null) return null;
