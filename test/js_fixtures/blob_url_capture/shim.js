@@ -45,13 +45,17 @@
     asNative(_patchedCreate, 'createObjectURL');
     URL.createObjectURL = _patchedCreate;
     if (typeof origRevoke === 'function') {
+      // Pass revoke through to the original implementation but DO NOT drop
+      // the map entry. Sites like github.com synchronously call
+      // URL.revokeObjectURL(url) right after triggering a <a download>
+      // click; our click interceptor's callHandler is async, so by the
+      // time Dart re-enters the page to evaluate the download IIFE the
+      // revoke has already run. Dropping the entry on revoke makes the
+      // IIFE's fast-path lookup miss and forces the CSP-blocked fetch
+      // fallback. Holding the Blob reference keeps it alive in chromium's
+      // blob storage so FileReader can still read it; the MAX=64 FIFO
+      // cap in the create wrapper bounds memory.
       var _patchedRevoke = function revokeObjectURL(url) {
-        try {
-          if (map.delete(url)) {
-            var i = keys.indexOf(url);
-            if (i >= 0) keys.splice(i, 1);
-          }
-        } catch (_) {}
         return origRevoke.apply(URL, arguments);
       };
       asNative(_patchedRevoke, 'revokeObjectURL');

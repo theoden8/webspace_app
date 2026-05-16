@@ -29,13 +29,20 @@ test('window.__webspaceBlobs.get returns the captured Blob', () => {
   assert.equal(captured.type, 'text/plain');
 });
 
-test('revokeObjectURL drops the map entry', () => {
+test('revokeObjectURL keeps the map entry alive — github race fix', () => {
+  // github.com's "Download raw file" handler revokes the blob URL
+  // synchronously after firing the <a download> click. Our click
+  // interceptor bridges to Dart asynchronously; by the time Dart
+  // re-enters JS to read the blob, revoke has run. The shim must
+  // hold the Blob across revoke so the IIFE's fast-path lookup
+  // still hits and FileReader can read the bytes.
   const dom = loadShim('blob_url_capture/shim.js');
   const blob = new dom.window.Blob(['hello']);
   const url = dom.window.URL.createObjectURL(blob);
   assert.ok(dom.window.__webspaceBlobs.get(url), 'preconditioned: blob in map');
   dom.window.URL.revokeObjectURL(url);
-  assert.equal(dom.window.__webspaceBlobs.get(url), undefined);
+  assert.equal(dom.window.__webspaceBlobs.get(url), blob,
+    'revoke must not drop the captured Blob');
 });
 
 test('createObjectURL with a non-Blob (e.g. MediaSource) is not tracked', () => {

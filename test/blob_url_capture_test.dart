@@ -46,6 +46,24 @@ void main() {
       expect(blobUrlCaptureScript, contains('map.delete(oldest)'));
     });
 
+    test('revokeObjectURL is a passthrough — map entry survives revoke', () {
+      // github.com's "Download raw file" handler synchronously revokes
+      // the blob URL right after firing the <a download> click. Our
+      // click interceptor's callHandler is async, so by the time Dart
+      // re-enters JS to evaluate the download IIFE the revoke has
+      // already run. Deleting the map entry on revoke makes the
+      // IIFE's fast-path lookup miss, the fallback fetch fires,
+      // and CSP connect-src kills it. Holding the Blob reference
+      // through revoke keeps FileReader access working.
+      expect(blobUrlCaptureScript,
+          isNot(contains('map.delete(url)')));
+      // The wrap must still chain to the original revoke so chromium's
+      // public URL registry is cleaned up — the contract change is only
+      // about our cache, not about the page-visible URL.
+      expect(blobUrlCaptureScript,
+          contains('origRevoke.apply(URL, arguments)'));
+    });
+
     test('is wired into WebViewFactory at AT_DOCUMENT_START', () {
       // Regression guard for the user-script registration in webview.dart.
       // If the registration is dropped (or moved past DOCUMENT_END), the
