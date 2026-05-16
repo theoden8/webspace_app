@@ -157,6 +157,33 @@ payload to a registered `JavaScriptHandler` named
 `_webspaceBlobDownloadError`. The `taskId` MUST be round-tripped
 through JS so the Dart handler can resolve the originating task.
 
+On Android the IIFE MUST be reachable from a JS-side click interceptor,
+because Android System WebView's `DownloadListener.onDownloadStart` (the
+upstream of `onDownloadStartRequest`) only fires for HTTP(S) responses
+the engine decides to download. A `<a download href="blob:…">` click is
+JS-internal: the listener never fires and the whole pipeline is a silent
+no-op without the bridge. The interceptor MUST be registered as an
+Android-only DOCUMENT_START user script (`blob_download_click_intercept`)
+that:
+
+1. Listens for `click` events in the capturing phase on `document` and
+   walks `parentNode` up from `event.target` so a click on a child of
+   the anchor (icons, spans) still resolves.
+2. Patches `HTMLAnchorElement.prototype.click` so the very common
+   detached-anchor SaveAs idiom is also caught, because the event
+   never bubbles to `document` for elements that are not in the DOM.
+3. Only intercepts when both the `download` attribute is present and
+   the `href` starts with `blob:`. Other anchors fall through so HTTP
+   downloads still reach `onDownloadStartRequest` and bare blob
+   anchors keep their navigation semantics.
+4. `preventDefault` and `stopPropagation` so the browser does not try
+   to navigate the main frame to the `blob:` URL.
+5. Bridges through `_webspaceBlobDownloadStart(blobUrl, filename)`.
+   The Dart handler MUST funnel into the same `_handleBlobDownload`
+   entry point the `onDownloadStartRequest` path uses on iOS/macOS so
+   the captured-Blob fast path and `DownloadsService` task lifecycle
+   stay platform-uniform.
+
 The IIFE MUST first try a side-channel lookup against the Blob captured
 by the `blob_url_capture` DOCUMENT_START shim
 ([`lib/services/blob_url_capture.dart`](../../../lib/services/blob_url_capture.dart)),
@@ -202,6 +229,22 @@ to the user as a failed download even when our own IIFE never runs.
   without invoking `fetch`
 **And** the `DownloadTask` completes successfully without producing a
   CSP `connect-src` violation in the WebView console
+
+#### Scenario: Android `<a download href="blob:">` click
+
+**Given** a page on Android (System WebView) mints a Blob via
+  `URL.createObjectURL` and exposes a `<a download href="blob:…">`
+  link, or a script builds a detached anchor with `download` set and
+  calls `link.click()`
+**When** the user (or the page script) activates the anchor
+**Then** the `blob_download_click_intercept` shim fires, calls
+  `preventDefault`, and bridges through `_webspaceBlobDownloadStart`
+  with the blob URL and the `download` attribute value
+**And** the Dart handler dispatches to `_handleBlobDownload`, which
+  evaluates the same IIFE as the iOS/macOS path and reaches the
+  captured `Blob` via `window.__webspaceBlobs`
+**And** the WebView never paints `ERR_UNKNOWN_URL_SCHEME` for the
+  blob URL
 
 #### Scenario: GitHub page-driven fetch(blob:) under strict CSP
 
@@ -259,7 +302,10 @@ task list is empty.
   guard).
 - `lib/services/blob_url_capture.dart` — DOCUMENT_START shim wrapping
   `URL.createObjectURL` / `URL.revokeObjectURL` so the blob-download
-  IIFE can read CSP-restricted blobs without calling `fetch()`.
+  IIFE can read CSP-restricted blobs without calling `fetch()`. Same
+  file exports the Android-only `blobDownloadClickInterceptScript`
+  that bridges `<a download href="blob:">` clicks (Android
+  `DownloadListener` ignores blob URLs).
 - `lib/widgets/download_button.dart` — app-bar action + bottom sheet.
 - `lib/main.dart`, `lib/screens/inappbrowser.dart` — place the button.
 - `android/app/src/main/AndroidManifest.xml` —
@@ -293,6 +339,13 @@ task list is empty.
   the same FileReader path, fetch rejection routes through the error
   handler with the original message, synchronous throws on the fast
   path also reach the error handler.
+- `test/js/blob_download_click_intercept.test.js` — jsdom behavioural
+  test for the Android click interceptor: in-DOM click bridges with
+  preventDefault, detached `link.click()` bridges via the prototype
+  patch, clicks on anchor children still resolve via parentNode walk,
+  bare blob anchors and non-blob anchors fall through unchanged,
+  re-eval is idempotent (no double-bridge), `__wsFnStubs` integration
+  for `toString` hardening.
 - `test/browser/blob_url_capture_csp.test.js` — Puppeteer test that
   boots a headless Chromium against a tiny HTTP server serving
   `Content-Security-Policy: connect-src 'none'`. Two scenarios:

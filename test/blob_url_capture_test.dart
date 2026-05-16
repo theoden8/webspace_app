@@ -158,4 +158,113 @@ void main() {
       expect(iife, contains('e.lengthComputable'));
     });
   });
+
+  group('blobDownloadClickInterceptScript', () {
+    test('emits the reentrance guard so repeat frames do not re-hook', () {
+      // initialUserScripts re-fire on every frame load; without the
+      // guard the click listener would be added repeatedly and the
+      // anchor click() would re-wrap, breaking page-side toString
+      // hardening.
+      expect(blobDownloadClickInterceptScript,
+          contains('if (window.__webspaceBlobClickHooked) return'));
+    });
+
+    test('only intercepts <a> with download attr AND blob: href', () {
+      // A plain blob: anchor (no download attr) is a navigation, not a
+      // download — the page wants to display the blob inline and we
+      // must not preventDefault. The shape of the predicate is locked
+      // in here as a contract.
+      expect(blobDownloadClickInterceptScript,
+          contains("el.tagName !== 'A'"));
+      expect(blobDownloadClickInterceptScript,
+          contains("el.hasAttribute('download')"));
+      expect(blobDownloadClickInterceptScript,
+          contains("href.indexOf('blob:') === 0"));
+    });
+
+    test('catches both in-DOM clicks and detached link.click()', () {
+      // The two paths are independent: a document capturing listener
+      // for clicks on attached anchors, plus an
+      // HTMLAnchorElement.prototype.click wrapper for the
+      // very common create-set-click-discard pattern where the
+      // anchor is never appended to the DOM and the event never
+      // bubbles to document. Dropping either leaves a major SaveAs
+      // flow broken.
+      expect(blobDownloadClickInterceptScript,
+          contains("document.addEventListener('click'"));
+      expect(blobDownloadClickInterceptScript,
+          contains('HTMLAnchorElement.prototype.click'));
+    });
+
+    test('bridges through _webspaceBlobDownloadStart with two args', () {
+      // (blobUrl, filename). The Dart handler in webview.dart reads
+      // args[0] as the URL and args[1] as the suggested filename;
+      // reordering them silently misroutes the call.
+      expect(blobDownloadClickInterceptScript,
+          contains("'_webspaceBlobDownloadStart'"));
+      expect(blobDownloadClickInterceptScript,
+          contains("'_webspaceBlobDownloadStart', href, name"));
+    });
+
+    test('walks parentNode chain so clicks on anchor children resolve', () {
+      // Pages routinely wrap an icon or <span> inside <a download>.
+      // The event target is the inner element, not the anchor; the
+      // shim must walk up until it finds the download anchor (or
+      // bottoms out at document).
+      expect(blobDownloadClickInterceptScript, contains('el.parentNode'));
+    });
+
+    test('preventDefault + stopPropagation so the browser does not navigate', () {
+      // Without preventDefault Android attempts to load the blob: URL
+      // as a navigation, which paints ERR_UNKNOWN_URL_SCHEME and
+      // strands the user. stopPropagation keeps a page-side click
+      // handler from also acting on the same event (e.g. analytics
+      // beacons).
+      expect(blobDownloadClickInterceptScript, contains('e.preventDefault()'));
+      expect(blobDownloadClickInterceptScript, contains('e.stopPropagation()'));
+    });
+
+    test('is wired into WebViewFactory at AT_DOCUMENT_START on Android', () {
+      // Regression guard: the user-script registration must (a) exist,
+      // (b) be Android-gated, and (c) inject at DOCUMENT_START so the
+      // shim is in place before any page script can mint a blob URL
+      // and wire a click handler against it.
+      final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
+      expect(
+          webviewSrc, contains("groupName: 'blob_download_click_intercept'"));
+      final blockStart =
+          webviewSrc.indexOf("groupName: 'blob_download_click_intercept'");
+      expect(blockStart, greaterThan(0));
+      final blockEnd = webviewSrc.indexOf('));', blockStart);
+      expect(blockEnd, greaterThan(blockStart));
+      final block = webviewSrc.substring(blockStart, blockEnd);
+      expect(block, contains('AT_DOCUMENT_START'));
+      expect(block, contains(r'$blobDownloadClickInterceptScript'));
+      // Android gate: the registration sits inside a Platform.isAndroid
+      // block so iOS/macOS keep using onDownloadStartRequest natively.
+      final preamble = webviewSrc.substring(
+          // Anchor the search far enough back that the Platform check
+          // for the script registration falls inside the slice.
+          (blockStart - 200).clamp(0, blockStart),
+          blockStart);
+      expect(preamble, contains('Platform.isAndroid'));
+    });
+
+    test('Dart handler for _webspaceBlobDownloadStart is registered', () {
+      // The JS shim is dead weight without a matching addJavaScriptHandler.
+      final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
+      expect(webviewSrc, contains("handlerName: '_webspaceBlobDownloadStart'"));
+      // The handler must funnel into the same _handleBlobDownload entry
+      // point the iOS/macOS onDownloadStartRequest path uses — otherwise
+      // the captured-Blob fast path and DownloadsService task lifecycle
+      // drift between platforms.
+      final handlerStart =
+          webviewSrc.indexOf("handlerName: '_webspaceBlobDownloadStart'");
+      expect(handlerStart, greaterThan(0));
+      final handlerEnd = webviewSrc.indexOf('),', handlerStart);
+      expect(handlerEnd, greaterThan(handlerStart));
+      final handler = webviewSrc.substring(handlerStart, handlerEnd);
+      expect(handler, contains('_handleBlobDownload('));
+    });
+  });
 }

@@ -38,6 +38,8 @@ Map<String, String> buildAllFixtures() {
   final fixtures = <String, String>{};
 
   fixtures['blob_url_capture/shim.js'] = blobUrlCaptureScript;
+  fixtures['blob_url_capture/click_intercept.js'] =
+      blobDownloadClickInterceptScript;
   // Pinned test triple — the Node-side test minds the polyfill so the
   // first createObjectURL call returns 'blob:https://example.test/test-blob-1',
   // matching the URL baked into this IIFE.

@@ -1359,6 +1359,19 @@ class WebViewFactory {
       injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
     ));
 
+    // Android-only: bridge `<a download href="blob:">` clicks into Dart.
+    // Android's DownloadListener does not fire for blob: URLs, so without
+    // this script the click is a silent no-op. iOS/macOS WKWebView
+    // surfaces blob downloads through onDownloadStartRequest natively
+    // and does not need (or want) the JS path.
+    if (Platform.isAndroid) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'blob_download_click_intercept',
+        source: '$blobDownloadClickInterceptScript\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      ));
+    }
+
     // Desktop-mode inference: a per-site UA without mobile markers
     // ("Android" / "iPhone" / "Mobile" etc) is treated as desktop, and
     // we inject the shim that patches navigator.userAgentData /
@@ -2331,6 +2344,32 @@ class WebViewFactory {
               taskId,
               bytesDone: done,
               bytesTotal: total,
+            );
+            return null;
+          },
+        );
+        // Android-only path: `<a download href="blob:">` clicks reach
+        // Dart via the click-intercept shim, since Android's
+        // DownloadListener does not fire for blob: URLs.
+        // [_handleBlobDownload] is the same entry point the
+        // onDownloadStartRequest path uses on iOS/macOS — keeping a
+        // single funnel preserves the captured-Blob fast path and the
+        // task lifecycle in DownloadsService.
+        controller.addJavaScriptHandler(
+          handlerName: '_webspaceBlobDownloadStart',
+          callback: (args) async {
+            if (args.isEmpty) return null;
+            final blobUrl = args[0] is String ? args[0] as String : '';
+            final filename = args.length >= 2 && args[1] is String
+                ? args[1] as String
+                : '';
+            if (blobUrl.isEmpty || !blobUrl.startsWith('blob:')) {
+              return null;
+            }
+            await _handleBlobDownload(
+              controller,
+              blobUrl,
+              filename.isEmpty ? null : filename,
             );
             return null;
           },
