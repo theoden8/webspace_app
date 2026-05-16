@@ -91,8 +91,29 @@ inapp.ProxySettings? _userProxyToInappProxy(UserProxySettings settings) {
 /// previously-installed rule list.
 List<inapp.ContentBlocker> _appleContentBlockersFor(WebViewConfig config) {
   if (!Platform.isIOS && !Platform.isMacOS) return const [];
-  if (!config.contentBlockEnabled) return const [];
-  return ContentBlockerService.instance.appleContentBlockers ?? const [];
+  if (!config.contentBlockEnabled) {
+    LogService.instance.log('ContentBlocker/WKCRL',
+        'webview siteId=${config.siteId} url=${config.initialUrl}: '
+        'contentBlockEnabled=false → empty list (fork removes any cached '
+        'rule list on this webview)',
+        level: LogLevel.debug);
+    return const [];
+  }
+  final payload = ContentBlockerService.instance.appleContentBlockers;
+  if (payload == null || payload.isEmpty) {
+    LogService.instance.log('ContentBlocker/WKCRL',
+        'webview siteId=${config.siteId} url=${config.initialUrl}: '
+        'no payload built yet → empty list. WebView gets JS-bridge only.',
+        level: LogLevel.info);
+    return const [];
+  }
+  final hash = ContentBlockerService.instance.appleContentBlockersHashShort;
+  LogService.instance.log('ContentBlocker/WKCRL',
+      'webview siteId=${config.siteId} url=${config.initialUrl}: '
+      'attaching ${payload.length} rules (id=iaw-rl-$hash…). fork will '
+      'lookup → install (cache hit) or compile-once (cache miss).',
+      level: LogLevel.info);
+  return payload;
 }
 
 /// Extension to add JSON serialization to inapp.Cookie

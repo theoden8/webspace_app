@@ -256,6 +256,14 @@ class ContentBlockerService {
   List<inapp.ContentBlocker>? get appleContentBlockers =>
       _appleContentBlockers;
 
+  /// First 12 hex chars of the source-text hash that produced the
+  /// cached [appleContentBlockers]. Echoed in webview logs so the
+  /// Dart-side payload build and the fork's WKContentRuleListStore
+  /// install can be cross-referenced. Empty string when no payload
+  /// is cached.
+  String get appleContentBlockersHashShort =>
+      _appleContentBlockersHash?.substring(0, 12) ?? '';
+
   /// Listeners invoked when the engine is rebuilt (download, toggle,
   /// remove, re-init). main.dart uses this to invalidate caches that
   /// depend on the rule set.
@@ -739,34 +747,52 @@ class ContentBlockerService {
   /// [ContentRuleListCache] removes any installed rule list.
   Future<void> _maybeRebuildAppleContentBlockers(
       {required String? rulesText, String? rulesHash}) async {
-    if (!(Platform.isIOS || Platform.isMacOS)) return;
+    if (!(Platform.isIOS || Platform.isMacOS)) {
+      LogService.instance.log('ContentBlocker/WKCRL',
+          'skip rebuild — non-Apple platform',
+          level: LogLevel.debug);
+      return;
+    }
     if (rulesText == null || rulesText.isEmpty) {
       _appleContentBlockers = null;
       _appleContentBlockersHash = null;
+      LogService.instance.log('ContentBlocker/WKCRL',
+          'skip rebuild — no enabled-list content. new webviews on '
+          'iOS/macOS will get an empty contentBlockers list.',
+          level: LogLevel.info);
       return;
     }
     final hash =
         rulesHash ?? sha256.convert(utf8.encode(rulesText)).toString();
     if (hash == _appleContentBlockersHash &&
         _appleContentBlockers != null) {
+      LogService.instance.log('ContentBlocker/WKCRL',
+          'skip rebuild — hash unchanged ($hash). cached payload has '
+          '${_appleContentBlockers!.length} rules.',
+          level: LogLevel.debug);
       return;
     }
+    LogService.instance.log('ContentBlocker/WKCRL',
+        'building payload from ${rulesText.length}B merged source, hash=$hash',
+        level: LogLevel.info);
     final sw = Stopwatch()..start();
     final blockers = _appleContentBlockersFromText(rulesText);
     sw.stop();
     if (blockers == null) {
-      LogService.instance.log('ContentBlocker',
-          'WKContentRuleList JSON export returned null — adblock-rust '
-          'library missing or parse failed. iOS/macOS will fall back '
-          'to the JS-bridge interceptor only.',
+      LogService.instance.log('ContentBlocker/WKCRL',
+          'export FAILED — filterListToAppleContentBlockingJson returned '
+          'null. adblock-rust library missing or parser rejected the input. '
+          'iOS/macOS will fall back to the JS-bridge interceptor only.',
           level: LogLevel.warning);
       return;
     }
     _appleContentBlockers = blockers;
     _appleContentBlockersHash = hash;
-    LogService.instance.log('ContentBlocker',
-        'WKContentRuleList payload rebuilt: ${blockers.length} rules '
-        '(${rulesText.length}B source, ${sw.elapsedMilliseconds}ms)',
+    LogService.instance.log('ContentBlocker/WKCRL',
+        'payload ready: ${blockers.length} rules built in '
+        '${sw.elapsedMilliseconds}ms (${rulesText.length}B source). '
+        'identifier prefix sent to fork: iaw-rl-${hash.substring(0, 12)}…. '
+        'new webviews on iOS/macOS will attach this list on creation.',
         level: LogLevel.info);
   }
 
