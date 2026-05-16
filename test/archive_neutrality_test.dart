@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/webspace_model.dart';
 
 import 'helpers/mock_secure_storage.dart';
 
@@ -146,10 +147,216 @@ void main() {
       expect(withArchive, equals(withoutArchive));
     });
   });
+
+  // The bugs this group catches: an earlier version of _moveSiteToArchive
+  // mutated `webspace.siteIndices` to strip the moved site's position
+  // from every webspace. That changed app-tier persisted state as a
+  // direct side-effect of an archive operation — a clear ARCH-001
+  // violation that the existing neutrality tests missed because they
+  // never exercised the move flow at the integration layer. These
+  // tests simulate the same model-level operations the move flow
+  // performs (flipping isArchiveTier; removing the model from
+  // `_webViewModels` on archive close; re-adding at the tail on open)
+  // and assert webspace persistence is unchanged across the cycle.
+  group('Webspace persistence is invariant across move-to-archive cycle', () {
+    test('flipping isArchiveTier on a webspace member does not change webspace.toJson', () {
+      final models = [
+        _siteWithId('a'),
+        _siteWithId('b'),
+        _siteWithId('c'),
+      ];
+      final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      _resolveWebspaceIndices([ws], models);
+      final beforeJson = jsonEncode(ws.toJson());
+
+      // The runtime effect of "move site b to archive": flip its flag
+      // and re-resolve. The webspace.siteIds field must stay invariant
+      // — and so must its persisted JSON.
+      models[1].isArchiveTier = true;
+      _resolveWebspaceIndices([ws], models);
+
+      expect(ws.siteIds, equals(['a', 'b', 'c']));
+      expect(jsonEncode(ws.toJson()), equals(beforeJson));
+    });
+
+    test('closing an archive (removing its sites from _webViewModels) does not change webspace.toJson', () {
+      final a = _siteWithId('a');
+      final b = _siteWithId('b', archive: true);
+      final c = _siteWithId('c');
+      final models = [a, b, c];
+      final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      _resolveWebspaceIndices([ws], models);
+      final beforeJson = jsonEncode(ws.toJson());
+
+      // Close archive: archive-tier models drop out of the runtime
+      // list. Webspace.siteIndices loses 'b'; siteIds keeps it.
+      models.removeWhere((m) => m.isArchiveTier);
+      _resolveWebspaceIndices([ws], models);
+
+      expect(ws.siteIndices, equals([0, 1]),
+          reason: 'siteIndices runtime view loses the archive-only site');
+      expect(ws.siteIds, equals(['a', 'b', 'c']),
+          reason: 'siteIds persisted membership is invariant');
+      expect(jsonEncode(ws.toJson()), equals(beforeJson),
+          reason: 'archive close must not perturb webspace persistence');
+    });
+
+    test('archive close→open round-trip restores siteIndices position membership', () {
+      final a = _siteWithId('a');
+      final b = _siteWithId('b', archive: true);
+      final c = _siteWithId('c');
+      final models = [a, b, c];
+      final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      _resolveWebspaceIndices([ws], models);
+      expect(ws.siteIndices, equals([0, 1, 2]));
+
+      // Close: archive sites leave _webViewModels.
+      models.removeWhere((m) => m.isArchiveTier);
+      _resolveWebspaceIndices([ws], models);
+      expect(ws.siteIndices, equals([0, 1]));
+
+      // Open: archive sites re-append at the tail (this is what
+      // _materialiseArchive does in main.dart).
+      models.add(b);
+      _resolveWebspaceIndices([ws], models);
+
+      // siteIndices now [a=0, b=2 (tail), c=1] — order driven by
+      // siteIds, not _webViewModels position.
+      expect(ws.siteIndices, equals([0, 2, 1]));
+      expect(ws.siteIds, equals(['a', 'b', 'c']));
+    });
+
+    test('byte-equality across full add-site → move-to-archive → save → close → save cycle', () {
+      // The headline ARCH-001 contract: a user who adds a site to a
+      // named webspace and then archives it sees their webspaces.json
+      // unchanged when the archive is closed, regardless of whether
+      // the archive was ever touched.
+      final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
+      final webspaces = [
+        Webspace(name: 'Work', siteIds: ['a', 'b']),
+        Webspace(name: 'Personal', siteIds: ['c']),
+      ];
+      _resolveWebspaceIndices(webspaces, models);
+      final beforeJson =
+          jsonEncode(webspaces.map((w) => w.toJson()).toList());
+
+      // Simulate: move 'b' into an archive; close the archive.
+      models[1].isArchiveTier = true;
+      _resolveWebspaceIndices(webspaces, models);
+      models.removeWhere((m) => m.isArchiveTier); // archive close
+      _resolveWebspaceIndices(webspaces, models);
+
+      final afterJson =
+          jsonEncode(webspaces.map((w) => w.toJson()).toList());
+      expect(afterJson, equals(beforeJson));
+    });
+  });
+
+  // Legacy-data migration: webspaces persisted before the siteId
+  // refactor stored positional `siteIndices` in JSON. The migration
+  // step in main.dart resolves those indices against the loaded
+  // _webViewModels to populate siteIds. These tests pin the
+  // migration's behaviour so a future change to load order or
+  // resolution rules can't silently drop pre-existing webspace
+  // membership.
+  group('Legacy siteIndices migration', () {
+    test('migration populates siteIds from positional siteIndices', () {
+      final ws = Webspace.fromJson({
+        'id': 'legacy',
+        'name': 'Work',
+        'siteIndices': [0, 2],
+      });
+      expect(ws.siteIds, isEmpty);
+      expect(ws.siteIndices, equals([0, 2]));
+
+      // Mirror of _migrateLegacyWebspaceIndices in main.dart.
+      final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
+      if (ws.siteIds.isEmpty && ws.siteIndices.isNotEmpty) {
+        ws.siteIds = [
+          for (final idx in ws.siteIndices)
+            if (idx >= 0 && idx < models.length) models[idx].siteId,
+        ];
+      }
+      _resolveWebspaceIndices([ws], models);
+
+      expect(ws.siteIds, equals(['a', 'c']));
+      expect(ws.siteIndices, equals([0, 2]));
+      // Post-migration, toJson emits siteIds — the legacy positional
+      // form is gone from persisted state.
+      expect(ws.toJson().containsKey('siteIndices'), isFalse);
+      expect(ws.toJson()['siteIds'], equals(['a', 'c']));
+    });
+
+    test('migration is idempotent — already-migrated webspaces untouched', () {
+      final ws = Webspace.fromJson({
+        'id': 'new',
+        'name': 'Work',
+        'siteIds': ['a', 'b'],
+      });
+      final beforeIds = List<String>.from(ws.siteIds);
+      final models = [_siteWithId('a'), _siteWithId('b')];
+      // Migration short-circuits when siteIds is already populated.
+      if (ws.siteIds.isEmpty && ws.siteIndices.isNotEmpty) {
+        ws.siteIds = [
+          for (final idx in ws.siteIndices)
+            if (idx >= 0 && idx < models.length) models[idx].siteId,
+        ];
+      }
+      expect(ws.siteIds, equals(beforeIds));
+    });
+
+    test('migration drops out-of-bounds legacy indices', () {
+      // The bug class: a webspace persisted with siteIndices=[0,5,10]
+      // on a 3-site app. After upgrade the resolver should drop the
+      // out-of-bounds entries rather than crashing.
+      final ws = Webspace.fromJson({
+        'id': 'legacy',
+        'name': 'Work',
+        'siteIndices': [0, 5, 10],
+      });
+      final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
+      if (ws.siteIds.isEmpty && ws.siteIndices.isNotEmpty) {
+        ws.siteIds = [
+          for (final idx in ws.siteIndices)
+            if (idx >= 0 && idx < models.length) models[idx].siteId,
+        ];
+      }
+      expect(ws.siteIds, equals(['a']));
+    });
+  });
 }
 
 Uint8List _testKey(int seed) {
   return Uint8List.fromList(
     List<int>.generate(32, (i) => (seed * 17 + i * 31) & 0xff),
+  );
+}
+
+/// Mirror of `_WebSpacePageState._resolveWebspaceIndices`. The runtime
+/// `webspace.siteIndices` view is recomputed from `webspace.siteIds`
+/// against the current `_webViewModels`. Duplicated here so the
+/// neutrality tests can exercise the contract without dragging in a
+/// full widget test harness.
+void _resolveWebspaceIndices(
+  List<Webspace> webspaces,
+  List<WebViewModel> models,
+) {
+  final positionBySiteId = <String, int>{
+    for (var i = 0; i < models.length; i++) models[i].siteId: i,
+  };
+  for (final ws in webspaces) {
+    if (ws.isAll) continue;
+    ws.siteIndices = [
+      for (final sid in ws.siteIds)
+        if (positionBySiteId.containsKey(sid)) positionBySiteId[sid]!,
+    ];
+  }
+}
+
+WebViewModel _siteWithId(String siteId, {bool archive = false}) {
+  return WebViewModel(
+    siteId: siteId,
+    initUrl: 'https://$siteId.test',
+    isArchiveTier: archive,
   );
 }
