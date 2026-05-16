@@ -88,7 +88,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | captcha-support | |
 | clearurls | tracking-param removal, per-site toggle |
 | configurable-suggested-sites | empty default for fdroid |
-| content-blocker | ABP filter lists (domain, CSS cosmetic, text-hide) |
+| content-blocker | ABP filter lists via adblock-rust (network, cosmetic, procedural, $redirect/$csp/$removeparam) |
 | cookie-secure-storage | encrypted cookie persistence |
 | desktop-mode | per-site UA → JS shim (userAgentData, maxTouchPoints, viewport rewrite) |
 | developer-tools | JS console, cookie inspector, HTML export, app logs |

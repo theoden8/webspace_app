@@ -1546,8 +1546,7 @@ class WebViewFactory {
     // Always inject when siteId is set — stats are recorded based on user
     // intent to visit the site, not on whether blocklists are populated.
     final hasDnsRules = DnsBlockService.instance.hasBlocklist;
-    final hasAbpRules =
-        ContentBlockerService.instance.blockedDomains.isNotEmpty;
+    final hasAbpRules = ContentBlockerService.instance.hasRules;
     if (!Platform.isAndroid && config.siteId != null) {
       userScripts.add(inapp.UserScript(
         groupName: 'block_resource_observer',

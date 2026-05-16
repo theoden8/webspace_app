@@ -23,12 +23,13 @@
 //
 // Override the cache directory with BLOCKLIST_DIR=/some/path.
 //
-// The per-list parsers mirror the production Dart code:
+// The per-list parsers mirror what the production DNS pipeline pulls
+// out of each list:
 //   * Hagezi: bare domain per line, `#` comment lines.
-//   * EasyList: only `||domain^` (and `||domain`) rules become DNS
-//     domains. ##cosmetic / #?# text-hide / regex / option-laden
-//     network rules are ignored — same as
-//     `lib/services/abp_filter_parser.dart` (`_simpleDomainRule`).
+//   * EasyList: only `||domain^` (and `||domain`) rules contribute
+//     standalone DNS-style domains. ##cosmetic / #?# text-hide /
+//     regex / option-laden network rules belong to the adblock-rust
+//     engine and aren't sampled here.
 
 'use strict';
 
@@ -54,8 +55,9 @@ function loadHagezi(file) {
   return out;
 }
 
-// Same shape as `_simpleDomainRule` in abp_filter_parser.dart:
-//   ^\|\|([a-zA-Z0-9._-]+)\^?$
+// Pull plain `||domain^` (and `||domain`) rules out of EasyList; the
+// option-laden / cosmetic / regex shapes are out of scope for this
+// host-only benchmark.
 const ABP_DOMAIN_RE = /^\|\|([a-zA-Z0-9._-]+)\^?$/;
 
 function loadEasyListDomains(file) {

@@ -60,11 +60,11 @@ const CACHE_DIR = process.env.BLOCKLIST_DIR ||
 
 // ---------------- EasyList cosmetic parser ----------------
 //
-// Mirrors the cosmetic side of `lib/services/abp_filter_parser.dart`:
+// Plain cosmetic-rule subset used for benchmarking only:
 //   * `##selector`              -> global cosmetic
 //   * `domain##selector`        -> domain-scoped (comma-separated)
 //   * `domain##selector` with ~excl, :-abp-, :has-text, :matches-path
-//     etc. is rejected (kept identical to Dart).
+//     etc. is rejected.
 
 function parseCosmetics(file) {
   const raw = fs.readFileSync(file, 'utf8');

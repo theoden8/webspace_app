@@ -106,25 +106,6 @@ class WebInterceptNative {
     }
   }
 
-  /// Push the ABP blocklist domains (aggregated from enabled filter
-  /// lists' `||domain^` rules) to the native interceptor. Hits are
-  /// attributed to ABP in the per-site block log.
-  static Future<void> sendAbpDomains(Set<String> domains) async {
-    if (!isSupported) return;
-    try {
-      final count = await _channel.invokeMethod('setAbpBlockedDomains', {
-        'domains': domains.toList(),
-      });
-      LogService.instance.log(
-          'ContentBlocker', 'Sent $count ABP domains to native handler',
-          level: LogLevel.info);
-    } catch (e) {
-      LogService.instance.log('ContentBlocker',
-          'Failed to send ABP domains to native: $e',
-          level: LogLevel.error);
-    }
-  }
-
   /// Push concatenated filter-list text to the native adblock-rust
   /// engine on Android. Pass an empty string to tear it down.
   ///

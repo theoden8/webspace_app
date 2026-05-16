@@ -1,6 +1,7 @@
-// Tier 1 — jsdom assertions for the wider ABP rule shapes the parser
-// in lib/services/abp_filter_parser.dart now emits, exercised through
-// the content-blocker shim in lib/services/content_blocker_shim.dart.
+// Tier 1 — jsdom assertions for the wider ABP rule shapes the
+// content-blocker shim in lib/services/content_blocker_shim.dart
+// has to render. The shim is fed selector/style/text rule lists by
+// ContentBlockerService, sourced from the adblock-rust engine.
 //
 // The 2026 perf fix dropped the runtime querySelectorAll sweep that
 // re-applied selector hides on every mutation burst. Selector-based

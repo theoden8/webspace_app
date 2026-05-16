@@ -48,7 +48,7 @@ class _StatsBannerState extends State<StatsBanner> {
   @override
   Widget build(BuildContext context) {
     final hasAnyBlocklist = DnsBlockService.instance.hasBlocklist ||
-        ContentBlockerService.instance.blockedDomains.isNotEmpty;
+        ContentBlockerService.instance.hasRules;
     if (!hasAnyBlocklist) {
       return const SizedBox.shrink();
     }

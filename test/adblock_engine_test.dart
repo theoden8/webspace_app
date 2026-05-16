@@ -54,9 +54,7 @@ void main() {
       e.dispose();
     }, skip: libExists ? false : 'library not built');
 
-    test('honors path-anchored rules without our custom regex pass', () {
-      // Same shape we hand-rolled in abp_filter_parser.dart; the
-      // engine does it natively.
+    test('honors path-anchored rules', () {
       final e = AdblockEngine.load('||example.com/ads/\n')!;
       expect(
         e.shouldBlock('https://example.com/ads/banner.png',

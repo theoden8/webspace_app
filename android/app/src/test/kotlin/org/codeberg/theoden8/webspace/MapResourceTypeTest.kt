@@ -22,7 +22,6 @@ class MapResourceTypeTest {
     private fun newInterceptor(): FastSubresourceInterceptor =
         FastSubresourceInterceptor(
             dnsBlockedDomains = HashSet(),
-            abpBlockedDomains = HashSet(),
             cdnPatterns = mutableListOf(),
             cdnCacheIndex = mutableMapOf(),
             localCdnDisabled = AtomicBoolean(false),

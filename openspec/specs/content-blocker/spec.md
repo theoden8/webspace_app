@@ -5,163 +5,82 @@
 
 ## Purpose
 
-Block ads, trackers, and promoted content using community-maintained filter lists in ABP (Adblock Plus) syntax. This includes domain-level blocking, CSS element hiding, and text-based hiding for dynamically labeled content (e.g., LinkedIn "Promoted" posts).
+Block ads, trackers, and promoted content using community-maintained filter lists in ABP (Adblock Plus) syntax. Network blocking, cosmetic filtering (CSS hides, `:style()` rules, procedural actions), and ABP-specific rule modifiers (`$domain=`, `$redirect=`, `$csp=`, `$removeparam=`) all flow through Brave's `adblock-rust` engine, wrapped via FFI in [`AdblockEngine`](../../../lib/services/adblock_engine.dart).
 
 ## Problem Statement
 
-Websites embed ads, tracking scripts, and sponsored content that degrade the browsing experience. Community-maintained filter lists like EasyList catalog tens of thousands of rules for blocking these elements. The `flutter_inappwebview` plugin provides a native `ContentBlocker` API, but it has critical limitations:
+Websites embed ads, tracking scripts, and sponsored content that degrade the browsing experience. Community-maintained filter lists like EasyList catalog tens of thousands of rules. The `flutter_inappwebview` plugin's native `ContentBlocker` API has critical limitations:
 
 - **Android**: No native content blocker engine. The plugin implements it in Java by running O(n) regex matches per resource request in `shouldInterceptRequest`, causing timeouts with 30K+ rules. CSS `display:none` is injected with an 800ms delay and no `MutationObserver`, missing dynamic SPA content.
-- **iOS/macOS**: Uses WebKit's `WKContentRuleList` which is performant but requires Apple-specific JSON rule format, not ABP syntax.
+- **iOS/macOS**: Uses WebKit's `WKContentRuleList`, which is performant but requires Apple-specific JSON rule format, not ABP syntax.
 
-A custom implementation is needed that parses ABP filter syntax directly and applies rules efficiently across all platforms.
+The app instead routes every ABP decision through `adblock-rust`, the same engine Brave Browser ships. The engine handles the full rule taxonomy natively, removes the need for an in-Dart parser, and stays microsecond-fast on filter lists in the hundreds of thousands.
 
 ## Solution
 
-Four-layer content blocking:
+Four-layer content blocking, all driven by the same engine instance:
 
-1. **Main-document domain blocking** — O(1) hash set lookup in `shouldOverrideUrlLoading` for `||domain^` rules
-2. **Sub-resource domain blocking** — ABP's `||domain^` set is pushed into the shared sub-resource interceptor alongside the DNS blocklist. Android uses the native `FastSubresourceInterceptor`; iOS/macOS use a JS interceptor backed by a Bloom-filter prefilter. Hits are attributed per source so per-site stats can show a merged "blocked" count while keeping DNS vs ABP separable.
-3. **CSS cosmetic filtering** — `<style>` tag injection via `UserScript` at `DOCUMENT_START` for `##selector` rules, with `MutationObserver` for dynamic content
-4. **Text-based hiding** — JavaScript DOM walking for `#?#` rules with `:-abp-contains()` patterns (e.g., hiding posts containing "Promoted" or "Sponsored")
+1. **Main-document blocking** — `ContentBlockerService.isBlocked(url, sourceUrl, requestType)` in `shouldOverrideUrlLoading` cancels navs that match the engine's blocking rules.
+2. **Sub-resource blocking** — Android uses a native `FastSubresourceInterceptor` that holds a JNI handle to the same engine; iOS/macOS route through the JS interceptor's `blockCheck` handler back into the Dart engine wrapper.
+3. **CSS cosmetic filtering** — `<style>` tag injection at `DOCUMENT_START` for `##selector` hides, sourced from the engine's `cosmeticResources(url)` API plus the on-demand generic-class/id scan path (`hidden_class_id_selectors`).
+4. **Procedural actions** — `:has-text()`, `:upward(N)`, `:remove()`, `:remove-attr()`, `:remove-class()`, and `:style()` rules are emitted by the engine and run by the page-side procedural shim.
 
-Filter lists are downloaded on-demand, cached to disk, and parsed in a background isolate.
+Filter lists are downloaded on-demand, cached to disk, and concatenated as raw ABP text feeding `AdblockEngine.load(...)`. The parsed engine is serialized to a flatbuffer blob on disk so warm starts skip the multi-megabyte reparse.
 
 ---
 
 ## Requirements
 
-### Requirement: CB-001 - ABP Filter List Parsing
+### Requirement: CB-001 - Adblock-Rust Engine as Source of Truth
 
-The system SHALL parse filter lists in ABP/EasyList syntax, extracting three types of rules.
+The system SHALL route every adblock decision — network blocking, cosmetic selectors, procedural actions, `$redirect=`, `$csp=`, `$removeparam=` — through a single instance of Brave's `adblock-rust` engine wrapped by [`AdblockEngine`](../../../lib/services/adblock_engine.dart). The engine is built unconditionally from the concatenated text of every enabled filter list; there is no in-Dart filter parser.
 
-#### Scenario: Parse domain block rules
+#### Scenario: Engine builds from enabled filter lists
 
-**Given** a filter list containing `||tracker.example.com^`
-**When** the list is parsed
-**Then** `tracker.example.com` is added to the blocked domains set
+**Given** the user has one or more enabled filter lists with downloaded cache files
+**When** `ContentBlockerService.initialize` (or any list mutation) runs
+**Then** `_rebuildEngine` concatenates the cache files' text
+**And** calls `AdblockEngine.load(rulesText, enableUboResources: ...)` to instantiate the engine
+**And** stores the handle in `_rustEngine`
 
-#### Scenario: Parse cosmetic filter rules
+#### Scenario: Serialized engine cache speeds up warm starts
 
-**Given** a filter list containing `##.ad-banner`
-**When** the list is parsed
-**Then** `.ad-banner` is added as a global cosmetic selector
+**Given** a previous run wrote `<docs>/content_blocker_cache/.engine.bin` and `.engine.meta`
+**And** the meta's `<rulesHash>:<uboFlag>` matches the current state
+**When** the next `_rebuildEngine` runs
+**Then** the engine is hydrated from the blob via `AdblockEngine.loadFromSerialized`
+**And** the multi-megabyte text parse is skipped
+**And** the load mode logs as `deserialize`
 
-#### Scenario: Parse domain-specific cosmetic rules
+#### Scenario: Cache invalidates on rule or uBO-resources change
 
-**Given** a filter list containing `example.com##.sidebar-ad`
-**When** the list is parsed
-**Then** `.sidebar-ad` is added as a cosmetic selector scoped to `example.com`
+**Given** the on-disk `.engine.meta` records hash X with uBO flag 1
+**When** either the concatenated rule text or the uBO toggle changes (`<rulesHash>:<uboFlag>` differs)
+**Then** the cache is treated as a miss
+**And** the engine re-parses from rule text
+**And** a fresh blob is written for the next warm start
 
-#### Scenario: Parse text hide rules
+#### Scenario: Cache miss falls back to parse
 
-**Given** a filter list containing `linkedin.com#?#div.feed-shared-update-v2:-abp-contains(Promoted)`
-**When** the list is parsed
-**Then** a text hide rule is created with selector `div.feed-shared-update-v2` and pattern `Promoted` scoped to `linkedin.com`
+**Given** the on-disk blob is missing, corrupt, or from a different adblock-rust ABI
+**When** `_rebuildEngine` tries to deserialize
+**Then** `AdblockEngine.loadFromSerialized` returns null
+**And** the cache files are deleted
+**And** the rule text is parsed fresh
+**And** a fresh blob is written
 
-#### Scenario: Parse :-abp-contains with regex-style patterns
+#### Scenario: Engine unavailable means decisions return "allowed"
 
-**Given** a filter list containing `example.com#?#div.post:-abp-contains(/Promoted|Sponsored/)`
-**When** the list is parsed
-**Then** a text hide rule is created with patterns `Promoted` and `Sponsored`
-
-#### Scenario: Allow standard CSS :has() selectors
-
-**Given** a filter list containing `##div:has(.ad-label)`
-**When** the list is parsed
-**Then** `div:has(.ad-label)` is added as a cosmetic selector (`:has()` is standard CSS)
-
-#### Scenario: Parse exception rules
-
-**Given** a filter list containing `@@||cdn.example.com^`
-**When** the list is parsed
-**Then** `cdn.example.com` is added to the exception domains set
-
-#### Scenario: Skip complex exception rules
-
-**Given** a filter list containing `@@||example.com/path$script`
-**When** the list is parsed
-**Then** the rule is skipped (only simple domain-anchored exceptions are supported)
-
-#### Scenario: Convert :has-text() in cosmetic rules to text hide rules
-
-**Given** a filter list containing `##.container:has-text(Sponsored)`
-**When** the list is parsed
-**Then** a text hide rule is created with selector `.container` and pattern `Sponsored`
-
-#### Scenario: Convert :contains() in cosmetic rules to text hide rules
-
-**Given** a filter list containing `example.com##div.post:contains(Advertisement)`
-**When** the list is parsed
-**Then** a text hide rule is created with selector `div.post` and pattern `Advertisement` scoped to `example.com`
-
-#### Scenario: Rewrite :-abp-has() to standard CSS :has()
-
-**Given** a filter list containing `##div:-abp-has(.ad-label)`
-**When** the list is parsed
-**Then** `div:has(.ad-label)` is added as a cosmetic selector (rewritten to standard CSS)
-
-#### Scenario: Parse path-anchored network rules
-
-**Given** a filter list containing `||example.com/ads/`, `||example.com^/track`, or `||example.com^*pixel.gif`
-**When** the list is parsed
-**Then** each rule is added to `blockedDomainPaths['example.com']` with its raw glob preserved
-**And** `example.com` is NOT promoted to the whole-domain `blockedDomains` set
-
-#### Scenario: Path-anchored rules survive option strip
-
-**Given** a filter list containing `||ads.example.com/path$script,third-party`
-**When** the list is parsed
-**Then** the options are stripped (we don't classify resource types) and the residual `||ads.example.com/path` is converted to a path-anchored rule
-
-#### Scenario: Parse uBO `:style()` cosmetic extension
-
-**Given** a filter list containing `##.banner:style(height: 1px !important)`
-**When** the list is parsed
-**Then** a `StyleRule` is created with selector `.banner` and declarations `height: 1px !important`
-**And** `.banner` does NOT also appear in the `display:none` cosmetic-selector set
-
-#### Scenario: Parse domain-scoped `:style()` rule
-
-**Given** a filter list containing `linkedin.com##.promo:style(opacity: 0.1)`
-**When** the list is parsed
-**Then** the `StyleRule` is scoped to `linkedin.com`
-
-#### Scenario: Skip empty `:style()` declarations
-
-**Given** a filter list containing `##.banner:style()` or `##:style(color:red)`
-**When** the list is parsed
-**Then** the rule is skipped (empty declarations or missing selector)
-
-#### Scenario: Skip unsupported rule types
-
-**Given** a filter list containing rules with `#$#` (snippets), `##^` (HTML filters), `$redirect`, `$csp`, `$removeparam`, or regex patterns
-**When** the list is parsed
-**Then** these rules are silently skipped
-
-#### Scenario: Skip unsupported extended CSS pseudo-classes
-
-**Given** a filter list containing selectors with `:matches-path()`, `:matches-attr()`, `:min-text-length()`, or `:watch-attr()`
-**When** the list is parsed
-**Then** these selectors are skipped (not supported)
-
-#### Scenario: Case-insensitive domain matching
-
-**Given** a filter list containing `||TRACKER.COM^`
-**When** the list is parsed
-**Then** `tracker.com` is added to blocked domains (lowercased)
-
-#### Scenario: Isolate-based parsing
-
-**Given** a large filter list (30K+ lines)
-**When** the list is parsed
-**Then** parsing runs in a background isolate via `compute()` to avoid blocking the UI thread
+**Given** the native library cannot be loaded on this platform/ABI
+**When** any of `isBlocked`, `isHostBlocked`, `redirectFor`, `cspFor`, `rewrittenUrl`, `proceduralActionsFor`, or `getEarlyCssScript` is called
+**Then** the call returns the no-op value (`false` / `null` / empty list)
+**And** the system logs a warning at engine-rebuild time so the user can see the platform gap in DevTools
 
 ---
 
 ### Requirement: CB-002 - Filter List Management
 
-Users SHALL be able to manage multiple filter lists with download, enable/disable, and custom list support.
+Users SHALL be able to manage multiple filter lists with download, enable/disable, custom list support, and per-list persistence.
 
 #### Scenario: Default filter lists
 
@@ -174,37 +93,38 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 **Given** the user taps the download button on EasyList
 **When** the download completes
-**Then** the list is saved to disk
-**And** parsed into memory (blocked domains + cosmetic selectors + text hide rules)
-**And** the rule count is displayed on the list tile
+**Then** the list text is saved to `<docs>/content_blocker_cache/<id>.txt`
+**And** the engine is rebuilt with the new list included
+**And** a coarse line-count proxy is stored as `ruleCount` for the settings UI
 
 #### Scenario: Update all lists
 
 **Given** the user taps "Update All"
 **When** all enabled lists are downloaded
 **Then** each list is updated with fresh rules
-**And** a SnackBar shows the total rule count
+**And** the engine is rebuilt after each list lands
+**And** a SnackBar shows the total successful downloads
 
 #### Scenario: Toggle a list
 
 **Given** EasyList is enabled with rules loaded
 **When** the user disables EasyList
-**Then** EasyList rules are excluded from the aggregated rule set
+**Then** EasyList is excluded from the next `_rebuildEngine` concatenation
 **And** the list metadata persists (not deleted)
 
 #### Scenario: Add a custom list
 
 **Given** the user taps "Add Custom List"
 **When** they enter a name and URL
-**Then** the custom list is added to the list
+**Then** the custom list is added to the lists registry
 **And** it can be downloaded, enabled/disabled, and removed like default lists
 
 #### Scenario: Remove a custom list
 
 **Given** a custom list has been added
 **When** the user removes it
-**Then** the list and its cached file are deleted
-**And** its rules are removed from the aggregated set
+**Then** the list metadata, cached text file, and its rules are removed
+**And** the engine is rebuilt without it
 
 #### Scenario: List metadata persistence
 
@@ -214,344 +134,40 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 ---
 
-### Requirement: CB-003 - Domain Blocking
+### Requirement: CB-003 - Network Blocking
 
-The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups, for both main-document navigations and sub-resource requests. Path-anchored rules (`||domain^/path`, `||domain^*glob`) extend the same domain hash hit with a per-domain regex check against the URL's path. Exception domains (`@@||domain^`) override blocked domains.
+The system SHALL block navigation and resource requests matched by the engine, for both main-document navigations and sub-resource requests. The engine handles every ABP rule shape: bare-domain (`||domain^`), path-anchored (`||domain^/path*`), regex, `$domain=`, `$third-party`, resource-type modifiers (`$script`, `$image`, etc.), and exceptions (`@@||...`).
 
-#### Scenario: Exact domain match
+#### Scenario: Bare-domain rule blocks main-document nav
 
-**Given** `tracker.net` is in the blocked domains set
+**Given** the engine knows `||tracker.net^`
 **When** the webview navigates to `https://tracker.net/path`
-**Then** navigation is cancelled
+**Then** `ContentBlockerService.isBlocked('https://tracker.net/path')` returns true
+**And** `shouldOverrideUrlLoading` cancels the navigation
 
-#### Scenario: Subdomain blocked by parent
+#### Scenario: Subdomain blocked by bare-domain rule
 
-**Given** `tracker.net` is in the blocked domains set
+**Given** the engine knows `||tracker.net^`
 **When** the webview navigates to `https://sub.tracker.net/path`
-**Then** navigation is cancelled (parent domain walk-up matches)
+**Then** the engine matches (the rule covers the whole domain tree)
+**And** the navigation is cancelled
 
-#### Scenario: No partial string match
+#### Scenario: Exception rule overrides block
 
-**Given** `tracker.net` is in the blocked domains set
-**When** the webview navigates to `https://mytracker.net/path`
-**Then** navigation is allowed (`mytracker.net` is not a subdomain of `tracker.net`)
-
-#### Scenario: Exception domain overrides block
-
-**Given** `tracker.net` is in the blocked domains set
-**And** `cdn.tracker.net` is in the exception domains set
+**Given** the engine knows `||tracker.net^` and `@@||cdn.tracker.net^`
 **When** the webview navigates to `https://cdn.tracker.net/resource.js`
-**Then** navigation is allowed (exception overrides block)
+**Then** the engine returns "allowed"
+**And** the navigation is permitted
 
-#### Scenario: Exception domain with subdomain walk-up
+#### Scenario: $domain= modifier
 
-**Given** `tracker.net` is in the blocked domains set
-**And** `cdn.tracker.net` is in the exception domains set
-**When** the webview navigates to `https://sub.cdn.tracker.net/resource.js`
-**Then** navigation is allowed (parent domain walk-up finds exception)
-
-#### Scenario: Exception does not affect unrelated subdomains
-
-**Given** `tracker.net` is in the blocked domains set
-**And** `cdn.tracker.net` is in the exception domains set
-**When** the webview navigates to `https://other.tracker.net/path`
-**Then** navigation is cancelled (exception only covers cdn.tracker.net)
-
-#### Scenario: Hook ordering
-
-**Given** a URL in shouldOverrideUrlLoading
-**Then** the content blocker check runs after captcha allowlist and DNS blocklist, before ClearURLs processing
-
-#### Scenario: Sub-resource domain blocking (Android)
-
-**Given** `ads.example.com` is in the ABP blocked domains set
-**And** an enabled filter list contains `||ads.example.com^`
-**When** a page on another origin issues an `<img src="https://ads.example.com/banner.png">` sub-resource request
-**Then** the native `FastSubresourceInterceptor` cancels the request before it reaches the network
-**And** the per-site block log records the event with source `abp`
-
-#### Scenario: Sub-resource domain blocking (iOS/macOS)
-
-**Given** the ABP blocklist contains `tracker.example.com`
-**And** the merged DNS+ABP Bloom filter has been delivered to the webview's JS interceptor
-**When** the page issues a `fetch('https://tracker.example.com/beacon')` call
-**Then** the Bloom prefilter identifies the host as "possibly blocked"
-**And** the Dart `blockCheck` handler confirms the block via `ContentBlockerService.isBlocked`
-**And** the request is rejected with `TypeError: Blocked by DNS blocklist`
-**And** the per-site block log records the event with source `abp`
-
-#### Scenario: Source attribution when domain appears in both lists
-
-**Given** `doubleclick.net` is in both the DNS blocklist and the ABP blocklist
-**When** a sub-resource request to `doubleclick.net` is blocked
-**Then** the interceptor attributes the hit to `dns` (DNS is checked first)
-**And** the ABP block counter is not incremented for that request
-
-#### Scenario: Path-anchored rule blocks matching URL
-
-**Given** the filter list contains `||example.com/ads/`
-**When** the webview navigates to `https://example.com/ads/banner.png`
-**Then** navigation is cancelled
-**When** the webview navigates to `https://example.com/news/`
-**Then** navigation is allowed
-
-#### Scenario: Path-anchored rule walks up to parent domain
-
-**Given** `||example.com/track` is registered against `example.com`
-**When** a sub-resource request goes to `https://cdn.example.com/track/x`
-**Then** the request matches the parent-domain glob (`cdn.example.com` walks up to `example.com`)
-
-#### Scenario: Path-anchored rule honours exception domains
-
-**Given** the filter list contains `||example.com/ads/` and `@@||example.com^`
-**When** the webview navigates to `https://example.com/ads/banner.png`
-**Then** the request is allowed (exception overrides path-anchored block)
-
-#### Scenario: isHostBlocked ignores path rules
-
-**Given** a path-anchored rule exists for `example.com` but no whole-domain rule
-**When** the host-only fast path (`isHostBlocked('example.com')`) is consulted
-**Then** it returns `false` — path matching requires the URL's path, which isn't available at this layer
-
-#### Scenario: Per-source counters preserved in stats
-
-**Given** a page load produces 10 DNS-blocked sub-resources and 3 ABP-blocked sub-resources
-**Then** `DnsStats.blocked` equals 13 (merged)
-**And** `DnsStats.blockedByDns` equals 10
-**And** `DnsStats.blockedByAbp` equals 3
-**And** the stats banner displays `13 blocked`
-
----
-
-### Requirement: CB-004 - CSS Cosmetic Filtering
-
-The system SHALL hide page elements by injecting CSS `display: none !important` rules, applied before content renders. uBO `:style(declarations)` rules are emitted as ordinary CSS rules (`selector { declarations }`) in the same `<style>` tag, without the `display:none` decoration.
-
-#### Scenario: Early CSS injection via UserScript
-
-**Given** cosmetic selectors exist for a page
-**When** the webview starts loading the page
-**Then** a `<style>` tag with `display: none !important` rules is injected at `DOCUMENT_START` via `initialUserScripts`
-**And** elements matching the selectors are never visually rendered
-
-#### Scenario: CSS injection on navigation
-
-**Given** a webview navigates to a new page within the same tab
-**When** `onLoadStart` fires
-**Then** the early CSS script is re-injected for the new URL's applicable selectors
-
-#### Scenario: One rule per selector for resilience
-
-**Given** cosmetic selectors include one invalid selector among many valid ones
-**When** the CSS is injected
-**Then** the CSS parser silently discards the invalid rule and applies every other valid rule in the same `<style>` tag
-
-#### Scenario: Selector hides rely entirely on the early `<style>` tag
-
-**Given** cosmetic selectors are applicable to a page
-**When** the cosmetic shim runs
-**Then** there is no runtime `querySelectorAll` sweep for selector matches; the browser's CSS engine is the sole hide mechanism (verified by `test/js/content_blocker_shim_equivalence.test.js`, `test/browser/content_blocker_shim_equivalence.test.js`)
-
-#### Scenario: Late-added or class-flipped elements hide reactively
-
-**Given** the early `<style>` tag is installed at `DOCUMENT_START`
-**When** a matching element is appended to the DOM after page load, OR an existing element gains a matching class/attribute later
-**Then** the CSS engine re-matches automatically and the element is hidden — including the class-flip case the prior runtime sweep could not catch (its `MutationObserver` opted into `childList` only, not attributes)
-
-#### Scenario: `:has()` selectors hide reactively when descendants change
-
-**Given** a `:has()` selector (either a native rule or one rewritten from `:-abp-has()`) is applied to the page
-**When** a matching descendant is added to a candidate parent after page load
-**Then** the parent is hidden by the CSS engine without any JS work
-
-#### Scenario: MutationObserver runs only for text-content rules
-
-**Given** a page has cosmetic selectors but no text-hide rules
-**When** the cosmetic shim runs
-**Then** no `MutationObserver` is installed (selector hides are handled entirely by the CSS engine)
-
-**Given** a page has text-hide rules
-**When** new DOM nodes are inserted
-**Then** a debounced `MutationObserver` re-runs the text scan within 50ms — selector hides remain owned by the CSS engine
-
-#### Scenario: uBO `:style()` rule applies custom declarations
-
-**Given** a rule `##.banner:style(height: 1px !important)`
-**When** the page is loaded
-**Then** the early `<style>` tag contains `.banner { height: 1px !important }`
-**And** the matching element's computed `height` is `1px`
-**And** the element's computed `display` is NOT `none`
-
-#### Scenario: uBO `:style()` rule rides domain scoping
-
-**Given** a rule `linkedin.com##.promo:style(opacity: 0.1)`
-**When** the user visits `https://linkedin.com`
-**Then** the `<style>` tag contains the rule
-**When** the user visits `https://other.com`
-**Then** the rule is NOT in the `<style>` tag
-
-#### Scenario: Domain-scoped selectors
-
-**Given** a selector `example.com##.ad-box` is loaded
-**When** the user visits `https://example.com/page`
-**Then** `.ad-box` is hidden
-**When** the user visits `https://other.com/page`
-**Then** `.ad-box` is NOT hidden (not a global selector)
-
----
-
-### Requirement: CB-005 - Text-Based Hiding
-
-The system SHALL hide elements containing specific text patterns, for `#?#` rules with `:-abp-contains()`.
-
-#### Scenario: Hide LinkedIn promoted posts
-
-**Given** a text hide rule targets `linkedin.com` with selector `div.feed-shared-update-v2` and pattern `Promoted`
-**When** the user views their LinkedIn feed
-**Then** posts containing "Promoted" in their text content are hidden
-
-#### Scenario: Multiple text patterns
-
-**Given** a text hide rule has patterns `["Promoted", "Sponsored"]`
-**When** an element's `textContent` contains either pattern
-**Then** the element is hidden
-
-#### Scenario: Text hiding with MutationObserver
-
-**Given** the page dynamically loads more content (infinite scroll)
-**When** new elements matching the selector appear
-**Then** text-based hiding is applied within 50ms
-
----
-
-### Requirement: CB-006 - Per-Site Toggle
-
-Each site SHALL have a `contentBlockEnabled` setting (default: `true`) that controls all content blocking for that site.
-
-#### Scenario: Disable content blocking for a site
-
-**Given** a site has content blocking disabled in its settings
-**When** the site loads
-**Then** no domain blocking, CSS hiding, or text hiding is applied
-
-#### Scenario: Default enabled
-
-**Given** a new site is created
-**Then** `contentBlockEnabled` defaults to `true`
-
-#### Scenario: Setting persists
-
-**Given** a site has content blocking disabled
-**When** the app is restarted
-**Then** the setting remains disabled
-
-#### Scenario: Toggle disabled when no rules
-
-**Given** no filter lists have been downloaded
-**When** the user opens site settings
-**Then** the Content Blocker toggle is greyed out (disabled)
-
-#### Scenario: Propagates to nested webviews
-
-**Given** a site has content blocking enabled
-**When** a cross-domain link opens in a nested InAppBrowser
-**Then** the nested webview also has content blocking enabled
-
----
-
-### Requirement: CB-007 - License Attribution
-
-The EasyList filter lists SHALL be credited under CC BY-SA 3.0 in the app's license page and README.
-
-#### Scenario: License visible
-
-**Given** the user opens the Licenses page
-**Then** an entry for "EasyList filter lists (filter data)" is shown
-**And** it displays the CC BY-SA 3.0 license text crediting "The EasyList authors"
-
-#### Scenario: README attribution
-
-**Given** a user reads the README
-**Then** EasyList is listed in the Tech Stack section with license info
-
----
-
-### Requirement: CB-008 - Native Interceptor Synchronization
-
-Whenever the aggregated ABP rule set changes (download, toggle, remove, add custom list), the system SHALL re-push the current `ContentBlockerService.blockedDomains` set to the native Android interceptor and invalidate the merged DNS+ABP JS Bloom filter.
-
-#### Scenario: Rules change fires listener
-
-**Given** a caller has subscribed via `ContentBlockerService.addRulesChangedListener`
-**When** any of `downloadList`, `downloadAllLists`, `toggleList`, `removeList`, `addCustomList`, or `initialize` completes
-**Then** `_rebuildRules` runs and invokes the listener after the aggregated sets are updated
-
-#### Scenario: Main wiring pushes to native and invalidates Bloom
-
-**Given** app startup has registered `ContentBlockerService.addRulesChangedListener`
-**When** the listener fires
-**Then** `WebInterceptNative.sendAbpDomains` is called with the current blocked-domains set (Android only; no-op on other platforms)
-**And** `DnsBlockService.invalidateMergedBloom` clears the cached Bloom so the next webview creation rebuilds it
-
-#### Scenario: Initial sync on startup
-
-**Given** cached filter lists include 50,000 blocked domains at startup
-**When** `ContentBlockerService.initialize` completes
-**Then** main.dart explicitly calls `WebInterceptNative.sendAbpDomains` once
-**And** the listener is registered afterwards so subsequent changes re-sync automatically
-
----
-
-### Requirement: CB-010 - Optional Rust-Backed Engine
-
-When the user opts in via the `useRustAdblockEngine` SharedPreferences flag (toggleable from App Settings → Content Blocker → "Use Rust adblock engine") AND the platform ships the `webspace_adblock` shared library, the system SHALL route network-block decisions through Brave's adblock-rust engine via the Dart FFI binding in [lib/services/adblock_engine.dart](../../../lib/services/adblock_engine.dart). When the flag is unset or the library cannot be loaded, the system SHALL fall back to the Dart parser engine described in CB-001 through CB-009 with no behavior change visible to callers.
-
-#### Scenario: Engine takes precedence when active
-
-**Given** `useRustAdblockEngine` is true and the library loaded
-**When** `ContentBlockerService.isBlocked(url, sourceUrl: src)` is called
-**Then** the result is whatever `AdblockEngine.shouldBlock` returns
-**And** the Dart aggregations (`_blockedDomains`, `_blockedDomainPathRegexes`) are unused for that decision
-
-#### Scenario: Toggle flips engine without app restart
-
-**Given** the user opens App Settings → Content Blocker → "Use Rust adblock engine"
-**When** they flip the switch
-**Then** `setRustEngineEnabled` persists the new value to SharedPreferences
-**And** triggers `_rebuildRules`, which spins up or tears down the engine immediately
-**And** subsequent `isBlocked` calls reflect the new routing
-
-#### Scenario: Toggle disabled when library not on platform
-
-**Given** `AdblockEngine.load` returns null on the running platform
-**When** the user opens App Settings
-**Then** the "Use Rust adblock engine" switch is greyed out
-**And** the subtitle reads "Native library not available on this platform"
-
-#### Scenario: Fallback when library missing but flag is true
-
-**Given** the user has `useRustAdblockEngine = true` from a prior install on a platform that shipped the library
-**And** they restore the same prefs onto a platform without the library
-**When** the service initialises
-**Then** a warning is logged
-**And** subsequent `isBlocked` calls use the Dart parser engine
-**And** every CB-001..CB-009 scenario continues to pass
-
-#### Scenario: useRustAdblockEngine round-trips through settings backup
-
-**Given** the user has flipped the toggle on
-**When** they export settings and restore on another device
-**Then** the imported pref preserves the value (the registry in `app_prefs.dart` covers it automatically)
-
-#### Scenario: $domain= modifier fires through service entry point
-
-**Given** the engine is active and the filter list contains `||tracker.com^$domain=news.com`
+**Given** the engine knows `||tracker.com^$domain=news.com`
 **When** `isBlocked('https://tracker.com/x', sourceUrl: 'https://news.com/article')` is called
 **Then** the result is `true`
 **When** the same URL is checked with `sourceUrl: 'https://blog.com/article'`
 **Then** the result is `false`
 
-#### Scenario: requestType gates resource-type modifiers
+#### Scenario: Resource-type modifier gates by request type
 
 **Given** a rule `||example.com^$image`
 **When** `isBlocked(url, requestType: 'image')` is called
@@ -559,57 +175,105 @@ When the user opts in via the `useRustAdblockEngine` SharedPreferences flag (tog
 **When** the same URL is checked with `requestType: 'document'`
 **Then** the rule does NOT fire
 
-#### Scenario: Sub-resource hooks pass page URL as sourceUrl
+#### Scenario: Hook ordering in shouldOverrideUrlLoading
 
-**Given** the engine is active
-**When** the JS-bridge `blockResourceLoaded` or `blockCheck` handler fires for a sub-resource
-**Then** the handler passes `lastLoadStartUrl` (the page hosting the request) as `sourceUrl`
-**And** the engine can fire `$domain=` rules that target the page's domain
+**Given** a URL is being evaluated in `shouldOverrideUrlLoading`
+**Then** the content blocker check runs after the captcha allowlist and DNS blocklist
+**And** before ClearURLs processing
 
-#### Scenario: Android sub-resources consult the engine via JNI
+#### Scenario: Sub-resource blocking on Android via JNI
 
-**Given** the engine is active on Android AND `libwebspace_adblock.so` is bundled in `jniLibs/<abi>/`
+**Given** the engine is active on Android with `libwebspace_adblock.so` bundled
 **When** a page issues a sub-resource request
-**Then** the native `FastSubresourceInterceptor.checkUrl` first walks the host-only DNS + ABP HashSets (cheap fast path)
-**And** for hosts the host-only path didn't already block, calls into the JNI bridge (`AdblockEngineNative.checkUrl`) with the request URL, current page URL as source, and a Sec-Fetch-Dest-derived resource type
-**And** the JNI layer dispatches to the same Brave adblock-rust engine the Dart side uses
-**And** `$domain=` / path-anchored / `$script` / `$image` / regex rules fire on every sub-resource — not just top-level nav
+**Then** `FastSubresourceInterceptor.checkUrl` first walks the DNS host-only set (fast path)
+**And** for hosts the DNS check let through, calls `AdblockEngineNative.checkUrl` with URL + Referer-derived sourceUrl + `Sec-Fetch-Dest`-derived requestType
+**And** the JNI layer dispatches to the same adblock-rust engine the Dart side uses
+**And** `$domain=` / path-anchored / `$script` / `$image` / regex rules fire on every sub-resource
 
-#### Scenario: Android falls back to host-only when JNI library missing
+#### Scenario: Sub-resource blocking on iOS/macOS via JS bridge
 
-**Given** the engine flag is on but `libwebspace_adblock.so` failed to load on this ABI / build
+**Given** the engine is active on iOS or macOS
+**And** the DNS-only Bloom prefilter has been delivered to the webview's JS interceptor
+**When** the page issues a `fetch('https://tracker.example.com/beacon')` call
+**Then** the JS interceptor invokes the `blockCheck` handler, passing URL + `lastLoadStartUrl` as `sourceUrl`
+**And** the Dart handler routes through `ContentBlockerService.isBlocked` (engine call)
+**And** the result is honoured by the JS interceptor
+
+#### Scenario: Android falls back to DNS-only when JNI library missing
+
+**Given** the engine is active in Dart but `libwebspace_adblock.so` failed to load on this Android ABI
 **Then** `AdblockEngineNative.active` is false
-**And** `FastSubresourceInterceptor.checkUrl` skips the engine consult entirely
-**And** sub-resources go through the host-only HashSet fast path seeded by the Dart parser's `_blockedDomains`
+**And** `FastSubresourceInterceptor.checkUrl` skips the engine consult
+**And** sub-resources only use the DNS host-only fast path
 **And** the activation log emits a warning surfacing the gap
 
-#### Scenario: Engine teardown reverts Android sub-resources to host-only
+#### Scenario: Source attribution when DNS + ABP both match
 
-**Given** the engine is active on Android
-**When** the user flips the Settings toggle off
-**Then** Dart calls `WebInterceptNative.sendAdblockEngineRules('')`
-**And** the native side calls `AdblockEngineNative.setRules('')` which frees the engine handle
-**And** subsequent sub-resource requests skip the engine consult
-**And** `clearAllHostDecisionCaches` runs so previously-cached `ALLOWED` decisions don't shadow the host-only sets
+**Given** a host appears in the DNS blocklist AND would be blocked by the engine
+**When** a sub-resource request is blocked
+**Then** the interceptor attributes the hit to `dns` (DNS is checked first)
+**And** the ABP block counter is not incremented for that request
 
-#### Scenario: Domain-scoped cosmetic rules continue to use Dart engine
+#### Scenario: Per-source counters preserved in stats
 
-**Given** the Rust engine is active
-**When** the cosmetic shim is built via `getEarlyCssScript` or `getCosmeticScript`
-**Then** the rules come from the Dart aggregations, NOT from the Rust engine
-**(uBO splits cosmetic rules into domain-scoped vs generic; the engine has both, but only the generic path is wired to the engine — see CB-011.)**
+**Given** a page load produces 10 DNS-blocked sub-resources and 3 engine-blocked sub-resources
+**Then** `DnsStats.blocked` equals 13 (merged)
+**And** `DnsStats.blockedByDns` equals 10
+**And** `DnsStats.blockedByAbp` equals 3
+**And** the stats banner displays `13 blocked`
 
 ---
 
-### Requirement: CB-011 - Generic Cosmetic Selectors via Engine
+### Requirement: CB-004 - Cosmetic Filtering
 
-When the Rust engine is active, generic `##.x` cosmetic rules (no domain prefix) SHALL be looked up on demand via the engine's `hidden_class_id_selectors` API, gated on the loaded page actually using a class or id one of the rules targets. The result is injected as `display: none !important` into a `<style>` tag the same way domain-scoped rules are.
+The system SHALL hide page elements by injecting CSS `display: none !important` rules at `DOCUMENT_START`, sourced from the engine's domain-scoped cosmetic resources and the on-demand generic-class/id scan.
+
+#### Scenario: Domain-scoped hides injected at DOCUMENT_START
+
+**Given** the engine's `cosmeticResources(pageUrl)` returns `hide_selectors: [".feed-promo", "#ad-leaderboard"]`
+**When** the webview starts loading the page
+**Then** `getEarlyCssScript` builds a `<style>` tag with those selectors as `display: none !important`
+**And** the script is injected at `DOCUMENT_START` via `initialUserScripts`
+**And** matching elements are never visually rendered
+
+#### Scenario: Page reaching $generichide skips the generic scan
+
+**Given** the engine's `cosmeticResources(pageUrl)` reports `generichide: true`
+**When** the page-side generic-class/id scanner reports its classes and ids
+**Then** `genericCosmeticSelectorsFor` returns an empty list
+**And** no generic hides are added on top of the domain-scoped set
+
+#### Scenario: Exception selectors carve out hides
+
+**Given** the engine's `cosmeticResources(pageUrl)` includes `exceptions: [".real-content"]`
+**When** the bridge handler computes the merged scan exceptions
+**Then** the engine's `hiddenClassIdSelectors` call receives those exceptions
+**And** rules whose selector matches an exception are excluded from the returned list
+
+#### Scenario: Procedural actions emitted by the engine
+
+**Given** the engine's `cosmeticResources(pageUrl)` returns `procedural_actions: [<JSON for :has-text(), :upward(), :remove(), :style(), :remove-attr(), :remove-class()>]`
+**When** `proceduralActionsFor` is called
+**Then** the JSON strings are returned verbatim
+**And** the procedural shim parses each entry and runs the action against the live DOM
+
+#### Scenario: Late-added or class-flipped elements hide reactively
+
+**Given** the early `<style>` tag is installed at `DOCUMENT_START`
+**When** a matching element is appended to the DOM after page load, OR an existing element gains a matching class/attribute later
+**Then** the CSS engine re-matches automatically and the element is hidden — no JS sweep needed
+
+---
+
+### Requirement: CB-005 - Generic Cosmetic Selectors via Engine
+
+Generic `##.x` cosmetic rules (no domain prefix) SHALL be looked up on demand via the engine's `hidden_class_id_selectors` API, gated on the loaded page actually using a class or id one of the rules targets. The result is injected as `display: none !important` into a `<style>` tag the same way domain-scoped rules are.
 
 #### Scenario: JS scanner collects classes and ids on DOMContentLoaded
 
 **Given** the engine is active for a page
 **When** the page reaches DOMContentLoaded
-**Then** the page-side scanner shim built by `buildGenericCosmeticScannerShim` walks every element
+**Then** the scanner shim built by `buildGenericCosmeticScannerShim` walks every element
 **And** collects unique `classList` tokens and non-empty `id` attributes
 **And** sends them to the `genericCosmeticScan` bridge handler
 
@@ -640,19 +304,96 @@ When the Rust engine is active, generic `##.x` cosmetic rules (no domain prefix)
 **Then** the scanner shim returns without throwing
 **And** the page renders normally
 
-#### Scenario: Generic shim only injected when engine is active
+#### Scenario: Generic shim only injected when engine is loaded
 
-**Given** the Rust engine is NOT active
+**Given** the engine library is not available on this platform
 **Then** `buildGenericCosmeticScannerShim` is not added to `initialUserScripts`
-**And** the bridge handler returns `[]` regardless of payload
-**(The Dart parser path keeps its own generic-rule injection — generic rules from a list still hide on the legacy engine.)**
+**And** the bridge handler would return `[]` regardless of payload
 
-#### Scenario: Linux bundle ships the library
+---
 
-**Given** `scripts/build_rust.sh linux` has been run
-**Then** `linux/lib/libwebspace_adblock.so` exists
-**And** `flutter build linux --release` packages it into the bundle's `lib/` directory
-**And** `AdblockEngine.load(...)` resolves it at runtime via the `$ORIGIN/lib` RPATH
+### Requirement: CB-006 - Per-Site Toggle
+
+Each site SHALL have a `contentBlockEnabled` setting (default: `true`) that controls all content blocking for that site.
+
+#### Scenario: Disable content blocking for a site
+
+**Given** a site has content blocking disabled in its settings
+**When** the site loads
+**Then** no domain blocking, CSS hiding, or text hiding is applied
+
+#### Scenario: Default enabled
+
+**Given** a new site is created
+**Then** `contentBlockEnabled` defaults to `true`
+
+#### Scenario: Setting persists
+
+**Given** a site has content blocking disabled
+**When** the app is restarted
+**Then** the setting remains disabled
+
+#### Scenario: Toggle disabled when no rules loaded
+
+**Given** no filter lists have been downloaded (engine has no rules)
+**When** the user opens site settings
+**Then** the Content Blocker toggle is greyed out
+
+#### Scenario: Propagates to nested webviews
+
+**Given** a site has content blocking enabled
+**When** a cross-domain link opens in a nested InAppBrowser
+**Then** the nested webview also has content blocking enabled
+
+---
+
+### Requirement: CB-007 - License Attribution
+
+The EasyList filter lists SHALL be credited under CC BY-SA 3.0, and `adblock-rust` plus its transitive dependencies SHALL be credited in the app's license page and README.
+
+#### Scenario: EasyList license visible
+
+**Given** the user opens the Licenses page
+**Then** an entry for "EasyList filter lists (filter data)" is shown
+**And** it displays the CC BY-SA 3.0 license text crediting "The EasyList authors"
+
+#### Scenario: Adblock-rust deps listed
+
+**Given** the user opens the Licenses page
+**Then** the engine's `depLicenses()` output is rendered as a section
+**And** every crate in the adblock-rust transitive dependency tree appears with its SPDX license
+
+#### Scenario: README attribution
+
+**Given** a user reads the README
+**Then** EasyList is listed in the Tech Stack section with license info
+**And** `adblock-rust` (Brave Software) is credited there too
+
+---
+
+### Requirement: CB-008 - Engine Rebuild Listener Notification
+
+Whenever the engine is rebuilt (download, toggle, remove, add custom list, uBO toggle), the system SHALL fire registered listeners so dependent caches (DNS bloom, native interceptor) can invalidate.
+
+#### Scenario: Rules change fires listener
+
+**Given** a caller has subscribed via `ContentBlockerService.addRulesChangedListener`
+**When** any of `downloadList`, `downloadAllLists`, `toggleList`, `removeList`, `addCustomList`, `setUseUboResources`, or `initialize` completes
+**Then** `_rebuildEngine` runs and invokes the listener after the engine is updated
+
+#### Scenario: Main wiring invalidates DNS Bloom
+
+**Given** app startup has registered `ContentBlockerService.addRulesChangedListener` from `main.dart`
+**When** the listener fires
+**Then** `DnsBlockService.invalidateMergedBloom` clears the cached Bloom
+
+#### Scenario: Native Android engine kept in sync
+
+**Given** the engine is rebuilt with new rules
+**When** `_rebuildEngine` finishes loading the Dart-side engine
+**Then** `WebInterceptNative.sendAdblockEngineRules(rulesText, enableUboResources)` is called
+**And** the native side spins up its own engine instance from the same text
+**And** clears its per-host decision cache so stale `ALLOWED` verdicts don't shadow the new rules
 
 ---
 
@@ -668,67 +409,78 @@ Existing sites without `contentBlockEnabled` in their stored JSON SHALL default 
 
 ---
 
+### Requirement: CB-010 - uBO Resource Pool Toggle
+
+The system SHALL gate `adblock-rust`'s uBO web_accessible_resources/ pool behind a user-facing toggle persisted as `useUboResources` (default: `true`).
+
+#### Scenario: Default on
+
+**Given** the user opens App Settings for the first time
+**Then** the "Serve uBO redirect stubs" toggle is on by default
+
+#### Scenario: On → $redirect= returns stub bodies
+
+**Given** the toggle is on
+**And** a filter rule contains `$redirect=noopjs` or similar
+**When** a matching request is intercepted
+**Then** `ContentBlockerService.redirectFor` returns a `data:` URL with the matching stub body (noop.js, 1x1.gif, neutered tracker shim)
+**And** the request is served the stub instead of being dropped
+
+#### Scenario: Off → $redirect= rules become plain blocks
+
+**Given** the toggle is off
+**When** a matching request is intercepted
+**Then** `redirectFor` returns null
+**And** the interceptor falls through to the empty-body block response
+
+#### Scenario: Toggle flips engine without app restart
+
+**Given** the user flips the toggle
+**Then** `setUseUboResources` persists the value
+**And** `_clearEngineCache` deletes the serialized blob (the cached engine was built with the old uBO flag)
+**And** `_rebuildEngine` runs, reinstantiating the engine with the new flag
+**And** subsequent decisions reflect the new flag
+
+#### Scenario: Toggle greyed out on unsupported platforms
+
+**Given** the engine library cannot be loaded on this platform
+**When** the user opens App Settings
+**Then** the "Serve uBO redirect stubs" toggle is disabled
+**And** the subtitle reads "Native adblock library not available on this platform"
+
+---
+
+### Requirement: CB-011 - Settings Backup Round-Trip
+
+The `useUboResources` preference SHALL round-trip through settings export/import via the `kExportedAppPrefs` registry. The retired `useRustAdblockEngine` toggle SHALL NOT round-trip.
+
+#### Scenario: useUboResources preserved across devices
+
+**Given** the user has flipped the toggle off
+**When** they export settings and restore on another device
+**Then** the imported pref preserves the value
+**And** the integrity test in `test/settings_backup_test.dart` exercises this automatically
+
+#### Scenario: Imported useRustAdblockEngine pref is ignored
+
+**Given** an old backup JSON contains `useRustAdblockEngine: false`
+**When** the user restores it on a current build
+**Then** the key is silently ignored
+**And** the engine is loaded as the unconditional default
+**And** no warning is required (forward-compat shape: unknown keys ignore)
+
+---
+
 ## Implementation Details
 
 ### Architecture: Why Not flutter_inappwebview ContentBlocker
 
 The `flutter_inappwebview` plugin provides a `contentBlockers` parameter on `InAppWebViewSettings` that maps to platform-specific implementations:
 
-**iOS/macOS (WebKit):** Rules are compiled into `WKContentRuleList` bytecode via `WKContentRuleListStore.compileContentRuleList()`. This runs at the WebKit engine level before resources load — fast and efficient. Supports `block`, `block-cookies`, `css-display-none`, and `ignore-previous-rules` actions.
+- **iOS/macOS (WebKit):** Rules compiled into `WKContentRuleList` bytecode. Performant but the rule format is Apple-specific JSON, not ABP.
+- **Android (no native API):** The plugin runs O(n) regex per resource in `shouldInterceptRequest` and applies CSS with an 800ms `Handler.postDelayed`. Times out on 30K+ rules and misses dynamic SPA content.
 
-**Android (No native API):** The plugin implements content blocking in Java:
-- Resource blocking: Each `block` rule is checked via `Pattern.matcher(url).matches()` inside `shouldInterceptRequest()`. With 30K+ EasyList rules, this is O(n) per sub-resource request, causing page load timeouts.
-- CSS hiding: All `css-display-none` selectors are concatenated into a single JS string and injected via `evaluateJavascript()` with a hardcoded 800ms `Handler.postDelayed()`. No `MutationObserver` — dynamic content in React/SPA apps is never caught.
-- `IGNORE_PREVIOUS_RULES`: The `ContentBlockerActionType.IGNORE_PREVIOUS_RULES` static field throws `type 'Null' is not a subtype of type 'String'` on non-Apple platforms because the native value mapping is null.
-
-Our custom implementation avoids these issues:
-- O(1) domain blocking via hash set (vs O(n) regex per request)
-- CSS injection at `DOCUMENT_START` via `UserScript` (vs 800ms delayed `evaluateJavascript`)
-- Selector hides handled entirely by the early `<style>` tag — the CSS engine matches present and future elements, including class-flips and `:has()` descendant changes, with zero JS cost on every keystroke
-- `MutationObserver` (50ms debounce) installed only when text-content rules are present, to re-run text-scan on dynamic inserts
-- Text-based hiding for `:-abp-contains()` patterns (not supported by ContentBlocker API at all)
-- Cross-platform: same behavior on iOS, Android, and macOS
-
-### ABP Filter Parser
-
-`AbpParseResult parseAbpFilterListSync(String content)` parses a filter list into three data structures:
-
-```dart
-class AbpParseResult {
-  final Set<String> blockedDomains;                    // ||domain^ rules
-  final Set<String> exceptionDomains;                  // @@||domain^ rules
-  final Map<String, List<String>> cosmeticSelectors;   // ## rules (key '' = global)
-  final Map<String, List<TextHideRule>> textHideRules; // #?# rules with :-abp-contains
-}
-
-class TextHideRule {
-  final String selector;          // CSS selector for container element
-  final List<String> textPatterns; // Text patterns to match in textContent
-}
-```
-
-Parsing is run in a background isolate via `compute()` to avoid blocking the UI.
-
-Rule type support:
-
-| Syntax | Support | Notes |
-|--------|---------|-------|
-| `\|\|domain^` | Converted to blocked domain | Simple domain-only patterns |
-| `\|\|domain^$options` | Converted (options ignored) | Domain extracted, options skipped |
-| `@@\|\|domain^` | Converted to exception domain | Overrides blocked domains |
-| `##selector` | Converted to cosmetic selector | Including standard CSS `:has()` |
-| `domain##selector` | Converted with domain scope | Multiple domains via `d1,d2##sel` |
-| `##sel:-abp-has(X)` | Rewritten to `sel:has(X)` | Standard CSS `:has()` |
-| `##sel:has-text(text)` | Converted to TextHideRule | Text-based element hiding |
-| `##sel:contains(text)` | Converted to TextHideRule | Alias for `:has-text()` |
-| `#?#sel:-abp-contains(text)` | Converted to TextHideRule | Extracts selector + text patterns |
-| `#?#sel:-abp-contains(/a\|b/)` | Converted to TextHideRule | Regex-style patterns split on `\|` |
-| `#$#` snippet filters | Skipped | Would require ABP snippet runtime |
-| `##^` HTML filters | Skipped | Non-standard |
-| `@@\|\|domain/path` | Skipped | Only simple domain exceptions supported |
-| `$redirect`, `$csp`, `$removeparam` | Skipped | Advanced modifiers |
-| `/regex/` patterns | Skipped | Resource-level regex |
-| `:matches-path()`, `:matches-attr()` | Skipped in `##` | Unsupported pseudo-classes |
+Our implementation routes everything through `adblock-rust` and the page-side cosmetic shim, giving identical semantics across platforms.
 
 ### ContentBlockerService Singleton
 
@@ -737,16 +489,16 @@ static ContentBlockerService? _instance;
 static ContentBlockerService get instance => _instance ??= ContentBlockerService._();
 ```
 
-Key methods:
-- `isBlocked(url)` — O(1) domain lookup with parent domain walk-up; exception domains checked first
-- `getEarlyCssScript(pageUrl)` — Returns JS that injects a `<style>` tag (for DOCUMENT_START)
-- `getCosmeticScript(pageUrl)` — Returns full JS with MutationObserver + text hiding (for onLoadStop)
-
-Aggregated state:
-- `_blockedDomains: Set<String>` — union of all enabled lists' blocked domains
-- `_exceptionDomains: Set<String>` — union of all enabled lists' exception domains (override blocks)
-- `_cosmeticSelectors: Map<String, List<String>>` — union of all enabled lists' CSS selectors
-- `_textHideRules: Map<String, List<TextHideRule>>` — union of all enabled lists' text rules
+Key methods (all engine-backed):
+- `isBlocked(url, sourceUrl, requestType)` — engine's `shouldBlock`
+- `isHostBlocked(host)` — synthesises `https://<host>/` and asks the engine
+- `redirectFor(url, ...)` — engine's `$redirect=` lookup; null when no rule fires
+- `rewrittenUrl(url, ...)` — engine's `$removeparam=` lookup
+- `cspFor(url, ...)` — engine's `$csp=` lookup
+- `getEarlyCssScript(pageUrl)` — domain-scoped hides via `cosmeticResources(pageUrl).hide_selectors`
+- `getCosmeticScript(pageUrl)` — same `<style>` tag; no JS-side text rules (engine emits procedural actions instead)
+- `proceduralActionsFor(pageUrl)` — engine's `cosmeticResources(pageUrl).procedural_actions`
+- `genericCosmeticSelectorsFor({pageUrl, classes, ids})` — engine's `hiddenClassIdSelectors` with merged exceptions
 
 ### Default Filter Lists
 
@@ -759,45 +511,19 @@ Aggregated state:
 
 All licensed under GPL-3.0 / CC BY-SA 3.0 (dual-licensed, used under CC BY-SA 3.0).
 
-### FilterList Data Model
+### Storage
 
-```dart
-class FilterList {
-  final String id;
-  final String name;
-  final String url;
-  bool enabled;
-  int ruleCount;
-  DateTime? lastUpdated;
-}
-```
-
-Serialized to/from JSON, stored in SharedPreferences as a JSON string.
-
-### Cosmetic Script Injection
-
-Two-phase injection:
-
-1. **DOCUMENT_START** (via `initialUserScripts` + `onLoadStart`): CSS-only script that creates a `<style>` tag with `display: none !important` rules. Prevents flash of unstyled content. Owns the entire selector-hide path — including selectors rewritten from `:-abp-has()` to standard CSS `:has()`, which the CSS engine re-evaluates reactively when descendants change.
-
-2. **onLoadStop**: Full script that re-asserts the same `<style>` tag (idempotent) and, when text-hide rules are present:
-   - `hideText()` function that walks elements matching each rule's selector and writes `display: none` inline when any pattern is found in `textContent`
-   - `MutationObserver` on `document.body` with 50ms debounced callback that re-runs `hideText()`. The observer is **not** installed when no text-hide rules apply, since selector hides are owned by the CSS engine.
-
-Equivalence between this CSS-only shape and the previous shape (which also ran a runtime `querySelectorAll` sweep writing inline `style.display = 'none'`) is asserted at computed-style level by `test/js/content_blocker_shim_equivalence.test.js` and `test/browser/content_blocker_shim_equivalence.test.js`.
+- Filter list files: `<docs>/content_blocker_cache/<id>.txt`
+- Engine cache: `<docs>/content_blocker_cache/.engine.bin` + `.engine.meta` (sidecar `<rulesHash>:<uboFlag>`)
+- List metadata: SharedPreferences key `content_blocker_lists` (JSON string)
 
 ### Hook Point in WebView
-
-Main-document domain blocking in `shouldOverrideUrlLoading`:
 
 ```dart
 shouldOverrideUrlLoading: (controller, navigationAction) async {
   final url = navigationAction.request.url.toString();
-  if (_shouldBlockUrl(url)) return CANCEL;
   if (isCaptchaChallenge(url)) return ALLOW;
-  // DNS check records stats with source: BlockSource.dns on hit
   if (config.dnsBlockEnabled && DnsBlockService.instance.isBlocked(url)) return CANCEL;
-  // Content blocker domain check — records stats with source: BlockSource.abp on hit
   if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
     return CANCEL;
   }
@@ -805,24 +531,18 @@ shouldOverrideUrlLoading: (controller, navigationAction) async {
 }
 ```
 
-### Sub-resource Domain Blocking Integration
+### Cosmetic Script Injection
 
-ABP's `||domain^` rules extend beyond main-document navigation into every sub-resource request, by feeding the same aggregated set to the shared sub-resource interceptor used by the DNS blocklist.
+Two-phase injection:
 
-**Android (native):** `WebInterceptPlugin.kt` maintains two parallel hash sets, `dnsBlockedDomains` and `abpBlockedDomains`. `FastSubresourceInterceptor.checkUrl` tries DNS first (with hierarchy walk-up), then ABP. On match it calls `onBlockChecked(host, true, "dns"|"abp")`, which the Dart bridge drains via `fetchBlockEvents` and records on `DnsBlockService` with the right `BlockSource`.
+1. **DOCUMENT_START** (`initialUserScripts` + `onLoadStart`): `<style>` tag with engine-supplied domain-scoped selectors as `display: none !important`. Prevents flash of unstyled content.
+2. **onLoadStop**: re-asserts the same `<style>` tag (idempotent). Selector hides are owned entirely by the CSS engine; the procedural shim runs separately for `:has-text()` / `:upward()` / `:remove()` rules emitted by the engine.
 
-**iOS/macOS (JS):** A single merged Bloom filter built from DNS ∪ ABP blocked domains is shipped to the JS interceptor via the `getBlockBloom` handler. The JS layer wraps `fetch`, `XMLHttpRequest`, and property setters on `img/script/link/iframe`; a Bloom match triggers the `blockCheck` roundtrip, which in Dart resolves DNS vs ABP (respecting the per-site `dnsBlockEnabled` and `contentBlockEnabled` toggles) and records the decision.
-
-Both paths feed the same `DnsBlockService.DnsStats` structure so the stats banner and dev-tools DNS tab show a single merged "blocked" count while `blockedByDns` / `blockedByAbp` remain separately countable. When one filter list ships a domain that also appears in the DNS blocklist, the DNS side wins attribution (it's checked first).
-
-### Storage
-
-- Filter list files: `getApplicationDocumentsDirectory()/content_blocker/<id>.txt`
-- List metadata: SharedPreferences key `content_blocker_lists` (JSON string)
+Late-added or class-flipped elements hide reactively without any JS sweep.
 
 ### WebViewModel Integration
 
-`contentBlockEnabled` field added to `WebViewModel`:
+`contentBlockEnabled` field on `WebViewModel`:
 - Constructor default: `true`
 - Serialized to JSON as `'contentBlockEnabled'`
 - Deserialized with `?? true` fallback for backward compatibility
@@ -834,96 +554,50 @@ Both paths feed the same `DnsBlockService.DnsStats` structure so the stats banne
 ## Files
 
 ### Created
-- `lib/services/abp_filter_parser.dart` — ABP filter list parser: domain extraction, cosmetic selectors, text hide rules
-- `lib/services/content_blocker_service.dart` — Singleton service: list management, download, cache, rule aggregation, script generation
-- `test/abp_filter_parser_test.dart` — 24 unit tests for parser
-- `test/content_blocker_service_test.dart` — 11 unit tests for service
+- `lib/services/content_blocker_service.dart` — Singleton service: list management, download, cache, engine instantiation, public API surface
+- `lib/services/adblock_engine.dart` — Dart FFI wrapper around `webspace_adblock`
+- `rust/webspace_adblock/` — Rust crate wrapping `adblock-rust` (Brave) with cbindgen-generated C header
+- `lib/services/content_blocker_shim.dart` — Pure-Dart builders for the early-CSS and cosmetic JS shims
+- `lib/services/generic_cosmetic_shim.dart` — Page-side class/id scanner
+- `lib/services/procedural_cosmetic_shim.dart` — Page-side runner for engine-emitted procedural actions
 - `openspec/specs/content-blocker/spec.md` — This specification
 
 ### Modified
 - `lib/web_view_model.dart` — Added `contentBlockEnabled` field, serialization, pass to WebViewConfig
-- `lib/services/webview.dart` — Added `contentBlockEnabled` to WebViewConfig, domain block hook, UserScript CSS injection at DOCUMENT_START, cosmetic script injection at onLoadStop, merged DNS+ABP JS Bloom interceptor, source-tagged stat recording
-- `lib/services/content_blocker_service.dart` — Public `blockedDomains` getter, `addRulesChangedListener`/`removeRulesChangedListener` for native + JS Bloom sync
-- `lib/services/dns_block_service.dart` — `BlockSource` enum, source field on `DnsLogEntry`, `blockedByDns`/`blockedByAbp` counters, `getMergedBlockBloom` for DNS ∪ ABP, blocklist-changed listeners
-- `lib/services/web_intercept_native.dart` — `sendDnsDomains` + `sendAbpDomains` split, source-tagged block events drained via `fetchBlockEvents`
-- `android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebInterceptPlugin.kt` — Split DNS/ABP domain sets, source-tagged block events, renamed method channel handlers to `setDnsBlockedDomains` / `setAbpBlockedDomains` / `fetchBlockEvents` / `blockEventsReady`
-- `lib/widgets/stats_banner.dart` — Shows banner when either DNS or ABP has populated domain sets
-- `lib/screens/settings.dart` — Per-site Content Blocker toggle (SwitchListTile)
-- `lib/screens/app_settings.dart` — Content Blocker section with list management UI, download/toggle/remove, custom list dialog
+- `lib/services/webview.dart` — Added `contentBlockEnabled` to WebViewConfig, domain block hook in `shouldOverrideUrlLoading`, cosmetic + procedural shim injection
+- `lib/services/dns_block_service.dart` — `BlockSource` enum, `blockedByDns` / `blockedByAbp` counters, DNS-only `getMergedBlockBloom` (ABP lives in the engine)
+- `lib/services/web_intercept_native.dart` — `sendDnsDomains`, `sendAdblockEngineRules`, `isAdblockEngineSupported`
+- `android/app/src/main/kotlin/.../WebInterceptPlugin.kt` — DNS host-only fast path, JNI bridge to `adblock-rust` via `AdblockEngineNative`
+- `lib/widgets/stats_banner.dart` — Shows banner when either DNS or engine has rules
+- `lib/screens/settings.dart` — Per-site Content Blocker toggle
+- `lib/screens/app_settings.dart` — Content Blocker list management UI, uBO resources toggle
 - `lib/screens/inappbrowser.dart` — Propagate `contentBlockEnabled` to nested webview
-- `lib/main.dart` — ContentBlockerService initialization, change-listener wiring for native + Bloom sync, CC BY-SA 3.0 license registration
-- `test/web_view_model_test.dart` — Tests for contentBlockEnabled serialization and defaults
-- `README.md` — Feature bullet point, Tech Stack credit with license info
-- `fastlane/metadata/android/en-US/changelogs/9.txt` — Changelog entry
+- `lib/main.dart` — `ContentBlockerService.initialize`, change-listener wiring for DNS bloom invalidation, license registration
+
+### Removed
+- `lib/services/abp_filter_parser.dart` — Legacy Dart parser; superseded by adblock-rust
+- `lib/services/abp_filter_parser_async.dart` — Background-isolate wrapper for the legacy parser
+- `lib/settings/app_prefs.dart::useRustAdblockEngine` — Toggle retired; engine is now the unconditional path
 
 ---
 
 ## Testing
 
-### Unit Tests
-
 ```bash
-# ABP filter parser tests (rule parsing, selector handling, text rules)
-fvm flutter test test/abp_filter_parser_test.dart
-
-# Content blocker service tests (FilterList serialization, domain blocking, script generation)
-fvm flutter test test/content_blocker_service_test.dart
-
-# WebViewModel serialization tests (contentBlockEnabled field)
-fvm flutter test test/web_view_model_test.dart
+fvm flutter test test/content_blocker_service_test.dart  # service surface + singleton
+fvm flutter test test/adblock_engine_test.dart           # FFI smoke + rule parity
+npm run test:js                                          # cosmetic + procedural shim behaviour
 ```
-
-ABP filter parser tests cover:
-- Comment and header line skipping
-- Simple domain block rule conversion (`||domain^`)
-- Domain rule without trailing `^`
-- Simple exception rule conversion (`@@||domain^`)
-- Complex exception rule skipping (`@@||domain/path`)
-- Exception domain case-insensitivity
-- Global cosmetic filter conversion (`##.selector`)
-- Domain-specific cosmetic filter conversion (`domain##.selector`)
-- Multi-domain cosmetic filter
-- Standard CSS `:has()` selectors (allowed — native CSS)
-- `:has-text()` in `##` rules converted to text hide rules
-- `:contains()` in `##` rules converted to text hide rules
-- `:-abp-has()` rewritten to standard `:has()` in cosmetic rules
-- Domain-specific `:-abp-has()` rewriting
-- `#?#` rules with `:-abp-contains()` to text hide rules
-- `#?#` rules without text matching (skipped)
-- `#$#` snippet rules (skipped)
-- `##^` HTML filter rules (skipped)
-- Complex path rules (skipped — not domain-only)
-- `$redirect`, `$csp`, `$removeparam` rules (skipped)
-- Regex patterns (skipped)
-- Mixed rule parsing (domains, exceptions, cosmetic, :-abp-has, :has-text)
-- Real EasyList-style rules
-- Case-insensitive domain blocking
-- Selector aggregation from multiple rules
-
-Content blocker service tests cover:
-- FilterList JSON serialization/deserialization
-- Optional field handling
-- JSON round-trip
-- List-of-lists serialization
-- Singleton instance
-- hasRules state
-- totalRuleCount across enabled lists
-- Unmodifiable list getter
-- isBlocked with domain hierarchy walk-up
-- isBlocked respects exception domains (subdomain exception, unrelated subdomains still blocked)
-- isBlocked with exception on exact blocked domain
-- getCosmeticScript returns null when no selectors
 
 ### Manual Testing
 
 1. Open App Settings, scroll to Content Blocker section
 2. Tap download on EasyList, verify rule count appears
 3. Tap "Update All", verify all lists download
-4. Open a site with ads (e.g., a news site), verify ad elements are hidden
-5. Open LinkedIn, verify "Promoted" posts are hidden in feed
-6. Open site Settings, disable Content Blocker toggle, reload page
-7. Verify ads and promoted content reappear
-8. Add a custom filter list via "Add Custom List" dialog
-9. Verify the custom list can be downloaded, toggled, and removed
-10. Check Licenses page shows "EasyList filter lists (filter data)" with CC BY-SA 3.0
-11. Restart app, verify filter lists are loaded from cache and blocking works immediately
+4. Open a news site, verify ad slots are hidden before they paint
+5. Open LinkedIn, verify "Promoted" posts are hidden (engine procedural `:has-text()` rules)
+6. Toggle "Serve uBO redirect stubs" off, reload a tracker-heavy site, verify some tracker scripts now drop instead of returning stubs (sites may break — that's the trade-off the user opted into)
+7. Open site Settings, disable Content Blocker, reload page, verify ads and promoted content reappear
+8. Add a custom filter list via "Add Custom List" dialog, verify it can be downloaded, toggled, and removed
+9. Check Licenses page shows "EasyList filter lists (filter data)" + adblock-rust transitive deps
+10. Restart app, verify the engine deserializes from the cached blob (log line `Engine active: ... (deserialize ...)`)
