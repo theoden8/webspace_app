@@ -1989,6 +1989,174 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
+  /// Moves the site at [index] from the app-tier into one of the
+  /// currently-open archives. With exactly one archive open, the move
+  /// is implicit; with multiple, the user picks via a dialog. The site's
+  /// position in `_webViewModels` is preserved — only its tier flips
+  /// (and the running webview is rebuilt to bind to the new opaque
+  /// container).
+  Future<void> _moveSiteToArchive(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    if (model.isArchiveTier) return;
+    if (_archiveSlices.isEmpty) return;
+
+    ArchiveHandle? target;
+    if (_archiveSlices.length == 1) {
+      target = _archiveSlices.keys.first;
+    } else {
+      target = await _showArchivePickerDialog();
+      if (target == null) return;
+    }
+    if (!mounted) return;
+
+    // Capture cookies from the running container so they ride along
+    // with the move. Falls back to model.cookies (synced via
+    // onCookiesChanged) when the webview hasn't been loaded.
+    final capturedCookies = await _captureCookiesForTransfer(model);
+
+    // Drop app-tier persistence for this site so the next
+    // _saveWebViewModels doesn't see it. The site's runtime row stays
+    // in _webViewModels; only its tier and routing change.
+    await _cookieSecureStorage.saveCookiesForSite(model.siteId, const []);
+    final passwords = await _proxyPasswordStorage.loadAll();
+    if (passwords.containsKey(model.siteId)) {
+      final next = <String, String?>{...passwords, model.siteId: null};
+      await _proxyPasswordStorage.saveAll(next);
+    }
+
+    // Drop the app-tier container (cleartext `ws-<siteId>`).
+    if (_useContainers) {
+      await _containerIsolation.onSiteDeleted(model.siteId);
+    }
+
+    // Force a fresh webview that binds to the new opaque container.
+    model.disposeWebView();
+    model.isArchiveTier = true;
+    model.archiveContainerId =
+        await _deriveArchiveContainerId(target.key, model.siteId);
+    model.setPendingArchiveCookies(capturedCookies);
+
+    // Track ownership for the close-archive flow.
+    target.state.sites.add(model.toJson());
+    target.state.cookies[model.siteId] =
+        capturedCookies.map((c) => c.toJson()).toList();
+    _archiveSlices[target]!.siteIds.add(model.siteId);
+    _archiveSlices[target]!.containerIds.add(model.archiveContainerId!);
+    await _archive.save(target);
+
+    // Remove from any custom webspace's siteIndices (archive sites
+    // surface in the "All" view only).
+    for (final ws in _webspaces) {
+      ws.siteIndices.remove(index);
+    }
+    await _saveWebspaces();
+    await _saveWebViewModels();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Site moved to archive')),
+      );
+    }
+  }
+
+  /// Reverse of [_moveSiteToArchive]: pulls an archive-tier site back
+  /// into the app-tier. Only works while the owning archive is open.
+  Future<void> _moveSiteOutOfArchive(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    if (!model.isArchiveTier) return;
+    final entry = _archiveSlices.entries
+        .where((e) => e.value.siteIds.contains(model.siteId))
+        .firstOrNull;
+    if (entry == null) return;
+    final handle = entry.key;
+    final slice = entry.value;
+
+    final capturedCookies = await _captureCookiesForTransfer(model);
+
+    // Tear down the opaque archive container.
+    final containerId = model.archiveContainerId;
+    if (containerId != null) {
+      await _containerIsolation.containerNative.deleteContainer(containerId);
+    }
+
+    // Pop the site out of the archive's state and slice.
+    handle.state.sites.removeWhere((s) => s['siteId'] == model.siteId);
+    handle.state.cookies.remove(model.siteId);
+    slice.siteIds.remove(model.siteId);
+    if (containerId != null) {
+      slice.containerIds.remove(containerId);
+    }
+    await _archive.save(handle);
+
+    // Flip the model back to app-tier and rebuild the webview against
+    // the standard `ws-<siteId>` container.
+    model.disposeWebView();
+    model.isArchiveTier = false;
+    model.archiveContainerId = null;
+    model.cookies = capturedCookies;
+
+    await _saveWebViewModels();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Site moved out of archive')),
+      );
+    }
+  }
+
+  /// Pulls cookies from the running container (if any) and falls back
+  /// to the in-Dart `cookies` list when no controller is alive. Used by
+  /// both directions of the move flow.
+  Future<List<Cookie>> _captureCookiesForTransfer(WebViewModel model) async {
+    final controller = model.controller;
+    if (controller != null && _containerCookieManager != null) {
+      final url = Uri.parse(
+        model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl,
+      );
+      final fresh = await _containerCookieManager!.getCookies(
+        controller: controller,
+        siteId: model.siteId,
+        url: url,
+      );
+      if (fresh.isNotEmpty) return fresh;
+    }
+    return List<Cookie>.from(model.cookies);
+  }
+
+  Future<ArchiveHandle?> _showArchivePickerDialog() {
+    final handles = _archiveSlices.entries.toList();
+    return showDialog<ArchiveHandle>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Pick an archive'),
+          content: SizedBox(
+            width: 320,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final entry in handles)
+                  ListTile(
+                    leading: const Icon(Icons.archive_outlined),
+                    title: Text('Archive (${entry.value.siteIds.length} sites)'),
+                    onTap: () => Navigator.pop(ctx, entry.key),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// Settings-screen entry point: prompts for a passphrase, then attempts
   /// to open a matching archive. If none matches, asks the user whether
   /// to create a new archive with that passphrase. Snackbars report the
@@ -4943,6 +5111,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final listIndex = filteredIndices.indexOf(index);
     final isArchiveSite =
         index >= 0 && index < _webViewModels.length && _webViewModels[index].isArchiveTier;
+    final canMoveToArchive = !isArchiveSite && _archiveSlices.isNotEmpty;
 
     showMenu<String>(
       context: context,
@@ -4955,12 +5124,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           PopupMenuItem(value: 'move_up', child: ListTile(leading: Icon(Icons.arrow_upward), title: Text('Move Up'), dense: true, visualDensity: VisualDensity.compact)),
         if (isCustomWebspace && listIndex >= 0 && listIndex < filteredIndices.length - 1)
           PopupMenuItem(value: 'move_down', child: ListTile(leading: Icon(Icons.arrow_downward), title: Text('Move Down'), dense: true, visualDensity: VisualDensity.compact)),
+        if (canMoveToArchive)
+          PopupMenuItem(value: 'move_to_archive', child: ListTile(leading: Icon(Icons.archive_outlined), title: Text('Move to archive'), dense: true, visualDensity: VisualDensity.compact)),
+        if (isArchiveSite)
+          PopupMenuItem(value: 'move_out_of_archive', child: ListTile(leading: Icon(Icons.unarchive_outlined), title: Text('Move out of archive'), dense: true, visualDensity: VisualDensity.compact)),
         if (isArchiveSite)
           PopupMenuItem(value: 'close_archive', child: ListTile(leading: Icon(Icons.lock_outline), title: Text('Close archive'), dense: true, visualDensity: VisualDensity.compact)),
       ],
     ).then((value) async {
       if (value == null) return;
       switch (value) {
+        case 'move_to_archive':
+          await _moveSiteToArchive(index);
+          break;
+        case 'move_out_of_archive':
+          await _moveSiteOutOfArchive(index);
+          break;
         case 'close_archive':
           final siteId = index < _webViewModels.length
               ? _webViewModels[index].siteId
