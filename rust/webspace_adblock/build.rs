@@ -143,6 +143,46 @@ fn main() {
 /// Failure path: cargo not on PATH (theoretically impossible — we
 /// were just invoked by cargo) → write `[]`, app shows no deps. Same
 /// fallback as the uBO fetch path: app keeps working.
+/// Look up canonical SPDX license texts for a `cargo metadata`
+/// license expression via the `license` crate (which ships the
+/// upstream SPDX 3.x dataset). Avoids the legal risk of either
+/// hand-typing the text (typo / omission) or reading from each
+/// crate's filesystem (non-standard filenames / encoding).
+///
+/// Expression tokens like `"MIT OR Apache-2.0"`, `"MIT/Apache-2.0"`,
+/// `"(MIT OR Apache-2.0) AND Unicode-3.0"` are split on the
+/// SPDX-allowed separators and each identified license is looked
+/// up. Unknown identifiers are silently skipped — the caller still
+/// records the raw expression so the user can read the original
+/// SPDX string and follow the source link.
+fn license_texts_for_expression(expression: &str) -> Vec<Value> {
+    use license::License;
+    if expression.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut seen: std::collections::HashSet<&'static str> = Default::default();
+    let cleaned = expression.replace(['(', ')'], " ");
+    for raw in cleaned.split(|c: char| c.is_whitespace() || c == '/') {
+        let t = raw.trim();
+        if t.is_empty() || matches!(t, "OR" | "AND" | "WITH" | "or" | "and" | "with") {
+            continue;
+        }
+        let parsed: Result<&dyn License, _> = t.parse();
+        if let Ok(lic) = parsed {
+            if !seen.insert(lic.id()) {
+                continue;
+            }
+            out.push(json!({
+                "id": lic.id(),
+                "name": lic.name(),
+                "text": lic.text(),
+            }));
+        }
+    }
+    out
+}
+
 fn write_dep_licenses(out_dir: &Path) {
     let out_path = out_dir.join("dep_licenses.json");
     let metadata = match Command::new(env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
@@ -191,13 +231,29 @@ fn write_dep_licenses(out_dir: &Path) {
         if name == "webspace_adblock" {
             continue;
         }
+        // Skip the `adblock` crate too — `lib/main.dart` already
+        // ships its full MPL-2.0 text via assets/licenses/adblock_rust.txt
+        // under the "adblock-rust + uBlock Origin resources" entry.
+        // Without this skip the dep enumeration would duplicate it
+        // under the transitive-deps section.
+        if name == "adblock" {
+            continue;
+        }
+        let license_expr = pkg
+            .get("license")
+            .and_then(|v| v.as_str())
+            .unwrap_or("<unspecified>");
+        // Resolve the SPDX expression to canonical license texts via
+        // the `license` crate (build-dep). One entry per distinct
+        // SPDX id named in the expression so dual-licensed crates
+        // ship both bodies. Empty when the expression names no
+        // recognised SPDX id — the consumer falls back to the raw
+        // expression string.
+        let license_texts = license_texts_for_expression(license_expr);
         out.push(json!({
             "name": name,
             "version": pkg.get("version").and_then(|v| v.as_str()).unwrap_or(""),
-            "license": pkg
-                .get("license")
-                .and_then(|v| v.as_str())
-                .unwrap_or("<unspecified>"),
+            "license": license_expr,
             "repository": pkg
                 .get("repository")
                 .and_then(|v| v.as_str())
@@ -206,6 +262,7 @@ fn write_dep_licenses(out_dir: &Path) {
                 .get("description")
                 .and_then(|v| v.as_str())
                 .unwrap_or(""),
+            "license_texts": license_texts,
         }));
     }
     // Stable order — sort by name so successive builds with the same

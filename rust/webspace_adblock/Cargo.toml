@@ -60,6 +60,14 @@ adblock = { version = "0.12", default-features = false, features = [
   "resource-assembler",
 ] }
 serde_json = "1"
+# SPDX 3.x license dataset. `License::text()` returns the canonical
+# upstream-published text — sourced from the SPDX license-list-data
+# repo, vendored in this crate. Used by build.rs to attach the
+# real license body to each transitive dep's metadata entry. Avoids
+# the legal risk of either hand-typing the texts (typo / drift) or
+# scraping non-standard LICENSE filenames out of every crate's
+# source tree.
+license = "3"
 
 # Android-only: JNI exports so Kotlin's FastSubresourceInterceptor can
 # consult the engine on every sub-resource without a Dart roundtrip.

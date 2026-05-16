@@ -294,6 +294,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "license"
+version = "3.8.0+3.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5829b45ee447c45e83bc4081e584f8251d7dbfcbfaeb3f153824e03f76d5cf0e"
+dependencies = [
+ "reword",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "litemap"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -393,6 +404,15 @@ name = "regex-syntax"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
+
+[[package]]
+name = "reword"
+version = "7.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2de73ec80cfacafa51b73b0db31d6c3a4718fc6b0d479ef445609704020c1b0"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "rustc-hash"
@@ -544,6 +564,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
+name = "unicode-segmentation"
+version = "1.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9629274872b2bfaf8d66f5f15725007f635594914870f65218920345aa11aa8c"
+
+[[package]]
 name = "url"
 version = "2.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -577,6 +603,7 @@ version = "0.1.0"
 dependencies = [
  "adblock",
  "jni",
+ "license",
  "serde_json",
 ]
 

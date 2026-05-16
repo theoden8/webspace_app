@@ -624,9 +624,9 @@ void main() async {
   // adblock_rust shared library's static metadata blob (see
   // rust/webspace_adblock/build.rs). Surfaces every crate
   // adblock-rust pulls in (regex, serde, flatbuffers, idna, …) with
-  // its SPDX license + upstream URL. Skips the actual license text —
-  // SPDX + URL is enough to direct users to the original for any
-  // crate that requires reproducing it.
+  // its SPDX license + canonical SPDX text (sourced at build time
+  // via the `license` crate's vendored license-list-data, NOT
+  // hand-typed). Dual-licensed crates ship every relevant text.
   LicenseRegistry.addLicense(() async* {
     for (final dep in AdblockEngine.depLicenses()) {
       final name = dep['name'] as String? ?? '';
@@ -635,20 +635,37 @@ void main() async {
       final license = dep['license'] as String? ?? '<unspecified>';
       final repo = dep['repository'] as String? ?? '';
       final desc = dep['description'] as String? ?? '';
-      final body = [
+      final texts = (dep['license_texts'] as List? ?? const [])
+          .cast<Map<String, dynamic>>();
+
+      final parts = <String>[
         if (desc.isNotEmpty) desc,
         '',
         'Version: $version',
         'License: $license',
         if (repo.isNotEmpty) 'Source: $repo',
         if (repo.isEmpty) 'Source: https://crates.io/crates/$name',
-        '',
-        'Full license text available at the upstream source above and '
-            'in standard SPDX form at https://spdx.org/licenses/.',
-      ].join('\n');
+      ];
+      if (texts.isEmpty) {
+        parts.add('');
+        parts.add(
+            'Canonical SPDX license text was not resolvable for "$license". '
+            'See the upstream source above for the original.');
+      } else {
+        for (final lt in texts) {
+          final id = lt['id'] as String? ?? '';
+          final lname = lt['name'] as String? ?? id;
+          final text = lt['text'] as String? ?? '';
+          if (text.isEmpty) continue;
+          parts.add('');
+          parts.add('--- $lname (SPDX: $id) ---');
+          parts.add('');
+          parts.add(text);
+        }
+      }
       yield LicenseEntryWithLineBreaks(
         ['$name (Rust crate, transitive via adblock-rust)'],
-        body,
+        parts.join('\n'),
       );
     }
   });
