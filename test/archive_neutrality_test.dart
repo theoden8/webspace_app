@@ -226,6 +226,35 @@ void main() {
       expect(ws.siteIds, equals(['a', 'b', 'c']));
     });
 
+    test('closing an archive updates webspace.siteIndices.length (regression: stale per-webspace site counts after close)', () {
+      // A user moves a site that lives in a custom webspace into an
+      // archive. While the archive is open, the webspace shows the
+      // site at its position. After close, the site is gone from
+      // `_webViewModels` AND must be gone from the runtime
+      // `webspace.siteIndices` view that the home-screen renderer
+      // consults for its per-webspace site count. The bug this test
+      // catches: _closeArchive removed models from `_webViewModels`
+      // but did not re-resolve `siteIndices`, leaving stale positions
+      // in every webspace whose siteIds referenced the closed sites.
+      final a = _siteWithId('a');
+      final b = _siteWithId('b', archive: true);
+      final c = _siteWithId('c');
+      final models = [a, b, c];
+      final work = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
+      _resolveWebspaceIndices([work], models);
+      expect(work.siteIndices.length, equals(3),
+          reason: 'three members visible while archive is open');
+
+      // Simulate archive close: archive-tier models leave the list.
+      models.removeWhere((m) => m.isArchiveTier);
+      _resolveWebspaceIndices([work], models);
+
+      expect(work.siteIndices.length, equals(2),
+          reason: 'archive site must drop out of the runtime view');
+      expect(work.siteIds, equals(['a', 'b', 'c']),
+          reason: 'persisted membership still remembers b');
+    });
+
     test('byte-equality across full add-site → move-to-archive → save → close → save cycle', () {
       // The headline ARCH-001 contract: a user who adds a site to a
       // named webspace and then archives it sees their webspaces.json

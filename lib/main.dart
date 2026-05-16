@@ -1979,6 +1979,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _loadedIndices
         .removeWhere((i) => i < _webViewModels.length && removedSet.contains(_webViewModels[i].siteId));
     _webViewModels.removeWhere((m) => removedSet.contains(m.siteId));
+    // Webspace.siteIndices is a derived view over _webViewModels;
+    // archive sites just left the list, so positions of remaining
+    // sites may have shifted and any webspace siteIds that previously
+    // resolved into archive positions must drop from the runtime
+    // projection. siteIds stays untouched (ARCH-001), so reopening
+    // the archive restores membership.
+    _resolveWebspaceIndices();
     if (mounted) setState(() {});
   }
 
