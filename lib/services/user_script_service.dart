@@ -5,32 +5,43 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 
-/// JavaScript shim that intercepts <script src="..."> DOM insertions and
-/// provides a CORS-bypassing fetch function for user scripts.
+/// JavaScript shim that intercepts <script> DOM insertions and provides
+/// a CORS-bypassing fetch function for user scripts.
 ///
-/// When user scripts create script elements with external sources, the browser
-/// would block them via CSP. This shim catches those insertions, sends the URL
-/// to Dart for fetching, and the content is injected natively via
-/// evaluateJavascript (which bypasses CSP).
+/// Three interceptions:
+/// 1. `<script src="...">` for whitelisted CDN URLs — Dart fetches the URL
+///    and injects the body via evaluateJavascript (bypassing page CSP).
+/// 2. `<script>` with inline textContent (no `src`) — Dart receives the
+///    source and runs it via evaluateJavascript (bypassing page CSP).
+///    Required for libraries like DarkReader whose `injectProxy` does
+///    `head.append(scriptEl)` with inline text; Chromium WebView enforces
+///    CSP strictly on this pattern, WKWebView is more lenient.
+/// 3. `window.__wsFetch(url)` — CORS-bypassing fetch returning a Response.
 ///
-/// Also exposes `window.__wsFetch(url)` which returns a `Response` object,
-/// useful for libraries that need a CORS-bypassing fetch (e.g. to read
-/// cross-origin stylesheets).
+/// Wrapped DOM entry points: `Node.prototype.appendChild`,
+/// `Node.prototype.insertBefore`, `Element.prototype.append`. DarkReader
+/// uses `append()` (not `appendChild`), so the `Element.append` wrapper
+/// is what unblocks it on Android.
 ///
 /// Security:
-/// - Handler names are randomized per webview instance (placeholders replaced
-///   at runtime) so page code cannot guess or call them.
+/// - Shim only installed on sites with user scripts enabled. The user has
+///   opted into running custom JS; bypassing CSP for inline scripts on
+///   that one site is in scope.
+/// - Handler names are randomized per webview instance (placeholders
+///   replaced at runtime) so page code cannot guess or call them.
 /// - callHandler reference is captured lazily on first use.
-/// - Only whitelisted CDN URLs are intercepted for script loading; other URLs
-///   fall through to normal (CSP-governed) DOM behavior.
+/// - For `<script src>`, only whitelisted CDN URLs are intercepted; other
+///   URLs fall through to normal (CSP-governed) DOM behavior.
 const String _shimTemplate = r'''
 (function() {
   if (window.__wsFetchShimInstalled) return;
   window.__wsFetchShimInstalled = true;
   var _origAppend = Node.prototype.appendChild;
   var _origInsert = Node.prototype.insertBefore;
+  var _origElemAppend = Element.prototype.append;
   var SCRIPT_HANDLER = '__SCRIPT_HANDLER_NAME__';
   var FETCH_HANDLER = '__FETCH_HANDLER_NAME__';
+  var INLINE_SCRIPT_HANDLER = '__INLINE_SCRIPT_HANDLER_NAME__';
 
   // Lazily capture the bridge reference. At DOCUMENT_START the
   // flutter_inappwebview bridge may not be injected yet. By the time
@@ -97,19 +108,50 @@ const String _shimTemplate = r'''
     return scriptEl;
   }
 
+  // Catch inline <script>{textContent} elements and route them through
+  // the privileged Dart bridge so they bypass the page's strict CSP.
+  // Returns the element (un-appended) on success, null to fall through.
+  function interceptInline(scriptEl) {
+    if (scriptEl.src) return null;
+    var inlineSource = scriptEl.text || scriptEl.textContent || '';
+    if (typeof inlineSource !== 'string' || inlineSource.length === 0) return null;
+    var c = call();
+    if (!c) return null;
+    c(INLINE_SCRIPT_HANDLER, inlineSource);
+    return scriptEl;
+  }
+
+  function interceptScript(scriptEl) {
+    if (!(scriptEl instanceof HTMLScriptElement)) return null;
+    if (scriptEl.src) return intercept(scriptEl);
+    return interceptInline(scriptEl);
+  }
+
   Node.prototype.appendChild = function(child) {
-    if (child instanceof HTMLScriptElement && child.src) {
-      var result = intercept(child);
-      if (result) return result;
-    }
+    var result = interceptScript(child);
+    if (result) return result;
     return _origAppend.call(this, child);
   };
   Node.prototype.insertBefore = function(child, ref) {
-    if (child instanceof HTMLScriptElement && child.src) {
-      var result = intercept(child);
-      if (result) return result;
-    }
+    var result = interceptScript(child);
+    if (result) return result;
     return _origInsert.call(this, child, ref);
+  };
+  // Element.prototype.append accepts variadic Node|string args and does
+  // NOT call Node.prototype.appendChild internally — it's a separate path
+  // in the DOM impl. DarkReader's injectProxy uses
+  // `(document.head||document.documentElement).append(proxyScript)`, so
+  // without wrapping append() too, the inline-script intercept above
+  // never fires for DarkReader's pattern.
+  Element.prototype.append = function() {
+    var passthrough = [];
+    for (var i = 0; i < arguments.length; i++) {
+      var n = arguments[i];
+      if (interceptScript(n)) continue;
+      passthrough.push(n);
+    }
+    if (passthrough.length === 0) return undefined;
+    return _origElemAppend.apply(this, passthrough);
   };
 
   // CORS-bypassing fetch for user scripts. Returns a standard Response object.
@@ -177,6 +219,7 @@ class UserScriptService {
   final String? shimScript;
   final String _scriptHandlerName;
   final String _fetchHandlerName;
+  final String _inlineScriptHandlerName;
   final bool hasScripts;
   final List<UserScriptConfig> _scripts;
   final Future<bool> Function(String url)? _onConfirmScriptFetch;
@@ -189,12 +232,14 @@ class UserScriptService {
     required this.shimScript,
     required String scriptHandlerName,
     required String fetchHandlerName,
+    required String inlineScriptHandlerName,
     required this.hasScripts,
     required List<UserScriptConfig> scripts,
     required Future<bool> Function(String url)? onConfirmScriptFetch,
     required UserProxySettings proxy,
   })  : _scriptHandlerName = scriptHandlerName,
         _fetchHandlerName = fetchHandlerName,
+        _inlineScriptHandlerName = inlineScriptHandlerName,
         _scripts = scripts,
         _onConfirmScriptFetch = onConfirmScriptFetch,
         _proxy = proxy;
@@ -209,6 +254,7 @@ class UserScriptService {
     final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
     final scriptHandlerName = '__ws_s_$ts';
     final fetchHandlerName = '__ws_f_$ts';
+    final inlineScriptHandlerName = '__ws_i_$ts';
 
     String? shimScript;
     if (hasScripts) {
@@ -216,6 +262,7 @@ class UserScriptService {
       shimScript = _shimTemplate
           .replaceAll('__SCRIPT_HANDLER_NAME__', scriptHandlerName)
           .replaceAll('__FETCH_HANDLER_NAME__', fetchHandlerName)
+          .replaceAll('__INLINE_SCRIPT_HANDLER_NAME__', inlineScriptHandlerName)
           .replaceAll('__WHITELIST_JSON__', whitelistJson);
     }
 
@@ -223,6 +270,7 @@ class UserScriptService {
       shimScript: shimScript,
       scriptHandlerName: scriptHandlerName,
       fetchHandlerName: fetchHandlerName,
+      inlineScriptHandlerName: inlineScriptHandlerName,
       hasScripts: hasScripts,
       scripts: scripts,
       onConfirmScriptFetch: onConfirmScriptFetch,
@@ -334,6 +382,18 @@ class UserScriptService {
         client.close();
       }
       return false;
+    });
+
+    // Inline-script handler: takes a captured <script>{textContent} source
+    // string and evaluates it via the privileged Dart bridge, bypassing
+    // page CSP. Fire-and-forget — the JS side doesn't await a result.
+    controller.addJavaScriptHandler(handlerName: _inlineScriptHandlerName, callback: (args) async {
+      if (args.isEmpty || args[0] is! String) return null;
+      final source = args[0] as String;
+      if (source.isEmpty) return null;
+      LogService.instance.log('UserScript', 'Inline script bridged (${source.length} bytes)');
+      await _safeEval(controller, source);
+      return null;
     });
 
     // Resource fetch handler: fetches URL and returns body as text.
