@@ -218,13 +218,31 @@ class ContentBlockerService {
   final List<EngineDecisionSample> _recentEngineDecisions = [];
   bool _engineTimingEnabled = false;
 
+  /// Total number of times [isBlocked] consulted the Rust engine since
+  /// the last [engineTimingEnabled] flip — i.e. across the current
+  /// DevTools session. Decoupled from [_recentEngineDecisions] which
+  /// is a 200-entry ring; this keeps growing so the ABP tab can show
+  /// "consulted N times" even when the sliding window has rolled over.
+  int _engineConsultedSinceTimingOn = 0;
+
+  /// See [_engineConsultedSinceTimingOn]. Read by the ABP tab.
+  int get engineConsultedSinceTimingOn => _engineConsultedSinceTimingOn;
+
   /// Toggle per-request engine timing capture. When false, [isBlocked]
   /// skips the Stopwatch + buffer write — no overhead. DevTools turns
   /// this on while its ABP tab is visible.
   set engineTimingEnabled(bool v) {
     if (_engineTimingEnabled == v) return;
     _engineTimingEnabled = v;
-    if (!v) _recentEngineDecisions.clear();
+    if (!v) {
+      _recentEngineDecisions.clear();
+    } else {
+      _engineConsultedSinceTimingOn = 0;
+    }
+    LogService.instance.log('ContentBlocker',
+        'engine timing recording: ${v ? "ON" : "OFF"} '
+        '(engineActive=${_rustEngine != null})',
+        level: LogLevel.info);
   }
   bool get engineTimingEnabled => _engineTimingEnabled;
 
@@ -463,6 +481,7 @@ class ContentBlockerService {
         );
         sw.stop();
         _recordEngineDecision(url, requestType, sw.elapsedMicroseconds, blocked);
+        _engineConsultedSinceTimingOn++;
         return blocked;
       }
       return engine.shouldBlock(
