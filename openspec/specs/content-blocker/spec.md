@@ -101,6 +101,38 @@ The system SHALL parse filter lists in ABP/EasyList syntax, extracting three typ
 **When** the list is parsed
 **Then** `div:has(.ad-label)` is added as a cosmetic selector (rewritten to standard CSS)
 
+#### Scenario: Parse path-anchored network rules
+
+**Given** a filter list containing `||example.com/ads/`, `||example.com^/track`, or `||example.com^*pixel.gif`
+**When** the list is parsed
+**Then** each rule is added to `blockedDomainPaths['example.com']` with its raw glob preserved
+**And** `example.com` is NOT promoted to the whole-domain `blockedDomains` set
+
+#### Scenario: Path-anchored rules survive option strip
+
+**Given** a filter list containing `||ads.example.com/path$script,third-party`
+**When** the list is parsed
+**Then** the options are stripped (we don't classify resource types) and the residual `||ads.example.com/path` is converted to a path-anchored rule
+
+#### Scenario: Parse uBO `:style()` cosmetic extension
+
+**Given** a filter list containing `##.banner:style(height: 1px !important)`
+**When** the list is parsed
+**Then** a `StyleRule` is created with selector `.banner` and declarations `height: 1px !important`
+**And** `.banner` does NOT also appear in the `display:none` cosmetic-selector set
+
+#### Scenario: Parse domain-scoped `:style()` rule
+
+**Given** a filter list containing `linkedin.com##.promo:style(opacity: 0.1)`
+**When** the list is parsed
+**Then** the `StyleRule` is scoped to `linkedin.com`
+
+#### Scenario: Skip empty `:style()` declarations
+
+**Given** a filter list containing `##.banner:style()` or `##:style(color:red)`
+**When** the list is parsed
+**Then** the rule is skipped (empty declarations or missing selector)
+
 #### Scenario: Skip unsupported rule types
 
 **Given** a filter list containing rules with `#$#` (snippets), `##^` (HTML filters), `$redirect`, `$csp`, `$removeparam`, or regex patterns
@@ -184,7 +216,7 @@ Users SHALL be able to manage multiple filter lists with download, enable/disabl
 
 ### Requirement: CB-003 - Domain Blocking
 
-The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups, for both main-document navigations and sub-resource requests. Exception domains (`@@||domain^`) override blocked domains.
+The system SHALL block navigation to domains matched by `||domain^` rules using O(1) hash set lookups, for both main-document navigations and sub-resource requests. Path-anchored rules (`||domain^/path`, `||domain^*glob`) extend the same domain hash hit with a per-domain regex check against the URL's path. Exception domains (`@@||domain^`) override blocked domains.
 
 #### Scenario: Exact domain match
 
@@ -255,6 +287,32 @@ The system SHALL block navigation to domains matched by `||domain^` rules using 
 **Then** the interceptor attributes the hit to `dns` (DNS is checked first)
 **And** the ABP block counter is not incremented for that request
 
+#### Scenario: Path-anchored rule blocks matching URL
+
+**Given** the filter list contains `||example.com/ads/`
+**When** the webview navigates to `https://example.com/ads/banner.png`
+**Then** navigation is cancelled
+**When** the webview navigates to `https://example.com/news/`
+**Then** navigation is allowed
+
+#### Scenario: Path-anchored rule walks up to parent domain
+
+**Given** `||example.com/track` is registered against `example.com`
+**When** a sub-resource request goes to `https://cdn.example.com/track/x`
+**Then** the request matches the parent-domain glob (`cdn.example.com` walks up to `example.com`)
+
+#### Scenario: Path-anchored rule honours exception domains
+
+**Given** the filter list contains `||example.com/ads/` and `@@||example.com^`
+**When** the webview navigates to `https://example.com/ads/banner.png`
+**Then** the request is allowed (exception overrides path-anchored block)
+
+#### Scenario: isHostBlocked ignores path rules
+
+**Given** a path-anchored rule exists for `example.com` but no whole-domain rule
+**When** the host-only fast path (`isHostBlocked('example.com')`) is consulted
+**Then** it returns `false` — path matching requires the URL's path, which isn't available at this layer
+
 #### Scenario: Per-source counters preserved in stats
 
 **Given** a page load produces 10 DNS-blocked sub-resources and 3 ABP-blocked sub-resources
@@ -267,7 +325,7 @@ The system SHALL block navigation to domains matched by `||domain^` rules using 
 
 ### Requirement: CB-004 - CSS Cosmetic Filtering
 
-The system SHALL hide page elements by injecting CSS `display: none !important` rules, applied before content renders.
+The system SHALL hide page elements by injecting CSS `display: none !important` rules, applied before content renders. uBO `:style(declarations)` rules are emitted as ordinary CSS rules (`selector { declarations }`) in the same `<style>` tag, without the `display:none` decoration.
 
 #### Scenario: Early CSS injection via UserScript
 
@@ -315,6 +373,22 @@ The system SHALL hide page elements by injecting CSS `display: none !important` 
 **Given** a page has text-hide rules
 **When** new DOM nodes are inserted
 **Then** a debounced `MutationObserver` re-runs the text scan within 50ms — selector hides remain owned by the CSS engine
+
+#### Scenario: uBO `:style()` rule applies custom declarations
+
+**Given** a rule `##.banner:style(height: 1px !important)`
+**When** the page is loaded
+**Then** the early `<style>` tag contains `.banner { height: 1px !important }`
+**And** the matching element's computed `height` is `1px`
+**And** the element's computed `display` is NOT `none`
+
+#### Scenario: uBO `:style()` rule rides domain scoping
+
+**Given** a rule `linkedin.com##.promo:style(opacity: 0.1)`
+**When** the user visits `https://linkedin.com`
+**Then** the `<style>` tag contains the rule
+**When** the user visits `https://other.com`
+**Then** the rule is NOT in the `<style>` tag
 
 #### Scenario: Domain-scoped selectors
 
@@ -425,6 +499,160 @@ Whenever the aggregated ABP rule set changes (download, toggle, remove, add cust
 **When** `ContentBlockerService.initialize` completes
 **Then** main.dart explicitly calls `WebInterceptNative.sendAbpDomains` once
 **And** the listener is registered afterwards so subsequent changes re-sync automatically
+
+---
+
+### Requirement: CB-010 - Optional Rust-Backed Engine
+
+When the user opts in via the `useRustAdblockEngine` SharedPreferences flag (toggleable from App Settings → Content Blocker → "Use Rust adblock engine") AND the platform ships the `webspace_adblock` shared library, the system SHALL route network-block decisions through Brave's adblock-rust engine via the Dart FFI binding in [lib/services/adblock_engine.dart](../../../lib/services/adblock_engine.dart). When the flag is unset or the library cannot be loaded, the system SHALL fall back to the Dart parser engine described in CB-001 through CB-009 with no behavior change visible to callers.
+
+#### Scenario: Engine takes precedence when active
+
+**Given** `useRustAdblockEngine` is true and the library loaded
+**When** `ContentBlockerService.isBlocked(url, sourceUrl: src)` is called
+**Then** the result is whatever `AdblockEngine.shouldBlock` returns
+**And** the Dart aggregations (`_blockedDomains`, `_blockedDomainPathRegexes`) are unused for that decision
+
+#### Scenario: Toggle flips engine without app restart
+
+**Given** the user opens App Settings → Content Blocker → "Use Rust adblock engine"
+**When** they flip the switch
+**Then** `setRustEngineEnabled` persists the new value to SharedPreferences
+**And** triggers `_rebuildRules`, which spins up or tears down the engine immediately
+**And** subsequent `isBlocked` calls reflect the new routing
+
+#### Scenario: Toggle disabled when library not on platform
+
+**Given** `AdblockEngine.load` returns null on the running platform
+**When** the user opens App Settings
+**Then** the "Use Rust adblock engine" switch is greyed out
+**And** the subtitle reads "Native library not available on this platform"
+
+#### Scenario: Fallback when library missing but flag is true
+
+**Given** the user has `useRustAdblockEngine = true` from a prior install on a platform that shipped the library
+**And** they restore the same prefs onto a platform without the library
+**When** the service initialises
+**Then** a warning is logged
+**And** subsequent `isBlocked` calls use the Dart parser engine
+**And** every CB-001..CB-009 scenario continues to pass
+
+#### Scenario: useRustAdblockEngine round-trips through settings backup
+
+**Given** the user has flipped the toggle on
+**When** they export settings and restore on another device
+**Then** the imported pref preserves the value (the registry in `app_prefs.dart` covers it automatically)
+
+#### Scenario: $domain= modifier fires through service entry point
+
+**Given** the engine is active and the filter list contains `||tracker.com^$domain=news.com`
+**When** `isBlocked('https://tracker.com/x', sourceUrl: 'https://news.com/article')` is called
+**Then** the result is `true`
+**When** the same URL is checked with `sourceUrl: 'https://blog.com/article'`
+**Then** the result is `false`
+
+#### Scenario: requestType gates resource-type modifiers
+
+**Given** a rule `||example.com^$image`
+**When** `isBlocked(url, requestType: 'image')` is called
+**Then** the rule fires
+**When** the same URL is checked with `requestType: 'document'`
+**Then** the rule does NOT fire
+
+#### Scenario: Sub-resource hooks pass page URL as sourceUrl
+
+**Given** the engine is active
+**When** the JS-bridge `blockResourceLoaded` or `blockCheck` handler fires for a sub-resource
+**Then** the handler passes `lastLoadStartUrl` (the page hosting the request) as `sourceUrl`
+**And** the engine can fire `$domain=` rules that target the page's domain
+
+#### Scenario: Android sub-resources consult the engine via JNI
+
+**Given** the engine is active on Android AND `libwebspace_adblock.so` is bundled in `jniLibs/<abi>/`
+**When** a page issues a sub-resource request
+**Then** the native `FastSubresourceInterceptor.checkUrl` first walks the host-only DNS + ABP HashSets (cheap fast path)
+**And** for hosts the host-only path didn't already block, calls into the JNI bridge (`AdblockEngineNative.checkUrl`) with the request URL, current page URL as source, and a Sec-Fetch-Dest-derived resource type
+**And** the JNI layer dispatches to the same Brave adblock-rust engine the Dart side uses
+**And** `$domain=` / path-anchored / `$script` / `$image` / regex rules fire on every sub-resource — not just top-level nav
+
+#### Scenario: Android falls back to host-only when JNI library missing
+
+**Given** the engine flag is on but `libwebspace_adblock.so` failed to load on this ABI / build
+**Then** `AdblockEngineNative.active` is false
+**And** `FastSubresourceInterceptor.checkUrl` skips the engine consult entirely
+**And** sub-resources go through the host-only HashSet fast path seeded by the Dart parser's `_blockedDomains`
+**And** the activation log emits a warning surfacing the gap
+
+#### Scenario: Engine teardown reverts Android sub-resources to host-only
+
+**Given** the engine is active on Android
+**When** the user flips the Settings toggle off
+**Then** Dart calls `WebInterceptNative.sendAdblockEngineRules('')`
+**And** the native side calls `AdblockEngineNative.setRules('')` which frees the engine handle
+**And** subsequent sub-resource requests skip the engine consult
+**And** `clearAllHostDecisionCaches` runs so previously-cached `ALLOWED` decisions don't shadow the host-only sets
+
+#### Scenario: Domain-scoped cosmetic rules continue to use Dart engine
+
+**Given** the Rust engine is active
+**When** the cosmetic shim is built via `getEarlyCssScript` or `getCosmeticScript`
+**Then** the rules come from the Dart aggregations, NOT from the Rust engine
+**(uBO splits cosmetic rules into domain-scoped vs generic; the engine has both, but only the generic path is wired to the engine — see CB-011.)**
+
+---
+
+### Requirement: CB-011 - Generic Cosmetic Selectors via Engine
+
+When the Rust engine is active, generic `##.x` cosmetic rules (no domain prefix) SHALL be looked up on demand via the engine's `hidden_class_id_selectors` API, gated on the loaded page actually using a class or id one of the rules targets. The result is injected as `display: none !important` into a `<style>` tag the same way domain-scoped rules are.
+
+#### Scenario: JS scanner collects classes and ids on DOMContentLoaded
+
+**Given** the engine is active for a page
+**When** the page reaches DOMContentLoaded
+**Then** the page-side scanner shim built by `buildGenericCosmeticScannerShim` walks every element
+**And** collects unique `classList` tokens and non-empty `id` attributes
+**And** sends them to the `genericCosmeticScan` bridge handler
+
+#### Scenario: Bridge handler returns engine-matched selectors
+
+**Given** the page reports classes `["ad-banner", "real-content"]` and ids `["leaderboard"]`
+**When** the bridge handler calls `ContentBlockerService.genericCosmeticSelectorsFor`
+**Then** the service forwards to `AdblockEngine.hiddenClassIdSelectors`
+**And** the engine returns only those generic selectors that target a listed class or id
+
+#### Scenario: Returned selectors are injected as display:none
+
+**Given** the engine returns `[".ad-banner", "#leaderboard"]`
+**When** the shim's bridge promise resolves
+**Then** a `<style id="_webspace_generic_cosmetic_style">` element is appended to `<head>`
+**And** its `textContent` contains `\.ad-banner { display: none !important; }` and `#leaderboard { display: none !important; }`
+**And** matching elements' computed `display` is `none`
+
+#### Scenario: Empty engine response is a no-op
+
+**Given** the engine returns `[]` (no generic rules target the page's classes/ids)
+**Then** no `<style>` tag is created
+**And** the existing cosmetic shim's CSS is unaffected
+
+#### Scenario: Bridge missing degrades silently
+
+**Given** `window.flutter_inappwebview` is undefined (cold-load race or bridge teardown)
+**Then** the scanner shim returns without throwing
+**And** the page renders normally
+
+#### Scenario: Generic shim only injected when engine is active
+
+**Given** the Rust engine is NOT active
+**Then** `buildGenericCosmeticScannerShim` is not added to `initialUserScripts`
+**And** the bridge handler returns `[]` regardless of payload
+**(The Dart parser path keeps its own generic-rule injection — generic rules from a list still hide on the legacy engine.)**
+
+#### Scenario: Linux bundle ships the library
+
+**Given** `scripts/build_rust.sh linux` has been run
+**Then** `linux/lib/libwebspace_adblock.so` exists
+**And** `flutter build linux --release` packages it into the bundle's `lib/` directory
+**And** `AdblockEngine.load(...)` resolves it at runtime via the `$ORIGIN/lib` RPATH
 
 ---
 

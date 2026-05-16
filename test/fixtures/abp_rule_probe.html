@@ -87,6 +87,101 @@
     <tbody id="supported-results"></tbody>
   </table>
 
+  <h2>1B. uBO <code>:style()</code> rules</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: declaration applied.</strong>
+    The parser converts <code>##sel:style(decls)</code> into a CSS rule
+    <code>sel { decls }</code> in the same early <code>&lt;style&gt;</code>
+    tag as the hide rules — the matching element should NOT be
+    <code>display:none</code> but its target declaration should be in
+    effect. A row reading "missed" means the parser dropped the rule
+    or your loaded list doesn't carry it.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th style="width: 30%">Rule shape</th>
+        <th style="width: 12%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="style-results"></tbody>
+  </table>
+
+  <h2>1C. Procedural cosmetic actions</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: action fired.</strong> uBO's
+    procedural operators end in an action other than the default
+    hide: <code>:remove()</code> (drop the element from the DOM),
+    <code>:upward(N):remove()</code> (walk N ancestors first),
+    <code>:style(...)</code> on a procedural selector,
+    <code>:remove-attr()</code>, and <code>:remove-class()</code>.
+    Engine-only — these all read "missed" when the Rust adblock
+    engine is off. The shim runner lives in
+    <code>lib/services/procedural_cosmetic_shim.dart</code>.
+    <br><br>
+    Works on both <code>file://</code> and HTTP origins. The Dart
+    parser captures generic procedural rules (adblock-rust silently
+    drops these at <code>cosmetic_filter_cache_builder.rs:106</code>,
+    so we backfill with our own parsed bucket) and the page-side
+    shim splits embedded ABP pseudos like <code>:has-text()</code>
+    / <code>:upward()</code> out of the css-selector string before
+    feeding the pure-CSS portion to <code>querySelectorAll</code>.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th>Rule shape</th>
+        <th style="width: 18%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="proc-results"></tbody>
+  </table>
+
+  <h2>1D. Advanced CSS cosmetic shapes</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: BLOCKED.</strong> CSS pseudo-
+    classes and combinators the browser handles natively. Tests that
+    the parser round-trips the rule shape AND the early-CSS path
+    injects + matches it correctly. <code>:is(a, b)</code> needs
+    Chromium 88 / Safari 14 (i.e. all platforms we target).
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th>Rule shape</th>
+        <th style="width: 18%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="advcss-results"></tbody>
+  </table>
+
+  <h2>1E. Procedural cosmetic extras</h2>
+  <div class="section-callout expect-blocked">
+    <strong>Expected verdict per row: action fired.</strong> Less
+    common procedural shapes the page-side shim handles:
+    <code>:has()</code> within a procedural selector,
+    <code>:upward(.selector)</code> with a string argument
+    (walk-until-match instead of walk-N-parents), and chained
+    <code>:has-text()</code> filters that all need to hit.
+  </div>
+  <table class="probe">
+    <thead>
+      <tr>
+        <th>Rule shape</th>
+        <th style="width: 18%">Expected</th>
+        <th style="width: 18%">Actual</th>
+        <th>Sample markup</th>
+      </tr>
+    </thead>
+    <tbody id="procextra-results"></tbody>
+  </table>
+
   <h2>2. Host-dependent rules</h2>
   <div class="section-callout expect-host">
     <strong>Expected verdict per row: BLOCKED only when this page is hosted on the rule's domain.</strong>
@@ -271,6 +366,221 @@
       },
     ];
 
+    // ---- Section 1B: uBO :style() rules. Expected: declaration applied,
+    // element NOT display:none. The matching rule lives in
+    // test/fixtures/easylist_sample.txt under "uBO :style() cosmetic
+    // extension". Each row carries the property and value the rule
+    // installs so measure() can read it back via getComputedStyle.
+    // Note that the SECOND row is host-scoped to linkedin.com — it
+    // should miss off-host the same way HOST_CASES rows do.
+    const STYLE_CASES = [
+      {
+        id: 'style-shrink',
+        label: '##.fp_probe_styled_banner:style(height: 1px !important)',
+        html: '<div class="fp_probe_styled_banner">styled banner sample</div>',
+        prop: 'height',
+        value: '1px',
+        note: 'global :style() rule — height should be 1px regardless of host',
+      },
+      {
+        id: 'style-fade',
+        label: 'linkedin.com##.fp_probe_styled_promo:style(opacity: 0.1 !important)',
+        html: '<div class="fp_probe_styled_promo">styled promo sample</div>',
+        prop: 'opacity',
+        value: '0.1',
+        host: 'linkedin.com',
+        note: 'host-scoped :style() — applies only on linkedin.com',
+      },
+    ];
+
+    // ---- Section 1C: procedural cosmetic actions (uBO action operators).
+    // Each rule lives in test/fixtures/easylist_sample.txt under
+    // "Procedural cosmetic". Engine-only — these miss when
+    // useRustAdblockEngine is off. The shim runner that interprets
+    // them lives in lib/services/procedural_cosmetic_shim.dart.
+    //
+    // Probe layout: each case carries `check(wrap)` returning truthy
+    // when the action fired. wrap is the per-row container; the inner
+    // element is wrap.firstElementChild. measure() ignores
+    // display:none for this section — the rules don't always hide.
+    const PROC_CASES = [
+      {
+        id: 'proc-remove',
+        label: '##div.fp_probe_proc_remove:has-text(REMOVE-ME):remove()',
+        html: '<div class="fp_probe_proc_remove">REMOVE-ME marker</div>',
+        note: ':remove() should drop the element from the DOM entirely',
+        check: function(wrap) {
+          // After :remove() fires, the target is detached from the
+          // DOM — wrap.firstElementChild is null.
+          return wrap.firstElementChild == null;
+        },
+        verb: 'removed',
+      },
+      {
+        id: 'proc-upward',
+        label: '##div.fp_probe_proc_upward:has-text(LEAF):upward(1):remove()',
+        // The :upward(1):remove() rule walks ONE parent up from the
+        // matching element and removes that. CSS-selector matches
+        // the inner div (the .fp_probe_proc_upward), :upward(1)
+        // walks to its parent — the probe's `wrap` scaffolding div
+        // — and :remove() drops THAT. The `wrap` JS reference
+        // survives but is detached, so isConnected is the
+        // detection signal, not firstElementChild.
+        html: '<div class="fp_probe_proc_upward"><span>LEAF text</span></div>',
+        note: ':upward(N) walks N ancestors before applying the action',
+        check: function(wrap) {
+          return !wrap.isConnected;
+        },
+        verb: 'upward-removed',
+      },
+      {
+        id: 'proc-style',
+        label: '##div.fp_probe_proc_style:has-text(Sponsored):style(outline: 2px solid red !important)',
+        html: '<div class="fp_probe_proc_style">Sponsored content</div>',
+        note: ':style() on a procedural selector — outline must apply',
+        check: function(wrap) {
+          var el = wrap.firstElementChild;
+          if (!el) return false;
+          var outline = getComputedStyle(el).outline;
+          // jsdom-style "rgb(255, 0, 0)" or real-browser "2px solid".
+          return outline && outline.indexOf('rgb(255, 0, 0)') >= 0
+              || outline && outline.indexOf('red') >= 0;
+        },
+        verb: 'styled',
+      },
+      {
+        id: 'proc-remove-attr',
+        label: '##div.fp_probe_proc_remove_attr[data-tracker]:remove-attr(data-tracker)',
+        html: '<div class="fp_probe_proc_remove_attr" data-tracker="x">attr target</div>',
+        note: ':remove-attr() strips the named attribute',
+        check: function(wrap) {
+          var el = wrap.firstElementChild;
+          if (!el) return false;
+          return !el.hasAttribute('data-tracker');
+        },
+        verb: 'attr-removed',
+      },
+      {
+        id: 'proc-remove-class',
+        label: '##div.fp_probe_proc_remove_class.fp_probe_remove_me:remove-class(fp_probe_remove_me)',
+        html: '<div class="fp_probe_proc_remove_class fp_probe_remove_me">class target</div>',
+        note: ':remove-class() strips the named class token',
+        check: function(wrap) {
+          var el = wrap.firstElementChild;
+          if (!el) return false;
+          return !el.classList.contains('fp_probe_remove_me');
+        },
+        verb: 'class-removed',
+      },
+    ];
+
+    // ---- Section 1D: advanced CSS cosmetic shapes. Expected: BLOCKED.
+    // Pure-CSS pseudoclasses and combinators the browser handles
+    // natively — exercises the parser's ability to round-trip the
+    // shape and the early-CSS path's ability to inject + match it.
+    const ADVANCED_CSS_CASES = [
+      {
+        id: 'adv-child-combinator',
+        label: '##.fp_probe_parent_child > .fp_probe_child_ad',
+        // The rule hides the SPAN, which is a descendant of the
+        // wrap's first child. Pin the measure point to the span via
+        // targetSelector.
+        html: '<div class="fp_probe_parent_child"><span class="fp_probe_child_ad">child ad</span></div>',
+        targetSelector: '.fp_probe_child_ad',
+        note: 'CSS child combinator (>)',
+      },
+      {
+        id: 'adv-adjacent-sibling',
+        label: '##.fp_probe_sibling_adjacent + .fp_probe_promoted',
+        // Two siblings; the matching child is the SECOND one. The
+        // wrap holds both, and the rule hides .fp_probe_promoted —
+        // which is what the row checks.
+        html: '<span class="fp_probe_sibling_adjacent">trigger</span><span class="fp_probe_promoted">promoted slot</span>',
+        note: 'CSS adjacent sibling combinator (+)',
+        // Multiple top-level elements — measure the second one.
+        targetIndex: 1,
+      },
+      {
+        id: 'adv-general-sibling',
+        label: '##.fp_probe_sibling_general ~ .fp_probe_ad_later',
+        html: '<span class="fp_probe_sibling_general">trigger</span><span>middle</span><span class="fp_probe_ad_later">ad later</span>',
+        note: 'CSS general sibling combinator (~)',
+        targetIndex: 2,
+      },
+      {
+        id: 'adv-is-composite',
+        label: '##div:is(.fp_probe_is_a, .fp_probe_is_b)',
+        html: '<div class="fp_probe_is_b">composite is() target</div>',
+        note: ':is(a, b) — modern composite pseudoclass',
+      },
+      {
+        id: 'adv-attr-prefix',
+        label: '##a[href^="https://fp.prefix.example/"]',
+        html: '<a href="https://fp.prefix.example/x">prefix match</a>',
+        note: 'attribute prefix match ([attr^=...])',
+      },
+      {
+        id: 'adv-attr-suffix',
+        label: '##a[href$=".fpsuffix"]',
+        html: '<a href="https://anyhost.example/page.fpsuffix">suffix match</a>',
+        note: 'attribute suffix match ([attr$=...])',
+      },
+      {
+        id: 'adv-attr-contains',
+        label: '##span[data-fp-ad-type*="tracker"]',
+        html: '<span data-fp-ad-type="left-tracker-banner">substring match</span>',
+        note: 'attribute substring match ([attr*=...])',
+      },
+    ];
+
+    // ---- Section 1E: procedural cosmetic extras (shapes within
+    // the page-side shim's current support). Adds :has() within
+    // procedural, :upward(.selector) string-arg walk-until-match,
+    // and chained :has-text() filters that all must fire for the
+    // action to apply.
+    const PROC_EXTRA_CASES = [
+      {
+        id: 'proc-has',
+        label: '##div.fp_probe_proc_has:has(.fp_probe_inner_ad):remove()',
+        html: '<div class="fp_probe_proc_has"><span class="fp_probe_inner_ad">inner</span></div>',
+        note: ':has() within a procedural rule',
+        check: function(wrap) {
+          // Whole wrap not removed (only the matched div is); but
+          // the matched div had the wrap as its parent, so the
+          // wrap loses its child.
+          return wrap.firstElementChild == null;
+        },
+        verb: 'removed',
+      },
+      {
+        id: 'proc-upward-selector',
+        label: '##span.fp_probe_proc_upward_sel:has-text(MARKER):upward(.fp_probe_outer_box):remove()',
+        // span sits inside .fp_probe_outer_box which is inside the
+        // wrap. :upward(.fp_probe_outer_box) walks until finding the
+        // outer box; :remove() drops it. wrap stays; its
+        // firstElementChild (the outer box) is gone.
+        html: '<div class="fp_probe_outer_box"><span class="fp_probe_proc_upward_sel">MARKER text</span></div>',
+        note: ':upward(.selector) walks ancestors until selector match',
+        check: function(wrap) {
+          return wrap.firstElementChild == null;
+        },
+        verb: 'upward-removed',
+      },
+      {
+        id: 'proc-chained-text',
+        label: '##div.fp_probe_proc_chained_text:has-text(KEEP):has-text(REMOVE):remove()',
+        // Both :has-text() patterns must match. Markup includes
+        // both keywords so the chain narrows to this element and
+        // the action fires.
+        html: '<div class="fp_probe_proc_chained_text">KEEP marker plus REMOVE marker</div>',
+        note: 'chained :has-text() — both patterns must hit',
+        check: function(wrap) {
+          return wrap.firstElementChild == null;
+        },
+        verb: 'removed',
+      },
+    ];
+
     // ---- Section 2: domain-scoped rules. Expected: BLOCKED iff host matches. ----
     const HOST_CASES = [
       {
@@ -384,11 +694,15 @@
     // Group registry for measure() / render(). Each tuple binds a
     // section to its expected verdict and the target tbody.
     const SECTIONS = [
-      { cases: SUPPORTED_CASES, tbody: 'supported-results',  expected: 'hide',     expectLabel: 'BLOCKED' },
-      { cases: HOST_CASES,      tbody: 'host-results',       expected: 'host',     expectLabel: 'BLOCKED on host' },
-      { cases: SKIPPED_CASES,   tbody: 'skipped-results',    expected: 'keep',     expectLabel: 'visible' },
-      { cases: FP_CASES,        tbody: 'fp-results',         expected: 'keep',     expectLabel: 'visible' },
-      { cases: CONTROL_CASES,   tbody: 'control-results',    expected: 'keep',     expectLabel: 'visible' },
+      { cases: SUPPORTED_CASES,    tbody: 'supported-results',    expected: 'hide',     expectLabel: 'BLOCKED' },
+      { cases: STYLE_CASES,        tbody: 'style-results',        expected: 'style',    expectLabel: 'declaration applied' },
+      { cases: PROC_CASES,         tbody: 'proc-results',         expected: 'proc',     expectLabel: 'action fired' },
+      { cases: ADVANCED_CSS_CASES, tbody: 'advcss-results',       expected: 'hide',     expectLabel: 'BLOCKED' },
+      { cases: PROC_EXTRA_CASES,   tbody: 'procextra-results',    expected: 'proc',     expectLabel: 'action fired' },
+      { cases: HOST_CASES,         tbody: 'host-results',         expected: 'host',     expectLabel: 'BLOCKED on host' },
+      { cases: SKIPPED_CASES,      tbody: 'skipped-results',      expected: 'keep',     expectLabel: 'visible' },
+      { cases: FP_CASES,           tbody: 'fp-results',           expected: 'keep',     expectLabel: 'visible' },
+      { cases: CONTROL_CASES,      tbody: 'control-results',      expected: 'keep',     expectLabel: 'visible' },
     ];
 
     function escapeHtml(s) {
@@ -404,6 +718,11 @@
           wrap.id = 'probe-' + c.id;
           wrap.innerHTML = c.html;
           stage.appendChild(wrap);
+          // Stash the wrap on the case so measure() can recover it
+          // when a procedural :upward(N):remove() detaches it from
+          // the DOM. Without this, getElementById returns null and
+          // the row sits at "pending…" forever.
+          c._wrap = wrap;
 
           const row = document.createElement('tr');
           row.id = 'row-' + c.id;
@@ -412,9 +731,21 @@
             (c.note ? '<div class="desc">' + escapeHtml(c.note) + '</div>' : '');
           const expectedCell = document.createElement('td');
           expectedCell.className = 'expected-cell';
-          expectedCell.textContent = sec.expected === 'host'
-            ? (location.host && location.host.indexOf(c.host) !== -1 ? 'BLOCKED' : 'visible (off-host)')
-            : sec.expectLabel;
+          if (sec.expected === 'host') {
+            expectedCell.textContent =
+              location.host && location.host.indexOf(c.host) !== -1
+                ? 'BLOCKED' : 'visible (off-host)';
+          } else if (sec.expected === 'style') {
+            // Host-scoped :style() rows behave like Section 2 — the
+            // declaration only applies when the page host matches.
+            const onHost = !c.host ||
+              (location.host && location.host.indexOf(c.host) !== -1);
+            expectedCell.textContent = onHost
+              ? c.prop + ': ' + c.value
+              : 'unchanged (off-host)';
+          } else {
+            expectedCell.textContent = sec.expectLabel;
+          }
           const statusCell = document.createElement('td');
           statusCell.className = 'result-cell pending';
           statusCell.textContent = 'pending…';
@@ -433,15 +764,47 @@
     function measure() {
       for (const sec of SECTIONS) {
         for (const c of sec.cases) {
-          const wrap = document.getElementById('probe-' + c.id);
+          // Prefer the cached wrap reference from renderSections —
+          // procedural :upward(N):remove() can detach the wrap so
+          // getElementById would miss it.
+          const wrap = c._wrap || document.getElementById('probe-' + c.id);
           if (!wrap) continue;
-          const target = wrap.firstElementChild || wrap;
-          const computedDisplay = getComputedStyle(target).display;
-          const inlineDisplay = target.style.display;
-          const hidden = computedDisplay === 'none';
           const cell = document.querySelector('#row-' + c.id + ' [data-result]');
           cell.className = 'result-cell';
           let label;
+          // Procedural cosmetic checks run against the wrap directly:
+          // :remove() deletes the target, so wrap.firstElementChild
+          // may be null. The other branches still need target +
+          // computedDisplay, so compute those AFTER procedural.
+          if (sec.expected === 'proc') {
+            let ok;
+            try { ok = c.check(wrap); } catch (e) { ok = false; }
+            cell.classList.add(ok ? 'ok' : 'fail');
+            label = ok ? c.verb : 'missed — action did not fire';
+            cell.textContent = label;
+            continue;
+          }
+          // Most rows put one element under wrap (`wrap.firstElementChild`).
+          // Advanced-CSS rows with sibling combinators put multiple
+          // top-level elements under wrap, and the rule targets one
+          // specific sibling — case carries `targetIndex` so we pick
+          // the right one.
+          // Rows where the rule targets a DESCENDANT (e.g.
+          // `parent > child`) need to look inside the wrap rather
+          // than at its first child — `targetSelector` is a CSS
+          // selector the case carries to pin the exact element the
+          // rule should hide.
+          let target;
+          if (typeof c.targetSelector === 'string') {
+            target = wrap.querySelector(c.targetSelector) || wrap;
+          } else if (typeof c.targetIndex === 'number') {
+            target = wrap.children[c.targetIndex] || wrap;
+          } else {
+            target = wrap.firstElementChild || wrap;
+          }
+          const computedDisplay = getComputedStyle(target).display;
+          const inlineDisplay = target.style.display;
+          const hidden = computedDisplay === 'none';
           if (sec.expected === 'hide') {
             cell.classList.add(hidden ? 'ok' : 'fail');
             label = hidden ? 'BLOCKED' : 'visible (rule did not fire)';
@@ -456,6 +819,32 @@
             } else {
               cell.classList.add(hidden ? 'fail' : 'note');
               label = hidden ? 'BLOCKED — fired off-host!' : 'visible (host did not match)';
+            }
+          } else if (sec.expected === 'style') {
+            // Read the property the rule is supposed to install. If
+            // the value matches and display isn't none, the rule
+            // fired correctly. Off-host rows correctly read as
+            // "unchanged" — neutral note, not a fail.
+            const computed = getComputedStyle(target)[c.prop];
+            const onHost = !c.host ||
+              (location.host && location.host.indexOf(c.host) !== -1);
+            if (onHost) {
+              const matched = computed === c.value;
+              const broken = hidden;
+              cell.classList.add(matched && !broken ? 'ok' : 'fail');
+              if (matched && !broken) {
+                label = c.prop + ' = ' + computed;
+              } else if (broken) {
+                label = 'BLOCKED — :style() must NOT hide';
+              } else {
+                label = 'missed — ' + c.prop + ' is "' + computed + '" (want "' + c.value + '")';
+              }
+            } else {
+              const fired = computed === c.value;
+              cell.classList.add(fired ? 'fail' : 'note');
+              label = fired
+                ? ':style() fired off-host! ' + c.prop + ' = ' + computed
+                : 'unchanged — ' + c.prop + ' = "' + computed + '"';
             }
           }
           if (inlineDisplay) label += ' [inline:' + inlineDisplay + ']';

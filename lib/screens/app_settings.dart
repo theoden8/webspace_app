@@ -1360,6 +1360,59 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               label: const Text('Add Custom List'),
             ),
           ),
+          // Experimental Rust engine toggle. Greyed out on platforms
+          // that don't ship the native library (Android in current
+          // builds; depends on the CI rust step having succeeded).
+          // Flipping it on rebuilds the rule set so the engine spins
+          // up immediately — no app restart needed.
+          SwitchListTile(
+            title: const Text('Use Rust adblock engine (experimental)'),
+            subtitle: Text(
+              !ContentBlockerService.instance.rustEngineSupportedOnPlatform
+                  ? 'Native library not available on this platform.'
+                  : 'Routes network blocks through Brave’s adblock-rust '
+                      'engine. Adds support for \$domain=, regex network '
+                      'rules, resource-type modifiers, and generic class/id '
+                      'cosmetic lookups. On Android, sub-resource decisions '
+                      'go through a JNI bridge so \$domain= fires on every '
+                      'request, not just top-level navigation.',
+            ),
+            value: ContentBlockerService.instance.rustEngineEnabled,
+            onChanged: ContentBlockerService.instance
+                    .rustEngineSupportedOnPlatform
+                ? (value) async {
+                    await ContentBlockerService.instance
+                        .setRustEngineEnabled(value);
+                    if (mounted) setState(() {});
+                  }
+                : null,
+          ),
+          // uBO resources toggle. Only meaningful while the Rust engine
+          // is active — the Dart parser doesn't read the resource pool.
+          // When off, $redirect= rules become plain blocks (drop the
+          // request) instead of returning a stub body. Tradeoff: some
+          // ad/tracker sites detect the missing API surface and break
+          // (white page, infinite spinner), so default on.
+          SwitchListTile(
+            title: const Text('Serve uBO redirect stubs'),
+            subtitle: Text(
+              !ContentBlockerService.instance.rustEngineEnabled
+                  ? 'Requires the Rust adblock engine (toggle above).'
+                  : 'Returns uBO\'s stub bodies (noop.js, 1x1.gif, '
+                      'neutered tracker shims) for \$redirect= rule '
+                      'matches. Improves compatibility with sites that '
+                      'break when their tracker script returns empty. '
+                      'Off → \$redirect= rules drop the request.',
+            ),
+            value: ContentBlockerService.instance.useUboResources,
+            onChanged: ContentBlockerService.instance.rustEngineEnabled
+                ? (value) async {
+                    await ContentBlockerService.instance
+                        .setUseUboResources(value);
+                    if (mounted) setState(() {});
+                  }
+                : null,
+          ),
 
           const Divider(height: 32),
 

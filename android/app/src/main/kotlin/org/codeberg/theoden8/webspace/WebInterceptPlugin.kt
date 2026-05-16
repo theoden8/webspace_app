@@ -92,10 +92,49 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                         abpBlockedDomains.clear()
                         abpBlockedDomains.addAll(domains)
                         clearAllHostDecisionCaches()
+                        // Confirm specific well-known hosts made it
+                        // across the MethodChannel — easier than
+                        // reading 100k entries out of the log.
+                        val canaries = listOf(
+                            "doubleclick.net",
+                            "googlesyndication.com",
+                            "google-analytics.com")
+                        val present = canaries.filter { abpBlockedDomains.contains(it) }
+                        log("WebIntercept",
+                            "setAbpBlockedDomains: size=${abpBlockedDomains.size}, " +
+                            "canaries-present=$present")
                         result.success(abpBlockedDomains.size)
                     } else {
                         result.error("INVALID_ARGS", "domains list required", null)
                     }
+                }
+                "setAdblockEngineRules" -> {
+                    // Phase 9: Dart pushes the concatenated filter-list
+                    // text once when the user flips the engine toggle.
+                    // Empty string = engine off → tear down + revert
+                    // to host-only fast path. Non-empty = parse on the
+                    // Rust side and keep the handle for per-request
+                    // checkUrl calls in FastSubresourceInterceptor.
+                    val rulesText = call.argument<String>("rulesText") ?: ""
+                    val enableUboResources =
+                        call.argument<Boolean>("enableUboResources") ?: true
+                    AdblockEngineNative.setRules(rulesText, enableUboResources)
+                    // host-decision cache keys on host only, but the
+                    // engine answers per (url, source, type). Hits
+                    // that previously read ALLOWED from the cache
+                    // would shadow the engine — clear so the engine
+                    // gets to vote.
+                    clearAllHostDecisionCaches()
+                    result.success(mapOf(
+                        "supported" to AdblockEngineNative.supported,
+                        "active" to AdblockEngineNative.active,
+                    ))
+                }
+                "isAdblockEngineSupported" -> {
+                    // Diagnostic for the Dart-side UI: lets the toggle
+                    // know whether the .so loaded so it can grey out
+                    // the switch when the build skipped the Rust step.
+                    result.success(AdblockEngineNative.supported)
                 }
                 "setCdnPatterns" -> {
                     val patterns = call.argument<List<String>>("patterns")
@@ -261,6 +300,25 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
         findInAppWebViews(rootView, webViews)
+        val alreadyAttached = webViews.count {
+            it.contentBlockerHandler is FastSubresourceInterceptor
+        }
+        log("WebIntercept",
+            "attachToAllWebViews(newSiteId=$newSiteId): " +
+            "found=${webViews.size} alreadyAttached=$alreadyAttached " +
+            "willAttach=${webViews.size - alreadyAttached}")
+
+        // PlatformView attachment race: onWebViewCreated fires on the
+        // Dart side BEFORE the native android.view.WebView has been
+        // added to the activity's view tree (Flutter's hybrid composition
+        // path materialises the platform view asynchronously). When we
+        // get called too early, decorView traversal finds zero views
+        // and we silently no-op — and the new site loads its first
+        // resources without an interceptor attached. Schedule retries
+        // with exponential backoff until we actually find something.
+        if (webViews.isEmpty() && newSiteId != null) {
+            scheduleAttachRetry(newSiteId, attempt = 1)
+        }
 
         // Prune `siteIdMap` of entries whose webview is no longer in the
         // activity tree. Without this the map retains hard refs to disposed
@@ -312,6 +370,41 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     }
 
     private val siteIdMap = HashMap<InAppWebView, String>()
+
+    /// Exponential backoff: 50, 100, 200, 400, 800 ms. The platform-
+    /// view materialisation lag is usually 1-2 frames; this gives us
+    /// up to ~1.5s before we give up. If we still find nothing the
+    /// site simply doesn't have a visible webview (e.g. lazy-loaded
+    /// site in IndexedStack waiting for first navigation) and the
+    /// next `attachToWebViews` call from Dart at navigation time
+    /// will pick it up cleanly.
+    private val attachRetryDelaysMs = intArrayOf(50, 100, 200, 400, 800)
+
+    private fun scheduleAttachRetry(siteId: String, attempt: Int) {
+        if (attempt > attachRetryDelaysMs.size) {
+            log("WebIntercept",
+                "attachToAllWebViews retries exhausted for siteId=$siteId — " +
+                "webview not yet in tree, will reattach on next navigation")
+            return
+        }
+        val delayMs = attachRetryDelaysMs[attempt - 1].toLong()
+        mainHandler.postDelayed({
+            val rootView = activity.window.decorView.rootView
+            val webViews = mutableListOf<InAppWebView>()
+            findInAppWebViews(rootView, webViews)
+            if (webViews.isEmpty()) {
+                log("WebIntercept",
+                    "attach retry $attempt for siteId=$siteId: still found=0, " +
+                    "will retry in ${if (attempt < attachRetryDelaysMs.size)
+                        attachRetryDelaysMs[attempt] else "—"}ms")
+                scheduleAttachRetry(siteId, attempt + 1)
+                return@postDelayed
+            }
+            log("WebIntercept",
+                "attach retry $attempt for siteId=$siteId: found=${webViews.size}, attaching")
+            attachToAllWebViews(siteId)
+        }, delayMs)
+    }
 
     private fun findInAppWebViews(view: View, results: MutableList<InAppWebView>) {
         if (view is InAppWebView) {
@@ -434,7 +527,8 @@ class FastSubresourceInterceptor(
         if (host.isEmpty()) return null
 
         checkCount++
-        if (checkCount <= 10 || checkCount % 100 == 0) {
+        val verbose = checkCount <= 10 || checkCount % 100 == 0
+        if (verbose) {
             onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
         }
 
@@ -444,6 +538,7 @@ class FastSubresourceInterceptor(
         // once doesn't need to look up `tracker.example.com`,
         // `example.com`, then fail again on every subsequent fetch.
         var decision = hostDecision[host]
+        val cached = decision != null
         if (decision == null) {
             decision = when {
                 isInSet(host, dnsBlockedDomains) -> Decision.BLOCKED_DNS
@@ -451,6 +546,42 @@ class FastSubresourceInterceptor(
                 else -> Decision.ALLOWED
             }
             putHostDecision(host, decision)
+        }
+        if (verbose) {
+            onLog("WebIntercept",
+                "  host-only decision=$decision (cached=$cached, " +
+                "dnsSetSize=${dnsBlockedDomains.size}, " +
+                "abpSetSize=${abpBlockedDomains.size})")
+        }
+
+        // 1b. When the Rust engine is active and the host-only sets
+        // didn't already decide BLOCKED, consult the engine. This is
+        // the fix for the Android sub-resource gap — `$domain=`,
+        // path-anchored, and resource-type rules don't appear in the
+        // bare host sets, so without this check they silently miss.
+        // We DON'T cache engine decisions in `hostDecision` because
+        // the answer depends on the URL + sourceUrl + requestType,
+        // not just the host. The host-only fast path remains the hot
+        // path; the engine only fires on hosts the cheap check let
+        // through.
+        if (decision == Decision.ALLOWED && AdblockEngineNative.active) {
+            // shouldInterceptRequest runs on chromium's IO thread, so
+            // we CANNOT call webView.getUrl() here — WebView methods
+            // are main-thread-only and StrictMode flags the violation.
+            // The Referer header carries the page URL the request
+            // originated from, which is exactly what the engine needs
+            // for $domain= matching. Both casings to survive header
+            // normalization quirks across chromium versions.
+            val headers = request.headers ?: emptyMap()
+            val sourceUrl = headers["Referer"] ?: headers["referer"] ?: ""
+            val requestType = mapResourceType(request)
+            if (AdblockEngineNative.checkUrl(url, sourceUrl, requestType)) {
+                decision = Decision.BLOCKED_ABP
+                if (checkCount <= 10 || checkCount % 100 == 0) {
+                    onLog("WebIntercept",
+                        "engine blocked sub-resource: host=$host source=$sourceUrl type=$requestType")
+                }
+            }
         }
 
         // Always report — the WebInterceptPlugin layer dedupes at the
@@ -474,6 +605,35 @@ class FastSubresourceInterceptor(
         // `partition_alloc_support.cc:770`. An empty stream gives chromium
         // a real (zero-byte) object with no null dereference.
         if (decision == Decision.BLOCKED_DNS || decision == Decision.BLOCKED_ABP) {
+            // ABP-only: try to serve the uBO redirect body if the
+            // matched rule was a `$redirect=`. Falls through to the
+            // empty-body response when:
+            //   * decision was DNS (DNS rules don't carry $redirect)
+            //   * engine isn't active (host-only fast-path block)
+            //   * matched rule has no $redirect= option
+            //   * resource name in the rule isn't in the loaded pool
+            // The empty-body path is the legacy / status-quo block; the
+            // redirect path is the upgrade that keeps sites probing for
+            // the replacement library working (Google Analytics
+            // shims, AdSense neutered scripts, etc.).
+            if (decision == Decision.BLOCKED_ABP && AdblockEngineNative.active) {
+                val headers = request.headers ?: emptyMap()
+                val sourceUrl = headers["Referer"] ?: headers["referer"] ?: ""
+                val requestType = mapResourceType(request)
+                val dataUrl = AdblockEngineNative.redirectFor(
+                    url, sourceUrl, requestType)
+                if (dataUrl != null) {
+                    val response = redirectResponseFor(dataUrl)
+                    if (response != null) {
+                        if (verbose) {
+                            onLog("WebIntercept",
+                                "engine served \$redirect= body for host=$host " +
+                                "type=$requestType")
+                        }
+                        return response
+                    }
+                }
+            }
             return WebResourceResponse(
                 "text/plain", "utf-8", ByteArrayInputStream(EMPTY_BODY))
         }
@@ -567,6 +727,100 @@ class FastSubresourceInterceptor(
             dot = host.indexOf('.', dot + 1)
         }
         return false
+    }
+
+    /**
+     * Classify a sub-resource request into ABP's resource-type
+     * taxonomy so the engine's `$script`, `$image`, `$xhr`, etc.
+     * modifiers can fire. The Android WebResourceRequest doesn't
+     * carry a direct resource-type field — chromium only exposes
+     * URL + headers + method + isForMainFrame — so we triangulate:
+     *   1. `isForMainFrame` → "document".
+     *   2. `Sec-Fetch-Dest` header (Chromium adds it on most
+     *      requests as of WebView 96+).
+     *   3. URL extension fallback.
+     *   4. "other" as the final default — ABP rules without a
+     *      resource-type modifier still match this.
+     */
+    /**
+     * Build a `WebResourceResponse` from an adblock-rust redirect
+     * data URL (`data:<mime>;base64,<body>`). Returns null when the
+     * URL doesn't parse — caller falls back to the empty-body
+     * response. Supports both base64 (the format adblock-rust emits
+     * for binary + JS resources) and plain (rare; defensively
+     * handled).
+     */
+    internal fun redirectResponseFor(dataUrl: String): WebResourceResponse? {
+        if (!dataUrl.startsWith("data:")) return null
+        val semi = dataUrl.indexOf(';', startIndex = 5)
+        val comma = dataUrl.indexOf(',', startIndex = if (semi >= 0) semi else 5)
+        if (comma < 0) return null
+        val mime = if (semi >= 0) {
+            dataUrl.substring(5, semi).ifEmpty { "application/octet-stream" }
+        } else {
+            dataUrl.substring(5, comma).ifEmpty { "application/octet-stream" }
+        }
+        val encoding = if (semi >= 0) dataUrl.substring(semi + 1, comma) else ""
+        val payload = dataUrl.substring(comma + 1)
+        val body = try {
+            if (encoding == "base64") {
+                // java.util.Base64 over android.util.Base64: the JDK
+                // version is available in JVM unit tests too (the
+                // Android variant returns null under returnDefault
+                // Values=true, NPE-ing the ByteArrayInputStream ctor).
+                java.util.Base64.getDecoder().decode(payload)
+            } else {
+                // Percent-decoded payload would be more correct here,
+                // but adblock-rust emits base64 for every redirect
+                // resource it produces, so plain just round-trips
+                // the UTF-8 bytes.
+                payload.toByteArray(Charsets.UTF_8)
+            }
+        } catch (_: Throwable) {
+            return null
+        }
+        return WebResourceResponse(mime, "utf-8", ByteArrayInputStream(body))
+    }
+
+    internal fun mapResourceType(request: WebResourceRequestExt): String {
+        if (request.isForMainFrame()) return "document"
+        val headers = request.headers ?: emptyMap()
+        // Header keys come back as the original case the browser
+        // sent (typically lowercase for fetch metadata) — match
+        // both casings to survive future quirks.
+        val dest = headers["Sec-Fetch-Dest"] ?: headers["sec-fetch-dest"]
+        if (!dest.isNullOrEmpty()) {
+            return when (dest) {
+                "script" -> "script"
+                "style" -> "stylesheet"
+                "image" -> "image"
+                "font" -> "font"
+                "audio", "video", "track" -> "media"
+                "iframe", "frame", "embed", "object" -> "subdocument"
+                "empty" -> "xhr"
+                "document" -> "document"
+                "websocket" -> "websocket"
+                else -> "other"
+            }
+        }
+        val url = request.url ?: return "other"
+        val pathEnd = url.indexOfAny(charArrayOf('?', '#')).let {
+            if (it < 0) url.length else it
+        }
+        val tail = url.substring(0, pathEnd).lowercase()
+        return when {
+            tail.endsWith(".js") || tail.endsWith(".mjs") -> "script"
+            tail.endsWith(".css") -> "stylesheet"
+            tail.endsWith(".png") || tail.endsWith(".jpg") ||
+                tail.endsWith(".jpeg") || tail.endsWith(".gif") ||
+                tail.endsWith(".webp") || tail.endsWith(".svg") ||
+                tail.endsWith(".ico") -> "image"
+            tail.endsWith(".woff") || tail.endsWith(".woff2") ||
+                tail.endsWith(".ttf") || tail.endsWith(".otf") -> "font"
+            tail.endsWith(".mp4") || tail.endsWith(".webm") ||
+                tail.endsWith(".mp3") || tail.endsWith(".ogg") -> "media"
+            else -> "other"
+        }
     }
 
     companion object {

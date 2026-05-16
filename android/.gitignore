@@ -11,3 +11,8 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+# Gradle build outputs (reports, intermediates, classes). The path is
+# relative to this file so it covers `android/build/` and `android/app/build/`.
+build/
+# Kotlin 2.x compile cache.
+.kotlin/

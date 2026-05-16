@@ -1,0 +1,76 @@
+[package]
+name = "webspace_adblock"
+version = "0.1.0"
+edition = "2021"
+description = "C FFI surface around the `adblock` crate (Brave's adblock-rust engine), tailored for WebSpace's content blocker."
+license = "MPL-2.0"
+publish = false
+
+[lib]
+name = "webspace_adblock"
+# `cdylib` for Android (.so) and Linux (.so).
+# `staticlib` for iOS / macOS (XCFramework + dylib).
+# Both produced from one build.
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+# IMPORTANT: `default-features = false` is load-bearing. The crate's
+# default features include `single-thread`, which trades Send + Sync
+# on `Engine` for slightly better single-threaded perf. We need
+# Send + Sync because JNI hands the engine handle to the chromium IO
+# thread on every `shouldInterceptRequest` call — different thread
+# than the one that built the engine. Without disabling defaults,
+# `nativeCheckUrl` would race; with defaults disabled, all reads on
+# the engine are safe across threads (we never take `&mut`).
+adblock = { version = "0.12", default-features = false, features = [
+  "embedded-domain-resolver",
+  "full-regex-handling",
+  # Apple WKContentRuleList JSON export — see
+  # `ws_engine_content_blocking_rules_json` in src/lib.rs. Compiles to
+  # bytecode by WKContentRuleListStore on iOS/macOS, giving native
+  # WebKit-level sub-resource blocking without a JS bridge roundtrip.
+  # The trade-off is documented in openspec/specs/content-blocker/spec.md
+  # CB-012: WebKit doesn't fire any "rule matched" callback, so per-
+  # request stats live only on the JS-bridge path. We export the
+  # ruleset so the Pod hook can compile + install it; the JS bridge
+  # stays as the canonical stats source.
+  "content-blocking",
+  # uBO resource format parsers. Exposes `lists::ResourceAssembler`
+  # and the runtime side of `engine.use_resources(...)` — required
+  # for $redirect= rule serving (noop.js, etc.) and #$# snippet
+  # injection. Enabling the parser is zero-cost; activating those
+  # rule shapes also requires bundling uBO's resources directory
+  # and wiring redirect serving in the native interceptor +
+  # injected_script in the cosmetic shim. Currently only the
+  # parser side is on; the resource pool is empty so $redirect=
+  # rules silently become drop-the-request and #$# becomes a
+  # no-op. Same observable behaviour as before the feature flag.
+  "resource-assembler",
+] }
+serde_json = "1"
+
+# Build-time only: we use the adblock crate's resource_assembler to
+# parse a downloaded uBO tarball into a serializable Vec<Resource>,
+# then embed the result via include_str!. The runtime engine
+# dependency above does NOT enable resource-assembler (no need at
+# runtime — we already have the JSON baked in).
+[build-dependencies]
+adblock = { version = "0.12", default-features = false, features = [
+  "embedded-domain-resolver",
+  "resource-assembler",
+] }
+serde_json = "1"
+
+# Android-only: JNI exports so Kotlin's FastSubresourceInterceptor can
+# consult the engine on every sub-resource without a Dart roundtrip.
+# The `jni` crate is excluded from non-Android builds — it pulls in
+# JVM-specific glue that's pointless on iOS/macOS/Linux/Windows.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.21", default-features = false }
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+strip = true
+panic = "abort"

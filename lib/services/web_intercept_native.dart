@@ -125,6 +125,57 @@ class WebInterceptNative {
     }
   }
 
+  /// Push concatenated filter-list text to the native adblock-rust
+  /// engine on Android. Pass an empty string to tear it down.
+  ///
+  /// When set, [`FastSubresourceInterceptor.checkUrl`] consults the
+  /// engine for hosts the cheap `||domain^` host-set fast path didn't
+  /// already block — enabling `$domain=`, path-anchored, and resource-
+  /// type rules on Android sub-resources without a Dart roundtrip.
+  ///
+  /// Returns `null` on platforms where the engine isn't supported
+  /// (no Android, library not bundled). Returns `{supported, active}`
+  /// otherwise.
+  static Future<Map<String, bool>?> sendAdblockEngineRules(
+      String rulesText,
+      {bool enableUboResources = true}) async {
+    if (!isSupported) return null;
+    try {
+      final raw = await _channel.invokeMethod('setAdblockEngineRules', {
+        'rulesText': rulesText,
+        'enableUboResources': enableUboResources,
+      });
+      final map = (raw as Map?)
+          ?.map((k, v) => MapEntry(k.toString(), v == true)) ??
+          const {};
+      LogService.instance.log(
+          'ContentBlocker',
+          'Native adblock engine: '
+              'supported=${map['supported']}, active=${map['active']} '
+              '(${rulesText.length} bytes pushed)',
+          level: LogLevel.info);
+      return map;
+    } catch (e) {
+      LogService.instance.log('ContentBlocker',
+          'Failed to send engine rules to native: $e',
+          level: LogLevel.error);
+      return null;
+    }
+  }
+
+  /// Diagnostic: returns true iff the native adblock-rust .so is
+  /// loaded into the Android process. Lets the Dart UI grey out the
+  /// engine toggle when the CI build skipped the Rust step.
+  static Future<bool> isAdblockEngineSupported() async {
+    if (!isSupported) return false;
+    try {
+      final raw = await _channel.invokeMethod('isAdblockEngineSupported');
+      return raw == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // ========== LocalCDN ==========
 
   /// Push the CDN URL regex patterns to the native interceptor. Each

@@ -44,9 +44,25 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // Dart-side `HttpClient.badCertificateCallback`. Round-trips so a
   // self-hosted user keeps their trust decisions across reinstalls.
   kTrustedHostsKey: <String>[],
+  // CB-010: experimental Rust-backed adblock engine. When true and the
+  // platform ships `webspace_adblock`, network-block decisions and
+  // generic class/id cosmetic lookups go through Brave's adblock-rust
+  // via FFI. Off by default — the Dart parser engine remains canonical
+  // until the Rust path has burn-in across all platforms.
+  'useRustAdblockEngine': false,
+  // Gates uBO web_accessible_resources/ — the resource pool that
+  // backs $redirect= rules (noop.js, 1x1.gif, neutered tracker stubs)
+  // and snippet injection. Enabled by default: filter authors rely on
+  // $redirect= for replacing real tracker scripts with stubs that
+  // satisfy the page's expected API surface without sending data home.
+  // Turn off to make $redirect= drop the request instead — see
+  // openspec/specs/content-blocker/spec.md CB-013.
+  'useUboResources': true,
 };
 
 const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';
+const String kUseRustAdblockEngineKey = 'useRustAdblockEngine';
+const String kUseUboResourcesKey = 'useUboResources';
 
 /// Read every registered pref from [prefs] into a map suitable for embedding
 /// in a `SettingsBackup`. Missing keys fall back to their registry default.

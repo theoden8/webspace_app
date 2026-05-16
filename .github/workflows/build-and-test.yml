@@ -74,6 +74,25 @@ jobs:
     env:
       GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError
     steps:
+      # GitHub-hosted ubuntu-latest ships with ~14 GB free, but the
+      # job's working set is closer to 25 GB once you add: Android
+      # SDK/NDK (~10 GB preinstalled), Gradle caches, four Rust
+      # target dirs (~2 GB each for the Android cross-compiles), the
+      # Flutter build dir, and pub-cache. We've been hitting "No
+      # space left on device" mid-build (seen as a CI diag-log write
+      # failure, no actual build output). Free the preinstalled
+      # heavies we don't use — saves ~30 GB and the disk-pressure
+      # margin keeps the build deterministic.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false  # keep the preinstalled JDK we use below
+          android: false     # keep the Android SDK we use below
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -126,6 +145,62 @@ jobs:
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/webspace_adblock/target
+          key: cargo-android-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
+          restore-keys: |
+            cargo-android-${{ runner.os }}-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk
+
+      # cargo-ndk requires ANDROID_NDK_HOME pointing at a real NDK
+      # install. The ubuntu-latest runner ships a default NDK under
+      # $ANDROID_SDK_ROOT/ndk/, but the path is version-stamped and
+      # the actual version drifts across runner image releases. Use
+      # the dedicated setup action so we pin a known-good NDK and
+      # don't wedge on a path-shape change in the runner image.
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: false
+
+      # The Rust .so is built by the buildRustAdblock Gradle task that
+      # phase 11 wired into the Android build (see android/app/build.
+      # gradle). It auto-runs as a dependency of mergeJniLibFolders, so
+      # we don't need an explicit build step here — but the task needs
+      # ANDROID_NDK_HOME set on the env, which we export here so every
+      # downstream gradle invocation (Kotlin tests + APK build) sees it.
+      - name: Export ANDROID_NDK_HOME
+        run: echo "ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run JVM unit tests (Kotlin plugins)
+        # Catches Kotlin compile errors and pure-logic bugs in the
+        # Android plugins (WebInterceptPlugin.mapResourceType,
+        # AdblockEngineNative fallback) before the slow APK assembly
+        # step. The phase 9 `request.requestHeaders` typo would
+        # have surfaced here in seconds. fdroidDebug variant has
+        # the smallest config — we only care that the code compiles
+        # and the unit-test logic passes; flavor specifics don't
+        # affect either.
+        working-directory: android
+        run: gradle :app:testFdroidDebugUnitTest --console=plain --no-daemon
 
       - name: Run tests
         run: fvm flutter test
@@ -385,6 +460,24 @@ jobs:
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
 
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            /root/.cargo/registry
+            /root/.cargo/git
+            rust/webspace_adblock/target
+          key: cargo-linux-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
+          restore-keys: |
+            cargo-linux-${{ runner.os }}-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # The Linux Rust .so is built by the CMake custom target wired
+      # into linux/CMakeLists.txt (phase 11). flutter build linux
+      # invokes CMake which auto-builds the crate as a dependency of
+      # the runner binary — no explicit step needed.
       - name: Build Linux
         run: fvm flutter build linux --release
 
@@ -602,6 +695,33 @@ jobs:
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/webspace_adblock/target
+          key: cargo-apple-${{ runner.os }}-${{ hashFiles('rust/webspace_adblock/Cargo.lock') }}
+          restore-keys: |
+            cargo-apple-${{ runner.os }}-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
+
+      # Pre-build the Rust .a files OUTSIDE xcodebuild so CI doesn't
+      # depend on the inline Pod shell phase finding cargo on its
+      # constrained PATH. The Pod hook still runs (idempotent: cargo
+      # skips on cache hit), but if its PATH lookup ever regresses,
+      # the linker still finds a valid .a at ios/Frameworks/.
+      - name: Build Rust adblock static libs (iOS + macOS)
+        run: |
+          bash scripts/build_rust.sh ios
+          bash scripts/build_rust.sh macos
+          ls -la ios/Frameworks macos/Frameworks
 
       - name: Run tests
         run: fvm flutter test

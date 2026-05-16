@@ -15,6 +15,8 @@ import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/generic_cosmetic_shim.dart';
+import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -1447,6 +1449,59 @@ class WebViewFactory {
           injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         ));
       }
+      // ABP $csp= rules. Engine-only — the Dart parser doesn't handle
+      // them. <meta http-equiv> is the most portable path: works on
+      // every platform without needing response-header rewrite (which
+      // WKWebView doesn't expose). Browsers honour <meta> CSP as
+      // equivalent to the header when injected before the first
+      // resource fetch, which DOCUMENT_START is.
+      final cspDirectives =
+          ContentBlockerService.instance.cspFor(config.initialUrl);
+      if (cspDirectives != null && cspDirectives.isNotEmpty) {
+        final escaped =
+            cspDirectives.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+        userScripts.add(inapp.UserScript(
+          source: '''
+(function() {
+  if (document.documentElement) {
+    var m = document.createElement('meta');
+    m.setAttribute('http-equiv', 'Content-Security-Policy');
+    m.setAttribute('content', '$escaped');
+    (document.head || document.documentElement).appendChild(m);
+  }
+})();
+;null;''',
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        ));
+      }
+      // Phase 5: generic class/id cosmetic shim runs at DOCUMENT_END
+      // (after the body is parseable but before late mutations land)
+      // and queries the engine via the genericCosmeticScan bridge.
+      // Only useful when the engine is active — otherwise the bridge
+      // handler returns [] and the shim is a no-op.
+      if (ContentBlockerService.instance.usingRustEngine) {
+        userScripts.add(inapp.UserScript(
+          source:
+              '${buildGenericCosmeticScannerShim()}\n;null;',
+          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
+        ));
+        // Procedural actions: ##selector:has-text(...), :remove(),
+        // :upward(N), :style(...), etc. Their selectors can't be
+        // expressed in pure CSS, so they need an in-page runner.
+        // The shim builder returns null when there are no procedural
+        // rules for this URL (most pages — most rules are plain hides).
+        final procedural = ContentBlockerService.instance
+            .proceduralActionsFor(config.initialUrl);
+        if (procedural.isNotEmpty) {
+          final shim = buildProceduralCosmeticShim(procedural);
+          if (shim != null) {
+            userScripts.add(inapp.UserScript(
+              source: '$shim\n;null;',
+              injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
+            ));
+          }
+        }
+      }
     }
 
     // ClearURLs: intercept clipboard writes and Web Share API to clean tracking
@@ -1687,6 +1742,15 @@ class WebViewFactory {
   }
   loadBloom();
 
+  // Async decision encoding (returned by callHandler('blockCheck')):
+  //   false       — allow
+  //   true        — block (drop)
+  //   <string>    — block + redirect; string is a `data:` URL to
+  //                 swap the request with. Engine's \$redirect= path.
+  // checkSync only knows bool (bloom prefilter answers host membership,
+  // not redirect specifics) — redirect lookup always goes through Dart.
+  function isRedirect(d) { return typeof d === 'string' && d.indexOf('data:') === 0; }
+
   // fetch — sync fast-path on misses, async only on bloom hits.
   var origFetch = window.fetch;
   if (origFetch) {
@@ -1696,14 +1760,20 @@ class WebViewFactory {
       if (sync === false) return origFetch.call(this, input, init);
       if (sync === true) return Promise.reject(new TypeError('Blocked: ' + url));
       var self = this;
-      return checkAsync(url).then(function(blocked) {
-        if (blocked) return Promise.reject(new TypeError('Blocked: ' + url));
+      return checkAsync(url).then(function(decision) {
+        if (isRedirect(decision)) return origFetch.call(self, decision, init);
+        if (decision) return Promise.reject(new TypeError('Blocked: ' + url));
         return origFetch.call(self, input, init);
       });
     };
   }
 
-  // XMLHttpRequest
+  // XMLHttpRequest. Redirect can't easily swap the URL after open();
+  // chromium has already configured the request. Drop the XHR
+  // entirely on a redirect decision — equivalent observable
+  // behaviour to a plain block. Better-engineered redirect for XHR
+  // would intercept earlier (at open()) and re-issue against the
+  // data URL, but XHR is rare for tracker scripts so skip.
   var origOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url) {
     this.__dnsBlockUrl = url;
@@ -1717,8 +1787,8 @@ class WebViewFactory {
     if (sync === true) { try { this.abort(); } catch (e) {} return; }
     var self = this;
     var args = arguments;
-    checkAsync(url).then(function(blocked) {
-      if (blocked) { try { self.abort(); } catch (e) {} return; }
+    checkAsync(url).then(function(decision) {
+      if (decision) { try { self.abort(); } catch (e) {} return; }
       origSend.apply(self, args);
     });
   };
@@ -1741,8 +1811,9 @@ class WebViewFactory {
         if (sync === false) { origSet.call(this, value); return; }
         if (sync === true) { return; }
         var el = this;
-        checkAsync(value).then(function(blocked) {
-          if (!blocked) origSet.call(el, value);
+        checkAsync(value).then(function(decision) {
+          if (isRedirect(decision)) origSet.call(el, decision);
+          else if (!decision) origSet.call(el, value);
         });
       }
     });
@@ -1754,7 +1825,8 @@ class WebViewFactory {
 
   // MutationObserver for statically-parsed HTML elements. Bloom-miss
   // path is a no-op (the element is allowed to keep the attribute);
-  // only confirmed-blocked elements are stripped.
+  // only confirmed-blocked elements are stripped (or rewritten when
+  // the engine offers a redirect body).
   function checkElement(el) {
     var attr = null;
     if (el.tagName === 'IMG' || el.tagName === 'SCRIPT' || el.tagName === 'IFRAME') attr = 'src';
@@ -1769,8 +1841,12 @@ class WebViewFactory {
       if (el.parentNode) el.parentNode.removeChild(el);
       return;
     }
-    checkAsync(url).then(function(blocked) {
-      if (blocked) {
+    checkAsync(url).then(function(decision) {
+      if (isRedirect(decision)) {
+        el.setAttribute(attr, decision);
+        return;
+      }
+      if (decision) {
         el.removeAttribute(attr);
         if (el.parentNode) el.parentNode.removeChild(el);
       }
@@ -2039,9 +2115,17 @@ class WebViewFactory {
             final url = args[0] as String;
             final dnsBlocked = config.dnsBlockEnabled &&
                 DnsBlockService.instance.isBlocked(url);
+            // Pass the page URL as sourceUrl so the engine can fire
+            // `$domain=` rules. lastLoadStartUrl is the most recent
+            // URL that triggered onLoadStart — the page hosting this
+            // sub-resource. Empty fallback degrades to host-only
+            // matching which still works for plain `||domain^` rules.
             final abpBlocked = !dnsBlocked &&
                 config.contentBlockEnabled &&
-                ContentBlockerService.instance.isBlocked(url);
+                ContentBlockerService.instance.isBlocked(
+                  url,
+                  sourceUrl: lastLoadStartUrl ?? '',
+                );
             final blocked = dnsBlocked || abpBlocked;
             final source = dnsBlocked
                 ? BlockSource.dns
@@ -2054,6 +2138,16 @@ class WebViewFactory {
           // Only the bloom-hit minority of requests hits this path.
           if (!Platform.isAndroid) {
             controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
+              // Return value contract for the JS shim:
+              //   false       — allow (call origSet / origFetch as-is)
+              //   true        — block (drop the request)
+              //   String      — block + redirect; the string is a
+              //                 `data:` URL the shim should swap the
+              //                 request URL with so the page sees the
+              //                 neutered uBO stub body instead of an
+              //                 empty 200. Maintains stats parity:
+              //                 we still record the block before
+              //                 returning the redirect URL.
               if (args.isEmpty || args[0] is! String) return false;
               final url = args[0] as String;
               final dnsSvc = DnsBlockService.instance;
@@ -2063,10 +2157,21 @@ class WebViewFactory {
                     source: BlockSource.dns);
                 return true;
               }
-              if (config.contentBlockEnabled && abpSvc.isBlocked(url)) {
+              // sourceUrl is the page hosting this sub-resource, so
+              // the engine can apply `$domain=` modifiers. See the
+              // matching comment in the blockResourceLoaded handler.
+              if (config.contentBlockEnabled &&
+                  abpSvc.isBlocked(url,
+                      sourceUrl: lastLoadStartUrl ?? '')) {
                 dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.abp);
-                return true;
+                // Try the engine's $redirect= lookup. Only meaningful
+                // when the engine is on; returns null otherwise.
+                final redirect = abpSvc.redirectFor(
+                  url,
+                  sourceUrl: lastLoadStartUrl ?? '',
+                );
+                return redirect ?? true;
               }
               dnsSvc.recordRequest(config.siteId!, url, false);
               return false;
@@ -2079,6 +2184,46 @@ class WebViewFactory {
               return map;
             });
           }
+          // Phase 5: generic-cosmetic class/id lookup. The page-side
+          // shim from generic_cosmetic_shim.dart scans the loaded DOM
+          // for unique classes / ids, calls this handler with
+          // `{classes: [...], ids: [...]}`, and gets back a list of
+          // CSS selectors to inject as display:none. Only the engine
+          // surfaces these (the Dart parser keeps generic rules in
+          // _cosmeticSelectors, which already get injected the old
+          // way) — when no engine is active, we return an empty list
+          // and the shim is a no-op.
+          controller.addJavaScriptHandler(
+            handlerName: 'genericCosmeticScan',
+            callback: (args) {
+              if (!config.contentBlockEnabled) return const <String>[];
+              if (args.isEmpty || args[0] is! Map) return const <String>[];
+              final payload = Map<String, dynamic>.from(args[0] as Map);
+              final classes = (payload['classes'] as List? ?? const [])
+                  .cast<String>()
+                  .toSet();
+              final ids = (payload['ids'] as List? ?? const [])
+                  .cast<String>()
+                  .toSet();
+              final selectors =
+                  ContentBlockerService.instance.genericCosmeticSelectorsFor(
+                pageUrl: config.initialUrl,
+                classes: classes,
+                ids: ids,
+              );
+              if (selectors.isNotEmpty) {
+                final preview = selectors.take(8).join(', ');
+                LogService.instance.log(
+                  'WebView',
+                  'genericCosmeticScan ${config.initialUrl}: '
+                      '${classes.length} class / ${ids.length} id → '
+                      '${selectors.length} hide(s): [$preview${selectors.length > 8 ? ", …" : ""}]',
+                  level: LogLevel.debug,
+                );
+              }
+              return selectors;
+            },
+          );
         }
         if (config.siteId != null && config.notificationsEnabled) {
           controller.addJavaScriptHandler(
@@ -2209,6 +2354,16 @@ class WebViewFactory {
         // populated, and the references are shared with the plugin so
         // subsequent updates are picked up without re-attaching.
         if (Platform.isAndroid) {
+          // Track attach attempts so we can correlate with the
+          // native-side "attachToAllWebViews" log. Phase 14: helps
+          // debug the case where Android sub-resources aren't blocked
+          // — first thing to check is whether attach is even running.
+          LogService.instance.log(
+            'WebView',
+            'requesting native interceptor attach: siteId=${config.siteId} '
+                'initialUrl=${config.initialUrl}',
+            level: LogLevel.debug,
+          );
           Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
         }
       },
@@ -2282,8 +2437,17 @@ class WebViewFactory {
           }
         }
         // Content blocker domain check (main-doc navigation; sub-resources
-        // are caught by the native / JS interceptor).
-        if (config.contentBlockEnabled && ContentBlockerService.instance.isBlocked(url)) {
+        // are caught by the native / JS interceptor). requestType
+        // 'document' tells the engine this is a top-level load, so
+        // any `$~document` modifiers are honoured. The source URL is
+        // the previous page (`lastLoadStartUrl`) — the page that
+        // initiated this navigation.
+        if (config.contentBlockEnabled &&
+            ContentBlockerService.instance.isBlocked(
+              url,
+              sourceUrl: lastLoadStartUrl ?? '',
+              requestType: 'document',
+            )) {
           if (config.siteId != null) {
             DnsBlockService.instance.recordRequest(config.siteId!, url, true,
                 source: BlockSource.abp);
@@ -2296,6 +2460,30 @@ class WebViewFactory {
           if (cleanedUrl.isEmpty) return inapp.NavigationActionPolicy.CANCEL;
           if (cleanedUrl != url) {
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl)));
+            return inapp.NavigationActionPolicy.CANCEL;
+          }
+        }
+        // ABP $removeparam=: a rule-driven sibling of ClearURLs. EasyList
+        // & co. ship $removeparam=utm_source (etc.); the Rust engine
+        // strips matching keys. Runs AFTER ClearURLs so the static
+        // rules go first and the filter list catches what they miss.
+        // No-op when the engine is off or the URL has no query.
+        if (config.contentBlockEnabled &&
+            ContentBlockerService.instance.usingRustEngine &&
+            url.contains('?')) {
+          // requestType: 'document' — adblock-rust restricts
+          // \$removeparam= to document/subdocument/xhr by default,
+          // and a main-frame nav IS a document fetch. Without this
+          // the engine returns no rewrite even when a matching
+          // filter is loaded.
+          final rewritten = ContentBlockerService.instance
+              .rewrittenUrl(url, requestType: 'document');
+          if (rewritten != null && rewritten != url) {
+            LogService.instance.log('ContentBlocker',
+                '\$removeparam= rewrote $url → $rewritten',
+                level: LogLevel.debug);
+            controller.loadUrl(
+                urlRequest: inapp.URLRequest(url: inapp.WebUri(rewritten)));
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
@@ -2460,8 +2648,16 @@ class WebViewFactory {
             url.toString().startsWith('http')) {
           final urlStr = url.toString();
           final dnsBlocked = DnsBlockService.instance.isBlocked(urlStr);
+          // We're inside onLoadStart for `urlStr`, so this IS the
+          // page URL — use it as both the URL under check and the
+          // source. requestType 'document' since this is a top-level
+          // load.
           final abpBlocked = !dnsBlocked &&
-              ContentBlockerService.instance.isBlocked(urlStr);
+              ContentBlockerService.instance.isBlocked(
+                urlStr,
+                sourceUrl: urlStr,
+                requestType: 'document',
+              );
           final blocked = dnsBlocked || abpBlocked;
           final source = dnsBlocked
               ? BlockSource.dns
@@ -2832,6 +3028,16 @@ class WebViewFactory {
     if (cert != null) {
       _sslCertificateCache[_certCacheKey(host, port)] = cert;
     }
+    // Apple: defer to OS unconditionally. The pin store doesn't help
+    // here — modern macOS/iOS reject self-signed at the BoringSSL layer
+    // before our PROCEED can take effect, and valid public-CA certs
+    // are accepted by the OS without consulting the pin store. Pins
+    // remain useful for Android post-failure and for dart:io
+    // `HttpClient.badCertificateCallback` (favicon fetch, etc.), but
+    // querying them in this code path on Apple was log noise at best.
+    if (Platform.isIOS || Platform.isMacOS) {
+      return null;
+    }
     if (TrustedHostsService.instance.isTrusted(
       host: host,
       port: port,
@@ -2841,16 +3047,6 @@ class WebViewFactory {
           'TLS', 'pinned cert accepted for $host:$port (sha256=$fingerprint)');
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
-    }
-    // Pre-evaluation platforms: defer to the OS trust store. Returning
-    // null (not `ServerTrustAuthResponse()`, which means CANCEL)
-    // triggers the plugin's `nullSuccess` → `performDefaultHandling`
-    // fallback; valid public CAs load silently, only genuine failures
-    // surface to `onReceivedError`.
-    if (Platform.isIOS || Platform.isMacOS) {
-      LogService.instance.log(
-          'TLS', 'deferring trust verdict to OS for $host:$port');
-      return null;
     }
     // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.

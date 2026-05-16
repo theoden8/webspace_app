@@ -40,4 +40,57 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
   end
+
+  # Same shape as ios/Podfile — see there for the force_load
+  # rationale. macOS doesn't split device/simulator slices so we
+  # use a single universal .a (arm64 + x86_64) and a single
+  # force_load flag, no $(PLATFORM_NAME) interpolation.
+  installer.aggregate_targets.each do |aggregate|
+    next unless aggregate.name == 'Pods-Runner'
+    aggregate.user_project.targets.each do |runner_target|
+      next unless runner_target.name == 'Runner'
+
+      # See ios/Podfile for the PATH-prepend rationale.
+      phase_name = '[webspace] Build adblock-rust static lib'
+      runner_target.build_phases.delete_if do |p|
+        p.respond_to?(:name) && p.name == phase_name
+      end
+      phase = runner_target.new_shell_script_build_phase(phase_name)
+      phase.shell_script = <<~BASH
+        set -e
+        export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+        if ! command -v cargo >/dev/null 2>&1; then
+          echo "[webspace] cargo not found on PATH ($PATH)."
+          echo "[webspace] Install Rust toolchain or the linker -force_load"
+          echo "[webspace] will fail later in this build."
+          exit 1
+        fi
+        REPO_ROOT="${SRCROOT}/.."
+        bash "${REPO_ROOT}/scripts/build_rust.sh" macos
+      BASH
+      # See ios/Podfile for output_paths rationale.
+      phase.output_paths = ['$(SRCROOT)/Frameworks/libwebspace_adblock.a']
+      phase.input_paths = [
+        '$(SRCROOT)/../rust/webspace_adblock/Cargo.toml',
+        '$(SRCROOT)/../rust/webspace_adblock/build.rs',
+        '$(SRCROOT)/../rust/webspace_adblock/src/lib.rs',
+        '$(SRCROOT)/../scripts/build_rust.sh',
+      ]
+      compile_idx = runner_target.build_phases.index { |p|
+        p.respond_to?(:display_name) && p.display_name.include?('Sources')
+      }
+      runner_target.build_phases.move(phase, compile_idx) if compile_idx
+
+      force_load = '-force_load $(SRCROOT)/Frameworks/libwebspace_adblock.a'
+      runner_target.build_configurations.each do |config|
+        ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
+        ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
+        unless ldflags.any? { |f| f.include?('libwebspace_adblock') }
+          ldflags << force_load
+          config.build_settings['OTHER_LDFLAGS'] = ldflags
+        end
+      end
+    end
+    aggregate.user_project.save
+  end
 end

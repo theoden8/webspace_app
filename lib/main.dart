@@ -52,6 +52,7 @@ import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
@@ -605,6 +606,10 @@ void main() async {
     (['ClearURLs (rules data)'], 'assets/licenses/clearurls.txt'),
     (['Hagezi DNS Blocklists (domain data)'], 'assets/licenses/hagezi.txt'),
     (['EasyList filter lists (filter data)'], 'assets/licenses/easylist.txt'),
+    (
+      ['adblock-rust + uBlock Origin resources (engine code + redirect bodies)'],
+      'assets/licenses/adblock_rust.txt'
+    ),
     (['cdnjs (LocalCDN resource data)'], 'assets/licenses/cdnjs.txt'),
     (['OpenStreetMap (map data and tiles)'], 'assets/licenses/openstreetmap.txt'),
   ];
@@ -614,6 +619,39 @@ void main() async {
       yield LicenseEntryWithLineBreaks(packages, text);
     });
   }
+
+  // Transitive Rust dependency attribution. Loaded from the
+  // adblock_rust shared library's static metadata blob (see
+  // rust/webspace_adblock/build.rs). Surfaces every crate
+  // adblock-rust pulls in (regex, serde, flatbuffers, idna, …) with
+  // its SPDX license + upstream URL. Skips the actual license text —
+  // SPDX + URL is enough to direct users to the original for any
+  // crate that requires reproducing it.
+  LicenseRegistry.addLicense(() async* {
+    for (final dep in AdblockEngine.depLicenses()) {
+      final name = dep['name'] as String? ?? '';
+      if (name.isEmpty) continue;
+      final version = dep['version'] as String? ?? '';
+      final license = dep['license'] as String? ?? '<unspecified>';
+      final repo = dep['repository'] as String? ?? '';
+      final desc = dep['description'] as String? ?? '';
+      final body = [
+        if (desc.isNotEmpty) desc,
+        '',
+        'Version: $version',
+        'License: $license',
+        if (repo.isNotEmpty) 'Source: $repo',
+        if (repo.isEmpty) 'Source: https://crates.io/crates/$name',
+        '',
+        'Full license text available at the upstream source above and '
+            'in standard SPDX form at https://spdx.org/licenses/.',
+      ].join('\n');
+      yield LicenseEntryWithLineBreaks(
+        ['$name (Rust crate, transitive via adblock-rust)'],
+        body,
+      );
+    }
+  });
 
   // Initialize platform info to detect proxy support before UI loads
   await PlatformInfo.initialize();

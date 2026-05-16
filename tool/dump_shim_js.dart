@@ -22,6 +22,8 @@ import 'package:webspace/services/abp_filter_parser.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
+import 'package:webspace/services/procedural_cosmetic_shim.dart';
+import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
@@ -169,7 +171,7 @@ Map<String, String> buildAllFixtures() {
     (selector: 'div.article > p', patterns: ['Sponsored content']),
   ];
   fixtures['content_blocker/early_css.js'] =
-      buildContentBlockerEarlyCssShim(sampleSelectors)!;
+      buildContentBlockerEarlyCssShim(selectors: sampleSelectors)!;
   fixtures['content_blocker/cosmetic.js'] = buildContentBlockerCosmeticShim(
     selectors: sampleSelectors,
     textRules: sampleTextRules,
@@ -198,6 +200,30 @@ Map<String, String> buildAllFixtures() {
       buildContentBlockerCosmeticShim(
     selectors: multiBatchSelectors,
     textRules: multiTextRules,
+  )!;
+
+  // Phase 5: generic class/id cosmetic scanner. The page-side half
+  // of the engine-backed pipeline that calls back to Dart with
+  // `{classes, ids}` and injects the returned selectors. jsdom test
+  // stubs the bridge handler and asserts the injection happens.
+  fixtures['content_blocker/generic_scanner.js'] =
+      buildGenericCosmeticScannerShim();
+
+  // Fixture exercising uBO `:style(...)` rules — the parser emits
+  // these instead of `display:none`, and the shim must apply the
+  // raw declarations through the same early <style> tag without
+  // also emitting display:none for the same selector. Behavioural
+  // assertions live in test/js/content_blocker_style_rules.test.js.
+  const styleSelectors = ['.always-hidden'];
+  const styleRules = <ContentBlockerStyleRule>[
+    (selector: '.shrunk-banner', declarations: 'height: 1px !important'),
+    (selector: '.faded-promo', declarations: 'opacity: 0.1 !important'),
+  ];
+  fixtures['content_blocker/style_rules.js'] =
+      buildContentBlockerCosmeticShim(
+    selectors: styleSelectors,
+    styleRules: styleRules,
+    textRules: const [],
   )!;
 
   // Fixture for the wider ABP rule shapes the parser produces:
@@ -237,12 +263,21 @@ Map<String, String> buildAllFixtures() {
   // Collect rules a webview visiting [host] would see — globals plus
   // every parent-domain match — mirroring ContentBlockerService's
   // _collectRules walk-up.
-  ({List<String> selectors, List<ContentBlockerTextRule> textRules})
-      collectFor(String host) {
+  ({
+    List<String> selectors,
+    List<ContentBlockerStyleRule> styleRules,
+    List<ContentBlockerTextRule> textRules,
+  }) collectFor(String host) {
     final selectors = <String>[];
+    final styleRules = <ContentBlockerStyleRule>[];
     final textRules = <ContentBlockerTextRule>[];
     final globalSel = parsed.cosmeticSelectors[''];
     if (globalSel != null) selectors.addAll(globalSel);
+    final globalStyle = parsed.styleRules[''];
+    if (globalStyle != null) {
+      styleRules.addAll(globalStyle
+          .map((r) => (selector: r.selector, declarations: r.declarations)));
+    }
     final globalText = parsed.textHideRules[''];
     if (globalText != null) {
       textRules.addAll(globalText
@@ -252,6 +287,11 @@ Map<String, String> buildAllFixtures() {
     while (domain.isNotEmpty) {
       final ds = parsed.cosmeticSelectors[domain];
       if (ds != null) selectors.addAll(ds);
+      final sr = parsed.styleRules[domain];
+      if (sr != null) {
+        styleRules.addAll(
+            sr.map((r) => (selector: r.selector, declarations: r.declarations)));
+      }
       final tr = parsed.textHideRules[domain];
       if (tr != null) {
         textRules.addAll(
@@ -261,15 +301,35 @@ Map<String, String> buildAllFixtures() {
       if (dotIdx < 0) break;
       domain = domain.substring(dotIdx + 1);
     }
-    return (selectors: selectors, textRules: textRules);
+    return (
+      selectors: selectors,
+      styleRules: styleRules,
+      textRules: textRules,
+    );
   }
 
   final linkedinRules = collectFor('linkedin.com');
   fixtures['content_blocker/easylist_sample_linkedin.js'] =
       buildContentBlockerCosmeticShim(
     selectors: linkedinRules.selectors,
+    styleRules: linkedinRules.styleRules,
     textRules: linkedinRules.textRules,
   )!;
+
+  // Procedural shim fixture covers every rule shape Section 1C of
+  // abp_rule_probe.html tests: :remove(), :upward():remove(),
+  // :style(...), :remove-attr(), :remove-class(). Each rule has at
+  // least one ABP pseudo embedded in the css-selector arg
+  // (:has-text(...)) so the fixture exercises the splitter on the
+  // page-side runtime.
+  fixtures['content_blocker/procedural_actions.js'] =
+      buildProceduralCosmeticShim([
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_remove:has-text(REMOVE-ME)"}],"action":"remove"}',
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_upward:has-text(LEAF):upward(1)"}],"action":"remove"}',
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_style:has-text(Sponsored)"}],"action":{"type":"style","arg":"outline: 2px solid red !important"}}',
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_remove_attr[data-tracker]"}],"action":{"type":"remove-attr","arg":"data-tracker"}}',
+    '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_remove_class.fp_probe_remove_me"}],"action":{"type":"remove-class","arg":"fp_probe_remove_me"}}',
+  ])!;
 
   return fixtures;
 }

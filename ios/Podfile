@@ -41,4 +41,103 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end
+
+  # Auto-build the Rust adblock-rust static library, then force-load
+  # it into the Runner binary so Dart FFI's DynamicLibrary.process()
+  # can resolve the symbols at runtime.
+  #
+  # Why force_load: the Runner has no Swift/ObjC code that references
+  # our FFI symbols at compile time, so the linker dead-strips the
+  # entire library by default. `-force_load <path-to-.a>` tells the
+  # linker to keep every symbol regardless of references. The static
+  # archive then surfaces in the .app binary's symbol table, where
+  # dlsym() / DynamicLibrary.process() finds them.
+  #
+  # Why .a instead of XCFramework: xcframework wrapping a static
+  # library doesn't have a stable Xcode-variable path to the
+  # unpacked slice, which -force_load needs. Stamping .a files by
+  # $(PLATFORM_NAME) (iphoneos / iphonesimulator) gives us a direct
+  # path Xcode interpolates at link time.
+  #
+  # Idempotent: cargo skips when crate sources are unchanged.
+  # Skipped silently when cargo isn't on PATH — AdblockEngine.load()
+  # returns null at runtime, legacy Dart parser remains the fallback.
+  installer.aggregate_targets.each do |aggregate|
+    next unless aggregate.name == 'Pods-Runner'
+    aggregate.user_project.targets.each do |runner_target|
+      next unless runner_target.name == 'Runner'
+
+      # 1. Build phase that produces the per-platform .a files.
+      #
+      # PATH note: xcodebuild starts shell phases with a constrained
+      # PATH (Xcode's DEVELOPER_DIR + /usr/bin:/bin:/usr/sbin:/sbin)
+      # that does NOT include ~/.cargo/bin or Homebrew prefixes. We
+      # prepend the usual cargo install locations so `command -v cargo`
+      # actually finds the toolchain that was installed by either
+      # `rustup-init` (developer machine) or dtolnay/rust-toolchain
+      # (CI). Without this prepend, the script previously skipped
+      # silently, no .a was produced, and the -force_load LDFLAG
+      # (step 2 below) failed with "file not found" at link time.
+      phase_name = '[webspace] Build adblock-rust static lib'
+      runner_target.build_phases.delete_if do |p|
+        p.respond_to?(:name) && p.name == phase_name
+      end
+      phase = runner_target.new_shell_script_build_phase(phase_name)
+      phase.shell_script = <<~BASH
+        set -e
+        export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+        if ! command -v cargo >/dev/null 2>&1; then
+          echo "[webspace] cargo not found on PATH ($PATH)."
+          echo "[webspace] Install Rust toolchain or the linker -force_load"
+          echo "[webspace] will fail later in this build. AdblockEngine"
+          echo "[webspace] would then return null; legacy Dart parser is"
+          echo "[webspace] the runtime fallback."
+          exit 1
+        fi
+        REPO_ROOT="${SRCROOT}/.."
+        bash "${REPO_ROOT}/scripts/build_rust.sh" ios
+      BASH
+      # Declare the .a outputs so Xcode's new build system schedules
+      # this phase before link AND treats the files as produced (not
+      # missing inputs). Without output_paths, xcodebuild errors with
+      # "Build input file cannot be found" when ld scans the
+      # -force_load LDFLAG path and the file isn't in the dependency
+      # graph yet, even though the script would produce it.
+      phase.output_paths = [
+        '$(SRCROOT)/Frameworks/libwebspace_adblock-iphoneos.a',
+        '$(SRCROOT)/Frameworks/libwebspace_adblock-iphonesimulator.a',
+      ]
+      # Re-run when build.rs or the source changes. Cargo handles
+      # finer-grained dep tracking inside; this is the coarse signal
+      # to Xcode so the phase isn't always-dirty.
+      phase.input_paths = [
+        '$(SRCROOT)/../rust/webspace_adblock/Cargo.toml',
+        '$(SRCROOT)/../rust/webspace_adblock/build.rs',
+        '$(SRCROOT)/../rust/webspace_adblock/src/lib.rs',
+        '$(SRCROOT)/../scripts/build_rust.sh',
+      ]
+      # Run before Compile Sources so the .a exists by the time
+      # the linker runs.
+      compile_idx = runner_target.build_phases.index { |p|
+        p.respond_to?(:display_name) && p.display_name.include?('Sources')
+      }
+      runner_target.build_phases.move(phase, compile_idx) if compile_idx
+
+      # 2. force-load LDFLAG keyed on $(PLATFORM_NAME). Xcode
+      # substitutes the value at link time:
+      #   iphoneos        — device build, arm64
+      #   iphonesimulator — simulator, arm64 + x86_64 fat .a
+      # The build script outputs both files into ios/Frameworks/.
+      force_load = '-force_load $(SRCROOT)/Frameworks/libwebspace_adblock-$(PLATFORM_NAME).a'
+      runner_target.build_configurations.each do |config|
+        ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
+        ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
+        unless ldflags.any? { |f| f.include?('libwebspace_adblock') }
+          ldflags << force_load
+          config.build_settings['OTHER_LDFLAGS'] = ldflags
+        end
+      end
+    end
+    aggregate.user_project.save
+  end
 end

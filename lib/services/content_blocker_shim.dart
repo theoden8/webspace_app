@@ -20,12 +20,19 @@
 /// imports flutter/foundation.dart, which the dumper avoids).
 typedef ContentBlockerTextRule = ({String selector, List<String> patterns});
 
+/// A uBO `:style()` rule mirror — apply [declarations] to elements
+/// matching [selector] instead of `display: none`.
+typedef ContentBlockerStyleRule = ({String selector, String declarations});
+
 /// Build the early-injection shim that inserts a CSS `display: none`
-/// stylesheet at DOCUMENT_START. Returns `null` when [selectors] is
-/// empty (caller should skip injection entirely).
-String? buildContentBlockerEarlyCssShim(List<String> selectors) {
-  if (selectors.isEmpty) return null;
-  final cssText = _buildCssText(selectors);
+/// stylesheet at DOCUMENT_START. Returns `null` when both [selectors]
+/// and [styleRules] are empty (caller should skip injection entirely).
+String? buildContentBlockerEarlyCssShim({
+  required List<String> selectors,
+  List<ContentBlockerStyleRule> styleRules = const [],
+}) {
+  if (selectors.isEmpty && styleRules.isEmpty) return null;
+  final cssText = _buildCssText(selectors, styleRules);
   return '''
 (function() {
   var ID = '_webspace_content_blocker_style';
@@ -42,8 +49,8 @@ String? buildContentBlockerEarlyCssShim(List<String> selectors) {
 /// (handles every selector-based hide via the browser's CSS engine,
 /// including dynamically-added or class-flipped elements) plus a
 /// debounced MutationObserver running text-content rules (CSS can't
-/// match on text content, so those need JS). Returns `null` when both
-/// [selectors] and [textRules] are empty.
+/// match on text content, so those need JS). Returns `null` when
+/// [selectors], [styleRules], and [textRules] are all empty.
 ///
 /// Equivalence with the previous shape (which also ran a runtime
 /// `querySelectorAll` sweep writing inline `style.display = 'none'`
@@ -55,9 +62,12 @@ String? buildContentBlockerEarlyCssShim(List<String> selectors) {
 String? buildContentBlockerCosmeticShim({
   required List<String> selectors,
   required List<ContentBlockerTextRule> textRules,
+  List<ContentBlockerStyleRule> styleRules = const [],
 }) {
-  if (selectors.isEmpty && textRules.isEmpty) return null;
-  final cssText = _buildCssText(selectors);
+  if (selectors.isEmpty && styleRules.isEmpty && textRules.isEmpty) {
+    return null;
+  }
+  final cssText = _buildCssText(selectors, styleRules);
 
   final textRulesJs = StringBuffer('[');
   for (var i = 0; i < textRules.length; i++) {
@@ -127,11 +137,19 @@ String? buildContentBlockerCosmeticShim({
 ''';
 }
 
-String _buildCssText(List<String> selectors) {
+String _buildCssText(
+  List<String> selectors,
+  List<ContentBlockerStyleRule> styleRules,
+) {
   final cssRules = StringBuffer();
   for (final s in selectors) {
     final escaped = _escapeForJsString(s);
     cssRules.write('$escaped { display: none !important; } ');
+  }
+  for (final r in styleRules) {
+    final sel = _escapeForJsString(r.selector);
+    final decls = _escapeForJsString(r.declarations);
+    cssRules.write('$sel { $decls } ');
   }
   return cssRules.toString();
 }

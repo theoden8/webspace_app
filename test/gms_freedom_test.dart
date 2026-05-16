@@ -38,6 +38,19 @@ void main() {
       ['scripts/check_no_gms.sh', apk.path],
     );
 
+    // Local-dev convenience: skip when `apkanalyzer` isn't on PATH /
+    // ANDROID_SDK_ROOT isn't set. CI's "Verify APK is free of Google
+    // Mobile Services" step calls the shell script directly with the
+    // env exported, so this skip can't be a false-negative gate there.
+    if (result.exitCode == 2 &&
+        result.stderr.toString().contains('apkanalyzer not found')) {
+      markTestSkipped(
+        'apkanalyzer not found — set ANDROID_SDK_ROOT to run this test '
+        'locally',
+      );
+      return;
+    }
+
     expect(
       result.exitCode,
       0,
