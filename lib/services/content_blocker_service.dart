@@ -78,18 +78,47 @@ List<inapp.ContentBlocker>? _appleContentBlockersFromText(String rulesText) {
   final decoded = jsonDecode(json);
   if (decoded is! List) return null;
   final out = <inapp.ContentBlocker>[];
+  var skipped = 0;
   for (final entry in decoded) {
-    if (entry is! Map) continue;
+    if (entry is! Map) {
+      skipped++;
+      continue;
+    }
     final trigger = entry['trigger'];
     final action = entry['action'];
-    if (trigger is! Map || action is! Map) continue;
-    out.add(inapp.ContentBlocker.fromMap(<dynamic, Map<dynamic, dynamic>>{
-      'trigger': Map<dynamic, dynamic>.from(trigger),
-      'action': Map<dynamic, dynamic>.from(action),
-    }));
+    if (trigger is! Map || action is! Map) {
+      skipped++;
+      continue;
+    }
+    try {
+      out.add(inapp.ContentBlocker.fromMap(<dynamic, Map<dynamic, dynamic>>{
+        'trigger': Map<dynamic, dynamic>.from(trigger),
+        'action': Map<dynamic, dynamic>.from(action),
+      }));
+    } catch (_) {
+      // One malformed rule (e.g. an unexpected null where the
+      // upstream fromMap doesn't default) must not kill the batch.
+      // The fork's ContentBlockerTrigger.fromMap defaults the known
+      // optional fields, but new platform-interface fields may slip
+      // through without defaults — swallow and skip.
+      skipped++;
+    }
+  }
+  if (skipped > 0) {
+    // Surface in the service rebuild log via the side-channel below
+    // — top-level helpers can't reach LogService directly without
+    // importing it from a worker isolate.
+    _appleContentBlockersSkipped = skipped;
+  } else {
+    _appleContentBlockersSkipped = 0;
   }
   return out;
 }
+
+/// Side-channel from [_appleContentBlockersFromText] (top-level) to
+/// the service so the rebuild log can report how many rules the
+/// Dart-object wrapping rejected. Reset on each call.
+int _appleContentBlockersSkipped = 0;
 
 /// Default filter lists added on first initialization.
 const List<Map<String, String>> _defaultLists = [
@@ -788,9 +817,11 @@ class ContentBlockerService {
     }
     _appleContentBlockers = blockers;
     _appleContentBlockersHash = hash;
+    final skipped = _appleContentBlockersSkipped;
     LogService.instance.log('ContentBlocker/WKCRL',
         'payload ready: ${blockers.length} rules built in '
-        '${sw.elapsedMilliseconds}ms (${rulesText.length}B source). '
+        '${sw.elapsedMilliseconds}ms (${rulesText.length}B source)'
+        '${skipped > 0 ? " ($skipped rule(s) skipped by Dart-object wrap)" : ""}. '
         'identifier prefix sent to fork: iaw-rl-${hash.substring(0, 12)}…. '
         'new webviews on iOS/macOS will attach this list on creation.',
         level: LogLevel.info);
