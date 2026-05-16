@@ -1882,6 +1882,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       webspaceIds: const <String>{},
       containerIds: containerIds,
     );
+    _resolveWebspaceIndices();
   }
 
   Future<String> _deriveArchiveContainerId(
@@ -1974,6 +1975,51 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (mounted) setState(() {});
   }
 
+  /// Recomputes each webspace's runtime `siteIndices` list from its
+  /// persisted `siteIds` membership against the current `_webViewModels`.
+  /// Called after every operation that may have changed positions
+  /// (load, add, delete, archive open/close, move-to/out-of-archive).
+  /// Order is preserved: `siteIndices` ends up in the same order as
+  /// `siteIds`, with missing siteIds simply absent from the projection.
+  void _resolveWebspaceIndices() {
+    final positionBySiteId = <String, int>{
+      for (var i = 0; i < _webViewModels.length; i++)
+        _webViewModels[i].siteId: i,
+    };
+    for (final ws in _webspaces) {
+      if (ws.isAll) continue;
+      ws.siteIndices = [
+        for (final sid in ws.siteIds)
+          if (positionBySiteId.containsKey(sid)) positionBySiteId[sid]!,
+      ];
+    }
+  }
+
+  /// Legacy migration: webspaces persisted before the siteId-based
+  /// membership refactor stored positional `siteIndices` in JSON. On
+  /// first load after the upgrade, fromJson populates `siteIndices`
+  /// but leaves `siteIds` empty. We resolve each legacy index to the
+  /// matching `_webViewModels[index].siteId` and persist back as
+  /// siteIds. Idempotent: webspaces that already have siteIds skip
+  /// the conversion.
+  Future<void> _migrateLegacyWebspaceIndices() async {
+    var migrated = false;
+    for (final ws in _webspaces) {
+      if (ws.siteIds.isNotEmpty || ws.siteIndices.isEmpty) continue;
+      final ids = <String>[];
+      for (final idx in ws.siteIndices) {
+        if (idx >= 0 && idx < _webViewModels.length) {
+          ids.add(_webViewModels[idx].siteId);
+        }
+      }
+      ws.siteIds = ids;
+      migrated = true;
+    }
+    if (migrated) {
+      await _saveWebspaces();
+    }
+  }
+
   /// Closes every currently-open archive in sequence.
   Future<void> _closeAllArchives() async {
     final handles = List<ArchiveHandle>.from(_archiveSlices.keys);
@@ -1982,24 +2028,69 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
-  /// Moves the site at [index] from the app-tier into one of the
-  /// currently-open archives. With exactly one archive open, the move
-  /// is implicit; with multiple, the user picks via a dialog. The site's
-  /// position in `_webViewModels` is preserved — only its tier flips
-  /// (and the running webview is rebuilt to bind to the new opaque
-  /// container).
+  /// Moves the site at [index] from the app-tier into an archive
+  /// identified by a passphrase. Always prompts; if the passphrase
+  /// matches an existing archive (open or not), the site is added
+  /// there. If no archive matches, the user is asked whether to create
+  /// one. The site's position in `_webViewModels` is preserved — only
+  /// its tier flips (and the running webview is rebuilt to bind to the
+  /// new opaque container). Webspace membership is preserved via the
+  /// siteId-keyed `webspace.siteIds` list.
   Future<void> _moveSiteToArchive(int index) async {
     if (index < 0 || index >= _webViewModels.length) return;
     final model = _webViewModels[index];
     if (model.isArchiveTier) return;
-    if (_archiveSlices.isEmpty) return;
+
+    final passphrase = await _showPassphraseDialog(
+      title: 'Move site to archive',
+      hint: 'Archive passphrase',
+      submitLabel: 'Move',
+    );
+    if (passphrase == null || passphrase.isEmpty) return;
+    if (!mounted) return;
 
     ArchiveHandle? target;
-    if (_archiveSlices.length == 1) {
-      target = _archiveSlices.keys.first;
-    } else {
-      target = await _showArchivePickerDialog();
-      if (target == null) return;
+    try {
+      target = await _openArchive(passphrase);
+    } on StateError catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open archive: ${e.message}')),
+      );
+      return;
+    }
+    if (target == null) {
+      if (!mounted) return;
+      final shouldCreate = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No matching archive'),
+          content: const Text(
+            'No archive exists for this passphrase. '
+            'Create a new archive with it and move this site into it?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+      if (shouldCreate != true) return;
+      try {
+        target = await _createArchive(passphrase);
+      } on StateError catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not create archive: ${e.message}')),
+        );
+        return;
+      }
     }
     if (!mounted) return;
 
@@ -2038,12 +2129,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _archiveSlices[target]!.containerIds.add(model.archiveContainerId!);
     await _archive.save(target);
 
-    // Remove from any custom webspace's siteIndices (archive sites
-    // surface in the "All" view only).
-    for (final ws in _webspaces) {
-      ws.siteIndices.remove(index);
-    }
-    await _saveWebspaces();
+    // Webspace membership is keyed by siteId (not positional index), so
+    // no change is needed here — the runtime `siteIndices` projection
+    // will continue to surface this site under any webspace it
+    // belonged to whenever the archive is open. When the archive
+    // closes, the siteId stays in webspace.siteIds (persisted) but
+    // drops out of siteIndices (runtime view) automatically.
+    _resolveWebspaceIndices();
     await _saveWebViewModels();
     if (mounted) {
       setState(() {});
@@ -2118,37 +2210,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     return List<Cookie>.from(model.cookies);
   }
 
-  Future<ArchiveHandle?> _showArchivePickerDialog() {
-    final handles = _archiveSlices.entries.toList();
-    return showDialog<ArchiveHandle>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Pick an archive'),
-          content: SizedBox(
-            width: 320,
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                for (final entry in handles)
-                  ListTile(
-                    leading: const Icon(Icons.archive_outlined),
-                    title: Text('Archive (${entry.value.siteIds.length} sites)'),
-                    onTap: () => Navigator.pop(ctx, entry.key),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   /// Settings-screen entry point: prompts for a passphrase, then attempts
   /// to open a matching archive. If none matches, asks the user whether
@@ -5088,7 +5149,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final listIndex = filteredIndices.indexOf(index);
     final isArchiveSite =
         index >= 0 && index < _webViewModels.length && _webViewModels[index].isArchiveTier;
-    final canMoveToArchive = !isArchiveSite && _archiveSlices.isNotEmpty;
+    // Show "Move to archive" for every app-tier site, regardless of
+    // whether any archive is currently open. The handler always prompts
+    // for a passphrase and opens-or-creates the matching archive — its
+    // presence in the menu therefore reveals nothing about whether an
+    // archive is currently open or whether any exist on disk.
+    final canMoveToArchive = !isArchiveSite;
 
     showMenu<String>(
       context: context,
@@ -5256,11 +5322,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       webspaces: _webspaces,
       currentIndex: _currentIndex,
     );
+    final deletedSiteId = deletedModel.siteId;
     setState(() {
       _webViewModels.removeAt(currentModelIndex);
       _loadedIndices
         ..clear()
         ..addAll(patch.newLoadedIndices);
+      // Webspace membership is siteId-keyed: drop the deleted siteId
+      // from each webspace and let `_resolveWebspaceIndices` rebuild
+      // the positional view. The legacy index-shift patch from
+      // SiteLifecycleEngine is now only used for `_loadedIndices`.
       for (final webspace in _webspaces) {
         webspace.siteIds.remove(deletedSiteId);
       }
