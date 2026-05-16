@@ -818,13 +818,28 @@ class ContentBlockerService {
     _appleContentBlockers = blockers;
     _appleContentBlockersHash = hash;
     final skipped = _appleContentBlockersSkipped;
+    final total = blockers.length + skipped;
+    // Loud warning when nothing (or almost nothing) made it through —
+    // most likely cause is a stale fork pin missing the
+    // ContentBlockerTrigger.fromMap null-default fix. Without this
+    // signal, "payload ready: 0 rules" was easy to miss in an info-
+    // level firehose.
+    final skipRatio = total == 0 ? 0.0 : skipped / total;
+    final level = (blockers.isEmpty && skipped > 0)
+        ? LogLevel.error
+        : (skipRatio > 0.5 ? LogLevel.warning : LogLevel.info);
+    final skippedDetail = skipped > 0
+        ? ' ($skipped/$total skipped by Dart-object wrap — usually a '
+            'stale flutter_inappwebview_platform_interface pin; run '
+            '`flutter pub upgrade flutter_inappwebview_platform_interface`)'
+        : '';
     LogService.instance.log('ContentBlocker/WKCRL',
         'payload ready: ${blockers.length} rules built in '
         '${sw.elapsedMilliseconds}ms (${rulesText.length}B source)'
-        '${skipped > 0 ? " ($skipped rule(s) skipped by Dart-object wrap)" : ""}. '
+        '$skippedDetail. '
         'identifier prefix sent to fork: iaw-rl-${hash.substring(0, 12)}…. '
         'new webviews on iOS/macOS will attach this list on creation.',
-        level: LogLevel.info);
+        level: level);
   }
 
   Future<void> _saveLists() async {
