@@ -1374,6 +1374,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     final avgMicros = samples.isEmpty ? 0 : totalMicros ~/ samples.length;
 
+    final timingOn = svc.engineTimingEnabled;
+    final consulted = svc.engineConsultedSinceTimingOn;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1383,6 +1385,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             spacing: 8,
             runSpacing: 4,
             children: [
+              _abpStatChip('engine', svc.usingRustEngine ? 'active' : 'off',
+                  svc.usingRustEngine ? Colors.green : Colors.grey),
+              _abpStatChip('recording',
+                  timingOn ? 'on' : 'off',
+                  timingOn ? Colors.green : Colors.orange),
+              _abpStatChip('consulted', '$consulted', Colors.blueGrey),
               _abpStatChip(
                   'avg', '$avgMicros µs', Colors.blueGrey),
               _abpStatChip('max', '$maxMicros µs',
@@ -1413,12 +1421,23 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         const Divider(height: 1),
         Expanded(
           child: samples.isEmpty
-              ? const Center(
+              ? Center(
                   child: Padding(
-                    padding: EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(24),
                     child: Text(
-                      'No engine decisions captured yet — browse a site\n'
-                      'and tap Refresh.',
+                      consulted == 0
+                          ? 'Engine has not been consulted since DevTools '
+                              'opened.\n\n'
+                              'Sub-resource checks fire from the JS-bridge '
+                              '`blockCheck` handler — they only run on '
+                              'cross-origin requests that hit the bloom '
+                              'prefilter.\n\n'
+                              'Try: reload an ad-heavy page with DevTools '
+                              'already open.'
+                          : 'Engine consulted $consulted time(s) but the '
+                              'recent decisions ring buffer is empty.\n'
+                              'This usually means the buffer rolled over — '
+                              'tap Refresh to capture the latest entries.',
                       textAlign: TextAlign.center,
                     ),
                   ),
