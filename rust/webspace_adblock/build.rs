@@ -226,17 +226,11 @@ fn write_dep_licenses(out_dir: &Path) {
     let mut out = Vec::new();
     for pkg in packages {
         let name = pkg.get("name").and_then(|v| v.as_str()).unwrap_or("");
-        // Skip the crate itself — already covered by the WebSpace
-        // bundle entry in lib/main.dart.
+        // Skip the wrapper crate itself — it has no upstream
+        // source link and is fully described by the rest of the
+        // attribution surface (the project's own LICENSE +
+        // README + the transitive `adblock` entry that follows).
         if name == "webspace_adblock" {
-            continue;
-        }
-        // Skip the `adblock` crate too — `lib/main.dart` already
-        // ships its full MPL-2.0 text via assets/licenses/adblock_rust.txt
-        // under the "adblock-rust + uBlock Origin resources" entry.
-        // Without this skip the dep enumeration would duplicate it
-        // under the transitive-deps section.
-        if name == "adblock" {
             continue;
         }
         let license_expr = pkg

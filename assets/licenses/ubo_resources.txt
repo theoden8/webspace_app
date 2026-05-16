@@ -1,14 +1,3 @@
-adblock-rust
-https://github.com/brave/adblock-rust
-
-The Rust adblock engine that powers WebSpace's content blocker, including
-the ABP rule parser, network filtering, cosmetic resources, and $redirect=
-support. Distributed as the Rust crate `adblock` 0.12.x; statically linked
-into the app on Apple platforms and dynamically loaded on
-Android/Linux. WebSpace's wrapper crate
-(rust/webspace_adblock) and the JNI bridge under android/app/.../jni
-are also licensed under MPL-2.0.
-
 uBlock Origin web-accessible resources
 https://github.com/gorhill/uBlock
 
@@ -17,8 +6,13 @@ trackers, etc.) embedded into the binary at build time. Fetched at the
 pinned tag declared in rust/webspace_adblock/build.rs; assembled by
 adblock-rust's `assemble_web_accessible_resources` helper.
 
-Both projects are licensed under the Mozilla Public License Version 2.0.
-The full license text follows.
+(The `adblock` crate and WebSpace's own `webspace_adblock` wrapper
+crate are also MPL-2.0; their attribution rides the Rust transitive
+crate enumeration below, with canonical SPDX text resolved at build
+time from the `license` crate's vendored SPDX 3.x dataset.)
+
+Licensed under the Mozilla Public License Version 2.0. The full
+license text follows.
 
 ================================================================================
 
