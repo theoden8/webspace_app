@@ -779,7 +779,7 @@ class FastSubresourceInterceptor(
 ```
 
 The `WebInterceptPlugin` manages the lifecycle:
-1. `setDnsBlockedDomains` / `setAbpBlockedDomains` — receives per-source domain lists from Dart, stores in two Java `HashSet`s kept separate so events can be attributed
+1. `setDnsBlockedDomains` — receives the DNS host-only list from Dart, stores it in a Java `HashSet`; ABP rules live in the native adblock-rust engine instead (pushed via `setAdblockEngineRules`), and the interceptor consults it for any URL the DNS host-only check let through
 2. `attachToWebViews(siteId)` — traverses view hierarchy, finds `InAppWebView`
    instances, replaces `contentBlockerHandler` field with `FastSubresourceInterceptor`
 3. **Pull-based event delivery** — Java accumulates blocked events in a

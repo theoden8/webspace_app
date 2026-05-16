@@ -596,26 +596,19 @@ void main() async {
         DnsBlockService.instance.blockedDomains);
   }
 
-  // Initialize content blocker service (loads cached filter lists from disk)
+  // Initialize content blocker service (loads cached filter lists from disk
+  // and spins up the adblock-rust engine; native Android sub-resource
+  // interceptor is fed the rules text from inside the service).
   await ContentBlockerService.instance.initialize();
 
-  // Seed the native interceptor with ABP domains once ContentBlocker has
-  // parsed its cached lists.
-  if (ContentBlockerService.instance.blockedDomains.isNotEmpty) {
-    await WebInterceptNative.sendAbpDomains(
-        ContentBlockerService.instance.blockedDomains);
-  }
-
-  // Keep native + JS Bloom in sync whenever either blocklist changes.
-  // Individual download / toggle call sites don't need to know about the
-  // interceptor — they just mutate the service, the listener re-pushes.
+  // Keep the DNS-side bloom in sync when the DNS list changes; ABP rules
+  // are owned end-to-end by the engine, so no Dart-side push is needed
+  // for them anymore.
   DnsBlockService.instance.addBlocklistChangedListener(() {
     WebInterceptNative.sendDnsDomains(DnsBlockService.instance.blockedDomains);
   });
   ContentBlockerService.instance.addRulesChangedListener(() {
     DnsBlockService.instance.invalidateMergedBloom();
-    WebInterceptNative.sendAbpDomains(
-        ContentBlockerService.instance.blockedDomains);
   });
 
   // Initialize LocalCDN service (loads cache index from disk)

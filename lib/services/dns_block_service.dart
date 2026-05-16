@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/bloom_filter.dart';
-import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -341,27 +340,22 @@ class DnsBlockService {
     return _bloomFilter!;
   }
 
-  /// Get (and cache) a Bloom filter built from DNS ∪ ABP blocked domains.
-  /// Used as the JS-side prefilter for sub-resource interception. On a hit
-  /// the JS interceptor asks Dart for the authoritative decision, which
-  /// tags the stat entry with the right [BlockSource].
+  /// Get (and cache) a Bloom filter built from the DNS blocked domains.
+  /// Used as the JS-side prefilter for sub-resource interception. On a
+  /// bloom hit the JS interceptor asks Dart for the authoritative
+  /// decision (which also asks the adblock engine for ABP rules), so
+  /// ABP-only hosts that don't appear in DNS will miss the bloom filter
+  /// and round-trip through Dart per-request — acceptable since the
+  /// engine itself is microseconds-fast.
   BloomFilter getMergedBlockBloom() {
     if (_mergedBloomFilter != null) return _mergedBloomFilter!;
-    final abp = ContentBlockerService.instance.blockedDomains;
     final sw = Stopwatch()..start();
-    if (_blockedDomains.isEmpty && abp.isEmpty) {
-      _mergedBloomFilter = BloomFilter.build(const <String>{}, fpRate: 0.05);
-    } else if (abp.isEmpty) {
-      _mergedBloomFilter = getBloomFilter();
-    } else {
-      final merged = <String>{..._blockedDomains, ...abp};
-      _mergedBloomFilter = BloomFilter.build(merged, fpRate: 0.05);
-    }
+    _mergedBloomFilter = BloomFilter.build(_blockedDomains, fpRate: 0.05);
     sw.stop();
     LogService.instance.log(
         'BlockBloom',
         'Built merged bloom: ${_mergedBloomFilter!.sizeInBytes} bytes, k=${_mergedBloomFilter!.k}, '
-        'from ${_blockedDomains.length} DNS + ${abp.length} ABP domains in ${sw.elapsedMilliseconds}ms',
+        'from ${_blockedDomains.length} DNS domains in ${sw.elapsedMilliseconds}ms',
         level: LogLevel.info);
     return _mergedBloomFilter!;
   }

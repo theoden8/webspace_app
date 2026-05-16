@@ -48,6 +48,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
@@ -227,7 +228,7 @@ void main() {
 
   testWidgets('JS bridge: blockCheck shape, empty rules', (tester) async {
     DnsBlockService.instance.loadDomainsFromString('');
-    ContentBlockerService.instance.setBlockedDomainsForTest(<String>{});
+    ContentBlockerService.instance.setRustEngineForTest(null);
     final r = await _runVariant(
       tester: tester,
       label: 'blockcheck_empty',
@@ -257,11 +258,12 @@ void main() {
     }
     DnsBlockService.instance.loadDomainsFromString(dnsBuf.toString());
 
-    final abp = <String>{};
+    final abpRulesBuf = StringBuffer();
     for (var i = 0; i < 5000; i++) {
-      abp.add('ad-$i.adnet.test');
+      abpRulesBuf.writeln('||ad-$i.adnet.test^');
     }
-    ContentBlockerService.instance.setBlockedDomainsForTest(abp);
+    final abpEngine = AdblockEngine.load(abpRulesBuf.toString());
+    ContentBlockerService.instance.setRustEngineForTest(abpEngine);
 
     final r = await _runVariant(
       tester: tester,

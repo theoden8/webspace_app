@@ -15,9 +15,10 @@
 // `tool/dump_shim_js.dart` can register them and the drift check
 // keeps the committed fixtures byte-identical to runtime output.
 
-/// A text-based hiding rule. Mirrors `TextHideRule` from
-/// `abp_filter_parser.dart` without depending on it (the parser
-/// imports flutter/foundation.dart, which the dumper avoids).
+/// A text-based hiding rule: hide elements whose `selector`-match
+/// contents include any of `patterns`. Kept as a typedef so the
+/// builder stays usable from any future caller that supplies its own
+/// rule source.
 typedef ContentBlockerTextRule = ({String selector, List<String> patterns});
 
 /// A uBO `:style()` rule mirror — apply [declarations] to elements

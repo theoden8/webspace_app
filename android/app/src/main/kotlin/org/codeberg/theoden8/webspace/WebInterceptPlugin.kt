@@ -26,10 +26,9 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     // DNS blocklist (mutated in place; FastSubresourceInterceptor holds a reference)
     private val dnsBlockedDomains = HashSet<String>()
 
-    // ABP blocklist built from enabled filter lists' `||domain^` rules.
-    // Kept separate from DNS so each block event can be attributed to the
-    // list that matched it (see FastSubresourceInterceptor.checkUrl).
-    private val abpBlockedDomains = HashSet<String>()
+    // ABP rules are owned end-to-end by the native adblock-rust engine
+    // (see setAdblockEngineRules). The interceptor consults it for every
+    // request that wasn't already blocked by the DNS host-only fast path.
 
     // LocalCDN: regex patterns matching CDN URLs. Each pattern must expose
     // groups 1/2/3 = library/version/file (matching the Dart _cdnPatterns table).
@@ -82,28 +81,6 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                         // user adding a list expects to work without.
                         clearAllHostDecisionCaches()
                         result.success(dnsBlockedDomains.size)
-                    } else {
-                        result.error("INVALID_ARGS", "domains list required", null)
-                    }
-                }
-                "setAbpBlockedDomains" -> {
-                    val domains = call.argument<List<String>>("domains")
-                    if (domains != null) {
-                        abpBlockedDomains.clear()
-                        abpBlockedDomains.addAll(domains)
-                        clearAllHostDecisionCaches()
-                        // Confirm specific well-known hosts made it
-                        // across the MethodChannel — easier than
-                        // reading 100k entries out of the log.
-                        val canaries = listOf(
-                            "doubleclick.net",
-                            "googlesyndication.com",
-                            "google-analytics.com")
-                        val present = canaries.filter { abpBlockedDomains.contains(it) }
-                        log("WebIntercept",
-                            "setAbpBlockedDomains: size=${abpBlockedDomains.size}, " +
-                            "canaries-present=$present")
-                        result.success(abpBlockedDomains.size)
                     } else {
                         result.error("INVALID_ARGS", "domains list required", null)
                     }
@@ -349,7 +326,6 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                 // silently stop protecting sub-resource fetches.
                 webView.contentBlockerHandler = FastSubresourceInterceptor(
                     dnsBlockedDomains = dnsBlockedDomains,
-                    abpBlockedDomains = abpBlockedDomains,
                     cdnPatterns = cdnPatterns,
                     cdnCacheIndex = cdnCacheIndex,
                     localCdnDisabled = localCdnDisabled,
@@ -361,7 +337,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                 )
                 log("WebIntercept",
                     "Attached interceptor: siteId=$siteId dns=${dnsBlockedDomains.size} " +
-                    "abp=${abpBlockedDomains.size} cdnPatterns=${cdnPatterns.size} " +
+                    "cdnPatterns=${cdnPatterns.size} " +
                     "cdnCache=${cdnCacheIndex.size} " +
                     "localCdnDisabled=${localCdnDisabled.get()}")
             }
@@ -418,14 +394,13 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     }
 
     /// Walk every attached `FastSubresourceInterceptor` and invalidate
-    /// its per-host decision cache. Called whenever the DNS or ABP
-    /// blocked-domains set is replaced via `setDnsBlockedDomains` /
-    /// `setAbpBlockedDomains` — without this a host the page already
+    /// its per-host decision cache. Called whenever the DNS set or the
+    /// engine rules are replaced — without this a host the page already
     /// fetched (and got `Decision.ALLOWED` cached for) stays allowed
     /// even after the rule that would block it lands. The shared
-    /// `dnsBlockedDomains` / `abpBlockedDomains` HashSets are mutated
-    /// in place so the interceptor sees the new contents on the next
-    /// cache miss; this call ensures there IS a miss.
+    /// `dnsBlockedDomains` HashSet is mutated in place so the
+    /// interceptor sees the new contents on the next cache miss; this
+    /// call ensures there IS a miss.
     private fun clearAllHostDecisionCaches() {
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
@@ -447,15 +422,17 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     }
 }
 
-/// Native ContentBlockerHandler that handles DNS + ABP domain blocking
-/// and LocalCDN replacement for sub-resource requests. Runs on the
-/// WebView thread (no main-thread roundtrip), which is why it actually
-/// fires for sub-resources where Dart-side shouldInterceptRequest only
-/// catches the main document navigation on modern Chromium WebView.
+/// Native ContentBlockerHandler that handles DNS host-only blocking, the
+/// adblock-rust engine's per-request ABP decisions, and LocalCDN
+/// replacement for sub-resource requests. Runs on the WebView thread
+/// (no main-thread roundtrip), which is why it actually fires for
+/// sub-resources where Dart-side shouldInterceptRequest only catches
+/// the main document navigation on modern Chromium WebView.
 ///
-/// DNS is checked before ABP so that requests which appear in both lists
-/// are attributed to DNS (the user-facing blocklist with the tighter
-/// severity settings). Stats downstream can be disentangled by source.
+/// DNS is checked before ABP so that requests which appear in both
+/// sources are attributed to DNS (the user-facing blocklist with the
+/// tighter severity settings). Stats downstream can be disentangled by
+/// source.
 ///
 /// Hot-path notes:
 /// * Host extraction avoids `java.net.URI`. Java's URI ctor is strict
@@ -464,22 +441,13 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
 ///   trace. The substring-based [extractHost] handles every form
 ///   chromium delivers without throwing.
 /// * [isInSet] walks the suffix hierarchy without `host.split(".")` /
-///   `parts.subList(...).joinToString(".")` per level. Hundreds of
-///   sub-resources per page x 4–6 levels of suffix walk ≈ thousands of
-///   list/string allocations on the WebView thread; the substring walk
-///   keeps that down to one substring per parent label visited.
-/// * [hostDecision] caches the (DNS+ABP+allowed) classification per
-///   host so a page that loads 50 resources from `cdn.example.com`
-///   walks the suffix lookup once, not 50 times. The cache is also
-///   used to dedupe block-event reporting back to Dart: only the
-///   first request per (siteId, host) is enqueued, repeats just bump
-///   atomic counters that Dart reconciles on each drain. Without
-///   dedup, a single page load enqueued one event per allowed
-///   sub-resource — hundreds of HashMap allocations + synchronizedList
-///   adds per page on the critical request path.
+///   `parts.subList(...).joinToString(".")` per level.
+/// * [hostDecision] caches the DNS host-only classification so repeat
+///   requests to the same host skip the suffix walk. Engine decisions
+///   are NOT cached here because the answer depends on (url, source,
+///   type), not just the host; the engine has its own internal caching.
 class FastSubresourceInterceptor(
     private val dnsBlockedDomains: HashSet<String>,
-    private val abpBlockedDomains: HashSet<String>,
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
     private val localCdnDisabled: AtomicBoolean,
@@ -532,38 +500,33 @@ class FastSubresourceInterceptor(
             onLog("WebIntercept", "checkUrl #$checkCount host=$host url=$url")
         }
 
-        // 1. Look up the cached classification for this host. On miss,
-        // walk the DNS + ABP sets and cache. The dominant cost the cache
+        // 1. Look up the cached DNS host-only classification. On miss,
+        // walk the DNS set and cache. The dominant cost the cache
         // saves is the suffix walk — `tracker.example.com` resolved
         // once doesn't need to look up `tracker.example.com`,
         // `example.com`, then fail again on every subsequent fetch.
         var decision = hostDecision[host]
         val cached = decision != null
         if (decision == null) {
-            decision = when {
-                isInSet(host, dnsBlockedDomains) -> Decision.BLOCKED_DNS
-                isInSet(host, abpBlockedDomains) -> Decision.BLOCKED_ABP
-                else -> Decision.ALLOWED
+            decision = if (isInSet(host, dnsBlockedDomains)) {
+                Decision.BLOCKED_DNS
+            } else {
+                Decision.ALLOWED
             }
             putHostDecision(host, decision)
         }
         if (verbose) {
             onLog("WebIntercept",
                 "  host-only decision=$decision (cached=$cached, " +
-                "dnsSetSize=${dnsBlockedDomains.size}, " +
-                "abpSetSize=${abpBlockedDomains.size})")
+                "dnsSetSize=${dnsBlockedDomains.size})")
         }
 
-        // 1b. When the Rust engine is active and the host-only sets
-        // didn't already decide BLOCKED, consult the engine. This is
-        // the fix for the Android sub-resource gap — `$domain=`,
-        // path-anchored, and resource-type rules don't appear in the
-        // bare host sets, so without this check they silently miss.
-        // We DON'T cache engine decisions in `hostDecision` because
-        // the answer depends on the URL + sourceUrl + requestType,
-        // not just the host. The host-only fast path remains the hot
-        // path; the engine only fires on hosts the cheap check let
-        // through.
+        // 1b. When the DNS host-only check let it through, consult the
+        // adblock-rust engine. `$domain=`, path-anchored, and
+        // resource-type rules all live in the engine — DNS is just the
+        // user-curated host blocklist. Engine decisions are not cached
+        // in `hostDecision` because the answer depends on the URL +
+        // sourceUrl + requestType, not just the host.
         if (decision == Decision.ALLOWED && AdblockEngineNative.active) {
             // shouldInterceptRequest runs on chromium's IO thread, so
             // we CANNOT call webView.getUrl() here — WebView methods
