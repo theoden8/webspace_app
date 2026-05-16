@@ -381,8 +381,11 @@ class WebViewModel {
   /// SharedPreferences. Never serialised. Per the archive feature audit
   /// (ARCH-006), services that touch disk, background scheduling, or
   /// OS-level UI must consult this flag and skip writes for archive-tier
-  /// sites.
-  final bool isArchiveTier;
+  /// sites. Mutable so a "move to archive" / "move out of archive"
+  /// action can flip the tier of an existing model in place — the
+  /// running webview keeps its controller and only the per-site routing
+  /// changes.
+  bool isArchiveTier;
 
   /// Effective notification permission for runtime gating. Archive-tier
   /// sites never participate in [`NotificationService`] background
