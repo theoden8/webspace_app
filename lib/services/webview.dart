@@ -74,6 +74,19 @@ typedef StoreBinding = ({
   bool releasesContainerProxy,
 });
 
+/// Pick the WKContentRuleList payload for this WebView config. iOS
+/// and macOS only — Android, Linux, web fall through to an empty
+/// list (the field exists on every platform but only Apple's
+/// WKContentRuleListStore acts on it). Empty list when the per-site
+/// `contentBlockEnabled` is off OR no list has been built yet,
+/// which signals the fork's [ContentRuleListCache] to drop any
+/// previously-installed rule list.
+List<inapp.ContentBlocker> _appleContentBlockersFor(WebViewConfig config) {
+  if (!Platform.isIOS && !Platform.isMacOS) return const [];
+  if (!config.contentBlockEnabled) return const [];
+  return ContentBlockerService.instance.appleContentBlockers ?? const [];
+}
+
 class WebViewFactory {
   /// How Android draws a webview (PAUSE-032). True, the default, is hybrid
   /// composition: the WebView sits in the Android view hierarchy and Flutter
@@ -625,7 +638,8 @@ class WebViewFactory {
       // navigates to a downloadable response (Content-Disposition:
       // attachment, or an unrecognized MIME type). Without this, the
       // webview silently drops the navigation and the user sees nothing.
-      ..useOnDownloadStart = true;
+      ..useOnDownloadStart = true
+      ..contentBlockers = _appleContentBlockersFor(config);
 
     // Android honours the viewport meta's layout width (and thus the page
     // zoom) only when useWideViewPort is on: with it off, Chromium's
