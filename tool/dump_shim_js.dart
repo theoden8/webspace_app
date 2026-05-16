@@ -29,6 +29,7 @@ import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
+import 'package:webspace/services/user_script_shim.dart';
 import 'package:webspace/settings/location.dart';
 
 /// Build every fixture this script knows about. Map keys are paths relative
@@ -262,6 +263,14 @@ Map<String, String> buildAllFixtures() {
     '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_remove_attr[data-tracker]"}],"action":{"type":"remove-attr","arg":"data-tracker"}}',
     '{"selector":[{"type":"css-selector","arg":"div.fp_probe_proc_remove_class.fp_probe_remove_me"}],"action":{"type":"remove-class","arg":"fp_probe_remove_me"}}',
   ])!;
+
+  // User-script shim with deterministic handler names so jsdom tests can
+  // assert against fixed callHandler('__ws_i_test', ...) invocations.
+  fixtures['user_script/shim.js'] = buildUserScriptShim(
+    scriptHandlerName: '__ws_s_test',
+    fetchHandlerName: '__ws_f_test',
+    inlineScriptHandlerName: '__ws_i_test',
+  );
 
   return fixtures;
 }
