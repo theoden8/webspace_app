@@ -82,6 +82,19 @@ inapp.ProxySettings? _userProxyToInappProxy(UserProxySettings settings) {
   );
 }
 
+/// Pick the WKContentRuleList payload for this WebView config. iOS
+/// and macOS only — Android, Linux, web fall through to an empty
+/// list (the field exists on every platform but only Apple's
+/// WKContentRuleListStore acts on it). Empty list when the per-site
+/// `contentBlockEnabled` is off OR no list has been built yet,
+/// which signals the fork's [ContentRuleListCache] to drop any
+/// previously-installed rule list.
+List<inapp.ContentBlocker> _appleContentBlockersFor(WebViewConfig config) {
+  if (!Platform.isIOS && !Platform.isMacOS) return const [];
+  if (!config.contentBlockEnabled) return const [];
+  return ContentBlockerService.instance.appleContentBlockers ?? const [];
+}
+
 /// Extension to add JSON serialization to inapp.Cookie
 extension CookieJson on inapp.Cookie {
   Map<String, dynamic> toJson() => {
@@ -2020,7 +2033,16 @@ class WebViewFactory {
           ? inapp.UserPreferredContentMode.DESKTOP
           : inapp.UserPreferredContentMode.RECOMMENDED
       // Enable DevTools inspection in debug mode (chrome://inspect on Android)
-      ..isInspectable = kDebugMode;
+      ..isInspectable = kDebugMode
+      // WKContentRuleList acceleration on iOS/macOS: pass the
+      // pre-built adblock-rust-derived rule set so the fork can
+      // install it via WKContentRuleListStore. The JS-bridge
+      // interceptor stays installed for stats (WebKit fires no
+      // callback when a content rule matches) — see CB-012. Empty
+      // list when disabled or no rules yet — the fork's
+      // ContentRuleListCache then drops any previously-installed
+      // rule list and exits cheaply.
+      ..contentBlockers = _appleContentBlockersFor(config);
 
     return inapp.InAppWebView(
       key: config.key,
