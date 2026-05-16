@@ -94,6 +94,41 @@ enum AccentColor {
   yellow,
 }
 
+/// LicenseEntry that emits one [LicenseParagraph] per source line,
+/// so structural single line breaks (license titles, numbered
+/// section headers, template lines) survive the renderer.
+///
+/// `LicenseEntryWithLineBreaks` only breaks on blank lines and
+/// folds every other `\n` into a space, which collapses Apache-2.0
+/// title blocks and similar multi-line headers into one wrapping
+/// paragraph. The license texts the `license` Rust crate emits
+/// (and the bundled assets/licenses/*.txt files) all use single
+/// `\n` for structural breaks AND keep paragraph bodies as single
+/// long lines, so per-line preservation renders correctly without
+/// hurting paragraph flow.
+class _PerLineLicenseEntry extends LicenseEntry {
+  _PerLineLicenseEntry(this.packages, this._text);
+
+  @override
+  final Iterable<String> packages;
+  final String _text;
+
+  @override
+  Iterable<LicenseParagraph> get paragraphs sync* {
+    for (final line in const LineSplitter().convert(_text)) {
+      var leading = 0;
+      while (leading < line.length && line[leading] == ' ') {
+        leading++;
+      }
+      // LicenseParagraph indents are integer levels (0..8 roughly);
+      // map every 2 leading spaces to one indent step so indented
+      // numbered items / template snippets still look indented.
+      final indent = (leading ~/ 2).clamp(0, 8);
+      yield LicenseParagraph(line.substring(leading), indent);
+    }
+  }
+}
+
 // App theme settings - combines theme mode and accent color
 class AppThemeSettings {
   final ThemeMode themeMode;
@@ -623,7 +658,7 @@ void main() async {
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {
       final text = await rootBundle.loadString(assetPath);
-      yield LicenseEntryWithLineBreaks(packages, text);
+      yield _PerLineLicenseEntry(packages, text);
     });
   }
 
@@ -670,7 +705,7 @@ void main() async {
           parts.add(text);
         }
       }
-      yield LicenseEntryWithLineBreaks(
+      yield _PerLineLicenseEntry(
         ['$name (Rust crate, transitive via adblock-rust)'],
         parts.join('\n'),
       );
