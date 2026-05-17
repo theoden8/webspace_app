@@ -169,6 +169,7 @@ class _ContainerNative implements ContainerNative {
         'Container',
         'deleteContainer($siteId) failed: $e',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
     }
   }

@@ -130,6 +130,7 @@ class ProxyPasswordSecureStorage {
         'ProxyPwdStore',
         'Removed orphaned proxy passwords for keys: $removed',
         level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
       );
     }
   }
@@ -166,6 +167,7 @@ class ProxyPasswordSecureStorage {
       'ProxyPwdStore',
       'Migrated legacy plaintext password from prefs[$prefsKey] -> secure[$secureKey]',
       level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
     );
     return true;
   }

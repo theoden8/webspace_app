@@ -429,6 +429,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'Saving per-site proxy for siteId=${widget.webViewModel.siteId}: '
               '${_proxySettings.describeForLogs()}',
           level: LogLevel.info,
+          sensitivity: LogSensitivity.sensitive,
         );
 
         // Apply proxy settings immediately
@@ -441,6 +442,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'Proxy',
           'Per-site proxy unsupported on this platform; forcing DEFAULT for '
               'siteId=${widget.webViewModel.siteId}',
+          sensitivity: LogSensitivity.sensitive,
         );
         await widget.webViewModel.updateProxySettings(defaultProxy);
       }

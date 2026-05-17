@@ -592,9 +592,20 @@ class WebViewModel {
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
       final effectiveLanguage = this.language;
-      LogService.instance.log('WebView', 'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)');
-      LogService.instance.log('WebView', 'Language: $effectiveLanguage (param: $language)');
-      LogService.instance.log('WebView', 'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)');
+      LogService.instance.log(
+        'WebView',
+        'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      LogService.instance.log(
+        'WebView',
+        'Language: $effectiveLanguage (param: $language)',
+      );
+      LogService.instance.log(
+        'WebView',
+        'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)',
+        sensitivity: LogSensitivity.sensitive,
+      );
       final bool isMobile = Platform.isIOS || Platform.isAndroid;
       final pullToRefreshController = isMobile ? inapp.PullToRefreshController(
         settings: inapp.PullToRefreshSettings(enabled: true),
@@ -676,7 +687,11 @@ class WebViewModel {
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
-            LogService.instance.log('WebView', 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture');
+            LogService.instance.log(
+              'WebView',
+              'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
+              sensitivity: LogSensitivity.sensitive,
+            );
             final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
               targetUrl: url,
               initUrl: initUrl,
@@ -698,16 +713,32 @@ class WebViewModel {
             }
             switch (result.decision) {
               case NavigationDecision.allow:
-                LogService.instance.log('WebView', '  -> ALLOW');
+                LogService.instance.log(
+                  'WebView',
+                  '  -> ALLOW',
+                  sensitivity: LogSensitivity.sensitive,
+                );
                 return true;
               case NavigationDecision.blockSilent:
-                LogService.instance.log('WebView', '  -> CANCEL (auto-redirect blocked, no user gesture)');
+                LogService.instance.log(
+                  'WebView',
+                  '  -> CANCEL (auto-redirect blocked, no user gesture)',
+                  sensitivity: LogSensitivity.sensitive,
+                );
                 return false;
               case NavigationDecision.blockSuppressed:
-                LogService.instance.log('WebView', '  -> CANCEL (background site, suppressing nested webview)');
+                LogService.instance.log(
+                  'WebView',
+                  '  -> CANCEL (background site, suppressing nested webview)',
+                  sensitivity: LogSensitivity.sensitive,
+                );
                 return false;
               case NavigationDecision.blockOpenNested:
-                LogService.instance.log('WebView', '  -> CANCEL (opening nested webview)');
+                LogService.instance.log(
+                  'WebView',
+                  '  -> CANCEL (opening nested webview)',
+                  sensitivity: LogSensitivity.sensitive,
+                );
                 launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                 return false;
             }
@@ -770,13 +801,25 @@ class WebViewModel {
                 handled.decision != NavigationDecision.allow) {
               switch (handled.decision!) {
                 case NavigationDecision.blockSilent:
-                  LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)');
+                  LogService.instance.log(
+                    'WebView',
+                    'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)',
+                    sensitivity: LogSensitivity.sensitive,
+                  );
                   return;
                 case NavigationDecision.blockSuppressed:
-                  LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect suppressed (background site): $url');
+                  LogService.instance.log(
+                    'WebView',
+                    'onUrlChanged: cross-domain redirect suppressed (background site): $url',
+                    sensitivity: LogSensitivity.sensitive,
+                  );
                   return;
                 case NavigationDecision.blockOpenNested:
-                  LogService.instance.log('WebView', 'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)');
+                  LogService.instance.log(
+                    'WebView',
+                    'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)',
+                    sensitivity: LogSensitivity.sensitive,
+                  );
                   if (handled.launchNestedUrl != null) {
                     launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                   }
@@ -896,7 +939,11 @@ class WebViewModel {
           },
         ),
         onControllerCreated: (ctrl) {
-          LogService.instance.log('WebView', 'onControllerCreated for "$name" (siteId: $siteId)');
+          LogService.instance.log(
+            'WebView',
+            'onControllerCreated for "$name" (siteId: $siteId)',
+            sensitivity: LogSensitivity.sensitive,
+          );
           controller = ctrl;
           setController();
           // Apply any state queued by the activation flow when this
@@ -918,8 +965,11 @@ class WebViewModel {
             unawaited(() async {
               try {
                 final ok = await ctrl.restoreState(pending);
-                LogService.instance.log('WebView',
-                    'restoreState for "$name" (siteId: $siteId): $ok');
+                LogService.instance.log(
+                  'WebView',
+                  'restoreState for "$name" (siteId: $siteId): $ok',
+                  sensitivity: LogSensitivity.sensitive,
+                );
               } catch (_) {
                 // Restore is best-effort; on failure the page is
                 // already loading from `currentUrl` — user just loses
@@ -1005,7 +1055,11 @@ class WebViewModel {
     if (notificationsEnabled) return;
     try {
       await controller!.pause();
-      LogService.instance.log('WebView', 'Paused webview for "$name" (siteId: $siteId)');
+      LogService.instance.log(
+        'WebView',
+        'Paused webview for "$name" (siteId: $siteId)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } catch (_) {
       // Controller may have been disposed
     }
@@ -1016,7 +1070,11 @@ class WebViewModel {
     if (controller == null) return;
     try {
       await controller!.resume();
-      LogService.instance.log('WebView', 'Resumed webview for "$name" (siteId: $siteId)');
+      LogService.instance.log(
+        'WebView',
+        'Resumed webview for "$name" (siteId: $siteId)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } catch (_) {
       // Controller may have been disposed
     }
@@ -1032,7 +1090,11 @@ class WebViewModel {
     try {
       await controller!.pause();
       await controller!.pauseAllJsTimers();
-      LogService.instance.log('WebView', 'App-lifecycle paused webview for "$name" (siteId: $siteId)');
+      LogService.instance.log(
+        'WebView',
+        'App-lifecycle paused webview for "$name" (siteId: $siteId)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } catch (_) {
       // Controller may have been disposed
     }
@@ -1044,7 +1106,11 @@ class WebViewModel {
     try {
       await controller!.resume();
       await controller!.resumeAllJsTimers();
-      LogService.instance.log('WebView', 'App-lifecycle resumed webview for "$name" (siteId: $siteId)');
+      LogService.instance.log(
+        'WebView',
+        'App-lifecycle resumed webview for "$name" (siteId: $siteId)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } catch (_) {
       // Controller may have been disposed
     }
@@ -1053,7 +1119,11 @@ class WebViewModel {
   /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
-    LogService.instance.log('WebView', 'disposeWebView called for "$name" (siteId: $siteId)');
+    LogService.instance.log(
+      'WebView',
+      'disposeWebView called for "$name" (siteId: $siteId)',
+      sensitivity: LogSensitivity.sensitive,
+    );
     webview = null;
     controller = null;
   }
@@ -1067,8 +1137,11 @@ class WebViewModel {
     if (controller == null) return;
     try {
       await controller!.clearCache();
-      LogService.instance.log('WebView',
-          'Cleared in-memory cache for "$name" (siteId: $siteId)');
+      LogService.instance.log(
+        'WebView',
+        'Cleared in-memory cache for "$name" (siteId: $siteId)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } catch (_) {
       // Controller may have been disposed mid-call.
     }

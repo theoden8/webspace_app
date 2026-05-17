@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show PullToRefreshController, PullToRefreshSettings, SslCertificate;
@@ -305,9 +304,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Future<void> _showPopupWindow(int windowId, String url) async {
     if (!mounted) return;
 
-    if (kDebugMode) {
-      debugPrint('[PopupWindow] Opening popup window with id: $windowId, url: $url');
-    }
+    LogService.instance.log(
+      'PopupWindow',
+      'Opening popup window with id: $windowId, url: $url',
+      sensitivity: LogSensitivity.sensitive,
+    );
 
     await showDialog(
       context: context,
@@ -350,9 +351,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       },
     );
 
-    if (kDebugMode) {
-      debugPrint('[PopupWindow] Popup window closed');
-    }
+    LogService.instance.log('PopupWindow', 'Popup window closed');
   }
 
   @override
@@ -397,12 +396,18 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           final urlAfter = (await controller.getUrl())?.toString();
           if (!mounted) return;
           if (urlBefore == urlAfter) {
-            LogService.instance.log('Navigation',
-                'Nested back gesture: no history ($urlAfter), exiting nested');
+            LogService.instance.log(
+              'Navigation',
+              'Nested back gesture: no history ($urlAfter), exiting nested',
+              sensitivity: LogSensitivity.sensitive,
+            );
             navigator.pop();
           } else {
-            LogService.instance.log('Navigation',
-                'Nested back gesture: navigated $urlBefore -> $urlAfter');
+            LogService.instance.log(
+              'Navigation',
+              'Nested back gesture: navigated $urlBefore -> $urlAfter',
+              sensitivity: LogSensitivity.sensitive,
+            );
           }
         } finally {
           _isBackHandling = false;

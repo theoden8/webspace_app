@@ -112,11 +112,19 @@ class UserScriptService {
     for (final script in _scripts) {
       final src = _buildSource(script);
       if (!script.enabled || src.isEmpty) {
-        LogService.instance.log('UserScript', 'Skipping "${script.name}" (enabled=${script.enabled}, empty=${src.isEmpty})');
+        LogService.instance.log(
+          'UserScript',
+          'Skipping "${script.name}" (enabled=${script.enabled}, empty=${src.isEmpty})',
+          sensitivity: LogSensitivity.sensitive,
+        );
         continue;
       }
       final time = script.injectionTime == UserScriptInjectionTime.atDocumentStart ? 'DOCUMENT_START' : 'DOCUMENT_END';
-      LogService.instance.log('UserScript', 'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})');
+      LogService.instance.log(
+        'UserScript',
+        'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})',
+        sensitivity: LogSensitivity.sensitive,
+      );
       result.add(inapp.UserScript(
         groupName: 'user_scripts',
         source: '${_guarded(script.id, src)}\n;null;',
@@ -153,21 +161,37 @@ class UserScriptService {
       final url = args[0] as String;
       final status = classifyScriptFetchUrl(url);
       if (status == ScriptFetchUrlStatus.blocked) {
-        LogService.instance.log('UserScript', 'Blocked script fetch: $url');
+        LogService.instance.log(
+          'UserScript',
+          'Blocked script fetch: $url',
+          sensitivity: LogSensitivity.sensitive,
+        );
         return false;
       }
       if (status == ScriptFetchUrlStatus.requiresConfirmation) {
         if (_onConfirmScriptFetch == null) {
-          LogService.instance.log('UserScript', 'Blocked non-whitelisted URL (no confirmation handler): $url');
+          LogService.instance.log(
+            'UserScript',
+            'Blocked non-whitelisted URL (no confirmation handler): $url',
+            sensitivity: LogSensitivity.sensitive,
+          );
           return false;
         }
         final approved = await _onConfirmScriptFetch!(url);
         if (!approved) {
-          LogService.instance.log('UserScript', 'User denied script fetch: $url');
+          LogService.instance.log(
+            'UserScript',
+            'User denied script fetch: $url',
+            sensitivity: LogSensitivity.sensitive,
+          );
           return false;
         }
       }
-      LogService.instance.log('UserScript', 'Fetching external script: $url');
+      LogService.instance.log(
+        'UserScript',
+        'Fetching external script: $url',
+        sensitivity: LogSensitivity.sensitive,
+      );
       final clientResult = outboundHttp.clientFor(resolveEffectiveProxy(_proxy));
       if (clientResult is OutboundClientBlocked) {
         LogService.instance.log(
@@ -217,7 +241,11 @@ class UserScriptService {
       final url = args[0] as String;
       final status = classifyScriptFetchUrl(url);
       if (status == ScriptFetchUrlStatus.blocked) {
-        LogService.instance.log('UserScript', 'Blocked resource fetch: $url');
+        LogService.instance.log(
+          'UserScript',
+          'Blocked resource fetch: $url',
+          sensitivity: LogSensitivity.sensitive,
+        );
         return {'status': 403};
       }
       final clientResult = outboundHttp.clientFor(resolveEffectiveProxy(_proxy));
@@ -276,7 +304,11 @@ class UserScriptService {
       final src = _buildSource(script);
       if (src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentStart) {
-        LogService.instance.log('UserScript', 'onLoadStart: re-injecting "${script.name}" (${src.length} chars)');
+        LogService.instance.log(
+          'UserScript',
+          'onLoadStart: re-injecting "${script.name}" (${src.length} chars)',
+          sensitivity: LogSensitivity.sensitive,
+        );
         await _safeEval(controller, _guarded(script.id, src));
       }
     }
@@ -294,7 +326,11 @@ class UserScriptService {
       final src = _buildSource(script);
       if (src.isEmpty) continue;
       if (script.injectionTime == UserScriptInjectionTime.atDocumentEnd) {
-        LogService.instance.log('UserScript', 'onLoadStop: re-injecting "${script.name}" (${src.length} chars)');
+        LogService.instance.log(
+          'UserScript',
+          'onLoadStop: re-injecting "${script.name}" (${src.length} chars)',
+          sensitivity: LogSensitivity.sensitive,
+        );
         await _safeEval(controller, _guarded(script.id, src));
       }
     }
@@ -311,7 +347,11 @@ class UserScriptService {
     if (!hasScripts) return;
     for (final script in _scripts) {
       if (!script.enabled || script.source.isEmpty) continue;
-      LogService.instance.log('UserScript', 'SPA nav: re-running "${script.name}" source (${script.source.length} chars)');
+      LogService.instance.log(
+        'UserScript',
+        'SPA nav: re-running "${script.name}" source (${script.source.length} chars)',
+        sensitivity: LogSensitivity.sensitive,
+      );
       final safeName = script.name.replaceAll('"', '\\"');
       await _safeEval(controller, 'console.log("__ws: SPA re-inject: $safeName");\n${script.source}');
     }

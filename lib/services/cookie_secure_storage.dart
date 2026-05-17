@@ -182,7 +182,12 @@ class CookieSecureStorage {
     }
 
     await saveCookies(allCookies);
-    LogService.instance.log('CookieStorage', 'Removed orphaned cookies for siteIds: $siteIdsToRemove', level: LogLevel.info);
+    LogService.instance.log(
+      'CookieStorage',
+      'Removed orphaned cookies for siteIds: $siteIdsToRemove',
+      level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   /// Clears all stored cookies from both secure storage and fallback.

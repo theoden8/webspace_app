@@ -96,7 +96,11 @@ class NotificationService {
       final data = jsonDecode(response.payload!);
       final siteId = data['siteId'] as String?;
       if (siteId != null) {
-        LogService.instance.log('Notification', 'Tapped notification for siteId: $siteId');
+        LogService.instance.log(
+          'Notification',
+          'Tapped notification for siteId: $siteId',
+          sensitivity: LogSensitivity.sensitive,
+        );
         onNotificationTapped?.call(siteId);
       }
     } catch (e) {
@@ -119,7 +123,12 @@ class NotificationService {
     if (!_initialized) await init();
     await _ensurePermission();
     if (_permissionGranted != true) {
-      LogService.instance.log('Notification', 'Skipped "$title" — OS notification permission denied', level: LogLevel.warning);
+      LogService.instance.log(
+        'Notification',
+        'Skipped "$title" — OS notification permission denied',
+        level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
 
@@ -148,7 +157,11 @@ class NotificationService {
     final id = siteId.hashCode ^ title.hashCode;
 
     await _plugin.show(id: id, title: title, body: body.isNotEmpty ? body : null, notificationDetails: details, payload: payload);
-    LogService.instance.log('Notification', 'Showed notification: "$title" for siteId: $siteId');
+    LogService.instance.log(
+      'Notification',
+      'Showed notification: "$title" for siteId: $siteId',
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   Future<bool> requestPermission() async {

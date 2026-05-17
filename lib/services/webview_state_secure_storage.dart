@@ -172,12 +172,14 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       LogService.instance.log(
         'WebViewState',
         'Saved ${state.length} bytes for site $siteId (encrypted)',
+        sensitivity: LogSensitivity.sensitive,
       );
     } catch (e) {
       LogService.instance.log(
         'WebViewState',
         'Error saving state for $siteId: $e',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
     }
   }
@@ -200,6 +202,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         'WebViewState',
         'Error loading state for $siteId: $e',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
       // Corrupt entry — defensive: remove so a re-save can succeed
       // and we don't keep failing loads in a hot loop.
@@ -224,6 +227,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         'WebViewState',
         'Error deleting state for $siteId: $e',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
     }
   }
