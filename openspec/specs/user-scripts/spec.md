@@ -387,12 +387,37 @@ Scripts are added to the `initialUserScripts` list in `WebViewFactory.createWebV
 
 A shim is injected at `AT_DOCUMENT_START` before user scripts. It provides:
 
-1. **`appendChild`/`insertBefore` interception**: Catches `<script src="...">` DOM insertions for whitelisted CDN URLs and fetches them at the Dart level (bypassing CSP).
+1. **`appendChild` / `insertBefore` / `Element.append` interception**: Catches both `<script src="...">` insertions for whitelisted CDN URLs and inline `<script>{textContent}` insertions, routing both through Dart handlers that evaluate the source via `controller.evaluateJavascript` (bypassing CSP). `Element.prototype.append` is wrapped in addition to `Node.prototype.appendChild`/`insertBefore` because `ParentNode.append` does not invoke `appendChild` internally — libraries like DarkReader call `head.append(scriptEl)`, which `appendChild`-only wrappers miss.
 2. **`window.__wsFetch(url)`**: CORS-bypassing fetch that returns a standard `Response` object. User scripts can use this for libraries that need custom fetch methods (e.g. `MyLib.setFetchMethod(window.__wsFetch)`).
 3. **`window.fetch` CORS fallback**: Patches `window.fetch` to fall back to `__wsFetch` on TypeError (CORS/network failures).
 4. **Deduplication**: Tracks loaded URLs to avoid double-loading when both `initialUserScripts` and re-injection run.
 
 Handler names are randomized per webview instance for security.
+
+#### Inline Script Bridging (US-DR-001)
+
+Chromium WebView (Android System WebView) enforces CSP strictly on dynamically-created inline scripts: `document.createElement('script')` + `textContent` + `appendChild`/`append` is rejected on any site whose `Content-Security-Policy` lacks `'unsafe-inline'` or a matching hash. WebKit (iOS/macOS) is more lenient in practice on the same pattern. This asymmetry caused libraries like DarkReader to degrade on Android (initial CSS theming applies, but `injectProxy()` — needed for live stylesheet operations — is blocked, so dark mode silently regresses as the page renders).
+
+The shim closes the gap by catching inline `<script>` insertions in the same wrappers that handle `<script src>`:
+
+1. When `appendChild` / `insertBefore` / `Element.append` is called with an `HTMLScriptElement` whose `src` is empty but `text`/`textContent` is non-empty
+2. The shim sends the source string to a dedicated Dart handler (`__ws_i_<timestamp>`)
+3. Dart runs the source via `controller.evaluateJavascript` (privileged, CSP-bypassing on both engines)
+4. The native append is **skipped** — the script element is returned un-parented, so callers' `proxy.remove()` no-ops safely
+
+##### Scenario: DarkReader survives strict CSP on Android
+
+**Given** a user script enables DarkReader on a site whose CSP forbids `'unsafe-inline'` scripts (e.g. linkedin.com)
+**And** the site is loaded on Android
+**When** DarkReader's `injectProxy()` calls `(document.head || document.documentElement).append(proxyScript)` with inline text
+**Then** the shim's `Element.prototype.append` wrapper captures `proxyScript.text`, sends it to the inline-script handler, and Dart evaluates it via `controller.evaluateJavascript` — the proxy runs and dark mode persists as the page mutates
+
+##### Trade-offs (US-DR-002)
+
+- **CSP weakening is scoped to opted-in sites**: the shim is installed only on sites with at least one enabled user script (`hasScripts == true`). Sites with no user scripts retain full native CSP enforcement.
+- **Execution timing is async**: the bridge round-trip adds a microtask + IPC hop (typically <50ms on a warm bridge). DarkReader's proxy installs `Element.prototype` overrides used in later page lifecycle, so async timing does not break it. A user script that depends on a hard-synchronous execution guarantee for an inline script it appends would not be satisfied — there is no `eval`-based fast path because the page CSP also forbids `eval` in the policies that motivate this feature.
+- **All inline scripts on the page are bridged**, not just user-script-created ones. Distinguishing the two reliably from JS is not feasible. The opt-in scope (user has scripts on this site) is the security boundary.
+- **DocumentFragment-mediated insertion is not intercepted**: `frag.appendChild(scriptEl); parent.appendChild(frag)` moves the script into the parent in a single DOM op that does not pass through our `appendChild` wrapper a second time. The first `appendChild` (into the fragment) is caught — the bridged evaluation still runs — so user scripts that follow this pattern still execute their JS; the script element just never reaches the live DOM.
 
 ### External Dependency Resolution
 

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -539,6 +540,49 @@ void main() {
       expect(restored.injectionTime, original.injectionTime);
       expect(restored.enabled, original.enabled);
       expect(restored.fullSource, original.fullSource);
+    });
+  });
+
+  group('UserScriptService shim', () {
+    // Drift guards: the inline-script bridge is what lets DarkReader
+    // (and any similar dynamic-injector) survive strict CSP on Android
+    // Chromium WebView. A refactor that drops any of these substrings
+    // silently reverts that fix.
+    test('shim wraps Node.appendChild, Node.insertBefore, and Element.append', () {
+      final service = UserScriptService(scripts: [
+        UserScriptConfig(name: 't', source: 'noop;', enabled: true),
+      ]);
+      final shim = service.shimScript;
+      expect(shim, isNotNull);
+      expect(shim, contains('Node.prototype.appendChild = function'));
+      expect(shim, contains('Node.prototype.insertBefore = function'));
+      expect(shim, contains('Element.prototype.append = function'));
+    });
+
+    test('shim intercepts inline <script>{textContent} via interceptInline', () {
+      final service = UserScriptService(scripts: [
+        UserScriptConfig(name: 't', source: 'noop;', enabled: true),
+      ]);
+      final shim = service.shimScript!;
+      expect(shim, contains('function interceptInline'));
+      expect(shim, contains('scriptEl.text || scriptEl.textContent'));
+    });
+
+    test('shim is omitted when no enabled scripts are configured', () {
+      final service = UserScriptService(scripts: [
+        UserScriptConfig(name: 't', source: 'noop;', enabled: false),
+      ]);
+      expect(service.shimScript, isNull);
+      expect(service.hasScripts, isFalse);
+    });
+
+    test('inline-script handler placeholder is replaced in the emitted shim', () {
+      final service = UserScriptService(scripts: [
+        UserScriptConfig(name: 't', source: 'noop;', enabled: true),
+      ]);
+      final shim = service.shimScript!;
+      expect(shim, isNot(contains('__INLINE_SCRIPT_HANDLER_NAME__')),
+          reason: 'placeholder must be substituted with a randomized name');
     });
   });
 
