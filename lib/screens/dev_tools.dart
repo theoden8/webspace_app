@@ -164,6 +164,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   bool _isFetchingHtml = false;
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
 
+  /// Runtime-only toggle: when true, the App Logs tab shows
+  /// [LogSensitivity.sensitive] entries (siteId, hostnames, page URLs,
+  /// proxy host:port, …) merged with normal entries. Resets on every
+  /// cold launch — `LogService._sensitiveEntries` is process-local and
+  /// the toggle is not persisted to SharedPreferences.
+  bool _showSensitive = false;
+
   final ScrollController _consoleScrollController = ScrollController();
   final ScrollController _logScrollController = ScrollController();
 
@@ -1510,7 +1517,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── App Logs Tab ──
 
   Widget _buildAppLogsTab() {
-    final allEntries = LogService.instance.entries;
+    final allEntries = _showSensitive
+        ? LogService.instance.allEntriesMerged
+        : LogService.instance.entries;
     var filtered = _activeFilters.length == LogLevel.values.length
         ? allEntries
         : allEntries.where((e) => _activeFilters.contains(e.level)).toList();
@@ -1524,6 +1533,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       children: [
         _buildLogActions(filtered),
         _buildLogFilters(),
+        _buildSensitiveToggle(),
         Expanded(
           child: filtered.isEmpty
               ? Center(child: Text(_searchQuery.isEmpty ? 'No log entries' : 'No matches'))
@@ -1537,6 +1547,29 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSensitiveToggle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: Row(
+        children: [
+          Switch(
+            value: _showSensitive,
+            onChanged: (v) => setState(() => _showSensitive = v),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              _showSensitive
+                  ? 'Showing sensitive entries (siteId, URLs, hostnames). Resets on app restart.'
+                  : 'Show sensitive entries (siteId, URLs, hostnames)',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1619,10 +1652,19 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       default:
         color = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white;
     }
-    return Padding(
+    final isSensitive = entry.sensitivity == LogSensitivity.sensitive;
+    final prefix = isSensitive ? '[SENSITIVE] ' : '';
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 1.0),
+      decoration: isSensitive
+          ? BoxDecoration(
+              border: Border(
+                left: BorderSide(color: Colors.deepOrange.shade400, width: 3),
+              ),
+            )
+          : null,
       child: SelectableText(
-        '[${_formatTime(entry.timestamp)}] [${entry.tag}] ${entry.message}',
+        '[${_formatTime(entry.timestamp)}] $prefix[${entry.tag}] ${entry.message}',
         style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: color),
       ),
     );
