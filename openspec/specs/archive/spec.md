@@ -250,6 +250,7 @@ The override matrix:
 | Per-site authenticated proxies | password not persisted | `ProxyPasswordSecureStorage` keys by `siteId` in app-tier secure storage; unauthenticated (host/port-only) proxies are fine. |
 | Auto-load at startup | never | Archive `siteId`s never enter `_loadedIndices` at startup regardless of any per-site flag — loading happens only after archive open. |
 | Tracking-protection's LocalCDN sub-component | silently no-op | The umbrella ETP feature still applies (ClearURLs, DNS, content blocker, fingerprinting shim — all runtime-only); only the LocalCDN sub-component is skipped. |
+| Logging that mentions any per-`siteId` identifier | `LogSensitivity.sensitive` | The tier-aware [`LogService`](../../../lib/services/log_service.dart) routes sensitive entries to a memory-only ring; they never reach disk, `debugPrint`, exports, or `adb logcat` / Console.app. Any new log call that includes a `siteId`, container name, cookie hostname, URL, or page title MUST be tagged sensitive (audit per #354 already covers every existing call site in `lib/`). The archive runtime flow (`_materialiseArchive`, `_openArchive`, `_closeArchive`, `_moveSiteToArchive`, `_promptRestoreArchive`) adds no log calls at all — strongest possible posture. |
 
 Adding any new per-site feature SHALL re-run this audit. The CLAUDE.md per-site checklist gains an explicit "archive-tier compatibility" item.
 
