@@ -346,7 +346,8 @@ class ContentBlockerService {
         '${hides.length} hide(s), ${exceptions.length} exception(s)'
         '${genericHide ? ", generichide" : ""}'
         '${procedural.isNotEmpty ? ", ${procedural.length} procedural" : ""}',
-        level: LogLevel.debug);
+        level: LogLevel.debug,
+        sensitivity: LogSensitivity.sensitive);
     return entry;
   }
 
@@ -366,7 +367,8 @@ class ContentBlockerService {
         'getEarlyCssScript($pageUrl): '
         '${ctx.hides.length} hide(s) '
         '→ ${script == null ? "no script" : "${script.length} bytes"}',
-        level: LogLevel.debug);
+        level: LogLevel.debug,
+        sensitivity: LogSensitivity.sensitive);
     return script;
   }
 
@@ -390,7 +392,8 @@ class ContentBlockerService {
       LogService.instance.log('ContentBlocker',
           'engine.hiddenClassIdSelectors($pageUrl) skipped — '
           'page has \$generichide allowlist',
-          level: LogLevel.debug);
+          level: LogLevel.debug,
+          sensitivity: LogSensitivity.sensitive);
       return const [];
     }
     final mergedExceptions =
@@ -406,7 +409,8 @@ class ContentBlockerService {
         'engine.hiddenClassIdSelectors($pageUrl): '
         '${classes.length} class(es), ${ids.length} id(s) → '
         '${result.length} selector(s)',
-        level: LogLevel.debug);
+        level: LogLevel.debug,
+        sensitivity: LogSensitivity.sensitive);
     return result;
   }
 
