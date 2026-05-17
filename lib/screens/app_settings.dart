@@ -1370,11 +1370,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             subtitle: Text(
               !ContentBlockerService.instance.rustEngineSupportedOnPlatform
                   ? 'Native adblock library not available on this platform.'
-                  : 'Returns uBO\'s stub bodies (noop.js, 1x1.gif, '
-                      'neutered tracker shims) for \$redirect= rule '
-                      'matches. Improves compatibility with sites that '
-                      'break when their tracker script returns empty. '
-                      'Off → \$redirect= rules drop the request.',
+                  : 'Return stub bodies for \$redirect= rules instead of dropping the request',
             ),
             value: ContentBlockerService.instance.useUboResources,
             onChanged: ContentBlockerService.instance
