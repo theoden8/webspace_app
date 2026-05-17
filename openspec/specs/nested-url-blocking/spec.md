@@ -174,13 +174,13 @@ URL received
 
 `flutter_inappwebview`'s `NavigationAction` provides platform-specific gesture info. The `_hasUserGesture()` helper normalizes this:
 
-- **Android**: `hasGesture` (bool) — `true` when navigation triggered by user tap
+- **Android / Linux**: `hasGesture` (bool) — `true` when navigation triggered by user tap. Linux maps to `webkit_navigation_action_is_user_gesture()` in the fork's plugin (the upstream plugin doesn't expose it on `NavigationAction`, only on `CreateWindowAction`, so a Linux Dart-side fallback through `navigationType` would always be `null` and `blockAutoRedirects` would silently no-op).
 - **iOS/macOS**: `navigationType` — `LINK_ACTIVATED` or `FORM_SUBMITTED` for user-initiated navigations, `OTHER` for script-initiated
 - **Fallback**: defaults to `true` (allow) on unknown platforms
 
 ```dart
 static bool _hasUserGesture(NavigationAction action) {
-  if (Platform.isAndroid) {
+  if (Platform.isAndroid || Platform.isLinux) {
     return action.hasGesture ?? true;
   }
   if (Platform.isIOS || Platform.isMacOS) {
