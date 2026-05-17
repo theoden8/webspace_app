@@ -4991,20 +4991,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                           // once the cached parse settles. file:// imports skip
                                           // the swap (no live to fetch); offline cold starts skip
                                           // the swap inside the factory's `pendingLiveReload`
-                                          // gate. Online cold starts get cache-then-live.
+                                          // gate.
                                           //
-                                          // The previous version of this code gated cached-HTML
-                                          // render on `lastKnownOnline == false` to avoid a
-                                          // chromium dangling-raw_ptr crash on the swap. Later
-                                          // minidump analysis (see `unretained_dangling_ptr_guide.md`)
-                                          // showed that crash is gated by chromium's own
-                                          // `PartitionAllocUnretainedDanglingPtr` debug feature
-                                          // — enabled only on AOSP userdebug builds, off in
-                                          // production Stable WebView. The gate was paying a
-                                          // cold-start UX cost for *every* online user to
-                                          // protect *userdebug developers* from a chromium
-                                          // self-test, which is the wrong trade.
-                                          final cached = webViewModel.initUrl.startsWith('file://')
+                                          // Per-site `htmlCachingEnabled` gates the cached-read
+                                          // for URL sites: off (default) means the cache is only
+                                          // consulted when the device is offline at construction
+                                          // time, so online cold starts go straight to live and
+                                          // never show stale content. On = cache-then-live for
+                                          // instant first paint. file:// imports ignore the
+                                          // toggle — they have no live to fetch, so the cached
+                                          // bytes are the only thing to render.
+                                          final isFileImport =
+                                              webViewModel.initUrl.startsWith('file://');
+                                          if (!isFileImport &&
+                                              !webViewModel.htmlCachingEnabled &&
+                                              (ConnectivityService.instance.lastKnownOnline ?? true)) {
+                                            return null;
+                                          }
+                                          final cached = isFileImport
                                               ? HtmlImportStorage.instance.getHtmlSync(webViewModel.siteId)
                                               : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId);
                                           if (cached == null) return null;

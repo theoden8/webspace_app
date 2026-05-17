@@ -134,6 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _fullscreenMode;
+  late bool _htmlCachingEnabled;
   late bool _notificationsEnabled;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
@@ -208,6 +209,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'localCdnEnabled': _localCdnEnabled,
         'blockAutoRedirects': _blockAutoRedirects,
         'fullscreenMode': _fullscreenMode,
+        'htmlCachingEnabled': _htmlCachingEnabled,
         'notificationsEnabled': _notificationsEnabled,
         'selectedLanguage': _selectedLanguage,
         'latitude': _latitudeController.text,
@@ -288,6 +290,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _localCdnEnabled = m.localCdnEnabled;
     _blockAutoRedirects = m.blockAutoRedirects;
     _fullscreenMode = m.fullscreenMode;
+    _htmlCachingEnabled = m.htmlCachingEnabled;
     _notificationsEnabled = m.notificationsEnabled;
     _selectedLanguage = m.language;
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
@@ -457,6 +460,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.fullscreenMode = _fullscreenMode;
+      widget.webViewModel.htmlCachingEnabled = _htmlCachingEnabled;
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
       widget.webViewModel.language = _selectedLanguage;
       // locationMode is derived from the UI state:
@@ -1381,6 +1385,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               setState(() {
                 _fullscreenMode = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: const [
+                Flexible(child: Text('HTML caching')),
+                HintButton(
+                  title: 'HTML Caching',
+                  description:
+                      'Render this site from a cached HTML snapshot for '
+                      'instant first paint on cold start, then swap to the '
+                      'live page once the cached parse settles.\n\n'
+                      'Off (default): the cache is only consulted when the '
+                      'device is offline, so an online cold start always '
+                      'goes straight to live and never shows stale content. '
+                      'Snapshots are still saved in the background so the '
+                      'offline fallback works on the next launch.\n\n'
+                      'On: trades a momentary glimpse of stale content for '
+                      'a faster first paint on every cold start.',
+                ),
+              ],
+            ),
+            subtitle: const Text(
+              'Show cached page on cold start (offline fallback always on)',
+            ),
+            value: _htmlCachingEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _htmlCachingEnabled = value;
               });
             },
           ),
