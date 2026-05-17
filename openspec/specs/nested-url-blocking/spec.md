@@ -174,16 +174,16 @@ URL received
 
 `flutter_inappwebview`'s `NavigationAction` provides platform-specific gesture info. The `_hasUserGesture()` helper normalizes this:
 
-- **Android / Linux**: `hasGesture` (bool) — `true` when navigation triggered by user tap. Linux maps to `webkit_navigation_action_is_user_gesture()` in the fork's plugin (the upstream plugin doesn't expose it on `NavigationAction`, only on `CreateWindowAction`, so a Linux Dart-side fallback through `navigationType` would always be `null` and `blockAutoRedirects` would silently no-op).
-- **iOS/macOS**: `navigationType` — `LINK_ACTIVATED` or `FORM_SUBMITTED` for user-initiated navigations, `OTHER` for script-initiated
+- **Android**: `hasGesture` (bool) — `true` when navigation triggered by user tap. Android's `WebResourceRequest.hasGesture` is intentionally conservative and reports `false` for sub-resource iframe loads.
+- **iOS / macOS / Linux**: `navigationType` — `LINK_ACTIVATED` or `FORM_SUBMITTED` for user-initiated navigations, `OTHER` for script-initiated. The fork's Linux plugin already maps `WEBKIT_NAVIGATION_TYPE_LINK_CLICKED` → `LINK_ACTIVATED` and only sets that for genuine `<a href>` clicks. **Don't use Linux `hasGesture`** (`webkit_navigation_action_is_user_gesture()`): WebKit propagates the user-gesture indicator into script-driven iframe loads inside the post-click window (Google One Tap, Stripe.js, GSI button), so `hasGesture` reads `true` for the very loads we want to block.
 - **Fallback**: defaults to `true` (allow) on unknown platforms
 
 ```dart
 static bool _hasUserGesture(NavigationAction action) {
-  if (Platform.isAndroid || Platform.isLinux) {
+  if (Platform.isAndroid) {
     return action.hasGesture ?? true;
   }
-  if (Platform.isIOS || Platform.isMacOS) {
+  if (Platform.isIOS || Platform.isMacOS || Platform.isLinux) {
     return action.navigationType == NavigationType.LINK_ACTIVATED ||
            action.navigationType == NavigationType.FORM_SUBMITTED;
   }

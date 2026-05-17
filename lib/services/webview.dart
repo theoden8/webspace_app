@@ -1132,14 +1132,18 @@ class WebViewFactory {
 })();''';
 
   /// Determine if a navigation was triggered by a user gesture.
-  /// Android / Linux: uses hasGesture property (Linux maps to
-  /// webkit_navigation_action_is_user_gesture in the fork's plugin).
-  /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
+  /// Android: uses hasGesture property.
+  /// iOS / macOS / Linux: uses navigationType (LINK_ACTIVATED = user tap,
+  /// FORM_SUBMITTED = user form). On Linux/WPE, the Apple-style `navigationType`
+  /// is the right signal — `webkit_navigation_action_is_user_gesture()` returns
+  /// `true` for sub-resource iframe loads kicked off from inside the gesture
+  /// indicator window (e.g. Google One Tap injected by a page the user clicked
+  /// to load), so it can't be used to distinguish those from real link clicks.
   static bool _hasUserGesture(inapp.NavigationAction action) {
-    if (Platform.isAndroid || Platform.isLinux) {
+    if (Platform.isAndroid) {
       return action.hasGesture ?? true;
     }
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (Platform.isIOS || Platform.isMacOS || Platform.isLinux) {
       return action.navigationType == inapp.NavigationType.LINK_ACTIVATED ||
              action.navigationType == inapp.NavigationType.FORM_SUBMITTED;
     }
