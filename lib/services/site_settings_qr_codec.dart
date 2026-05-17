@@ -41,6 +41,7 @@ class SiteSettingsQrCodec {
     'contentBlockEnabled',
     'trackingProtectionEnabled',
     'localCdnEnabled',
+    'htmlCacheEnabled',
     'blockAutoRedirects',
     'fullscreenMode',
     'htmlCachingEnabled',

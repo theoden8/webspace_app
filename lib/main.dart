@@ -1281,6 +1281,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (!_webViewModels[_currentIndex!].notificationsEnabled) {
         await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
       }
+      // Android-only: nudge the active WebView's renderer to issue a paint
+      // after the platform view's surface has been re-attached on activity
+      // restart. Without this nudge, the hybrid-composition surface can
+      // come back blank — the page is still alive (taps, scrolls, JS all
+      // work), but the user sees a black rectangle until something forces
+      // a layout pass. Reading `document.body.offsetHeight` is a no-op
+      // that triggers a synchronous layout, which schedules a paint.
+      // See issue #333. Fire-and-forget; failure is benign.
+      if (Platform.isAndroid) {
+        final ctrl = _webViewModels[_currentIndex!].controller;
+        if (ctrl != null) {
+          unawaited(ctrl.evaluateJavascript(
+              'void (document.body && document.body.offsetHeight);'));
+        }
+      }
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
@@ -4966,17 +4981,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // a re-fetchable snapshot — the canonical bytes live in
                                   // HtmlImportStorage and never change after import, so
                                   // skip the live-snapshot save path entirely.
-                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                  onHtmlLoaded: (webViewModel.incognito || !webViewModel.htmlCacheEnabled || webViewModel.initUrl.startsWith('file://'))
                                       ? null
-                                      : (url, html) {
-                                          HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
-                                        },
+                                      : (url, html) =>
+                                          HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url),
                                   // Skip the per-onLoadStop getHtml() IPC into chromium when
                                   // a save would be debounced anyway. Drops the storm of
                                   // renderer-DOM-serializations that fired on every SPA pseudo-
                                   // navigation (8+ Saved events per page on LinkedIn) — each one
                                   // a candidate for racing chromium's frame-lifecycle teardown.
-                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                  shouldFetchHtml: (webViewModel.incognito || !webViewModel.htmlCacheEnabled || webViewModel.initUrl.startsWith('file://'))
                                       ? null
                                       : () => HtmlCacheService.instance.shouldSave(webViewModel.siteId),
                                   initialHtml: webViewModel.incognito
@@ -5010,7 +5024,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                           }
                                           final cached = isFileImport
                                               ? HtmlImportStorage.instance.getHtmlSync(webViewModel.siteId)
-                                              : HtmlCacheService.instance.getHtmlSync(webViewModel.siteId);
+                                              : (webViewModel.htmlCacheEnabled
+                                                  ? HtmlCacheService.instance.getHtmlSync(webViewModel.siteId)
+                                                  : null);
                                           if (cached == null) return null;
                                           final isDark = webViewModel.currentTheme == WebViewTheme.dark ||
                                               (webViewModel.currentTheme == WebViewTheme.system &&

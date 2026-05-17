@@ -271,6 +271,17 @@ class WebViewModel {
   final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
   String currentUrl;
+  /// The most recent URL the page has held for the settle window
+  /// (`WebViewConfig.settleDelay`, default 3 s) without a new
+  /// `onLoadStart` firing. Updated by the deferred-settle path in
+  /// `WebViewFactory` via `onPageSettled` together with the matching
+  /// HTML cache write — both fire from the same Timer callback so the
+  /// pair stays atomic. The persisted "currentUrl" JSON field reflects
+  /// THIS, not the live [currentUrl], so transient navigation states
+  /// (Cloudflare js_challenge callbacks, in-flight redirects, browser
+  /// interstitials) can't poison the next launch's initial URL
+  /// + cached-HTML baseUrl pairing. See #333.
+  String lastSettledUrl;
   String name; // Custom name for the site
   String? pageTitle; // Current page title from webview
   List<Cookie> cookies;
@@ -298,6 +309,14 @@ class WebViewModel {
   /// When false, the three sub-toggles act independently as before.
   bool trackingProtectionEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
+  /// When true (default), the post-settle DOM snapshot is persisted via
+  /// [HtmlCacheService] and replayed on cold launch as an instant
+  /// first paint before the live reload. Turn off for sites where the
+  /// cached HTML interferes with normal load (cached Cloudflare
+  /// interstitials, cached logged-in views shown to logged-out
+  /// sessions, etc.). Disabling also evicts any existing cached
+  /// snapshot for the site. Independent of the persisted currentUrl.
+  bool htmlCacheEnabled;
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
   /// When true, the cached HTML snapshot is rendered as `initialData` for
@@ -374,6 +393,14 @@ class WebViewModel {
   /// while a load is in flight.
   bool isLoading = false;
 
+  /// Drains the per-WebView settle Timer in `WebViewFactory.createWebView`.
+  /// Populated via `WebViewConfig.onSettleHandlerReady`. Called from
+  /// [disposeWebView] before the controller is nulled, so a Timer
+  /// armed by an onLoadStop ~1s before unload cannot fire and commit
+  /// transient state (cached HTML / lastSettledUrl) for a site the
+  /// user has already switched away from. See #333.
+  VoidCallback? _cancelPendingSettle;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
@@ -406,6 +433,7 @@ class WebViewModel {
     this.contentBlockEnabled = true,
     this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
+    this.htmlCacheEnabled = true,
     this.blockAutoRedirects = true,
     this.fullscreenMode = false,
     this.htmlCachingEnabled = false,
@@ -428,6 +456,7 @@ class WebViewModel {
         blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? _generateSiteId(),
         currentUrl = currentUrl ?? initUrl,
+        lastSettledUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
 
@@ -576,7 +605,7 @@ class WebViewModel {
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
     String? language,
-    Function(String url, String html)? onHtmlLoaded,
+    Future<void> Function(String url, String html)? onHtmlLoaded,
     bool Function()? shouldFetchHtml,
     String? initialHtml,
     bool Function()? isActive,
@@ -675,6 +704,7 @@ class WebViewModel {
           onExternalSchemeUrl: onExternalSchemeUrl,
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
+          onSettleHandlerReady: (cancel) => _cancelPendingSettle = cancel,
           shouldOverrideUrlLoading: (url, hasGesture) {
             LogService.instance.log('WebView', 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture');
             final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
@@ -882,7 +912,14 @@ class WebViewModel {
           },
           onHtmlLoaded: onHtmlLoaded,
           shouldFetchHtml: shouldFetchHtml,
+          // Settled URL is what toJson persists — see field doc on
+          // `lastSettledUrl`. Fires from the same deferred Timer as
+          // `onHtmlLoaded` so the (URL, HTML) pair stays atomic.
+          onPageSettled: (url) {
+            lastSettledUrl = url;
+          },
           initialHtml: initialHtml,
+          onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onConsoleMessage: (message, level) {
             consoleLogs.add(ConsoleLogEntry(
               timestamp: DateTime.now(),
@@ -983,6 +1020,25 @@ class WebViewModel {
     cookies = await cookieManager.getCookies(url: url);
   }
 
+  /// Drop the cached webview widget and controller, then ask the host to
+  /// rebuild. Used when the renderer process is killed (Android `onRender-
+  /// ProcessGone`, iOS/macOS `onWebContentProcessDidTerminate`) — the view
+  /// is alive but has no renderer driving it, which paints as a black
+  /// surface on resume from background (issue #333). Recreation is the only
+  /// supported recovery per Android docs; the native WebView cannot recover
+  /// in place. The user loses the live JS heap and DOM, which is unavoidable
+  /// since the process holding them is gone — `currentUrl` is reloaded so
+  /// the back-/forward stack is the only thing dropped.
+  void handleRendererGone({required bool didCrash}) {
+    LogService.instance.log(
+      'WebView',
+      'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating',
+    );
+    webview = null;
+    controller = null;
+    stateSetterF?.call();
+  }
+
   /// Per-instance pause for site switches.
   ///
   /// Reduces resource usage but does NOT fully stop the page — Web Workers,
@@ -1053,7 +1109,18 @@ class WebViewModel {
   /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
-    LogService.instance.log('WebView', 'disposeWebView called for "$name" (siteId: $siteId)');
+    // Capture two frames of caller context so logs identify which path
+    // disposed the webview when there's no surrounding context log
+    // (e.g. settings save, link-intent recreate, container-engine unload).
+    // Helps diagnose #333-style reports where a webview disappears
+    // without an obvious trigger.
+    final stack = StackTrace.current.toString().split('\n');
+    final caller = stack.length > 1 ? stack[1].trim() : '<unknown>';
+    final grandparent = stack.length > 2 ? stack[2].trim() : '<unknown>';
+    LogService.instance.log('WebView',
+        'disposeWebView called for "$name" (siteId: $siteId) caller=$caller via=$grandparent');
+    _cancelPendingSettle?.call();
+    _cancelPendingSettle = null;
     webview = null;
     controller = null;
   }
@@ -1196,7 +1263,14 @@ class WebViewModel {
     return {
         'siteId': siteId,
         'initUrl': initUrl,
-        if (!dropUrl) 'currentUrl': currentUrl,
+        // Persist the SETTLED URL, not the live one. Live currentUrl can hold
+        // a transient navigation state (Cloudflare js_challenge callback,
+        // mid-redirect interstitial) at the moment we're serialised. On next
+        // launch that URL would feed the WebView's initialUrlRequest and the
+        // cached-HTML baseUrl, the live-reload one-shot would hit a stale
+        // single-use token, and the page would sit on about:blank until the
+        // user manually goes home. See #333.
+        if (!dropUrl) 'currentUrl': lastSettledUrl,
         'name': name,
         if (!dropUrl) 'pageTitle': pageTitle,
         'cookies': incognito
@@ -1214,6 +1288,7 @@ class WebViewModel {
         'contentBlockEnabled': contentBlockEnabled,
         'trackingProtectionEnabled': trackingProtectionEnabled,
         'localCdnEnabled': localCdnEnabled,
+        'htmlCacheEnabled': htmlCacheEnabled,
         'blockAutoRedirects': blockAutoRedirects,
         'fullscreenMode': fullscreenMode,
         'htmlCachingEnabled': htmlCachingEnabled,
@@ -1268,6 +1343,7 @@ class WebViewModel {
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,
       trackingProtectionEnabled: json['trackingProtectionEnabled'] ?? true,
       localCdnEnabled: json['localCdnEnabled'] ?? true,
+      htmlCacheEnabled: json['htmlCacheEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       fullscreenMode: json['fullscreenMode'] ?? false,
       htmlCachingEnabled: json['htmlCachingEnabled'] as bool? ?? false,

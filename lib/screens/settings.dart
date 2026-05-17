@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -10,6 +11,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -133,6 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _trackingProtectionEnabled;
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
+  late bool _htmlCacheEnabled;
   late bool _fullscreenMode;
   late bool _htmlCachingEnabled;
   late bool _notificationsEnabled;
@@ -208,6 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'trackingProtectionEnabled': _trackingProtectionEnabled,
         'localCdnEnabled': _localCdnEnabled,
         'blockAutoRedirects': _blockAutoRedirects,
+        'htmlCacheEnabled': _htmlCacheEnabled,
         'fullscreenMode': _fullscreenMode,
         'htmlCachingEnabled': _htmlCachingEnabled,
         'notificationsEnabled': _notificationsEnabled,
@@ -289,6 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _trackingProtectionEnabled = m.trackingProtectionEnabled;
     _localCdnEnabled = m.localCdnEnabled;
     _blockAutoRedirects = m.blockAutoRedirects;
+    _htmlCacheEnabled = m.htmlCacheEnabled;
     _fullscreenMode = m.fullscreenMode;
     _htmlCachingEnabled = m.htmlCachingEnabled;
     _notificationsEnabled = m.notificationsEnabled;
@@ -459,6 +464,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.trackingProtectionEnabled = _trackingProtectionEnabled;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
+      final htmlCacheWasEnabled = widget.webViewModel.htmlCacheEnabled;
+      widget.webViewModel.htmlCacheEnabled = _htmlCacheEnabled;
+      if (htmlCacheWasEnabled && !_htmlCacheEnabled) {
+        // Drop the persisted snapshot so the next cold launch doesn't
+        // render stale bytes the user has just opted out of seeing.
+        unawaited(HtmlCacheService.instance.deleteCache(widget.webViewModel.siteId));
+      }
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.htmlCachingEnabled = _htmlCachingEnabled;
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
@@ -1364,6 +1376,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               setState(() {
                 _blockAutoRedirects = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                const Flexible(child: Text('Cache page for offline')),
+                const HintButton(
+                  title: 'Cache page for offline',
+                  description:
+                      'Saves a snapshot of the last settled page so it can be '
+                      'shown instantly on the next launch before the live '
+                      'reload finishes (or while offline). Turn off for sites '
+                      'where the cached HTML interferes with normal loading '
+                      '(stale interstitials, cached logged-in views on a '
+                      'logged-out session). Disabling deletes the existing '
+                      'snapshot. The site\'s last URL is still remembered.',
+                ),
+              ],
+            ),
+            subtitle: const Text('Show last snapshot before live load'),
+            value: _htmlCacheEnabled,
+            onChanged: (bool value) {
+              setState(() {
+                _htmlCacheEnabled = value;
               });
             },
           ),
