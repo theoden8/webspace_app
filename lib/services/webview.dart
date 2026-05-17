@@ -1278,10 +1278,11 @@ class WebViewFactory {
 })();''';
 
   /// Determine if a navigation was triggered by a user gesture.
-  /// Android: uses hasGesture property.
+  /// Android / Linux: uses hasGesture property (Linux maps to
+  /// webkit_navigation_action_is_user_gesture in the fork's plugin).
   /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
   static bool _hasUserGesture(inapp.NavigationAction action) {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isLinux) {
       return action.hasGesture ?? true;
     }
     if (Platform.isIOS || Platform.isMacOS) {
