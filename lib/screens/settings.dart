@@ -1457,38 +1457,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (widget.onClearCookies != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: OutlinedButton.icon(
-                icon: Icon(Icons.cookie, color: Colors.red),
-                label: Text('Clear Cookies', style: TextStyle(color: Colors.red)),
-                style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red)),
-                onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text('Clear Cookies'),
-                      content: Text('Are you sure you want to clear all cookies for this site?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text('Clear', style: TextStyle(color: Colors.red)),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed == true) {
-                    widget.onClearCookies!();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Cookies cleared')),
-                      );
+              child: Builder(builder: (context) {
+                final label = widget.useContainers ? 'Clear Site Data' : 'Clear Cookies';
+                final dialogBody = widget.useContainers
+                    ? 'This wipes cookies, localStorage, IndexedDB, '
+                        'ServiceWorkers, and the HTTP cache for this site. '
+                        'The site will reload with a fresh empty container.'
+                    : 'Are you sure you want to clear all cookies for this site?';
+                final snack = widget.useContainers ? 'Site data cleared' : 'Cookies cleared';
+                return OutlinedButton.icon(
+                  icon: Icon(Icons.cookie, color: Colors.red),
+                  label: Text(label, style: TextStyle(color: Colors.red)),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red)),
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text(label),
+                        content: Text(dialogBody),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: Text('Clear', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      widget.onClearCookies!();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(snack)),
+                        );
+                      }
                     }
-                  }
-                },
-              ),
+                  },
+                );
+              }),
             ),
           // Imported file:// sites have no fetchable URL; sharing the
           // QR would only ship a synthetic file:///<name> handle that the

@@ -43,6 +43,7 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
@@ -3396,6 +3397,43 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _webViewModels[_currentIndex!].userDrivenReload();
   }
 
+  /// User-driven full session wipe for a single site.
+  ///
+  /// Plan is computed by [SiteDataClearEngine.planClear]; this method is
+  /// the executor. Container mode wipes the named container and forces
+  /// webview recreation against a fresh empty one. Legacy mode falls
+  /// back to in-model cookie deletion + reload (the most that can be
+  /// scoped to a single site when localStorage / IDB / SW are
+  /// app-global).
+  Future<void> _clearSiteData(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    final plan = SiteDataClearEngine.planClear(useContainers: _useContainers);
+    if (plan.disposeWebView) {
+      _evictCacheIfOnline(model.siteId);
+      model.disposeWebView();
+    }
+    if (plan.dropFromLoadedIndices) {
+      _loadedIndices.remove(index);
+    }
+    if (plan.clearInModelCookies) {
+      model.cookies = const [];
+    }
+    if (plan.wipeContainer) {
+      await _containerIsolation.wipeContainers([model.siteId]);
+    }
+    if (plan.deleteKnownCookies) {
+      await model.deleteCookies(_cookieManager, _containerCookieManager);
+    }
+    await _saveWebViewModels();
+    if (!mounted) return;
+    if (plan.userDrivenReload) {
+      await _refreshCurrentSite();
+    } else {
+      setState(() {});
+    }
+  }
+
   Future<void> _stopCurrentSiteLoading() async {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
     await _webViewModels[_currentIndex!].userStopLoading();
@@ -3786,11 +3824,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           _resetAllWebViews();
                         },
                         onScriptsChanged: _resetCurrentSiteWebView,
-                        onClearCookies: () {
-                          _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _containerCookieManager);
-                          _saveWebViewModels();
-                          _refreshCurrentSite();
-                        },
+                        onClearCookies: () => _clearSiteData(_currentIndex!),
                         onSettingsSaved: _handlePerSiteSettingsSaved,
                       ),
                     ),
@@ -4145,11 +4179,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     _resetAllWebViews();
                   },
                   onScriptsChanged: _resetCurrentSiteWebView,
-                  onClearCookies: () {
-                    _webViewModels[_currentIndex!].deleteCookies(_cookieManager, _containerCookieManager);
-                    _saveWebViewModels();
-                    _refreshCurrentSite();
-                  },
+                  onClearCookies: () => _clearSiteData(_currentIndex!),
                   onSettingsSaved: _handlePerSiteSettingsSaved,
                 ),
               ),
