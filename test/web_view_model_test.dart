@@ -26,6 +26,7 @@ void main() {
       expect(model.trackingProtectionEnabled, isTrue);
       expect(model.localCdnEnabled, isTrue);
       expect(model.fullscreenMode, isFalse);
+      expect(model.htmlCachingEnabled, isFalse);
       expect(model.notificationsEnabled, isFalse);
     });
 
@@ -316,6 +317,34 @@ void main() {
 
       final restored = WebViewModel.fromJson(json, null);
       expect(restored.fullscreenMode, isTrue);
+    });
+
+    test('htmlCachingEnabled defaults to false when missing from JSON', () {
+      final json = {
+        'initUrl': 'https://example.com',
+        'currentUrl': 'https://example.com',
+        'cookies': [],
+        'proxySettings': {'type': 0, 'address': null},
+        'javascriptEnabled': true,
+        'userAgent': '',
+        'thirdPartyCookiesEnabled': false,
+      };
+
+      final model = WebViewModel.fromJson(json, null);
+      expect(model.htmlCachingEnabled, isFalse);
+    });
+
+    test('htmlCachingEnabled true is preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        htmlCachingEnabled: true,
+      );
+
+      final json = model.toJson();
+      expect(json['htmlCachingEnabled'], equals(true));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.htmlCachingEnabled, isTrue);
     });
 
     test('notificationsEnabled defaults to false when missing from JSON', () {

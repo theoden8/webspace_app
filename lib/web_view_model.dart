@@ -300,6 +300,13 @@ class WebViewModel {
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
+  /// When true, the cached HTML snapshot is rendered as `initialData` for
+  /// instant first paint on construction, then swapped to a live load
+  /// once the cached parse settles. When false, the cached snapshot is
+  /// only used as a fallback when the device is offline at construction
+  /// time — online cold starts go straight to live. Saves to the cache
+  /// happen regardless so the offline fallback keeps working.
+  bool htmlCachingEnabled;
   /// Allow this site to show system notifications. Implies background
   /// polling: the site is auto-loaded on startup, kept resident across
   /// site switches and app-lifecycle pauses, and reloaded periodically by
@@ -401,6 +408,7 @@ class WebViewModel {
     this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
     this.fullscreenMode = false,
+    this.htmlCachingEnabled = false,
     this.notificationsEnabled = false,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
@@ -1208,6 +1216,7 @@ class WebViewModel {
         'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
         'fullscreenMode': fullscreenMode,
+        'htmlCachingEnabled': htmlCachingEnabled,
         'notificationsEnabled': notificationsEnabled,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
@@ -1261,6 +1270,7 @@ class WebViewModel {
       localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
       fullscreenMode: json['fullscreenMode'] ?? false,
+      htmlCachingEnabled: json['htmlCachingEnabled'] as bool? ?? false,
       notificationsEnabled:
           (json['notificationsEnabled'] as bool?) ??
               (json['backgroundPoll'] as bool?) ??
