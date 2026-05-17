@@ -51,6 +51,7 @@ class CookieIsolationEngine {
     LogService.instance.log(
       'CookieIsolation',
       'Unloading site $index: "${model.name}" (siteId: ${model.siteId})',
+      sensitivity: LogSensitivity.sensitive,
     );
 
     if (!model.incognito) {
@@ -69,11 +70,16 @@ class CookieIsolationEngine {
       LogService.instance.log(
         'CookieIsolation',
         'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
+        sensitivity: LogSensitivity.sensitive,
       );
     }
 
     model.disposeWebView();
-    LogService.instance.log('CookieIsolation', 'Disposed webview for site $index');
+    LogService.instance.log(
+      'CookieIsolation',
+      'Disposed webview for site $index',
+      sensitivity: LogSensitivity.sensitive,
+    );
     loadedIndices.remove(index);
   }
 
@@ -157,6 +163,7 @@ class CookieIsolationEngine {
     LogService.instance.log(
       'CookieIsolation',
       'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})',
+      sensitivity: LogSensitivity.sensitive,
     );
 
     await _setCookies(model, cookies);

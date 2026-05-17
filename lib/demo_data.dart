@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -20,14 +21,16 @@ bool isDemoMode = false;
 /// - null (default): Use per-site settings or system default
 /// - 'en', 'es', etc.: Override all sites with this language
 Future<void> seedDemoData({String theme = 'system', String? language}) async {
-  print('========================================');
-  print('SEEDING DEMO DATA');
-  print('========================================');
+  void log(String msg) =>
+      LogService.instance.log('DemoData', msg, level: LogLevel.info);
+
+  log('========================================');
+  log('SEEDING DEMO DATA');
+  log('========================================');
 
   final prefs = await SharedPreferences.getInstance();
 
-  // Clear existing data
-  print('Clearing existing data...');
+  log('Clearing existing data...');
   await prefs.remove('webViewModels');
   await prefs.remove('webspaces');
   await prefs.remove('selectedWebspaceId');
@@ -79,9 +82,9 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
     ),
   ];
 
-  print('Created ${sites.length} sites');
+  log('Created ${sites.length} sites');
   for (var i = 0; i < sites.length; i++) {
-    print('  Site $i: ${sites[i].name} - ${sites[i].initUrl}');
+    log('  Site $i: ${sites[i].name} - ${sites[i].initUrl}');
   }
 
   // Create sample webspaces
@@ -104,14 +107,13 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
     ),
   ];
 
-  print('Created ${webspaces.length} webspaces');
+  log('Created ${webspaces.length} webspaces');
   for (var i = 0; i < webspaces.length; i++) {
     final ws = webspaces[i];
-    print('  Webspace $i: ${ws.name} (${ws.siteIndices.length} sites)');
+    log('  Webspace $i: ${ws.name} (${ws.siteIndices.length} sites)');
   }
 
-  // Serialize and save
-  print('Saving to SharedPreferences...');
+  log('Saving to SharedPreferences...');
   final sitesJson = sites.map((s) => jsonEncode(s.toJson())).toList();
   final webspacesJson = webspaces.map((w) => jsonEncode(w.toJson())).toList();
 
@@ -131,30 +133,27 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   await prefs.setInt('themeSettings', themeSettingsIndex);
   await prefs.setBool('showUrlBar', false);
 
-  print('Data saved successfully!');
-  print('');
-  print('Verifying saved data...');
+  log('Data saved successfully!');
+  log('Verifying saved data...');
 
   // Verify
   final savedSites = prefs.getStringList('webViewModels');
   final savedWebspaces = prefs.getStringList('webspaces');
   final selectedId = prefs.getString('selectedWebspaceId');
 
-  print('webViewModels: ${savedSites?.length} items');
-  print('webspaces: ${savedWebspaces?.length} items');
-  print('selectedWebspaceId: $selectedId');
+  log('webViewModels: ${savedSites?.length} items');
+  log('webspaces: ${savedWebspaces?.length} items');
+  log('selectedWebspaceId: $selectedId');
 
   if (savedSites != null && savedSites.isNotEmpty) {
-    print('First site: ${savedSites[0].substring(0, savedSites[0].length < 100 ? savedSites[0].length : 100)}...');
+    log('First site: ${savedSites[0].substring(0, savedSites[0].length < 100 ? savedSites[0].length : 100)}...');
   }
 
-  print('');
-  print('========================================');
-  print('DEMO DATA SEEDING COMPLETE');
-  print('========================================');
-  print('The app will load with ${sites.length} sites in ${webspaces.length} webspaces.');
+  log('========================================');
+  log('DEMO DATA SEEDING COMPLETE');
+  log('========================================');
+  log('The app will load with ${sites.length} sites in ${webspaces.length} webspaces.');
 
-  // Enable demo mode to prevent any further saves during the session
   isDemoMode = true;
-  print('Demo mode enabled - changes will NOT be persisted to storage');
+  log('Demo mode enabled - changes will NOT be persisted to storage');
 }

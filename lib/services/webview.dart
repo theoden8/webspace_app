@@ -281,6 +281,7 @@ class ProxyManager {
         'Effective proxy missing address; aborting setProxyOverride. '
             'Effective: ${effective.describeForLogs()}',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
       throw Exception('Proxy address is required');
     }
@@ -292,6 +293,7 @@ class ProxyManager {
         'Effective proxy address malformed (expected host:port). '
             'Effective: ${effective.describeForLogs()}',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
       throw Exception('Proxy address must be in format host:port');
     }
@@ -304,6 +306,7 @@ class ProxyManager {
         'Effective proxy port is not numeric. '
             'Effective: ${effective.describeForLogs()}',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
       throw Exception('Invalid port number');
     }
@@ -324,6 +327,7 @@ class ProxyManager {
           '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
           'effective: ${effective.describeForLogs()})',
       level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
     );
     await controller.setProxyOverride(
       settings: inapp.ProxySettings(
@@ -1964,7 +1968,11 @@ class WebViewFactory {
         ? _userProxyToInappProxy(resolveEffectiveProxy(config.proxySettings!))
         : null;
 
-    LogService.instance.log('DnsBlock', 'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}');
+    LogService.instance.log(
+      'DnsBlock',
+      'Creating webview: siteId=${config.siteId} dnsBlock=${config.dnsBlockEnabled} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${Platform.isAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
+      sensitivity: LogSensitivity.sensitive,
+    );
 
     final settings = inapp.InAppWebViewSettings(
       containerId: containerId,
@@ -2231,6 +2239,7 @@ class WebViewFactory {
                       '${classes.length} class / ${ids.length} id → '
                       '${selectors.length} hide(s): [$preview${selectors.length > 8 ? ", …" : ""}]',
                   level: LogLevel.debug,
+                  sensitivity: LogSensitivity.sensitive,
                 );
               }
               return selectors;
@@ -2310,7 +2319,11 @@ class WebViewFactory {
                 DownloadsService.instance.fail(taskId, e.message);
               }
             } catch (e, stack) {
-              debugPrint('Blob download error: $e\n$stack');
+              LogService.instance.log(
+                'WebView',
+                'Blob download error: $e\n$stack',
+                level: LogLevel.error,
+              );
               if (taskId.isNotEmpty) {
                 DownloadsService.instance.fail(taskId, e.toString());
               }
@@ -2401,6 +2414,7 @@ class WebViewFactory {
             'requesting native interceptor attach: siteId=${config.siteId} '
                 'initialUrl=${config.initialUrl}',
             level: LogLevel.debug,
+            sensitivity: LogSensitivity.sensitive,
           );
           Future.microtask(() => WebInterceptNative.attachToWebViews(siteId: config.siteId));
         }
@@ -2426,9 +2440,12 @@ class WebViewFactory {
         // onReceivedError handles recovery.
         final externalInfo = ExternalUrlParser.parse(url);
         if (externalInfo != null) {
-          LogService.instance.log('WebView',
-              'External scheme intercepted: scheme=${externalInfo.scheme} '
-              'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url');
+          LogService.instance.log(
+            'WebView',
+            'External scheme intercepted: scheme=${externalInfo.scheme} '
+                'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url',
+            sensitivity: LogSensitivity.sensitive,
+          );
           // intent:// with a resolvable web URL: route the fallback
           // through the standard same-domain / cross-domain path, no
           // confirmation prompt. We are the browser; handing the user
@@ -2441,8 +2458,11 @@ class WebViewFactory {
           if (externalInfo.scheme == 'intent') {
             final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
             if (resolved != null) {
-              LogService.instance.log('WebView',
-                  'intent fallback resolved → $resolved (from $url)');
+              LogService.instance.log(
+                'WebView',
+                'intent fallback resolved → $resolved (from $url)',
+                sensitivity: LogSensitivity.sensitive,
+              );
               bool allow = true;
               if (config.shouldOverrideUrlLoading != null) {
                 final hasGesture = _hasUserGesture(navigationAction);
@@ -2517,9 +2537,12 @@ class WebViewFactory {
           final rewritten = ContentBlockerService.instance
               .rewrittenUrl(url, requestType: 'document');
           if (rewritten != null && rewritten != url) {
-            LogService.instance.log('ContentBlocker',
-                '\$removeparam= rewrote $url → $rewritten',
-                level: LogLevel.debug);
+            LogService.instance.log(
+              'ContentBlocker',
+              '\$removeparam= rewrote $url → $rewritten',
+              level: LogLevel.debug,
+              sensitivity: LogSensitivity.sensitive,
+            );
             controller.loadUrl(
                 urlRequest: inapp.URLRequest(url: inapp.WebUri(rewritten)));
             return inapp.NavigationActionPolicy.CANCEL;
@@ -2575,8 +2598,11 @@ class WebViewFactory {
             url.startsWith('http') &&
             _hasUserGesture(navigationAction)) {
           if (iosUlBypass.shouldCancelAndReissue(url)) {
-            LogService.instance.log('WebView',
-                '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url');
+            LogService.instance.log(
+              'WebView',
+              '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url',
+              sensitivity: LogSensitivity.sensitive,
+            );
             // Forward original headers so per-site Accept-Language
             // survives the reissue. POST body is dropped — POSTs
             // that match AASA are rare and the existing flow lost
@@ -2590,16 +2616,22 @@ class WebViewFactory {
             ));
             return inapp.NavigationActionPolicy.CANCEL;
           }
-          LogService.instance.log('WebView',
-              '  -> ALLOW (iOS UL bypass: reissued nav passing through)');
+          LogService.instance.log(
+            'WebView',
+            '  -> ALLOW (iOS UL bypass: reissued nav passing through)',
+            sensitivity: LogSensitivity.sensitive,
+          );
         }
         return inapp.NavigationActionPolicy.ALLOW;
       },
       onCreateWindow: (controller, createWindowAction) async {
         final url = createWindowAction.request.url?.toString() ?? '';
         final windowId = createWindowAction.windowId;
-        LogService.instance.log('WebView',
-            'onCreateWindow: url=$url windowId=$windowId');
+        LogService.instance.log(
+          'WebView',
+          'onCreateWindow: url=$url windowId=$windowId',
+          sensitivity: LogSensitivity.sensitive,
+        );
 
         // Show popup dialog for Cloudflare challenges (captcha verification).
         if (isCaptchaChallenge(url)) {
@@ -2615,14 +2647,20 @@ class WebViewFactory {
         // the same confirmation path as direct navigations.
         final externalInfo = ExternalUrlParser.parse(url);
         if (externalInfo != null) {
-          LogService.instance.log('WebView',
-              'External scheme intercepted (onCreateWindow): '
-              'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url');
+          LogService.instance.log(
+            'WebView',
+            'External scheme intercepted (onCreateWindow): '
+                'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url',
+            sensitivity: LogSensitivity.sensitive,
+          );
           if (externalInfo.scheme == 'intent') {
             final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
             if (resolved != null) {
-              LogService.instance.log('WebView',
-                  'intent fallback resolved (onCreateWindow) → $resolved (from $url)');
+              LogService.instance.log(
+                'WebView',
+                'intent fallback resolved (onCreateWindow) → $resolved (from $url)',
+                sensitivity: LogSensitivity.sensitive,
+              );
               bool allow = true;
               if (config.shouldOverrideUrlLoading != null) {
                 final hasGesture = _hasUserGesture(createWindowAction);
@@ -2858,9 +2896,12 @@ class WebViewFactory {
               if (liveUrl == urlStr) {
                 config.onHtmlLoaded!(urlStr, html);
               } else {
-                LogService.instance.log('WebView',
-                    'Skipping cache save: URL changed during getHtml() '
-                    '($urlStr -> $liveUrl)');
+                LogService.instance.log(
+                  'WebView',
+                  'Skipping cache save: URL changed during getHtml() '
+                      '($urlStr -> $liveUrl)',
+                  sensitivity: LogSensitivity.sensitive,
+                );
               }
             }
           } catch (_) {
@@ -2914,8 +2955,11 @@ class WebViewFactory {
         // to the OS and the OS rejected. Show the user prompt; on
         // approval pin the cached cert and reload.
         if (_isSslError(error.type)) {
-          LogService.instance.log('TLS',
-              'onReceivedError ssl: type=${error.type} url=$reqUrl description="${error.description}"');
+          LogService.instance.log(
+            'TLS',
+            'onReceivedError ssl: type=${error.type} url=$reqUrl description="${error.description}"',
+            sensitivity: LogSensitivity.sensitive,
+          );
           final handled = await _handleSslLoadError(
             controller: controller,
             url: reqUrl,
@@ -2926,8 +2970,11 @@ class WebViewFactory {
         final externalInfo = ExternalUrlParser.parse(reqUrl);
         if (externalInfo == null) return;
         if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
-          LogService.instance.log('WebView',
-              'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)');
+          LogService.instance.log(
+            'WebView',
+            'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)',
+            sensitivity: LogSensitivity.sensitive,
+          );
           // The fallback page actually loaded (HtmlCache shows
           // multi-MB saves); Android then painted chrome-error://
           // chromewebdata over it because the page's JS retried the
@@ -2949,8 +2996,11 @@ class WebViewFactory {
           final resolved = ExternalUrlParser.intentToWebUrl(externalInfo);
           if (resolved != null) {
             ExternalUrlSuppressor.mark(externalInfo);
-            LogService.instance.log('WebView',
-                'onReceivedError: intent fallback resolved → $resolved (from $reqUrl)');
+            LogService.instance.log(
+              'WebView',
+              'onReceivedError: intent fallback resolved → $resolved (from $reqUrl)',
+              sensitivity: LogSensitivity.sensitive,
+            );
             Future.microtask(() async {
               try {
                 bool allow = true;
@@ -2974,16 +3024,22 @@ class WebViewFactory {
           // user can still choose to launch the target app.
         }
         if (config.onExternalSchemeUrl != null) {
-          LogService.instance.log('WebView',
-              'onReceivedError: type=${error.type} url=$reqUrl '
-              '— routing to external-scheme dialog');
+          LogService.instance.log(
+            'WebView',
+            'onReceivedError: type=${error.type} url=$reqUrl '
+                '— routing to external-scheme dialog',
+            sensitivity: LogSensitivity.sensitive,
+          );
           config.onExternalSchemeUrl!(reqUrl, externalInfo);
           return;
         }
         final recovery = lastStableUrl ?? config.initialUrl;
-        LogService.instance.log('WebView',
-            'onReceivedError: type=${error.type} url=$reqUrl '
-            '— no host UI, scheduling reload of $recovery');
+        LogService.instance.log(
+          'WebView',
+          'onReceivedError: type=${error.type} url=$reqUrl '
+              '— no host UI, scheduling reload of $recovery',
+          sensitivity: LogSensitivity.sensitive,
+        );
         Future.microtask(() async {
           try {
             await controller.loadUrl(
@@ -3082,22 +3138,31 @@ class WebViewFactory {
       fingerprint: fingerprint,
     )) {
       LogService.instance.log(
-          'TLS', 'pinned cert accepted for $host:$port (sha256=$fingerprint)');
+        'TLS',
+        'pinned cert accepted for $host:$port (sha256=$fingerprint)',
+        sensitivity: LogSensitivity.sensitive,
+      );
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
     }
     // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.
     if (prompt == null) {
-      LogService.instance.log('TLS',
-          'untrusted cert for $host:$port and no host UI — cancelling load');
+      LogService.instance.log(
+        'TLS',
+        'untrusted cert for $host:$port and no host UI — cancelling load',
+        sensitivity: LogSensitivity.sensitive,
+      );
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
     final approved = await prompt(host, port, cert);
     if (!approved) {
       LogService.instance.log(
-          'TLS', 'user rejected untrusted cert for $host:$port');
+        'TLS',
+        'user rejected untrusted cert for $host:$port',
+        sensitivity: LogSensitivity.sensitive,
+      );
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
@@ -3107,11 +3172,17 @@ class WebViewFactory {
         port: port,
         fingerprint: fingerprint,
       );
-      LogService.instance.log('TLS',
-          'user trusted cert for $host:$port (pinned sha256=$fingerprint)');
+      LogService.instance.log(
+        'TLS',
+        'user trusted cert for $host:$port (pinned sha256=$fingerprint)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } else {
-      LogService.instance.log('TLS',
-          'user trusted cert for $host:$port (no DER from platform — not pinned)');
+      LogService.instance.log(
+        'TLS',
+        'user trusted cert for $host:$port (no DER from platform — not pinned)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     }
     // Android's SslErrorHandler (and WPE's TLS-error proxy) may have
     // been invalidated during the async prompt — the WebView gives up
@@ -3220,13 +3291,19 @@ class WebViewFactory {
       fingerprint: fingerprint,
     )) {
       if (!_claimReloadGuard(key)) {
-        LogService.instance.log('TLS',
-            'ignoring further ssl errors for $host:$port — reload already in flight');
+        LogService.instance.log(
+          'TLS',
+          'ignoring further ssl errors for $host:$port — reload already in flight',
+          sensitivity: LogSensitivity.sensitive,
+        );
         return true;
       }
-      LogService.instance.log('TLS',
-          'pin matches but iOS reported error for $host:$port — reloading once '
-          '(os: ${Platform.operatingSystem} ${Platform.operatingSystemVersion})');
+      LogService.instance.log(
+        'TLS',
+        'pin matches but iOS reported error for $host:$port — reloading once '
+            '(os: ${Platform.operatingSystem} ${Platform.operatingSystemVersion})',
+        sensitivity: LogSensitivity.sensitive,
+      );
       Future.microtask(() async {
         try {
           await controller.loadUrl(
@@ -3242,12 +3319,18 @@ class WebViewFactory {
       final approved = await prompt(host, port, cert);
       if (!approved) {
         LogService.instance.log(
-            'TLS', 'user rejected untrusted cert for $host:$port');
+          'TLS',
+          'user rejected untrusted cert for $host:$port',
+          sensitivity: LogSensitivity.sensitive,
+        );
         return false;
       }
       if (fingerprint == null) {
-        LogService.instance.log('TLS',
-            'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again');
+        LogService.instance.log(
+          'TLS',
+          'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again',
+          sensitivity: LogSensitivity.sensitive,
+        );
         return false;
       }
       await TrustedHostsService.instance.trust(
@@ -3255,8 +3338,11 @@ class WebViewFactory {
         port: port,
         fingerprint: fingerprint,
       );
-      LogService.instance.log('TLS',
-          'user trusted cert for $host:$port (pinned sha256=$fingerprint) — reloading');
+      LogService.instance.log(
+        'TLS',
+        'user trusted cert for $host:$port (pinned sha256=$fingerprint) — reloading',
+        sensitivity: LogSensitivity.sensitive,
+      );
       try {
         await controller.loadUrl(
           urlRequest: inapp.URLRequest(url: inapp.WebUri(url)),
@@ -3343,7 +3429,11 @@ class WebViewFactory {
     } on DownloadException catch (e) {
       DownloadsService.instance.fail(task.id, e.message);
     } catch (e, stack) {
-      debugPrint('Download error: $e\n$stack');
+      LogService.instance.log(
+        'Download',
+        'Download error: $e\n$stack',
+        level: LogLevel.error,
+      );
       DownloadsService.instance.fail(task.id, e.toString());
     }
   }
@@ -3372,7 +3462,11 @@ class WebViewFactory {
     } on DownloadException catch (e) {
       DownloadsService.instance.fail(task.id, e.message);
     } catch (e, stack) {
-      debugPrint('Data-URI download error: $e\n$stack');
+      LogService.instance.log(
+        'Download',
+        'Data-URI download error: $e\n$stack',
+        level: LogLevel.error,
+      );
       DownloadsService.instance.fail(task.id, e.toString());
     }
   }
@@ -3396,7 +3490,11 @@ class WebViewFactory {
     try {
       await controller.evaluateJavascript(source: script);
     } catch (e, stack) {
-      debugPrint('Blob download eval error: $e\n$stack');
+      LogService.instance.log(
+        'Download',
+        'Blob download eval error: $e\n$stack',
+        level: LogLevel.error,
+      );
       DownloadsService.instance.fail(task.id, e.toString());
     }
   }

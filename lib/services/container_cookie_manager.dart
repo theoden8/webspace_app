@@ -57,6 +57,7 @@ class ContainerCookieManager {
         'ContainerCookieManager',
         'getCookies($siteId, ${url.host}) failed: $e',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
       return const [];
     }
@@ -91,6 +92,7 @@ class ContainerCookieManager {
         'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
             'failed: $e',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
     }
   }

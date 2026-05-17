@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -248,7 +249,11 @@ class SettingsBackupService {
       }
       return true;
     } catch (e, stack) {
-      debugPrint('Export failed: $e\n$stack');
+      LogService.instance.log(
+        'SettingsBackup',
+        'Export failed: $e\n$stack',
+        level: LogLevel.error,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Export failed: $e')),

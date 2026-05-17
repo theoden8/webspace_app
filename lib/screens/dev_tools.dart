@@ -722,6 +722,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           'Cookie inspector via ContainerCookieManager: '
               'siteId=${widget.host!.siteId} url=$url '
               'count=${cookies.length}',
+          sensitivity: LogSensitivity.sensitive,
         );
       } else {
         cookies = await widget.cookieManager.getCookies(url: Uri.parse(url));
@@ -731,6 +732,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               'siteId=${widget.host!.siteId} url=$url '
               'count=${cookies.length} '
               '(container=${container != null} ctrl=${controller != null})',
+          sensitivity: LogSensitivity.sensitive,
         );
       }
       if (mounted) {

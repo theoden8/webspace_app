@@ -121,15 +121,30 @@ class HtmlImportStorage {
                 // the AES key is recoverable (e.g. flutter_secure_storage
                 // returns the original key on a later launch after a
                 // transient Android Keystore read failure).
-                LogService.instance.log('HtmlImport', 'Skipping invalid import file (kept on disk): ${entity.path}', level: LogLevel.warning);
+                LogService.instance.log(
+                  'HtmlImport',
+                  'Skipping invalid import file (kept on disk): ${entity.path}',
+                  level: LogLevel.warning,
+                  sensitivity: LogSensitivity.sensitive,
+                );
                 skipped++;
               }
             } else {
-              LogService.instance.log('HtmlImport', 'Skipping undecryptable import file (kept on disk): ${entity.path}', level: LogLevel.warning);
+              LogService.instance.log(
+                'HtmlImport',
+                'Skipping undecryptable import file (kept on disk): ${entity.path}',
+                level: LogLevel.warning,
+                sensitivity: LogSensitivity.sensitive,
+              );
               skipped++;
             }
           } catch (e) {
-            LogService.instance.log('HtmlImport', 'Skipping unreadable import file (kept on disk): ${entity.path} ($e)', level: LogLevel.warning);
+            LogService.instance.log(
+              'HtmlImport',
+              'Skipping unreadable import file (kept on disk): ${entity.path} ($e)',
+              level: LogLevel.warning,
+              sensitivity: LogSensitivity.sensitive,
+            );
             skipped++;
           }
         }
@@ -157,7 +172,12 @@ class HtmlImportStorage {
     if (_storageDirectory == null || _encrypter == null) return;
 
     if (html.length > _maxHtmlSize) {
-      LogService.instance.log('HtmlImport', 'Skipping save for $siteId - HTML too large (${html.length} bytes > $_maxHtmlSize)', level: LogLevel.warning);
+      LogService.instance.log(
+        'HtmlImport',
+        'Skipping save for $siteId - HTML too large (${html.length} bytes > $_maxHtmlSize)',
+        level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
 
@@ -170,9 +190,18 @@ class HtmlImportStorage {
       await file.writeAsString(encrypted);
       _memoryStore[siteId] = html;
 
-      LogService.instance.log('HtmlImport', 'Saved ${html.length} bytes for site $siteId (encrypted)');
+      LogService.instance.log(
+        'HtmlImport',
+        'Saved ${html.length} bytes for site $siteId (encrypted)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } catch (e) {
-      LogService.instance.log('HtmlImport', 'Error saving HTML for $siteId: $e', level: LogLevel.error);
+      LogService.instance.log(
+        'HtmlImport',
+        'Error saving HTML for $siteId: $e',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
     }
   }
 
@@ -195,7 +224,12 @@ class HtmlImportStorage {
 
       return (url, html);
     } catch (e) {
-      LogService.instance.log('HtmlImport', 'Error loading HTML for $siteId: $e', level: LogLevel.error);
+      LogService.instance.log(
+        'HtmlImport',
+        'Error loading HTML for $siteId: $e',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
       return null;
     }
   }
@@ -226,7 +260,12 @@ class HtmlImportStorage {
         if (!activeSiteIds.contains(siteId)) {
           await entity.delete();
           _memoryStore.remove(siteId);
-          LogService.instance.log('HtmlImport', 'Removed orphaned import for $siteId', level: LogLevel.info);
+          LogService.instance.log(
+            'HtmlImport',
+            'Removed orphaned import for $siteId',
+            level: LogLevel.info,
+            sensitivity: LogSensitivity.sensitive,
+          );
         }
       }
     }

@@ -71,6 +71,7 @@ class GlobalOutboundProxy {
       'Proxy',
       'GlobalOutboundProxy initialized: ${_current.describeForLogs()}',
       level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
     );
   }
 
@@ -87,6 +88,7 @@ class GlobalOutboundProxy {
       'Proxy',
       'GlobalOutboundProxy updated: ${settings.describeForLogs()}',
       level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
     );
   }
 

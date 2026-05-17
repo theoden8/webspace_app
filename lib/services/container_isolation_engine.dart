@@ -34,6 +34,7 @@ class ContainerIsolationEngine {
         'Container',
         'ensureContainer($siteId) failed: $e',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
     }
   }
@@ -51,6 +52,7 @@ class ContainerIsolationEngine {
     LogService.instance.log(
       'Container',
       'Bound container ws-$siteId to $bound webview(s)',
+      sensitivity: LogSensitivity.sensitive,
     );
     return bound;
   }
@@ -60,7 +62,11 @@ class ContainerIsolationEngine {
   Future<void> onSiteDeleted(String siteId) async {
     if (!await containerNative.isSupported()) return;
     await containerNative.deleteContainer(siteId);
-    LogService.instance.log('Container', 'Deleted container ws-$siteId');
+    LogService.instance.log(
+      'Container',
+      'Deleted container ws-$siteId',
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   /// Sweeps containers whose owning site no longer exists in

@@ -163,17 +163,32 @@ class HtmlCacheService {
               } else {
                 // Invalid format - discard
                 await entity.delete();
-                LogService.instance.log('HtmlCache', 'Discarded invalid cache file: ${entity.path}', level: LogLevel.warning);
+                LogService.instance.log(
+                  'HtmlCache',
+                  'Discarded invalid cache file: ${entity.path}',
+                  level: LogLevel.warning,
+                  sensitivity: LogSensitivity.sensitive,
+                );
               }
             } else {
               // Decryption failed - discard (key may have changed)
               await entity.delete();
-              LogService.instance.log('HtmlCache', 'Discarded undecryptable cache file: ${entity.path}', level: LogLevel.warning);
+              LogService.instance.log(
+                'HtmlCache',
+                'Discarded undecryptable cache file: ${entity.path}',
+                level: LogLevel.warning,
+                sensitivity: LogSensitivity.sensitive,
+              );
             }
           } catch (e) {
             // File read/decrypt error - discard
             await entity.delete();
-            LogService.instance.log('HtmlCache', 'Discarded corrupted cache file: ${entity.path} ($e)', level: LogLevel.warning);
+            LogService.instance.log(
+              'HtmlCache',
+              'Discarded corrupted cache file: ${entity.path} ($e)',
+              level: LogLevel.warning,
+              sensitivity: LogSensitivity.sensitive,
+            );
           }
         }
       }
@@ -312,7 +327,12 @@ class HtmlCacheService {
 
     // Skip if HTML is too large
     if (html.length > _maxHtmlSize) {
-      LogService.instance.log('HtmlCache', 'Skipping save for $siteId - HTML too large (${html.length} bytes > $_maxHtmlSize)', level: LogLevel.warning);
+      LogService.instance.log(
+        'HtmlCache',
+        'Skipping save for $siteId - HTML too large (${html.length} bytes > $_maxHtmlSize)',
+        level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
 
@@ -331,7 +351,11 @@ class HtmlCacheService {
       // cache to drop this site, and committing now would silently
       // resurrect the stale bytes the user just told us to forget.
       if ((_evictionGen[siteId] ?? 0) != genAtEntry) {
-        LogService.instance.log('HtmlCache', 'Skipping save for $siteId - evicted before write');
+        LogService.instance.log(
+          'HtmlCache',
+          'Skipping save for $siteId - evicted before write',
+          sensitivity: LogSensitivity.sensitive,
+        );
         return;
       }
 
@@ -344,7 +368,11 @@ class HtmlCacheService {
         try {
           if (await file.exists()) await file.delete();
         } catch (_) {}
-        LogService.instance.log('HtmlCache', 'Rolled back save for $siteId - evicted during write');
+        LogService.instance.log(
+          'HtmlCache',
+          'Rolled back save for $siteId - evicted during write',
+          sensitivity: LogSensitivity.sensitive,
+        );
         return;
       }
 
@@ -352,9 +380,18 @@ class HtmlCacheService {
       _memoryCache[siteId] = html;
       _lastSaveAt[siteId] = DateTime.now();
 
-      LogService.instance.log('HtmlCache', 'Saved ${html.length} bytes for site $siteId (encrypted)');
+      LogService.instance.log(
+        'HtmlCache',
+        'Saved ${html.length} bytes for site $siteId (encrypted)',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } catch (e) {
-      LogService.instance.log('HtmlCache', 'Error saving HTML for $siteId: $e', level: LogLevel.error);
+      LogService.instance.log(
+        'HtmlCache',
+        'Error saving HTML for $siteId: $e',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
     }
   }
 
@@ -377,11 +414,20 @@ class HtmlCacheService {
       final url = decrypted.substring(0, newlineIndex);
       final html = decrypted.substring(newlineIndex + 1);
 
-      LogService.instance.log('HtmlCache', 'Loaded ${html.length} bytes for site $siteId (decrypted)');
+      LogService.instance.log(
+        'HtmlCache',
+        'Loaded ${html.length} bytes for site $siteId (decrypted)',
+        sensitivity: LogSensitivity.sensitive,
+      );
 
       return (url, html);
     } catch (e) {
-      LogService.instance.log('HtmlCache', 'Error loading HTML for $siteId: $e', level: LogLevel.error);
+      LogService.instance.log(
+        'HtmlCache',
+        'Error loading HTML for $siteId: $e',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
       return null;
     }
   }
@@ -420,7 +466,12 @@ class HtmlCacheService {
         if (!activeSiteIds.contains(siteId)) {
           evictInMemory(siteId);
           await entity.delete();
-          LogService.instance.log('HtmlCache', 'Removed orphaned cache for $siteId', level: LogLevel.info);
+          LogService.instance.log(
+            'HtmlCache',
+            'Removed orphaned cache for $siteId',
+            level: LogLevel.info,
+            sensitivity: LogSensitivity.sensitive,
+          );
         }
       }
     }

@@ -933,10 +933,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _onPinRevoked(TrustedHostEntry entry) async {
-    LogService.instance.log('TLS',
-        '_onPinRevoked fired for ${entry.host}:${entry.port} '
-        '(loaded=${_loadedIndices.toList()..sort()}, '
-        'webViewModels=${_webViewModels.length})');
+    LogService.instance.log(
+      'TLS',
+      '_onPinRevoked fired for ${entry.host}:${entry.port} '
+          '(loaded=${_loadedIndices.toList()..sort()}, '
+          'webViewModels=${_webViewModels.length})',
+      sensitivity: LogSensitivity.sensitive,
+    );
     final host = entry.host.toLowerCase();
     // Android's cert-acceptance state lives in multiple layers:
     //   1. App-level SSL preferences table (WebView.clearSslPreferences) —
@@ -973,27 +976,36 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (preferred != null) {
       try {
         await preferred.nativeController.clearSslPreferences();
-        LogService.instance.log('TLS',
-            'clearSslPreferences() completed for ${entry.host}:${entry.port} '
-            '(via ${matching != null ? "matching-host" : "any-loaded"} controller)');
+        LogService.instance.log(
+          'TLS',
+          'clearSslPreferences() completed for ${entry.host}:${entry.port} '
+              '(via ${matching != null ? "matching-host" : "any-loaded"} controller)',
+          sensitivity: LogSensitivity.sensitive,
+        );
       } catch (e) {
         LogService.instance.log('TLS',
             'clearSslPreferences() failed: $e',
             level: LogLevel.error);
       }
     } else {
-      LogService.instance.log('TLS',
-          'no loaded controller to call clearSslPreferences() for '
-          '${entry.host}:${entry.port} — SSL prefs table may retain stale '
-          'host decisions until next app restart');
+      LogService.instance.log(
+        'TLS',
+        'no loaded controller to call clearSslPreferences() for '
+            '${entry.host}:${entry.port} — SSL prefs table may retain stale '
+            'host decisions until next app restart',
+        sensitivity: LogSensitivity.sensitive,
+      );
     }
     // Process-wide cache flush. Static — no instance needed; affects
     // the Chromium network service shared by all WebViews + Profiles.
     try {
       await inapp.InAppWebViewController.clearAllCache(includeDiskFiles: true);
-      LogService.instance.log('TLS',
-          'clearAllCache(disk=true) completed for revoke of '
-          '${entry.host}:${entry.port}');
+      LogService.instance.log(
+        'TLS',
+        'clearAllCache(disk=true) completed for revoke of '
+            '${entry.host}:${entry.port}',
+        sensitivity: LogSensitivity.sensitive,
+      );
     } catch (e) {
       LogService.instance.log('TLS',
           'clearAllCache failed: $e',
@@ -1037,9 +1049,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       try {
         final wiped =
             await _containerIsolation.wipeContainers(wipedSiteIds);
-        LogService.instance.log('TLS',
-            'wiped $wiped container(s) after revoke of '
-            '${entry.host}:${entry.port}');
+        LogService.instance.log(
+          'TLS',
+          'wiped $wiped container(s) after revoke of '
+              '${entry.host}:${entry.port}',
+          sensitivity: LogSensitivity.sensitive,
+        );
       } catch (e) {
         LogService.instance.log('TLS',
             'container wipe failed after revoke: $e',
@@ -1191,6 +1206,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         'Memory pressure — promoting site $victim "${model.name}": '
             '${from.name} → ${to.name}',
         level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
       );
 
       switch (to) {
@@ -1326,8 +1342,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               'HTML share dropped (link handling disabled)');
           return;
         }
-        LogService.instance.log('LinkIntent',
-            'HTML share received (${html.content.length} bytes, title=${html.title})');
+        LogService.instance.log(
+          'LinkIntent',
+          'HTML share received (${html.content.length} bytes, title=${html.title})',
+          sensitivity: LogSensitivity.sensitive,
+        );
         await _dispatchInbound(InboundHtml(
           content: html.content,
           suggestedTitle: html.title,
@@ -1342,27 +1361,41 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         LogService.instance.log('LinkIntent', 'poll: no pending URL');
         return;
       }
-      LogService.instance.log('LinkIntent', 'received: $raw');
+      LogService.instance.log(
+        'LinkIntent',
+        'received: $raw',
+        sensitivity: LogSensitivity.sensitive,
+      );
       if (raw.startsWith('webspace://qr/')) {
         final decoded = SiteSettingsQrCodec.decode(raw);
         if (decoded != null) {
           _addSite(qrSettings: decoded);
         } else {
-          LogService.instance.log('LinkIntent',
-              'QR payload failed to decode: $raw',
-              level: LogLevel.warning);
+          LogService.instance.log(
+            'LinkIntent',
+            'QR payload failed to decode: $raw',
+            level: LogLevel.warning,
+            sensitivity: LogSensitivity.sensitive,
+          );
         }
         return;
       }
       if (!_linkHandlingEnabled) {
-        LogService.instance.log('LinkIntent',
-            'Share dropped (link handling disabled): $raw');
+        LogService.instance.log(
+          'LinkIntent',
+          'Share dropped (link handling disabled): $raw',
+          sensitivity: LogSensitivity.sensitive,
+        );
         return;
       }
       final parsed = Uri.tryParse(raw);
       if (parsed == null) {
-        LogService.instance.log('LinkIntent', 'unparseable URL: $raw',
-            level: LogLevel.warning);
+        LogService.instance.log(
+          'LinkIntent',
+          'unparseable URL: $raw',
+          level: LogLevel.warning,
+          sensitivity: LogSensitivity.sensitive,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Unsupported URL')),
         );
@@ -1394,6 +1427,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     LogService.instance.log(
       'LinkIntent',
       'dispatch ${inboundUri ?? '(html payload)'} -> ${_describeDispatchAction(action)}',
+      sensitivity: LogSensitivity.sensitive,
     );
     await _executeDispatchAction(action, inboundUri);
   }
@@ -1504,6 +1538,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         'LinkIntent',
         'OpenInMain bailed: site ${a.siteId} not found',
         level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
       );
       return;
     }
@@ -1536,8 +1571,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       LogService.instance.log(
         'LinkIntent',
         'OpenInMain: controller not yet ready for "${model.name}" '
-        '(siteId: ${model.siteId}); ${a.url} may queue until first frame',
+            '(siteId: ${model.siteId}); ${a.url} may queue until first frame',
         level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
       );
       return;
     }
@@ -2021,8 +2057,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     final target = _webViewModels[index];
 
-    LogService.instance.log('CookieIsolation', 'Switching to site $index: "${target.name}" (siteId: ${target.siteId})');
-    LogService.instance.log('CookieIsolation', 'Target domain: ${getBaseDomain(target.initUrl)}');
+    LogService.instance.log(
+      'CookieIsolation',
+      'Switching to site $index: "${target.name}" (siteId: ${target.siteId})',
+      sensitivity: LogSensitivity.sensitive,
+    );
+    LogService.instance.log(
+      'CookieIsolation',
+      'Target domain: ${getBaseDomain(target.initUrl)}',
+      sensitivity: LogSensitivity.sensitive,
+    );
     LogService.instance.log('CookieIsolation', 'Currently loaded indices: $_loadedIndices');
 
     // Mark this site as activation-in-flight so concurrent OS memory
@@ -2047,6 +2091,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           'WebViewState',
           'Queued ${bytes.length} restore bytes for "${target.name}" '
               '(siteId: ${target.siteId})',
+          sensitivity: LogSensitivity.sensitive,
         );
       }
       target.lifecycleState = SiteLifecycleState.resident;
@@ -2072,6 +2117,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           'CookieIsolation',
           'CONFLICT! Unloading site $conflictIndex: "${_webViewModels[conflictIndex].name}"',
           level: LogLevel.warning,
+          sensitivity: LogSensitivity.sensitive,
         );
         await _unloadSiteForDomainSwitch(conflictIndex);
         if (version != _setCurrentIndexVersion) return;
@@ -2094,6 +2140,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         'SiteUnload',
         'Proxy mismatch — unloading site $i: "${_webViewModels[i].name}"',
         level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
       );
       await _unloadSiteForOtherReason(i);
       if (version != _setCurrentIndexVersion) return;
@@ -2120,6 +2167,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       LogService.instance.log(
         'SiteUnload',
         'LRU cap (>$kMaxLoadedSites) — unloading site $i: "${_webViewModels[i].name}"',
+        sensitivity: LogSensitivity.sensitive,
       );
       await _unloadSiteForOtherReason(i);
       if (version != _setCurrentIndexVersion) return;
@@ -2153,6 +2201,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         'SiteUnload',
         'Proactive cacheClear (>$kMaxResidentSites resident) — '
             'clearing cache for site $i: "${_webViewModels[i].name}"',
+        sensitivity: LogSensitivity.sensitive,
       );
       await _webViewModels[i].clearWebViewCache();
       if (version != _setCurrentIndexVersion) return;
@@ -2234,7 +2283,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _exitFullscreen();
     }
 
-    LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices');
+    LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices', sensitivity: LogSensitivity.sensitive);
     // _loadedIndices may have changed (LRU eviction, conflict unload,
     // first-load of target), so re-evaluate the background refresh
     // schedule. No-op on non-iOS / non-Android.
@@ -2306,6 +2355,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     LogService.instance.log(
       'WebViewState',
       'Captured ${bytes.length} bytes for "${model.name}" (siteId: ${model.siteId})',
+      sensitivity: LogSensitivity.sensitive,
     );
     return true;
   }
@@ -2338,7 +2388,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _showPopupWindow(int windowId, String url) async {
     if (!mounted) return;
 
-    LogService.instance.log('PopupWindow', 'Opening popup window with id: $windowId, url: $url');
+    LogService.instance.log(
+      'PopupWindow',
+      'Opening popup window with id: $windowId, url: $url',
+      sensitivity: LogSensitivity.sensitive,
+    );
 
     await showDialog(
       context: context,
@@ -2805,10 +2859,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   void _onNotificationTapped(String siteId) {
     final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
     if (index < 0) {
-      LogService.instance.log('Notification', 'Tap for unknown siteId: $siteId', level: LogLevel.warning);
+      LogService.instance.log(
+        'Notification',
+        'Tap for unknown siteId: $siteId',
+        level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
-    LogService.instance.log('Notification', 'Tap routing to site $index: "${_webViewModels[index].name}"');
+    LogService.instance.log(
+      'Notification',
+      'Tap routing to site $index: "${_webViewModels[index].name}"',
+      sensitivity: LogSensitivity.sensitive,
+    );
     _setCurrentIndex(index);
     if (mounted) setState(() {});
   }
@@ -3148,7 +3211,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             if (!mounted || version != _selectWebspaceVersion) return;
             _webViewModels[index].disposeWebView();
             _loadedIndices.remove(index);
-            LogService.instance.log('WebspaceSwitch', 'Unloaded site $index: "${_webViewModels[index].name}"');
+            LogService.instance.log(
+              'WebspaceSwitch',
+              'Unloaded site $index: "${_webViewModels[index].name}"',
+              sensitivity: LogSensitivity.sensitive,
+            );
           }
         }
       } else {
@@ -5181,10 +5248,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           if (!mounted) return;
           final urlAfter = (await controller.getUrl())?.toString();
           if (urlBefore == urlAfter) {
-            LogService.instance.log('Navigation', 'Back gesture: URL unchanged ($urlAfter), opening drawer');
+            LogService.instance.log(
+              'Navigation',
+              'Back gesture: URL unchanged ($urlAfter), opening drawer',
+              sensitivity: LogSensitivity.sensitive,
+            );
             scaffoldState?.openDrawer();
           } else {
-            LogService.instance.log('Navigation', 'Back gesture: navigated back from $urlBefore to $urlAfter');
+            LogService.instance.log(
+              'Navigation',
+              'Back gesture: navigated back from $urlBefore to $urlAfter',
+              sensitivity: LogSensitivity.sensitive,
+            );
             if (Platform.isIOS && _currentIndex != null && _currentIndex! < _webViewModels.length) {
               // After a successful goBack(), if we've landed on the home URL,
               // synchronously clear _canGoBack so the drawer edge-swipe is

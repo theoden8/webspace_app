@@ -37,7 +37,13 @@ class WebInterceptNative {
           if (args is Map) {
             final tag = (args['tag'] as String?) ?? 'WebIntercept';
             final message = (args['message'] as String?) ?? '';
-            LogService.instance.log(tag, message);
+            // Native bridge messages may carry per-site hosts / URLs.
+            // Treat as sensitive so they stay out of adb logcat.
+            LogService.instance.log(
+              tag,
+              message,
+              sensitivity: LogSensitivity.sensitive,
+            );
           }
           break;
       }
@@ -204,8 +210,11 @@ class WebInterceptNative {
       final count = await _channel.invokeMethod('attachToWebViews', {
         if (siteId != null) 'siteId': siteId,
       });
-      LogService.instance.log('WebIntercept',
-          'Attached native interceptor to $count webviews (siteId: $siteId)');
+      LogService.instance.log(
+        'WebIntercept',
+        'Attached native interceptor to $count webviews (siteId: $siteId)',
+        sensitivity: LogSensitivity.sensitive,
+      );
       return count as int;
     } catch (e) {
       LogService.instance.log('WebIntercept',
