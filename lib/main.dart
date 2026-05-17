@@ -1834,11 +1834,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _loadGlobalUserScripts() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final json = prefs.getStringList('globalUserScripts');
-    if (json != null) {
-      _globalUserScripts = json
-          .map((s) => UserScriptConfig.fromJson(jsonDecode(s) as Map<String, dynamic>))
-          .toList();
+    if (json == null) return;
+    final loaded = <UserScriptConfig>[];
+    for (var i = 0; i < json.length; i++) {
+      try {
+        loaded.add(UserScriptConfig.fromJson(
+          jsonDecode(json[i]) as Map<String, dynamic>,
+        ));
+      } catch (e) {
+        LogService.instance.log(
+          'Boot',
+          'Skipped malformed global user script at index $i: $e',
+          level: LogLevel.warning,
+        );
+      }
     }
+    _globalUserScripts = loaded;
   }
 
   /// Migrate pre-opt-in data: older builds ran every enabled global script
@@ -2378,9 +2389,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     List<String>? webspacesJson = prefs.getStringList('webspaces');
 
     if (webspacesJson != null) {
-      List<Webspace> loadedWebspaces = webspacesJson
-          .map((webspaceJson) => Webspace.fromJson(jsonDecode(webspaceJson)))
-          .toList();
+      final loadedWebspaces = <Webspace>[];
+      for (var i = 0; i < webspacesJson.length; i++) {
+        try {
+          loadedWebspaces.add(Webspace.fromJson(jsonDecode(webspacesJson[i])));
+        } catch (e) {
+          LogService.instance.log(
+            'Boot',
+            'Skipped malformed webspace at index $i: $e',
+            level: LogLevel.warning,
+          );
+        }
+      }
 
       setState(() {
         _webspaces.addAll(loadedWebspaces);
@@ -2430,24 +2450,33 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       final secureProxyPasswords = await _proxyPasswordStorage.loadAll();
       final legacyMigrations = <String, String>{};
       final cleanedJsonStrings = <String>[];
-      for (final raw in webViewModelsJson) {
-        final decoded = jsonDecode(raw) as Map<String, dynamic>;
-        final proxy = decoded['proxySettings'];
-        if (proxy is Map<String, dynamic>) {
-          final pwd = proxy['password'];
-          if (pwd is String && pwd.isNotEmpty) {
-            final siteId = decoded['siteId'];
-            if (siteId is String && siteId.isNotEmpty) {
-              // Don't overwrite an existing secure-storage entry — the
-              // secure value wins on conflict (it's newer by definition).
-              if (!(secureProxyPasswords[siteId]?.isNotEmpty ?? false)) {
-                legacyMigrations[siteId] = pwd;
+      for (var i = 0; i < webViewModelsJson.length; i++) {
+        final raw = webViewModelsJson[i];
+        try {
+          final decoded = jsonDecode(raw) as Map<String, dynamic>;
+          final proxy = decoded['proxySettings'];
+          if (proxy is Map<String, dynamic>) {
+            final pwd = proxy['password'];
+            if (pwd is String && pwd.isNotEmpty) {
+              final siteId = decoded['siteId'];
+              if (siteId is String && siteId.isNotEmpty) {
+                // Don't overwrite an existing secure-storage entry — the
+                // secure value wins on conflict (it's newer by definition).
+                if (!(secureProxyPasswords[siteId]?.isNotEmpty ?? false)) {
+                  legacyMigrations[siteId] = pwd;
+                }
+                proxy.remove('password');
               }
-              proxy.remove('password');
             }
           }
+          cleanedJsonStrings.add(jsonEncode(decoded));
+        } catch (e) {
+          LogService.instance.log(
+            'Boot',
+            'Dropped unparseable site JSON at index $i: $e',
+            level: LogLevel.warning,
+          );
         }
-        cleanedJsonStrings.add(jsonEncode(decoded));
       }
       if (legacyMigrations.isNotEmpty) {
         final merged = <String, String?>{
@@ -2464,9 +2493,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         );
       }
 
-      List<WebViewModel> loadedWebViewModels = cleanedJsonStrings
-          .map((webViewModelJson) => WebViewModel.fromJson(jsonDecode(webViewModelJson), (){ setState((){}); _updateCanGoBack(); }))
-          .toList();
+      final loadedWebViewModels = <WebViewModel>[];
+      for (var i = 0; i < cleanedJsonStrings.length; i++) {
+        try {
+          loadedWebViewModels.add(WebViewModel.fromJson(
+            jsonDecode(cleanedJsonStrings[i]),
+            () { setState((){}); _updateCanGoBack(); },
+          ));
+        } catch (e) {
+          LogService.instance.log(
+            'Boot',
+            'Skipped malformed site at index $i: $e',
+            level: LogLevel.warning,
+          );
+        }
+      }
 
       // Hydrate per-site proxy passwords from secure storage.
       var hydratedCount = 0;

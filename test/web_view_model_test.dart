@@ -667,6 +667,38 @@ void main() {
         expect(json['cookies'], isEmpty);
       });
     });
+
+    // Defensive deserialization: malformed prefs blobs from partial writes
+    // or external backups must not crash boot. Pairs with the per-entry
+    // try/catch in `_loadWebViewModels`.
+    group('fromJson tolerates missing/null fields', () {
+      Map<String, dynamic> baseJson() => {
+            'initUrl': 'https://example.com',
+            'name': 'Example',
+            'proxySettings': {'type': 0},
+            'javascriptEnabled': true,
+            'userAgent': '',
+            'thirdPartyCookiesEnabled': false,
+            'incognito': false,
+            'clearUrlEnabled': true,
+            'dnsBlockEnabled': true,
+            'contentBlockEnabled': true,
+            'blockAutoRedirects': true,
+          };
+
+      test('missing cookies key falls back to empty list', () {
+        final json = baseJson();
+        // No 'cookies' key at all.
+        final model = WebViewModel.fromJson(json, null);
+        expect(model.cookies, isEmpty);
+      });
+
+      test('null cookies value falls back to empty list', () {
+        final json = baseJson()..['cookies'] = null;
+        final model = WebViewModel.fromJson(json, null);
+        expect(model.cookies, isEmpty);
+      });
+    });
   });
 
   group('extractDomain', () {

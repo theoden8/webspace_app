@@ -1253,9 +1253,10 @@ class WebViewModel {
       name: json['name'],
       cookies: isIncognito
           ? const <Cookie>[]
-          : (json['cookies'] as List<dynamic>)
-              .map((dynamic e) => cookieFromJson(e))
-              .toList(),
+          : (json['cookies'] as List<dynamic>?)
+                  ?.map((dynamic e) => cookieFromJson(e))
+                  .toList() ??
+              const <Cookie>[],
       proxySettings: UserProxySettings.fromJson(json['proxySettings']),
       javascriptEnabled: json['javascriptEnabled'],
       userAgent: json['userAgent'],

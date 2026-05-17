@@ -26,9 +26,11 @@ class Webspace {
 
   factory Webspace.fromJson(Map<String, dynamic> json) {
     return Webspace(
-      id: json['id'],
-      name: json['name'],
-      siteIndices: (json['siteIndices'] as List<dynamic>).map((e) => e as int).toList(),
+      id: json['id'] as String?,
+      name: json['name'] as String? ?? 'Untitled',
+      siteIndices: (json['siteIndices'] as List<dynamic>?)
+          ?.whereType<int>()
+          .toList(),
     );
   }
 

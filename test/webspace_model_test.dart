@@ -212,5 +212,41 @@ void main() {
       // Should preserve negative indices (cleanup happens elsewhere)
       expect(restored.siteIndices, [-1, 0, 1]);
     });
+
+    // Defensive deserialization: malformed prefs blobs (partial writes,
+    // legacy schemas, external backups) must not crash boot. Pairs with
+    // the per-entry try/catch in `_loadWebspaces` so a single bad entry
+    // is dropped rather than fatal.
+    test('fromJson tolerates missing siteIndices (defaults to empty)', () {
+      final webspace = Webspace.fromJson({'id': 'x', 'name': 'NoIndices'});
+      expect(webspace.id, 'x');
+      expect(webspace.name, 'NoIndices');
+      expect(webspace.siteIndices, isEmpty);
+    });
+
+    test('fromJson tolerates null siteIndices (defaults to empty)', () {
+      final webspace =
+          Webspace.fromJson({'id': 'x', 'name': 'NullIndices', 'siteIndices': null});
+      expect(webspace.siteIndices, isEmpty);
+    });
+
+    test('fromJson tolerates missing id (generates a fresh one)', () {
+      final webspace = Webspace.fromJson({'name': 'NoId', 'siteIndices': [1, 2]});
+      expect(webspace.id, isNotEmpty);
+      expect(webspace.name, 'NoId');
+      expect(webspace.siteIndices, [1, 2]);
+    });
+
+    test('fromJson tolerates missing name (defaults to Untitled)', () {
+      final webspace = Webspace.fromJson({'id': 'x', 'siteIndices': []});
+      expect(webspace.name, 'Untitled');
+    });
+
+    test('fromJson on an empty map yields a usable, non-crashing Webspace', () {
+      final webspace = Webspace.fromJson(<String, dynamic>{});
+      expect(webspace.id, isNotEmpty);
+      expect(webspace.name, 'Untitled');
+      expect(webspace.siteIndices, isEmpty);
+    });
   });
 }
