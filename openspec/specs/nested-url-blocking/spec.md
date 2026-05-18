@@ -174,13 +174,14 @@ URL received
 
 `flutter_inappwebview`'s `NavigationAction` provides platform-specific gesture info. The `_hasUserGesture()` helper normalizes this:
 
-- **Android**: `hasGesture` (bool) — `true` when navigation triggered by user tap
-- **iOS/macOS**: `navigationType` — `LINK_ACTIVATED` or `FORM_SUBMITTED` for user-initiated navigations, `OTHER` for script-initiated
+- **Android / Linux**: `hasGesture` (bool) — `true` when WebKit/WebView's user-gesture indicator was active at the time the navigation was decided. Linux maps to `webkit_navigation_action_is_user_gesture()`. The indicator captures user clicks even when JavaScript intercepts them and calls `location.href` synchronously, which is essential because major search engines (DuckDuckGo, Google) intercept every result-link click for analytics, leaving WebKit's `navigationType` as `OTHER`. Using `navigationType` on Linux therefore over-blocks every cross-domain click from a JS-driven site.
+- **iOS / macOS**: `navigationType` — `LINK_ACTIVATED` or `FORM_SUBMITTED` for user-initiated navigations, `OTHER` for script-initiated. WKWebView reports `OTHER` for JS-intercepted clicks too; the iOS/macOS path inherits the spec's known-limitation that users disable `blockAutoRedirects` per-site for affected hosts.
+- **Tradeoff on Linux**: WebKit's user-gesture indicator propagates into iframes the page auto-loads inside the post-click window (Google One Tap, Stripe.js, GSI button), and the Linux plugin can't reliably mark iframe navigations as non-main-frame (`webkit_navigation_action_get_frame_name()` is the *target* frame name, not the source, so iframes whose own URL navigates show up with `isForMainFrame=true`). The result is that those iframes can open a nested webview. Per-site `blockAutoRedirects = false` is the escape hatch.
 - **Fallback**: defaults to `true` (allow) on unknown platforms
 
 ```dart
 static bool _hasUserGesture(NavigationAction action) {
-  if (Platform.isAndroid) {
+  if (Platform.isAndroid || Platform.isLinux) {
     return action.hasGesture ?? true;
   }
   if (Platform.isIOS || Platform.isMacOS) {
