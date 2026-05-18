@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show PullToRefreshController, PullToRefreshSettings, SslCertificate;
+    show CookieManager, PullToRefreshController, PullToRefreshSettings, SslCertificate, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/domain_claim.dart';
@@ -374,6 +374,36 @@ class WebViewModel {
   /// while a load is in flight.
   bool isLoading = false;
 
+  /// Runtime-only marker set when this model was materialised from an
+  /// open [Archive] handle rather than restored from app-tier
+  /// SharedPreferences. Never serialised. Per the archive feature audit
+  /// (ARCH-006), services that touch disk, background scheduling, or
+  /// OS-level UI must consult this flag and skip writes for archive-tier
+  /// sites. Mutable so a "move to archive" / "move out of archive"
+  /// action can flip the tier of an existing model in place — the
+  /// running webview keeps its controller and only the per-site routing
+  /// changes.
+  bool isArchiveTier;
+
+  /// Effective notification permission for runtime gating. Archive-tier
+  /// sites never participate in [`NotificationService`] background
+  /// polling or `flutter_local_notifications` delivery regardless of
+  /// stored value.
+  bool get effectiveNotificationsEnabled =>
+      isArchiveTier ? false : notificationsEnabled;
+
+  /// Effective LocalCDN cache write enable. Archive-tier sites never
+  /// write the per-site CDN cache to disk regardless of stored value.
+  bool get effectiveLocalCdnEnabled =>
+      isArchiveTier ? false : localCdnEnabled;
+
+  /// Effective HTML-cache enable. Archive-tier sites never write the
+  /// encrypted-at-rest HTML cache (the cache file path is keyed by
+  /// `siteId`, so its existence would correlate to specific archive
+  /// sites on disk inspection — ARCH-006).
+  bool get effectiveHtmlCachingEnabled =>
+      isArchiveTier ? false : htmlCachingEnabled;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
@@ -423,6 +453,7 @@ class WebViewModel {
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.domainClaims,
     this.stateSetterF,
+    this.isArchiveTier = false,
   })  : userScripts = userScripts ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
@@ -634,6 +665,7 @@ class WebViewModel {
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
           siteId: siteId,
+          archiveContainerId: archiveContainerId,
           initialUrl: currentUrl,
           javascriptEnabled: javascriptEnabled,
           userAgent: userAgent.isNotEmpty ? userAgent : null,
@@ -946,6 +978,7 @@ class WebViewModel {
           );
           controller = ctrl;
           setController();
+          unawaited(_pushPendingArchiveCookies(ctrl));
           // Apply any state queued by the activation flow when this
           // model came back from SavedForRestore. The InAppWebView's
           // `initialUrlRequest` already kicked off a navigation to
@@ -1243,6 +1276,64 @@ class WebViewModel {
   /// `restoreState` call land in the same render cycle.
   Uint8List? _pendingRestoreState;
 
+  /// Opaque per-site container identifier for archive-tier sites
+  /// (ARCH-007). Format mirrors [siteId] (radix-36-dash-radix-36) so a
+  /// listing of the on-disk container directory shows uniform-looking
+  /// names; the value itself is HMAC-derived from the archive key and
+  /// the original siteId. Null for app-tier sites — the normal
+  /// `ws-<siteId>` naming continues.
+  String? archiveContainerId;
+
+  /// Cookies queued by the archive open flow to be pushed into the
+  /// per-site container as soon as the WebView controller exists.
+  /// Without this, an archive-tier site that uses native containers
+  /// would load with an empty cookie jar even though
+  /// [`ArchiveHandle.state.cookies`] holds the user's saved login.
+  /// Consumed once by [getWebView]'s `onControllerCreated`.
+  List<Cookie>? _pendingArchiveCookies;
+
+  /// Queues [cookies] to be written into the per-site container on the
+  /// next WebView construction. Idempotent: caller replaces the queue
+  /// each time (e.g. on archive re-open). Setting also seeds
+  /// [cookies] so the in-Dart cookie-blocking machinery
+  /// (`onCookiesChanged`) starts from the right baseline.
+  void setPendingArchiveCookies(List<Cookie> archiveCookies) {
+    _pendingArchiveCookies = List<Cookie>.from(archiveCookies);
+    cookies = List<Cookie>.from(archiveCookies);
+  }
+
+  Future<void> _pushPendingArchiveCookies(WebViewController ctrl) async {
+    final pending = _pendingArchiveCookies;
+    if (pending == null || pending.isEmpty) return;
+    _pendingArchiveCookies = null;
+    final mgr = inapp.CookieManager.instance();
+    for (final cookie in pending) {
+      if (cookie.value.isEmpty) continue;
+      final dom = cookie.domain ?? '';
+      final cleanDomain = dom.startsWith('.') ? dom.substring(1) : dom;
+      if (cleanDomain.isEmpty) continue;
+      final path = cookie.path ?? '/';
+      try {
+        await mgr.setCookie(
+          url: inapp.WebUri('https://$cleanDomain$path'),
+          name: cookie.name,
+          value: cookie.value.toString(),
+          domain: cookie.domain,
+          path: path,
+          expiresDate: cookie.expiresDate,
+          isSecure: cookie.isSecure,
+          isHttpOnly: cookie.isHttpOnly,
+          webViewController: ctrl.nativeController,
+        );
+      } catch (_) {
+        // Best effort. A cookie that fails to insert (malformed
+        // attributes from a legacy import, expired, etc.) is simply
+        // dropped from the runtime jar; archive state still has it for
+        // future round-trips.
+      }
+    }
+  }
+
   /// Schedule [state] to be applied to the next freshly-created
   /// controller for this model. Cleared automatically once the
   /// `onControllerCreated` callback consumes it.
@@ -1310,7 +1401,11 @@ class WebViewModel {
       };
   }
 
-  factory WebViewModel.fromJson(Map<String, dynamic> json, Function? stateSetterF) {
+  factory WebViewModel.fromJson(
+    Map<String, dynamic> json,
+    Function? stateSetterF, {
+    bool isArchiveTier = false,
+  }) {
     final isIncognito = json['incognito'] as bool? ?? false;
     final isAlwaysOpenHome = json['alwaysOpenHome'] as bool? ?? false;
     // Either flag drops persisted currentUrl/pageTitle on rehydrate; only
@@ -1380,6 +1475,7 @@ class WebViewModel {
           ?.map((e) => DomainClaim.fromJson(e as Map<String, dynamic>))
           .toList(),
       stateSetterF: stateSetterF,
+      isArchiveTier: isArchiveTier,
     )..pageTitle = dropUrl ? null : json['pageTitle'];
   }
 }
