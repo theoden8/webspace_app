@@ -50,33 +50,61 @@ import 'package:webspace/services/log_service.dart';
 /// per-container partitioning, mirroring the [CookieIsolationEngine] +
 /// `MockCookieManager` pattern in
 /// [test/cookie_isolation_integration_test.dart].
+/// Builds the canonical container key for `(siteId, rev)`. Rev 0 maps
+/// to the bare siteId so containers created before the rev scheme
+/// landed (and the corresponding on-disk data) keep their existing
+/// names — no migration step needed. Subsequent revs get an `_r<n>`
+/// suffix, with `_` chosen because base36 siteIds + their own `-`
+/// separator (see [_generateSiteId]) can't produce that combination.
+String containerKeyFor(String siteId, int rev) =>
+    rev == 0 ? siteId : '${siteId}_r$rev';
+
+/// Inverse of [containerKeyFor]. Returns the `(siteId, rev)` for the
+/// key under which a native container is filed, or `null` if the key
+/// doesn't match the scheme (e.g. an unrelated container left over
+/// from another app — never expected, but tolerated).
+({String siteId, int rev}) parseContainerKey(String key) {
+  final m = RegExp(r'^(.+)_r(\d+)$').firstMatch(key);
+  if (m != null) {
+    final rev = int.tryParse(m.group(2)!);
+    if (rev != null && rev > 0) {
+      return (siteId: m.group(1)!, rev: rev);
+    }
+  }
+  return (siteId: key, rev: 0);
+}
+
 abstract class ContainerNative {
   /// True iff the running platform + WebView combination supports
   /// per-site containers end to end.
   Future<bool> isSupported();
 
-  /// Returns the canonical native name (`ws-<siteId>`). The container
-  /// is materialized lazily on the native side when a WebView binds to
-  /// it via [`inapp.InAppWebViewSettings.containerId`]; this method is
+  /// Returns the canonical native name (`ws-<containerKey>`).
+  /// [containerKey] is built from `(siteId, rev)` via
+  /// [containerKeyFor]. The container is materialized lazily on the
+  /// native side when a WebView binds to it via
+  /// [`inapp.InAppWebViewSettings.containerId`]; this method is
   /// pure-Dart and synchronous in practice.
-  Future<String> getOrCreateContainer(String siteId);
+  Future<String> getOrCreateContainer(String containerKey);
 
   /// Returns 0. Bind happens at WebView construction via
   /// [`inapp.InAppWebViewSettings.containerId`]; there is no post-hoc
   /// bind path. Kept on the interface so the engine signature is
   /// uniform across legacy / container modes.
-  Future<int> bindContainerToWebView(String siteId);
+  Future<int> bindContainerToWebView(String containerKey);
 
-  /// Deletes the named container and all of its on-disk data
-  /// (cookies, localStorage, IDB, SW, cache). The site's webview MUST
-  /// be unloaded first — deleting an in-use container is a no-op /
-  /// returns false on the native side.
-  Future<void> deleteContainer(String siteId);
+  /// Deletes the named container. No-ops silently if the underlying
+  /// native data store is still bound to a WKWebView /
+  /// `androidx.webkit.Profile`-backed view / `WebKitNetworkSession`;
+  /// the caller (typically [ContainerIsolationEngine.garbageCollectOrphans])
+  /// will retry at the next startup. Use the same [containerKey]
+  /// returned by [listContainers].
+  Future<void> deleteContainer(String containerKey);
 
-  /// Lists every site whose container currently exists in the native
-  /// store. Result entries are bare siteIds (the `ws-` prefix is
-  /// stripped). Used by orphan GC to detect containers whose owning
-  /// site no longer exists.
+  /// Lists every container that currently exists in the native store.
+  /// Result entries are bare container keys (the `ws-` prefix is
+  /// stripped), each parseable via [parseContainerKey] back to
+  /// `(siteId, rev)`. Used by orphan GC and per-site deletion.
   Future<List<String>> listContainers();
 
   /// Synchronous, cached copy of the most recent [isSupported] result.
@@ -154,20 +182,21 @@ class _ContainerNative implements ContainerNative {
   }
 
   @override
-  Future<String> getOrCreateContainer(String siteId) async => 'ws-$siteId';
+  Future<String> getOrCreateContainer(String containerKey) async =>
+      'ws-$containerKey';
 
   @override
-  Future<int> bindContainerToWebView(String siteId) async => 0;
+  Future<int> bindContainerToWebView(String containerKey) async => 0;
 
   @override
-  Future<void> deleteContainer(String siteId) async {
+  Future<void> deleteContainer(String containerKey) async {
     try {
       await inapp.ContainerController.instance()
-          .deleteContainer('ws-$siteId');
+          .deleteContainer('ws-$containerKey');
     } catch (e) {
       LogService.instance.log(
         'Container',
-        'deleteContainer($siteId) failed: $e',
+        'deleteContainer($containerKey) failed: $e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
@@ -206,13 +235,14 @@ class _StubContainerNative implements ContainerNative {
   Future<bool> isSupported() async => false;
 
   @override
-  Future<String> getOrCreateContainer(String siteId) async => 'ws-$siteId';
+  Future<String> getOrCreateContainer(String containerKey) async =>
+      'ws-$containerKey';
 
   @override
-  Future<int> bindContainerToWebView(String siteId) async => 0;
+  Future<int> bindContainerToWebView(String containerKey) async => 0;
 
   @override
-  Future<void> deleteContainer(String siteId) async {}
+  Future<void> deleteContainer(String containerKey) async {}
 
   @override
   Future<List<String>> listContainers() async => const [];

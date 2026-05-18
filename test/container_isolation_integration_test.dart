@@ -199,9 +199,9 @@ class ContainerIsolationTestHarness {
   /// have no surviving site. Run after seeding prior-session orphan
   /// profiles to verify they don't survive.
   Future<int> simulateAppStartupGc() async {
-    return engine.garbageCollectOrphans(
-      sites.map((s) => s.siteId).toSet(),
-    );
+    return engine.garbageCollectOrphans({
+      for (final s in sites) s.siteId: s.containerRev,
+    });
   }
 }
 

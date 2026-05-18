@@ -391,6 +391,10 @@ class WebViewConfig {
   final Key? key;
   /// Site ID for per-site DNS statistics tracking.
   final String? siteId;
+  /// Per-site container revision (bumped on each "Clear Site Data" /
+  /// startup incognito wipe). Routed into the native container key —
+  /// see [containerKeyFor]. Ignored when container mode is unsupported.
+  final int containerRev;
   final String initialUrl;
   final bool javascriptEnabled;
   final String? userAgent;
@@ -518,6 +522,7 @@ class WebViewConfig {
   WebViewConfig({
     this.key,
     this.siteId,
+    this.containerRev = 0,
     required this.initialUrl,
     this.javascriptEnabled = true,
     this.userAgent,
@@ -1948,7 +1953,7 @@ class WebViewFactory {
     // which returns false); no extra Platform gate needed.
     final containerId = (ContainerNative.instance.cachedSupported &&
             config.siteId != null)
-        ? 'ws-${config.siteId}'
+        ? 'ws-${containerKeyFor(config.siteId!, config.containerRev)}'
         : null;
 
     // Per-site proxy delivery: only iOS 17+ / macOS 14+ honor the

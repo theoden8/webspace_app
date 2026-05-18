@@ -23,6 +23,11 @@ class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
   final String? siteId;
+  /// Mirror of the parent site's `WebViewModel.containerRev` so the
+  /// nested webview binds to the same `ws-<siteId>_r<rev>` container —
+  /// without this a "Clear Site Data" tap on the parent would leave
+  /// nested-browser tabs reading the orphaned old container.
+  final int containerRev;
   final bool incognito;
   final bool thirdPartyCookiesEnabled;
   final bool clearUrlEnabled;
@@ -60,6 +65,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.url,
     this.homeTitle,
     this.siteId,
+    this.containerRev = 0,
     required this.incognito,
     required this.thirdPartyCookiesEnabled,
     required this.clearUrlEnabled,
@@ -152,6 +158,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     _webView = WebViewFactory.createWebView(
       config: WebViewConfig(
         siteId: widget.siteId,
+        containerRev: widget.containerRev,
         initialUrl: widget.url,
         incognito: widget.incognito,
         thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
