@@ -471,6 +471,93 @@ The `useUboResources` preference SHALL round-trip through settings export/import
 
 ---
 
+### Requirement: CB-012 - WKContentRuleList Acceleration on Apple Platforms
+
+iOS and macOS WebViews SHALL apply ABP rules as a compiled `WKContentRuleList` in addition to the JS-bridge interceptor. The compiled rule list is derived from the same merged enabled-lists raw text the engine itself parses, via adblock-rust's `into_content_blocking()` exporter (`AdblockEngine.filterListToAppleContentBlockingJson`), shared across all WebViews, and cached on disk by content hash in `WKContentRuleListStore` so subsequent app launches and WebView creations skip compilation. The JS-bridge interceptor remains the canonical source of per-request stats because WebKit fires no callback when a content rule matches.
+
+#### Scenario: Payload built on engine rebuild
+
+**Given** at least one enabled filter list has a cached file
+**When** `ContentBlockerService._rebuildEngine` runs (startup, download, toggle, remove, custom-list add)
+**Then** `_maybeRebuildAppleContentBlockers` is called with the merged rules text and hash the engine already computed
+**And** `filterListToAppleContentBlockingJson` runs synchronously on the caller isolate (matches the engine's parse pattern; the FFI call is single-digit ms for ~30K rules)
+**And** the resulting `List<inapp.ContentBlocker>` is cached on the service
+**And** the source-text hash is recorded so a subsequent rebuild with identical text is a no-op
+
+#### Scenario: WebView creation passes the cached payload
+
+**Given** the per-site `contentBlockEnabled` is true
+**And** `ContentBlockerService.appleContentBlockers` is non-null
+**When** `WebViewFactory.create` builds the `inapp.InAppWebViewSettings`
+**Then** `settings.contentBlockers` is set to the cached list reference (not a copy)
+**And** the fork's `ContentRuleListCache.apply` hashes the JSON, looks up the identifier in `WKContentRuleListStore`, installs the cached list when present, and only compiles when the disk cache misses
+
+#### Scenario: Per-site disable empties the rule list
+
+**Given** the per-site `contentBlockEnabled` is false
+**When** `WebViewFactory.create` builds settings for that site
+**Then** `settings.contentBlockers` is an empty list
+**And** the fork's helper calls `removeAllContentRuleLists()` on that WebView's user content controller
+**And** no content rules fire for that site's resources
+
+#### Scenario: Cross-launch warm cache
+
+**Given** the user launched the app at least once with the current ruleset
+**When** the app launches again with the same enabled lists
+**Then** `WKContentRuleListStore.lookUpContentRuleList` for the content-hashed identifier returns the already-compiled bytecode
+**And** no `compileContentRuleList` runs this launch
+**And** the WebView attaches the cached rule list on creation
+
+#### Scenario: Ruleset change invalidates old cache
+
+**Given** the user toggles an enabled list off (or adds / removes a custom list)
+**When** `_maybeRebuildAppleContentBlockers` runs again
+**Then** the merged text changes, producing a new content hash and a new `WKContentRuleList` identifier
+**And** the fork's helper calls `removeAllContentRuleLists()` to drop the previously-installed list on the next WebView creation
+**And** the new identifier compiles once and goes into the store for future hits
+
+#### Scenario: Stale identifiers purged from the on-disk store
+
+**Given** a previous ruleset compiled identifier `iaw-rl-A` into `WKContentRuleListStore`
+**And** the current ruleset compiles to `iaw-rl-B`
+**When** `ContentRuleListCache` installs `iaw-rl-B`
+**Then** the helper calls `WKContentRuleListStore.getAvailableContentRuleListIdentifiers` and removes every `iaw-rl-*` entry that isn't `iaw-rl-B`
+**And** `iaw-rl-A` no longer occupies disk space
+**(Without this purge every rule edit leaves the previously-compiled bytecode on disk forever. The purge runs after the new identifier is in the store so a transient enumeration during compile can't return an empty set.)**
+
+#### Scenario: Concurrent WebView creates coalesce one compile
+
+**Given** the disk cache for the current identifier is cold
+**When** multiple WebViews are created in quick succession with the same `contentBlockers` payload
+**Then** the fork's helper queues each waiter against the in-flight compile
+**And** `WKContentRuleListStore.compileContentRuleList` runs exactly once for that identifier
+**And** every waiter attaches the same `WKContentRuleList` on completion
+
+#### Scenario: Platform-gate degrades cleanly
+
+**Given** the platform is Linux / Android / Windows / web
+**When** `WebViewFactory.create` builds settings
+**Then** `_appleContentBlockersFor` returns an empty list
+**And** the field is harmlessly serialised across the method channel (other platforms ignore it)
+
+#### Scenario: Library missing degrades cleanly
+
+**Given** the platform is iOS / macOS but `webspace_adblock` failed to load
+**When** `_maybeRebuildAppleContentBlockers` runs
+**Then** `filterListToAppleContentBlockingJson` returns null
+**And** the service logs a warning
+**And** `appleContentBlockers` remains null
+**And** WebView creation passes an empty list (no rule list installed)
+**And** the JS-bridge interceptor continues to handle blocking + stats
+
+#### Scenario: Stats remain JS-bridge sourced
+
+**Given** the engine matches a content rule on a sub-resource request
+**Then** the JS-bridge interceptor's Bloom-prefiltered `blockCheck` roundtrip still records the block on `DnsBlockService` with source `abp`
+**(WebKit fires no `wasMatched` callback, so the JS path stays installed as the canonical stats source even when WKContentRuleList silently blocks the request first.)**
+
+---
+
 ## Implementation Details
 
 ### Architecture: Why Not flutter_inappwebview ContentBlocker
