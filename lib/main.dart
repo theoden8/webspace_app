@@ -1989,51 +1989,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (mounted) setState(() {});
   }
 
-  /// Recomputes each webspace's runtime `siteIndices` list from its
-  /// persisted `siteIds` membership against the current `_webViewModels`.
-  /// Called after every operation that may have changed positions
-  /// (load, add, delete, archive open/close, move-to/out-of-archive).
-  /// Order is preserved: `siteIndices` ends up in the same order as
-  /// `siteIds`, with missing siteIds simply absent from the projection.
-  void _resolveWebspaceIndices() {
-    final positionBySiteId = <String, int>{
-      for (var i = 0; i < _webViewModels.length; i++)
-        _webViewModels[i].siteId: i,
-    };
-    for (final ws in _webspaces) {
-      if (ws.isAll) continue;
-      ws.siteIndices = [
-        for (final sid in ws.siteIds)
-          if (positionBySiteId.containsKey(sid)) positionBySiteId[sid]!,
-      ];
-    }
-  }
-
-  /// Legacy migration: webspaces persisted before the siteId-based
-  /// membership refactor stored positional `siteIndices` in JSON. On
-  /// first load after the upgrade, fromJson populates `siteIndices`
-  /// but leaves `siteIds` empty. We resolve each legacy index to the
-  /// matching `_webViewModels[index].siteId` and persist back as
-  /// siteIds. Idempotent: webspaces that already have siteIds skip
-  /// the conversion.
-  Future<void> _migrateLegacyWebspaceIndices() async {
-    var migrated = false;
-    for (final ws in _webspaces) {
-      if (ws.siteIds.isNotEmpty || ws.siteIndices.isEmpty) continue;
-      final ids = <String>[];
-      for (final idx in ws.siteIndices) {
-        if (idx >= 0 && idx < _webViewModels.length) {
-          ids.add(_webViewModels[idx].siteId);
-        }
-      }
-      ws.siteIds = ids;
-      migrated = true;
-    }
-    if (migrated) {
-      await _saveWebspaces();
-    }
-  }
-
   /// Closes every currently-open archive in sequence.
   Future<void> _closeAllArchives() async {
     final handles = List<ArchiveHandle>.from(_archiveSlices.keys);
@@ -5358,7 +5313,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       webspaces: _webspaces,
       currentIndex: _currentIndex,
     );
-    final deletedSiteId = deletedModel.siteId;
     setState(() {
       _webViewModels.removeAt(currentModelIndex);
       _loadedIndices
