@@ -87,30 +87,33 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
     log('  Site $i: ${sites[i].name} - ${sites[i].initUrl}');
   }
 
-  // Create sample webspaces
+  // Create sample webspaces. Membership is persisted by siteId (not
+  // positional index) so it survives reorderings and add/delete of
+  // unrelated sites — pluck siteIds off the freshly-constructed
+  // models above rather than hard-coding positions.
   final webspaces = <Webspace>[
     Webspace.all(), // The "All" webspace
     Webspace(
       id: 'webspace_work',
       name: 'Work',
-      siteIndices: [4, 5, 6], // GitHub, Hacker News, W&B
+      siteIds: [sites[4].siteId, sites[5].siteId, sites[6].siteId],
     ),
     Webspace(
       id: 'webspace_privacy',
       name: 'Privacy',
-      siteIndices: [0, 1, 2], // DuckDuckGo, Piped, Nitter
+      siteIds: [sites[0].siteId, sites[1].siteId, sites[2].siteId],
     ),
     Webspace(
       id: 'webspace_social',
       name: 'Social',
-      siteIndices: [2, 3, 7], // Nitter, Reddit, Wikipedia
+      siteIds: [sites[2].siteId, sites[3].siteId, sites[7].siteId],
     ),
   ];
 
   log('Created ${webspaces.length} webspaces');
   for (var i = 0; i < webspaces.length; i++) {
     final ws = webspaces[i];
-    log('  Webspace $i: ${ws.name} (${ws.siteIndices.length} sites)');
+    log('  Webspace $i: ${ws.name} (${ws.siteIds.length} sites)');
   }
 
   log('Saving to SharedPreferences...');

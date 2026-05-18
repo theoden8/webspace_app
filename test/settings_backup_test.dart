@@ -532,7 +532,11 @@ void main() {
       ];
       final originalWebspaces = [
         Webspace.all(),
-        Webspace(id: 'work', name: 'Work', siteIndices: [0]),
+        // Membership rides on siteIds (the persisted source of truth);
+        // positional siteIndices is the runtime view rebuilt by
+        // `_resolveWebspaceIndices` after models load and is not
+        // included in the backup payload.
+        Webspace(id: 'work', name: 'Work', siteIds: [originalSites[0].siteId]),
       ];
 
       // Export
@@ -569,6 +573,7 @@ void main() {
       expect(restoredWebspaces[0].id, equals(kAllWebspaceId));
       expect(restoredWebspaces[1].id, equals('work'));
       expect(restoredWebspaces[1].name, equals('Work'));
+      expect(restoredWebspaces[1].siteIds, equals([originalSites[0].siteId]));
 
       // Verify settings
       expect(importedBackup.themeMode, equals(2));

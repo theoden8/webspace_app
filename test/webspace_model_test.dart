@@ -1,252 +1,268 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/webspace_model.dart';
 import 'dart:convert';
 
-void main() {
-  group('Webspace Model Tests', () {
-    test('Create webspace with default values', () {
-      final webspace = Webspace(name: 'Test Workspace');
+import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/webspace_model.dart';
 
+void main() {
+  group('Webspace model', () {
+    test('default-constructed webspace has empty siteIds and siteIndices', () {
+      final webspace = Webspace(name: 'Test Workspace');
       expect(webspace.name, 'Test Workspace');
+      expect(webspace.siteIds, isEmpty);
       expect(webspace.siteIndices, isEmpty);
       expect(webspace.id, isNotEmpty);
     });
 
-    test('Create webspace with custom ID and site indices', () {
+    test('constructor accepts explicit id, siteIds, and siteIndices', () {
       final webspace = Webspace(
         id: 'custom-id-123',
         name: 'Test Workspace',
+        siteIds: ['s0', 's1', 's2'],
         siteIndices: [0, 1, 2],
       );
-
       expect(webspace.id, 'custom-id-123');
-      expect(webspace.name, 'Test Workspace');
+      expect(webspace.siteIds, ['s0', 's1', 's2']);
       expect(webspace.siteIndices, [0, 1, 2]);
     });
 
-    test('Serialize webspace to JSON', () {
+    test('toJson persists siteIds, not siteIndices', () {
       final webspace = Webspace(
         id: 'test-id',
         name: 'My Workspace',
+        siteIds: ['siteA', 'siteB', 'siteC'],
         siteIndices: [0, 2, 5],
       );
-
       final json = webspace.toJson();
-
       expect(json['id'], 'test-id');
       expect(json['name'], 'My Workspace');
-      expect(json['siteIndices'], [0, 2, 5]);
+      expect(json['siteIds'], ['siteA', 'siteB', 'siteC']);
+      // Runtime-only field — never serialised.
+      expect(json.containsKey('siteIndices'), isFalse);
     });
 
-    test('Deserialize webspace from JSON', () {
-      final json = {
+    test('fromJson reads new siteIds form', () {
+      final webspace = Webspace.fromJson({
         'id': 'test-id',
         'name': 'My Workspace',
-        'siteIndices': [1, 3, 7],
-      };
-
-      final webspace = Webspace.fromJson(json);
-
+        'siteIds': ['siteA', 'siteB', 'siteC'],
+      });
       expect(webspace.id, 'test-id');
-      expect(webspace.name, 'My Workspace');
+      expect(webspace.siteIds, ['siteA', 'siteB', 'siteC']);
+      expect(webspace.siteIndices, isEmpty);
+    });
+
+    test('fromJson migrates legacy siteIndices into the runtime view', () {
+      // Older builds persisted positional `siteIndices`. fromJson keeps
+      // them in the runtime field so the resolver in `_WebSpacePageState`
+      // can translate to siteIds on next load.
+      final webspace = Webspace.fromJson({
+        'id': 'legacy-id',
+        'name': 'Legacy',
+        'siteIndices': [1, 3, 7],
+      });
+      expect(webspace.id, 'legacy-id');
+      expect(webspace.siteIds, isEmpty);
       expect(webspace.siteIndices, [1, 3, 7]);
     });
 
-    test('JSON round-trip serialization', () {
+    test('JSON round-trip preserves siteIds', () {
       final original = Webspace(
         name: 'Test Workspace',
-        siteIndices: [0, 1, 2, 3],
+        siteIds: ['a', 'b', 'c', 'd'],
       );
-
-      final jsonString = jsonEncode(original.toJson());
-      final decoded = Webspace.fromJson(jsonDecode(jsonString));
-
+      final decoded = Webspace.fromJson(jsonDecode(jsonEncode(original.toJson())));
       expect(decoded.id, original.id);
       expect(decoded.name, original.name);
-      expect(decoded.siteIndices, original.siteIndices);
+      expect(decoded.siteIds, original.siteIds);
     });
 
-    test('Empty webspace serialization', () {
+    test('Empty webspace round-trips', () {
       final webspace = Webspace(name: 'Empty Workspace');
-
-      final json = webspace.toJson();
-      final restored = Webspace.fromJson(json);
-
+      final restored = Webspace.fromJson(webspace.toJson());
       expect(restored.name, 'Empty Workspace');
+      expect(restored.siteIds, isEmpty);
       expect(restored.siteIndices, isEmpty);
     });
 
-    test('CopyWith creates new instance with updated fields', () {
+    test('copyWith updates fields without aliasing the source lists', () {
       final original = Webspace(
         id: 'original-id',
         name: 'Original',
+        siteIds: ['a', 'b'],
         siteIndices: [0, 1],
       );
-
       final updated = original.copyWith(
         name: 'Updated',
+        siteIds: ['c', 'd', 'e'],
         siteIndices: [2, 3, 4],
       );
-
-      expect(updated.id, 'original-id'); // ID should remain the same
+      expect(updated.id, 'original-id');
       expect(updated.name, 'Updated');
+      expect(updated.siteIds, ['c', 'd', 'e']);
       expect(updated.siteIndices, [2, 3, 4]);
-      expect(original.name, 'Original'); // Original should be unchanged
-      expect(original.siteIndices, [0, 1]);
+      expect(original.name, 'Original');
+      expect(original.siteIds, ['a', 'b']);
     });
 
-    test('CopyWith with partial update', () {
+    test('copyWith with partial update keeps untouched fields', () {
       final original = Webspace(
         name: 'Original',
-        siteIndices: [0, 1],
+        siteIds: ['a', 'b'],
       );
-
       final updated = original.copyWith(name: 'Updated Name Only');
-
       expect(updated.name, 'Updated Name Only');
-      expect(updated.siteIndices, [0, 1]); // Should keep original
-      expect(updated.id, original.id); // Should keep original ID
+      expect(updated.siteIds, ['a', 'b']);
+      expect(updated.id, original.id);
     });
 
-    test('Handle empty site indices in JSON', () {
-      final json = {
-        'id': 'test-id',
-        'name': 'Test',
-        'siteIndices': <int>[],
-      };
-
-      final webspace = Webspace.fromJson(json);
-      expect(webspace.siteIndices, isEmpty);
+    test('Unique IDs for default-constructed webspaces', () {
+      final a = Webspace(name: 'Workspace 1');
+      final b = Webspace(name: 'Workspace 2');
+      expect(a.id, isNot(b.id));
     });
 
-    test('Handle large site indices list', () {
-      final largeIndicesList = List<int>.generate(100, (i) => i);
-      final webspace = Webspace(
-        name: 'Large Workspace',
-        siteIndices: largeIndicesList,
-      );
-
-      final json = webspace.toJson();
-      final restored = Webspace.fromJson(json);
-
-      expect(restored.siteIndices.length, 100);
-      expect(restored.siteIndices, largeIndicesList);
-    });
-
-    test('Multiple webspaces serialization', () {
-      final webspaces = [
-        Webspace(name: 'Work', siteIndices: [0, 1]),
-        Webspace(name: 'Personal', siteIndices: [2, 3, 4]),
-        Webspace(name: 'Research', siteIndices: [5]),
-      ];
-
-      final jsonList = webspaces.map((ws) => ws.toJson()).toList();
-      final jsonString = jsonEncode(jsonList);
-
-      final decodedList = (jsonDecode(jsonString) as List)
-          .map((json) => Webspace.fromJson(json))
-          .toList();
-
-      expect(decodedList.length, 3);
-      expect(decodedList[0].name, 'Work');
-      expect(decodedList[1].name, 'Personal');
-      expect(decodedList[2].name, 'Research');
-      expect(decodedList[0].siteIndices, [0, 1]);
-      expect(decodedList[1].siteIndices, [2, 3, 4]);
-      expect(decodedList[2].siteIndices, [5]);
-    });
-
-    test('Unique IDs for different webspaces', () {
-      final webspace1 = Webspace(name: 'Workspace 1');
-      final webspace2 = Webspace(name: 'Workspace 2');
-
-      expect(webspace1.id, isNot(webspace2.id));
-    });
-
-    test('Special characters in workspace name', () {
+    test('special characters in name round-trip', () {
       final webspace = Webspace(
         name: 'Test!@#\$%^&*()_+-=[]{}|;:\'",.<>?/`~',
-        siteIndices: [0],
+        siteIds: ['s0'],
       );
-
-      final json = webspace.toJson();
-      final restored = Webspace.fromJson(json);
-
+      final restored = Webspace.fromJson(webspace.toJson());
       expect(restored.name, webspace.name);
     });
 
-    test('Unicode characters in workspace name', () {
+    test('unicode in name round-trips through JSON', () {
       final webspace = Webspace(
         name: '工作区 🚀 Espace de travail',
-        siteIndices: [0, 1],
+        siteIds: ['s0', 's1'],
       );
-
-      final jsonString = jsonEncode(webspace.toJson());
-      final restored = Webspace.fromJson(jsonDecode(jsonString));
-
-      expect(restored.name, '工作区 🚀 Espace de travail');
+      final restored = Webspace.fromJson(jsonDecode(jsonEncode(webspace.toJson())));
+      expect(restored.name, webspace.name);
     });
 
-    test('Duplicate indices in siteIndices', () {
-      final webspace = Webspace(
-        name: 'Test',
-        siteIndices: [0, 1, 1, 2, 2, 2, 3],
-      );
-
-      final json = webspace.toJson();
-      final restored = Webspace.fromJson(json);
-
-      // Should preserve duplicates as-is (cleanup happens elsewhere)
-      expect(restored.siteIndices, [0, 1, 1, 2, 2, 2, 3]);
+    test('large siteIds list round-trips', () {
+      final large = List<String>.generate(100, (i) => 'site-$i');
+      final webspace = Webspace(name: 'Large Workspace', siteIds: large);
+      final restored = Webspace.fromJson(webspace.toJson());
+      expect(restored.siteIds.length, 100);
+      expect(restored.siteIds, large);
     });
 
-    test('Negative indices in siteIndices', () {
-      final webspace = Webspace(
-        name: 'Test',
-        siteIndices: [-1, 0, 1],
-      );
-
-      final json = webspace.toJson();
-      final restored = Webspace.fromJson(json);
-
-      // Should preserve negative indices (cleanup happens elsewhere)
-      expect(restored.siteIndices, [-1, 0, 1]);
+    test('Webspace.all yields the synthetic All webspace', () {
+      final all = Webspace.all();
+      expect(all.id, kAllWebspaceId);
+      expect(all.isAll, isTrue);
+      expect(all.siteIds, isEmpty);
     });
 
-    // Defensive deserialization: malformed prefs blobs (partial writes,
-    // legacy schemas, external backups) must not crash boot. Pairs with
-    // the per-entry try/catch in `_loadWebspaces` so a single bad entry
-    // is dropped rather than fatal.
-    test('fromJson tolerates missing siteIndices (defaults to empty)', () {
-      final webspace = Webspace.fromJson({'id': 'x', 'name': 'NoIndices'});
-      expect(webspace.id, 'x');
-      expect(webspace.name, 'NoIndices');
-      expect(webspace.siteIndices, isEmpty);
+    // Defensive deserialization: malformed prefs blobs from partial
+    // writes, hand-edited backups, or schema drift across branches
+    // must not crash boot. `_loadWebspaces` wraps each entry in
+    // try/catch, but each field also defends individually so the
+    // entry is at worst empty rather than dropped wholesale.
+    group('fromJson tolerates missing/null fields', () {
+      test('missing siteIds and siteIndices both default to empty', () {
+        final webspace = Webspace.fromJson({'id': 'x', 'name': 'NoMembership'});
+        expect(webspace.id, 'x');
+        expect(webspace.name, 'NoMembership');
+        expect(webspace.siteIds, isEmpty);
+        expect(webspace.siteIndices, isEmpty);
+      });
+
+      test('null siteIds defaults to empty', () {
+        final webspace = Webspace.fromJson({
+          'id': 'x',
+          'name': 'NullIds',
+          'siteIds': null,
+        });
+        expect(webspace.siteIds, isEmpty);
+      });
+
+      test('null siteIndices (legacy form) defaults to empty', () {
+        final webspace = Webspace.fromJson({
+          'id': 'x',
+          'name': 'NullLegacy',
+          'siteIndices': null,
+        });
+        expect(webspace.siteIndices, isEmpty);
+        expect(webspace.siteIds, isEmpty);
+      });
+
+      test('missing id generates a fresh one', () {
+        final webspace = Webspace.fromJson({'name': 'NoId', 'siteIds': ['a']});
+        expect(webspace.id, isNotEmpty);
+      });
+
+      test('missing name defaults to Untitled', () {
+        final webspace = Webspace.fromJson({'id': 'x', 'siteIds': []});
+        expect(webspace.name, 'Untitled');
+      });
+
+      test('empty map yields a usable, non-crashing Webspace', () {
+        final webspace = Webspace.fromJson(<String, dynamic>{});
+        expect(webspace.id, isNotEmpty);
+        expect(webspace.name, 'Untitled');
+        expect(webspace.siteIds, isEmpty);
+        expect(webspace.siteIndices, isEmpty);
+      });
+
+      test('mixed-type entries in siteIds are filtered to strings', () {
+        final webspace = Webspace.fromJson({
+          'id': 'x',
+          'name': 'Mixed',
+          'siteIds': ['a', 42, null, 'b'],
+        });
+        expect(webspace.siteIds, ['a', 'b']);
+      });
+
+      test('mixed-type entries in legacy siteIndices are filtered to ints', () {
+        final webspace = Webspace.fromJson({
+          'id': 'x',
+          'name': 'Mixed',
+          'siteIndices': [0, '1', null, 2],
+        });
+        expect(webspace.siteIndices, [0, 2]);
+      });
     });
 
-    test('fromJson tolerates null siteIndices (defaults to empty)', () {
-      final webspace =
-          Webspace.fromJson({'id': 'x', 'name': 'NullIndices', 'siteIndices': null});
-      expect(webspace.siteIndices, isEmpty);
-    });
+    // Cross-branch schema migration: pin every historical persisted
+    // shape so a future schema change has to update the snapshot,
+    // forcing whoever touches the model to think about migration.
+    // Without this, a one-way schema change silently breaks the
+    // downgrade-then-upgrade path (the root cause of the original
+    // null-cast crash: see lib/webspace_model.dart history).
+    group('historical schema snapshots load without loss', () {
+      test('v1: {id,name,siteIndices} (master pre-siteIds) loads as legacy', () {
+        const raw =
+            '{"id":"ws-old","name":"Legacy Master","siteIndices":[0,2,5]}';
+        final webspace = Webspace.fromJson(jsonDecode(raw));
+        expect(webspace.id, 'ws-old');
+        expect(webspace.name, 'Legacy Master');
+        expect(webspace.siteIds, isEmpty,
+            reason: 'siteIds gets populated by _migrateLegacyWebspaceIndices '
+                'after _webViewModels loads');
+        expect(webspace.siteIndices, [0, 2, 5]);
+      });
 
-    test('fromJson tolerates missing id (generates a fresh one)', () {
-      final webspace = Webspace.fromJson({'name': 'NoId', 'siteIndices': [1, 2]});
-      expect(webspace.id, isNotEmpty);
-      expect(webspace.name, 'NoId');
-      expect(webspace.siteIndices, [1, 2]);
-    });
+      test('v2: {id,name,siteIds} (new schema) loads cleanly', () {
+        const raw =
+            '{"id":"ws-new","name":"New Schema","siteIds":["a","b","c"]}';
+        final webspace = Webspace.fromJson(jsonDecode(raw));
+        expect(webspace.id, 'ws-new');
+        expect(webspace.name, 'New Schema');
+        expect(webspace.siteIds, ['a', 'b', 'c']);
+        expect(webspace.siteIndices, isEmpty);
+      });
 
-    test('fromJson tolerates missing name (defaults to Untitled)', () {
-      final webspace = Webspace.fromJson({'id': 'x', 'siteIndices': []});
-      expect(webspace.name, 'Untitled');
-    });
-
-    test('fromJson on an empty map yields a usable, non-crashing Webspace', () {
-      final webspace = Webspace.fromJson(<String, dynamic>{});
-      expect(webspace.id, isNotEmpty);
-      expect(webspace.name, 'Untitled');
-      expect(webspace.siteIndices, isEmpty);
+      test('mixed: both keys present prefers siteIds, keeps legacy for resolver', () {
+        // A round-trip through a branch that wrote both fields. We
+        // honour siteIds (the source of truth) and keep siteIndices
+        // around so the resolver can still produce the runtime view.
+        const raw =
+            '{"id":"ws","name":"Both","siteIds":["a","b"],"siteIndices":[0,1]}';
+        final webspace = Webspace.fromJson(jsonDecode(raw));
+        expect(webspace.siteIds, ['a', 'b']);
+        expect(webspace.siteIndices, [0, 1]);
+      });
     });
   });
 }

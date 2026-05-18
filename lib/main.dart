@@ -1736,7 +1736,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (_selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId) {
       final wsIdx = _webspaces.indexWhere((w) => w.id == _selectedWebspaceId);
       if (wsIdx != -1) {
-        _webspaces[wsIdx].siteIndices.add(newSiteIndex);
+        _webspaces[wsIdx].siteIds.add(model.siteId);
+        _resolveWebspaceIndices();
         await _saveWebspaces();
       }
     }
@@ -2492,6 +2493,52 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
+  /// Recomputes each webspace's runtime `siteIndices` list from its
+  /// persisted `siteIds` membership against the current `_webViewModels`.
+  /// Order is preserved: `siteIndices` ends up in the same order as
+  /// `siteIds`, with missing siteIds simply absent from the projection.
+  /// The synthetic "All" webspace is treated specially by the renderer
+  /// and not rewritten here.
+  void _resolveWebspaceIndices() {
+    final positionBySiteId = <String, int>{
+      for (var i = 0; i < _webViewModels.length; i++)
+        _webViewModels[i].siteId: i,
+    };
+    for (final ws in _webspaces) {
+      if (ws.isAll) continue;
+      ws.siteIndices = [
+        for (final sid in ws.siteIds)
+          if (positionBySiteId.containsKey(sid)) positionBySiteId[sid]!,
+      ];
+    }
+  }
+
+  /// Legacy migration: webspaces persisted before the siteId-based
+  /// membership refactor stored positional `siteIndices` in JSON. On
+  /// first load after the upgrade, `Webspace.fromJson` populates
+  /// `siteIndices` but leaves `siteIds` empty. We resolve each legacy
+  /// index to the matching `_webViewModels[index].siteId` and persist
+  /// back as siteIds. Idempotent: webspaces that already have siteIds
+  /// skip the conversion.
+  Future<void> _migrateLegacyWebspaceIndices() async {
+    var migrated = false;
+    for (final ws in _webspaces) {
+      if (ws.isAll) continue;
+      if (ws.siteIds.isNotEmpty || ws.siteIndices.isEmpty) continue;
+      final ids = <String>[];
+      for (final idx in ws.siteIndices) {
+        if (idx >= 0 && idx < _webViewModels.length) {
+          ids.add(_webViewModels[idx].siteId);
+        }
+      }
+      ws.siteIds = ids;
+      migrated = true;
+    }
+    if (migrated) {
+      await _saveWebspaces();
+    }
+  }
+
   Future<void> _loadWebViewModels() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String>? webViewModelsJson = prefs.getStringList('webViewModels');
@@ -2661,6 +2708,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _loadWebspaces();
     await _loadGlobalUserScripts();
     await _loadWebViewModels();
+    // Webspace membership is keyed by siteId; `_loadWebViewModels` had
+    // to finish before we can promote any legacy `siteIndices`-shaped
+    // JSON to siteIds and seed the runtime projection.
+    await _migrateLegacyWebspaceIndices();
+    _resolveWebspaceIndices();
     await _migrateGlobalScriptOptIn();
     _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
 
@@ -3060,8 +3112,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           webspace: webspace,
           allSites: _webViewModels,
           onSave: (updatedWebspace) {
+            // The editor returns positional siteIndices; translate to
+            // siteIds (the persisted source of truth) before storing.
+            final selectedSiteIds = <String>[
+              for (final i in updatedWebspace.siteIndices)
+                if (i >= 0 && i < _webViewModels.length)
+                  _webViewModels[i].siteId,
+            ];
             setState(() {
-              _webspaces.add(updatedWebspace);
+              _webspaces.add(updatedWebspace.copyWith(siteIds: selectedSiteIds));
+              _resolveWebspaceIndices();
             });
             _saveWebspaces();
           },
@@ -3071,11 +3131,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   void _editWebspace(Webspace webspace) async {
-    // For "All" webspace, show all sites as selected but read-only
+    // For "All" webspace, show all sites as selected but read-only.
+    // The synthetic projection has to populate BOTH siteIds and
+    // siteIndices so the editor's "selected" state matches.
     final webspaceToEdit = webspace.id == kAllWebspaceId
         ? Webspace(
             id: kAllWebspaceId,
             name: 'All',
+            siteIds: [for (final m in _webViewModels) m.siteId],
             siteIndices: List<int>.generate(_webViewModels.length, (index) => index),
           )
         : webspace;
@@ -3091,10 +3154,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             // Don't save changes for "All" webspace
             if (updatedWebspace.id == kAllWebspaceId) return;
 
+            // Translate the editor's index-based selection back into
+            // the siteId-keyed persisted membership.
+            final selectedSiteIds = <String>[
+              for (final i in updatedWebspace.siteIndices)
+                if (i >= 0 && i < _webViewModels.length)
+                  _webViewModels[i].siteId,
+            ];
             setState(() {
               final index = _webspaces.indexWhere((ws) => ws.id == updatedWebspace.id);
               if (index != -1) {
-                _webspaces[index] = updatedWebspace;
+                _webspaces[index] = updatedWebspace.copyWith(siteIds: selectedSiteIds);
+                _resolveWebspaceIndices();
               }
             });
             _saveWebspaces();
@@ -3352,7 +3423,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         }),
       );
 
-      // Restore webspaces
+      // Restore webspaces. Legacy backups carry `siteIndices`-shaped
+      // webspaces; promote those to siteIds against the just-restored
+      // models and seed the runtime projection.
       _webspaces.addAll(SettingsBackupService.restoreWebspaces(backup));
 
       // Restore other settings - handle both new and legacy formats.
@@ -3375,6 +3448,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         _selectedWebspaceId = kAllWebspaceId;
       }
     });
+
+    // Same boot dance: legacy `siteIndices`-shaped webspaces in the
+    // backup need to be promoted to siteIds, then the runtime
+    // projection has to be seeded from the (now-restored) models.
+    await _migrateLegacyWebspaceIndices();
+    _resolveWebspaceIndices();
 
     // Restore current index if valid (async for cookie handling)
     int? indexToRestore;
@@ -4572,11 +4651,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       orElse: () => null,
     );
     if (webspace == null) return;
-    if (oldListIndex < 0 || oldListIndex >= webspace.siteIndices.length) return;
-    if (newListIndex < 0 || newListIndex >= webspace.siteIndices.length) return;
+    if (oldListIndex < 0 || oldListIndex >= webspace.siteIds.length) return;
+    if (newListIndex < 0 || newListIndex >= webspace.siteIds.length) return;
     setState(() {
-      final movedIndex = webspace.siteIndices.removeAt(oldListIndex);
-      webspace.siteIndices.insert(newListIndex, movedIndex);
+      final movedSiteId = webspace.siteIds.removeAt(oldListIndex);
+      webspace.siteIds.insert(newListIndex, movedSiteId);
+      _resolveWebspaceIndices();
     });
     _saveWebspaces();
   }
@@ -4637,11 +4717,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!mounted) return;
     final currentModelIndex = _webViewModels.indexOf(deletedModel);
     if (currentModelIndex == -1) return;
-    // Patch the index-dependent state: `_loadedIndices` and each webspace's
-    // `siteIndices` are rewritten so indices > currentModelIndex shift down
-    // by one, and the deleted index drops out. `_currentIndex` is handled
-    // separately by the `wasCurrentIndex` branch below (preserving existing
-    // semantics — we don't shift it here).
+    final deletedSiteId = deletedModel.siteId;
+    // `_loadedIndices` is still positional, so the engine's index-shift
+    // patch is the right tool for it. Webspace membership is keyed by
+    // siteId now: we drop the deleted siteId from each webspace and let
+    // `_resolveWebspaceIndices` rebuild the positional projection, so
+    // the engine's `newSiteIndicesByWebspaceId` output is intentionally
+    // ignored here.
     final patch = SiteLifecycleEngine.computeDeletionPatch(
       deletedIndex: currentModelIndex,
       siteCountBeforeRemoval: _webViewModels.length,
@@ -4655,9 +4737,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         ..clear()
         ..addAll(patch.newLoadedIndices);
       for (final webspace in _webspaces) {
-        final rewritten = patch.newSiteIndicesByWebspaceId[webspace.id];
-        if (rewritten != null) webspace.siteIndices = rewritten;
+        webspace.siteIds.remove(deletedSiteId);
       }
+      _resolveWebspaceIndices();
     });
     if (wasCurrentIndex) {
       await _setCurrentIndex(null);
