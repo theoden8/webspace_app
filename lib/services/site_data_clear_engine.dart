@@ -15,14 +15,24 @@
 /// nuclear option, [`ContainerIsolationEngine.wipeContainers`], but it
 /// was wired only to the share-into-incognito flow.
 class SiteDataClearPlan {
-  /// Dispose the live webview before the wipe so the named container
-  /// isn't bound when `deleteContainer` runs (native impl no-ops on an
-  /// in-use container — see [container_native.dart:deleteContainer]).
+  /// Null the Dart-side controller / cached widget on the model before
+  /// the wipe. Required but not sufficient for container mode: a Dart
+  /// null-out alone leaves the native platform-view alive and bound to
+  /// the container, so the wipe still no-ops — see
+  /// [dropFromLoadedIndices] for the rest of the dance.
   final bool disposeWebView;
 
   /// Drop the index from `_loadedIndices` so the IndexedStack rebuild
-  /// re-runs the lazy webview creation path with a fresh empty
-  /// container.
+  /// renders `SizedBox.shrink()` for it, unmounts the InAppWebView
+  /// element, and tears down the native platform-view (WKWebView /
+  /// AndroidView / WebKitWebView). Executor MUST wrap the drop in
+  /// setState + `await WidgetsBinding.instance.endOfFrame` before the
+  /// wipe — without the rebuild yield, `deleteContainer` races the
+  /// still-bound webview and silently no-ops (see container_native.dart
+  /// line 71-74). Executor MUST also re-add the index after the wipe
+  /// so the lazy creation path binds a fresh widget to the now-empty
+  /// container; otherwise the active tab stays blank until the user
+  /// navigates away and back.
   final bool dropFromLoadedIndices;
 
   /// Wipe the per-site native container — drops cookies, localStorage,
