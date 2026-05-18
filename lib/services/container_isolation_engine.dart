@@ -92,12 +92,21 @@ class ContainerIsolationEngine {
     return deleted;
   }
 
-  /// Deletes the named containers and recreates them empty. Used at
-  /// app startup to wipe localStorage / IndexedDB / ServiceWorker cache
-  /// / HTTP cache for incognito sites — without this, on-disk container
-  /// data outlives the process and the next launch reads back stale
-  /// session state (issue #298). Idempotent and safe before any
-  /// webview binds: containers are materialized lazily on first bind.
+  /// Deletes the named containers and recreates them empty. Two call
+  /// sites:
+  ///
+  ///   - App startup, for incognito sites, so on-disk container data
+  ///     doesn't outlive the process and feed stale session state into
+  ///     the next launch (issue #298).
+  ///   - User-driven "Clear Site Data" (`_clearSiteData`), so cookies +
+  ///     localStorage + IDB + SW + HTTP cache go away in one call.
+  ///
+  /// Caller MUST ensure no live webview is bound to [siteIds] — the
+  /// fork's `deleteContainer` no-ops on an in-use container, so the
+  /// IndexedStack rebuild that drops the InAppWebView widget has to
+  /// complete before this runs (`await WidgetsBinding.instance.endOfFrame`
+  /// at the call site). Idempotent and safe before any webview binds:
+  /// containers are materialized lazily on first bind.
   Future<int> wipeContainers(Iterable<String> siteIds) async {
     if (!await containerNative.isSupported()) return 0;
     int wiped = 0;
@@ -108,7 +117,7 @@ class ContainerIsolationEngine {
     if (wiped > 0) {
       LogService.instance.log(
         'Container',
-        'Wiped $wiped incognito container(s) on startup',
+        'Wiped $wiped container(s)',
       );
     }
     return wiped;

@@ -3592,20 +3592,46 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// back to in-model cookie deletion + reload (the most that can be
   /// scoped to a single site when localStorage / IDB / SW are
   /// app-global).
+  ///
+  /// Container-mode sequencing matters: the fork's `deleteContainer`
+  /// no-ops on an in-use container (see container_native.dart), and
+  /// `model.disposeWebView()` only nulls the Dart-side controller /
+  /// widget cache — the native platform-view (WKWebView / AndroidView /
+  /// WebKitWebView) stays alive and bound to the container until the
+  /// IndexedStack rebuild unmounts the InAppWebView element. So phase
+  /// 1 wraps the drop in setState + endOfFrame to force tear-down,
+  /// phase 2 wipes against the now-unbound container, phase 3 re-adds
+  /// the index so the lazy creation path binds a fresh widget to the
+  /// freshly-empty container (without phase 3 the active tab stays
+  /// blank until the user navigates away and back).
   Future<void> _clearSiteData(int index) async {
     if (index < 0 || index >= _webViewModels.length) return;
     final model = _webViewModels[index];
     final plan = SiteDataClearEngine.planClear(useContainers: _useContainers);
+
     if (plan.disposeWebView) {
       _evictCacheIfOnline(model.siteId);
-      model.disposeWebView();
     }
-    if (plan.dropFromLoadedIndices) {
-      _loadedIndices.remove(index);
+
+    if (plan.disposeWebView ||
+        plan.dropFromLoadedIndices ||
+        plan.clearInModelCookies) {
+      setState(() {
+        if (plan.disposeWebView) {
+          model.disposeWebView();
+        }
+        if (plan.dropFromLoadedIndices) {
+          _loadedIndices.remove(index);
+        }
+        if (plan.clearInModelCookies) {
+          model.cookies = const [];
+        }
+      });
+      if (plan.dropFromLoadedIndices) {
+        await WidgetsBinding.instance.endOfFrame;
+      }
     }
-    if (plan.clearInModelCookies) {
-      model.cookies = const [];
-    }
+
     if (plan.wipeContainer) {
       await _containerIsolation.wipeContainers([model.siteId]);
     }
@@ -3614,7 +3640,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
     await _saveWebViewModels();
     if (!mounted) return;
-    if (plan.userDrivenReload) {
+    if (plan.dropFromLoadedIndices) {
+      setState(() {
+        _loadedIndices.add(index);
+      });
+    } else if (plan.userDrivenReload) {
       await _refreshCurrentSite();
     } else {
       setState(() {});
