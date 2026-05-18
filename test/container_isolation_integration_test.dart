@@ -70,10 +70,19 @@ class MockContainerNative implements ContainerNative {
   }
 
   @override
-  Future<void> deleteContainer(String siteId) async {
+  Future<bool> deleteContainer(String siteId) async {
     calls.add('deleteContainer($siteId)');
-    containers.remove(siteId);
+    final existed = containers.remove(siteId) != null;
     cookiesByContainer.remove('ws-$siteId');
+    return existed;
+  }
+
+  @override
+  Future<bool> clearContainerData(String siteId) async {
+    calls.add('clearContainerData($siteId)');
+    if (!containers.containsKey(siteId)) return false;
+    cookiesByContainer['ws-$siteId'] = {};
+    return true;
   }
 
   @override
@@ -199,9 +208,9 @@ class ContainerIsolationTestHarness {
   /// have no surviving site. Run after seeding prior-session orphan
   /// profiles to verify they don't survive.
   Future<int> simulateAppStartupGc() async {
-    return engine.garbageCollectOrphans({
-      for (final s in sites) s.siteId: s.containerRev,
-    });
+    return engine.garbageCollectOrphans(
+      sites.map((s) => s.siteId).toSet(),
+    );
   }
 }
 

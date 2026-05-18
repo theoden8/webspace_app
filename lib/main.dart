@@ -1037,26 +1037,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // accepted a cert during the original handshake, subsequent
     // connections to the same host reuse that decision via the
     // connection pool / TLS session cache, never re-firing
-    // `onReceivedSslError`. Bumping the per-site container rev forces
-    // the next bind to a fresh `WKWebsiteDataStore`, which carries no
-    // TLS session cache for the revoked host. Trade-off: also drops
+    // `onReceivedSslError`. Clearing the per-site container drops the
+    // network service's session state for those hosts along with
     // cookies/localStorage/IndexedDB — acceptable for self-signed
-    // hosts where the user has no meaningful session (the typical use
-    // case), and the in-app pin had to be approved again for the site
-    // to load anyway.
+    // hosts where the user has no meaningful session, and the in-app
+    // pin had to be approved again for the site to load anyway.
     if (wipedSiteIds.isNotEmpty) {
-      for (final model in _webViewModels) {
-        if (wipedSiteIds.contains(model.siteId)) model.containerRev++;
+      int cleared = 0;
+      for (final siteId in wipedSiteIds) {
+        if (await _containerIsolation.clearForSite(siteId)) cleared++;
       }
       LogService.instance.log(
         'TLS',
-        'bumped container rev for ${wipedSiteIds.length} site(s) after '
+        'cleared $cleared of ${wipedSiteIds.length} container(s) after '
             'revoke of ${entry.host}:${entry.port}',
         sensitivity: LogSensitivity.sensitive,
       );
-      unawaited(_containerIsolation.garbageCollectOrphans({
-        for (final m in _webViewModels) m.siteId: m.containerRev,
-      }));
     }
     if (changed && mounted) setState(() {});
   }
@@ -1548,10 +1544,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       model.currentUrl = model.initUrl;
     }
     if (a.wipeContainer) {
-      model.containerRev++;
-      unawaited(_containerIsolation.garbageCollectOrphans({
-        for (final m in _webViewModels) m.siteId: m.containerRev,
-      }));
+      await _containerIsolation.clearForSite(model.siteId);
     }
     if (a.clearInMemoryCookies) {
       model.cookies = const [];
@@ -2226,8 +2219,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // Container path: ensure the named container is recorded.
       // Materialization happens lazily on the native side when the
       // WebView binds via `InAppWebViewSettings.containerId`.
-      await _containerIsolation.ensureContainer(target.siteId,
-          rev: target.containerRev);
+      await _containerIsolation.ensureContainer(target.siteId);
       if (version != _setCurrentIndexVersion) return;
     } else {
       // Legacy path: restore cookies for target site before loading
@@ -2752,25 +2744,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIdsAtStartup);
     await _stateStorage.removeOrphans(nonIncognitoSiteIds);
     await _cookieManager.deleteAllCookies();
-    // Bump rev on every incognito site so the previous-session
-    // container becomes an orphan (then GC sweeps it below). This
-    // replaces the old `wipeContainers` call, which depended on the
-    // fork's `deleteContainer` actually completing — unreliable on
-    // iOS/macOS where the WKWebsiteDataStore can still be retained by
-    // pending callbacks at the moment we'd ask for it to be removed
-    // (#360). With the rev approach the new webview always lands in a
-    // fresh empty container regardless of whether the old one's data
-    // store finishes letting go.
-    for (final m in _webViewModels) {
-      if (m.incognito) m.containerRev++;
+    // Sweep containers whose owning site no longer exists. Also
+    // catches any leftover rev'd-name containers from the short-lived
+    // `containerRev` workaround on this branch — the name won't match
+    // any current siteId, so the set-membership check drops them.
+    await _containerIsolation.garbageCollectOrphans(activeSiteIdsAtStartup);
+    // Drop incognito containers before any WebView binds — `deleteContainer`
+    // is reliable in this unbound window on every platform, and we want
+    // the container directory gone (next bind materializes a fresh one)
+    // so disk usage doesn't grow across sessions.
+    final incognitoSiteIds =
+        activeSiteIdsAtStartup.difference(nonIncognitoSiteIds);
+    for (final siteId in incognitoSiteIds) {
+      await _containerIsolation.onSiteDeleted(siteId);
     }
-    // Sweep every container whose `(siteId, rev)` doesn't match the
-    // current model — orphan siteIds (deleted sites) AND stale revs
-    // from past wipes / the incognito bump above.
-    final activeSiteRevs = {
-      for (final m in _webViewModels) m.siteId: m.containerRev,
-    };
-    await _containerIsolation.garbageCollectOrphans(activeSiteRevs);
 
     // Always start at home screen on launch - only restore index if launched via shortcut
     final shortcutSiteId = await ShortcutService.getLaunchSiteId();
@@ -2969,7 +2956,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> launchUrl(String url, {
     String? homeTitle,
     required String? siteId,
-    int containerRev = 0,
     required bool incognito,
     required bool thirdPartyCookiesEnabled,
     required bool clearUrlEnabled,
@@ -2997,7 +2983,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           url: url,
           homeTitle: homeTitle,
           siteId: siteId,
-          containerRev: containerRev,
           incognito: incognito,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           clearUrlEnabled: clearUrlEnabled,
@@ -3601,13 +3586,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// User-driven full session wipe for a single site.
   ///
   /// Plan is computed by [SiteDataClearEngine.planClear]; this method
-  /// is the executor. Container mode bumps `containerRev` so the next
-  /// webview binds to a fresh `ws-<siteId>_r<rev>` container — the
-  /// previous-rev container is left in place and swept later by
-  /// [ContainerIsolationEngine.garbageCollectOrphans]. Legacy mode
-  /// falls back to in-model cookie deletion + reload (the most that
-  /// can be scoped to a single site when localStorage / IDB / SW are
-  /// app-global).
+  /// is the executor. Container mode calls
+  /// `ContainerIsolationEngine.clearForSite` (fork's
+  /// `clearContainerData`, designed for live-bound containers) and
+  /// disposes the cached widget so the next IndexedStack rebuild
+  /// constructs a fresh InAppWebView against the now-empty container.
+  /// Legacy mode falls back to in-model cookie deletion + reload (the
+  /// most that can be scoped to a single site when localStorage / IDB
+  /// / SW are app-global).
   Future<void> _clearSiteData(int index) async {
     if (index < 0 || index >= _webViewModels.length) return;
     final model = _webViewModels[index];
@@ -3617,13 +3603,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _evictCacheIfOnline(model.siteId);
     }
 
-    if (plan.bumpContainerRev ||
-        plan.disposeWebView ||
-        plan.clearInModelCookies) {
+    if (plan.clearContainer) {
+      await _containerIsolation.clearForSite(model.siteId);
+    }
+
+    if (plan.disposeWebView || plan.clearInModelCookies) {
       setState(() {
-        if (plan.bumpContainerRev) {
-          model.containerRev++;
-        }
         if (plan.disposeWebView) {
           model.disposeWebView();
         }
@@ -3640,16 +3625,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!mounted) return;
     if (plan.userDrivenReload) {
       await _refreshCurrentSite();
-    }
-    if (plan.gcOrphans) {
-      // Best-effort: deletes the previous-rev container's on-disk data
-      // now if the WKWebView has finished tearing down. If it hasn't
-      // (a pending JS handler is still retaining it), startup GC will
-      // catch it on next launch. Either way the user's session is
-      // already clean — the new webview is in the new container.
-      unawaited(_containerIsolation.garbageCollectOrphans({
-        for (final m in _webViewModels) m.siteId: m.containerRev,
-      }));
     }
   }
 

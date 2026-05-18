@@ -58,20 +58,16 @@ Replaces the cookie-only capture-nuke-restore engine on platforms with
 native per-site data-store primitives:
 
 - **Android**, System WebView 110+: `androidx.webkit.Profile`. Each
-  `(siteId, WebViewModel.containerRev)` maps to a named profile
-  `ws-<containerKey>` where the key is `siteId` for rev 0 and
-  `<siteId>_r<rev>` for rev > 0 (see
-  [`containerKeyFor`](../../../lib/services/container_native.dart)).
+  site maps to a named profile `ws-<siteId>`.
 - **iOS 17+ / macOS 14+**: `WKWebsiteDataStore(forIdentifier: UUID)`.
-  The container key is hashed via SHA-256 to produce a deterministic
+  The siteId string is hashed via SHA-256 to produce a deterministic
   UUID (`WebSpaceProfile.uuid(for:)` — added by the WebSpace fork's
   iOS / macOS plugins) and that UUID identifies the per-site data
-  store. A rev bump produces a different UUID, so the new bind
-  materializes a fresh store.
+  store.
 - **Linux**, WPE WebKit 2.40+: per-container `WebKitNetworkSession`
   with on-disk roots under
-  `<XDG_DATA_HOME>/flutter_inappwebview/containers/ws-<containerKey>/data`
-  and `<XDG_CACHE_HOME>/flutter_inappwebview/containers/ws-<containerKey>/cache`.
+  `<XDG_DATA_HOME>/flutter_inappwebview/containers/ws-<siteId>/data`
+  and `<XDG_CACHE_HOME>/flutter_inappwebview/containers/ws-<siteId>/cache`.
   The fork's `cookie_manager.cc` resolves cookie ops to the
   per-WebView session via `webkit_web_view_get_network_session(webview)`
   when a `webViewController:` is supplied; global ops fan out across
@@ -120,11 +116,11 @@ Each site gets a named profile. Lifecycle:
 
 | Event | Action |
 |---|---|
-| App startup, after restoring sites | Cache `ContainerNative.isSupported()` once. Bump `containerRev` for every incognito site. Then sweep profiles that don't match the live `(siteId → containerRev)` map (`ContainerIsolationEngine.garbageCollectOrphans`). |
-| Site activated | `ContainerIsolationEngine.ensureContainer(siteId, rev: target.containerRev)` (idempotent). |
-| WebView created (`onWebViewCreated`) | `ContainerNative.bindContainerToWebView(containerKey)` — native side walks the activity view tree and calls `WebViewCompat.setProfile` on every flutter_inappwebview WebView for that key. |
-| User taps "Clear Site Data" | `WebViewModel.containerRev++`, `disposeWebView`, persist, kick a best-effort GC pass. Next IndexedStack rebuild constructs an InAppWebView that binds to the new-rev profile. |
-| Site deleted | `ContainerIsolationEngine.onSiteDeleted(siteId)` after `disposeWebView` — drops every profile belonging to that siteId, including any stale-rev orphans. |
+| App startup, after restoring sites | Cache `ContainerNative.isSupported()` once. Sweep profiles whose owning site no longer exists (`ContainerIsolationEngine.garbageCollectOrphans`), then drop every incognito site's container outright with `onSiteDeleted` (pre-bind, `deleteContainer` is reliable here). |
+| Site activated | `ContainerIsolationEngine.ensureContainer(siteId)` (idempotent). |
+| WebView created (`onWebViewCreated`) | `ContainerNative.bindContainerToWebView(siteId)` — native side walks the activity view tree and calls `WebViewCompat.setProfile` on every flutter_inappwebview WebView for that siteId. |
+| User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. |
+| Site deleted | `ContainerIsolationEngine.onSiteDeleted(siteId)` after `disposeWebView`. |
 | Profile API not supported (iOS, macOS, legacy Android) | `_useContainers` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
 
 The engine selection lives in
@@ -188,37 +184,31 @@ check resolved at app startup.
 
 ### Requirement: CONT-002 — Profile Lifecycle
 
-Each `(siteId, WebViewModel.containerRev)` pair SHALL map 1:1 to a
-native profile. The name follows
-[`containerKeyFor`](../../../lib/services/container_native.dart):
-`ws-<siteId>` for `containerRev == 0` (back-compat with pre-rev
-containers; no migration needed for existing on-disk data), and
-`ws-<siteId>_r<rev>` for `containerRev > 0`. The profile is created
-on demand at first bind. "Clear Site Data" / incognito startup wipe /
-TLS-pin revoke each increment `containerRev` so the next bind lands
-in a fresh empty profile; the previous-rev profile becomes an orphan
-swept by [CONT-004]. Outright site deletion drops every profile
-belonging to the deleted siteId (current rev + any orphans not yet
-swept).
+Each `siteId` SHALL map 1:1 to a native profile named `ws-<siteId>`.
+The profile is created on demand at first bind. "Clear Site Data"
+wipes the profile's contents in place via the fork's
+`clearContainerData` (Apple:
+`WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`); the profile
+itself is preserved so the live WKWebView remains functional. Site
+deletion drops the profile outright through `deleteContainer`.
 
-This rev-bump design is what makes "Clear Site Data" deterministic on
-iOS/macOS. The fork's
-`WKWebsiteDataStore.remove(forIdentifier:)` silently no-ops while the
-backing data store is still referenced — a pending JS handler /
-navigation callback / autorelease can keep a WKWebView retained past
-the Flutter platform-view dispose, and at the moment we'd ask for the
-remove the store is still "in use". The previous design depended on
-that remove actually completing, which failed for users in the wild
-(issue #360 — LinkedIn session intact after the Clear tap). With the
-rev approach the next webview construction binds to a never-bound
-store regardless of whether the old one's dealloc has run yet; GC
-catches the old store's on-disk data whenever the platform finally
-lets it go.
+The split between the two primitives is deliberate. Apple's
+`WKWebsiteDataStore.remove(forIdentifier:)` (what `deleteContainer`
+calls into) silently no-ops while the data store is still referenced
+by a live WKWebView — pending JS handler callbacks /
+navigation completions / autorelease pools keep it retained past
+Flutter's platform-view dispose, so the remove never actually fires.
+A prior iteration of this app relied on that path for "Clear Site
+Data" and shipped broken (#360). The privacy-v2 cut of the fork
+added `clearContainerData`, mapping to
+`WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`, which IS
+designed to work on a live-bound store. Both primitives now have
+their proper home: clear the data of a live container; delete a
+container that nothing references.
 
 #### Scenario: Profile created on first activation
 
-**Given** site A has never been activated in profile mode (so
-  `containerRev == 0`)
+**Given** site A has never been activated in profile mode
 **When** the user activates site A
 **Then** `ProfileStore.getOrCreateContainer("ws-<siteA.siteId>")` is
   called (idempotent — pre-existing profiles are reused)
@@ -228,7 +218,7 @@ lets it go.
 #### Scenario: Profile bound to WebView at construction
 
 **Given** flutter_inappwebview is constructing the native WebView for
-  site A at `containerRev == 0`
+  site A
 **When** `onWebViewCreated` fires
 **Then** the native plugin calls
   `WebViewCompat.setProfile(webView, "ws-<siteA.siteId>")`
@@ -236,47 +226,33 @@ lets it go.
   read/write, `localStorage`, `IndexedDB`, ServiceWorker, HTTP cache)
   is partitioned to that profile's directory
 
-#### Scenario: Clear Site Data bumps rev and binds the next webview to a fresh profile
+#### Scenario: Clear Site Data wipes the live container in place
 
-**Given** site A is loaded at `containerRev == 0` with a non-empty
-  session in profile `ws-<siteA.siteId>`
+**Given** site A is loaded with a non-empty session in profile
+  `ws-<siteA.siteId>` (cookies, localStorage, IndexedDB,
+  ServiceWorker registrations, HTTP cache)
 **When** the user taps "Clear Site Data" on site A
-**Then** `WebViewModel.containerRev` increments to 1
-**And** the cached `WebViewModel.webview` widget is nulled so the
-  next `IndexedStack` rebuild constructs a new `InAppWebView`
-**And** the new `InAppWebView` reads
-  `settings.containerId == "ws-<siteA.siteId>_r1"` and binds to a
-  freshly materialized empty profile
-**And** the previous profile `ws-<siteA.siteId>` is left in place —
-  the WKWebView retaining it may not have deallocated yet
-**And** [CONT-004] sweeps `ws-<siteA.siteId>` opportunistically (a
-  best-effort GC pass fires right after the bump) and definitively
-  at next startup if the opportunistic pass also found it in-use
-
-#### Scenario: Incognito startup wipe also goes through the rev bump
-
-**Given** site A is incognito with `containerRev == 3` from a prior
-  session
-**When** the app launches and `_restoreAppState` runs
-**Then** `WebViewModel.containerRev` increments to 4 before any
-  webview is created
-**And** [CONT-004] sweeps every container whose `(siteId, rev)`
-  doesn't match the live model — in particular `ws-<siteA.siteId>_r3`
-**And** the first activation of site A binds to a brand new
-  `ws-<siteA.siteId>_r4`
+**Then** `ContainerIsolationEngine.clearForSite("<siteA.siteId>")` is
+  called, routing into the fork's `clearContainerData`
+**And** the platform-appropriate clear primitive runs against the
+  live data store — `WKWebsiteDataStore.removeData(ofTypes:
+  modifiedSince:)` on Apple, `Profile.getCookieManager`/`getWebStorage`/
+  `getGeolocationPermissions` on Android, `webkit_website_data_manager
+  _clear` on Linux
+**And** the profile `ws-<siteA.siteId>` STILL EXISTS afterwards but
+  with empty contents
+**And** the cached `WebViewModel.webview` is nulled so the next
+  `IndexedStack` rebuild constructs a fresh `InAppWebView` bound to
+  the now-empty profile
 
 #### Scenario: Profile deleted on site deletion
 
-**Given** site A exists with current profile `ws-<siteA.siteId>_r2`
-  and (possibly) lingering orphan profiles `ws-<siteA.siteId>` /
-  `ws-<siteA.siteId>_r1` from past wipes that startup GC hasn't
-  caught yet
+**Given** site A exists with profile `ws-<siteA.siteId>`
 **When** the user deletes site A
-**Then** `ContainerIsolationEngine.onSiteDeleted("<siteA.siteId>")`
-  is called
-**And** every profile whose
-  `parseContainerKey(key).siteId == siteA.siteId` is deleted (the
-  current rev and any stragglers)
+**Then** `ContainerIsolationEngine.onSiteDeleted` is called
+**And** `ContainerNative.deleteContainer("<siteA.siteId>")` removes
+  the profile and all of its on-disk data (the live WebView for A has
+  already been disposed, so the in-use no-op trap doesn't apply)
 **And** the legacy `CookieIsolationEngine.preDeleteCookieCleanup` is
   NOT called (cookies live in the profile, so it would be a no-op
   anyway)
@@ -361,44 +337,23 @@ under this policy, two backstops apply:
 
 ### Requirement: CONT-004 — Orphan Garbage Collection
 
-The system SHALL sweep profiles that don't match the live
-`(siteId → WebViewModel.containerRev)` map. Two failure modes are
-covered by the same pass: profiles whose owning siteId no longer
-exists (site deleted in a prior session, or crash mid-deletion), and
-profiles whose siteId is still live but on a stale rev (a previous
-"Clear Site Data" / incognito wipe / TLS revoke bumped the rev and
-left this profile behind because its WKWebView wasn't yet
-deallocated).
+The system SHALL sweep profiles whose owning site no longer exists.
 
-#### Scenario: Startup sweep — deleted-site orphan
+#### Scenario: Startup sweep
 
 **Given** `ProfileStore` contains profiles for siteIds A, B, C
 **And** the persisted site list contains only A and C (B was deleted
   in a previous session before profile mode was enabled, or via a
-  crash mid-deletion); both A and C are at `containerRev == 0`
+  crash mid-deletion)
 **When** the app launches and `_restoreAppState` runs
-**Then** `ContainerIsolationEngine.garbageCollectOrphans({A: 0, C: 0})`
-  is invoked
-**And** profile `ws-B` is deleted (siteId not in the active map)
-**And** profiles `ws-A` and `ws-C` are preserved
+**Then** `ContainerIsolationEngine.garbageCollectOrphans({A, C})` is
+  invoked
+**And** profile `ws-B` is deleted
+**And** profile `ws-A` and `ws-C` are preserved
 
-#### Scenario: Startup sweep — stale-rev orphan from a previous Clear
+#### Scenario: GC is a no-op when nothing is orphaned
 
-**Given** site A's `containerRev == 2` (two clears have happened in
-  past sessions)
-**And** `ProfileStore` contains `ws-A`, `ws-A_r1`, and `ws-A_r2`
-  because the best-effort opportunistic GC at clear-time couldn't
-  delete the first two (their WKWebViews were retained by JS handlers
-  at that moment)
-**When** the app launches and `_restoreAppState` runs
-**Then** `ContainerIsolationEngine.garbageCollectOrphans({A: 2})`
-  sweeps `ws-A` and `ws-A_r1` (siteId matches but rev doesn't)
-**And** `ws-A_r2` is preserved (current rev)
-
-#### Scenario: GC is a no-op when every profile is current
-
-**Given** every profile in `ProfileStore` corresponds to a live
-  `(siteId, containerRev)` pair
+**Given** every profile in `ProfileStore` corresponds to a live site
 **When** GC runs
 **Then** no profile is deleted
 **And** the call returns 0

@@ -5,46 +5,43 @@ import 'package:webspace/services/site_data_clear_engine.dart';
 ///
 ///  - 0.2.3: cookie-iterate + reload regardless of mode; container
 ///    mode left localStorage / IDB / SW / cache resident.
-///  - #352: route container mode through `wipeContainers`. Relied on
-///    the fork's `deleteContainer` actually completing, which on
-///    iOS/macOS silently no-ops while a pending JS callback retains
-///    the WKWebView past Flutter dispose (#360) — user observed an
-///    intact LinkedIn session after the "Clear Site Data" tap.
-///  - This iteration: bump `WebViewModel.containerRev` so the next
-///    bind goes to a fresh `ws-<siteId>_r<rev>` container. The wipe is
-///    no longer load-bearing; the previous-rev container is best-effort
-///    GC'd, with startup GC as the safety net.
+///  - #352: route container mode through the fork's `deleteContainer`.
+///    Silently no-oped on iOS/macOS while a pending JS callback
+///    retained the WKWebView past Flutter dispose (#360).
+///  - privacy-v2 fork cut: introduced `clearContainerData` mapping to
+///    `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)` — the
+///    primitive Apple actually supports while a store is bound. This
+///    plan now routes through that and disposes the cached widget so
+///    the next rebuild paints a fresh page.
 void main() {
   group('SiteDataClearEngine.planClear', () {
-    test('container mode bumps the rev and lets GC clean up the orphan', () {
+    test('container mode clears in place and forces widget recreation', () {
       final plan = SiteDataClearEngine.planClear(useContainers: true);
 
-      expect(plan.bumpContainerRev, isTrue,
-          reason: 'fresh `ws-<siteId>_r<rev>` is what makes the new '
-              'webview land in an empty store, regardless of whether '
-              'the old container can actually be deleted right now');
+      expect(plan.clearContainer, isTrue,
+          reason: 'fork\'s clearContainerData wipes cookies / DOM '
+              'storage / IDB / SW / HTTP cache for the named container '
+              'while the WKWebView stays bound');
       expect(plan.disposeWebView, isTrue,
-          reason: 'next IndexedStack rebuild must run getWebView so the '
-              'new InAppWebView picks up the new containerRev');
+          reason: 'next IndexedStack rebuild must construct a fresh '
+              'InAppWebView so the user sees a clean page AND Android\'s '
+              'per-WebView HTTP cache (not reached by clearContainerData) '
+              'gets dropped along with the old widget');
       expect(plan.clearInModelCookies, isTrue,
           reason: 'in-model snapshot would otherwise carry stale entries '
               'into the persisted JSON until the new webview repopulates it');
       expect(plan.deleteKnownCookies, isFalse,
-          reason: 'pointless when the new bind is already in a new '
+          reason: 'clearContainerData already drops every cookie in the '
               'container; legacy path uses this against the shared jar');
       expect(plan.userDrivenReload, isFalse,
           reason: 'dispose + rebuild constructs a fresh InAppWebView with '
               'a new UniqueKey, which loads the page from scratch');
-      expect(plan.gcOrphans, isTrue,
-          reason: 'kicks the previous-rev container delete now if the '
-              'platform-view tear-down has finished; startup GC catches '
-              'the rest. Best-effort, fire-and-forget at the call site');
     });
 
     test('legacy mode keeps cookie-iteration + reload', () {
       final plan = SiteDataClearEngine.planClear(useContainers: false);
 
-      expect(plan.bumpContainerRev, isFalse,
+      expect(plan.clearContainer, isFalse,
           reason: 'no per-site container exists in legacy mode');
       expect(plan.disposeWebView, isFalse,
           reason: 'controller is still alive; reload() picks up the delete');
@@ -55,8 +52,6 @@ void main() {
           reason: 'only scoped action available against the shared jar');
       expect(plan.userDrivenReload, isTrue,
           reason: 'controller is still alive; reload picks up the delete');
-      expect(plan.gcOrphans, isFalse,
-          reason: 'nothing to GC in legacy mode');
     });
 
     test('the two plans are not equal — the engine MUST branch', () {

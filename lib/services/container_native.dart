@@ -6,7 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/log_service.dart';
 
 /// Cross-platform Dart-side bridge to the native per-site container API.
-/// Maps each [WebViewModel.siteId] to a named native container
+/// Maps each [WebViewModel.siteId] 1:1 to a named native container
 /// (`ws-<siteId>`) that owns its own cookies, localStorage, IndexedDB,
 /// ServiceWorkers, and HTTP cache:
 ///
@@ -23,23 +23,28 @@ import 'package:webspace/services/log_service.dart';
 ///     `ProxyManager.setProxyOverride` fan out across the default
 ///     session and every cached container session.
 ///
-/// All container lifecycle ops (delete, list) route through the
-/// WebSpace fork's [`inapp.ContainerController`], which already
-/// abstracts over both Apple and Android. The only shim that survives
-/// app-side is a tiny Android MethodChannel for the
-/// `WebViewFeature.MULTI_PROFILE` runtime feature gate — the fork
-/// silently no-ops on unsupported devices, but the WebSpace engine
-/// selection (this vs. [CookieIsolationEngine]) needs an explicit
-/// yes/no, and the fork doesn't surface `MULTI_PROFILE` as a Dart
-/// constant on `WebViewFeature`.
+/// All container lifecycle ops route through the WebSpace fork's
+/// [`inapp.ContainerController`], which abstracts over all four
+/// platforms. The only shim that survives app-side is a tiny Android
+/// MethodChannel for the `WebViewFeature.MULTI_PROFILE` runtime
+/// feature gate.
 ///
 /// Binding a WebView to its container is done at construction via
 /// [`inapp.InAppWebViewSettings.containerId`] (read by the fork's
 /// `prepare()` / `preWKWebViewConfiguration` before any session-bound
 /// op locks the WebView to the default store). There is no post-hoc
-/// bind path — `bindContainerToWebView` is a no-op kept only so the
+/// bind path — [bindContainerToWebView] is a no-op kept only so the
 /// engine's interface stays uniform across the legacy and container
 /// modes.
+///
+/// "Clear Site Data" routes through [clearContainerData], which on
+/// iOS/macOS maps to `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`
+/// — designed to be safe while a WKWebView is still bound, unlike
+/// [deleteContainer] which depends on the data store being unreferenced.
+/// That asymmetry is the whole reason the fork's privacy-v2 cut added
+/// the API: an earlier app-side workaround had to rev-bump container
+/// names because `WKWebsiteDataStore.remove(forIdentifier:)` silently
+/// no-oped while a pending JS handler retained the WKWebView (#360).
 ///
 /// See [openspec/specs/per-site-containers/spec.md] for the per-platform
 /// details and the legacy [CookieIsolationEngine] fallback used when
@@ -50,61 +55,60 @@ import 'package:webspace/services/log_service.dart';
 /// per-container partitioning, mirroring the [CookieIsolationEngine] +
 /// `MockCookieManager` pattern in
 /// [test/cookie_isolation_integration_test.dart].
-/// Builds the canonical container key for `(siteId, rev)`. Rev 0 maps
-/// to the bare siteId so containers created before the rev scheme
-/// landed (and the corresponding on-disk data) keep their existing
-/// names — no migration step needed. Subsequent revs get an `_r<n>`
-/// suffix, with `_` chosen because base36 siteIds + their own `-`
-/// separator (see [_generateSiteId]) can't produce that combination.
-String containerKeyFor(String siteId, int rev) =>
-    rev == 0 ? siteId : '${siteId}_r$rev';
-
-/// Inverse of [containerKeyFor]. Returns the `(siteId, rev)` for the
-/// key under which a native container is filed, or `null` if the key
-/// doesn't match the scheme (e.g. an unrelated container left over
-/// from another app — never expected, but tolerated).
-({String siteId, int rev}) parseContainerKey(String key) {
-  final m = RegExp(r'^(.+)_r(\d+)$').firstMatch(key);
-  if (m != null) {
-    final rev = int.tryParse(m.group(2)!);
-    if (rev != null && rev > 0) {
-      return (siteId: m.group(1)!, rev: rev);
-    }
-  }
-  return (siteId: key, rev: 0);
-}
-
 abstract class ContainerNative {
   /// True iff the running platform + WebView combination supports
   /// per-site containers end to end.
   Future<bool> isSupported();
 
-  /// Returns the canonical native name (`ws-<containerKey>`).
-  /// [containerKey] is built from `(siteId, rev)` via
-  /// [containerKeyFor]. The container is materialized lazily on the
-  /// native side when a WebView binds to it via
-  /// [`inapp.InAppWebViewSettings.containerId`]; this method is
+  /// Returns the canonical native name (`ws-<siteId>`). The container
+  /// is materialized lazily on the native side when a WebView binds to
+  /// it via [`inapp.InAppWebViewSettings.containerId`]; this method is
   /// pure-Dart and synchronous in practice.
-  Future<String> getOrCreateContainer(String containerKey);
+  Future<String> getOrCreateContainer(String siteId);
 
   /// Returns 0. Bind happens at WebView construction via
   /// [`inapp.InAppWebViewSettings.containerId`]; there is no post-hoc
   /// bind path. Kept on the interface so the engine signature is
   /// uniform across legacy / container modes.
-  Future<int> bindContainerToWebView(String containerKey);
+  Future<int> bindContainerToWebView(String siteId);
 
-  /// Deletes the named container. No-ops silently if the underlying
-  /// native data store is still bound to a WKWebView /
-  /// `androidx.webkit.Profile`-backed view / `WebKitNetworkSession`;
-  /// the caller (typically [ContainerIsolationEngine.garbageCollectOrphans])
-  /// will retry at the next startup. Use the same [containerKey]
-  /// returned by [listContainers].
-  Future<void> deleteContainer(String containerKey);
+  /// Deletes the named container outright. Use for site deletion and
+  /// orphan GC, NOT for "Clear Site Data" — on iOS/macOS the underlying
+  /// `WKWebsiteDataStore.remove(forIdentifier:)` silently no-ops while
+  /// any live WKWebView still references the store, and the silent
+  /// no-op was the root cause of #360 in app-side mode.
+  Future<bool> deleteContainer(String siteId);
 
-  /// Lists every container that currently exists in the native store.
-  /// Result entries are bare container keys (the `ws-` prefix is
-  /// stripped), each parseable via [parseContainerKey] back to
-  /// `(siteId, rev)`. Used by orphan GC and per-site deletion.
+  /// Clears the container's data (cookies, localStorage, IndexedDB,
+  /// ServiceWorkers, HTTP cache) while leaving the container itself
+  /// intact and any bound WebView fully functional. Safe to call on
+  /// the current site's live container — that's the entire point of
+  /// the API.
+  ///
+  /// Returns `true` on platform-reported success, `false` if the
+  /// container doesn't exist or the platform refused. The fork's
+  /// per-platform coverage:
+  ///
+  ///   - iOS 17+ / macOS 14+:
+  ///     `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)` with
+  ///     `allWebsiteDataTypes` and `Date.distantPast`. Single primitive
+  ///     covers everything; designed for live-bound stores.
+  ///   - Android (System WebView 110+): composes `Profile.getCookieManager`
+  ///     + `Profile.getWebStorage` + `Profile.getGeolocationPermissions`.
+  ///     The HTTP cache for live WebViews and the global
+  ///     `ServiceWorkerControllerCompat` are NOT reached — we
+  ///     dispose+recreate the WebView right after the clear anyway,
+  ///     which gives the new WebView a fresh in-memory HTTP cache.
+  ///   - Linux (WPE 2.40+): `webkit_website_data_manager_clear`
+  ///     scoped to `WEBKIT_WEBSITE_DATA_ALL` since epoch. Returns
+  ///     false if no WebView has materialized the container's
+  ///     `WebKitNetworkSession` this process.
+  Future<bool> clearContainerData(String siteId);
+
+  /// Lists every site whose container currently exists in the native
+  /// store. Result entries are bare siteIds (the `ws-` prefix is
+  /// stripped). Used by orphan GC to detect containers whose owning
+  /// site no longer exists.
   Future<List<String>> listContainers();
 
   /// Synchronous, cached copy of the most recent [isSupported] result.
@@ -182,24 +186,40 @@ class _ContainerNative implements ContainerNative {
   }
 
   @override
-  Future<String> getOrCreateContainer(String containerKey) async =>
-      'ws-$containerKey';
+  Future<String> getOrCreateContainer(String siteId) async => 'ws-$siteId';
 
   @override
-  Future<int> bindContainerToWebView(String containerKey) async => 0;
+  Future<int> bindContainerToWebView(String siteId) async => 0;
 
   @override
-  Future<void> deleteContainer(String containerKey) async {
+  Future<bool> deleteContainer(String siteId) async {
     try {
-      await inapp.ContainerController.instance()
-          .deleteContainer('ws-$containerKey');
+      return await inapp.ContainerController.instance()
+          .deleteContainer('ws-$siteId');
     } catch (e) {
       LogService.instance.log(
         'Container',
-        'deleteContainer($containerKey) failed: $e',
+        'deleteContainer($siteId) failed: $e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> clearContainerData(String siteId) async {
+    try {
+      return await inapp.ContainerController.instance()
+          .clearContainerData('ws-$siteId');
+    } catch (e) {
+      LogService.instance.log(
+        'Container',
+        'clearContainerData($siteId) failed: $e',
+        level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
     }
   }
 
@@ -235,14 +255,16 @@ class _StubContainerNative implements ContainerNative {
   Future<bool> isSupported() async => false;
 
   @override
-  Future<String> getOrCreateContainer(String containerKey) async =>
-      'ws-$containerKey';
+  Future<String> getOrCreateContainer(String siteId) async => 'ws-$siteId';
 
   @override
-  Future<int> bindContainerToWebView(String containerKey) async => 0;
+  Future<int> bindContainerToWebView(String siteId) async => 0;
 
   @override
-  Future<void> deleteContainer(String containerKey) async {}
+  Future<bool> deleteContainer(String siteId) async => false;
+
+  @override
+  Future<bool> clearContainerData(String siteId) async => false;
 
   @override
   Future<List<String>> listContainers() async => const [];
