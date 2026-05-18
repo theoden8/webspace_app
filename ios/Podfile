@@ -128,14 +128,24 @@ post_install do |installer|
       #   iphoneos        — device build, arm64
       #   iphonesimulator — simulator, arm64 + x86_64 fat .a
       # The build script outputs both files into ios/Frameworks/.
-      force_load = '-force_load $(SRCROOT)/Frameworks/libwebspace_adblock-$(PLATFORM_NAME).a'
+      #
+      # Use -Wl,-force_load,<path> (one shell token, comma-separated)
+      # rather than "-force_load <path>" (one OTHER_LDFLAGS entry
+      # containing a literal space). Xcode passes each OTHER_LDFLAGS
+      # array element to clang as a single argv element, so the space
+      # form arrived at the linker as one mashed token and ld silently
+      # ignored it — the .a was never loaded, every ws_engine_* symbol
+      # was missing at runtime, and dlsym(RTLD_DEFAULT, "ws_engine_new")
+      # failed at ContentBlockerService startup on iOS. The -Wl, form
+      # has no embedded whitespace, so clang reliably forwards it to
+      # ld as `-force_load <path>` (two args).
+      force_load = '-Wl,-force_load,$(SRCROOT)/Frameworks/libwebspace_adblock-$(PLATFORM_NAME).a'
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
         ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
-        unless ldflags.any? { |f| f.include?('libwebspace_adblock') }
-          ldflags << force_load
-          config.build_settings['OTHER_LDFLAGS'] = ldflags
-        end
+        ldflags.reject! { |f| f.include?('libwebspace_adblock') }
+        ldflags << force_load
+        config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
     end
     aggregate.user_project.save

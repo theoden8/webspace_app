@@ -81,14 +81,17 @@ post_install do |installer|
       }
       runner_target.build_phases.move(phase, compile_idx) if compile_idx
 
-      force_load = '-force_load $(SRCROOT)/Frameworks/libwebspace_adblock.a'
+      # See ios/Podfile for the -Wl, rationale. Same parse hazard on
+      # macOS: `"-force_load <path>"` as a single OTHER_LDFLAGS entry
+      # reached the linker mashed, the .a was never loaded, and dlsym
+      # for ws_engine_* failed at runtime.
+      force_load = '-Wl,-force_load,$(SRCROOT)/Frameworks/libwebspace_adblock.a'
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
         ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
-        unless ldflags.any? { |f| f.include?('libwebspace_adblock') }
-          ldflags << force_load
-          config.build_settings['OTHER_LDFLAGS'] = ldflags
-        end
+        ldflags.reject! { |f| f.include?('libwebspace_adblock') }
+        ldflags << force_load
+        config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
     end
     aggregate.user_project.save
