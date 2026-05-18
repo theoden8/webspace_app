@@ -93,6 +93,32 @@ post_install do |installer|
         ldflags << force_load
         config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
+
+      # See ios/Podfile — post-link nm check that fails the build
+      # before a dlsym regression escapes to runtime.
+      verify_name = '[webspace] Verify adblock-rust symbols linked'
+      runner_target.build_phases.delete_if do |p|
+        p.respond_to?(:name) && p.name == verify_name
+      end
+      verify_phase = runner_target.new_shell_script_build_phase(verify_name)
+      verify_phase.shell_script = <<~BASH
+        set -e
+        BIN="${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}"
+        if [ ! -f "$BIN" ]; then
+          echo "error: Runner binary not found at $BIN" >&2
+          exit 1
+        fi
+        if ! /usr/bin/nm -gU "$BIN" 2>/dev/null | grep -q ' T _ws_engine_new$'; then
+          echo "error: _ws_engine_new not exported by $BIN" >&2
+          echo "error: adblock-rust .a was not force-loaded into Runner." >&2
+          echo "error: check macos/Frameworks/libwebspace_adblock.a exists" >&2
+          echo "error: and OTHER_LDFLAGS contains -Wl,-force_load,... in Runner.xcodeproj." >&2
+          exit 1
+        fi
+      BASH
+      verify_phase.input_paths = []
+      verify_phase.output_paths = []
+      verify_phase.always_out_of_date = '1'
     end
     aggregate.user_project.save
   end
