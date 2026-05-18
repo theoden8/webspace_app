@@ -2154,7 +2154,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Site moved to archive')),
+        const SnackBar(
+          content: Text(
+            'Site moved to archive. You may need to re-set per-site '
+            'preferences (theme, language) the first time it loads.',
+          ),
+          duration: Duration(seconds: 6),
+        ),
       );
     }
   }
@@ -5782,7 +5788,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // a re-fetchable snapshot — the canonical bytes live in
                                   // HtmlImportStorage and never change after import, so
                                   // skip the live-snapshot save path entirely.
-                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.isArchiveTier || webViewModel.initUrl.startsWith('file://'))
                                       ? null
                                       : (url, html) {
                                           HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
@@ -5792,10 +5798,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // renderer-DOM-serializations that fired on every SPA pseudo-
                                   // navigation (8+ Saved events per page on LinkedIn) — each one
                                   // a candidate for racing chromium's frame-lifecycle teardown.
-                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                  // Archive-tier sites skip the cache write entirely (ARCH-006).
+                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.isArchiveTier || webViewModel.initUrl.startsWith('file://'))
                                       ? null
                                       : () => HtmlCacheService.instance.shouldSave(webViewModel.siteId),
-                                  initialHtml: webViewModel.incognito
+                                  initialHtml: (webViewModel.incognito || webViewModel.isArchiveTier)
                                       ? null
                                       : () {
                                           // file:// imports come from HtmlImportStorage (the only

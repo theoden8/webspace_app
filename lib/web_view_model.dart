@@ -397,6 +397,13 @@ class WebViewModel {
   bool get effectiveLocalCdnEnabled =>
       isArchiveTier ? false : localCdnEnabled;
 
+  /// Effective HTML-cache enable. Archive-tier sites never write the
+  /// encrypted-at-rest HTML cache (the cache file path is keyed by
+  /// `siteId`, so its existence would correlate to specific archive
+  /// sites on disk inspection — ARCH-006).
+  bool get effectiveHtmlCachingEnabled =>
+      isArchiveTier ? false : htmlCachingEnabled;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
