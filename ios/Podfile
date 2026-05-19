@@ -128,15 +128,105 @@ post_install do |installer|
       #   iphoneos        — device build, arm64
       #   iphonesimulator — simulator, arm64 + x86_64 fat .a
       # The build script outputs both files into ios/Frameworks/.
-      force_load = '-force_load $(SRCROOT)/Frameworks/libwebspace_adblock-$(PLATFORM_NAME).a'
+      #
+      # Use TWO array elements ("-force_load", "<path>") rather than
+      # one mashed string ("-force_load <path>") or the -Wl, comma form
+      # ("-Wl,-force_load,<path>"). Xcode passes each OTHER_LDFLAGS
+      # array element to clang as its own argv slot, so the two-element
+      # form arrives at clang as the canonical two-arg `-force_load
+      # <path>` invocation that ld unambiguously understands.
+      #
+      # Past failures and why they're avoided here:
+      #   * "-force_load <path>" in one element → clang received one
+      #     argv with embedded space, didn't match its `-force_load`
+      #     flag handler, the .a was never loaded.
+      #   * "-Wl,-force_load,<path>" → flag reached ld but every
+      #     ws_* symbol still got dead-stripped because nothing in
+      #     Runner's Swift code referenced them; ld treats force-load
+      #     as "load, then dead-strip if unreachable", not "load and
+      #     pin." Pair with -Wl,-u,_ws_engine_new below.
+      #
+      # -Wl,-u,_ws_engine_new marks that symbol as undefined-and-required
+      # at link time. ld then keeps it in the live set, which (since
+      # the Rust crate uses codegen-units = 1) keeps the whole codegen
+      # unit and every other ws_* alongside it. Without -u, -dead_strip
+      # (Xcode default) removes the force-loaded objects because Runner's
+      # own code never references them — the FFI lookup is only ever
+      # done at runtime via dlsym, invisible to the linker.
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
         ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
-        unless ldflags.any? { |f| f.include?('libwebspace_adblock') }
-          ldflags << force_load
-          config.build_settings['OTHER_LDFLAGS'] = ldflags
-        end
+        # Drop any prior libwebspace_adblock + -u _ws_engine_new entries
+        # — possibly the broken single-string or -Wl, forms from earlier
+        # installs — before appending the canonical sequence. Drop
+        # adjacent bare "-force_load" tokens too so we don't leave
+        # an orphan flag pointing at the missing path entry.
+        ldflags = ldflags.each_with_index.reject { |f, i|
+          f.include?('libwebspace_adblock') ||
+            f.include?('_ws_engine_new') ||
+            (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
+            (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
+        }.map(&:first)
+        ldflags << '-force_load'
+        ldflags << '$(SRCROOT)/Frameworks/libwebspace_adblock-$(PLATFORM_NAME).a'
+        ldflags << '-Wl,-u,_ws_engine_new'
+        config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
+
+      # 3. Post-link verification. The history of this file is a
+      # graveyard of "linker silently dropped -force_load" mistakes
+      # (single-quoted LDFLAG, stale Pods/, missing .a, etc.). Each
+      # produced a green build and a runtime dlsym failure visible
+      # only when a real user opened the app. nm the finished binary
+      # and fail the build if the canonical FFI export is missing —
+      # cheaper than shipping a broken IPA.
+      verify_name = '[webspace] Verify adblock-rust symbols linked'
+      runner_target.build_phases.delete_if do |p|
+        p.respond_to?(:name) && p.name == verify_name
+      end
+      verify_phase = runner_target.new_shell_script_build_phase(verify_name)
+      verify_phase.shell_script = <<~BASH
+        set -e
+        BIN="${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}"
+        if [ ! -f "$BIN" ]; then
+          echo "error: Runner binary not found at $BIN" >&2
+          exit 1
+        fi
+        if /usr/bin/nm -gU "$BIN" 2>/dev/null | grep -q ' T _ws_engine_new$'; then
+          # All good. Stay silent so the build log doesn't get noisier.
+          exit 0
+        fi
+        # Failure path. Flutter's xcodebuild output filter only surfaces
+        # `error:`-prefixed lines, so every diagnostic here ships with
+        # that prefix to make sure it reaches the user's terminal — not
+        # cosmetic, it's the only way the data is visible.
+        A_FILE="${SRCROOT}/Frameworks/libwebspace_adblock-${PLATFORM_NAME}.a"
+        echo "error: _ws_engine_new not exported by $BIN" >&2
+        echo "error: [webspace] CONFIGURATION=${CONFIGURATION:-?} PLATFORM_NAME=${PLATFORM_NAME:-?}" >&2
+        echo "error: [webspace] SRCROOT=${SRCROOT}" >&2
+        echo "error: [webspace] TARGET_BUILD_DIR=${TARGET_BUILD_DIR}" >&2
+        echo "error: [webspace] EXECUTABLE_PATH=${EXECUTABLE_PATH}" >&2
+        echo "error: [webspace] OTHER_LDFLAGS=${OTHER_LDFLAGS:-<unset>}" >&2
+        if [ -f "$A_FILE" ]; then
+          A_SIZE=$(stat -f%z "$A_FILE" 2>/dev/null || stat -c%s "$A_FILE" 2>/dev/null || echo '?')
+          A_SYMS=$(/usr/bin/nm -gU "$A_FILE" 2>/dev/null | grep -c ' T _ws_' || true)
+          echo "error: [webspace] .a present: $A_FILE size=$A_SIZE ws_*-in-archive=$A_SYMS" >&2
+        else
+          echo "error: [webspace] .a MISSING at $A_FILE" >&2
+          ls -la "${SRCROOT}/Frameworks/" 2>&1 | sed 's/^/error: [webspace] /' >&2 || true
+        fi
+        BIN_WS_ANY=$(/usr/bin/nm "$BIN" 2>/dev/null | grep -c '_ws_' || true)
+        BIN_WS_T=$(/usr/bin/nm -gU "$BIN" 2>/dev/null | grep -c ' T _ws_' || true)
+        echo "error: [webspace] _ws_ in Runner: any=${BIN_WS_ANY} global-T=${BIN_WS_T}" >&2
+        /usr/bin/nm "$BIN" 2>/dev/null | grep '_ws_' | head -20 | sed 's/^/error: [webspace] nm: /' >&2 || true
+        echo "error: adblock-rust .a was not force-loaded into Runner." >&2
+        exit 1
+      BASH
+      verify_phase.input_paths = []
+      verify_phase.output_paths = []
+      # No outputs declared → Xcode would otherwise warn and skip; opt
+      # into "always run" explicitly so the check fires on every link.
+      verify_phase.always_out_of_date = '1'
     end
     aggregate.user_project.save
   end

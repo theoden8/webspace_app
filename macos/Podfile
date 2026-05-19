@@ -81,15 +81,67 @@ post_install do |installer|
       }
       runner_target.build_phases.move(phase, compile_idx) if compile_idx
 
-      force_load = '-force_load $(SRCROOT)/Frameworks/libwebspace_adblock.a'
+      # See ios/Podfile for the two-element rationale and the
+      # -Wl,-u,_ws_engine_new dead-strip pin.
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
         ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
-        unless ldflags.any? { |f| f.include?('libwebspace_adblock') }
-          ldflags << force_load
-          config.build_settings['OTHER_LDFLAGS'] = ldflags
-        end
+        ldflags = ldflags.each_with_index.reject { |f, i|
+          f.include?('libwebspace_adblock') ||
+            f.include?('_ws_engine_new') ||
+            (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
+            (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
+        }.map(&:first)
+        ldflags << '-force_load'
+        ldflags << '$(SRCROOT)/Frameworks/libwebspace_adblock.a'
+        ldflags << '-Wl,-u,_ws_engine_new'
+        config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
+
+      # See ios/Podfile — post-link nm check + diagnostics that fail
+      # the build before a dlsym regression escapes to runtime.
+      verify_name = '[webspace] Verify adblock-rust symbols linked'
+      runner_target.build_phases.delete_if do |p|
+        p.respond_to?(:name) && p.name == verify_name
+      end
+      verify_phase = runner_target.new_shell_script_build_phase(verify_name)
+      verify_phase.shell_script = <<~BASH
+        set -e
+        BIN="${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}"
+        if [ ! -f "$BIN" ]; then
+          echo "error: Runner binary not found at $BIN" >&2
+          exit 1
+        fi
+        if /usr/bin/nm -gU "$BIN" 2>/dev/null | grep -q ' T _ws_engine_new$'; then
+          exit 0
+        fi
+        # See ios/Podfile — diagnostics prefixed `error:` so Flutter's
+        # output filter actually surfaces them.
+        A_FILE="${SRCROOT}/Frameworks/libwebspace_adblock.a"
+        echo "error: _ws_engine_new not exported by $BIN" >&2
+        echo "error: [webspace] CONFIGURATION=${CONFIGURATION:-?} PLATFORM_NAME=${PLATFORM_NAME:-?}" >&2
+        echo "error: [webspace] SRCROOT=${SRCROOT}" >&2
+        echo "error: [webspace] TARGET_BUILD_DIR=${TARGET_BUILD_DIR}" >&2
+        echo "error: [webspace] EXECUTABLE_PATH=${EXECUTABLE_PATH}" >&2
+        echo "error: [webspace] OTHER_LDFLAGS=${OTHER_LDFLAGS:-<unset>}" >&2
+        if [ -f "$A_FILE" ]; then
+          A_SIZE=$(stat -f%z "$A_FILE" 2>/dev/null || stat -c%s "$A_FILE" 2>/dev/null || echo '?')
+          A_SYMS=$(/usr/bin/nm -gU "$A_FILE" 2>/dev/null | grep -c ' T _ws_' || true)
+          echo "error: [webspace] .a present: $A_FILE size=$A_SIZE ws_*-in-archive=$A_SYMS" >&2
+        else
+          echo "error: [webspace] .a MISSING at $A_FILE" >&2
+          ls -la "${SRCROOT}/Frameworks/" 2>&1 | sed 's/^/error: [webspace] /' >&2 || true
+        fi
+        BIN_WS_ANY=$(/usr/bin/nm "$BIN" 2>/dev/null | grep -c '_ws_' || true)
+        BIN_WS_T=$(/usr/bin/nm -gU "$BIN" 2>/dev/null | grep -c ' T _ws_' || true)
+        echo "error: [webspace] _ws_ in Runner: any=${BIN_WS_ANY} global-T=${BIN_WS_T}" >&2
+        /usr/bin/nm "$BIN" 2>/dev/null | grep '_ws_' | head -20 | sed 's/^/error: [webspace] nm: /' >&2 || true
+        echo "error: adblock-rust .a was not force-loaded into Runner." >&2
+        exit 1
+      BASH
+      verify_phase.input_paths = []
+      verify_phase.output_paths = []
+      verify_phase.always_out_of_date = '1'
     end
     aggregate.user_project.save
   end
