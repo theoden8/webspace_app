@@ -6,44 +6,46 @@
 /// [link_intent_dispatch_engine.dart]: the engine decides the steps,
 /// the executor in `main.dart` runs them.
 ///
-/// The pre-refactor bug (0.2.3) was that the executor unconditionally
-/// ran `deleteCookies` + `reload()` regardless of engine mode. In
-/// container mode that left localStorage / IndexedDB / ServiceWorker /
-/// HTTP cache resident in the container and only deleted the cookies
-/// the in-model snapshot knew about — a reload from the same container
-/// then re-read all the stale state. The container engine has a
-/// nuclear option, [`ContainerIsolationEngine.wipeContainers`], but it
-/// was wired only to the share-into-incognito flow.
+/// History:
+///
+///  - The 0.2.3 bug was that the executor unconditionally ran
+///    `deleteCookies` + `reload()` regardless of engine mode. In
+///    container mode that left localStorage / IndexedDB /
+///    ServiceWorker / HTTP cache resident.
+///  - The #352 fix routed container mode through the fork's
+///    `deleteContainer`. That depended on
+///    `WKWebsiteDataStore.remove(forIdentifier:)` actually completing
+///    while a WKWebView was being torn down — unreliable on iOS/macOS
+///    (#360): pending JS handler callbacks / autorelease pools keep
+///    the data store referenced past the Flutter platform-view
+///    dispose, the remove silently no-ops, and the next bind reads
+///    the same store back.
+///  - This iteration routes container mode through the fork's
+///    `clearContainerData` (privacy-v2 cut), which maps to
+///    `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)` on
+///    Apple — explicitly safe while a WKWebView is still bound. The
+///    container stays in place; only its data is wiped. No orphan
+///    accumulation, no rev bookkeeping.
 class SiteDataClearPlan {
-  /// Null the Dart-side controller / cached widget on the model before
-  /// the wipe. Required but not sufficient for container mode: a Dart
-  /// null-out alone leaves the native platform-view alive and bound to
-  /// the container, so the wipe still no-ops — see
-  /// [dropFromLoadedIndices] for the rest of the dance.
+  /// Container mode: call
+  /// [ContainerIsolationEngine.clearForSite] to wipe the live
+  /// container's data in place. Legacy mode: false (no per-site
+  /// native partition exists).
+  final bool clearContainer;
+
+  /// Null the cached webview widget on the model so the next
+  /// IndexedStack rebuild constructs a fresh InAppWebView. Container
+  /// mode uses this for UX (the user expects to see a fresh page
+  /// load) and to drop in-memory state that `clearContainerData`
+  /// doesn't reach on Android (per-WebView HTTP cache). Legacy mode
+  /// reloads the existing controller instead.
   final bool disposeWebView;
 
-  /// Drop the index from `_loadedIndices` so the IndexedStack rebuild
-  /// renders `SizedBox.shrink()` for it, unmounts the InAppWebView
-  /// element, and tears down the native platform-view (WKWebView /
-  /// AndroidView / WebKitWebView). Executor MUST wrap the drop in
-  /// setState + `await WidgetsBinding.instance.endOfFrame` before the
-  /// wipe — without the rebuild yield, `deleteContainer` races the
-  /// still-bound webview and silently no-ops (see container_native.dart
-  /// line 71-74). Executor MUST also re-add the index after the wipe
-  /// so the lazy creation path binds a fresh widget to the now-empty
-  /// container; otherwise the active tab stays blank until the user
-  /// navigates away and back.
-  final bool dropFromLoadedIndices;
-
-  /// Wipe the per-site native container — drops cookies, localStorage,
-  /// IndexedDB, ServiceWorker registrations, HTTP cache. The container
-  /// is materialized empty on the next webview bind.
-  final bool wipeContainer;
-
-  /// Reset the in-model `cookies` snapshot to empty. In container mode
-  /// the snapshot is otherwise unused for read-back, but legacy
-  /// isolation reads it during capture-nuke-restore — clearing it here
-  /// would corrupt that path.
+  /// Reset the in-model cookie snapshot. Container mode does this so
+  /// the persisted JSON doesn't carry stale entries until the new
+  /// webview's `onLoadStop` overwrites them; legacy mode MUST NOT do
+  /// this because [CookieIsolationEngine.preDeleteCookieCleanup] reads
+  /// the snapshot.
   final bool clearInModelCookies;
 
   /// Iterate `WebViewModel.cookies` and call `deleteCookie` for each
@@ -51,15 +53,15 @@ class SiteDataClearPlan {
   /// only scoped action available when there is no per-site partition.
   final bool deleteKnownCookies;
 
-  /// User-driven reload after the clear. Container mode skips this:
-  /// `disposeWebView` + setState forces the widget tree to recreate the
-  /// webview, which loads from scratch against the new container.
+  /// User-driven reload after the clear. Legacy mode reloads on the
+  /// same controller; container mode skips because the dispose +
+  /// IndexedStack rebuild constructs a fresh widget that loads
+  /// against the freshly-emptied container.
   final bool userDrivenReload;
 
   const SiteDataClearPlan({
+    required this.clearContainer,
     required this.disposeWebView,
-    required this.dropFromLoadedIndices,
-    required this.wipeContainer,
     required this.clearInModelCookies,
     required this.deleteKnownCookies,
     required this.userDrivenReload,
@@ -68,18 +70,16 @@ class SiteDataClearPlan {
   @override
   bool operator ==(Object other) =>
       other is SiteDataClearPlan &&
+      other.clearContainer == clearContainer &&
       other.disposeWebView == disposeWebView &&
-      other.dropFromLoadedIndices == dropFromLoadedIndices &&
-      other.wipeContainer == wipeContainer &&
       other.clearInModelCookies == clearInModelCookies &&
       other.deleteKnownCookies == deleteKnownCookies &&
       other.userDrivenReload == userDrivenReload;
 
   @override
   int get hashCode => Object.hash(
+        clearContainer,
         disposeWebView,
-        dropFromLoadedIndices,
-        wipeContainer,
         clearInModelCookies,
         deleteKnownCookies,
         userDrivenReload,
@@ -87,9 +87,8 @@ class SiteDataClearPlan {
 
   @override
   String toString() =>
-      'SiteDataClearPlan(disposeWebView=$disposeWebView, '
-      'dropFromLoadedIndices=$dropFromLoadedIndices, '
-      'wipeContainer=$wipeContainer, '
+      'SiteDataClearPlan(clearContainer=$clearContainer, '
+      'disposeWebView=$disposeWebView, '
       'clearInModelCookies=$clearInModelCookies, '
       'deleteKnownCookies=$deleteKnownCookies, '
       'userDrivenReload=$userDrivenReload)';
@@ -101,25 +100,25 @@ class SiteDataClearEngine {
   /// Plan the per-site clear for the active isolation engine.
   ///
   /// Container mode (Android System WebView 110+ / iOS 17+ / macOS 14+ /
-  /// Linux WPE 2.40+) takes the full dispose + wipe + recreate path so
-  /// every byte of partitioned state is dropped. Legacy mode falls back
-  /// to in-model cookie deletion + reload because there is no per-site
-  /// partition to recreate and localStorage / IDB / SW are app-global.
+  /// Linux WPE 2.40+) routes through the fork's `clearContainerData`
+  /// — drops cookies, localStorage, IndexedDB, ServiceWorkers, and
+  /// HTTP cache for the named container in place, safe while a
+  /// WKWebView is still bound. Legacy mode falls back to in-model
+  /// cookie deletion + reload because there is no per-site partition
+  /// to recreate and localStorage / IDB / SW are app-global.
   static SiteDataClearPlan planClear({required bool useContainers}) {
     if (useContainers) {
       return const SiteDataClearPlan(
+        clearContainer: true,
         disposeWebView: true,
-        dropFromLoadedIndices: true,
-        wipeContainer: true,
         clearInModelCookies: true,
         deleteKnownCookies: false,
         userDrivenReload: false,
       );
     }
     return const SiteDataClearPlan(
+      clearContainer: false,
       disposeWebView: false,
-      dropFromLoadedIndices: false,
-      wipeContainer: false,
       clearInModelCookies: false,
       deleteKnownCookies: true,
       userDrivenReload: true,

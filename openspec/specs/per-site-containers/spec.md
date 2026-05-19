@@ -116,9 +116,10 @@ Each site gets a named profile. Lifecycle:
 
 | Event | Action |
 |---|---|
-| App startup, after restoring sites | Cache `ContainerNative.isSupported()` once. Sweep profiles whose owning site no longer exists (`ContainerIsolationEngine.garbageCollectOrphans`). |
+| App startup, after restoring sites | Cache `ContainerNative.isSupported()` once. Sweep profiles whose owning site no longer exists (`ContainerIsolationEngine.garbageCollectOrphans`), then drop every incognito site's container outright with `onSiteDeleted` (pre-bind, `deleteContainer` is reliable here). |
 | Site activated | `ContainerIsolationEngine.ensureContainer(siteId)` (idempotent). |
 | WebView created (`onWebViewCreated`) | `ContainerNative.bindContainerToWebView(siteId)` — native side walks the activity view tree and calls `WebViewCompat.setProfile` on every flutter_inappwebview WebView for that siteId. |
+| User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. |
 | Site deleted | `ContainerIsolationEngine.onSiteDeleted(siteId)` after `disposeWebView`. |
 | Profile API not supported (iOS, macOS, legacy Android) | `_useContainers` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
 
@@ -184,7 +185,26 @@ check resolved at app startup.
 ### Requirement: CONT-002 — Profile Lifecycle
 
 Each `siteId` SHALL map 1:1 to a native profile named `ws-<siteId>`.
-The profile is created on demand and deleted when the site is deleted.
+The profile is created on demand at first bind. "Clear Site Data"
+wipes the profile's contents in place via the fork's
+`clearContainerData` (Apple:
+`WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`); the profile
+itself is preserved so the live WKWebView remains functional. Site
+deletion drops the profile outright through `deleteContainer`.
+
+The split between the two primitives is deliberate. Apple's
+`WKWebsiteDataStore.remove(forIdentifier:)` (what `deleteContainer`
+calls into) silently no-ops while the data store is still referenced
+by a live WKWebView — pending JS handler callbacks /
+navigation completions / autorelease pools keep it retained past
+Flutter's platform-view dispose, so the remove never actually fires.
+A prior iteration of this app relied on that path for "Clear Site
+Data" and shipped broken (#360). The privacy-v2 cut of the fork
+added `clearContainerData`, mapping to
+`WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`, which IS
+designed to work on a live-bound store. Both primitives now have
+their proper home: clear the data of a live container; delete a
+container that nothing references.
 
 #### Scenario: Profile created on first activation
 
@@ -206,16 +226,36 @@ The profile is created on demand and deleted when the site is deleted.
   read/write, `localStorage`, `IndexedDB`, ServiceWorker, HTTP cache)
   is partitioned to that profile's directory
 
+#### Scenario: Clear Site Data wipes the live container in place
+
+**Given** site A is loaded with a non-empty session in profile
+  `ws-<siteA.siteId>` (cookies, localStorage, IndexedDB,
+  ServiceWorker registrations, HTTP cache)
+**When** the user taps "Clear Site Data" on site A
+**Then** `ContainerIsolationEngine.clearForSite("<siteA.siteId>")` is
+  called, routing into the fork's `clearContainerData`
+**And** the platform-appropriate clear primitive runs against the
+  live data store — `WKWebsiteDataStore.removeData(ofTypes:
+  modifiedSince:)` on Apple, `Profile.getCookieManager`/`getWebStorage`/
+  `getGeolocationPermissions` on Android, `webkit_website_data_manager
+  _clear` on Linux
+**And** the profile `ws-<siteA.siteId>` STILL EXISTS afterwards but
+  with empty contents
+**And** the cached `WebViewModel.webview` is nulled so the next
+  `IndexedStack` rebuild constructs a fresh `InAppWebView` bound to
+  the now-empty profile
+
 #### Scenario: Profile deleted on site deletion
 
 **Given** site A exists with profile `ws-<siteA.siteId>`
 **When** the user deletes site A
 **Then** `ContainerIsolationEngine.onSiteDeleted` is called
-**And** `ProfileStore.deleteContainer("ws-<siteA.siteId>")` removes the
-  profile and all of its on-disk data
+**And** `ContainerNative.deleteContainer("<siteA.siteId>")` removes
+  the profile and all of its on-disk data (the live WebView for A has
+  already been disposed, so the in-use no-op trap doesn't apply)
 **And** the legacy `CookieIsolationEngine.preDeleteCookieCleanup` is
-  NOT called (would be a no-op since cookies live in the profile, but
-  skipping it makes the deletion path cleaner)
+  NOT called (cookies live in the profile, so it would be a no-op
+  anyway)
 
 ### Requirement: CONT-003 — Same-Base-Domain Sites Coexist
 

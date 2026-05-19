@@ -70,10 +70,19 @@ class MockContainerNative implements ContainerNative {
   }
 
   @override
-  Future<void> deleteContainer(String siteId) async {
+  Future<bool> deleteContainer(String siteId) async {
     calls.add('deleteContainer($siteId)');
-    containers.remove(siteId);
+    final existed = containers.remove(siteId) != null;
     cookiesByContainer.remove('ws-$siteId');
+    return existed;
+  }
+
+  @override
+  Future<bool> clearContainerData(String siteId) async {
+    calls.add('clearContainerData($siteId)');
+    if (!containers.containsKey(siteId)) return false;
+    cookiesByContainer['ws-$siteId'] = {};
+    return true;
   }
 
   @override

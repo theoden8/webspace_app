@@ -1,47 +1,50 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
 
-/// Regression coverage for the 0.2.3 "Clear Site Data" bug: the executor
-/// in `_WebSpacePageState` used to call `deleteCookies` + `reload()`
-/// regardless of isolation engine. In container mode that left
-/// localStorage / IndexedDB / ServiceWorker / HTTP cache intact in the
-/// per-site container and only dropped the cookies the in-model
-/// snapshot already knew about. The plan asserted below pins the
-/// dispose + wipe + recreate dance that the container path now takes.
+/// Regression coverage for the chain of "Clear Site Data" bugs:
 ///
-/// If this test ever flips back to the legacy plan under
-/// `useContainers: true`, the per-site "Clear Site Data" button is
-/// silently broken for every user on a container-capable platform
-/// (Android System WebView 110+ / iOS 17+ / macOS 14+ / Linux WPE 2.40+).
+///  - 0.2.3: cookie-iterate + reload regardless of mode; container
+///    mode left localStorage / IDB / SW / cache resident.
+///  - #352: route container mode through the fork's `deleteContainer`.
+///    Silently no-oped on iOS/macOS while a pending JS callback
+///    retained the WKWebView past Flutter dispose (#360).
+///  - privacy-v2 fork cut: introduced `clearContainerData` mapping to
+///    `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)` — the
+///    primitive Apple actually supports while a store is bound. This
+///    plan now routes through that and disposes the cached widget so
+///    the next rebuild paints a fresh page.
 void main() {
   group('SiteDataClearEngine.planClear', () {
-    test('container mode wipes the container and forces recreation', () {
+    test('container mode clears in place and forces widget recreation', () {
       final plan = SiteDataClearEngine.planClear(useContainers: true);
 
+      expect(plan.clearContainer, isTrue,
+          reason: 'fork\'s clearContainerData wipes cookies / DOM '
+              'storage / IDB / SW / HTTP cache for the named container '
+              'while the WKWebView stays bound');
       expect(plan.disposeWebView, isTrue,
-          reason: 'container is in-use until the webview is gone; '
-              'deleteContainer no-ops on an in-use container');
-      expect(plan.dropFromLoadedIndices, isTrue,
-          reason: 'IndexedStack must rebuild against the fresh container');
-      expect(plan.wipeContainer, isTrue,
-          reason: 'only wipeContainers drops localStorage / IDB / SW / cache');
+          reason: 'next IndexedStack rebuild must construct a fresh '
+              'InAppWebView so the user sees a clean page AND Android\'s '
+              'per-WebView HTTP cache (not reached by clearContainerData) '
+              'gets dropped along with the old widget');
       expect(plan.clearInModelCookies, isTrue,
-          reason: 'in-model snapshot must not resurrect cookies on next save');
+          reason: 'in-model snapshot would otherwise carry stale entries '
+              'into the persisted JSON until the new webview repopulates it');
       expect(plan.deleteKnownCookies, isFalse,
-          reason: 'pre-wipe deleteCookie pass is redundant and races the '
-              'wipe; the bug it replaced left non-snapshot cookies behind');
+          reason: 'clearContainerData already drops every cookie in the '
+              'container; legacy path uses this against the shared jar');
       expect(plan.userDrivenReload, isFalse,
-          reason: 'reload on the SAME disposed controller is a no-op; '
-              'lazy recreation from setState is what loads the page');
+          reason: 'dispose + rebuild constructs a fresh InAppWebView with '
+              'a new UniqueKey, which loads the page from scratch');
     });
 
     test('legacy mode keeps cookie-iteration + reload', () {
       final plan = SiteDataClearEngine.planClear(useContainers: false);
 
-      expect(plan.disposeWebView, isFalse);
-      expect(plan.dropFromLoadedIndices, isFalse);
-      expect(plan.wipeContainer, isFalse,
+      expect(plan.clearContainer, isFalse,
           reason: 'no per-site container exists in legacy mode');
+      expect(plan.disposeWebView, isFalse,
+          reason: 'controller is still alive; reload() picks up the delete');
       expect(plan.clearInModelCookies, isFalse,
           reason: 'capture-nuke-restore in CookieIsolationEngine reads '
               'this snapshot; nulling it here would corrupt that flow');
