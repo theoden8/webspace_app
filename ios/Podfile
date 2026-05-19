@@ -133,6 +133,17 @@ post_install do |installer|
         needed = '-Wl,-needed_framework,webspace_adblock'
         ldflags << needed unless ldflags.include?(needed)
         config.build_settings['OTHER_LDFLAGS'] = ldflags
+        # Same dSYM-format pin as on the pod targets — archive
+        # validation runs against Runner's own setting, so until we
+        # set it here too Xcode still expects a dSYM for every linked
+        # framework (including objective_c.framework, which ships
+        # without one) and the archive refuses to distribute with
+        # "The archive did not include a dSYM for the
+        # objective_c.framework ...". Debug info now lives inline in
+        # Runner's binary; no separate Runner.app.dSYM is emitted.
+        # Crash reports symbolicate against Runner approximately;
+        # Dart stacks use the embedded VM symbol map regardless.
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
       end
     end
     aggregate.user_project.save
