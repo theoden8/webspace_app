@@ -72,4 +72,31 @@ post_install do |installer|
       phase.always_out_of_date = '1'
     end
   end
+
+  # See ios/Podfile — migration cleanup of stale [webspace] build
+  # phases and OTHER_LDFLAGS entries from the pre-podspec architecture.
+  installer.aggregate_targets.each do |aggregate|
+    next unless aggregate.name.start_with?('Pods-Runner')
+    aggregate.user_project.targets.each do |runner_target|
+      next unless runner_target.name == 'Runner'
+      runner_target.build_phases.delete_if do |p|
+        p.respond_to?(:name) && p.name && (
+          p.name == '[webspace] Build adblock-rust static lib' ||
+          p.name == '[webspace] Verify adblock-rust symbols linked'
+        )
+      end
+      runner_target.build_configurations.each do |config|
+        ldflags = config.build_settings['OTHER_LDFLAGS']
+        next unless ldflags.is_a?(Array)
+        cleaned = ldflags.each_with_index.reject { |f, i|
+          f.include?('libwebspace_adblock') ||
+            f.include?('_ws_engine_new') ||
+            (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
+            (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
+        }.map(&:first)
+        config.build_settings['OTHER_LDFLAGS'] = cleaned if cleaned != ldflags
+      end
+    end
+    aggregate.user_project.save
+  end
 end
