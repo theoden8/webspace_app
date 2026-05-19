@@ -81,9 +81,19 @@ case "${1:-}" in
     # XCFramework wrapper because Xcode's xcframework processing
     # doesn't play nicely with -force_load (path-to-slice isn't a
     # stable Xcode variable).
+    # LTO off for Apple targets: `lto = true` in Cargo.toml makes rustc
+    # emit LLVM bitcode .o files (deferred to ld for the final codegen).
+    # If the Rust toolchain's LLVM is newer than Xcode's, ld/nm reject
+    # the bitcode with "Unknown attribute kind (NNN)" — the .a links as
+    # if empty, no ws_* symbols survive into Runner, ContentBlocker
+    # silently falls back to the Dart parser. Native-code emission via
+    # lto=false sidesteps the LLVM version skew at the cost of cross-
+    # crate inlining, which is fine for a one-FFI-call-per-request hot
+    # path. Other platforms keep full LTO.
     for target in aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios; do
       rustup target add "$target" 2>/dev/null || true
-      cargo build --release --locked --target "$target"
+      CARGO_PROFILE_RELEASE_LTO=false \
+        cargo build --release --locked --target "$target"
     done
     out_dir="$REPO_ROOT/ios/Frameworks"
     mkdir -p "$out_dir"
@@ -106,7 +116,8 @@ case "${1:-}" in
     # covering both arm64 and x86_64 hosts is enough.
     for target in aarch64-apple-darwin x86_64-apple-darwin; do
       rustup target add "$target" 2>/dev/null || true
-      cargo build --release --locked --target "$target"
+      CARGO_PROFILE_RELEASE_LTO=false \
+        cargo build --release --locked --target "$target"
     done
     out_dir="$REPO_ROOT/macos/Frameworks"
     mkdir -p "$out_dir"
