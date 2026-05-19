@@ -61,5 +61,15 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+
+    # See ios/Podfile — mark the webspace_adblock script phase
+    # always-out-of-date so xcodebuild invokes scripts/build_rust.sh
+    # apple on EVERY build.
+    next unless target.name == 'webspace_adblock'
+    target.build_phases.each do |phase|
+      next unless phase.respond_to?(:name) && phase.name &&
+                  phase.name.include?('Build adblock-rust artifacts')
+      phase.always_out_of_date = '1'
+    end
   end
 end

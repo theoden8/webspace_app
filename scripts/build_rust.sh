@@ -98,8 +98,17 @@ case "${1:-}" in
       aarch64-apple-darwin
       x86_64-apple-darwin
     )
+    # rustup target add failures used to be swallowed with `2>/dev/null
+    # || true`, which surfaced later as "can't find crate for `core`"
+    # from cargo — a much worse error. Be loud at the install step.
+    installed=$(rustup target list --installed 2>/dev/null || true)
     for target in "${apple_targets[@]}"; do
-      rustup target add "$target" 2>/dev/null || true
+      if ! echo "$installed" | grep -qx "$target"; then
+        echo "[build_rust.sh apple] installing rust target: $target"
+        rustup target add "$target"
+      fi
+    done
+    for target in "${apple_targets[@]}"; do
       CARGO_PROFILE_RELEASE_LTO=false \
         cargo build --release --locked --target "$target"
     done

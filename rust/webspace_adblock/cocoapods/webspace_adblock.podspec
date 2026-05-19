@@ -40,4 +40,24 @@ Pod::Spec.new do |s|
     # libc++ pull-in via transitive deps.
     'CLANG_CXX_LIBRARY'            => 'libc++',
   }
+
+  # Regenerate the rust artifacts on every xcodebuild — every
+  # `fvm flutter build` invokes this. The Podfile post_install in
+  # ios/Podfile + macos/Podfile sets alwaysOutOfDate=1 on the
+  # generated build phase so Xcode doesn't skip it based on
+  # input/output mtime tracking. cargo's own incremental compile
+  # keeps the steady-state cost near zero when nothing changed; the
+  # invariant we're preserving is that the FFI surface in the linked
+  # framework matches src/lib.rs at the moment of build.
+  s.script_phases = [
+    {
+      :name => '[webspace] Build adblock-rust artifacts',
+      :execution_position => :before_compile,
+      :script => <<~BASH,
+        set -e
+        cd "${PODS_TARGET_SRCROOT}/../../.."
+        bash scripts/build_rust.sh apple
+      BASH
+    },
+  ]
 end
