@@ -733,13 +733,12 @@ jobs:
       # and the verify build phase into Runner.xcodeproj. Those edits are not
       # committed — they live only in the pbxproj after `pod install` runs.
       # Flutter's build step skips pod install when Manifest.lock matches
-      # Podfile.lock, which is always the case under our cached Pods/. Force
-      # pod install here so the hook fires every run, against the fresh
-      # checkout's pbxproj.
-      - name: Pod install (apply Podfile post_install hook)
+      # Podfile.lock, which is always the case under our cached Pods/. Delete
+      # the cached Manifest.lock so Flutter forces a fresh pod install with
+      # the full FLUTTER_ROOT / Generated.xcconfig env it sets up internally.
+      - name: Invalidate Pods/Manifest.lock so flutter re-runs pod install
         run: |
-          (cd ios && pod install)
-          (cd macos && pod install)
+          rm -f ios/Pods/Manifest.lock macos/Pods/Manifest.lock
 
       - name: Build IPA
         run: fvm flutter build ipa --release --no-codesign
