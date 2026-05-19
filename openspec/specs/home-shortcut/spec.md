@@ -138,6 +138,13 @@ Only available on iOS 16+. On older iOS the intent type is compiled but never re
 **When** the user opens the Shortcuts app and adds the "Open Site" action from WebSpace
 **Then** the action shows a "Site" parameter whose picker lists every site currently in WebSpace by name
 
+#### Scenario: Every site appears as a discoverable App Shortcut
+
+**Given** the user has multiple sites in WebSpace on iOS 16 or later
+**When** the user opens the Shortcuts app and views the WebSpace section
+**Then** every site materializes as its own "Open <site name> in WebSpace" entry (subject to the iOS-imposed App Shortcuts cap)
+**And** the entries are not collapsed to a single placeholder (e.g. "Open %@ in WebSpace") regardless of how many sites are synced
+
 #### Scenario: Shortcut launches WebSpace to the chosen site
 
 **Given** the user has added a Shortcut wired to `OpenSiteIntent` with a specific site selected
@@ -297,7 +304,7 @@ Methods:
 
 `ios/Runner/WebSpaceAppIntents.swift` defines (all `@available(iOS 16, *)`):
 
-- `SiteEntity: AppEntity` — one synced site with `id: String` (siteId) and `name: String`.
+- `SiteEntity: AppEntity` — one synced site with `id: String` (siteId) and `name: String`. `displayRepresentation` MUST use `DisplayRepresentation(stringLiteral: name)`, not `DisplayRepresentation(title: "\(name)")`: the latter is parsed as a `LocalizedStringResource` template whose `%@` placeholder is never resolved at materialization time, so iOS dedupes the materialized parameterized App Shortcuts (one per entity) down to a single visible entry in Shortcuts.app.
 - `SiteEntityQuery: EntityQuery` — reads the synced site list from App Group UserDefaults under `shortcut_sites` so Shortcuts.app's parameter picker shows real WebSpace sites.
 - `OpenSiteIntent: AppIntent, OpenIntent` — parameterized on `SiteEntity`. `openAppWhenRun = true` foregrounds WebSpace; `perform()` writes the chosen siteId to App Group UserDefaults under `pending_shortcut_site_id`.
 - `WebSpaceShortcuts: AppShortcutsProvider` — declares the discoverable "Open Site" App Shortcut with phrase template `"Open \(\.$target) in WebSpace"`.
