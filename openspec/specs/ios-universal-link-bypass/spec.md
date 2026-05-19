@@ -30,7 +30,9 @@ Universal Link routing happens **after** `decidePolicyForNavigationAction:decisi
 
 ## Solution
 
-Generic prophylactic bypass: on iOS, treat **every gesture-rooted main-frame http(s) navigation** as at-risk. Cancel the navigation, then reissue the same URL via `controller.loadUrl`. WebKit treats programmatic loads as navigation type `.other` and **does not match them against AASA**, so the URL renders inside the webview regardless of which apps are installed.
+Generic prophylactic bypass: on iOS, treat **every main-frame http(s) navigation whose `navigationType` is `.linkActivated` (user tap on a link)** as at-risk. Cancel the navigation, then reissue the same URL via `controller.loadUrl`. WebKit treats programmatic loads as navigation type `.other` and **does not match them against AASA**, so the URL renders inside the webview regardless of which apps are installed.
+
+`.formSubmitted` is intentionally excluded. `loadUrl` is a GET, so reissuing a form submit would drop the POST body and break every credentialed form (logins, search, payments) — LinkedIn's `/checkpoint/lg/login-submit` 404ing under the broader filter was the prompt to narrow the scope. AASA matches on POST endpoints are vanishingly rare in practice; apps publish AASA for content URLs, not form handlers.
 
 Pure programmatic navigations (initial nav from `initialUrlRequest`, server redirects without a tap origin, pushState SPA navs) carry no user gesture and don't activate AASA in the first place. Those are passed through without interception, so the bypass adds no overhead to the common case.
 
@@ -50,9 +52,9 @@ This is consistent with WebSpace's overall posture (webview-first, opt-in extern
 
 ## Requirements
 
-### Requirement: IOS-UL-001 - Cancel-and-Reissue Gesture-Rooted Navigations
+### Requirement: IOS-UL-001 - Cancel-and-Reissue Tap-Rooted Navigations
 
-The system SHALL cancel main-frame http(s) navigations whose `WKNavigationAction.navigationType` is `.linkActivated` or `.formSubmitted` and reissue the same URL via `controller.loadUrl` with the original headers preserved.
+The system SHALL cancel main-frame http(s) navigations whose `WKNavigationAction.navigationType` is `.linkActivated` and reissue the same URL via `controller.loadUrl` with the original headers preserved.
 
 #### Scenario: User taps a link to a URL that matches an installed app's AASA
 
@@ -64,18 +66,21 @@ The system SHALL cancel main-frame http(s) navigations whose `WKNavigationAction
 **And** the page renders inside the webview
 **And** the native app does NOT open
 
-#### Scenario: Server redirect after form POST inherits the gesture
+#### Scenario: Form POST is passed through unchanged
 
-**Given** the user submits a form that 302-redirects to a UL-matching URL
-**When** WebKit reports the redirect navigation with `navigationType == .formSubmitted`
-**Then** the redirect URL is also cancelled and reissued
-**And** the page renders inside the webview
+**Given** the user submits a credentialed form (login, search, payment) via POST
+**When** WKWebView fires `decidePolicyForNavigationAction` with `navigationType == .formSubmitted`
+**Then** the bypass does NOT fire
+**And** the navigation is allowed through with the POST body intact
+**And** the server receives the POST and responds normally (e.g. LinkedIn's `/checkpoint/lg/login-submit` accepts the credentials instead of 404ing a GET)
+
+Rationale: `loadUrl` is a GET. Reissuing a `.formSubmitted` action would drop the POST body and break every credentialed form on the web. Form POSTs to AASA-matching endpoints are exceedingly rare in practice — apps publish AASA for content URLs (profile pages, map locations), not POST handlers — so passing them through trades a rare false-negative for a critical false-positive that broke logins on major sites.
 
 ---
 
 ### Requirement: IOS-UL-002 - Pass Through Programmatic Navigations
 
-The system SHALL NOT intercept navigations whose `navigationType` is `.other`, `.backForward`, `.reload`, or anything other than `.linkActivated` / `.formSubmitted`.
+The system SHALL NOT intercept navigations whose `navigationType` is anything other than `.linkActivated` (including `.formSubmitted`, `.other`, `.backForward`, `.reload`).
 
 #### Scenario: Initial site load
 
@@ -131,14 +136,6 @@ The system SHALL forward the original `URLRequest.headers` (e.g. per-site `Accep
 **And** the original navigation carried `Accept-Language: de` in its headers
 **When** the bypass reissues the URL via `loadUrl`
 **Then** the reissued request also carries `Accept-Language: de`
-
-#### Scenario: POST body is dropped (acknowledged limitation)
-
-**Given** a form POST navigation to a UL-matching URL
-**When** the bypass cancels and reissues
-**Then** the URL is reissued as a GET request
-**And** the POST body is lost
-**And** This is acknowledged as a rare-and-acceptable edge case — the prior behavior (iOS short-circuiting to the native app) lost the body anyway.
 
 ---
 
@@ -212,7 +209,7 @@ The class is the entire URL-matching surface: no domain or path filter. The webv
 if (Platform.isIOS &&
     isMainFrame &&
     url.startsWith('http') &&
-    _hasUserGesture(navigationAction)) {
+    navigationAction.navigationType == inapp.NavigationType.LINK_ACTIVATED) {
   if (iosUlBypass.shouldCancelAndReissue(url)) {
     final originalUrl = navigationAction.request.url;
     final originalHeaders = navigationAction.request.headers;
@@ -227,7 +224,7 @@ if (Platform.isIOS &&
 return inapp.NavigationActionPolicy.ALLOW;
 ```
 
-`_hasUserGesture(navigationAction)` already returns true exactly for `LINK_ACTIVATED` / `FORM_SUBMITTED` on iOS — the same set of types iOS routes via AASA. This is the single eligibility filter.
+`LINK_ACTIVATED` is the eligibility filter: iOS routes both `.linkActivated` and `.formSubmitted` through AASA, but reissuing `.formSubmitted` via `loadUrl` (a GET) would drop the POST body. The narrower filter accepts the rare false-negative (form POST whose response would have UL-matched) in exchange for not breaking every credentialed login form.
 
 ### Why the bypass runs after all other policy checks
 

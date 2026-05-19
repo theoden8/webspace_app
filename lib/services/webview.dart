@@ -2581,33 +2581,40 @@ class WebViewFactory {
         // native app for URLs whose host matches an installed app's
         // AASA — even when the user explicitly added the site to
         // WebSpace. iOS exposes no public API to detect AASA matches,
-        // so the bypass treats every gesture-rooted main-frame
-        // http(s) navigation as at-risk: cancel + reissue via
-        // `loadUrl`. WebKit treats programmatic loads as navigation
-        // type `.other` and skips AASA matching, keeping the page
-        // inside the webview regardless of which apps are installed.
-        // The reissued nav fires `shouldOverrideUrlLoading` again;
-        // the per-URL memo passes that second pass through.
+        // so the bypass treats every tap-rooted main-frame http(s)
+        // navigation as at-risk: cancel + reissue via `loadUrl`.
+        // WebKit treats programmatic loads as navigation type
+        // `.other` and skips AASA matching, keeping the page inside
+        // the webview regardless of which apps are installed. The
+        // reissued nav fires `shouldOverrideUrlLoading` again; the
+        // per-URL memo passes that second pass through.
+        //
+        // Scoped to LINK_ACTIVATED only — FORM_SUBMITTED is
+        // intentionally passed through. Reissuing a form submit via
+        // `loadUrl` would drop the POST body (loadUrl is GET), which
+        // breaks every credentialed form on the web (logins, search,
+        // payments). LinkedIn's `/checkpoint/lg/login-submit` was the
+        // canonical 404 case. Form POSTs to AASA-matching endpoints
+        // are exceedingly rare; apps publish AASA for content URLs
+        // (profile pages, map locations), not POST handlers.
         //
         // Pure programmatic navigations (initial nav, server
         // redirects without a tap origin, pushState) carry no user
         // gesture — they don't activate AASA in the first place and
         // are passed through here without interception.
         if (Platform.isIOS &&
-            isMainFrame &&
-            url.startsWith('http') &&
-            _hasUserGesture(navigationAction)) {
+            IosUniversalLinkBypass.isEligibleNavigation(
+              isMainFrame: isMainFrame,
+              url: url,
+              isLinkActivated: navigationAction.navigationType ==
+                  inapp.NavigationType.LINK_ACTIVATED,
+            )) {
           if (iosUlBypass.shouldCancelAndReissue(url)) {
             LogService.instance.log(
               'WebView',
               '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url',
               sensitivity: LogSensitivity.sensitive,
             );
-            // Forward original headers so per-site Accept-Language
-            // survives the reissue. POST body is dropped — POSTs
-            // that match AASA are rare and the existing flow lost
-            // them anyway when iOS short-circuited to the native
-            // app.
             final originalUrl = navigationAction.request.url;
             final originalHeaders = navigationAction.request.headers;
             controller.loadUrl(urlRequest: inapp.URLRequest(
