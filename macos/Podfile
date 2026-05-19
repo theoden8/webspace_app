@@ -74,7 +74,9 @@ post_install do |installer|
   end
 
   # See ios/Podfile — migration cleanup of stale [webspace] build
-  # phases and OTHER_LDFLAGS entries from the pre-podspec architecture.
+  # phases / OTHER_LDFLAGS entries, plus injection of
+  # -Wl,-needed_framework,webspace_adblock so Apple ld keeps the
+  # framework in Runner's LC_LOAD_DYLIB.
   installer.aggregate_targets.each do |aggregate|
     next unless aggregate.name.start_with?('Pods-Runner')
     aggregate.user_project.targets.each do |runner_target|
@@ -87,14 +89,17 @@ post_install do |installer|
       end
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS']
-        next unless ldflags.is_a?(Array)
-        cleaned = ldflags.each_with_index.reject { |f, i|
+        ldflags = ['$(inherited)'] unless ldflags
+        ldflags = [ldflags] unless ldflags.is_a?(Array)
+        ldflags = ldflags.each_with_index.reject { |f, i|
           f.include?('libwebspace_adblock') ||
             f.include?('_ws_engine_new') ||
             (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
             (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
         }.map(&:first)
-        config.build_settings['OTHER_LDFLAGS'] = cleaned if cleaned != ldflags
+        needed = '-Wl,-needed_framework,webspace_adblock'
+        ldflags << needed unless ldflags.include?(needed)
+        config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
     end
     aggregate.user_project.save

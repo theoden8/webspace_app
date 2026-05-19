@@ -146,11 +146,17 @@ case "${1:-}" in
     mkdir -p "$pod_dir"
 
     # iOS simulator fat .a: arm64 (M-series host) + x86_64 (Intel host).
-    sim_fat="target/iphonesimulator-fat-libwebspace_adblock.a"
+    # IMPORTANT: each xcframework slice's static lib must share the same
+    # basename across slices, or CocoaPods refuses to install the
+    # xcframework ("static libraries with differing binary names").
+    # Stage the simulator fat in a dedicated dir under the same name
+    # the device slice already uses (libwebspace_adblock.a).
+    sim_fat_dir="target/iphonesimulator-fat"
+    mkdir -p "$sim_fat_dir"
     lipo -create \
       "target/aarch64-apple-ios-sim/release/libwebspace_adblock.a" \
       "target/x86_64-apple-ios/release/libwebspace_adblock.a" \
-      -output "$sim_fat"
+      -output "$sim_fat_dir/libwebspace_adblock.a"
 
     # iOS xcframework wrapping device + simulator slices. CocoaPods picks
     # the correct slice at link time via PLATFORM_NAME; we don't need to
@@ -158,7 +164,7 @@ case "${1:-}" in
     rm -rf "$pod_dir/WebspaceAdblock.xcframework"
     xcodebuild -create-xcframework \
       -library "target/aarch64-apple-ios/release/libwebspace_adblock.a" \
-      -library "$sim_fat" \
+      -library "$sim_fat_dir/libwebspace_adblock.a" \
       -output "$pod_dir/WebspaceAdblock.xcframework" >/dev/null
 
     # macOS fat .a (arm64 + x86_64).

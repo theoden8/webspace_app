@@ -76,14 +76,27 @@ post_install do |installer|
     end
   end
 
-  # Migration cleanup: the pre-podspec architecture installed
-  # `[webspace] Build adblock-rust static lib` and
-  # `[webspace] Verify adblock-rust symbols linked` build phases on
-  # the Runner target, plus -force_load / -Wl,-u entries in
-  # OTHER_LDFLAGS. With the rust lib now wrapped in a CocoaPod
-  # those phases reference deleted shell-script paths and break the
-  # build. CocoaPods can't auto-remove what an earlier post_install
-  # hook added, so strip them here. Idempotent — no-op once clean.
+  # Migration cleanup + needed_framework injection. Two reasons we
+  # touch Runner.xcodeproj's OTHER_LDFLAGS here:
+  #
+  # 1) Strip stale `[webspace] Build adblock-rust static lib` and
+  #    `Verify ...` build phases + their -force_load / -Wl,-u flags
+  #    left over from the pre-podspec architecture. CocoaPods can't
+  #    auto-remove what an earlier post_install added.
+  #
+  # 2) Append `-Wl,-needed_framework,webspace_adblock` so Apple ld
+  #    keeps webspace_adblock.framework in Runner's LC_LOAD_DYLIB
+  #    even though Runner's compiled (Swift/ObjC) code has zero
+  #    symbol references to it (Dart FFI dlsyms ws_* at runtime,
+  #    invisible to the linker). Without this, ld's default
+  #    dead_strip_dylibs drops the dependency and dyld never loads
+  #    the framework, leaving dlsym(RTLD_DEFAULT, "ws_engine_new")
+  #    returning null. CocoaPods' own user_target_xcconfig in the
+  #    podspec silently drops OTHER_LDFLAGS overrides for keys it
+  #    already manages, so we set it directly on the user project.
+  #
+  # Both operations are idempotent — no-op once the project is clean
+  # and the flag is present.
   installer.aggregate_targets.each do |aggregate|
     next unless aggregate.name.start_with?('Pods-Runner')
     aggregate.user_project.targets.each do |runner_target|
@@ -96,14 +109,17 @@ post_install do |installer|
       end
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS']
-        next unless ldflags.is_a?(Array)
-        cleaned = ldflags.each_with_index.reject { |f, i|
+        ldflags = ['$(inherited)'] unless ldflags
+        ldflags = [ldflags] unless ldflags.is_a?(Array)
+        ldflags = ldflags.each_with_index.reject { |f, i|
           f.include?('libwebspace_adblock') ||
             f.include?('_ws_engine_new') ||
             (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
             (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
         }.map(&:first)
-        config.build_settings['OTHER_LDFLAGS'] = cleaned if cleaned != ldflags
+        needed = '-Wl,-needed_framework,webspace_adblock'
+        ldflags << needed unless ldflags.include?(needed)
+        config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
     end
     aggregate.user_project.save
