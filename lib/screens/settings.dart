@@ -65,10 +65,10 @@ String generateRandomUserAgent() {
     'Android 16; Mobile', // Add an Android platform
   ];
 
-  String geckoVersion = '147.0';
+  String geckoVersion = '151.0';
   String geckoTrail = '20100101';
   String appName = 'Firefox';
-  String appVersion = '147.0';
+  String appVersion = '151.0';
 
   String platform = platforms[Random().nextInt(platforms.length)];
   return 'Mozilla/5.0 ($platform; rv:$geckoVersion) Gecko/$geckoTrail $appName/$appVersion';

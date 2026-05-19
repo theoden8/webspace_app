@@ -23,8 +23,8 @@ void main() {
       });
 
       test('Android Firefox UA → mobile=true', () {
-        const ua = 'Mozilla/5.0 (Android 16; Mobile; rv:147.0) '
-            'Gecko/20100101 Firefox/147.0';
+        const ua = 'Mozilla/5.0 (Android 16; Mobile; rv:151.0) '
+            'Gecko/20100101 Firefox/151.0';
         final m = buildUserAgentMetadata(ua);
         expect(m, isNotNull);
         expect(m!.mobile, isTrue);
@@ -85,7 +85,7 @@ void main() {
         // The actual brand entry must match the UA's Firefox version.
         final firefoxEntry =
             brands.firstWhere((b) => b.brand == 'Firefox');
-        expect(firefoxEntry.majorVersion, '147');
+        expect(firefoxEntry.majorVersion, '151');
       });
 
       test('Chrome UA → GREASE + Chromium + Google Chrome', () {
@@ -112,13 +112,13 @@ void main() {
 
       test('full version is padded to four segments', () {
         // `Sec-CH-UA-Full-Version-List` carries 4-segment versions.
-        // Firefox UAs only carry "147.0" — pad to "147.0.0.0" so we
+        // Firefox UAs only carry "151.0" — pad to "151.0.0.0" so we
         // don't ship a suspiciously short value.
         final m = buildUserAgentMetadata(firefoxLinuxDesktopUserAgent)!;
         final firefoxEntry =
             m.brandVersionList!.firstWhere((b) => b.brand == 'Firefox');
-        expect(firefoxEntry.fullVersion, '147.0.0.0');
-        expect(m.fullVersion, '147.0.0.0');
+        expect(firefoxEntry.fullVersion, '151.0.0.0');
+        expect(m.fullVersion, '151.0.0.0');
       });
     });
 
@@ -134,8 +134,8 @@ void main() {
       final firefoxBrand = brands.firstWhere(
         (b) => (b as Map)['brand'] == 'Firefox',
       ) as Map;
-      expect(firefoxBrand['majorVersion'], '147');
-      expect(firefoxBrand['fullVersion'], '147.0.0.0');
+      expect(firefoxBrand['majorVersion'], '151');
+      expect(firefoxBrand['fullVersion'], '151.0.0.0');
     });
 
     test('returned UserAgentMetadata is not const-equal across calls', () {

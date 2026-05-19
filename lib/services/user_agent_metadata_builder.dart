@@ -120,7 +120,7 @@ List<BrandVersion>? _brandVersionListFor(String ua) {
 
 /// `Sec-CH-UA-Full-Version-List` carries 4-segment versions
 /// (e.g. `137.0.6943.137`). UA strings often only carry the major (Firefox
-/// emits `147.0`, Chrome sometimes emits `137.0.0.0`); pad to four so we
+/// emits `151.0`, Chrome sometimes emits `137.0.0.0`); pad to four so we
 /// don't ship a suspiciously short value.
 String _padFullVersion(String version) {
   final parts = version.split('.');
