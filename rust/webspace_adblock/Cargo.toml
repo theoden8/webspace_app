@@ -46,6 +46,16 @@ adblock = { version = "0.12", default-features = false, features = [
   # rules silently become drop-the-request and #$# becomes a
   # no-op. Same observable behaviour as before the feature flag.
   "resource-assembler",
+  # Pulls in `cssparser` + `selectors` so the crate validates the CSS
+  # half of procedural rules at parse time instead of silently
+  # dropping them. Without this flag adblock-rust 0.12 fails to
+  # recognise `:has-text()`, `:upward()`, `:remove()`, `:style()` on
+  # class/id-anchored generic selectors — see
+  # https://github.com/brave/adblock-rust/issues/537 and the
+  # follow-up PR https://github.com/brave/adblock-rust/pull/609
+  # which proposes making this default-on for exactly that reason.
+  # Adds ~70 kB to the static lib for the parsers.
+  "css-validation",
 ] }
 serde_json = "1"
 
