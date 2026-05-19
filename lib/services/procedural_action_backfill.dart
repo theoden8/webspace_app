@@ -30,31 +30,71 @@
 
 const String kBackfillSyntheticHost = 'localhost';
 
-/// Regex matching the trailing procedural action pseudo on a cosmetic
-/// rule: `:remove()`, `:remove-attr(...)`, `:remove-class(...)`, or
-/// `:style(...)`. Anchored to end-of-line to avoid false hits where
-/// `:style(` appears as text inside something else.
+/// Trailing procedural action pseudos: `:remove()` /
+/// `:remove-attr(...)` / `:remove-class(...)` / `:style(...)`. When
+/// present, the rewriter just prepends the synthetic host and is done.
 final RegExp _actionPseudo = RegExp(
   r':(?:remove\(\)|remove-attr\([^)]*\)|remove-class\([^)]*\)|style\([^)]*\))\s*$',
 );
 
-/// Rewrite filter-list text so generic cosmetic rules that carry a
-/// procedural action gain a synthetic hostname prefix. Lines that
-/// already have a domain prefix, lines that are network/network-
-/// exception rules, comments, and lines without an action pseudo
-/// pass through unchanged.
+/// Procedural FILTER pseudos that produce default-hide rules in uBO
+/// syntax: `:has-text(...)`, `:contains(...)`, `:-abp-contains(...)`,
+/// `:-abp-has(...)`, `:upward(...)`. Standard CSS `:has(` is NOT
+/// included — the engine + browser handle that natively.
+///
+/// When one of these appears without an explicit action pseudo, the
+/// rule means "hide elements matching this selector chain"; the
+/// crate stores the rule as a hide selector with the procedural
+/// pseudo embedded in the selector string, but the early-CSS
+/// injection then can't match anything because the pseudo isn't real
+/// CSS. The rewriter converts these into procedural rules with an
+/// explicit `:style(display: none !important)` action so they ride
+/// the procedural shim runner instead.
+final RegExp _filterPseudo = RegExp(
+  r':(?:has-text|contains|-abp-contains|-abp-has|upward)\(',
+);
+
+/// adblock-rust's css-validation pass only accepts the canonical uBO
+/// pseudo names (`:has-text(`, native `:has(`). ABP-syntax aliases
+/// (`:-abp-contains(`, `:contains(`, `:-abp-has(`) are silently
+/// rejected as invalid CSS and the whole rule is dropped. Map them
+/// to the canonical forms before handing the rule to the parser.
+///
+/// Order matters: `:-abp-contains` must be checked BEFORE `:contains`
+/// so the longer prefix wins.
+String _normalizeAbpAliases(String line) {
+  return line
+      .replaceAll(':-abp-contains(', ':has-text(')
+      .replaceAll(':contains(', ':has-text(')
+      .replaceAll(':-abp-has(', ':has(');
+}
+
+const String _syntheticHideAction = ':style(display: none !important)';
+
+/// Rewrite filter-list text so generic cosmetic rules that carry
+/// procedural operators (action pseudo OR filter pseudo) gain a
+/// synthetic hostname prefix. Filter-pseudo-only rules additionally
+/// get a synthetic `:style(display:none !important)` action so they
+/// flow through the procedural shim runner.
 ///
 /// Idempotent on already-rewritten input.
 String rewriteGenericProceduralsForBackfill(String rulesText) {
   final out = StringBuffer();
   var rewriteCount = 0;
   for (final rawLine in rulesText.split('\n')) {
-    if (_shouldRewrite(rawLine)) {
-      out.write(kBackfillSyntheticHost);
-      out.write(rawLine);
-      rewriteCount++;
-    } else {
-      out.write(rawLine);
+    final classification = _classify(rawLine);
+    switch (classification) {
+      case _RewriteKind.none:
+        out.write(rawLine);
+      case _RewriteKind.action:
+        out.write(kBackfillSyntheticHost);
+        out.write(_normalizeAbpAliases(rawLine));
+        rewriteCount++;
+      case _RewriteKind.filterOnly:
+        out.write(kBackfillSyntheticHost);
+        out.write(_normalizeAbpAliases(rawLine));
+        out.write(_syntheticHideAction);
+        rewriteCount++;
     }
     out.write('\n');
   }
@@ -66,9 +106,11 @@ String rewriteGenericProceduralsForBackfill(String rulesText) {
       : (rulesText.endsWith('\n') ? result : result.substring(0, result.length - 1));
 }
 
-bool _shouldRewrite(String line) {
-  if (line.isEmpty) return false;
-  if (line.startsWith('!') || line.startsWith('[')) return false;
+enum _RewriteKind { none, action, filterOnly }
+
+_RewriteKind _classify(String line) {
+  if (line.isEmpty) return _RewriteKind.none;
+  if (line.startsWith('!') || line.startsWith('[')) return _RewriteKind.none;
   // Cosmetic marker: rule must start with `##` (generic hide) or
   // `#?#` (uBO procedural variant). Domain-scoped rules
   // (`example.com##...`) don't start with `#` so they fall through.
@@ -77,8 +119,10 @@ bool _shouldRewrite(String line) {
       : line.startsWith('#?#')
           ? 3
           : -1;
-  if (start < 0) return false;
+  if (start < 0) return _RewriteKind.none;
   // +js(...) scriptlet injection isn't a cosmetic rule — leave alone.
-  if (line.substring(start).trimLeft().startsWith('+js(')) return false;
-  return _actionPseudo.hasMatch(line);
+  if (line.substring(start).trimLeft().startsWith('+js(')) return _RewriteKind.none;
+  if (_actionPseudo.hasMatch(line)) return _RewriteKind.action;
+  if (_filterPseudo.hasMatch(line)) return _RewriteKind.filterOnly;
+  return _RewriteKind.none;
 }

@@ -127,3 +127,33 @@ fn domain_scoped_procedurals_still_work_unrewritten() {
     assert_eq!(proc.len(), 1, "expected one procedural for example.com");
     assert!(proc[0].contains(".dom-proc"), "got: {}", proc[0]);
 }
+
+/// Filter-pseudo rules WITHOUT an action (`##.foo:has-text(X)`) are
+/// default-hide in uBO syntax. The Dart rewriter wraps them with
+/// `:style(display: none !important)` so the crate stores them as a
+/// procedural style action; otherwise the crate stores the selector
+/// as a hide selector with the procedural pseudo embedded inside,
+/// which then can't be matched as plain CSS.
+#[test]
+fn filter_pseudo_with_synthetic_hide_action_routes_to_procedural() {
+    let synth = "localhost";
+    // The Dart-side rewriter normalizes :contains() / :-abp-contains()
+    // to :has-text() and :-abp-has() to native :has() before reaching
+    // adblock-rust, because the crate's css-validation rejects the
+    // ABP-syntax aliases. The test feeds the post-normalization form
+    // so it asserts what the engine actually sees.
+    let rules = [
+        (":has-text",      format!("{}##.fp_ht:has-text(SponsoredX):style(display: none !important)", synth)),
+        (":upward",        format!("{}##.fp_up:has-text(MARKER):upward(1):style(display: none !important)", synth)),
+    ];
+    for (label, rule) in &rules {
+        let eng = engine(rule);
+        let proc = procedurals(&eng, &format!("https://{}/", synth));
+        assert_eq!(proc.len(), 1,
+                   "{}: expected one procedural, got {:?}", label, proc);
+        assert!(proc[0].contains("\"action\":{\"type\":\"style\""),
+                "{}: expected style action in payload, got {}", label, proc[0]);
+        assert!(proc[0].contains("display: none"),
+                "{}: expected display:none in style arg, got {}", label, proc[0]);
+    }
+}

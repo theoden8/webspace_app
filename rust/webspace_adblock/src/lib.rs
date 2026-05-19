@@ -621,7 +621,11 @@ mod tests {
     use super::*;
 
     fn rules_to_engine(text: &str) -> *mut Engine {
-        ws_engine_new(text.as_ptr() as *const c_char, text.len())
+        rules_to_engine_with_resources(text, false)
+    }
+
+    fn rules_to_engine_with_resources(text: &str, enable_ubo_resources: bool) -> *mut Engine {
+        ws_engine_new(text.as_ptr() as *const c_char, text.len(), enable_ubo_resources)
     }
 
     fn check(engine: *mut Engine, url: &str, source: &str) -> i32 {
@@ -677,7 +681,8 @@ mod tests {
         // stays None and the rule silently degrades to "drop the
         // request" — exactly what we want to avoid for sites that
         // probe for the replacement library.
-        let engine_ptr = rules_to_engine("||tracker.example.com^$redirect=noopjs\n");
+        let engine_ptr = rules_to_engine_with_resources(
+            "||tracker.example.com^$redirect=noopjs\n", true);
         // We can't easily probe `BlockerResult.redirect` through the
         // existing FFI (which collapses to 0/1), so reach into the
         // engine directly. Internal-API test only.
