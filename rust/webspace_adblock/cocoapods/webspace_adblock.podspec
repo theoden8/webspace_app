@@ -41,6 +41,19 @@ Pod::Spec.new do |s|
     'CLANG_CXX_LIBRARY'            => 'libc++',
   }
 
+  # Force Runner to retain webspace_adblock as an LC_LOAD_DYLIB even
+  # though Runner's compiled (Swift/ObjC) code has zero symbol
+  # references to it. Dart FFI looks up ws_* via dlsym at runtime,
+  # invisible to the linker, so Apple ld's default `dead_strip_dylibs`
+  # would otherwise drop the framework dependency — the .framework
+  # would still be copied into the bundle but dyld would never load
+  # it, and dlsym(RTLD_DEFAULT, "ws_engine_new") would return null.
+  # `-needed_framework` pins the load command regardless of
+  # references.
+  s.user_target_xcconfig = {
+    'OTHER_LDFLAGS' => '$(inherited) -Wl,-needed_framework,webspace_adblock',
+  }
+
   # Regenerate the rust artifacts on every xcodebuild — every
   # `fvm flutter build` invokes this. The Podfile post_install in
   # ios/Podfile + macos/Podfile sets alwaysOutOfDate=1 on the
