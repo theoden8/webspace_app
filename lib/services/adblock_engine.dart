@@ -715,13 +715,13 @@ ffi.DynamicLibrary? _tryOpenLibrary() {
       }
     }
     if (Platform.isMacOS || Platform.isIOS) {
-      // Both Apple targets statically link the adblock-rust .a into
-      // the Runner binary via the Pod hook's -force_load LDFLAG
-      // (see ios/Podfile + macos/Podfile). Symbols are in the
-      // process image; DynamicLibrary.process() resolves them
-      // through dlsym(). DynamicLibrary.open(dylib) wouldn't work
-      // — the build doesn't produce a runtime dylib on these
-      // platforms, only the static archive baked into the app.
+      // Both Apple targets ship the rust .a inside a CocoaPods-built
+      // framework — webspace_adblock.framework — embedded in the
+      // Runner.app bundle (see rust/webspace_adblock/cocoapods/). Its
+      // symbols are loaded into the process at startup via the
+      // framework's dyld dependency, so DynamicLibrary.process() finds
+      // them through dlsym(RTLD_DEFAULT, ...). keep_alive.c in the pod
+      // takes their addresses at compile time to defeat dead_strip.
       return ffi.DynamicLibrary.process();
     }
   } catch (_) {

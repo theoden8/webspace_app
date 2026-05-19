@@ -7,8 +7,9 @@
 #   scripts/build_rust.sh android <abi>  # Android .so → android/app/src/main/jniLibs/<abi>/
 #                                          (abi ∈ arm64-v8a|armeabi-v7a|x86_64|x86)
 #   scripts/build_rust.sh android-all    # all four Android ABIs
-#   scripts/build_rust.sh ios            # iOS device + simulator XCFramework → ios/Frameworks/
-#   scripts/build_rust.sh macos          # universal dylib → macos/Frameworks/
+#   scripts/build_rust.sh apple          # iOS xcframework + macOS fat .a +
+#                                          keep_alive.c → rust/webspace_adblock/cocoapods/
+#                                          (consumed by the podspec there)
 #
 # Requires: rustc, cargo, cbindgen (for header). Android additionally
 # needs cargo-ndk + ANDROID_NDK_HOME set. iOS/macOS need an Apple host.
@@ -72,60 +73,101 @@ case "${1:-}" in
     done
     ;;
 
-  ios)
-    # Output static `.a` files stamped by Xcode's $(PLATFORM_NAME).
-    # The Pod hook uses `-force_load $(SRCROOT)/Frameworks/libwebspace_
-    # adblock-$(PLATFORM_NAME).a` so the linker keeps every FFI
-    # symbol in the .app binary (otherwise dead-stripped — Dart FFI
-    # has no compile-time references to surface them). Dropping the
-    # XCFramework wrapper because Xcode's xcframework processing
-    # doesn't play nicely with -force_load (path-to-slice isn't a
-    # stable Xcode variable).
+  apple)
+    # Build the rust .a for every Apple slice (iOS device, iOS sim arm64
+    # + x86_64, macOS arm64 + x86_64), assemble into an .xcframework for
+    # iOS and a single fat .a for macOS, drop both into the podspec dir,
+    # and regenerate keep_alive.c. The CocoaPods podspec at
+    # rust/webspace_adblock/cocoapods/ ships these as a vendored
+    # framework / library and compiles keep_alive.c into the Runner-
+    # depended pod. CocoaPods handles linking via standard pod machinery —
+    # no force_load, no -Wl,-u, no Runner.xcodeproj mutation.
+    #
     # LTO off for Apple targets: `lto = true` in Cargo.toml makes rustc
     # emit LLVM bitcode .o files (deferred to ld for the final codegen).
     # If the Rust toolchain's LLVM is newer than Xcode's, ld/nm reject
     # the bitcode with "Unknown attribute kind (NNN)" — the .a links as
-    # if empty, no ws_* symbols survive into Runner, ContentBlocker
-    # silently falls back to the Dart parser. Native-code emission via
-    # lto=false sidesteps the LLVM version skew at the cost of cross-
-    # crate inlining, which is fine for a one-FFI-call-per-request hot
-    # path. Other platforms keep full LTO.
-    for target in aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios; do
+    # if empty. Native-code emission via lto=false sidesteps the LLVM
+    # version skew at the cost of cross-crate inlining, which is fine
+    # for a one-FFI-call-per-request hot path. Other platforms keep
+    # full LTO.
+    apple_targets=(
+      aarch64-apple-ios
+      aarch64-apple-ios-sim
+      x86_64-apple-ios
+      aarch64-apple-darwin
+      x86_64-apple-darwin
+    )
+    for target in "${apple_targets[@]}"; do
       rustup target add "$target" 2>/dev/null || true
       CARGO_PROFILE_RELEASE_LTO=false \
         cargo build --release --locked --target "$target"
     done
-    out_dir="$REPO_ROOT/ios/Frameworks"
-    mkdir -p "$out_dir"
-    # Device: single arch arm64.
-    cp "target/aarch64-apple-ios/release/libwebspace_adblock.a" \
-      "$out_dir/libwebspace_adblock-iphoneos.a"
-    # Simulator: arm64 (M-series Mac) + x86_64 (Intel Mac) combined.
+
+    pod_dir="$REPO_ROOT/rust/webspace_adblock/cocoapods"
+    mkdir -p "$pod_dir"
+
+    # iOS simulator fat .a: arm64 (M-series host) + x86_64 (Intel host).
+    sim_fat="target/iphonesimulator-fat-libwebspace_adblock.a"
     lipo -create \
       "target/aarch64-apple-ios-sim/release/libwebspace_adblock.a" \
       "target/x86_64-apple-ios/release/libwebspace_adblock.a" \
-      -output "$out_dir/libwebspace_adblock-iphonesimulator.a"
-    echo "Built: ios/Frameworks/libwebspace_adblock-iphoneos.a"
-    echo "Built: ios/Frameworks/libwebspace_adblock-iphonesimulator.a"
-    ;;
+      -output "$sim_fat"
 
-  macos)
-    # Same pattern as iOS: universal static `.a`, force-loaded by
-    # the Pod hook so DynamicLibrary.process() can resolve symbols.
-    # macOS doesn't split device/simulator slices — one fat `.a`
-    # covering both arm64 and x86_64 hosts is enough.
-    for target in aarch64-apple-darwin x86_64-apple-darwin; do
-      rustup target add "$target" 2>/dev/null || true
-      CARGO_PROFILE_RELEASE_LTO=false \
-        cargo build --release --locked --target "$target"
-    done
-    out_dir="$REPO_ROOT/macos/Frameworks"
-    mkdir -p "$out_dir"
+    # iOS xcframework wrapping device + simulator slices. CocoaPods picks
+    # the correct slice at link time via PLATFORM_NAME; we don't need to
+    # bake the path into LDFLAGS like we did with bare -force_load.
+    rm -rf "$pod_dir/WebspaceAdblock.xcframework"
+    xcodebuild -create-xcframework \
+      -library "target/aarch64-apple-ios/release/libwebspace_adblock.a" \
+      -library "$sim_fat" \
+      -output "$pod_dir/WebspaceAdblock.xcframework" >/dev/null
+
+    # macOS fat .a (arm64 + x86_64).
     lipo -create \
       "target/aarch64-apple-darwin/release/libwebspace_adblock.a" \
       "target/x86_64-apple-darwin/release/libwebspace_adblock.a" \
-      -output "$out_dir/libwebspace_adblock.a"
-    echo "Built: macos/Frameworks/libwebspace_adblock.a"
+      -output "$pod_dir/libwebspace_adblock-macos.a"
+
+    # Generate keep_alive.c from the rust source's #[no_mangle] surface.
+    # The pod compiles this; its __attribute__((used)) array of FFI
+    # addresses forces ld to retain every ws_* symbol against dead_strip
+    # — without it dlsym from Dart FFI would find nothing because the
+    # linker can't see the runtime lookups.
+    syms=$(grep -hE 'pub extern "C" fn (ws_[a-z_]+)' "$CRATE_DIR/src/lib.rs" \
+      | sed -E 's/.*pub extern "C" fn (ws_[a-z_]+).*/\1/')
+    if [ -z "$syms" ]; then
+      echo "error: no ws_* FFI symbols found in src/lib.rs" >&2
+      exit 1
+    fi
+    {
+      echo '// SPDX-License-Identifier: MPL-2.0'
+      echo '// Auto-generated by scripts/build_rust.sh apple — do not edit.'
+      echo '//'
+      echo '// Defeats -dead_strip on rust FFI symbols by listing addresses'
+      echo '// of every ws_* function in a __used array. Dart FFI looks them'
+      echo "// up via dlsym at runtime, invisible to ld, so an explicit"
+      echo '// compile-time reference is the only way to keep them.'
+      echo ''
+      echo '// Each function is forward-declared as a generic int(void) —'
+      echo "// the real signatures live in rust/include/webspace_adblock.h."
+      echo '// We never call through these prototypes, only take addresses,'
+      echo "// so the wrong signatures don't matter."
+      for s in $syms; do
+        echo "extern int $s(void);"
+      done
+      echo ''
+      echo '__attribute__((used, visibility("default")))'
+      echo 'void *const ws_ffi_keep_alive[] = {'
+      for s in $syms; do
+        echo "    (void *)&$s,"
+      done
+      echo '};'
+    } > "$pod_dir/keep_alive.c"
+
+    echo "Built: rust/webspace_adblock/cocoapods/WebspaceAdblock.xcframework"
+    echo "Built: rust/webspace_adblock/cocoapods/libwebspace_adblock-macos.a"
+    echo "Built: rust/webspace_adblock/cocoapods/keep_alive.c ($(echo "$syms" | wc -l | tr -d ' ') ws_* symbols)"
     ;;
 
   header)

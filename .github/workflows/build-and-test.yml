@@ -712,16 +712,15 @@ jobs:
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
 
-      # Pre-build the Rust .a files OUTSIDE xcodebuild so CI doesn't
-      # depend on the inline Pod shell phase finding cargo on its
-      # constrained PATH. The Pod hook still runs (idempotent: cargo
-      # skips on cache hit), but if its PATH lookup ever regresses,
-      # the linker still finds a valid .a at ios/Frameworks/.
-      - name: Build Rust adblock static libs (iOS + macOS)
+      # Build the rust .xcframework + macOS fat .a + keep_alive.c into
+      # rust/webspace_adblock/cocoapods/, where the webspace_adblock
+      # podspec consumes them as vendored binaries. CocoaPods handles the
+      # link via standard pod machinery (no force_load / -Wl,-u / pbxproj
+      # mutation), so this just needs to run before pod install.
+      - name: Build Rust adblock for Apple (xcframework + macOS .a)
         run: |
-          bash scripts/build_rust.sh ios
-          bash scripts/build_rust.sh macos
-          ls -la ios/Frameworks macos/Frameworks
+          bash scripts/build_rust.sh apple
+          ls -la rust/webspace_adblock/cocoapods/
 
       - name: Run tests
         run: fvm flutter test
@@ -729,56 +728,49 @@ jobs:
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
 
-      # The Pod post_install hook injects `-force_load`, `-Wl,-u,_ws_engine_new`,
-      # and the verify build phase into Runner.xcodeproj. Those edits are not
-      # committed — they live only in the pbxproj after `pod install` runs.
-      # Flutter's build step skips pod install when Manifest.lock matches
-      # Podfile.lock, which is always the case under our cached Pods/. Delete
-      # the cached Manifest.lock so Flutter forces a fresh pod install with
-      # the full FLUTTER_ROOT / Generated.xcconfig env it sets up internally.
-      - name: Invalidate Pods/Manifest.lock so flutter re-runs pod install
-        run: |
-          rm -f ios/Pods/Manifest.lock macos/Pods/Manifest.lock
-
       - name: Build IPA
         run: fvm flutter build ipa --release --no-codesign
 
-      - name: Verify adblock-rust linked into iOS Runner
+      # With the podspec refactor the rust .a is wrapped in a CocoaPods
+      # framework instead of force-loaded into Runner; its symbols live
+      # in WebspaceAdblock.framework, not the Runner Mach-O. Verify by
+      # nm'ing the framework binary that ships inside the .app bundle.
+      - name: Verify adblock-rust framework shipped in iOS .app
         run: |
-          BIN=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Runner
-          if [ ! -f "$BIN" ]; then
-            echo "::error::iOS Runner binary not found at $BIN"
-            find build/ios -name Runner -type f
+          APP=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
+          FW="$APP/Frameworks/webspace_adblock.framework/webspace_adblock"
+          if [ ! -f "$FW" ]; then
+            echo "::error::webspace_adblock framework binary not found at $FW"
+            find "$APP/Frameworks" -maxdepth 3 -name 'webspace*'
             exit 1
           fi
-          if ! nm -gU "$BIN" | grep -q ' T _ws_engine_new$'; then
-            echo "::error::_ws_engine_new missing from iOS Runner — adblock-rust .a was not linked"
-            echo "ws_*-in-archive: $(nm -gU ios/Frameworks/libwebspace_adblock-iphoneos.a 2>/dev/null | grep -c ' T _ws_' || true)"
-            echo "ws_*-in-binary:  $(nm "$BIN" 2>/dev/null | grep -c '_ws_' || true)"
-            nm "$BIN" 2>/dev/null | grep '_ws_' | head -10 || true
+          SYMS=$(nm -gU "$FW" 2>/dev/null | grep -c ' T _ws_' || true)
+          if [ "$SYMS" -lt 15 ]; then
+            echo "::error::expected >=15 ws_* exports in $FW, found $SYMS"
+            nm -gU "$FW" 2>/dev/null | grep '_ws_' || true
             exit 1
           fi
-          echo "OK: iOS Runner exports $(nm -gU "$BIN" | grep -c ' T _ws_') ws_* symbols"
+          echo "OK: iOS webspace_adblock.framework exports $SYMS ws_* symbols"
 
       - name: Build macOS
         run: fvm flutter build macos --release
 
-      - name: Verify adblock-rust linked into macOS binary
+      - name: Verify adblock-rust framework shipped in macOS .app
         run: |
-          BIN=build/macos/Build/Products/Release/webspace.app/Contents/MacOS/webspace
-          if [ ! -f "$BIN" ]; then
-            echo "::error::macOS binary not found at $BIN"
-            find build/macos -name webspace -type f
+          APP=build/macos/Build/Products/Release/webspace.app
+          FW="$APP/Contents/Frameworks/webspace_adblock.framework/webspace_adblock"
+          if [ ! -f "$FW" ]; then
+            echo "::error::webspace_adblock framework binary not found at $FW"
+            find "$APP/Contents/Frameworks" -maxdepth 3 -name 'webspace*'
             exit 1
           fi
-          if ! nm -gU "$BIN" | grep -q ' T _ws_engine_new$'; then
-            echo "::error::_ws_engine_new missing from macOS binary — adblock-rust .a was not linked"
-            echo "ws_*-in-archive: $(nm -gU macos/Frameworks/libwebspace_adblock.a 2>/dev/null | grep -c ' T _ws_' || true)"
-            echo "ws_*-in-binary:  $(nm "$BIN" 2>/dev/null | grep -c '_ws_' || true)"
-            nm "$BIN" 2>/dev/null | grep '_ws_' | head -10 || true
+          SYMS=$(nm -gU "$FW" 2>/dev/null | grep -c ' T _ws_' || true)
+          if [ "$SYMS" -lt 15 ]; then
+            echo "::error::expected >=15 ws_* exports in $FW, found $SYMS"
+            nm -gU "$FW" 2>/dev/null | grep '_ws_' || true
             exit 1
           fi
-          echo "OK: macOS binary exports $(nm -gU "$BIN" | grep -c ' T _ws_') ws_* symbols"
+          echo "OK: macOS webspace_adblock.framework exports $SYMS ws_* symbols"
 
       - name: Create macOS ZIP archive
         run: |
