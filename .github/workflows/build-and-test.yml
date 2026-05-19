@@ -474,6 +474,16 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # Pin the upstream-crate behaviour the Dart-side procedural
+      # backfill (procedural_action_backfill.dart) relies on. If
+      # adblock-rust changes its handling of generic procedural rules
+      # (currently `Err(GenericAction)` at parse) or the JSON shape of
+      # `procedural_actions`, this fails and we know to revisit the
+      # rewrite strategy before shipping. Runs on Linux because the
+      # tests are platform-agnostic — cheaper than re-running on macOS.
+      - name: Test webspace_adblock crate
+        run: cargo test --manifest-path rust/webspace_adblock/Cargo.toml --release --locked
+
       # The Linux Rust .so is built by the CMake custom target wired
       # into linux/CMakeLists.txt (phase 11). flutter build linux
       # invokes CMake which auto-builds the crate as a dependency of
