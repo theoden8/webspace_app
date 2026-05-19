@@ -91,6 +91,28 @@ case "${1:-}" in
     # version skew at the cost of cross-crate inlining, which is fine
     # for a one-FFI-call-per-request hot path. Other platforms keep
     # full LTO.
+    # Force PATH to rustup's bin so we don't accidentally invoke a
+    # different cargo/rustc (e.g. /opt/homebrew/bin/cargo from
+    # `brew install rust`) that has no iOS targets installed. The
+    # observed symptom of using the wrong rust is rustup reporting
+    # "target ... is up to date" while cargo build fails with
+    # E0463 "can't find crate for `core`" — because the sysroot
+    # rustup populated isn't the sysroot cargo searches.
+    export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+    if ! command -v rustup >/dev/null 2>&1; then
+      echo "error: rustup not found on PATH ($PATH)" >&2
+      echo "Install from https://rustup.rs/ — Homebrew's rust package" >&2
+      echo "lacks Apple cross-targets." >&2
+      exit 1
+    fi
+    cargo_path="$(command -v cargo)"
+    rustup_cargo="${CARGO_HOME:-$HOME/.cargo}/bin/cargo"
+    if [ "$cargo_path" != "$rustup_cargo" ]; then
+      echo "[build_rust.sh apple] WARN: cargo at $cargo_path is not"
+      echo "[build_rust.sh apple] WARN: rustup's ($rustup_cargo)."
+      echo "[build_rust.sh apple] WARN: iOS targets won't be visible."
+    fi
+
     apple_targets=(
       aarch64-apple-ios
       aarch64-apple-ios-sim
@@ -98,9 +120,6 @@ case "${1:-}" in
       aarch64-apple-darwin
       x86_64-apple-darwin
     )
-    # rustup target add failures used to be swallowed with `2>/dev/null
-    # || true`, which surfaced later as "can't find crate for `core`"
-    # from cargo — a much worse error. Be loud at the install step.
     installed=$(rustup target list --installed 2>/dev/null || true)
     for target in "${apple_targets[@]}"; do
       if ! echo "$installed" | grep -qx "$target"; then
@@ -108,8 +127,18 @@ case "${1:-}" in
         rustup target add "$target"
       fi
     done
+    # Drive cargo through `rustup run` so we're guaranteed to use the
+    # toolchain rustup just configured the targets for, even if a
+    # different cargo is earlier in PATH. Belt-and-braces with the
+    # PATH munging above.
+    rustup_toolchain="$(rustup show active-toolchain 2>/dev/null | awk '{print $1}')"
+    if [ -z "$rustup_toolchain" ]; then
+      echo "error: could not determine rustup active toolchain" >&2
+      exit 1
+    fi
     for target in "${apple_targets[@]}"; do
       CARGO_PROFILE_RELEASE_LTO=false \
+        rustup run "$rustup_toolchain" \
         cargo build --release --locked --target "$target"
     done
 
