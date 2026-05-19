@@ -77,5 +77,6 @@ vendor/
 rust/webspace_adblock/target/
 linux/lib/libwebspace_adblock.so
 android/app/src/main/jniLibs/
-ios/Frameworks/libwebspace_adblock-*.a
-macos/Frameworks/libwebspace_adblock.a
+rust/webspace_adblock/cocoapods/WebspaceAdblock.xcframework/
+rust/webspace_adblock/cocoapods/libwebspace_adblock-macos.a
+rust/webspace_adblock/cocoapods/keep_alive.c

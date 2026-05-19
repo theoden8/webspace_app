@@ -26,11 +26,33 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 
 flutter_macos_podfile_setup
 
+# Mirror of ios/Podfile — see there for the rationale. The webspace_adblock
+# pod's vendored .a + keep_alive.c are pre-built by scripts/build_rust.sh
+# apple; this guard auto-runs it if missing so first-time / post-clean pod
+# installs succeed without manual prep.
+def ensure_webspace_adblock_built
+  pod_dir = File.expand_path('../rust/webspace_adblock/cocoapods', __dir__)
+  required = [
+    "#{pod_dir}/WebspaceAdblock.xcframework",
+    "#{pod_dir}/libwebspace_adblock-macos.a",
+    "#{pod_dir}/keep_alive.c",
+  ]
+  return if required.all? { |p| File.exist?(p) }
+  script = File.expand_path('../scripts/build_rust.sh', __dir__)
+  unless system('bash', script, 'apple')
+    raise '[webspace] scripts/build_rust.sh apple failed — see output above'
+  end
+end
+
+ensure_webspace_adblock_built
+
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
+  pod 'webspace_adblock', :path => '../rust/webspace_adblock/cocoapods'
+
   target 'RunnerTests' do
     inherit! :search_paths
   end
@@ -39,109 +61,53 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+
+    target.build_configurations.each do |config|
+      # See ios/Podfile for the rationale — objective_c.framework
+      # has no dSYM, so emit debug info inline in the pod binaries
+      # instead of expecting separate dSYMs in the archive.
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+    end
+
+    # See ios/Podfile — mark the webspace_adblock script phase
+    # always-out-of-date so xcodebuild invokes scripts/build_rust.sh
+    # apple on EVERY build.
+    next unless target.name == 'webspace_adblock'
+    target.build_phases.each do |phase|
+      next unless phase.respond_to?(:name) && phase.name &&
+                  phase.name.include?('Build adblock-rust artifacts')
+      phase.always_out_of_date = '1'
+    end
   end
 
-  # Same shape as ios/Podfile — see there for the force_load
-  # rationale. macOS doesn't split device/simulator slices so we
-  # use a single universal .a (arm64 + x86_64) and a single
-  # force_load flag, no $(PLATFORM_NAME) interpolation.
+  # See ios/Podfile — migration cleanup of stale [webspace] build
+  # phases / OTHER_LDFLAGS entries, plus injection of
+  # -Wl,-needed_framework,webspace_adblock so Apple ld keeps the
+  # framework in Runner's LC_LOAD_DYLIB.
   installer.aggregate_targets.each do |aggregate|
-    next unless aggregate.name == 'Pods-Runner'
+    next unless aggregate.name.start_with?('Pods-Runner')
     aggregate.user_project.targets.each do |runner_target|
       next unless runner_target.name == 'Runner'
-
-      # See ios/Podfile for the PATH-prepend rationale.
-      phase_name = '[webspace] Build adblock-rust static lib'
       runner_target.build_phases.delete_if do |p|
-        p.respond_to?(:name) && p.name == phase_name
+        p.respond_to?(:name) && p.name && (
+          p.name == '[webspace] Build adblock-rust static lib' ||
+          p.name == '[webspace] Verify adblock-rust symbols linked'
+        )
       end
-      phase = runner_target.new_shell_script_build_phase(phase_name)
-      phase.shell_script = <<~BASH
-        set -e
-        export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
-        if ! command -v cargo >/dev/null 2>&1; then
-          echo "[webspace] cargo not found on PATH ($PATH)."
-          echo "[webspace] Install Rust toolchain or the linker -force_load"
-          echo "[webspace] will fail later in this build."
-          exit 1
-        fi
-        REPO_ROOT="${SRCROOT}/.."
-        bash "${REPO_ROOT}/scripts/build_rust.sh" macos
-      BASH
-      # See ios/Podfile for output_paths rationale.
-      phase.output_paths = ['$(SRCROOT)/Frameworks/libwebspace_adblock.a']
-      phase.input_paths = [
-        '$(SRCROOT)/../rust/webspace_adblock/Cargo.toml',
-        '$(SRCROOT)/../rust/webspace_adblock/build.rs',
-        '$(SRCROOT)/../rust/webspace_adblock/src/lib.rs',
-        '$(SRCROOT)/../scripts/build_rust.sh',
-      ]
-      compile_idx = runner_target.build_phases.index { |p|
-        p.respond_to?(:display_name) && p.display_name.include?('Sources')
-      }
-      runner_target.build_phases.move(phase, compile_idx) if compile_idx
-
-      # See ios/Podfile for the two-element rationale and the
-      # -Wl,-u,_ws_engine_new dead-strip pin.
       runner_target.build_configurations.each do |config|
-        ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
-        ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
+        ldflags = config.build_settings['OTHER_LDFLAGS']
+        ldflags = ['$(inherited)'] unless ldflags
+        ldflags = [ldflags] unless ldflags.is_a?(Array)
         ldflags = ldflags.each_with_index.reject { |f, i|
           f.include?('libwebspace_adblock') ||
             f.include?('_ws_engine_new') ||
             (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
             (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
         }.map(&:first)
-        ldflags << '-force_load'
-        ldflags << '$(SRCROOT)/Frameworks/libwebspace_adblock.a'
-        ldflags << '-Wl,-u,_ws_engine_new'
+        needed = '-Wl,-needed_framework,webspace_adblock'
+        ldflags << needed unless ldflags.include?(needed)
         config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
-
-      # See ios/Podfile — post-link nm check + diagnostics that fail
-      # the build before a dlsym regression escapes to runtime.
-      verify_name = '[webspace] Verify adblock-rust symbols linked'
-      runner_target.build_phases.delete_if do |p|
-        p.respond_to?(:name) && p.name == verify_name
-      end
-      verify_phase = runner_target.new_shell_script_build_phase(verify_name)
-      verify_phase.shell_script = <<~BASH
-        set -e
-        BIN="${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}"
-        if [ ! -f "$BIN" ]; then
-          echo "error: Runner binary not found at $BIN" >&2
-          exit 1
-        fi
-        if /usr/bin/nm -gU "$BIN" 2>/dev/null | grep -q ' T _ws_engine_new$'; then
-          exit 0
-        fi
-        # See ios/Podfile — diagnostics prefixed `error:` so Flutter's
-        # output filter actually surfaces them.
-        A_FILE="${SRCROOT}/Frameworks/libwebspace_adblock.a"
-        echo "error: _ws_engine_new not exported by $BIN" >&2
-        echo "error: [webspace] CONFIGURATION=${CONFIGURATION:-?} PLATFORM_NAME=${PLATFORM_NAME:-?}" >&2
-        echo "error: [webspace] SRCROOT=${SRCROOT}" >&2
-        echo "error: [webspace] TARGET_BUILD_DIR=${TARGET_BUILD_DIR}" >&2
-        echo "error: [webspace] EXECUTABLE_PATH=${EXECUTABLE_PATH}" >&2
-        echo "error: [webspace] OTHER_LDFLAGS=${OTHER_LDFLAGS:-<unset>}" >&2
-        if [ -f "$A_FILE" ]; then
-          A_SIZE=$(stat -f%z "$A_FILE" 2>/dev/null || stat -c%s "$A_FILE" 2>/dev/null || echo '?')
-          A_SYMS=$(/usr/bin/nm -gU "$A_FILE" 2>/dev/null | grep -c ' T _ws_' || true)
-          echo "error: [webspace] .a present: $A_FILE size=$A_SIZE ws_*-in-archive=$A_SYMS" >&2
-        else
-          echo "error: [webspace] .a MISSING at $A_FILE" >&2
-          ls -la "${SRCROOT}/Frameworks/" 2>&1 | sed 's/^/error: [webspace] /' >&2 || true
-        fi
-        BIN_WS_ANY=$(/usr/bin/nm "$BIN" 2>/dev/null | grep -c '_ws_' || true)
-        BIN_WS_T=$(/usr/bin/nm -gU "$BIN" 2>/dev/null | grep -c ' T _ws_' || true)
-        echo "error: [webspace] _ws_ in Runner: any=${BIN_WS_ANY} global-T=${BIN_WS_T}" >&2
-        /usr/bin/nm "$BIN" 2>/dev/null | grep '_ws_' | head -20 | sed 's/^/error: [webspace] nm: /' >&2 || true
-        echo "error: adblock-rust .a was not force-loaded into Runner." >&2
-        exit 1
-      BASH
-      verify_phase.input_paths = []
-      verify_phase.output_paths = []
-      verify_phase.always_out_of_date = '1'
     end
     aggregate.user_project.save
   end

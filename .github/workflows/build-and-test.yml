@@ -474,6 +474,16 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # Pin the upstream-crate behaviour the Dart-side procedural
+      # backfill (procedural_action_backfill.dart) relies on. If
+      # adblock-rust changes its handling of generic procedural rules
+      # (currently `Err(GenericAction)` at parse) or the JSON shape of
+      # `procedural_actions`, this fails and we know to revisit the
+      # rewrite strategy before shipping. Runs on Linux because the
+      # tests are platform-agnostic — cheaper than re-running on macOS.
+      - name: Test webspace_adblock crate
+        run: cargo test --manifest-path rust/webspace_adblock/Cargo.toml --release --locked
+
       # The Linux Rust .so is built by the CMake custom target wired
       # into linux/CMakeLists.txt (phase 11). flutter build linux
       # invokes CMake which auto-builds the crate as a dependency of
@@ -712,16 +722,15 @@ jobs:
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
 
-      # Pre-build the Rust .a files OUTSIDE xcodebuild so CI doesn't
-      # depend on the inline Pod shell phase finding cargo on its
-      # constrained PATH. The Pod hook still runs (idempotent: cargo
-      # skips on cache hit), but if its PATH lookup ever regresses,
-      # the linker still finds a valid .a at ios/Frameworks/.
-      - name: Build Rust adblock static libs (iOS + macOS)
+      # Build the rust .xcframework + macOS fat .a + keep_alive.c into
+      # rust/webspace_adblock/cocoapods/, where the webspace_adblock
+      # podspec consumes them as vendored binaries. CocoaPods handles the
+      # link via standard pod machinery (no force_load / -Wl,-u / pbxproj
+      # mutation), so this just needs to run before pod install.
+      - name: Build Rust adblock for Apple (xcframework + macOS .a)
         run: |
-          bash scripts/build_rust.sh ios
-          bash scripts/build_rust.sh macos
-          ls -la ios/Frameworks macos/Frameworks
+          bash scripts/build_rust.sh apple
+          ls -la rust/webspace_adblock/cocoapods/
 
       - name: Run tests
         run: fvm flutter test
@@ -732,8 +741,46 @@ jobs:
       - name: Build IPA
         run: fvm flutter build ipa --release --no-codesign
 
+      # With the podspec refactor the rust .a is wrapped in a CocoaPods
+      # framework instead of force-loaded into Runner; its symbols live
+      # in WebspaceAdblock.framework, not the Runner Mach-O. Verify by
+      # nm'ing the framework binary that ships inside the .app bundle.
+      - name: Verify adblock-rust framework shipped in iOS .app
+        run: |
+          APP=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
+          FW="$APP/Frameworks/webspace_adblock.framework/webspace_adblock"
+          if [ ! -f "$FW" ]; then
+            echo "::error::webspace_adblock framework binary not found at $FW"
+            find "$APP/Frameworks" -maxdepth 3 -name 'webspace*'
+            exit 1
+          fi
+          SYMS=$(nm -gU "$FW" 2>/dev/null | grep -c ' T _ws_' || true)
+          if [ "$SYMS" -lt 15 ]; then
+            echo "::error::expected >=15 ws_* exports in $FW, found $SYMS"
+            nm -gU "$FW" 2>/dev/null | grep '_ws_' || true
+            exit 1
+          fi
+          echo "OK: iOS webspace_adblock.framework exports $SYMS ws_* symbols"
+
       - name: Build macOS
         run: fvm flutter build macos --release
+
+      - name: Verify adblock-rust framework shipped in macOS .app
+        run: |
+          APP=build/macos/Build/Products/Release/webspace.app
+          FW="$APP/Contents/Frameworks/webspace_adblock.framework/webspace_adblock"
+          if [ ! -f "$FW" ]; then
+            echo "::error::webspace_adblock framework binary not found at $FW"
+            find "$APP/Contents/Frameworks" -maxdepth 3 -name 'webspace*'
+            exit 1
+          fi
+          SYMS=$(nm -gU "$FW" 2>/dev/null | grep -c ' T _ws_' || true)
+          if [ "$SYMS" -lt 15 ]; then
+            echo "::error::expected >=15 ws_* exports in $FW, found $SYMS"
+            nm -gU "$FW" 2>/dev/null | grep '_ws_' || true
+            exit 1
+          fi
+          echo "OK: macOS webspace_adblock.framework exports $SYMS ws_* symbols"
 
       - name: Create macOS ZIP archive
         run: |

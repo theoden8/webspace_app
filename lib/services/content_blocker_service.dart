@@ -12,6 +12,7 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/procedural_action_backfill.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -92,6 +93,14 @@ const List<Map<String, String>> _defaultLists = [
 class ContentBlockerService {
   static const String _listsKey = 'content_blocker_lists';
   static const String _cacheDir = 'content_blocker_cache';
+
+  /// Bump when the rules-text preprocessing (procedural backfill
+  /// rewrite, future similar transforms) changes its output, so a
+  /// blob written under the old transform is rejected and the
+  /// engine re-parses fresh. The constant becomes a cache-key
+  /// prefix; the actual rules text still hashes into the key, so
+  /// list-content changes are detected independently.
+  static const int _kEngineCacheVersion = 2;
 
   static ContentBlockerService? _instance;
   static ContentBlockerService get instance =>
@@ -310,6 +319,31 @@ class ContentBlockerService {
     return engine.shouldBlock('https://$host/');
   }
 
+  /// Normalize the page URL before passing it to the engine's
+  /// `cosmeticResources(url)`. adblock-rust's
+  /// `Engine::url_cosmetic_resources` internally constructs a `Request`
+  /// from the URL and returns an empty `UrlSpecificResources` when that
+  /// construction fails — which it does for any URL without a real
+  /// hostname (file://, blob:, data:, about:). The misc-generic-selector
+  /// merge (attribute selectors, :has(), :style(), procedural shapes)
+  /// happens *inside* `hostname_cosmetic_resources`, downstream of that
+  /// early-return, so all of those rule shapes silently miss on these
+  /// schemes.
+  ///
+  /// Substitute a sentinel `https://` host so the engine parses the
+  /// URL, runs the generic merge, and returns the rules. The hostname
+  /// has to be one no real filter list would target — `.invalid` is
+  /// reserved by RFC 6761 for exactly this purpose.
+  String _engineQueryUrl(String pageUrl) {
+    const hostlessSchemes = ['file:', 'blob:', 'data:', 'about:'];
+    for (final scheme in hostlessSchemes) {
+      if (pageUrl.startsWith(scheme)) {
+        return 'https://webspace.invalid/';
+      }
+    }
+    return pageUrl;
+  }
+
   /// Cached engine cosmetic result per page URL within one rebuild
   /// window. The engine call is non-trivial (JSON marshal across FFI)
   /// and we hit it multiple times per page (early-CSS + post-load
@@ -322,7 +356,8 @@ class ContentBlockerService {
     if (engine == null) return null;
     final cached = _engineCosmeticCache[pageUrl];
     if (cached != null) return cached;
-    final raw = engine.cosmeticResources(pageUrl);
+    final effectiveUrl = _engineQueryUrl(pageUrl);
+    final raw = engine.cosmeticResources(effectiveUrl);
     if (raw == null) return null;
     final hides = (raw['hide_selectors'] as List? ?? const [])
         .cast<String>()
@@ -334,6 +369,21 @@ class ContentBlockerService {
     final procedural = (raw['procedural_actions'] as List? ?? const [])
         .cast<String>()
         .toList();
+    // Union in the procedural rules our filter-list rewrite anchored
+    // to the synthetic host. Skip when the effective URL already
+    // matches that host (file:// → kBackfillSyntheticHost path), the
+    // first call covers it. Hides + exceptions from the synthetic
+    // query are intentionally discarded — the real-URL query already
+    // produced them via the misc-generic-selector merge.
+    if (!effectiveUrl.contains('://$kBackfillSyntheticHost')) {
+      final synth = engine
+          .cosmeticResources('https://$kBackfillSyntheticHost/');
+      if (synth != null) {
+        final synthProc = (synth['procedural_actions'] as List? ?? const [])
+            .cast<String>();
+        procedural.addAll(synthProc);
+      }
+    }
     final entry = _EngineCosmeticCache(
       hides: hides,
       exceptions: exceptions,
@@ -594,8 +644,16 @@ class ContentBlockerService {
       _notifyRulesChanged();
       return;
     }
-    final rulesText = buf.toString();
-    final rulesHash = sha256.convert(utf8.encode(rulesText)).toString();
+    // Rewrite generic procedural rules with a synthetic-host prefix
+    // so adblock-rust's parser stores them as domain-scoped (it would
+    // otherwise drop them at parse time — see
+    // procedural_action_backfill.dart). The rewritten text is what
+    // the engine sees and what the cache key is computed over; bump
+    // [_kEngineCacheVersion] when the rewrite output format changes
+    // so old cached blobs get re-parsed.
+    final rulesText = rewriteGenericProceduralsForBackfill(buf.toString());
+    final rulesHash =
+        sha256.convert(utf8.encode('v$_kEngineCacheVersion:$rulesText')).toString();
     AdblockEngine? engine;
     String loadMode = 'parse';
     final sw = Stopwatch()..start();
