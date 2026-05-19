@@ -91,4 +91,79 @@ void main() {
           now: t.add(const Duration(milliseconds: 50))), isTrue);
     });
   });
+
+  group('IosUniversalLinkBypass.isEligibleNavigation', () {
+    test('user tap on http link is eligible', () {
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: true,
+          url: 'https://maps.google.com/maps',
+          isLinkActivated: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('form POST is NOT eligible (loadUrl would drop the body)', () {
+      // Regression: LinkedIn's `/checkpoint/lg/login-submit` 404'd because
+      // the bypass cancelled the POST and reissued it as a GET. Form
+      // POSTs to AASA-matching endpoints are vanishingly rare; breaking
+      // every login form to catch them is not the right trade.
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: true,
+          url: 'https://www.linkedin.com/checkpoint/lg/login-submit?_l=de_DE',
+          isLinkActivated: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('subframe navigation is NOT eligible', () {
+      // AASA only matches on top-level navigations; iframes never
+      // route to the native app.
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: false,
+          url: 'https://maps.google.com/maps',
+          isLinkActivated: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('non-http(s) scheme is NOT eligible', () {
+      // intent://, tel:, mailto: etc. are handled by ExternalUrlParser.
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: true,
+          url: 'intent://maps.google.com#Intent;...;end',
+          isLinkActivated: true,
+        ),
+        isFalse,
+      );
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: true,
+          url: 'about:blank',
+          isLinkActivated: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('programmatic navigation (no link activation) is NOT eligible', () {
+      // Initial loads, server redirects without a tap origin, and
+      // pushState SPA navs all surface as `.other` — they don't
+      // activate AASA on iOS and don't need the bypass.
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: true,
+          url: 'https://maps.google.com/maps',
+          isLinkActivated: false,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

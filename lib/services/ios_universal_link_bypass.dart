@@ -7,15 +7,22 @@
 /// without a prompt, and even when the user explicitly added the
 /// site to WebSpace and is using the webview on purpose.
 ///
-/// Generic fix: on iOS, for every main-frame http(s) navigation that
-/// has a user gesture (`.linkActivated` / `.formSubmitted`), cancel
-/// the navigation and reissue it via `controller.loadUrl`. WebKit
-/// treats programmatic loads as navigation type `.other` and skips
-/// AASA matching, so the URL renders inside the webview regardless
-/// of which apps are installed. Pure programmatic navigations
-/// (initial nav, server redirects without a tap origin, pushState)
-/// don't activate AASA in the first place and are passed through
-/// without interception.
+/// Generic fix: on iOS, for every main-frame http(s) navigation
+/// whose `WKNavigationAction.navigationType` is `.linkActivated`
+/// (user tap), cancel the navigation and reissue it via
+/// `controller.loadUrl`. WebKit treats programmatic loads as
+/// navigation type `.other` and skips AASA matching, so the URL
+/// renders inside the webview regardless of which apps are
+/// installed. Pure programmatic navigations (initial nav, server
+/// redirects without a tap origin, pushState) don't activate AASA
+/// in the first place and are passed through without interception.
+///
+/// `.formSubmitted` is intentionally NOT bypassed. `loadUrl` is a
+/// GET, so reissuing a form submit drops the POST body, which
+/// breaks credentialed flows (login, search, payments). Form POSTs
+/// to AASA-matching endpoints are exceedingly rare; apps publish
+/// AASA for content URLs (profile pages, map locations), not POST
+/// handlers.
 ///
 /// No domain/path list. iOS exposes no public API to ask "does this
 /// URL match an installed app's AASA?", so the bypass treats every
@@ -26,6 +33,22 @@
 /// separately via `ExternalUrlParser`.
 class IosUniversalLinkBypass {
   IosUniversalLinkBypass();
+
+  /// Webview-side gate: is this navigation eligible for the AASA
+  /// bypass? Returns true only for main-frame http(s) navigations
+  /// rooted in a user tap on a link. Form POSTs are intentionally
+  /// excluded — see the class doc for why.
+  ///
+  /// Caller passes `isLinkActivated = navigationAction.navigationType
+  /// == NavigationType.LINK_ACTIVATED` to keep this predicate free of
+  /// flutter_inappwebview imports (and unit-testable from pure Dart).
+  static bool isEligibleNavigation({
+    required bool isMainFrame,
+    required String url,
+    required bool isLinkActivated,
+  }) {
+    return isMainFrame && url.startsWith('http') && isLinkActivated;
+  }
 
   /// Per-WebView memo: URL → timestamp of the cancel-and-reissue.
   /// After we reissue programmatically the same URL fires
