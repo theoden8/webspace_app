@@ -310,6 +310,31 @@ class ContentBlockerService {
     return engine.shouldBlock('https://$host/');
   }
 
+  /// Normalize the page URL before passing it to the engine's
+  /// `cosmeticResources(url)`. adblock-rust's
+  /// `Engine::url_cosmetic_resources` internally constructs a `Request`
+  /// from the URL and returns an empty `UrlSpecificResources` when that
+  /// construction fails — which it does for any URL without a real
+  /// hostname (file://, blob:, data:, about:). The misc-generic-selector
+  /// merge (attribute selectors, :has(), :style(), procedural shapes)
+  /// happens *inside* `hostname_cosmetic_resources`, downstream of that
+  /// early-return, so all of those rule shapes silently miss on these
+  /// schemes.
+  ///
+  /// Substitute a sentinel `https://` host so the engine parses the
+  /// URL, runs the generic merge, and returns the rules. The hostname
+  /// has to be one no real filter list would target — `.invalid` is
+  /// reserved by RFC 6761 for exactly this purpose.
+  String _engineQueryUrl(String pageUrl) {
+    const hostlessSchemes = ['file:', 'blob:', 'data:', 'about:'];
+    for (final scheme in hostlessSchemes) {
+      if (pageUrl.startsWith(scheme)) {
+        return 'https://webspace.invalid/';
+      }
+    }
+    return pageUrl;
+  }
+
   /// Cached engine cosmetic result per page URL within one rebuild
   /// window. The engine call is non-trivial (JSON marshal across FFI)
   /// and we hit it multiple times per page (early-CSS + post-load
@@ -322,7 +347,7 @@ class ContentBlockerService {
     if (engine == null) return null;
     final cached = _engineCosmeticCache[pageUrl];
     if (cached != null) return cached;
-    final raw = engine.cosmeticResources(pageUrl);
+    final raw = engine.cosmeticResources(_engineQueryUrl(pageUrl));
     if (raw == null) return null;
     final hides = (raw['hide_selectors'] as List? ?? const [])
         .cast<String>()
