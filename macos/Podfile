@@ -81,21 +81,25 @@ post_install do |installer|
       }
       runner_target.build_phases.move(phase, compile_idx) if compile_idx
 
-      # See ios/Podfile for the -Wl, rationale. Same parse hazard on
-      # macOS: `"-force_load <path>"` as a single OTHER_LDFLAGS entry
-      # reached the linker mashed, the .a was never loaded, and dlsym
-      # for ws_engine_* failed at runtime.
-      force_load = '-Wl,-force_load,$(SRCROOT)/Frameworks/libwebspace_adblock.a'
+      # See ios/Podfile for the two-element rationale. Use two
+      # OTHER_LDFLAGS array entries ("-force_load", "<path>") so each
+      # element becomes its own argv slot and clang receives the
+      # canonical two-arg force_load invocation that ld unambiguously
+      # understands.
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
         ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
-        ldflags.reject! { |f| f.include?('libwebspace_adblock') }
-        ldflags << force_load
+        ldflags = ldflags.each_with_index.reject { |f, i|
+          f.include?('libwebspace_adblock') ||
+            (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock'))
+        }.map(&:first)
+        ldflags << '-force_load'
+        ldflags << '$(SRCROOT)/Frameworks/libwebspace_adblock.a'
         config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
 
-      # See ios/Podfile — post-link nm check that fails the build
-      # before a dlsym regression escapes to runtime.
+      # See ios/Podfile — post-link nm check + diagnostics that fail
+      # the build before a dlsym regression escapes to runtime.
       verify_name = '[webspace] Verify adblock-rust symbols linked'
       runner_target.build_phases.delete_if do |p|
         p.respond_to?(:name) && p.name == verify_name
@@ -103,18 +107,38 @@ post_install do |installer|
       verify_phase = runner_target.new_shell_script_build_phase(verify_name)
       verify_phase.shell_script = <<~BASH
         set -e
+        echo "[webspace-verify] CONFIGURATION=${CONFIGURATION:-?} PLATFORM_NAME=${PLATFORM_NAME:-?}"
+        echo "[webspace-verify] SRCROOT=${SRCROOT}"
+        echo "[webspace-verify] TARGET_BUILD_DIR=${TARGET_BUILD_DIR}"
+        echo "[webspace-verify] EXECUTABLE_PATH=${EXECUTABLE_PATH}"
+        echo "[webspace-verify] OTHER_LDFLAGS=${OTHER_LDFLAGS:-<unset>}"
+        A_FILE="${SRCROOT}/Frameworks/libwebspace_adblock.a"
+        if [ -f "$A_FILE" ]; then
+          A_SIZE=$(stat -f%z "$A_FILE" 2>/dev/null || stat -c%s "$A_FILE" 2>/dev/null || echo '?')
+          A_SYMS=$(/usr/bin/nm -gU "$A_FILE" 2>/dev/null | grep -c ' T _ws_' || true)
+          echo "[webspace-verify] .a present: $A_FILE size=$A_SIZE ws_*=$A_SYMS"
+        else
+          echo "[webspace-verify] .a MISSING at $A_FILE"
+          ls -la "${SRCROOT}/Frameworks/" 2>/dev/null || echo "[webspace-verify] no Frameworks dir"
+        fi
         BIN="${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}"
         if [ ! -f "$BIN" ]; then
           echo "error: Runner binary not found at $BIN" >&2
           exit 1
         fi
+        BIN_WS=$(/usr/bin/nm -gU "$BIN" 2>/dev/null | grep -c ' T _ws_' || true)
+        echo "[webspace-verify] Runner binary: $BIN ws_*=$BIN_WS"
         if ! /usr/bin/nm -gU "$BIN" 2>/dev/null | grep -q ' T _ws_engine_new$'; then
           echo "error: _ws_engine_new not exported by $BIN" >&2
+          echo "[webspace-verify] sample globals in Runner (first 30):" >&2
+          /usr/bin/nm -gU "$BIN" 2>/dev/null | head -30 >&2 || true
+          echo "[webspace-verify] grep for any ws_ symbol:" >&2
+          /usr/bin/nm "$BIN" 2>/dev/null | grep '_ws_' >&2 || echo "  (none)" >&2
           echo "error: adblock-rust .a was not force-loaded into Runner." >&2
-          echo "error: check macos/Frameworks/libwebspace_adblock.a exists" >&2
-          echo "error: and OTHER_LDFLAGS contains -Wl,-force_load,... in Runner.xcodeproj." >&2
+          echo "error: see [webspace-verify] lines above for OTHER_LDFLAGS + .a state." >&2
           exit 1
         fi
+        echo "[webspace-verify] OK — _ws_engine_new present"
       BASH
       verify_phase.input_paths = []
       verify_phase.output_paths = []
