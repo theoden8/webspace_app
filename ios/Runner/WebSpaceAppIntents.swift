@@ -27,8 +27,14 @@ struct SiteEntity: AppEntity {
     TypeDisplayRepresentation(name: "Site")
   }
 
+  // String interpolation inside `DisplayRepresentation(title:)` is read as a
+  // LocalizedStringResource template, so iOS materializes every parameterized
+  // App Shortcut with the unresolved "%@" placeholder and then dedupes the
+  // identical titles in Shortcuts.app down to a single visible entry. The
+  // `stringLiteral:` initializer skips localization and uses `name` as-is, so
+  // every site gets a distinct materialized shortcut.
   var displayRepresentation: DisplayRepresentation {
-    DisplayRepresentation(title: "\(name)")
+    DisplayRepresentation(stringLiteral: name)
   }
 
   static var defaultQuery = SiteEntityQuery()

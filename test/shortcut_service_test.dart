@@ -124,4 +124,27 @@ void main() {
       await ShortcutService.removeShortcut('a');
     });
   });
+
+  // The iOS App Shortcuts materialization (HS-008) collapses every entity
+  // down to a single visible "Open %@ in WebSpace" row when SiteEntity's
+  // displayRepresentation uses string interpolation: iOS treats the
+  // interpolated form as a LocalizedStringResource template whose %@ is never
+  // bound at materialization time. The fix is `DisplayRepresentation(
+  // stringLiteral: name)`. Guard the Swift source so a future refactor can't
+  // silently revert it.
+  group('WebSpaceAppIntents.swift — SiteEntity displayRepresentation', () {
+    test('uses stringLiteral, not LocalizedStringResource interpolation', () {
+      final source =
+          File('ios/Runner/WebSpaceAppIntents.swift').readAsStringSync();
+      expect(source, contains('DisplayRepresentation(stringLiteral: name)'),
+          reason: 'SiteEntity.displayRepresentation must use the '
+              '`stringLiteral:` initializer so each site materializes as its '
+              'own App Shortcut entry. See HS-008 / openspec spec.');
+      expect(source, isNot(contains(r'DisplayRepresentation(title: "\(name)")')),
+          reason: 'String interpolation inside DisplayRepresentation(title:) '
+              'is parsed as a LocalizedStringResource template, which '
+              'collapses every materialized App Shortcut to a single %@ '
+              'placeholder row in Shortcuts.app.');
+    });
+  });
 }
