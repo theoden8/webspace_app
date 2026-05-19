@@ -140,25 +140,36 @@ post_install do |installer|
       #   * "-force_load <path>" in one element → clang received one
       #     argv with embedded space, didn't match its `-force_load`
       #     flag handler, the .a was never loaded.
-      #   * "-Wl,-force_load,<path>" → also failed in practice on
-      #     CocoaPods 1.16 + Xcode 16 here; the comma form should
-      #     forward through clang to ld but symbols stayed missing
-      #     from the linked binary, so the verify build phase below
-      #     started catching it.
+      #   * "-Wl,-force_load,<path>" → flag reached ld but every
+      #     ws_* symbol still got dead-stripped because nothing in
+      #     Runner's Swift code referenced them; ld treats force-load
+      #     as "load, then dead-strip if unreachable", not "load and
+      #     pin." Pair with -Wl,-u,_ws_engine_new below.
+      #
+      # -Wl,-u,_ws_engine_new marks that symbol as undefined-and-required
+      # at link time. ld then keeps it in the live set, which (since
+      # the Rust crate uses codegen-units = 1) keeps the whole codegen
+      # unit and every other ws_* alongside it. Without -u, -dead_strip
+      # (Xcode default) removes the force-loaded objects because Runner's
+      # own code never references them — the FFI lookup is only ever
+      # done at runtime via dlsym, invisible to the linker.
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
         ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
-        # Drop any prior libwebspace_adblock entries — possibly the
-        # broken single-string or -Wl, forms from earlier installs —
-        # before appending the canonical two-token sequence. Drop
+        # Drop any prior libwebspace_adblock + -u _ws_engine_new entries
+        # — possibly the broken single-string or -Wl, forms from earlier
+        # installs — before appending the canonical sequence. Drop
         # adjacent bare "-force_load" tokens too so we don't leave
         # an orphan flag pointing at the missing path entry.
         ldflags = ldflags.each_with_index.reject { |f, i|
           f.include?('libwebspace_adblock') ||
-            (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock'))
+            f.include?('_ws_engine_new') ||
+            (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
+            (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
         }.map(&:first)
         ldflags << '-force_load'
         ldflags << '$(SRCROOT)/Frameworks/libwebspace_adblock-$(PLATFORM_NAME).a'
+        ldflags << '-Wl,-u,_ws_engine_new'
         config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
 

@@ -81,20 +81,20 @@ post_install do |installer|
       }
       runner_target.build_phases.move(phase, compile_idx) if compile_idx
 
-      # See ios/Podfile for the two-element rationale. Use two
-      # OTHER_LDFLAGS array entries ("-force_load", "<path>") so each
-      # element becomes its own argv slot and clang receives the
-      # canonical two-arg force_load invocation that ld unambiguously
-      # understands.
+      # See ios/Podfile for the two-element rationale and the
+      # -Wl,-u,_ws_engine_new dead-strip pin.
       runner_target.build_configurations.each do |config|
         ldflags = config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)']
         ldflags = ldflags.is_a?(Array) ? ldflags.dup : [ldflags]
         ldflags = ldflags.each_with_index.reject { |f, i|
           f.include?('libwebspace_adblock') ||
-            (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock'))
+            f.include?('_ws_engine_new') ||
+            (f == '-force_load' && ldflags[i + 1].to_s.include?('libwebspace_adblock')) ||
+            (f == '-u' && ldflags[i + 1].to_s.include?('_ws_engine_new'))
         }.map(&:first)
         ldflags << '-force_load'
         ldflags << '$(SRCROOT)/Frameworks/libwebspace_adblock.a'
+        ldflags << '-Wl,-u,_ws_engine_new'
         config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
 
