@@ -122,11 +122,11 @@ function loadLiveShim(fixtureRelPath, fakeFix) {
   return dom;
 }
 
-test('live_fine: getCurrentPosition returns the platform fix unchanged (modulo sub-meter jitter)', async () => {
-  // The platform fix is 35.6762, 139.6503 with 12 m accuracy. Fine
+test('live_gps: getCurrentPosition returns the platform fix unchanged (modulo sub-meter jitter)', async () => {
+  // The platform fix is 35.6762, 139.6503 with 12 m accuracy. GPS
   // granularity must not snap to a grid; only the ~2 m jitter in
   // makeCoordsFrom is allowed to perturb the values.
-  const dom = loadLiveShim('location_spoof/live_fine.js', {
+  const dom = loadLiveShim('location_spoof/live_gps.js', {
     lat: 35.6762, lng: 139.6503, acc: 12,
   });
   const pos = await new Promise((resolve, reject) => {
@@ -134,94 +134,106 @@ test('live_fine: getCurrentPosition returns the platform fix unchanged (modulo s
   });
   assert.ok(Math.abs(pos.coords.latitude - 35.6762) < 0.0001);
   assert.ok(Math.abs(pos.coords.longitude - 139.6503) < 0.0001);
-  // Fine reports the platform-provided accuracy (no inflation).
+  // GPS reports the platform-provided accuracy (no inflation).
   assert.equal(pos.coords.accuracy, 12);
 });
 
-test('live_coarse: getCurrentPosition snaps lat/lng to a ~1.1km grid', async () => {
-  // Latitude rounds to the nearest 0.01° (~1.1 km). Longitude step is
-  // divided by cos(snappedLat) so cells stay roughly square. Sub-meter
-  // jitter is applied on top of the snapped value, so the reported
-  // coords differ from the grid cell origin by less than 2 m.
-  const dom = loadLiveShim('location_spoof/live_coarse.js', {
-    lat: 35.6762, lng: 139.6503, acc: 12,
-  });
-  const pos = await new Promise((resolve, reject) => {
-    dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
-  });
-  // Mirror the shim's coarsening: snap latitude first, then derive the
-  // longitude step from the snapped latitude (not the raw one — see the
-  // shim comment for why).
-  const latStep = 0.01;
-  const expectedLat = Math.round(35.6762 / latStep) * latStep;
-  const cosSnappedLat = Math.cos(expectedLat * Math.PI / 180);
-  const lngStep = latStep / cosSnappedLat;
-  const expectedLng = Math.round(139.6503 / lngStep) * lngStep;
-  assert.ok(Math.abs(pos.coords.latitude - expectedLat) < 0.0001,
-    `lat ${pos.coords.latitude} not within jitter of grid cell ${expectedLat}`);
-  assert.ok(Math.abs(pos.coords.longitude - expectedLng) < 0.0001,
-    `lng ${pos.coords.longitude} not within jitter of grid cell ${expectedLng}`);
-});
+// Parameterise the snap-tier scenarios so the GSM and Approximate tiers
+// share the same correctness contract, only the grid step / accuracy
+// floor differ. A regression on either tier fails its own row without
+// false-positives on the other.
+const SNAP_TIERS = [
+  { name: 'approximate', fixture: 'location_spoof/live_approximate.js',
+    latStep: 0.001, accFloor: 110 },
+  { name: 'gsm',         fixture: 'location_spoof/live_gsm.js',
+    latStep: 0.01,  accFloor: 1100 },
+];
 
-test('live_coarse: reported accuracy is inflated to at least 1100 m', async () => {
-  // Platform-reported 12 m accuracy must not flow through unchanged —
-  // coarse mode must report an accuracy that matches the grid extent so
-  // pages know the fix is approximate.
-  const dom = loadLiveShim('location_spoof/live_coarse.js', {
-    lat: 35.6762, lng: 139.6503, acc: 12,
+for (const tier of SNAP_TIERS) {
+  test(`live_${tier.name}: getCurrentPosition snaps lat/lng to the tier grid`, async () => {
+    // Latitude rounds to the nearest tier.latStep. Longitude step is
+    // divided by cos(snappedLat) so cells stay roughly square. Sub-meter
+    // jitter is applied on top of the snapped value, so the reported
+    // coords differ from the grid cell origin by less than 2 m.
+    const dom = loadLiveShim(tier.fixture, {
+      lat: 35.6762, lng: 139.6503, acc: 12,
+    });
+    const pos = await new Promise((resolve, reject) => {
+      dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+    // Mirror the shim: snap latitude first, then derive the longitude
+    // step from the snapped latitude (not the raw one — see shim comment).
+    const expectedLat = Math.round(35.6762 / tier.latStep) * tier.latStep;
+    const cosSnappedLat = Math.cos(expectedLat * Math.PI / 180);
+    const lngStep = tier.latStep / cosSnappedLat;
+    const expectedLng = Math.round(139.6503 / lngStep) * lngStep;
+    assert.ok(Math.abs(pos.coords.latitude - expectedLat) < 0.0001,
+      `lat ${pos.coords.latitude} not within jitter of grid cell ${expectedLat}`);
+    assert.ok(Math.abs(pos.coords.longitude - expectedLng) < 0.0001,
+      `lng ${pos.coords.longitude} not within jitter of grid cell ${expectedLng}`);
   });
-  const pos = await new Promise((resolve, reject) => {
-    dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
-  });
-  assert.ok(pos.coords.accuracy >= 1100,
-    `accuracy ${pos.coords.accuracy} should be >=1100m in coarse mode`);
-});
 
-test('live_coarse: a fix already coarser than the floor keeps its accuracy', async () => {
-  // If the platform already reports 5000 m (low-accuracy NETWORK
-  // provider), coarse mode must not silently lower the reported accuracy
-  // to 1100. Use max(real, floor) not just floor.
-  const dom = loadLiveShim('location_spoof/live_coarse.js', {
-    lat: 35.6762, lng: 139.6503, acc: 5000,
+  test(`live_${tier.name}: reported accuracy is inflated to at least the tier floor`, async () => {
+    // A precise 12 m platform fix must not flow through unchanged —
+    // snap tiers report an accuracy that matches the grid extent so
+    // pages know the fix is approximate.
+    const dom = loadLiveShim(tier.fixture, {
+      lat: 35.6762, lng: 139.6503, acc: 12,
+    });
+    const pos = await new Promise((resolve, reject) => {
+      dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+    assert.ok(pos.coords.accuracy >= tier.accFloor,
+      `accuracy ${pos.coords.accuracy} should be >=${tier.accFloor}m in ${tier.name} mode`);
   });
-  const pos = await new Promise((resolve, reject) => {
-    dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
-  });
-  assert.equal(pos.coords.accuracy, 5000);
-});
 
-test('live_coarse: nearby fixes inside the same grid cell snap to the same coords', async () => {
-  // The whole point of coarse mode is that small movements don't leak.
-  // Two fixes 100 m apart inside the same ~1.1 km cell must produce the
-  // same snapped lat/lng (modulo the 2 m jitter, which is well below
-  // grid-cell resolution).
-  const fix1 = { lat: 35.6760, lng: 139.6500, acc: 12 };
-  const fix2 = { lat: 35.6765, lng: 139.6505, acc: 12 };
-  let nextFix = fix1;
-  const { loadShim: load } = require('./helpers/load_shim');
-  const dom = load('location_spoof/live_coarse.js');
-  dom.window.flutter_inappwebview = {
-    callHandler(name) {
-      if (name !== 'getRealLocation') return Promise.resolve(null);
-      const f = nextFix;
-      return Promise.resolve({
-        status: 'ok', latitude: f.lat, longitude: f.lng, accuracy: f.acc,
-      });
-    },
-  };
-  const pos1 = await new Promise((resolve, reject) => {
-    dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
+  test(`live_${tier.name}: a fix already coarser than the floor keeps its accuracy`, async () => {
+    // If the platform already reports 5000 m (low-accuracy NETWORK
+    // provider), snap mode must not silently lower the reported accuracy.
+    // Use max(real, floor) not just floor.
+    const dom = loadLiveShim(tier.fixture, {
+      lat: 35.6762, lng: 139.6503, acc: 5000,
+    });
+    const pos = await new Promise((resolve, reject) => {
+      dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+    assert.equal(pos.coords.accuracy, 5000);
   });
-  nextFix = fix2;
-  const pos2 = await new Promise((resolve, reject) => {
-    dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
+
+  test(`live_${tier.name}: nearby fixes inside the same grid cell snap to the same coords`, async () => {
+    // The whole point of snapping is that small movements don't leak.
+    // Two fixes inside the same cell must produce the same snapped
+    // lat/lng (modulo the 2 m jitter, which is well below the
+    // grid-cell resolution for both tiers).
+    const cell = tier.latStep / 4;   // safely inside one cell
+    const fix1 = { lat: 35.6760, lng: 139.6500, acc: 12 };
+    const fix2 = { lat: 35.6760 + cell, lng: 139.6500 + cell, acc: 12 };
+    let nextFix = fix1;
+    const { loadShim: load } = require('./helpers/load_shim');
+    const dom = load(tier.fixture);
+    dom.window.flutter_inappwebview = {
+      callHandler(name) {
+        if (name !== 'getRealLocation') return Promise.resolve(null);
+        const f = nextFix;
+        return Promise.resolve({
+          status: 'ok', latitude: f.lat, longitude: f.lng, accuracy: f.acc,
+        });
+      },
+    };
+    const pos1 = await new Promise((resolve, reject) => {
+      dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+    nextFix = fix2;
+    const pos2 = await new Promise((resolve, reject) => {
+      dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+    // Both fixes round into the same cell, so the snapped components are
+    // identical. ~2 m jitter is well below tier.latStep, so a tight
+    // tolerance catches a regression where the grid step changed.
+    assert.ok(Math.abs(pos1.coords.latitude - pos2.coords.latitude) < 0.0001);
+    assert.ok(Math.abs(pos1.coords.longitude - pos2.coords.longitude) < 0.0001);
   });
-  // Both fixes round into the same cell, so the snapped components are
-  // identical. ~2 m jitter is well below 0.0001°, so a tight tolerance
-  // catches a regression where the grid step changed.
-  assert.ok(Math.abs(pos1.coords.latitude - pos2.coords.latitude) < 0.0001);
-  assert.ok(Math.abs(pos1.coords.longitude - pos2.coords.longitude) < 0.0001);
-});
+}
 
 test('full_combo: all four overrides install in the same realm', () => {
   // Smoke test that the combined shim doesn't fail to install one

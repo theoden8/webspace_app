@@ -151,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // the page. Only meaningful when `_isLiveLocation` is true; persists
   // across switches between segments so the user's preference isn't lost
   // when they toggle Off → Live again.
-  LocationGranularity _liveLocationGranularity = LocationGranularity.fine;
+  LocationGranularity _liveLocationGranularity = LocationGranularity.gps;
   late WebRtcPolicy _webRtcPolicy;
 
   /// Snapshot of every form field captured after [_loadFromModel] (and again
@@ -592,14 +592,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'Function.prototype.toString — so timezone override and WebRTC '
           'policy still apply, but the coordinates are real and current.\n\n'
           'In Live mode, pick a granularity:\n'
-          'Fine: real device coordinates and accuracy. Use when the site '
-          'needs metre-level positioning (turn-by-turn navigation, AR, '
-          'hyper-local search).\n'
-          'Coarse: lat/lng snapped to a ~1.1 km grid and accuracy '
-          'inflated to match. Use for sites that only need your general '
-          'area (regional weather, "stores nearby"). The OS still hands '
-          'the app the high-precision fix; the shim fuzzes it before the '
-          'site sees anything.',
+          'GPS: real device coordinates and accuracy via the GPS '
+          'provider. Use when the site needs metre-level positioning '
+          '(turn-by-turn navigation, AR, hyper-local search).\n'
+          'Approximate: still uses the GPS provider so a fix actually '
+          'arrives, then the shim snaps lat/lng to a ~110 m grid before '
+          'the page sees it. Use when the site needs your general area '
+          'with reasonable speed (weather, "stores nearby", traffic).\n'
+          'GSM: cell-tower / Wi-Fi positioning only — no GPS chip and '
+          'no fine-location permission. Result snapped to a ~1.1 km '
+          'grid. Most privacy-respectful but may return nothing on '
+          'devices without a Network Location Provider (some de-Googled '
+          'phones).',
     );
 
     // Derive the active segment from current state. `Static` is selected
@@ -688,14 +692,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: SegmentedButton<LocationGranularity>(
                   segments: const [
                     ButtonSegment(
-                      value: LocationGranularity.fine,
+                      value: LocationGranularity.gps,
                       icon: Icon(Icons.gps_fixed),
-                      label: Text('Fine'),
+                      label: Text('GPS'),
                     ),
                     ButtonSegment(
-                      value: LocationGranularity.coarse,
+                      value: LocationGranularity.approximate,
                       icon: Icon(Icons.gps_not_fixed),
-                      label: Text('Coarse'),
+                      label: Text('Approx'),
+                    ),
+                    ButtonSegment(
+                      value: LocationGranularity.gsm,
+                      icon: Icon(Icons.cell_tower),
+                      label: Text('GSM'),
                     ),
                   ],
                   selected: {_liveLocationGranularity},
@@ -706,12 +715,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                _liveLocationGranularity == LocationGranularity.fine
-                    ? 'Fine: real device coordinates and accuracy. Use for '
-                        'turn-by-turn navigation or hyper-local search.'
-                    : 'Coarse: lat/lng snapped to a ~1.1 km grid and '
-                        'reported accuracy inflated to match. Use when the '
-                        'site only needs your general area.',
+                switch (_liveLocationGranularity) {
+                  LocationGranularity.gps =>
+                    'GPS: real device coordinates and accuracy. Use for '
+                        'turn-by-turn navigation or hyper-local search.',
+                  LocationGranularity.approximate =>
+                    'Approximate: GPS provider, lat/lng snapped to a ~110 '
+                        'm grid before the page sees it. Fast and works '
+                        'on devices without a network-location backend.',
+                  LocationGranularity.gsm =>
+                    'GSM: network provider only (cell-tower / Wi-Fi), no '
+                        'GPS chip, result snapped to a ~1.1 km grid. May '
+                        'fail on devices without an NLP backend.',
+                },
                 style: const TextStyle(fontSize: 11),
               ),
             ],

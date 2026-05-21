@@ -75,7 +75,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.spoofAccuracy = 50.0,
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
-    this.liveLocationGranularity = LocationGranularity.fine,
+    this.liveLocationGranularity = LocationGranularity.gps,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.userScripts = const [],
     this.onConfirmScriptFetch,

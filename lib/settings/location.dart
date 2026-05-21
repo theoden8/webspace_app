@@ -10,27 +10,39 @@
 ///   change as the device moves.
 enum LocationMode { off, spoof, live }
 
-/// Granularity of the fix surfaced by [LocationMode.live]. The platform
-/// always hands back the highest-precision fix it has (the OS-level
-/// fine/coarse permission split is for native callers, not the WebView).
-/// This enum controls what the JS shim reveals to the page after the fact:
+/// Granularity of the fix surfaced by [LocationMode.live]. Three tiers
+/// trade off precision for permission posture and OS resource use:
 ///
-/// - [fine]: the real device coordinates and accuracy, jittered by ~2 m
-///   like the spoof path so `watchPosition` doesn't return byte-identical
-///   frames. Use when the site genuinely needs metre-level positioning
+/// - [gps]: native GPS provider preferred (Android `ACCESS_FINE_LOCATION`
+///   with GPS + NETWORK + PASSIVE, iOS `kCLLocationAccuracyBest`). The
+///   page sees the real coordinates and accuracy with only sub-meter
+///   jitter so `watchPosition` doesn't return byte-identical frames.
+///   Best precision, may spin up the GPS chip, needs sky view to lock.
+///   Use when the site genuinely needs metre-level positioning
 ///   (turn-by-turn navigation, hyper-local search, AR overlays).
-/// - [coarse]: lat/lng snapped to a ~1.1 km grid (0.01° in latitude,
-///   `0.01° / cos(lat)` in longitude so cells stay roughly square at
-///   higher latitudes) and the reported `accuracy` inflated to at least
-///   ~1100 m so the page knows the fix is approximate. Use when the site
-///   just needs the user's general area (regional weather, "find stores
-///   nearby", "drive on the highway" geofences). The grid is recomputed
-///   on every call, so a stationary device returns the same cell and a
-///   moving device crosses cell boundaries with the actual displacement.
+/// - [approximate]: same OS-level provider as [gps] (fastest fix wins,
+///   GPS or NETWORK) so it actually returns a location even on devices
+///   where the NETWORK_PROVIDER backend (NLP / GSM-only) is not
+///   configured, then the shim snaps lat/lng to a ~110 m grid before
+///   the page sees anything. The reported `accuracy` is inflated to at
+///   least ~110 m so the page knows the fix is rounded. This is the
+///   middle ground: real GPS-quality fix, fuzzed before exposure. Use
+///   for weather, "stores nearby", traffic info — anything that doesn't
+///   need exact coordinates but does need a fix that arrives.
+/// - [gsm]: Android `ACCESS_COARSE_LOCATION` only with `NETWORK_PROVIDER`
+///   only (cell-tower / Wi-Fi triangulation, never GPS), iOS
+///   `kCLLocationAccuracyKilometer` so CoreLocation does not power up
+///   the GPS chip even under full Precise authorization. The returned
+///   fix is then snapped to a ~1.1 km grid and the reported `accuracy`
+///   is inflated to at least 1100 m. Privacy-paranoid: the app never
+///   even asks for fine-location permission. Note that this tier can
+///   return nothing on devices without a Network Location Provider
+///   backend (de-Googled phones without microG/UnifiedNlp); use
+///   [approximate] for a working middle ground.
 ///
 /// Static [LocationMode.spoof] coordinates are user-supplied and not
 /// rounded — the user already chose the precision they want to expose.
-enum LocationGranularity { fine, coarse }
+enum LocationGranularity { gps, approximate, gsm }
 
 /// Per-site WebRTC policy. HTTP(S)/SOCKS5 proxies only tunnel TCP — WebRTC
 /// UDP candidates leak the real client IP even with proxy enabled. This

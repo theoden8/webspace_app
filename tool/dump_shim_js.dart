@@ -65,7 +65,7 @@ Map<String, String> buildAllFixtures() {
     spoofTimezone: null,
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
   )!;
-  fixtures['location_spoof/live_fine.js'] =
+  fixtures['location_spoof/live_gps.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.live,
     spoofLatitude: null,
@@ -74,14 +74,24 @@ Map<String, String> buildAllFixtures() {
     spoofTimezone: null,
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
   )!;
-  fixtures['location_spoof/live_coarse.js'] =
+  fixtures['location_spoof/live_approximate.js'] =
       LocationSpoofService.buildScript(
     locationMode: LocationMode.live,
     spoofLatitude: null,
     spoofLongitude: null,
     spoofAccuracy: 50.0,
     spoofTimezone: null,
-    liveLocationGranularity: LocationGranularity.coarse,
+    liveLocationGranularity: LocationGranularity.approximate,
+    webRtcPolicy: WebRtcPolicy.defaultPolicy,
+  )!;
+  fixtures['location_spoof/live_gsm.js'] =
+      LocationSpoofService.buildScript(
+    locationMode: LocationMode.live,
+    spoofLatitude: null,
+    spoofLongitude: null,
+    spoofAccuracy: 50.0,
+    spoofTimezone: null,
+    liveLocationGranularity: LocationGranularity.gsm,
     webRtcPolicy: WebRtcPolicy.defaultPolicy,
   )!;
   fixtures['location_spoof/timezone_only_tokyo.js'] =
