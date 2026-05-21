@@ -546,7 +546,15 @@ class WebViewModel {
     try {
       await proxyManager.setProxySettings(proxySettings);
     } catch (e) {
-      LogService.instance.log('WebView', 'Failed to apply proxy settings: $e', level: LogLevel.error);
+      LogService.instance.log(
+        'WebView',
+        'Failed to apply proxy settings: $e',
+        level: LogLevel.error,
+        // Exception text can include proxy host / username / scheme,
+        // which are per-site identifiers for any site with a custom
+        // proxy (including archive-tier sites). Keep in the memory ring.
+        sensitivity: LogSensitivity.sensitive,
+      );
     }
   }
 

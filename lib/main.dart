@@ -1961,6 +1961,26 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     for (final cid in slice.containerIds) {
       await _containerIsolation.containerNative.deleteContainer(cid);
     }
+    // Defensive back-erasure: wipe any per-`siteId` app-tier state
+    // that could have leaked archive identity across the close (the
+    // ARCH-006 overrides keep new writes out, but this also handles
+    // entries written by builds that predate the override — and
+    // entries that any future code path forgets to gate).
+    for (final sid in slice.siteIds) {
+      await _stateStorage.removeState(sid);
+      await _cookieSecureStorage.saveCookiesForSite(sid, const []);
+      await HtmlCacheService.instance.deleteCache(sid);
+    }
+    final pwAll = await _proxyPasswordStorage.loadAll();
+    final pwPatch = <String, String?>{
+      ...pwAll,
+      for (final sid in slice.siteIds)
+        if (pwAll.containsKey(sid)) sid: null,
+    };
+    if (pwPatch.length != pwAll.length ||
+        slice.siteIds.any((sid) => pwAll.containsKey(sid))) {
+      await _proxyPasswordStorage.saveAll(pwPatch);
+    }
     final removedSet = slice.siteIds;
     if (_currentIndex != null) {
       final cur = _currentIndex!;
@@ -2573,7 +2593,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // onControllerCreated handler can apply restoreState. Resets the
     // tier to live regardless — the about-to-be-resumed webview
     // is back at the lowest tier.
-    if (target.lifecycleState == SiteLifecycleState.savedForRestore) {
+    // ARCH-006: archive-tier sites never persist webview state to
+    // disk (`_captureStateBytes` early-returns for them), so there's
+    // nothing on disk to restore. Skip the load to avoid a per-site
+    // disk hit that would correlate to the archive siteId.
+    if (target.lifecycleState == SiteLifecycleState.savedForRestore &&
+        !target.isArchiveTier) {
       final bytes = await _stateStorage.loadState(target.siteId);
       if (version != _setCurrentIndexVersion) return;
       if (bytes != null) {
@@ -2840,6 +2865,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// since the webview is still in memory.
   Future<bool> _captureStateBytes(WebViewModel model) async {
     if (model.incognito) return false;
+    // ARCH-006: per-site webview state is keyed by siteId on disk
+    // (encrypted, but the file's existence + path leaks archive site
+    // identity to forensic inspection, and the bytes encode the
+    // back/forward URL stack). Archive-tier sites never capture.
+    if (model.isArchiveTier) return false;
     final bytes = await model.captureNavigationState();
     if (bytes == null) return false;
     await _stateStorage.saveState(model.siteId, bytes);
