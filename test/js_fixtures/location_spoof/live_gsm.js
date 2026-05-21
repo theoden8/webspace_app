@@ -2,19 +2,19 @@
   if (window.__wsLocShimInstalled) return;
   window.__wsLocShimInstalled = true;
 
-  var STATIC_LOC = true;
-  var LIVE_LOC = false;
+  var STATIC_LOC = false;
+  var LIVE_LOC = true;
   // Grid step in degrees applied to the live fix before the page sees it.
   // 0 = no snap (GPS tier), ~0.001 = approximate (~110 m), ~0.01 = GSM
   // (~1.1 km). The longitude step is divided by cos(snappedLat) so cells
   // stay roughly square as we approach the poles. SNAP_MIN_ACC_M is the
   // floor for reported accuracy — sites that refuse low-accuracy fixes
   // will skip the call, which is the intended trade-off.
-  var SNAP_STEP_DEG = 0.0;
-  var SNAP_MIN_ACC_M = 0.0;
-  var LAT = 35.6762;
-  var LNG = 139.6503;
-  var ACC = 25.0;
+  var SNAP_STEP_DEG = 0.01;
+  var SNAP_MIN_ACC_M = 1100.0;
+  var LAT = 0.0;
+  var LNG = 0.0;
+  var ACC = 50.0;
   var TZ = null;
   var WRTC = "default";
 

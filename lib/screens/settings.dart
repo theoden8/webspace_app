@@ -151,7 +151,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // the page. Only meaningful when `_isLiveLocation` is true; persists
   // across switches between segments so the user's preference isn't lost
   // when they toggle Off → Live again.
-  LocationGranularity _liveLocationGranularity = LocationGranularity.fine;
+  LocationGranularity _liveLocationGranularity = LocationGranularity.gps;
+  // Sticky preference for the "Approximate" sub-switch under the GPS
+  // segment. Derived from the granularity on load (true iff approximate)
+  // and remembered across GPS↔GSM segment toggles so flipping to GSM
+  // and back doesn't silently drop the user's snap preference.
+  bool _liveGpsApproximate = false;
   late WebRtcPolicy _webRtcPolicy;
 
   /// Snapshot of every form field captured after [_loadFromModel] (and again
@@ -300,6 +305,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _spoofTimezoneFromLocation = m.spoofTimezoneFromLocation;
     _isLiveLocation = m.locationMode == LocationMode.live;
     _liveLocationGranularity = m.liveLocationGranularity;
+    _liveGpsApproximate =
+        m.liveLocationGranularity == LocationGranularity.approximate;
     _webRtcPolicy = m.webRtcPolicy;
     _showProxyCredentials = _proxySettings.hasCredentials;
   }
@@ -591,15 +598,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'overrides Geolocation.prototype and hides the patch from '
           'Function.prototype.toString — so timezone override and WebRTC '
           'policy still apply, but the coordinates are real and current.\n\n'
-          'In Live mode, pick a granularity:\n'
-          'Fine: real device coordinates and accuracy. Use when the site '
-          'needs metre-level positioning (turn-by-turn navigation, AR, '
-          'hyper-local search).\n'
-          'Coarse: lat/lng snapped to a ~1.1 km grid and accuracy '
-          'inflated to match. Use for sites that only need your general '
-          'area (regional weather, "stores nearby"). The OS still hands '
-          'the app the high-precision fix; the shim fuzzes it before the '
-          'site sees anything.',
+          'In Live mode, pick a provider:\n'
+          'GPS: real device coordinates via the GPS provider. Use when '
+          'the site needs metre-level positioning (turn-by-turn '
+          'navigation, AR, hyper-local search).\n'
+          'GSM: cell-tower / Wi-Fi positioning only — no GPS chip and '
+          'no fine-location permission. Result snapped to a ~1.1 km '
+          'grid. Most privacy-respectful but may return nothing on '
+          'devices without a Network Location Provider (some de-Googled '
+          'phones).\n\n'
+          'Under GPS, toggle "Approximate" to have the shim snap the '
+          'lat/lng to a ~110 m grid before the page sees it — same '
+          'provider speed, fuzzier result. Use when the site needs '
+          'your general area but not your exact position (weather, '
+          '"stores nearby", traffic).',
     );
 
     // Derive the active segment from current state. `Static` is selected
@@ -683,35 +695,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 8),
+              // Two-tier picker: GPS vs GSM at the top (provider), with an
+              // "Approximate" sub-switch that only applies under GPS — both
+              // share the same OS-level provider, the switch just toggles
+              // whether the JS shim snaps the result. GSM is a different
+              // provider entirely (NETWORK only) and has no sub-toggle.
               SizedBox(
                 width: double.infinity,
-                child: SegmentedButton<LocationGranularity>(
+                child: SegmentedButton<_LiveProvider>(
                   segments: const [
                     ButtonSegment(
-                      value: LocationGranularity.fine,
+                      value: _LiveProvider.gps,
                       icon: Icon(Icons.gps_fixed),
-                      label: Text('Fine'),
+                      label: Text('GPS'),
                     ),
                     ButtonSegment(
-                      value: LocationGranularity.coarse,
-                      icon: Icon(Icons.gps_not_fixed),
-                      label: Text('Coarse'),
+                      value: _LiveProvider.gsm,
+                      icon: Icon(Icons.cell_tower),
+                      label: Text('GSM'),
                     ),
                   ],
-                  selected: {_liveLocationGranularity},
-                  onSelectionChanged: (vs) => setState(
-                      () => _liveLocationGranularity = vs.first),
+                  selected: {
+                    _liveLocationGranularity == LocationGranularity.gsm
+                        ? _LiveProvider.gsm
+                        : _LiveProvider.gps,
+                  },
+                  onSelectionChanged: (vs) => setState(() {
+                    // Preserve the user's approximate preference across
+                    // GPS↔GSM segment toggles: when they leave GPS the
+                    // saved-approximate hint lives in the local switch
+                    // below; coming back to GPS we read its state.
+                    if (vs.first == _LiveProvider.gsm) {
+                      _liveLocationGranularity = LocationGranularity.gsm;
+                    } else {
+                      _liveLocationGranularity = _liveGpsApproximate
+                          ? LocationGranularity.approximate
+                          : LocationGranularity.gps;
+                    }
+                  }),
                   showSelectedIcon: false,
                 ),
               ),
               const SizedBox(height: 4),
+              if (_liveLocationGranularity != LocationGranularity.gsm)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: const Text('Approximate'),
+                  subtitle: const Text(
+                    'Snap lat/lng to a ~110 m grid before the page sees it.',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  value: _liveGpsApproximate,
+                  onChanged: (v) => setState(() {
+                    _liveGpsApproximate = v;
+                    _liveLocationGranularity = v
+                        ? LocationGranularity.approximate
+                        : LocationGranularity.gps;
+                  }),
+                ),
               Text(
-                _liveLocationGranularity == LocationGranularity.fine
-                    ? 'Fine: real device coordinates and accuracy. Use for '
-                        'turn-by-turn navigation or hyper-local search.'
-                    : 'Coarse: lat/lng snapped to a ~1.1 km grid and '
-                        'reported accuracy inflated to match. Use when the '
-                        'site only needs your general area.',
+                switch (_liveLocationGranularity) {
+                  LocationGranularity.gps =>
+                    'GPS: real device coordinates and accuracy. Use for '
+                        'turn-by-turn navigation or hyper-local search.',
+                  LocationGranularity.approximate =>
+                    'GPS provider, lat/lng snapped to a ~110 m grid '
+                        'before the page sees it. Fast and works on '
+                        'devices without a network-location backend.',
+                  LocationGranularity.gsm =>
+                    'GSM: network provider only (cell-tower / Wi-Fi), no '
+                        'GPS chip, result snapped to a ~1.1 km grid. May '
+                        'fail on devices without an NLP backend.',
+                },
                 style: const TextStyle(fontSize: 11),
               ),
             ],
@@ -1617,4 +1673,10 @@ Future<void> maybeShowBackgroundNotificationLimitsDialog(
 ///   live   -> LocationMode.live    (real device GPS via the shim's
 ///                                   getRealLocation handler)
 enum _LocationSegment { off, staticCoords, live }
+
+/// Provider tier shown by the live-mode segment picker. GPS and GSM are
+/// the two OS-level provider strategies; the "Approximate" switch
+/// rendered under GPS modulates whether the JS shim snaps the result,
+/// so it is not a separate provider — see [LocationGranularity].
+enum _LiveProvider { gps, gsm }
 

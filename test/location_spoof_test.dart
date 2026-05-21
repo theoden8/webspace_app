@@ -149,10 +149,10 @@ void main() {
       expect(script, contains("'granted'"));
     });
 
-    test('live mode without granularity defaults to fine', () {
+    test('live mode without granularity defaults to gps (no snap)', () {
       // Backwards-compat: callers that omit `liveLocationGranularity`
-      // must still build a live shim that does NOT coarsen — coarsening
-      // is opt-in only.
+      // must still build a live shim that does NOT snap — snapping is
+      // opt-in only via approximate/gsm.
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.live,
         spoofLatitude: null,
@@ -163,44 +163,63 @@ void main() {
       );
       expect(script, isNotNull);
       expect(script, contains('var LIVE_LOC = true'));
-      expect(script, contains('var LIVE_COARSE = false'));
+      expect(script, contains('var SNAP_STEP_DEG = 0.0'));
+      expect(script, contains('var SNAP_MIN_ACC_M = 0.0'));
     });
 
-    test('live mode with coarse granularity flips LIVE_COARSE', () {
+    test('live mode with approximate granularity snaps to a ~110 m grid', () {
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.live,
         spoofLatitude: null,
         spoofLongitude: null,
         spoofAccuracy: 50.0,
         spoofTimezone: null,
-        liveLocationGranularity: LocationGranularity.coarse,
+        liveLocationGranularity: LocationGranularity.approximate,
         webRtcPolicy: WebRtcPolicy.defaultPolicy,
       );
       expect(script, isNotNull);
       expect(script, contains('var LIVE_LOC = true'));
-      expect(script, contains('var LIVE_COARSE = true'));
+      expect(script, contains('var SNAP_STEP_DEG = 0.001'));
+      expect(script, contains('var SNAP_MIN_ACC_M = 110.0'));
       // Grid snapping logic must be present in the live-mode shim.
-      expect(script, contains('coarsenFix'));
-      expect(script, contains('COARSE_STEP_DEG'));
+      expect(script, contains('snapFix'));
+    });
+
+    test('live mode with gsm granularity snaps to a ~1.1 km grid', () {
+      final script = LocationSpoofService.buildScript(
+        locationMode: LocationMode.live,
+        spoofLatitude: null,
+        spoofLongitude: null,
+        spoofAccuracy: 50.0,
+        spoofTimezone: null,
+        liveLocationGranularity: LocationGranularity.gsm,
+        webRtcPolicy: WebRtcPolicy.defaultPolicy,
+      );
+      expect(script, isNotNull);
+      expect(script, contains('var LIVE_LOC = true'));
+      expect(script, contains('var SNAP_STEP_DEG = 0.01'));
+      expect(script, contains('var SNAP_MIN_ACC_M = 1100.0'));
+      expect(script, contains('snapFix'));
     });
 
     test('granularity is ignored for spoof mode (static coords are user-chosen)', () {
       // Static spoof coords reflect what the user typed/picked; the
-      // builder must not flip LIVE_COARSE when the mode isn't live, even
-      // if the caller passes coarse.
+      // builder must not flip on snapping when the mode isn't live, even
+      // if the caller passes gsm.
       final script = LocationSpoofService.buildScript(
         locationMode: LocationMode.spoof,
         spoofLatitude: 35.6762,
         spoofLongitude: 139.6503,
         spoofAccuracy: 25.0,
         spoofTimezone: null,
-        liveLocationGranularity: LocationGranularity.coarse,
+        liveLocationGranularity: LocationGranularity.gsm,
         webRtcPolicy: WebRtcPolicy.defaultPolicy,
       );
       expect(script, isNotNull);
       expect(script, contains('var STATIC_LOC = true'));
       expect(script, contains('var LIVE_LOC = false'));
-      expect(script, contains('var LIVE_COARSE = false'));
+      expect(script, contains('var SNAP_STEP_DEG = 0.0'));
+      expect(script, contains('var SNAP_MIN_ACC_M = 0.0'));
     });
 
     test('installs only once via window flag', () {

@@ -2970,7 +2970,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     double spoofAccuracy = 50.0,
     String? spoofTimezone,
     bool spoofTimezoneFromLocation = false,
-    LocationGranularity liveLocationGranularity = LocationGranularity.fine,
+    LocationGranularity liveLocationGranularity = LocationGranularity.gps,
     WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
     required List<UserScriptConfig> userScripts,
     UserProxySettings? proxySettings,

@@ -114,16 +114,17 @@ The spoof SHALL resist trivial detection by:
 
 When `locationMode = live`, the JS shim SHALL forward `navigator.geolocation.getCurrentPosition` and `navigator.geolocation.watchPosition` calls to the platform's native location service via a `flutter_inappwebview` JavaScript handler named `getRealLocation`. Each call returns a fresh fix; coordinates change as the device moves. The same shim hardening as `spoof` mode applies (prototype overrides, toString native reporting, Permissions API → granted).
 
-The shape of the fix surfaced to the page in live mode is controlled by a per-site `liveLocationGranularity` field with two values:
+The shape of the fix surfaced to the page in live mode is controlled by a per-site `liveLocationGranularity` field with three values, named after the OS-level provider strategy the user is opting into:
 
-- `fine` (default): the real device coordinates and accuracy, jittered by ~2 m like the spoof path. Use when the site genuinely needs metre-level positioning.
-- `coarse`: the platform fix is requested at the OS-level coarse tier — Android `ACCESS_COARSE_LOCATION` only with `NETWORK_PROVIDER` only (cell-tower / Wi-Fi triangulation, never GPS), iOS `kCLLocationAccuracyKilometer` so CoreLocation does not power up the GPS chip even under full Precise authorization. The returned fix is then snapped to a ~1.1 km grid before being handed to the page — latitude rounds to the nearest `0.01°`, longitude rounds to the nearest `0.01° / cos(snappedLat)` so cells stay roughly square at higher latitudes, and the reported `accuracy` is inflated to at least 1100 m (or the platform-reported accuracy, whichever is larger — a NETWORK-only 5 km fix must not be silently sharpened by coarse mode). The longitude step is derived from the snapped (not raw) latitude so two fixes that round into the same cell row share an identical step and re-snap to the same column.
+- `gps` (default): the platform fix is requested at the OS-level fine tier — Android `ACCESS_FINE_LOCATION` with `GPS_PROVIDER` + `NETWORK_PROVIDER` (fastest fix wins), iOS `kCLLocationAccuracyBest`. The shim returns the real device coordinates and accuracy with only ~2 m sub-meter jitter so `watchPosition` doesn't return byte-identical frames. Use when the site genuinely needs metre-level positioning.
+- `approximate`: the platform fix is requested at the same OS-level fine tier as `gps` (so a fix actually arrives on devices without a Network Location Provider backend, where pure `NETWORK_PROVIDER` returns nothing), then the shim snaps lat/lng to a ~110 m grid before the page sees it — latitude rounds to the nearest `0.001°`, longitude rounds to the nearest `0.001° / cos(snappedLat)` so cells stay roughly square at higher latitudes. The reported `accuracy` is inflated to at least 110 m (or the platform-reported accuracy, whichever is larger). The longitude step is derived from the snapped (not raw) latitude so two fixes that round into the same cell row share an identical step. This is the privacy-preserving middle ground: the OS still serves a real GPS fix, but the page sees a fuzzed result.
+- `gsm`: the platform fix is requested at the OS-level coarse tier — Android `ACCESS_COARSE_LOCATION` only with `NETWORK_PROVIDER` only (cell-tower / Wi-Fi triangulation, never GPS), iOS `kCLLocationAccuracyKilometer` so CoreLocation does not power up the GPS chip even under full Precise authorization. The returned fix is then snapped to a ~1.1 km grid before being handed to the page (latitude rounds to `0.01°`, longitude rounds to `0.01° / cos(snappedLat)`) and the reported `accuracy` is inflated to at least 1100 m (or the platform-reported accuracy, whichever is larger — a NETWORK-only 5 km fix must not be silently sharpened by GSM mode). Note that this tier may return nothing on devices without an NLP backend (de-Googled phones without microG/UnifiedNlp); `approximate` is the right choice when the user needs a fix that actually arrives.
 
-Granularity is `fine` by default for backwards compatibility — existing sites that read live location keep their metre-level precision until the user opts into coarse for that site. The fine/coarse selection threads through to the platform plugin via a `'accuracy'` arg on the `getCurrentLocation` method-channel call (string `'fine'` or `'coarse'`); a coarse-only site therefore never escalates the app's permission posture or causes the OS prompt to offer the Precise toggle for that call.
+Granularity is `gps` by default for backwards compatibility — existing sites that read live location keep their metre-level precision until the user opts into `approximate` or `gsm` for that site. The granularity threads through to the platform plugin via an `'accuracy'` arg on the `getCurrentLocation` method-channel call: `gps` and `approximate` both pass `'fine'` (the OS provider strategy is identical), while `gsm` passes `'coarse'`. A GSM-only site therefore never escalates the app's permission posture or causes the OS prompt to offer the Precise toggle for that call.
 
-`liveLocationGranularity` SHALL round-trip through `WebViewModel.toJson` / `fromJson`. The default `fine` value SHALL be omitted from JSON so on-disk and QR-payload sizes stay byte-stable for users who never opt into coarse. Older backups predating the field SHALL rehydrate as `fine`.
+`liveLocationGranularity` SHALL round-trip through `WebViewModel.toJson` / `fromJson`. The default `gps` value SHALL be omitted from JSON so on-disk and QR-payload sizes stay byte-stable for users who never opt into `approximate` / `gsm`. Older backups predating the field SHALL rehydrate as `gps`. Backups written under the previous two-tier scheme (`fine` / `coarse`) SHALL migrate as `fine` → `gps` and `coarse` → `gsm`, since those were the OS-level provider tiers those values mapped to.
 
-The shim variable controlling the static-coordinates path SHALL be named `STATIC_LOC` (not `SPOOF_LOC`) for clarity, since both `spoof` and `live` are technically "spoofs" of `navigator.geolocation` — `STATIC_LOC` specifically gates the path that returns hardcoded coords. The shim variable gating coarse live granularity SHALL be named `LIVE_COARSE`.
+The shim variable controlling the static-coordinates path SHALL be named `STATIC_LOC` (not `SPOOF_LOC`) for clarity, since both `spoof` and `live` are technically "spoofs" of `navigator.geolocation` — `STATIC_LOC` specifically gates the path that returns hardcoded coords. The shim variables driving the live-fix grid SHALL be named `SNAP_STEP_DEG` (degrees per grid cell, `0` for `gps`) and `SNAP_MIN_ACC_M` (accuracy floor in metres, `0` for `gps`).
 
 The Dart-side handler for `getRealLocation` SHALL be registered in `webview.dart`'s `onWebViewCreated` only when `config.locationMode == LocationMode.live`. The handler delegates to `CurrentLocationService.getCurrentLocation()` (Android `LocationManager` / iOS `CLLocationManager`, no Google Play Services). The platform permission prompt fires the first time the page actually calls `getCurrentPosition` — not at app launch, not at site activation.
 
@@ -157,45 +158,61 @@ The Dart-side handler for `getRealLocation` SHALL be registered in `webview.dart
 **Then** `Intl` reports `'Asia/Tokyo'` (the timezone override is unaffected by live mode)
 **And** `RTCPeerConnection` is neutered per the policy
 
-#### Scenario: Fine granularity preserves platform precision
+#### Scenario: GPS granularity preserves platform precision
 
-**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = fine`
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = gps`
 **And** the platform fix is `(35.6762, 139.6503)` with accuracy 12 m
 **When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
 **Then** `cb` is invoked with `coords.latitude ≈ 35.6762`, `coords.longitude ≈ 139.6503` (within ~2 m of sub-meter jitter)
 **And** `coords.accuracy == 12` (the platform-reported value, unchanged)
 
-#### Scenario: Coarse granularity snaps to a ~1.1 km grid
+#### Scenario: Approximate granularity snaps to a ~110 m grid via the GPS provider
 
-**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = coarse`
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = approximate`
+**And** the platform fix is `(35.6762, 139.6503)` with accuracy 12 m
+**When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
+**Then** the underlying method-channel call carries `'accuracy': 'fine'`, so the OS still uses the GPS provider (a NETWORK-only failure does NOT block this tier)
+**And** `cb` is invoked with coords snapped so `coords.latitude` rounds to a multiple of `0.001°` and `coords.longitude` rounds to a multiple of `0.001° / cos(snappedLat)` (each modulo the ~2 m jitter applied on top)
+**And** `coords.accuracy >= 110` (inflated to reflect the grid extent)
+
+#### Scenario: GSM granularity snaps to a ~1.1 km grid
+
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = gsm`
 **And** the platform fix is `(35.6762, 139.6503)` with accuracy 12 m
 **When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
 **Then** `cb` is invoked with coords snapped so `coords.latitude` rounds to a multiple of `0.01°` and `coords.longitude` rounds to a multiple of `0.01° / cos(snappedLat)` (each modulo the ~2 m jitter applied on top)
 **And** `coords.accuracy >= 1100` (inflated to reflect the grid extent)
 
-#### Scenario: Coarse granularity does not sharpen an already-coarse fix
+#### Scenario: Snap granularity does not sharpen an already-coarse fix
 
-**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = coarse`
+**Given** site "Acme" has `locationMode = live` and any snapping granularity (`approximate` or `gsm`)
 **And** the platform fix is `(35.6762, 139.6503)` with accuracy 5000 m (NETWORK provider)
 **When** the site calls `navigator.geolocation.getCurrentPosition(cb)`
-**Then** `coords.accuracy == 5000` (the coarse path uses `max(real, 1100)`, never sharpens a less-accurate fix)
+**Then** `coords.accuracy == 5000` (the snap path uses `max(real, floor)`, never sharpens a less-accurate fix)
 
-#### Scenario: Coarse granularity never requests fine-location permission
+#### Scenario: GSM granularity never requests fine-location permission
 
-**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = coarse`
+**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = gsm`
 **And** the app holds neither `ACCESS_FINE_LOCATION` nor `ACCESS_COARSE_LOCATION` (Android), or `notDetermined` authorization (iOS)
 **When** the site calls `navigator.geolocation.getCurrentPosition(cb)` for the first time
 **Then** the OS permission prompt requests only `ACCESS_COARSE_LOCATION` on Android (the system "Precise" toggle is not offered for this call)
-**And** on Android the fix is sourced exclusively from `LocationManager.NETWORK_PROVIDER`; the `GPS_PROVIDER` is not started even if it is enabled and even if the app already held `ACCESS_FINE_LOCATION` from a previous fine-mode call
+**And** on Android the fix is sourced exclusively from `LocationManager.NETWORK_PROVIDER`; the `GPS_PROVIDER` is not started even if it is enabled and even if the app already held `ACCESS_FINE_LOCATION` from a previous GPS-mode call
 **And** on iOS `CLLocationManager.desiredAccuracy = kCLLocationAccuracyKilometer` is set before `requestLocation()`, so CoreLocation serves the fix from cell-tower / Wi-Fi positioning rather than powering up the GPS chip
 
-#### Scenario: Coarse granularity hides sub-cell movement
+#### Scenario: Snap granularity hides sub-cell movement
 
-**Given** site "Acme" has `locationMode = live`, `liveLocationGranularity = coarse`
-**And** two consecutive platform fixes 100 m apart inside the same grid cell
+**Given** site "Acme" has `locationMode = live` and any snapping granularity (`approximate` or `gsm`)
+**And** two consecutive platform fixes within the same grid cell (~100 m for `approximate`, ~1 km for `gsm`)
 **When** the site calls `watchPosition(cb)` and receives both fixes
 **Then** the two reported `(latitude, longitude)` values are within sub-meter jitter of each other
 **And** the cell row's longitude step is derived from the snapped latitude (not the raw one), so two neighbouring real latitudes that round into the same row never produce different snapped longitudes for the same cell
+
+#### Scenario: Legacy "fine"/"coarse" backups migrate to gps/gsm
+
+**Given** a settings backup written before the three-tier rename, where one site has `"liveLocationGranularity": "fine"` and another has `"liveLocationGranularity": "coarse"`
+**When** the user restores the backup
+**Then** the first site's `liveLocationGranularity` rehydrates as `gps` (same OS-level provider, same lack of snapping)
+**And** the second site's `liveLocationGranularity` rehydrates as `gsm` (same NETWORK-only provider, same ~1.1 km snap)
 
 ---
 

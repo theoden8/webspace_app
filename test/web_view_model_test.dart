@@ -401,12 +401,12 @@ void main() {
       expect(model.spoofLongitude, isNull);
       expect(model.spoofAccuracy, equals(50.0));
       expect(model.spoofTimezone, isNull);
-      expect(model.liveLocationGranularity, equals(LocationGranularity.fine));
+      expect(model.liveLocationGranularity, equals(LocationGranularity.gps));
       expect(model.webRtcPolicy, equals(WebRtcPolicy.defaultPolicy));
     });
 
     test('liveLocationGranularity round-trips when non-default', () {
-      // Default fine: omitted from JSON so on-disk size stays the same
+      // Default gps: omitted from JSON so on-disk size stays the same
       // for users who never touch live mode.
       final defaultModel = WebViewModel(
         initUrl: 'https://example.com',
@@ -414,24 +414,34 @@ void main() {
       );
       final defaultJson = defaultModel.toJson();
       expect(defaultJson.containsKey('liveLocationGranularity'), isFalse,
-          reason: 'fine is the default; omit to keep on-disk JSON byte-stable '
-              'for users who never opt into coarse');
+          reason: 'gps is the default; omit to keep on-disk JSON byte-stable '
+              'for users who never opt into approximate/gsm');
 
-      final coarseModel = WebViewModel(
+      final gsmModel = WebViewModel(
         initUrl: 'https://example.com',
         locationMode: LocationMode.live,
-        liveLocationGranularity: LocationGranularity.coarse,
+        liveLocationGranularity: LocationGranularity.gsm,
       );
-      final coarseJson = coarseModel.toJson();
-      expect(coarseJson['liveLocationGranularity'], equals('coarse'));
+      final gsmJson = gsmModel.toJson();
+      expect(gsmJson['liveLocationGranularity'], equals('gsm'));
 
-      final restored = WebViewModel.fromJson(coarseJson, null);
+      final restored = WebViewModel.fromJson(gsmJson, null);
       expect(restored.liveLocationGranularity,
-          equals(LocationGranularity.coarse));
+          equals(LocationGranularity.gsm));
+
+      final approxModel = WebViewModel(
+        initUrl: 'https://example.com',
+        locationMode: LocationMode.live,
+        liveLocationGranularity: LocationGranularity.approximate,
+      );
+      final approxJson = approxModel.toJson();
+      expect(approxJson['liveLocationGranularity'], equals('approximate'));
+      expect(WebViewModel.fromJson(approxJson, null).liveLocationGranularity,
+          equals(LocationGranularity.approximate));
     });
 
-    test('liveLocationGranularity defaults to fine when absent from JSON', () {
-      // Older backups predate the field — they must rehydrate as fine.
+    test('liveLocationGranularity defaults to gps when absent from JSON', () {
+      // Older backups predate the field — they must rehydrate as gps.
       final json = {
         'initUrl': 'https://example.com',
         'currentUrl': 'https://example.com',
@@ -443,7 +453,30 @@ void main() {
         'locationMode': 'live',
       };
       final model = WebViewModel.fromJson(json, null);
-      expect(model.liveLocationGranularity, equals(LocationGranularity.fine));
+      expect(model.liveLocationGranularity, equals(LocationGranularity.gps));
+    });
+
+    test('legacy "fine"/"coarse" JSON values migrate to gps/gsm', () {
+      // Backups written before #326 used the old enum names. Reading
+      // them must map "fine" → gps and "coarse" → gsm so existing users
+      // don't silently land on the wrong tier on upgrade.
+      Map<String, dynamic> base(String value) => {
+            'initUrl': 'https://example.com',
+            'currentUrl': 'https://example.com',
+            'cookies': [],
+            'proxySettings': {'type': 0, 'address': null},
+            'javascriptEnabled': true,
+            'userAgent': '',
+            'thirdPartyCookiesEnabled': false,
+            'locationMode': 'live',
+            'liveLocationGranularity': value,
+          };
+      expect(
+          WebViewModel.fromJson(base('fine'), null).liveLocationGranularity,
+          equals(LocationGranularity.gps));
+      expect(
+          WebViewModel.fromJson(base('coarse'), null).liveLocationGranularity,
+          equals(LocationGranularity.gsm));
     });
 
     test('location spoof fields round-trip through JSON', () {

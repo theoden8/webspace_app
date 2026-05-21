@@ -29,7 +29,7 @@ class LocationSpoofService {
     required double? spoofLongitude,
     required double spoofAccuracy,
     required String? spoofTimezone,
-    LocationGranularity liveLocationGranularity = LocationGranularity.fine,
+    LocationGranularity liveLocationGranularity = LocationGranularity.gps,
     required WebRtcPolicy webRtcPolicy,
   }) {
     final spoofLocation = locationMode == LocationMode.spoof &&
@@ -52,13 +52,23 @@ class LocationSpoofService {
       WebRtcPolicy.disabled => '"off"',
       WebRtcPolicy.defaultPolicy => '"default"',
     };
-    final coarseLive = liveLocation &&
-        liveLocationGranularity == LocationGranularity.coarse;
+    // Snap step (degrees) and accuracy floor (metres) chosen per tier.
+    // 0.001° ≈ 110 m at the equator; 0.01° ≈ 1100 m. GPS=no snap. The
+    // longitude step is derived from cos(snappedLat) at runtime so cells
+    // stay roughly square at higher latitudes (see snapFix below).
+    final (snapStepDeg, snapMinAccM) = !liveLocation
+        ? (0.0, 0.0)
+        : switch (liveLocationGranularity) {
+            LocationGranularity.gps => (0.0, 0.0),
+            LocationGranularity.approximate => (0.001, 110.0),
+            LocationGranularity.gsm => (0.01, 1100.0),
+          };
 
     return _template
         .replaceAll('__STATIC_LOC__', spoofLocation ? 'true' : 'false')
         .replaceAll('__LIVE_LOC__', liveLocation ? 'true' : 'false')
-        .replaceAll('__LIVE_COARSE__', coarseLive ? 'true' : 'false')
+        .replaceAll('__SNAP_STEP_DEG__', snapStepDeg.toString())
+        .replaceAll('__SNAP_MIN_ACC_M__', snapMinAccM.toString())
         .replaceAll('__LAT__', lat.toString())
         .replaceAll('__LNG__', lng.toString())
         .replaceAll('__ACC__', acc.toString())
@@ -74,24 +84,23 @@ const String _template = r'''
 
   var STATIC_LOC = __STATIC_LOC__;
   var LIVE_LOC = __LIVE_LOC__;
-  var LIVE_COARSE = __LIVE_COARSE__;
+  // Grid step in degrees applied to the live fix before the page sees it.
+  // 0 = no snap (GPS tier), ~0.001 = approximate (~110 m), ~0.01 = GSM
+  // (~1.1 km). The longitude step is divided by cos(snappedLat) so cells
+  // stay roughly square as we approach the poles. SNAP_MIN_ACC_M is the
+  // floor for reported accuracy — sites that refuse low-accuracy fixes
+  // will skip the call, which is the intended trade-off.
+  var SNAP_STEP_DEG = __SNAP_STEP_DEG__;
+  var SNAP_MIN_ACC_M = __SNAP_MIN_ACC_M__;
   var LAT = __LAT__;
   var LNG = __LNG__;
   var ACC = __ACC__;
   var TZ = __TZ__;
   var WRTC = __WRTC__;
 
-  // Grid cell size for coarse live location. 0.01 degrees latitude is
-  // ~1.11 km on the WGS-84 ellipsoid; the longitude step is divided by
-  // cos(lat) so cells stay roughly square as we approach the poles.
-  // Reported accuracy is inflated to the cell's diagonal half-extent so
-  // the page sees an honest "this is approximate" value — sites that
-  // refuse to use low-accuracy fixes will skip the call, which is the
-  // intended trade-off.
-  var COARSE_STEP_DEG = 0.01;
-  var COARSE_MIN_ACC_M = 1100;
-  function coarsenFix(lat, lng, acc) {
-    var latStep = COARSE_STEP_DEG;
+  function snapFix(lat, lng, acc) {
+    if (!(SNAP_STEP_DEG > 0)) return { lat: lat, lng: lng, acc: acc };
+    var latStep = SNAP_STEP_DEG;
     var snappedLat = Math.round(lat / latStep) * latStep;
     // Compute the longitude step from the SNAPPED latitude, not the raw
     // one. If we used the raw lat, two adjacent fixes inside the same
@@ -103,7 +112,7 @@ const String _template = r'''
     var cosLat = Math.cos(snappedLat * Math.PI / 180);
     var lngStep = latStep / Math.max(Math.abs(cosLat), 1e-6);
     var snappedLng = Math.round(lng / lngStep) * lngStep;
-    var inflated = Math.max(acc || 0, COARSE_MIN_ACC_M);
+    var inflated = Math.max(acc || 0, SNAP_MIN_ACC_M);
     return { lat: snappedLat, lng: snappedLng, acc: inflated };
   }
 
@@ -187,20 +196,18 @@ const String _template = r'''
     // mode is `live`; if it's missing here we still defensively fail
     // closed so a legacy/no-handler page doesn't hang forever.
     //
-    // When LIVE_COARSE is true, the platform fix is snapped to a ~1.1 km
-    // grid before being handed to makePositionFrom — sub-meter jitter
-    // applied below sits well inside the grid cell so the page can't
-    // distinguish a stationary device from one moving a few metres, but
-    // watchPosition still doesn't return byte-identical frames.
+    // When SNAP_STEP_DEG > 0 (approximate or GSM tier), the platform fix
+    // is snapped to a grid before being handed to makePositionFrom —
+    // sub-meter jitter applied below sits well inside the grid cell so
+    // the page can't distinguish a stationary device from one moving a
+    // few metres within the same cell, but watchPosition still doesn't
+    // return byte-identical frames.
     function getLiveFix() {
       if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
         return window.flutter_inappwebview.callHandler('getRealLocation').then(function(res) {
           if (res && res.status === 'ok') {
-            if (LIVE_COARSE) {
-              var c = coarsenFix(res.latitude, res.longitude, res.accuracy);
-              return { ok: true, lat: c.lat, lng: c.lng, acc: c.acc };
-            }
-            return { ok: true, lat: res.latitude, lng: res.longitude, acc: res.accuracy };
+            var c = snapFix(res.latitude, res.longitude, res.accuracy);
+            return { ok: true, lat: c.lat, lng: c.lng, acc: c.acc };
           }
           return { ok: false, payload: res };
         }, function() {

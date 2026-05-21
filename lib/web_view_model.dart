@@ -335,10 +335,12 @@ class WebViewModel {
   /// loadable polygon dataset that may not be present.
   bool spoofTimezoneFromLocation;
   /// Granularity applied to the real GPS fix surfaced by
-  /// [LocationMode.live]. Default [LocationGranularity.fine] preserves
-  /// the existing pre-feature behavior; [LocationGranularity.coarse]
-  /// snaps the lat/lng to a ~1.1 km grid and inflates the reported
-  /// accuracy. Ignored for [LocationMode.off] / [LocationMode.spoof].
+  /// [LocationMode.live]. [LocationGranularity.gps] (default) reports
+  /// the raw device coords. [LocationGranularity.approximate] snaps to
+  /// a ~110 m grid while still using the GPS provider so a fix actually
+  /// arrives. [LocationGranularity.gsm] uses the network provider only
+  /// and snaps to a ~1.1 km grid. Ignored for [LocationMode.off] and
+  /// [LocationMode.spoof].
   LocationGranularity liveLocationGranularity;
   WebRtcPolicy webRtcPolicy;
 
@@ -419,7 +421,7 @@ class WebViewModel {
     this.spoofAccuracy = 50.0,
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
-    this.liveLocationGranularity = LocationGranularity.fine,
+    this.liveLocationGranularity = LocationGranularity.gps,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.domainClaims,
     this.stateSetterF,
@@ -1302,7 +1304,7 @@ class WebViewModel {
         'spoofAccuracy': spoofAccuracy,
         if (spoofTimezone != null) 'spoofTimezone': spoofTimezone,
         if (spoofTimezoneFromLocation) 'spoofTimezoneFromLocation': true,
-        if (liveLocationGranularity != LocationGranularity.fine)
+        if (liveLocationGranularity != LocationGranularity.gps)
           'liveLocationGranularity': liveLocationGranularity.name,
         'webRtcPolicy': webRtcPolicy.name,
         if (domainClaims != null && domainClaims!.isNotEmpty)
@@ -1368,10 +1370,8 @@ class WebViewModel {
       spoofTimezone: json['spoofTimezone'] as String?,
       spoofTimezoneFromLocation:
           json['spoofTimezoneFromLocation'] as bool? ?? false,
-      liveLocationGranularity: LocationGranularity.values.firstWhere(
-        (g) => g.name == json['liveLocationGranularity'],
-        orElse: () => LocationGranularity.fine,
-      ),
+      liveLocationGranularity: _decodeLiveLocationGranularity(
+          json['liveLocationGranularity']),
       webRtcPolicy: WebRtcPolicy.values.firstWhere(
         (p) => p.name == json['webRtcPolicy'],
         orElse: () => WebRtcPolicy.defaultPolicy,
@@ -1382,4 +1382,19 @@ class WebViewModel {
       stateSetterF: stateSetterF,
     )..pageTitle = dropUrl ? null : json['pageTitle'];
   }
+}
+
+/// Legacy enum values written before the three-tier rename are migrated:
+/// `"fine"` (pre-#326 default = raw GPS) → [LocationGranularity.gps],
+/// `"coarse"` (pre-#326 cell-tower-only) → [LocationGranularity.gsm].
+/// Anything unrecognised or absent falls through to [LocationGranularity.gps].
+LocationGranularity _decodeLiveLocationGranularity(Object? raw) {
+  if (raw is String) {
+    if (raw == 'fine') return LocationGranularity.gps;
+    if (raw == 'coarse') return LocationGranularity.gsm;
+    for (final v in LocationGranularity.values) {
+      if (v.name == raw) return v;
+    }
+  }
+  return LocationGranularity.gps;
 }

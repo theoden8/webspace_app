@@ -494,8 +494,9 @@ class WebViewConfig {
   /// through to no-timezone-spoof.
   final bool spoofTimezoneFromLocation;
   /// Granularity of the fix reported to the page in [LocationMode.live].
-  /// Fine (default) reveals the real device coordinates; coarse snaps
-  /// to a ~1.1 km grid and inflates accuracy. Ignored when
+  /// GPS (default) reveals the real device coordinates; Approximate uses
+  /// the GPS provider but snaps to a ~110 m grid; GSM uses the network
+  /// provider only and snaps to a ~1.1 km grid. Ignored when
   /// [locationMode] is not [LocationMode.live].
   final LocationGranularity liveLocationGranularity;
   /// WebRTC policy — prevents real-IP leak that bypasses HTTP(S)/SOCKS proxies.
@@ -553,7 +554,7 @@ class WebViewConfig {
     this.spoofAccuracy = 50.0,
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
-    this.liveLocationGranularity = LocationGranularity.fine,
+    this.liveLocationGranularity = LocationGranularity.gps,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.proxySettings,
     this.notificationsEnabled = false,
@@ -2055,14 +2056,16 @@ class WebViewFactory {
         // getCurrentPosition / watchPosition. The handler returns a
         // serialisable map matching CurrentLocationService's JSON shape.
         if (config.locationMode == LocationMode.live) {
-          // Coarse-granularity sites get their fixes from the platform's
+          // GSM-granularity sites get their fixes from the platform's
           // network-positioning provider only (Android NETWORK_PROVIDER /
           // iOS kCLLocationAccuracyKilometer). The OS never escalates to
           // the fine-location permission and never powers up the GPS
-          // chip — the JS shim's grid-snapping is then layered on top
-          // for an extra ~1.1 km of consistency across consecutive fixes.
+          // chip. Approximate still uses the GPS provider so a fix
+          // actually arrives on devices without an NLP backend — the JS
+          // shim's grid-snapping is layered on top to fuzz the result
+          // before the page sees it.
           final requestAccuracy =
-              config.liveLocationGranularity == LocationGranularity.coarse
+              config.liveLocationGranularity == LocationGranularity.gsm
                   ? LocationAccuracy.coarse
                   : LocationAccuracy.fine;
           controller.addJavaScriptHandler(
