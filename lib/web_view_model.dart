@@ -1123,7 +1123,7 @@ class WebViewModel {
   void disposeWebView() {
     LogService.instance.log(
       'WebView',
-      'disposeWebView called for "$name" (siteId: $siteId)',
+      'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
       sensitivity: LogSensitivity.sensitive,
     );
     webview = null;
