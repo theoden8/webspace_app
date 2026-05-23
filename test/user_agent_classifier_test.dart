@@ -13,8 +13,8 @@ void main() {
 
     test('Android Firefox UA is mobile', () {
       // The mobile end of generateRandomUserAgent's platform list.
-      const ua = 'Mozilla/5.0 (Android 16; Mobile; rv:147.0) '
-          'Gecko/20100101 Firefox/147.0';
+      const ua = 'Mozilla/5.0 (Android 16; Mobile; rv:151.0) '
+          'Gecko/20100101 Firefox/151.0';
       expect(isDesktopUserAgent(ua), isFalse);
     });
 
@@ -39,20 +39,20 @@ void main() {
     });
 
     test('Linux Firefox desktop is desktop', () {
-      const ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:147.0) '
-          'Gecko/20100101 Firefox/147.0';
+      const ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) '
+          'Gecko/20100101 Firefox/151.0';
       expect(isDesktopUserAgent(ua), isTrue);
     });
 
     test('macOS Firefox desktop is desktop', () {
-      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:147.0) '
-          'Gecko/20100101 Firefox/147.0';
+      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:151.0) '
+          'Gecko/20100101 Firefox/151.0';
       expect(isDesktopUserAgent(ua), isTrue);
     });
 
     test('Windows Firefox desktop is desktop', () {
-      const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) '
-          'Gecko/20100101 Firefox/147.0';
+      const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) '
+          'Gecko/20100101 Firefox/151.0';
       expect(isDesktopUserAgent(ua), isTrue);
     });
 
@@ -71,8 +71,8 @@ void main() {
 
   group('inferDesktopUaPlatform', () {
     test('detects macOS via "Macintosh"', () {
-      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:147.0) '
-          'Gecko/20100101 Firefox/147.0';
+      const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:151.0) '
+          'Gecko/20100101 Firefox/151.0';
       expect(inferDesktopUaPlatform(ua), DesktopUaPlatform.macos);
     });
 
@@ -83,14 +83,14 @@ void main() {
     });
 
     test('detects Windows via "Windows NT"', () {
-      const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) '
-          'Gecko/20100101 Firefox/147.0';
+      const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) '
+          'Gecko/20100101 Firefox/151.0';
       expect(inferDesktopUaPlatform(ua), DesktopUaPlatform.windows);
     });
 
     test('detects Linux via "X11; Linux"', () {
-      const ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:147.0) '
-          'Gecko/20100101 Firefox/147.0';
+      const ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) '
+          'Gecko/20100101 Firefox/151.0';
       expect(inferDesktopUaPlatform(ua), DesktopUaPlatform.linux);
     });
 

@@ -82,10 +82,10 @@ String navigatorPlatformFor(DesktopUaPlatform p) {
 /// Firefox; the rendered shape matches the project's existing
 /// `generateRandomUserAgent()` output.
 const String firefoxLinuxDesktopUserAgent =
-    'Mozilla/5.0 (X11; Linux x86_64; rv:147.0) Gecko/20100101 Firefox/147.0';
+    'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0';
 const String firefoxMacosDesktopUserAgent =
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:147.0) '
-    'Gecko/20100101 Firefox/147.0';
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:151.0) '
+    'Gecko/20100101 Firefox/151.0';
 const String firefoxWindowsDesktopUserAgent =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) '
-    'Gecko/20100101 Firefox/147.0';
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) '
+    'Gecko/20100101 Firefox/151.0';
