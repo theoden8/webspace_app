@@ -4198,6 +4198,40 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           UrlBar(
             currentUrl: model.currentUrl,
             onUrlSubmitted: (url) async {
+              // Cross-domain URL bar submissions route to a nested
+              // InAppWebViewScreen rather than navigating in-place — the
+              // site card stays bound to its configured identity (cookies,
+              // container, per-site privacy posture). Mirrors the
+              // shouldOverrideUrlLoading cross-domain → nested decision so
+              // typing a URL behaves identically to tapping an outbound
+              // link.
+              if (getNormalizedDomain(url) != getNormalizedDomain(model.initUrl)) {
+                await launchUrl(
+                  url,
+                  homeTitle: model.name,
+                  siteId: model.siteId,
+                  incognito: model.incognito,
+                  thirdPartyCookiesEnabled: model.thirdPartyCookiesEnabled,
+                  clearUrlEnabled: model.clearUrlEnabled,
+                  dnsBlockEnabled: model.dnsBlockEnabled,
+                  contentBlockEnabled: model.contentBlockEnabled,
+                  localCdnEnabled: model.localCdnEnabled,
+                  trackingProtectionEnabled: model.trackingProtectionEnabled,
+                  language: model.language,
+                  locationMode: model.locationMode,
+                  spoofLatitude: model.spoofLatitude,
+                  spoofLongitude: model.spoofLongitude,
+                  spoofAccuracy: model.spoofAccuracy,
+                  spoofTimezone: model.spoofTimezone,
+                  spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
+                  liveLocationGranularity: model.liveLocationGranularity,
+                  webRtcPolicy: model.webRtcPolicy,
+                  userScripts: model.combineUserScripts(_globalUserScripts),
+                  proxySettings: model.proxySettings,
+                  notificationsEnabled: model.notificationsEnabled,
+                );
+                return;
+              }
               final controller = model.getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
               if (controller != null) {
                 await controller.loadUrl(url, language: model.language);
