@@ -1,4 +1,4 @@
 • Faster ad blocking
 • Location precision control
 • Self-signed certificates
-• Login & download fixes
+• Bug fixes
