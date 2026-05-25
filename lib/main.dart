@@ -5280,50 +5280,39 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Widget build(BuildContext context) {
     final bool webviewIsVisible = _currentIndex != null && _currentIndex! < _webViewModels.length;
     return PopScope(
-      // On Android, always intercept back so we can implement the two-step
-      // exit pattern (back → open drawer → back → exit app).
-      // On other platforms, allow pop only when no webview is visible.
+      // On Android, always intercept back so the gesture only ever navigates
+      // webview history (never exits the app). On other platforms, allow pop
+      // only when no webview is visible.
       canPop: Platform.isAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _isBackHandling) return;
         _isBackHandling = true;
         try {
           final scaffoldState = _scaffoldKey.currentState;
+          // If the drawer is open, just close it.
           if (scaffoldState != null && scaffoldState.isDrawerOpen) {
-            if (Platform.isAndroid) {
-              LogService.instance.log('Navigation', 'Back gesture: drawer open, exiting app');
-              SystemNavigator.pop();
-            } else {
-              LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
-              Navigator.pop(context);
-            }
+            LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
+            Navigator.pop(context);
             return;
           }
-          // Android homepage (no webview visible): open drawer as exit warning
-          if (Platform.isAndroid && !webviewIsVisible) {
-            LogService.instance.log('Navigation', 'Back gesture: homepage, opening drawer as exit hint');
-            scaffoldState?.openDrawer();
-            return;
-          }
-          // Webview is visible - try to go back in its history.
+          // The back gesture only navigates webview history. It never opens
+          // the drawer and never exits the app; if there is nothing to go
+          // back to, it is a no-op.
           final controller = getController();
           if (controller == null) {
-            LogService.instance.log('Navigation', 'Back gesture: no controller, opening drawer');
-            scaffoldState?.openDrawer();
+            LogService.instance.log('Navigation', 'Back gesture: no controller, ignoring');
             return;
           }
           // Android's canGoBack() is reliable (including for pushState/SPA
           // entries on Chromium). Trust it directly: URL-comparison can
           // false-positive when goBack() succeeds but the navigation
-          // hasn't propagated within the timeout, causing the drawer to
-          // open instead of navigating back.
+          // hasn't propagated within the timeout.
           if (Platform.isAndroid) {
             if (await controller.canGoBack()) {
               await controller.goBack();
               LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');
             } else {
-              LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
-              scaffoldState?.openDrawer();
+              LogService.instance.log('Navigation', 'Back gesture: no history, ignoring');
             }
             return;
           }
@@ -5339,10 +5328,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           if (urlBefore == urlAfter) {
             LogService.instance.log(
               'Navigation',
-              'Back gesture: URL unchanged ($urlAfter), opening drawer',
+              'Back gesture: URL unchanged ($urlAfter), ignoring',
               sensitivity: LogSensitivity.sensitive,
             );
-            scaffoldState?.openDrawer();
           } else {
             LogService.instance.log(
               'Navigation',

@@ -37,7 +37,9 @@ WebSpace embeds webviews in a Scaffold with a drawer. Navigation gestures compet
 
 ### Requirement: NAV-001 - System Back Gesture
 
-The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL navigate back in webview history when possible, and open the drawer as fallback.
+The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL navigate back in webview history when possible. It SHALL NOT open the drawer and SHALL NOT exit the app; when there is no back history it is a no-op.
+
+**Rationale:** Users navigating content-heavy sites (especially SPA news sites) expect the back gesture to mean "go back in the page," not "open the menu" or "leave the app." Folding drawer-opening and app-exit into the back gesture made the gesture ambiguous and, combined with the iOS `canGoBack()` heuristic (NAV-002), occasionally misfired mid-navigation. The drawer is reached via the AppBar menu button (and, on iOS, the left-edge swipe per NAV-003); the app is left via the OS home/recents gesture.
 
 #### Scenario: Webview has back history
 
@@ -49,33 +51,25 @@ The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL
 
 **Given** a webview is visible with no navigation history
 **When** the user triggers the system back gesture
-**Then** the drawer opens
+**Then** nothing happens (no drawer, no exit)
 
-#### Scenario: Drawer is already open (Android)
+#### Scenario: Drawer is already open
 
-**Given** the drawer is open on Android
+**Given** the drawer is open
 **When** the user triggers the system back gesture
-**Then** the app exits (via `SystemNavigator.pop()`)
-
-**Rationale:** On Android, the drawer serves as a visual "you're about to leave" cue. The first back gesture opens the drawer; the second exits. This two-step pattern prevents accidental exits in a multi-site browser where reloading webviews is costly, without resorting to an annoying "press back again to exit" toast.
-
-#### Scenario: Drawer is already open (non-Android)
-
-**Given** the drawer is open on iOS/macOS
-**When** the user triggers the system back gesture
-**Then** the drawer closes
+**Then** the drawer closes (the app does NOT exit)
 
 #### Scenario: No webview visible — Android
 
 **Given** the webspace list screen is visible (no webview selected) on Android
 **When** the user triggers the system back gesture
-**Then** the drawer opens (as an exit warning)
+**Then** nothing happens (the gesture is swallowed; no drawer, no exit)
 
 #### Scenario: No webview visible — non-Android
 
 **Given** the webspace list screen is visible (no webview selected) on iOS/macOS
 **When** the user triggers the system back gesture
-**Then** the system pop behavior proceeds normally (app may exit)
+**Then** the system pop behavior proceeds normally
 
 ---
 
@@ -83,7 +77,7 @@ The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL
 
 On iOS and macOS, the PopScope back handler SHALL NOT trust `canGoBack()` for determining back navigation capability. It SHALL use URL comparison as the authoritative check.
 
-On Android, the PopScope back handler SHALL trust `canGoBack()` directly. Chromium reports `pushState` entries correctly, so URL comparison adds no information and its 150ms window can false-positive when a slow `goBack()` (e.g. BFCache miss) leaves the URL unchanged at the time of the post-delay sample — which incorrectly opens the drawer instead of letting the navigation complete.
+On Android, the PopScope back handler SHALL trust `canGoBack()` directly. Chromium reports `pushState` entries correctly, so URL comparison adds no information and its 150ms window can false-positive when a slow `goBack()` (e.g. BFCache miss) leaves the URL unchanged at the time of the post-delay sample.
 
 **Rationale:** `canGoBack()` can return `false` for `history.pushState()` entries on iOS WKWebView. Trusting it would prevent back navigation in SPAs. Android System WebView (Chromium) does not have this bug.
 
@@ -95,7 +89,7 @@ On Android, the PopScope back handler SHALL trust `canGoBack()` directly. Chromi
 **Then** `goBack()` is called regardless
 **And** the URL is compared before/after with a 150ms delay
 **And** if the URL changed, back navigation succeeded
-**And** if the URL did NOT change, the drawer opens as fallback
+**And** if the URL did NOT change, the gesture is a no-op
 
 #### Scenario: Slow back navigation (Android)
 
@@ -103,14 +97,14 @@ On Android, the PopScope back handler SHALL trust `canGoBack()` directly. Chromi
 **And** `canGoBack()` returns `true`
 **When** the user triggers the system back gesture
 **Then** `goBack()` is called
-**And** the drawer does NOT open, even if the new page takes longer than 150ms to update its URL
+**And** the navigation proceeds even if the new page takes longer than 150ms to update its URL
 
 #### Scenario: No back history (Android)
 
 **Given** a webview is visible on Android
 **And** `canGoBack()` returns `false`
 **When** the user triggers the system back gesture
-**Then** the drawer opens as the exit-warning fallback
+**Then** nothing happens (no drawer, no exit)
 
 ---
 
@@ -353,17 +347,13 @@ System back gesture received
   ├─ didPop? ──────────────────── return (system handled it)
   ├─ _isBackHandling? ─────────── return (drop concurrent)
   │
-  ├─ Drawer open?
-  │   ├─ Android? ─────────────── exit app (SystemNavigator.pop)
-  │   └─ Other? ───────────────── close drawer
+  ├─ Drawer open? ─────────────── close drawer (never exit)
   │
-  ├─ Android && no webview? ───── open drawer (exit warning)
-  │
-  ├─ No controller? ───────────── open drawer
+  ├─ No controller? ───────────── no-op (no drawer, no exit)
   │
   ├─ Android && has controller:
   │   ├─ canGoBack()? ─────────── goBack()
-  │   └─ else ─────────────────── open drawer
+  │   └─ else ─────────────────── no-op
   │
   └─ iOS/macOS && has controller:
       ├─ urlBefore = getUrl()
@@ -373,7 +363,7 @@ System back gesture received
       │
       ├─ URL changed? ─────────── back succeeded
       │   └─ (iOS) at home URL? ── _canGoBack=false (enable drawer swipe)
-      └─ URL same? ────────────── open drawer (fallback)
+      └─ URL same? ────────────── no-op
 ```
 
 ### Decision Flow: Drawer Edge Drag Width
@@ -419,7 +409,7 @@ Home button pressed
 - `_isBackHandling` — boolean guard for PopScope handler
 - `_updateCanGoBack()` — async check of `controller.canGoBack()` with version guard; delegates the sync decision to `NavigationEngine.trySyncCanGoBack`
 - `_goHome()` — synchronous: dispose webview, reset URL, invalidate version
-- `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (two-step exit), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison
+- `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (so back never exits the app), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison, navigating webview history only
 - `drawerEdgeDragWidth` — conditional drawer edge swipe based on platform and `_canGoBack`
 - Back button `IconButton` (portrait ~line 1685, landscape ~line 2047)
 - Home button `IconButton` (portrait ~line 1701, landscape ~line 2063)
@@ -458,26 +448,25 @@ Home button pressed
 2. Navigate to several pages via links
 3. Press system back (Android) or trigger PopScope (iOS)
 4. Verify each press navigates back one page
-5. When at the initial URL, verify back opens the drawer
+5. When at the initial URL, verify back does nothing (no drawer, no exit)
 
-### Manual Test: Android Two-Step Exit (Webview)
+### Manual Test: Android Back Never Exits (Webview)
 
 1. (Android) Add a site and navigate to its initial URL
-2. Press system back — verify the drawer opens
-3. Press system back again — verify the app exits/minimizes
+2. Press system back repeatedly — verify the app neither opens the drawer nor exits
+3. Verify the drawer still opens via the AppBar menu button
 
-### Manual Test: Android Two-Step Exit (Homepage)
+### Manual Test: Android Back On Homepage
 
 1. (Android) Go to the webspace list (no webview selected)
-2. Press system back — verify the drawer opens
-3. Press system back again — verify the app exits/minimizes
+2. Press system back — verify nothing happens (no drawer, no exit)
 
 ### Manual Test: Home Button Clears History
 
 1. Navigate to several pages deep in a site
 2. Open the menu and press the Home button
 3. Verify the site returns to its initial URL
-4. Press system back — verify the drawer opens (no back history)
+4. Press system back — verify nothing happens (no back history)
 5. (iOS) Swipe from left edge — verify the drawer opens
 
 ### Manual Test: iOS Drawer Swipe After Back Navigation
