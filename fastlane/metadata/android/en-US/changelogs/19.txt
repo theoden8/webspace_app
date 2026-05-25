@@ -1,0 +1,13 @@
+✨ New Features:
+• Content blocking rebuilt on adblock-rust: redirect stubs, $removeparam, $csp, procedural rules
+• Pin and trust self-signed TLS certs
+• Live location: GPS / Approximate / GSM
+• iOS home shortcuts; DarkReader on Android
+
+🔧 Improvements:
+• Per-site identifiers kept out of logs; faster cold start
+
+🐛 Bug Fixes:
+• Clear Site Data fully wipes containers
+• Login POST forms and cookies survive saves
+• Android back gesture; blob downloads; incognito fingerprint
