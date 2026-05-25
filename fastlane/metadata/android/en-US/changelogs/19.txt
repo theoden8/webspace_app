@@ -1,4 +1,4 @@
-• Faster, more effective ad and tracker blocking
-• Choose how precisely sites can see your location
-• Connect to sites with self-signed certificates
-• Fixes: logins, downloads, clearing site data
+• Faster ad blocking
+• Location precision control
+• Self-signed certificates
+• Login & download fixes
