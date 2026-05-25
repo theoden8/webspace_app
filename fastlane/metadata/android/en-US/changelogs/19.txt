@@ -1,10 +1,11 @@
 ✨ New Features:
-• Faster, sharper content blocking on adblock-rust: redirect stubs, $removeparam, $csp, procedural rules
+• Faster, sharper content blocking on adblock-rust
+• $redirect stubs, $removeparam, $csp, procedural rules
 • Pin self-signed TLS certs
-• Live location tiers: GPS / Approximate / GSM
+• Live location: GPS / Approximate / GSM
 • iOS home shortcuts; DarkReader on Android
 
 🐛 Bug Fixes:
 • Clear Site Data fully wipes containers
 • Logins and cookies survive saves
-• Back gesture; blob downloads; incognito fingerprint
+• Back gesture, blob downloads, incognito fingerprint
