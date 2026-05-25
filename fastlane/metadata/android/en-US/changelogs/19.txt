@@ -1,4 +1,9 @@
+✨ New Features:
 • Faster, richer ad blocking
 • Location precision control
 • Self-signed certificates
-• Bug fixes
+
+🐛 Bug Fixes:
+• Reliable data clearing
+• Smoother navigation
+• Stronger incognito privacy
