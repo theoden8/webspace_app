@@ -3,9 +3,10 @@
 • $redirect stubs, $removeparam, $csp, procedural rules
 • Pin self-signed TLS certs
 • Live location: GPS / Approximate / GSM
-• iOS home shortcuts; DarkReader on Android
+• iOS home shortcuts
 
 🐛 Bug Fixes:
+• User scripts now run under strict CSP on Android
 • Clear Site Data fully wipes containers
 • Logins and cookies survive saves
 • Back gesture, blob downloads, incognito fingerprint
