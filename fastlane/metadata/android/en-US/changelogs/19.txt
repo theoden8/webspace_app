@@ -1,12 +1,12 @@
 ✨ New Features:
-• Faster, sharper content blocking on adblock-rust
-• $redirect stubs, $removeparam, $csp, procedural rules
-• Pin self-signed TLS certs
-• Live location: GPS / Approximate / GSM
-• iOS home shortcuts
+• Faster, more effective ad and tracker blocking
+• Connect to sites with self-signed certificates
+• Choose how precisely sites can see your location
+• Add sites to your home screen on iOS
 
 🐛 Bug Fixes:
-• User scripts now run under strict CSP on Android
-• Clear Site Data fully wipes containers
-• Logins and cookies survive saves
-• Back gesture, blob downloads, incognito fingerprint
+• Custom scripts work on more sites (Android)
+• Clearing site data now removes everything
+• Stay signed in after saving settings
+• Smoother back navigation and file downloads
+• Stronger anti-tracking in incognito mode
