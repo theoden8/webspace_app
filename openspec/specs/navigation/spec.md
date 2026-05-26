@@ -15,19 +15,18 @@ Controls all in-app navigation: system back gesture, menu back/home buttons, dra
 
 WebSpace embeds webviews in a Scaffold with a drawer. Navigation gestures compete:
 
-- The **system back gesture** (Android hardware back, iOS left-edge swipe) must navigate back in webview history or open the drawer as fallback.
-- The **drawer edge swipe** must not conflict with webview back navigation on iOS.
+- The **system back gesture** (Android hardware back, iOS left-edge swipe) must navigate back in webview history, and do nothing when there is no history (it never opens the drawer or exits the app).
+- The **drawer edge swipe** is disabled whenever a webview is active so it cannot be confused with the back gesture; the drawer is opened from the AppBar menu button.
 - The **Home button** must return to the site's initial URL with a clean history so subsequent back gestures correctly detect "no history."
-- **Async `canGoBack()` calls** (native IPC) can produce stale results when the user switches sites, presses Home, or navigates rapidly.
 
 ### Platform Quirks
 
 | Platform | Quirk | Impact |
 |----------|-------|--------|
-| iOS | `canGoBack()` returns `false` for `history.pushState()` entries (SPAs) | Drawer becomes swipeable when it shouldn't; mitigated by PopScope URL-comparison fallback |
+| iOS | `canGoBack()` returns `false` for `history.pushState()` entries (SPAs) | Back gesture can't trust it; mitigated by PopScope URL-comparison fallback (NAV-002) |
 | iOS | `onLoadStop` does not fire for BFCache page restorations during back/forward gestures | URL bar doesn't update without `onUpdateVisitedHistory` (fixed in PR #174) |
 | iOS | `target="_blank"` links may only trigger `onCreateWindow`, not `shouldOverrideUrlLoading` | Links load in current webview instead of nested browser without explicit delegation (fixed in PR #175) |
-| iOS | `allowsBackForwardNavigationGestures` is NOT set (defaults to `false`) | WKWebView has no native back swipe; only the drawer edge gesture and PopScope participate |
+| iOS | `allowsBackForwardNavigationGestures` is NOT set (defaults to `false`) | WKWebView has no native back swipe; only PopScope participates |
 | Android | `hasGesture` on `NavigationAction` is a reliable boolean | Used directly for gesture detection |
 | iOS/macOS | No `hasGesture`; must infer from `navigationType` (`LINK_ACTIVATED`, `FORM_SUBMITTED`) | Less reliable than Android's boolean flag |
 
@@ -39,7 +38,7 @@ WebSpace embeds webviews in a Scaffold with a drawer. Navigation gestures compet
 
 The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL navigate back in webview history when possible. It SHALL NOT open the drawer and SHALL NOT exit the app; when there is no back history it is a no-op.
 
-**Rationale:** Users navigating content-heavy sites (especially SPA news sites) expect the back gesture to mean "go back in the page," not "open the menu" or "leave the app." Folding drawer-opening and app-exit into the back gesture made the gesture ambiguous and, combined with the iOS `canGoBack()` heuristic (NAV-002), occasionally misfired mid-navigation. The drawer is reached via the AppBar menu button (and, on iOS, the left-edge swipe per NAV-003); the app is left via the OS home/recents gesture.
+**Rationale:** Users navigating content-heavy sites (especially SPA news sites) expect the back gesture to mean "go back in the page," not "open the menu" or "leave the app." Folding drawer-opening and app-exit into the back gesture made the gesture ambiguous and, combined with the iOS `canGoBack()` heuristic (NAV-002), occasionally misfired mid-navigation. The drawer is reached via the AppBar menu button; the app is left via the OS home/recents gesture.
 
 #### Scenario: Webview has back history
 
@@ -108,25 +107,15 @@ On Android, the PopScope back handler SHALL trust `canGoBack()` directly. Chromi
 
 ---
 
-### Requirement: NAV-003 - iOS Drawer Edge Swipe
+### Requirement: NAV-003 - Drawer Edge Swipe
 
-On iOS, the drawer edge swipe SHALL be enabled when the active webview has no back history, and disabled otherwise.
+The drawer edge swipe SHALL always be disabled when a webview is active, on every platform, so the back/edge gesture never opens the drawer. The drawer is opened via the AppBar menu button.
 
-On Android, the drawer edge swipe SHALL always be disabled when a webview is active (the hardware back button provides fallback navigation).
+#### Scenario: Webview visible
 
-#### Scenario: iOS webview with no back history
-
-**Given** a webview is visible on iOS
-**And** `_canGoBack` is `false`
+**Given** a webview is visible
 **When** the user swipes from the left edge
-**Then** the drawer opens
-
-#### Scenario: iOS webview with back history
-
-**Given** a webview is visible on iOS
-**And** `_canGoBack` is `true`
-**When** the user swipes from the left edge
-**Then** nothing happens (gesture is consumed by the disabled drag zone)
+**Then** the drawer does NOT open (gesture is consumed by the disabled drag zone)
 
 #### Scenario: No webview visible
 
@@ -140,16 +129,14 @@ On Android, the drawer edge swipe SHALL always be disabled when a webview is act
 
 The Home button SHALL navigate to the site's initial URL AND clear all navigation history, so `canGoBack()` returns `false` immediately afterward.
 
-**Rationale:** Simply loading the initial URL via `loadUrl()` preserves back history, causing `canGoBack()` to return `true` even though the user is "home." This breaks the iOS drawer swipe (NAV-003).
+**Rationale:** Simply loading the initial URL via `loadUrl()` preserves back history, causing `canGoBack()` to return `true` even though the user is "home." Disposing and recreating the webview guarantees a clean, zero-history state.
 
 #### Scenario: Press Home from a deep page
 
 **Given** a user has navigated several pages deep
 **When** the user presses the Home button
 **Then** the webview is disposed and recreated fresh at the initial URL
-**And** `_canGoBack` is immediately set to `false`
-**And** any in-flight `_updateCanGoBack` calls are invalidated
-**And** on iOS, the drawer edge swipe is immediately enabled
+**And** the back gesture afterward finds no history (it is a no-op)
 
 ---
 
@@ -270,45 +257,6 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 
 ## Race Condition Guards
 
-### Guard: RACE-001 - _canGoBackVersion Counter
-
-**Problem:** `_updateCanGoBack()` calls `await controller.canGoBack()` (async native IPC). During the await, `_goHome()` or `_setCurrentIndex()` may set `_canGoBack = false`. When the stale IPC result returns `true`, it overwrites the correct `false`.
-
-**Solution:** Version counter `_canGoBackVersion` is incremented:
-- At the start of each `_updateCanGoBack()` call
-- When `_goHome()` resets state
-- When `_setCurrentIndex()` switches sites
-- When the PopScope handler detects landing on the home URL
-
-After the `await`, the result is discarded if `version != _canGoBackVersion`.
-
-```
-_updateCanGoBack() called         _goHome() called
-  version = ++counter (v=1)         counter++ (v=2)
-  await canGoBack()                 _canGoBack = false  [correct]
-  ... IPC resolves true ...
-  version(1) != counter(2) → DISCARD
-```
-
-### Guard: RACE-005 - Home URL Synchronous Fast-Path
-
-**Problem:** After `goBack()` lands on the site's home URL, `_canGoBack` must become `false` to enable the iOS drawer edge swipe. But `_updateCanGoBack()` is async — it calls `await canGoBack()` which takes indeterminate time. Meanwhile, `onLoadStop` or `onUpdateVisitedHistory` callbacks can fire and start *new* `_updateCanGoBack()` calls whose version counters post-date the PopScope handler's bump, making the version guard (RACE-001) ineffective against them.
-
-**Solution:** `_updateCanGoBack()` checks `currentUrl` against `initUrl` *synchronously* before the async `canGoBack()` call (using `NavigationEngine.isHomeUrl` which normalizes trailing slashes). When at the home URL, `_canGoBack` is set to `false` immediately and the async path is skipped entirely, eliminating the race window.
-
-Additionally, the PopScope handler performs the same check right after a successful `goBack()` to cover the window before `onUrlChanged` fires.
-
-**Note:** URL comparison uses `NavigationEngine.isHomeUrl` which strips trailing slashes, since webviews normalize `https://example.com` to `https://example.com/`.
-
-Both the sync fast-path itself and the URL-equality rule are extracted
-into [`NavigationEngine`](../../../lib/services/navigation_engine.dart):
-`trySyncCanGoBack` returns `false` when the decision is available
-synchronously (no site / out of bounds / on home URL / no controller)
-or `null` when the caller must await the controller. The iOS platform
-gate and `_canGoBackVersion` bookkeeping stay at the widget, so the
-engine is testable with plain values — see
-[test/navigation_engine_test.dart](../../../test/navigation_engine_test.dart).
-
 ### Guard: RACE-002 - _isBackHandling Flag
 
 **Problem:** The PopScope `onPopInvokedWithResult` handler is async. Rapid back gestures could invoke it concurrently, causing double navigation or drawer flash.
@@ -329,9 +277,8 @@ engine is testable with plain values — see
 1. Drops the site's cached HTML via `_deleteCacheIfOnline(siteId)` so the next load starts from the live page instead of a stale snapshot (the cached frame could otherwise flash with pre-edit content or mismatched theme before user scripts re-run). The helper is fire-and-forget and skips deletion when the device is offline, so offline users keep a renderable snapshot.
 2. Resets `currentUrl` to `initUrl`
 3. Disposes webview (`webview = null`, `controller = null`)
-4. Bumps `_canGoBackVersion`
-5. Sets `_canGoBack = false` via `setState`
-6. Saves state (fire-and-forget async, but idempotent)
+4. Triggers a rebuild via `setState` so the webview is recreated fresh
+5. Saves state (fire-and-forget async, but idempotent)
 
 Double-tap is harmless: second call disposes an already-null webview. `deleteCache` on the second call is also a no-op (file already removed).
 
@@ -362,7 +309,6 @@ System back gesture received
       ├─ urlAfter = getUrl()
       │
       ├─ URL changed? ─────────── back succeeded
-      │   └─ (iOS) at home URL? ── _canGoBack=false (enable drawer swipe)
       └─ URL same? ────────────── no-op
 ```
 
@@ -372,10 +318,7 @@ System back gesture received
 Build Scaffold
   │
   ├─ No webview visible? ──────── null (default, swipeable)
-  │
-  └─ Webview visible:
-      ├─ iOS && !_canGoBack? ──── null (swipeable, no history to conflict with)
-      └─ Otherwise ────────────── 0 (disabled)
+  └─ Webview visible? ─────────── 0 (disabled, all platforms)
 ```
 
 ### Decision Flow: Home Button
@@ -388,8 +331,7 @@ Home button pressed
   └─ _goHome():
       ├─ model.currentUrl = model.initUrl
       ├─ model.disposeWebView()    ← webview=null, controller=null
-      ├─ _canGoBackVersion++       ← invalidate in-flight checks
-      ├─ setState(_canGoBack=false) ← immediate drawer enable on iOS
+      ├─ setState(() {})           ← trigger rebuild
       └─ _saveWebViewModels()      ← persist reset URL
       
       Next frame: getWebView() sees webview==null
@@ -399,23 +341,16 @@ Home button pressed
 
 ### Files
 
-#### `lib/services/navigation_engine.dart`
-- `NavigationEngine.isHomeUrl(currentUrl, initUrl)` — URL equality ignoring a single trailing slash; shared by `_updateCanGoBack` and the PopScope handler so both sides of RACE-005 use the same rule
-- `NavigationEngine.trySyncCanGoBack(...)` — returns `false` for the sync fast-paths (no site, out of bounds, on home URL, no controller) or `null` when the caller must await the controller; exercised directly in `test/navigation_engine_test.dart`
-
 #### `lib/main.dart`
-- `_canGoBack` — iOS-only state: whether current webview has back history
-- `_canGoBackVersion` — version counter guarding `_updateCanGoBack`
 - `_isBackHandling` — boolean guard for PopScope handler
-- `_updateCanGoBack()` — async check of `controller.canGoBack()` with version guard; delegates the sync decision to `NavigationEngine.trySyncCanGoBack`
-- `_goHome()` — synchronous: dispose webview, reset URL, invalidate version
+- `_goHome()` — synchronous: dispose webview, reset URL, trigger rebuild
 - `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (so back never exits the app), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison, navigating webview history only
-- `drawerEdgeDragWidth` — conditional drawer edge swipe based on platform and `_canGoBack`
+- `drawerEdgeDragWidth` — `0` whenever a webview is visible (drawer edge swipe disabled on all platforms); `null` otherwise
 - Back button `IconButton` (portrait ~line 1685, landscape ~line 2047)
 - Home button `IconButton` (portrait ~line 1701, landscape ~line 2063)
 
 #### `lib/web_view_model.dart`
-- `stateSetterF` callback — injected closure that calls `setState` + `_updateCanGoBack()`
+- `stateSetterF` callback — injected closure that calls `setState`
 - `getWebView()` — creates webview with `key: UniqueKey()` for fresh state on recreation
 - `disposeWebView()` — sets `webview = null`, `controller = null`
 - `onUrlChanged` callback — triggers `stateSetterF` on URL change
@@ -467,21 +402,18 @@ Home button pressed
 2. Open the menu and press the Home button
 3. Verify the site returns to its initial URL
 4. Press system back — verify nothing happens (no back history)
-5. (iOS) Swipe from left edge — verify the drawer opens
 
-### Manual Test: iOS Drawer Swipe After Back Navigation
+### Manual Test: Drawer Edge Swipe Disabled With Webview
 
-1. (iOS) Start at a site's home URL
-2. Navigate to a second page
-3. Swipe back (system back gesture) to return to the home URL
-4. Immediately swipe from the left edge — verify the drawer opens (no delay needed; home URL fast-path in `_updateCanGoBack` enables drawer synchronously)
+1. Open any site so a webview is visible
+2. Swipe from the left edge — verify the drawer does NOT open
+3. Open the drawer via the AppBar menu button — verify it works
 
 ### Manual Test: Rapid Home Tap (Race Condition)
 
 1. Navigate to a deep page
 2. Open the menu and rapidly double-tap the Home button
 3. Verify the site returns to its initial URL without errors
-4. Verify `_canGoBack` is `false` (drawer swipeable on iOS)
 
 ### Manual Test: Pull-to-Refresh
 

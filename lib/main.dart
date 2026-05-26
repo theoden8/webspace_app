@@ -40,7 +40,6 @@ import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
-import 'package:webspace/services/navigation_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
@@ -847,8 +846,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _showTabStrip = false;
   bool _linkHandlingEnabled = true;
   bool _showStatsBanner = true;
-  bool _canGoBack = false; // Tracks webview back history for iOS drawer gesture
-  int _canGoBackVersion = 0; // Guards _updateCanGoBack against stale async results
 
   // Webspace-related state
   final List<Webspace> _webspaces = [];
@@ -1616,7 +1613,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// stripped home URL with a synthesized `baseDomain` claim, then
   /// navigate the new webview to the full inbound URL on first activation.
   Future<void> _executeCreateSite(DispatchCreateSite a) async {
-    final stateSetter = () { setState((){}); _updateCanGoBack(); };
+    final stateSetter = () { setState((){}); };
     final model = WebViewModel(
       initUrl: a.home,
       domainClaims: a.initialClaims.isEmpty ? null : a.initialClaims,
@@ -1654,7 +1651,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _executeCreateSiteFromHtml(
     DispatchCreateSiteFromHtml a,
   ) async {
-    final stateSetter = () { setState((){}); _updateCanGoBack(); };
+    final stateSetter = () { setState((){}); };
     final fileSiteUrl =
         'file:///webspace_import_${DateTime.now().microsecondsSinceEpoch}.html';
     final model = WebViewModel(
@@ -2044,7 +2041,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (version != _setCurrentIndexVersion) return;
       }
       _currentIndex = index;
-      _canGoBack = false;
       _exitFullscreen();
       return;
     }
@@ -2235,12 +2231,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // least-recently-used first (consumed by the LRU eviction above).
     _loadedIndices.remove(index);
     _loadedIndices.add(index);
-    _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
-    _canGoBack = false; // Reset until async check completes
 
     // Resume the newly active webview
     await _webViewModels[index].resumeWebView();
-    _updateCanGoBack();
 
     // Defensive sweep: pause every other loaded webview so background
     // sites don't run animations / GPS listeners / non-throttled
@@ -2592,7 +2585,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         try {
           loadedWebViewModels.add(WebViewModel.fromJson(
             jsonDecode(cleanedJsonStrings[i]),
-            () { setState((){}); _updateCanGoBack(); },
+            () { setState((){}); },
           ));
         } catch (e) {
           LogService.instance.log(
@@ -3633,47 +3626,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _webViewModels[_currentIndex!].userStopLoading();
   }
 
-  /// Update _canGoBack from the current webview's controller.
-  /// Used on iOS to enable drawer edge-swipe when there's no back history.
-  /// Note: canGoBack() can return false for pushState/SPA navigations even
-  /// when history exists, but that only means the drawer becomes swipeable
-  /// when it shouldn't — the hamburger menu still provides back navigation
-  /// via the PopScope URL-comparison fallback.
-  void _updateCanGoBack() async {
-    if (!Platform.isIOS) return;
-    final version = ++_canGoBackVersion;
-
-    final model = (_currentIndex != null && _currentIndex! < _webViewModels.length)
-        ? _webViewModels[_currentIndex!]
-        : null;
-    final sync = NavigationEngine.trySyncCanGoBack(
-      currentIndex: _currentIndex,
-      siteCount: _webViewModels.length,
-      currentUrl: model?.currentUrl,
-      initUrl: model?.initUrl,
-      hasController: model?.controller != null,
-    );
-    if (sync != null) {
-      if (_canGoBack != sync) {
-        if (model != null && sync == false && NavigationEngine.isHomeUrl(model.currentUrl, model.initUrl)) {
-          LogService.instance.log('Navigation', '_updateCanGoBack: at home URL, forcing false');
-        }
-        setState(() => _canGoBack = sync);
-      }
-      return;
-    }
-
-    final canGoBack = await model!.controller!.canGoBack();
-    if (!mounted || version != _canGoBackVersion) {
-      LogService.instance.log('Navigation', '_updateCanGoBack: stale (v$version != v$_canGoBackVersion), discarding canGoBack=$canGoBack');
-      return;
-    }
-    if (canGoBack != _canGoBack) {
-      LogService.instance.log('Navigation', '_updateCanGoBack: $_canGoBack -> $canGoBack');
-      setState(() => _canGoBack = canGoBack);
-    }
-  }
-
   /// Navigate to the site's initial URL and clear navigation history.
   /// Disposes the webview so it's recreated fresh with no back history.
   /// Evicts the in-memory HTML cache snapshot (online only) so the
@@ -3713,10 +3665,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _evictCacheIfOnline(model.siteId);
     model.currentUrl = model.initUrl;
     model.disposeWebView();
-    _canGoBackVersion++; // Invalidate any in-flight _updateCanGoBack
-    setState(() {
-      _canGoBack = false;
-    });
+    setState(() {});
     // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
     if (model.fullscreenMode) {
       _enterFullscreen();
@@ -4448,7 +4397,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (result == null || result is! Map<String, dynamic>) return;
     if (!mounted) return;
 
-    final stateSetter = () { setState((){}); _updateCanGoBack(); };
+    final stateSetter = () { setState((){}); };
     late WebViewModel model;
     final resultQrSettings = result['qrSettings'] as Map<String, dynamic>?;
 
@@ -5337,17 +5286,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               'Back gesture: navigated back from $urlBefore to $urlAfter',
               sensitivity: LogSensitivity.sensitive,
             );
-            if (Platform.isIOS && _currentIndex != null && _currentIndex! < _webViewModels.length) {
-              // After a successful goBack(), if we've landed on the home URL,
-              // synchronously clear _canGoBack so the drawer edge-swipe is
-              // enabled immediately for the next gesture.
-              final homeUrl = _webViewModels[_currentIndex!].initUrl;
-              if (urlAfter != null && NavigationEngine.isHomeUrl(urlAfter, homeUrl)) {
-                LogService.instance.log('Navigation', 'Back gesture: landed on home URL, enabling drawer swipe');
-                ++_canGoBackVersion;
-                setState(() => _canGoBack = false);
-              }
-            }
           }
         } finally {
           _isBackHandling = false;
@@ -5355,14 +5293,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       },
       child: Scaffold(
       key: _scaffoldKey,
-      // Disable drawer edge drag when a webview is active to prevent conflict
-      // between the drawer swipe gesture and the system back/navigation gesture.
-      // On iOS, re-enable it when the webview has no back history — the left
-      // edge swipe does nothing in that state (PopScope blocks pop, drawer drag
-      // is disabled), so letting it open the drawer is strictly additive.
-      drawerEdgeDragWidth: webviewIsVisible
-          ? (Platform.isIOS && !_canGoBack ? null : 0)
-          : null,
+      // Disable the drawer edge-swipe whenever a webview is active so the back
+      // gesture never opens the drawer. The drawer is reached via the AppBar
+      // menu button instead.
+      drawerEdgeDragWidth: webviewIsVisible ? 0 : null,
       appBar: _isFullscreen ? null : _buildAppBar(),
       drawer: Drawer(
         child: Column(
