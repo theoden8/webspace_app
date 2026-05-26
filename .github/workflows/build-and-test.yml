@@ -157,9 +157,14 @@ jobs:
           restore-keys: |
             cargo-android-${{ runner.os }}-
 
+      - name: Read Rust toolchain
+        id: rust
+        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.rust.outputs.channel }}
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
       - name: Install cargo-ndk
@@ -473,8 +478,14 @@ jobs:
           restore-keys: |
             cargo-linux-${{ runner.os }}-
 
+      - name: Read Rust toolchain
+        id: rust
+        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.rust.outputs.channel }}
 
       # Pin the upstream-crate behaviour the Dart-side procedural
       # backfill (procedural_action_backfill.dart) relies on. If
@@ -719,9 +730,14 @@ jobs:
           restore-keys: |
             cargo-apple-${{ runner.os }}-
 
+      - name: Read Rust toolchain
+        id: rust
+        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.rust.outputs.channel }}
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
 
       # Build the rust .xcframework + macOS fat .a + keep_alive.c into
