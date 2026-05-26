@@ -120,6 +120,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | tracking-protection | umbrella per-site ETP: forces ClearURLs/DNS/content blocker/LocalCDN + injects anti-fingerprinting shim (Canvas/WebGL/audio/fonts/screen/hardware/timing/clientrects) seeded by siteId |
 | user-scripts | per-site JS injection w/ timing control |
 | web-push-notifications | per-site `notificationsEnabled` toggle: JS Notification polyfill → flutter_local_notifications, auto-loads + skips per-instance pause for notif sites, iOS `beginBackgroundTask` grace + `BGAppRefreshTask` reload, Android mirrors via `WorkManager` periodic refresh (no foreground service) |
+| archive | passphrase-gated archived webspaces in a fixed slot pool; active state stays byte-identical when no archive is open |
 | webspaces | named site collections |
 | webview-hints | color-scheme, matchMedia, theme prelude cache |
 | webview-pause-lifecycle | per-instance vs process-global pause; "paused != frozen" |
@@ -151,6 +152,15 @@ User-facing global pref persisted to SharedPreferences MUST round-trip through t
 - Don't register: migration flags, download timestamps, cache indices, machine state from downloaded data (DNS blocklist, content blocker, localcdn).
 - Per-site settings ride `WebViewModel.toJson` automatically — keep them on the model.
 - Touched export/import? Re-run `flutter test test/settings_backup_test.dart`.
+
+## Touching the webspace archive
+
+Spec: [openspec/specs/archive/spec.md](openspec/specs/archive/spec.md). Two rules that must hold for any change to archive code:
+
+- **Active-state byte-identity (ARCH-001).** Everything persisted under the device-key path of `flutter_secure_storage` or in plaintext `SharedPreferences` MUST be byte-identical regardless of whether the device has zero or N archives where all are closed. No counter, flag, salt, MRU entry, or feature-touched marker may vary with archive presence or count. Settings export/import operates only on the app-tier collections and never serializes archive-tier state. Regression test: `test/archive_neutrality_test.dart` (asserts this invariant; update when you add app-tier state).
+- **Per-site feature audit (ARCH-006).** When adding any new per-site feature, re-run the audit in the spec. Per-site features that touch disk, background scheduling, OS-level UI, or per-`siteId` entries outside the archive's MK keyspace MUST be disabled or routed through the archive MK for archive-tier sites — extend the override matrix in `WebViewModel` rather than handling it at call sites.
+
+Argon2id derivation costs ~1s on target hardware. Keep it off the UI thread on startup paths and inside a "decrypting..." progress affordance on user-initiated unlocks.
 
 ## Adding a new credential / secret
 

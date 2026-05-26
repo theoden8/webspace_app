@@ -49,6 +49,7 @@ void main() {
       expect(webspace.id, 'test-id');
       expect(webspace.siteIds, ['siteA', 'siteB', 'siteC']);
       expect(webspace.siteIndices, isEmpty);
+
     });
 
     test('fromJson migrates legacy siteIndices into the runtime view', () {

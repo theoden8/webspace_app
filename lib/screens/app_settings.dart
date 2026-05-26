@@ -39,6 +39,16 @@ class AppSettingsScreen extends StatefulWidget {
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
+  /// Prompt the user for a passphrase and open or create the matching
+  /// archive (spec `openspec/specs/archive/spec.md`). Wired by the
+  /// parent so the dialog runs in the main-page navigator (matching the
+  /// import/export pattern).
+  final VoidCallback? onRestoreArchive;
+  /// True when at least one archive is currently open in the running
+  /// process. The "Close all archives" tile is shown only when true;
+  /// its absence does not indicate whether any archives exist on disk.
+  final bool hasOpenArchives;
+  final VoidCallback? onCloseAllArchives;
   final bool showTabStrip;
   final ValueChanged<bool> onShowTabStripChanged;
   final bool showStatsBanner;
@@ -68,6 +78,9 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onSettingsChanged,
     required this.onExportSettings,
     required this.onImportSettings,
+    this.onRestoreArchive,
+    this.hasOpenArchives = false,
+    this.onCloseAllArchives,
     required this.showTabStrip,
     required this.onShowTabStripChanged,
     required this.showStatsBanner,
@@ -1015,6 +1028,30 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               widget.onImportSettings();
             },
           ),
+          if (widget.onRestoreArchive != null)
+            ListTile(
+              leading: const Icon(Icons.archive_outlined),
+              title: const Text('Restore archive'),
+              subtitle: const Text(
+                'Restore a previously archived webspace by passphrase',
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onRestoreArchive!();
+              },
+            ),
+          if (widget.hasOpenArchives && widget.onCloseAllArchives != null)
+            ListTile(
+              leading: const Icon(Icons.lock_outline),
+              title: const Text('Close all archives'),
+              subtitle: const Text(
+                'Flush archive cookies and clear in-memory keys',
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                widget.onCloseAllArchives!();
+              },
+            ),
 
           const Divider(height: 32),
 

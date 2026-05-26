@@ -37,6 +37,8 @@ import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
+import 'package:webspace/services/archive.dart';
+import 'package:webspace/services/archive_crypto.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -806,6 +808,23 @@ class WebSpacePage extends StatefulWidget {
   _WebSpacePageState createState() => _WebSpacePageState();
 }
 
+/// Records which site IDs and webspace IDs belong to one open archive
+/// handle, so closing one archive can remove exactly its rows from the
+/// parallel runtime collections without touching others.
+class _ArchiveSlice {
+  _ArchiveSlice({
+    required this.siteIds,
+    required this.webspaceIds,
+    required this.containerIds,
+  });
+  final Set<String> siteIds;
+  final Set<String> webspaceIds;
+  /// Opaque container identifiers owned by this archive — passed to
+  /// `ContainerNative.deleteContainer` on close so archive-tier
+  /// container directories don't survive past the close call (ARCH-007).
+  final Set<String> containerIds;
+}
+
 class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
@@ -820,6 +839,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   );
   late final ContainerIsolationEngine _containerIsolation =
       ContainerIsolationEngine(containerNative: ContainerNative.instance);
+
+  /// Orchestrates the passphrase-gated archive layer (spec
+  /// `openspec/specs/archive/spec.md`). Constructed eagerly but the slot
+  /// pool is lazily initialised inside the orchestrator on first
+  /// open/create so users who never touch the feature pay no
+  /// `flutter_secure_storage` write at startup (ARCH-001).
+  final Archive _archive = Archive();
+
+  /// Tracks which `WebViewModel`s in [_webViewModels] belong to each
+  /// open archive handle. Archive sites live in the same list as
+  /// app-tier sites with `isArchiveTier=true`; the persistence path in
+  /// [_saveWebViewModels] filters by that flag so archive state never
+  /// enters SharedPreferences. Closing one archive removes exactly its
+  /// rows by `siteId` lookup against this slice.
+  final Map<ArchiveHandle, _ArchiveSlice> _archiveSlices = {};
 
   /// Container-mode cookie manager. Non-null when `_useContainers ==
   /// true`; null in legacy mode (the existing `_cookieManager` covers
@@ -843,6 +877,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isBackHandling = false;
   bool _isFindVisible = false;
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
+  /// When true, a full-screen opaque mask covers every webview so the
+  /// OS task-switcher / recents snapshot doesn't capture archive-tier
+  /// content (ARCH-009). Set on `inactive`/`paused` when at least one
+  /// archive is open; cleared on `resumed`. Apps without an open
+  /// archive get the normal screenshot as before — this is a purely
+  /// additive guard.
+  bool _maskBackground = false;
   bool _showUrlBar = false;
   bool _showTabStrip = false;
   bool _linkHandlingEnabled = true;
@@ -1071,6 +1112,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// Other platforms hide it.
   bool _isHomeShortcutMenuVisible(int index) {
     if (index >= _webViewModels.length) return false;
+    // ARCH-006: archive-tier sites must not get OS-level pinned
+    // shortcuts (visible in the launcher / Shortcuts.app indefinitely).
+    if (_webViewModels[index].isArchiveTier) return false;
     if (Platform.isAndroid) {
       return !_pinnedSiteIds.contains(_webViewModels[index].siteId);
     }
@@ -1234,6 +1278,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Mask any visible archive content the moment focus leaves the app
+    // (well before `paused`) so the OS snapshot for the task switcher
+    // / recents preview never captures an archive-tier site. False
+    // positives (popup dialog, app-switcher peek) cost a brief visual
+    // overlay flash, not data — acceptable trade for the snapshot
+    // guarantee. The mask is only armed while at least one archive is
+    // open; the no-archive code path is unchanged.
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      if (_archiveSlices.isNotEmpty && !_maskBackground) {
+        setState(() => _maskBackground = true);
+      }
+    }
     // Only treat `paused` as a real backgrounding event. `inactive` fires for
     // any transient focus loss — native <select> popup dialog, app-switcher
     // peek, system permission prompt, incoming call on iOS — where pausing
@@ -1243,7 +1301,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
       if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        if (!_webViewModels[_currentIndex!].notificationsEnabled) {
+        if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
           _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
         }
         final activeIdx = _currentIndex!;
@@ -1261,6 +1319,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // before the process gets backgrounded.
       unawaited(_updateBackgroundRefreshSchedule());
     } else if (state == AppLifecycleState.resumed) {
+      if (_maskBackground) {
+        setState(() => _maskBackground = false);
+      }
       _startForegroundPollTimer();
       // Await any in-flight pause before resuming to prevent ordering inversion
       _resumeAfterLifecyclePause();
@@ -1287,7 +1348,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _lifecyclePauseFuture = null;
     }
     if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      if (!_webViewModels[_currentIndex!].notificationsEnabled) {
+      if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
         await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
       }
     }
@@ -1595,7 +1656,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       clearUrlEnabled: model.clearUrlEnabled,
       dnsBlockEnabled: model.dnsBlockEnabled,
       contentBlockEnabled: model.contentBlockEnabled,
-      localCdnEnabled: model.localCdnEnabled,
+      localCdnEnabled: model.effectiveLocalCdnEnabled,
       trackingProtectionEnabled: model.trackingProtectionEnabled,
       language: model.language,
       locationMode: model.locationMode,
@@ -1608,7 +1669,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       webRtcPolicy: model.webRtcPolicy,
       userScripts: model.userScripts,
       proxySettings: model.proxySettings,
-      notificationsEnabled: model.notificationsEnabled,
+      notificationsEnabled: model.effectiveNotificationsEnabled,
     );
   }
 
@@ -1745,9 +1806,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
+    // Archive-tier sites live in `_webViewModels` for runtime rendering
+    // but must not enter app-tier persistence (ARCH-001 byte-identity
+    // invariant). Cookies, proxy passwords, and the SharedPreferences
+    // model list all filter on `!m.isArchiveTier`.
+    final appTierModels = _webViewModels.where((m) => !m.isArchiveTier);
+
     // Save cookies to secure storage, keyed by siteId for per-site isolation
     final Map<String, List<Cookie>> cookiesBySiteId = {};
-    for (final webViewModel in _webViewModels) {
+    for (final webViewModel in appTierModels) {
       if (webViewModel.cookies.isNotEmpty && !webViewModel.incognito) {
         cookiesBySiteId[webViewModel.siteId] = List.from(webViewModel.cookies);
       }
@@ -1759,7 +1826,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // `model.toJson()` (which omits password by default).
     final existingPasswords = await _proxyPasswordStorage.loadAll();
     final updatedPasswords = <String, String?>{...existingPasswords};
-    for (final m in _webViewModels) {
+    for (final m in appTierModels) {
       updatedPasswords[m.siteId] = m.proxySettings.password;
     }
     await _proxyPasswordStorage.saveAll(updatedPasswords);
@@ -1767,13 +1834,462 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Save models to SharedPreferences (cookies will be empty in
     // SharedPreferences; proxy password is omitted by `toJson()` default —
     // it lives in secure storage).
-    List<String> webViewModelsJson = _webViewModels.map((webViewModel) {
+    List<String> webViewModelsJson = appTierModels.map((webViewModel) {
       final json = webViewModel.toJson();
       json['cookies'] = []; // Don't store cookies in SharedPreferences
       return jsonEncode(json);
     }).toList();
     await prefs.setStringList('webViewModels', webViewModelsJson);
     _syncShortcutSites();
+  }
+
+  /// Materialises an open [ArchiveHandle]'s sites into [_webViewModels]
+  /// (appended at the end with `isArchiveTier=true`). The persistence
+  /// path in [_saveWebViewModels] filters by `isArchiveTier` so archive
+  /// sites never enter SharedPreferences. Webspaces inside the archive
+  /// state are ignored in v1 — archive sites appear in the "All" view.
+  /// Caller triggers setState.
+  Future<void> _materialiseArchive(ArchiveHandle handle) async {
+    final siteIds = <String>{};
+    final containerIds = <String>{};
+    final stateSetter = () {
+      if (mounted) setState(() {});
+    };
+    for (final siteJson in handle.state.sites) {
+      final model = WebViewModel.fromJson(
+        Map<String, dynamic>.from(siteJson),
+        stateSetter,
+        isArchiveTier: true,
+      );
+      // ARCH-007 opaque container id: HMAC of the archive key + site id,
+      // truncated and reformatted to match the radix-36-dash-radix-36
+      // shape of an app-tier siteId so directory listings look uniform.
+      model.archiveContainerId =
+          await _deriveArchiveContainerId(handle.key, model.siteId);
+      containerIds.add(model.archiveContainerId!);
+      final cookieList = handle.state.cookies[model.siteId];
+      if (cookieList != null && cookieList.isNotEmpty) {
+        final cookies = cookieList
+            .map((c) => cookieFromJson(Map<String, dynamic>.from(c)))
+            .toList();
+        model.setPendingArchiveCookies(cookies);
+      }
+      _webViewModels.add(model);
+      siteIds.add(model.siteId);
+    }
+    _archiveSlices[handle] = _ArchiveSlice(
+      siteIds: siteIds,
+      webspaceIds: const <String>{},
+      containerIds: containerIds,
+    );
+    _resolveWebspaceIndices();
+  }
+
+  Future<String> _deriveArchiveContainerId(
+    Uint8List archiveKey,
+    String siteId,
+  ) async {
+    final mac = await ArchiveCrypto.hmac(archiveKey, 'container:$siteId');
+    final bd = ByteData.view(mac.buffer, mac.offsetInBytes);
+    final v1 =
+        (bd.getUint16(0) * 0x100000000) + bd.getUint32(2); // 48-bit group
+    final v2 = bd.getUint32(6);
+    return '${v1.toRadixString(36)}-${v2.toRadixString(36)}';
+  }
+
+  /// Opens an archive by passphrase. Returns the handle on success or
+  /// null when no archive matches this passphrase (caller may then offer
+  /// to create a new one). Cookies and webspace metadata for the archive
+  /// are materialised into the parallel runtime collections.
+  Future<ArchiveHandle?> _openArchive(String passphrase) async {
+    final handle = await _archive.tryOpen(passphrase);
+    if (handle == null) return null;
+    if (_archiveSlices.containsKey(handle)) {
+      // Already open. tryOpen on an already-open archive returns the same
+      // handle, no extra materialisation needed.
+      return handle;
+    }
+    _materialiseArchive(handle);
+    if (mounted) setState(() {});
+    return handle;
+  }
+
+  /// Creates a new archive with this passphrase and materialises an
+  /// empty slice.
+  Future<ArchiveHandle> _createArchive(String passphrase) async {
+    final handle = await _archive.create(passphrase);
+    _materialiseArchive(handle);
+    if (mounted) setState(() {});
+    return handle;
+  }
+
+  /// Closes an open archive: captures current cookies + sites back into
+  /// the handle, persists, zeroes the key, and removes the archive's
+  /// rows from [_webViewModels]. If the current selection points into
+  /// the removed range, it falls back to the home view.
+  Future<void> _closeArchive(ArchiveHandle handle) async {
+    final slice = _archiveSlices.remove(handle);
+    if (slice == null) return;
+    final ownedSites = [
+      for (final m in _webViewModels)
+        if (slice.siteIds.contains(m.siteId)) m,
+    ];
+    handle.state.cookies
+      ..clear()
+      ..addEntries(
+        ownedSites.map(
+          (m) => MapEntry(
+            m.siteId,
+            m.cookies.map((c) => c.toJson()).toList(),
+          ),
+        ),
+      );
+    handle.state.sites
+      ..clear()
+      ..addAll(ownedSites.map((m) => m.toJson()));
+    await _archive.save(handle);
+    await _archive.close(handle);
+    // Dispose webviews owned by this archive before removing them from
+    // the list, so the IndexedStack rebuild doesn't try to render
+    // orphan controllers.
+    for (final m in ownedSites) {
+      m.disposeWebView();
+    }
+    // ARCH-007: tear down per-site containers owned by this archive so
+    // their on-disk directories don't outlive the close. Best-effort —
+    // underlying filesystems may retain freed blocks.
+    for (final cid in slice.containerIds) {
+      await _containerIsolation.containerNative.deleteContainer(cid);
+    }
+    // Defensive back-erasure: wipe any per-`siteId` app-tier state
+    // that could have leaked archive identity across the close (the
+    // ARCH-006 overrides keep new writes out, but this also handles
+    // entries written by builds that predate the override — and
+    // entries that any future code path forgets to gate).
+    for (final sid in slice.siteIds) {
+      await _stateStorage.removeState(sid);
+      await _cookieSecureStorage.saveCookiesForSite(sid, const []);
+      await HtmlCacheService.instance.deleteCache(sid);
+    }
+    final pwAll = await _proxyPasswordStorage.loadAll();
+    final pwPatch = <String, String?>{
+      ...pwAll,
+      for (final sid in slice.siteIds)
+        if (pwAll.containsKey(sid)) sid: null,
+    };
+    if (pwPatch.length != pwAll.length ||
+        slice.siteIds.any((sid) => pwAll.containsKey(sid))) {
+      await _proxyPasswordStorage.saveAll(pwPatch);
+    }
+    final removedSet = slice.siteIds;
+    if (_currentIndex != null) {
+      final cur = _currentIndex!;
+      if (cur < _webViewModels.length &&
+          removedSet.contains(_webViewModels[cur].siteId)) {
+        _currentIndex = null;
+      }
+    }
+    _loadedIndices
+        .removeWhere((i) => i < _webViewModels.length && removedSet.contains(_webViewModels[i].siteId));
+    _webViewModels.removeWhere((m) => removedSet.contains(m.siteId));
+    // Webspace.siteIndices is a derived view over _webViewModels;
+    // archive sites just left the list, so positions of remaining
+    // sites may have shifted and any webspace siteIds that previously
+    // resolved into archive positions must drop from the runtime
+    // projection. siteIds stays untouched (ARCH-001), so reopening
+    // the archive restores membership.
+    _resolveWebspaceIndices();
+    if (mounted) setState(() {});
+  }
+
+  /// Closes every currently-open archive in sequence.
+  Future<void> _closeAllArchives() async {
+    final handles = List<ArchiveHandle>.from(_archiveSlices.keys);
+    for (final h in handles) {
+      await _closeArchive(h);
+    }
+  }
+
+  /// Moves the site at [index] from the app-tier into an archive
+  /// identified by a passphrase. Always prompts; if the passphrase
+  /// matches an existing archive (open or not), the site is added
+  /// there. If no archive matches, the user is asked whether to create
+  /// one. The site's position in `_webViewModels` is preserved — only
+  /// its tier flips (and the running webview is rebuilt to bind to the
+  /// new opaque container). Webspace membership is preserved via the
+  /// siteId-keyed `webspace.siteIds` list.
+  Future<void> _moveSiteToArchive(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    if (model.isArchiveTier) return;
+
+    final passphrase = await _showPassphraseDialog(
+      title: 'Move site to archive',
+      hint: 'Archive passphrase',
+      submitLabel: 'Move',
+    );
+    if (passphrase == null || passphrase.isEmpty) return;
+    if (!mounted) return;
+
+    ArchiveHandle? target;
+    try {
+      target = await _openArchive(passphrase);
+    } on StateError catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open archive: ${e.message}')),
+      );
+      return;
+    }
+    if (target == null) {
+      if (!mounted) return;
+      final shouldCreate = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No matching archive'),
+          content: const Text(
+            'No archive exists for this passphrase. '
+            'Create a new archive with it and move this site into it?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+      if (shouldCreate != true) return;
+      try {
+        target = await _createArchive(passphrase);
+      } on StateError catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not create archive: ${e.message}')),
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
+
+    // Capture cookies from the running container so they ride along
+    // with the move. Falls back to model.cookies (synced via
+    // onCookiesChanged) when the webview hasn't been loaded.
+    final capturedCookies = await _captureCookiesForTransfer(model);
+
+    // Drop app-tier persistence for this site so the next
+    // _saveWebViewModels doesn't see it. The site's runtime row stays
+    // in _webViewModels; only its tier and routing change.
+    await _cookieSecureStorage.saveCookiesForSite(model.siteId, const []);
+    final passwords = await _proxyPasswordStorage.loadAll();
+    if (passwords.containsKey(model.siteId)) {
+      final next = <String, String?>{...passwords, model.siteId: null};
+      await _proxyPasswordStorage.saveAll(next);
+    }
+
+    // Drop the app-tier container (cleartext `ws-<siteId>`).
+    if (_useContainers) {
+      await _containerIsolation.onSiteDeleted(model.siteId);
+    }
+
+    // Force a fresh webview that binds to the new opaque container.
+    model.disposeWebView();
+    model.isArchiveTier = true;
+    model.archiveContainerId =
+        await _deriveArchiveContainerId(target.key, model.siteId);
+    model.setPendingArchiveCookies(capturedCookies);
+
+    // Track ownership for the close-archive flow.
+    target.state.sites.add(model.toJson());
+    target.state.cookies[model.siteId] =
+        capturedCookies.map((c) => c.toJson()).toList();
+    _archiveSlices[target]!.siteIds.add(model.siteId);
+    _archiveSlices[target]!.containerIds.add(model.archiveContainerId!);
+    await _archive.save(target);
+
+    // Webspace membership is keyed by siteId (not positional index), so
+    // no change is needed here — the runtime `siteIndices` projection
+    // will continue to surface this site under any webspace it
+    // belonged to whenever the archive is open. When the archive
+    // closes, the siteId stays in webspace.siteIds (persisted) but
+    // drops out of siteIndices (runtime view) automatically.
+    _resolveWebspaceIndices();
+    await _saveWebViewModels();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Site moved to archive. You may need to re-set per-site '
+            'preferences (theme, language) the first time it loads.',
+          ),
+          duration: Duration(seconds: 6),
+        ),
+      );
+    }
+  }
+
+  /// Reverse of [_moveSiteToArchive]: pulls an archive-tier site back
+  /// into the app-tier. Only works while the owning archive is open.
+  Future<void> _moveSiteOutOfArchive(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final model = _webViewModels[index];
+    if (!model.isArchiveTier) return;
+    final entry = _archiveSlices.entries
+        .where((e) => e.value.siteIds.contains(model.siteId))
+        .firstOrNull;
+    if (entry == null) return;
+    final handle = entry.key;
+    final slice = entry.value;
+
+    final capturedCookies = await _captureCookiesForTransfer(model);
+
+    // Tear down the opaque archive container.
+    final containerId = model.archiveContainerId;
+    if (containerId != null) {
+      await _containerIsolation.containerNative.deleteContainer(containerId);
+    }
+
+    // Pop the site out of the archive's state and slice.
+    handle.state.sites.removeWhere((s) => s['siteId'] == model.siteId);
+    handle.state.cookies.remove(model.siteId);
+    slice.siteIds.remove(model.siteId);
+    if (containerId != null) {
+      slice.containerIds.remove(containerId);
+    }
+    await _archive.save(handle);
+
+    // Flip the model back to app-tier and rebuild the webview against
+    // the standard `ws-<siteId>` container.
+    model.disposeWebView();
+    model.isArchiveTier = false;
+    model.archiveContainerId = null;
+    model.cookies = capturedCookies;
+
+    await _saveWebViewModels();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Site moved out of archive')),
+      );
+    }
+  }
+
+  /// Pulls cookies from the running container (if any) and falls back
+  /// to the in-Dart `cookies` list when no controller is alive. Used by
+  /// both directions of the move flow.
+  Future<List<Cookie>> _captureCookiesForTransfer(WebViewModel model) async {
+    final controller = model.controller;
+    if (controller != null && _containerCookieManager != null) {
+      final url = Uri.parse(
+        model.currentUrl.isNotEmpty ? model.currentUrl : model.initUrl,
+      );
+      final fresh = await _containerCookieManager!.getCookies(
+        controller: controller,
+        siteId: model.siteId,
+        url: url,
+      );
+      if (fresh.isNotEmpty) return fresh;
+    }
+    return List<Cookie>.from(model.cookies);
+  }
+
+
+  /// Settings-screen entry point: prompts for a passphrase, then attempts
+  /// to open a matching archive. If none matches, asks the user whether
+  /// to create a new archive with that passphrase. Snackbars report the
+  /// result without revealing existence of other archives.
+  Future<void> _promptRestoreArchive() async {
+    final passphrase = await _showPassphraseDialog(
+      title: 'Restore archive',
+      hint: 'Passphrase',
+      submitLabel: 'Open',
+    );
+    if (passphrase == null || passphrase.isEmpty) return;
+    if (!mounted) return;
+    try {
+      final handle = await _openArchive(passphrase);
+      if (handle != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Archive opened (${handle.state.sites.length} sites, '
+              '${handle.state.webspaces.length} webspaces)',
+            ),
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+      final shouldCreate = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No matching archive'),
+          content: const Text(
+            'No archive exists for this passphrase. '
+            'Create a new archive with it?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create'),
+            ),
+          ],
+        ),
+      );
+      if (shouldCreate != true) return;
+      await _createArchive(passphrase);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('New archive created')),
+      );
+    } on StateError catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open: ${e.message}')),
+      );
+    }
+  }
+
+  Future<String?> _showPassphraseDialog({
+    required String title,
+    required String hint,
+    required String submitLabel,
+  }) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            obscureText: true,
+            decoration: InputDecoration(hintText: hint),
+            onSubmitted: (value) => Navigator.pop(ctx, value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: Text(submitLabel),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// HS-007: push the current site list to the iOS App Intents picker so
@@ -1783,11 +2299,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!Platform.isIOS) return;
     final sites = [
       for (final m in _webViewModels)
-        ShortcutSite(
-          siteId: m.siteId,
-          label: m.name,
-          iconUrl: FaviconUrlCache.get(m.initUrl),
-        ),
+        if (!m.isArchiveTier)
+          ShortcutSite(
+            siteId: m.siteId,
+            label: m.name,
+            iconUrl: FaviconUrlCache.get(m.initUrl),
+          ),
     ];
     unawaited(ShortcutService.syncSites(sites));
   }
@@ -2076,7 +2593,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // onControllerCreated handler can apply restoreState. Resets the
     // tier to live regardless — the about-to-be-resumed webview
     // is back at the lowest tier.
-    if (target.lifecycleState == SiteLifecycleState.savedForRestore) {
+    // ARCH-006: archive-tier sites never persist webview state to
+    // disk (`_captureStateBytes` early-returns for them), so there's
+    // nothing on disk to restore. Skip the load to avoid a per-site
+    // disk hit that would correlate to the archive siteId.
+    if (target.lifecycleState == SiteLifecycleState.savedForRestore &&
+        !target.isArchiveTier) {
       final bytes = await _stateStorage.loadState(target.siteId);
       if (version != _setCurrentIndexVersion) return;
       if (bytes != null) {
@@ -2343,6 +2865,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// since the webview is still in memory.
   Future<bool> _captureStateBytes(WebViewModel model) async {
     if (model.incognito) return false;
+    // ARCH-006: per-site webview state is keyed by siteId on disk
+    // (encrypted, but the file's existence + path leaks archive site
+    // identity to forensic inspection, and the bytes encode the
+    // back/forward URL stack). Archive-tier sites never capture.
+    if (model.isArchiveTier) return false;
     final bytes = await model.captureNavigationState();
     if (bytes == null) return false;
     await _stateStorage.saveState(model.siteId, bytes);
@@ -2786,7 +3313,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Auto-load notification sites so they start polling immediately and
     // can fire notifications without waiting for the user to open them.
     for (int i = 0; i < _webViewModels.length; i++) {
-      if (_webViewModels[i].notificationsEnabled) {
+      if (_webViewModels[i].effectiveNotificationsEnabled) {
         _loadedIndices.add(i);
       }
     }
@@ -2830,7 +3357,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   bool _anyNotificationSites() {
     for (final m in _webViewModels) {
-      if (m.notificationsEnabled) return true;
+      if (m.effectiveNotificationsEnabled) return true;
     }
     return false;
   }
@@ -2848,7 +3375,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final others = <WebViewModel>[];
     for (final m in _webViewModels) {
       if (identical(m, target)) continue;
-      if (!m.notificationsEnabled) continue;
+      if (!m.effectiveNotificationsEnabled) continue;
       others.add(m);
     }
     final conflict = ProxyConflictEngine.firstConflict(
@@ -2875,7 +3402,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     bool any = false;
     for (int i = 0; i < _webViewModels.length; i++) {
       final m = _webViewModels[i];
-      if (!m.notificationsEnabled) continue;
+      if (!m.effectiveNotificationsEnabled) continue;
       if (!_loadedIndices.contains(i)) continue;
       any = true;
       break;
@@ -2896,7 +3423,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _refreshNotificationSites({bool excludeActive = false}) async {
     for (int i = 0; i < _webViewModels.length; i++) {
       final m = _webViewModels[i];
-      if (!m.notificationsEnabled) continue;
+      if (!m.effectiveNotificationsEnabled) continue;
       if (excludeActive && i == _currentIndex) continue;
       if (!_loadedIndices.contains(i)) continue;
       try {
@@ -2940,7 +3467,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (index == _activationInFlightIndex) return SiteRetentionPriority.activating;
     if (index >= 0 && index < _webViewModels.length) {
       final m = _webViewModels[index];
-      if (m.notificationsEnabled) {
+      if (m.effectiveNotificationsEnabled) {
         return SiteRetentionPriority.notification;
       }
     }
@@ -3339,14 +3866,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // The global proxy password is in secure storage, not in the prefs
     // value `readExportedAppPrefs` reads — and per PWD-005 we do NOT
     // re-inject it for export (same as secure cookies).
+    // ARCH-010: exports never include archive-tier state, even when an
+    // archive is open. Filter on `isArchiveTier` so the export bytes
+    // match what a user with zero archives would produce.
+    final appTierModels =
+        _webViewModels.where((m) => !m.isArchiveTier).toList();
     await SettingsBackupService.exportAndSave(
       context,
-      webViewModels: _webViewModels,
+      webViewModels: appTierModels,
       webspaces: _webspaces,
       themeMode: _themeSettings.toStorageIndex(),
       globalPrefs: readExportedAppPrefs(prefs),
       selectedWebspaceId: _selectedWebspaceId,
-      currentIndex: _currentIndex,
+      currentIndex: _currentIndex != null &&
+              _currentIndex! < appTierModels.length
+          ? _currentIndex
+          : null,
       suggestedSites: _suggestedSites
           .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
           .toList(),
@@ -3830,6 +4365,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     },
                     onExportSettings: _exportSettings,
                     onImportSettings: _importSettings,
+                    onRestoreArchive: _promptRestoreArchive,
+                    hasOpenArchives: _archiveSlices.isNotEmpty,
+                    onCloseAllArchives: () async {
+                      await _closeAllArchives();
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Archives closed'),
+                        ),
+                      );
+                    },
                     showTabStrip: _showTabStrip,
                     onShowTabStripChanged: (value) {
                       setState(() {
@@ -4599,6 +5145,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final isCustomWebspace = _selectedWebspaceId != null && _selectedWebspaceId != kAllWebspaceId;
     final filteredIndices = _getFilteredSiteIndices();
     final listIndex = filteredIndices.indexOf(index);
+    final isArchiveSite =
+        index >= 0 && index < _webViewModels.length && _webViewModels[index].isArchiveTier;
+    // Show "Move to archive" for every app-tier site, regardless of
+    // whether any archive is currently open. The handler always prompts
+    // for a passphrase and opens-or-creates the matching archive — its
+    // presence in the menu therefore reveals nothing about whether an
+    // archive is currently open or whether any exist on disk.
+    final canMoveToArchive = !isArchiveSite;
 
     showMenu<String>(
       context: context,
@@ -4611,10 +5165,38 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           PopupMenuItem(value: 'move_up', child: ListTile(leading: Icon(Icons.arrow_upward), title: Text('Move Up'), dense: true, visualDensity: VisualDensity.compact)),
         if (isCustomWebspace && listIndex >= 0 && listIndex < filteredIndices.length - 1)
           PopupMenuItem(value: 'move_down', child: ListTile(leading: Icon(Icons.arrow_downward), title: Text('Move Down'), dense: true, visualDensity: VisualDensity.compact)),
+        if (canMoveToArchive)
+          PopupMenuItem(value: 'move_to_archive', child: ListTile(leading: Icon(Icons.archive_outlined), title: Text('Move to archive'), dense: true, visualDensity: VisualDensity.compact)),
+        if (isArchiveSite)
+          PopupMenuItem(value: 'move_out_of_archive', child: ListTile(leading: Icon(Icons.unarchive_outlined), title: Text('Move out of archive'), dense: true, visualDensity: VisualDensity.compact)),
+        if (isArchiveSite)
+          PopupMenuItem(value: 'close_archive', child: ListTile(leading: Icon(Icons.lock_outline), title: Text('Close archive'), dense: true, visualDensity: VisualDensity.compact)),
       ],
     ).then((value) async {
       if (value == null) return;
       switch (value) {
+        case 'move_to_archive':
+          await _moveSiteToArchive(index);
+          break;
+        case 'move_out_of_archive':
+          await _moveSiteOutOfArchive(index);
+          break;
+        case 'close_archive':
+          final siteId = index < _webViewModels.length
+              ? _webViewModels[index].siteId
+              : null;
+          if (siteId == null) return;
+          final handle = _archiveSlices.entries
+              .where((e) => e.value.siteIds.contains(siteId))
+              .map((e) => e.key)
+              .firstOrNull;
+          if (handle == null) return;
+          await _closeArchive(handle);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Archive closed')),
+          );
+          break;
         case 'refresh':
           final url = _webViewModels[index].initUrl;
           await FaviconUrlCache.invalidate(url);
@@ -4743,6 +5325,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _loadedIndices
         ..clear()
         ..addAll(patch.newLoadedIndices);
+      // Webspace membership is siteId-keyed: drop the deleted siteId
+      // from each webspace and let `_resolveWebspaceIndices` rebuild
+      // the positional view. The legacy index-shift patch from
+      // SiteLifecycleEngine is now only used for `_loadedIndices`.
       for (final webspace in _webspaces) {
         webspace.siteIds.remove(deletedSiteId);
       }
@@ -5163,7 +5749,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // a re-fetchable snapshot — the canonical bytes live in
                                   // HtmlImportStorage and never change after import, so
                                   // skip the live-snapshot save path entirely.
-                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.isArchiveTier || webViewModel.initUrl.startsWith('file://'))
                                       ? null
                                       : (url, html) {
                                           HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
@@ -5173,10 +5759,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // renderer-DOM-serializations that fired on every SPA pseudo-
                                   // navigation (8+ Saved events per page on LinkedIn) — each one
                                   // a candidate for racing chromium's frame-lifecycle teardown.
-                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.initUrl.startsWith('file://'))
+                                  // Archive-tier sites skip the cache write entirely (ARCH-006).
+                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.isArchiveTier || webViewModel.initUrl.startsWith('file://'))
                                       ? null
                                       : () => HtmlCacheService.instance.shouldSave(webViewModel.siteId),
-                                  initialHtml: webViewModel.incognito
+                                  initialHtml: (webViewModel.incognito || webViewModel.isArchiveTier)
                                       ? null
                                       : () {
                                           // file:// imports come from HtmlImportStorage (the only
@@ -5279,6 +5866,35 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final bool webviewIsVisible = _currentIndex != null && _currentIndex! < _webViewModels.length;
+    final mainTree = _buildMainTree(context, webviewIsVisible);
+    if (!_maskBackground) {
+      return mainTree;
+    }
+    // Snapshot-time mask: an opaque surface overlays everything so the
+    // task-switcher / recents preview never captures archive content
+    // (ARCH-009). Wrapping the existing tree keeps the running webview
+    // state intact — only the painted output is replaced.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        mainTree,
+        Positioned.fill(
+          child: ColoredBox(
+            color: Theme.of(context).colorScheme.surface,
+            child: Center(
+              child: Icon(
+                Icons.lock_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainTree(BuildContext context, bool webviewIsVisible) {
     return PopScope(
       // On Android, always intercept back so we can implement the two-step
       // exit pattern (back → open drawer → back → exit app).
