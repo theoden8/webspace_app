@@ -163,7 +163,9 @@ jobs:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
       - name: Install cargo-ndk
-        run: cargo install --locked cargo-ndk
+        env:
+          CARGO_NDK_VERSION: "4.1.2"
+        run: cargo install --locked "cargo-ndk@${CARGO_NDK_VERSION}"
 
       # cargo-ndk requires ANDROID_NDK_HOME pointing at a real NDK
       # install. The ubuntu-latest runner ships a default NDK under
