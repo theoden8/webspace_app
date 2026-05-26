@@ -107,6 +107,9 @@ post_install do |installer|
         needed = '-Wl,-needed_framework,webspace_adblock'
         ldflags << needed unless ldflags.include?(needed)
         config.build_settings['OTHER_LDFLAGS'] = ldflags
+        # See ios/Podfile — archive validation runs against Runner's
+        # own setting, not just the pods'.
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
       end
     end
     aggregate.user_project.save
