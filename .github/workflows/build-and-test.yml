@@ -10,6 +10,11 @@ on:
   # Allow manual trigger for testing
   workflow_dispatch:
 
+# Single source of truth for the cargo-ndk version. The F-Droid recipe
+# seds this line; every job reads it via the env context. Bump here only.
+env:
+  CARGO_NDK_VERSION: "4.1.2"
+
 jobs:
   validate:
     name: Validate Fastlane + OpenSpec
@@ -157,13 +162,18 @@ jobs:
           restore-keys: |
             cargo-android-${{ runner.os }}-
 
+      - name: Read Rust toolchain
+        id: rust
+        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.rust.outputs.channel }}
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
       - name: Install cargo-ndk
-        run: cargo install --locked cargo-ndk
+        run: cargo install --locked "cargo-ndk@${CARGO_NDK_VERSION}"
 
       # cargo-ndk requires ANDROID_NDK_HOME pointing at a real NDK
       # install. The ubuntu-latest runner ships a default NDK under
@@ -471,8 +481,14 @@ jobs:
           restore-keys: |
             cargo-linux-${{ runner.os }}-
 
+      - name: Read Rust toolchain
+        id: rust
+        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.rust.outputs.channel }}
 
       # Pin the upstream-crate behaviour the Dart-side procedural
       # backfill (procedural_action_backfill.dart) relies on. If
@@ -717,9 +733,14 @@ jobs:
           restore-keys: |
             cargo-apple-${{ runner.os }}-
 
+      - name: Read Rust toolchain
+        id: rust
+        run: echo "channel=$(sed -n -E 's/channel = "(.*)"/\1/p' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.rust.outputs.channel }}
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-darwin,x86_64-apple-darwin
 
       # Build the rust .xcframework + macOS fat .a + keep_alive.c into
