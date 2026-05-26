@@ -1,0 +1,18 @@
+# Pins the toolchain for the webspace_adblock crate (rust/webspace_adblock).
+# Lives at the repo root so rustup finds it both when cargo runs from the
+# crate dir (gradle buildRustAdblock / CMake / build_rust.sh all `cd` in)
+# and when CI runs `cargo test --manifest-path ...` from the root.
+#
+# Pinning an exact rustc is required for F-Droid reproducible builds —
+# without it the buildserver compiles with whatever floating stable the
+# VM ships. `targets` lets rustup provision the Android cross-targets
+# declaratively when this toolchain is first synced.
+[toolchain]
+channel = "1.94.1"
+profile = "minimal"
+targets = [
+  "aarch64-linux-android",
+  "armv7-linux-androideabi",
+  "x86_64-linux-android",
+  "i686-linux-android",
+]
