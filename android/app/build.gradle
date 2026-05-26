@@ -132,10 +132,12 @@ flutter {
 }
 
 // =====================================================================
-// Rust adblock-rust auto-build. Runs `scripts/build_rust.sh android-all`
-// before Gradle merges jniLibs, dropping the per-ABI .so into
-// android/app/src/main/jniLibs/<abi>/. Up-to-date checks key on the
-// crate's Cargo.lock + every src file, so unchanged builds are a no-op.
+// Rust adblock-rust auto-build. Runs `scripts/build_rust.sh android <abi>`
+// for each ABI Flutter targets (via -Ptarget-platform) before Gradle merges
+// jniLibs, dropping the per-ABI .so into android/app/src/main/jniLibs/<abi>/.
+// A single-ABI build (e.g. F-Droid's per-arch split) compiles only that ABI;
+// a universal/plain build compiles all. Up-to-date checks key on the crate's
+// Cargo.lock + every src file, so unchanged builds are a no-op.
 //
 // Hard prerequisites:
 //   * `cargo` on PATH (rustup recommended)
@@ -154,15 +156,34 @@ def rustScript   = file("${rootProject.projectDir}/../scripts/build_rust.sh")
 def jniLibsRoot  = file("${projectDir}/src/main/jniLibs")
 def abis         = ["arm64-v8a", "armeabi-v7a", "x86_64", "x86"]
 
+// Flutter passes -Ptarget-platform=android-arm[,android-arm64,...] to say
+// which ABIs this invocation targets (per-ABI split, --target-platform, or
+// the default 3-ABI universal set). Mirror that selection so a single-ABI
+// build compiles only its own Rust .so instead of all four. No property
+// (plain gradlew / IDE indexing) falls back to every ABI.
+def platformToAbi = [
+    "android-arm"  : "armeabi-v7a",
+    "android-arm64": "arm64-v8a",
+    "android-x64"  : "x86_64",
+    "android-x86"  : "x86",
+]
+def targetPlatform = project.findProperty("target-platform")?.toString()
+def selectedAbis = (targetPlatform
+    ? targetPlatform.split(",").collect { platformToAbi[it.trim()] }.findAll { it != null }
+    : abis)
+if (selectedAbis.isEmpty()) {
+    selectedAbis = abis
+}
+
 tasks.register("buildRustAdblock", Exec) {
-    description = "Build webspace_adblock Rust library for every Android ABI"
+    description = "Build webspace_adblock Rust library for the target Android ABIs"
     group = "build"
 
     inputs.file rustScript
     inputs.file new File(rustCrateDir, "Cargo.toml")
     inputs.file new File(rustCrateDir, "Cargo.lock")
     inputs.dir new File(rustCrateDir, "src")
-    abis.each { abi ->
+    selectedAbis.each { abi ->
         outputs.file new File(jniLibsRoot, "${abi}/libwebspace_adblock.so")
     }
     onlyIf {
@@ -175,8 +196,8 @@ tasks.register("buildRustAdblock", Exec) {
     }
 
     workingDir rootProject.projectDir.parentFile
-    executable "bash"
-    args "scripts/build_rust.sh", "android-all"
+    commandLine "bash", "-c",
+        "set -e; for abi in ${selectedAbis.join(' ')}; do scripts/build_rust.sh android \"\$abi\"; done"
 
     // Resolve ANDROID_NDK_HOME from env, then fall back to the NDK
     // sub-directory of the SDK declared in local.properties. cargo-ndk
