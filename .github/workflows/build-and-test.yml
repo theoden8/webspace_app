@@ -10,6 +10,11 @@ on:
   # Allow manual trigger for testing
   workflow_dispatch:
 
+# Single source of truth for the cargo-ndk version. The F-Droid recipe
+# seds this line; every job reads it via the env context. Bump here only.
+env:
+  CARGO_NDK_VERSION: "4.1.2"
+
 jobs:
   validate:
     name: Validate Fastlane + OpenSpec
@@ -168,8 +173,6 @@ jobs:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
       - name: Install cargo-ndk
-        env:
-          CARGO_NDK_VERSION: "4.1.2"
         run: cargo install --locked "cargo-ndk@${CARGO_NDK_VERSION}"
 
       # cargo-ndk requires ANDROID_NDK_HOME pointing at a real NDK
