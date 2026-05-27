@@ -3584,6 +3584,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           webRtcPolicy: webRtcPolicy,
           userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
+          onProtectedMediaRequest: _promptProtectedMedia,
           onShowUrlBarChanged: (show) async {
             if (!mounted) return;
             setState(() {
@@ -3635,6 +3636,37 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Deny'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  /// Stable callback for the protected-content (Widevine/EME) permission
+  /// popup. Shown the first time a site requests `PROTECTED_MEDIA_ID` (e.g.
+  /// the Spotify web player). The per-site decision is remembered by the
+  /// caller (the parent webview persists it on the `WebViewModel`; nested
+  /// webviews remember it in-memory), so this only collects user intent.
+  Future<bool> _promptProtectedMedia(String origin) async {
+    if (!mounted) return false;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Play protected content?'),
+        content: Text(
+          '$origin wants to play protected (DRM) content.\n\n'
+          'Allowing this lets the site provision a device identifier to '
+          'decrypt the media. Your choice is remembered for this site.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Block'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -5884,6 +5916,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                         }(),
                                   isActive: () => _currentIndex == index,
                                   onConfirmScriptFetch: _confirmScriptFetch,
+                                  onProtectedMediaRequest: _promptProtectedMedia,
                                   onUntrustedCertificate: _promptUntrustedCertificate,
                                   onExternalSchemeUrl: (url, info) async {
                                     if (!mounted) return;

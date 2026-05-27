@@ -531,6 +531,12 @@ class WebViewConfig {
   ///   the app-global outbound proxy.
   final UserProxySettings? proxySettings;
   final bool notificationsEnabled;
+  /// Prompt fired when the page requests protected-media (Widevine/EME)
+  /// permission (`PROTECTED_MEDIA_ID`). Returns true to grant, false to
+  /// deny. When null, the handler is not installed and the platform's
+  /// default applies (Android denies). Only meaningful on Android — iOS/
+  /// macOS WKWebView has no EME/Widevine and never issues the request.
+  final Future<bool> Function(String origin)? onProtectedMediaRequest;
 
   WebViewConfig({
     this.key,
@@ -576,6 +582,7 @@ class WebViewConfig {
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.proxySettings,
     this.notificationsEnabled = false,
+    this.onProtectedMediaRequest,
   });
 }
 
@@ -2070,6 +2077,36 @@ class WebViewFactory {
       pullToRefreshController: config.pullToRefreshController,
       initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: settings,
+      // Protected-media (Widevine/EME) permission. Only installed on
+      // Android, where `PROTECTED_MEDIA_ID` exists and the no-handler
+      // default is deny; granting it lets the origin run EME license
+      // requests (e.g. the Spotify web player). The handler grants ONLY
+      // the protected-media resource and returns PROMPT for anything else
+      // (camera/mic) so it never widens permissions beyond DRM. Left null
+      // off-Android so iOS/macOS keep their native PROMPT default.
+      onPermissionRequest:
+          (Platform.isAndroid && config.onProtectedMediaRequest != null)
+              ? (controller, request) async {
+                  final wantsProtectedMedia = request.resources.contains(
+                      inapp.PermissionResourceType.PROTECTED_MEDIA_ID);
+                  if (wantsProtectedMedia) {
+                    final granted = await config.onProtectedMediaRequest!(
+                        request.origin.toString());
+                    return inapp.PermissionResponse(
+                      resources: [
+                        inapp.PermissionResourceType.PROTECTED_MEDIA_ID
+                      ],
+                      action: granted
+                          ? inapp.PermissionResponseAction.GRANT
+                          : inapp.PermissionResponseAction.DENY,
+                    );
+                  }
+                  return inapp.PermissionResponse(
+                    resources: request.resources,
+                    action: inapp.PermissionResponseAction.PROMPT,
+                  );
+                }
+              : null,
       onWebViewCreated: (controller) async {
         final wrappedController = _WebViewController(controller);
         onControllerCreated(wrappedController);

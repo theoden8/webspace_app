@@ -136,6 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _fullscreenMode;
   late bool _htmlCachingEnabled;
   late bool _notificationsEnabled;
+  bool? _protectedContentAllowed;
   String? _selectedLanguage;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
@@ -216,6 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'fullscreenMode': _fullscreenMode,
         'htmlCachingEnabled': _htmlCachingEnabled,
         'notificationsEnabled': _notificationsEnabled,
+        'protectedContentAllowed': _protectedContentAllowed,
         'selectedLanguage': _selectedLanguage,
         'latitude': _latitudeController.text,
         'longitude': _longitudeController.text,
@@ -297,6 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _fullscreenMode = m.fullscreenMode;
     _htmlCachingEnabled = m.htmlCachingEnabled;
     _notificationsEnabled = m.notificationsEnabled;
+    _protectedContentAllowed = m.protectedContentAllowed;
     _selectedLanguage = m.language;
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
     _longitudeController.text = m.spoofLongitude?.toString() ?? '';
@@ -471,6 +474,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.htmlCachingEnabled = _htmlCachingEnabled;
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
+      widget.webViewModel.protectedContentAllowed = _protectedContentAllowed;
       widget.webViewModel.language = _selectedLanguage;
       // locationMode is derived from the UI state:
       // - `_isLiveLocation` → live (real device GPS forwarded through the shim)
@@ -1537,6 +1541,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
               );
             }),
+          if (Platform.isAndroid)
+            ListTile(
+              title: Row(
+                children: const [
+                  Flexible(child: Text('Protected content (DRM)')),
+                  HintButton(
+                    title: 'Protected content (DRM)',
+                    description:
+                        'Controls whether this site may play DRM-protected '
+                        'media (Widevine/EME), e.g. the Spotify web player.\n\n'
+                        'Ask (default): a popup asks the first time the site '
+                        'requests it, then remembers your choice.\n'
+                        'Always allow / Always block: skip the popup.\n\n'
+                        'Allowing lets the site provision a device identifier '
+                        'to decrypt media. Android only — other platforms '
+                        'cannot play Widevine content.',
+                  ),
+                ],
+              ),
+              trailing: DropdownButton<bool?>(
+                value: _protectedContentAllowed,
+                onChanged: (v) =>
+                    setState(() => _protectedContentAllowed = v),
+                items: const <DropdownMenuItem<bool?>>[
+                  DropdownMenuItem<bool?>(value: null, child: Text('Ask')),
+                  DropdownMenuItem<bool?>(
+                      value: true, child: Text('Always allow')),
+                  DropdownMenuItem<bool?>(
+                      value: false, child: Text('Always block')),
+                ],
+              ),
+            ),
           ..._buildLocationSection(),
           DomainClaimsEditor(
             model: widget.webViewModel,

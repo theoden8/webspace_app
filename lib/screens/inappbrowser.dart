@@ -45,6 +45,11 @@ class InAppWebViewScreen extends StatefulWidget {
   /// working when the user follows an outbound link into a nested screen.
   final List<UserScriptConfig> userScripts;
   final Future<bool> Function(String url)? onConfirmScriptFetch;
+  /// Protected-content (Widevine/EME) permission popup, forwarded from the
+  /// parent so a DRM site followed through an outbound link prompts the
+  /// same way. The decision is remembered in-memory for this screen only
+  /// (nested screens have no persisted `WebViewModel`).
+  final Future<bool> Function(String origin)? onProtectedMediaRequest;
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
@@ -79,6 +84,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
     this.userScripts = const [],
     this.onConfirmScriptFetch,
+    this.onProtectedMediaRequest,
     this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
@@ -95,6 +101,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   String? title;
   late String _currentUrl;
   late final inapp.PullToRefreshController? _pullToRefreshController;
+
+  /// In-memory protected-content (Widevine/EME) decision for this nested
+  /// screen. null = ask, true/false = remembered grant/deny. Nested screens
+  /// are transient and have no persisted model, so the choice only lives
+  /// for the lifetime of this screen. [_protectedMediaInFlight] coalesces a
+  /// burst of `PROTECTED_MEDIA_ID` requests onto one popup.
+  bool? _protectedContentAllowed;
+  Future<bool>? _protectedMediaInFlight;
 
   /// Cached InAppWebView widget. Built once in initState and reused on
   /// every build() so setState calls (URL bar updates, find results,
@@ -187,6 +201,24 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         proxySettings: widget.proxySettings,
         userScripts: widget.userScripts,
         onConfirmScriptFetch: widget.onConfirmScriptFetch,
+        onProtectedMediaRequest: widget.onProtectedMediaRequest == null
+            ? null
+            : (origin) async {
+                if (_protectedContentAllowed != null) {
+                  return _protectedContentAllowed!;
+                }
+                _protectedMediaInFlight ??= () async {
+                  final granted =
+                      await widget.onProtectedMediaRequest!(origin);
+                  _protectedContentAllowed = granted;
+                  return granted;
+                }();
+                try {
+                  return await _protectedMediaInFlight!;
+                } finally {
+                  _protectedMediaInFlight = null;
+                }
+              },
         notificationsEnabled: widget.notificationsEnabled,
         pullToRefreshController: _pullToRefreshController,
         onUrlChanged: (url) {
