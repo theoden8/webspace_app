@@ -155,6 +155,43 @@ void main() {
       expect(all.siteIds, isEmpty);
     });
 
+    group('isArchiveTier is a runtime-only marker', () {
+      test('defaults to false', () {
+        expect(Webspace(name: 'W').isArchiveTier, isFalse);
+      });
+
+      test('toJson never serialises it', () {
+        final ws = Webspace(name: 'W', siteIds: ['a'])..isArchiveTier = true;
+        expect(ws.toJson().containsKey('isArchiveTier'), isFalse);
+      });
+
+      test('fromJson always restores it as false', () {
+        final ws = Webspace(name: 'W', siteIds: ['a'])..isArchiveTier = true;
+        final restored = Webspace.fromJson(ws.toJson());
+        expect(restored.isArchiveTier, isFalse);
+      });
+
+      test('copyWith carries it through', () {
+        final ws = Webspace(name: 'W')..isArchiveTier = true;
+        expect(ws.copyWith(name: 'W2').isArchiveTier, isTrue);
+        expect(ws.copyWith(isArchiveTier: false).isArchiveTier, isFalse);
+      });
+
+      test('persistence filter drops archive-tier collections', () {
+        // Mirror of the filter in `_saveWebspaces`.
+        final spaces = [
+          Webspace(name: 'App A', siteIds: ['a']),
+          Webspace(name: 'Arch', siteIds: ['x'])..isArchiveTier = true,
+          Webspace(name: 'App B', siteIds: ['b']),
+        ];
+        final persisted = spaces
+            .where((w) => !w.isArchiveTier)
+            .map((w) => w.name)
+            .toList();
+        expect(persisted, ['App A', 'App B']);
+      });
+    });
+
     // Defensive deserialization: malformed prefs blobs from partial
     // writes, hand-edited backups, or schema drift across branches
     // must not crash boot. `_loadWebspaces` wraps each entry in

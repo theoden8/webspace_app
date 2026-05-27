@@ -33,14 +33,19 @@ ARCH-001 through ARCH-009 are wired end-to-end:
   paints over the running tree on `inactive` / `paused` / `hidden` when
   at least one archive is open.
 
+**Archive-tier collections:** an open archive's named collections are
+materialised into `_webspaces` (marked `isArchiveTier`, a runtime-only
+flag) so a restored archive keeps its grouping. `_saveWebspaces`
+filters on the flag so they never enter app-tier SharedPreferences;
+their membership rides the archive's own encrypted state and is
+re-captured on close. Reopening restores the grouping; closing falls
+back to the "All" view if the user was inside an archive collection.
+
 **Deferred from v1:**
 
 - **ARCH-010 (export tick):** exports remain app-tier-only with no
   opt-in switch. Adding the tick later is additive and won't break the
   existing on-device invariant.
-- **Archive-tier webspaces** — sites inside an open archive appear in
-  the "All" view alongside app-tier sites; named-archive-webspace
-  support is a follow-up.
 
 ## Purpose
 
@@ -521,12 +526,13 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 - **Live-device forensics is out of scope.** An adversary executing code inside the running app process while an archive is open can read `MK_arch` and the archive's plaintext from memory. There is no software-only mitigation at the app layer.
 - **Slot size cap.** Archives larger than 256 KiB of packed state (typically: cookies + webspace JSON for ~50 sites) currently fail at write with a clear error to the user. v1 does not split archives across slots.
 - **Per-site browser state beyond cookies does not migrate on move-to-archive.** Cookies are captured from the running container and pushed into the new opaque container on next webview build. `localStorage`, `IndexedDB`, `ServiceWorker` registrations, and `HTTP cache` are not — the new container is a fresh slate. Sites that store user preferences (theme, language, layout) in `localStorage` will revert to defaults the first time they're opened from an archive after a move. The move-to-archive snackbar warns the user. Mitigation would require fork-side API to read/write per-container `localStorage`; tracked but out of scope for v1.
-- **Upstream `flutter_inappwebview` logs a few sensitive identifiers via `print` / `Log.d` from native code paths that the WebSpace fork branch (`v6.2.0-beta.3-privacy-v1`) inherits unchanged.** Audit findings against the fork's pinned ref:
+- **Dart-side console leakage is closed.** Every `LogService` call in `lib/` that interpolated a URL, host, site JSON, or stack trace is now `LogSensitivity.sensitive` (download / blob errors, share-intent failures, malformed-site-JSON boot warnings, proxy-apply failures), so it lands in the memory-only ring and never reaches disk / `debugPrint` / `adb logcat` / Console.app.
+- **Native (fork) console leakage remains.** Re-audited against `v6.2.0-beta.3-privacy-v3` — still present, unchanged from the v1 audit:
   - `flutter_inappwebview_android/.../InAppBrowserManager.java:129` — `Log.d(LOG_TAG, url + " cannot be opened: ...")` (intent-launch failure path)
-  - `flutter_inappwebview_android/.../InAppWebViewClient.java:130` and `InAppWebViewClientCompat.java:130` — `Log.d(LOG_TAG, "Request '" + url + "' automatically allowed...")` (regexToAllowSyncUrlLoading match)
+  - `flutter_inappwebview_android/.../InAppWebViewClient.java:131` — `Log.d(LOG_TAG, "Request '" + url + "' automatically allowed...")` (regexToAllowSyncUrlLoading match)
   - `flutter_inappwebview_ios/.../MyCookieManager.swift:211` and `flutter_inappwebview_macos/.../MyCookieManager.swift:207` — `print("Cannot get WebView cookies. No HOST found for URL: \(url)")`
   - Container, profile, and Linux per-session manager files are clean. WebSpace's own fork patches do not add new log calls.
-  Fixing these requires a fork-side patch (annotated `[WebSpace fork patch]`) that redacts the URL or drops the log entirely; tracked as a follow-up. Until then, the URLs of intent-launch failures, regex-allowlisted nested-load decisions, and the rare host-less cookie-read paths reach `adb logcat` / Console.app from any site — app-tier and archive-tier alike.
+  Fixing these requires a fork-side patch (annotated `[WebSpace fork patch]`) that redacts the URL or drops the log entirely, then a fork tag + `pubspec` ref bump — out of scope for an app-repo PR. Until then, the URLs of intent-launch failures, regex-allowlisted nested-load decisions, and the rare host-less cookie-read paths reach `adb logcat` / Console.app from any site.
 
 ## Files
 
