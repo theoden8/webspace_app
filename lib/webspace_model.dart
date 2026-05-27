@@ -18,12 +18,18 @@ class Webspace {
   /// Recomputed by `_resolveWebspaceIndices` whenever `_webViewModels`
   /// changes. Never persisted; serialisation goes through [siteIds].
   List<int> siteIndices;
+  /// Runtime-only marker for collections materialised from an open
+  /// archive handle rather than app-tier SharedPreferences. Never
+  /// serialised; `_saveWebspaces` filters on it so archive-tier
+  /// collections never enter the app-tier persisted list.
+  bool isArchiveTier;
 
   Webspace({
     String? id,
     required this.name,
     List<String>? siteIds,
     List<int>? siteIndices,
+    this.isArchiveTier = false,
   })  : id = id ?? _uuid.v4(),
         siteIds = siteIds ?? <String>[],
         siteIndices = siteIndices ?? <int>[];
@@ -60,12 +66,14 @@ class Webspace {
     String? name,
     List<String>? siteIds,
     List<int>? siteIndices,
+    bool? isArchiveTier,
   }) {
     return Webspace(
       id: id ?? this.id,
       name: name ?? this.name,
       siteIds: siteIds ?? List<String>.from(this.siteIds),
       siteIndices: siteIndices ?? List<int>.from(this.siteIndices),
+      isArchiveTier: isArchiveTier ?? this.isArchiveTier,
     );
   }
 

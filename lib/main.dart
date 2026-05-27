@@ -1857,11 +1857,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   /// Materialises an open [ArchiveHandle]'s sites into [_webViewModels]
-  /// (appended at the end with `isArchiveTier=true`). The persistence
-  /// path in [_saveWebViewModels] filters by `isArchiveTier` so archive
-  /// sites never enter SharedPreferences. Webspaces inside the archive
-  /// state are ignored in v1 — archive sites appear in the "All" view.
-  /// Caller triggers setState.
+  /// (appended at the end with `isArchiveTier=true`) and its named
+  /// collections into [_webspaces] (marked `isArchiveTier`). Both
+  /// persistence paths ([_saveWebViewModels], [_saveWebspaces]) filter
+  /// by `isArchiveTier` so neither archive sites nor archive collections
+  /// enter SharedPreferences. Caller triggers setState.
   Future<void> _materialiseArchive(ArchiveHandle handle) async {
     final siteIds = <String>{};
     final containerIds = <String>{};
@@ -1890,9 +1890,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _webViewModels.add(model);
       siteIds.add(model.siteId);
     }
+    // Restore the archive's own named collections (grouping). They carry
+    // siteId-keyed membership just like app-tier collections, marked
+    // isArchiveTier so `_saveWebspaces` keeps them out of app-tier
+    // persistence. Their runtime siteIndices view is rebuilt below.
+    final webspaceIds = <String>{};
+    for (final wsJson in handle.state.webspaces) {
+      final ws = Webspace.fromJson(Map<String, dynamic>.from(wsJson))
+        ..isArchiveTier = true;
+      _webspaces.add(ws);
+      webspaceIds.add(ws.id);
+    }
     _archiveSlices[handle] = _ArchiveSlice(
       siteIds: siteIds,
-      webspaceIds: const <String>{},
+      webspaceIds: webspaceIds,
       containerIds: containerIds,
     );
     _resolveWebspaceIndices();
@@ -1960,6 +1971,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     handle.state.sites
       ..clear()
       ..addAll(ownedSites.map((m) => m.toJson()));
+    // Capture this archive's collections back into its state so any
+    // rename / reorder / membership change made while open persists.
+    final ownedSpaces = [
+      for (final w in _webspaces)
+        if (slice.webspaceIds.contains(w.id)) w,
+    ];
+    handle.state.webspaces
+      ..clear()
+      ..addAll(ownedSpaces.map((w) => w.toJson()));
     await _archive.save(handle);
     await _archive.close(handle);
     // Dispose webviews owned by this archive before removing them from
@@ -2005,6 +2025,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _loadedIndices
         .removeWhere((i) => i < _webViewModels.length && removedSet.contains(_webViewModels[i].siteId));
     _webViewModels.removeWhere((m) => removedSet.contains(m.siteId));
+    // Remove this archive's collections from the runtime list. If the
+    // user was viewing one, fall back to the synthetic "All" view.
+    if (slice.webspaceIds.contains(_selectedWebspaceId)) {
+      _selectedWebspaceId = kAllWebspaceId;
+      unawaited(_saveSelectedWebspaceId());
+    }
+    _webspaces.removeWhere((w) => slice.webspaceIds.contains(w.id));
     // Webspace.siteIndices is a derived view over _webViewModels;
     // archive sites just left the list, so positions of remaining
     // sites may have shifted and any webspace siteIds that previously
@@ -2538,7 +2565,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _saveWebspaces() async {
     if (isDemoMode) return; // Don't persist in demo mode
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> webspacesJson = _webspaces.map((webspace) => jsonEncode(webspace.toJson())).toList();
+    // Archive-tier collections live in `_webspaces` for rendering while
+    // open but must not enter app-tier persistence (their membership is
+    // carried in the archive's own encrypted state).
+    List<String> webspacesJson = _webspaces
+        .where((webspace) => !webspace.isArchiveTier)
+        .map((webspace) => jsonEncode(webspace.toJson()))
+        .toList();
     await prefs.setStringList('webspaces', webspacesJson);
   }
 
