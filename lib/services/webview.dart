@@ -2350,6 +2350,7 @@ class WebViewFactory {
                 'WebView',
                 'Blob download error: $e\n$stack',
                 level: LogLevel.error,
+                sensitivity: LogSensitivity.sensitive,
               );
               if (taskId.isNotEmpty) {
                 DownloadsService.instance.fail(taskId, e.toString());
@@ -3496,6 +3497,7 @@ class WebViewFactory {
         'Download',
         'Download error: $e\n$stack',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
       DownloadsService.instance.fail(task.id, e.toString());
     }
@@ -3529,6 +3531,7 @@ class WebViewFactory {
         'Download',
         'Data-URI download error: $e\n$stack',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
       DownloadsService.instance.fail(task.id, e.toString());
     }
@@ -3557,6 +3560,7 @@ class WebViewFactory {
         'Download',
         'Blob download eval error: $e\n$stack',
         level: LogLevel.error,
+        sensitivity: LogSensitivity.sensitive,
       );
       DownloadsService.instance.fail(task.id, e.toString());
     }

@@ -1471,7 +1471,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     } catch (e, st) {
       LogService.instance.log(
           'LinkIntent', 'share intent handler threw: $e\n$st',
-          level: LogLevel.error);
+          level: LogLevel.error,
+          sensitivity: LogSensitivity.sensitive);
     } finally {
       _handlingShareIntent = false;
     }
@@ -3104,6 +3105,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             'Boot',
             'Dropped unparseable site JSON at index $i: $e',
             level: LogLevel.warning,
+            // The exception text can echo the malformed site JSON, which
+            // includes initUrl / name — per-site identifiers. Memory ring.
+            sensitivity: LogSensitivity.sensitive,
           );
         }
       }
@@ -3134,6 +3138,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             'Boot',
             'Skipped malformed site at index $i: $e',
             level: LogLevel.warning,
+            // Exception text can echo site JSON (initUrl / name). Memory ring.
+            sensitivity: LogSensitivity.sensitive,
           );
         }
       }
