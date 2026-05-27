@@ -126,25 +126,33 @@ void main() {
   });
 
   // The iOS App Shortcuts materialization (HS-008) collapses every entity
-  // down to a single visible "Open %@ in WebSpace" row when SiteEntity's
-  // displayRepresentation uses string interpolation: iOS treats the
-  // interpolated form as a LocalizedStringResource template whose %@ is never
-  // bound at materialization time. The fix is `DisplayRepresentation(
-  // stringLiteral: name)`. Guard the Swift source so a future refactor can't
-  // silently revert it.
+  // down to a single visible row unless SiteEntity.displayRepresentation
+  // pairs a static "%@" key (stable for the compile-time App Intents metadata
+  // extractor) with a runtime defaultValue carrying the site name. A bare
+  // `stringLiteral:` resolves in the live picker but not in the materialized
+  // tiles (runtime string can't be a compile-time key); a `title: "\(name)"`
+  // interpolation renders the literal "%@". Guard the Swift source so a
+  // future refactor can't silently revert to either broken form.
   group('WebSpaceAppIntents.swift — SiteEntity displayRepresentation', () {
-    test('uses stringLiteral, not LocalizedStringResource interpolation', () {
+    test('uses a static %@ key with a runtime defaultValue', () {
       final source =
           File('ios/Runner/WebSpaceAppIntents.swift').readAsStringSync();
-      expect(source, contains('DisplayRepresentation(stringLiteral: name)'),
-          reason: 'SiteEntity.displayRepresentation must use the '
-              '`stringLiteral:` initializer so each site materializes as its '
-              'own App Shortcut entry. See HS-008 / openspec spec.');
+      expect(
+          source,
+          contains(
+              'LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name))'),
+          reason: 'SiteEntity.displayRepresentation must use a static "%@" '
+              'key plus a runtime defaultValue so each site materializes as '
+              'its own App Shortcut entry. See HS-008 / openspec spec.');
       expect(source, isNot(contains(r'DisplayRepresentation(title: "\(name)")')),
           reason: 'String interpolation inside DisplayRepresentation(title:) '
               'is parsed as a LocalizedStringResource template, which '
               'collapses every materialized App Shortcut to a single %@ '
               'placeholder row in Shortcuts.app.');
+      expect(source, isNot(contains('DisplayRepresentation(stringLiteral: name)')),
+          reason: 'A bare stringLiteral resolves in the live picker but not '
+              'in the materialized App Shortcut tiles, because the App Intents '
+              'metadata extractor cannot bake a runtime string as the key.');
     });
   });
 }
