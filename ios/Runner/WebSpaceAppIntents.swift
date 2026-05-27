@@ -27,14 +27,23 @@ struct SiteEntity: AppEntity {
     TypeDisplayRepresentation(name: "Site")
   }
 
-  // String interpolation inside `DisplayRepresentation(title:)` is read as a
-  // LocalizedStringResource template, so iOS materializes every parameterized
-  // App Shortcut with the unresolved "%@" placeholder and then dedupes the
-  // identical titles in Shortcuts.app down to a single visible entry. The
-  // `stringLiteral:` initializer skips localization and uses `name` as-is, so
-  // every site gets a distinct materialized shortcut.
+  // Two earlier forms both produced a single collapsed entry:
+  //   1. Interpolating name into the title initializer builds a
+  //      LocalizedStringResource keyed on "%@" with no defaultValue, so iOS
+  //      renders the literal "%@" and dedupes every tile to one.
+  //   2. The stringLiteral initializer resolves correctly in the live
+  //      Shortcuts picker, but the App Intents metadata extractor runs at
+  //      compile time and cannot bake a runtime string as the title key, so
+  //      the App Shortcuts the system materializes per entity still collapse
+  //      to one (and the surviving tile keeps a stale bound target).
+  // The fix is a static "%@" key (stable for compile-time extraction) plus a
+  // runtime defaultValue so each site still resolves to its own name.
+  // The regression guard in test/shortcut_service_test.dart string-matches
+  // this line, so keep the two broken forms out of the source verbatim.
   var displayRepresentation: DisplayRepresentation {
-    DisplayRepresentation(stringLiteral: name)
+    DisplayRepresentation(
+      title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name))
+    )
   }
 
   static var defaultQuery = SiteEntityQuery()

@@ -3382,6 +3382,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!mounted) return;
     setState(() {}); // Trigger UI update after async operation
 
+    // Refresh the iOS App Intents picker on every launch, not just on save.
+    // iOS queries `suggestedEntities()` (and may re-materialize the per-site
+    // App Shortcuts) whenever Shortcuts.app is touched; if the App Group was
+    // never repopulated this session it can serve a stale single entry whose
+    // bound target no longer matches its title. Re-syncing here also re-fires
+    // `updateAppShortcutParameters()` so iOS re-reads the current site list.
+    _syncShortcutSites();
+
     _startForegroundPollTimer();
 
     await NotificationService.instance.init();

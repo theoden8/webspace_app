@@ -173,7 +173,7 @@ Only available on iOS 16+. On older iOS the intent type is compiled but never re
 
 ### Requirement: HS-009 - Site List Synced to App Group
 
-The system SHALL keep the iOS App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_saveWebViewModels`), the system SHALL write the current `[{id, name}]` list to `UserDefaults(suiteName: "group.org.codeberg.theoden8.webspace")` under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider.
+The system SHALL keep the iOS App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_saveWebViewModels`) and once per launch after `_restoreAppState` finishes loading models, the system SHALL write the current `[{id, name}]` list to `UserDefaults(suiteName: "group.org.codeberg.theoden8.webspace")` under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider. The per-launch sync guards against iOS materializing the per-site App Shortcuts against an empty/stale App Group (e.g. on first launch after install, before any save has run), which can otherwise surface a single stale entry whose bound target no longer matches its displayed title.
 
 #### Scenario: Site added
 
@@ -304,7 +304,7 @@ Methods:
 
 `ios/Runner/WebSpaceAppIntents.swift` defines (all `@available(iOS 16, *)`):
 
-- `SiteEntity: AppEntity` — one synced site with `id: String` (siteId) and `name: String`. `displayRepresentation` MUST use `DisplayRepresentation(stringLiteral: name)`, not `DisplayRepresentation(title: "\(name)")`: the latter is parsed as a `LocalizedStringResource` template whose `%@` placeholder is never resolved at materialization time, so iOS dedupes the materialized parameterized App Shortcuts (one per entity) down to a single visible entry in Shortcuts.app.
+- `SiteEntity: AppEntity` — one synced site with `id: String` (siteId) and `name: String`. `displayRepresentation` MUST use `DisplayRepresentation(title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name)))`. The static `"%@"` key is stable for the compile-time App Intents metadata extractor while the runtime `defaultValue` still resolves to each site's name. Two earlier forms both collapse the materialized parameterized App Shortcuts (one per entity) down to a single visible entry in Shortcuts.app: `DisplayRepresentation(title: "\(name)")` (interpolation renders the literal `%@`), and `DisplayRepresentation(stringLiteral: name)` (resolves in the live picker but not in the materialized tiles, since a runtime string can't be a compile-time title key — the surviving tile also keeps a stale bound target).
 - `SiteEntityQuery: EntityQuery` — reads the synced site list from App Group UserDefaults under `shortcut_sites` so Shortcuts.app's parameter picker shows real WebSpace sites.
 - `OpenSiteIntent: AppIntent, OpenIntent` — parameterized on `SiteEntity`. `openAppWhenRun = true` foregrounds WebSpace; `perform()` writes the chosen siteId to App Group UserDefaults under `pending_shortcut_site_id`.
 - `WebSpaceShortcuts: AppShortcutsProvider` — declares the discoverable "Open Site" App Shortcut with phrase template `"Open \(\.$target) in WebSpace"`.
