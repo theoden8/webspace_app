@@ -173,7 +173,7 @@ Only available on iOS 16+. On older iOS the intent type is compiled but never re
 
 ### Requirement: HS-009 - Site List Synced to App Group
 
-The system SHALL keep the iOS App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_saveWebViewModels`), the system SHALL write the current `[{id, name}]` list to `UserDefaults(suiteName: "group.org.codeberg.theoden8.webspace")` under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider.
+The system SHALL keep the iOS App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_saveWebViewModels`) and once per launch after `_restoreAppState` finishes loading models, the system SHALL write the current `[{id, name}]` list to `UserDefaults(suiteName: "group.org.codeberg.theoden8.webspace")` under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider. The per-launch sync guards against iOS materializing the per-site App Shortcuts against an empty/stale App Group (e.g. on first launch after install, before any save has run), which can otherwise surface a single stale entry whose bound target no longer matches its displayed title.
 
 #### Scenario: Site added
 
