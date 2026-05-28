@@ -527,12 +527,13 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 - **Slot size cap.** Archives larger than 256 KiB of packed state (typically: cookies + webspace JSON for ~50 sites) currently fail at write with a clear error to the user. v1 does not split archives across slots.
 - **Per-site browser state beyond cookies does not migrate on move-to-archive.** Cookies are captured from the running container and pushed into the new opaque container on next webview build. `localStorage`, `IndexedDB`, `ServiceWorker` registrations, and `HTTP cache` are not — the new container is a fresh slate. Sites that store user preferences (theme, language, layout) in `localStorage` will revert to defaults the first time they're opened from an archive after a move. The move-to-archive snackbar warns the user. Mitigation would require fork-side API to read/write per-container `localStorage`; tracked but out of scope for v1.
 - **Dart-side console leakage is closed.** Every `LogService` call in `lib/` that interpolated a URL, host, site JSON, or stack trace is now `LogSensitivity.sensitive` (download / blob errors, share-intent failures, malformed-site-JSON boot warnings, proxy-apply failures), so it lands in the memory-only ring and never reaches disk / `debugPrint` / `adb logcat` / Console.app.
-- **Native (fork) console leakage remains.** Re-audited against `v6.2.0-beta.3-privacy-v3` — still present, unchanged from the v1 audit:
-  - `flutter_inappwebview_android/.../InAppBrowserManager.java:129` — `Log.d(LOG_TAG, url + " cannot be opened: ...")` (intent-launch failure path)
-  - `flutter_inappwebview_android/.../InAppWebViewClient.java:131` — `Log.d(LOG_TAG, "Request '" + url + "' automatically allowed...")` (regexToAllowSyncUrlLoading match)
-  - `flutter_inappwebview_ios/.../MyCookieManager.swift:211` and `flutter_inappwebview_macos/.../MyCookieManager.swift:207` — `print("Cannot get WebView cookies. No HOST found for URL: \(url)")`
-  - Container, profile, and Linux per-session manager files are clean. WebSpace's own fork patches do not add new log calls.
-  Fixing these requires a fork-side patch (annotated `[WebSpace fork patch]`) that redacts the URL or drops the log entirely, then a fork tag + `pubspec` ref bump — out of scope for an app-repo PR. Until then, the URLs of intent-launch failures, regex-allowlisted nested-load decisions, and the rare host-less cookie-read paths reach `adb logcat` / Console.app from any site.
+- **Native (fork) console leakage — Android mitigated in release, iOS/macOS low-exposure.** The leaking lines are upstream `flutter_inappwebview` code (re-audited at `v6.2.0-beta.3-privacy-v3`, unchanged):
+  - `InAppBrowserManager.java:129` — `Log.d(LOG_TAG, url + " cannot be opened: ...")`
+  - `InAppWebViewClient.java:131` — `Log.d(LOG_TAG, "Request '" + url + "' automatically allowed...")`
+  - `MyCookieManager.swift:211` (iOS) / `:207` (macOS) — `print("... No HOST found for URL: \(url)")`
+  - Container, profile, and Linux per-session managers are clean; WebSpace's own fork patches add no log calls.
+
+  **Android:** the release build now runs R8 in optimize-only mode (`minifyEnabled true` + `-dontshrink -dontobfuscate` + `-assumenosideeffects` for `android.util.Log.d`/`.v` in `android/app/proguard-rules.pro`). This strips those `Log.d` calls — app-side and inherited-upstream alike — from release APKs, so they no longer reach `adb logcat`. Debug builds still emit them. **iOS/macOS:** Swift `print` writes to stdout, which is captured only under an attached Xcode/debug session, not the persistent unified log — so it's effectively invisible on a normally-installed release build. The proper fix for both is still a fork-side redaction; tracked, but the in-release exposure is now low.
 
 ## Files
 

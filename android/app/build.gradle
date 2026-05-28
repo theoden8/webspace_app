@@ -108,6 +108,12 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
+            // R8 in optimize-only mode (shrink + obfuscate disabled in
+            // proguard-rules.pro). The sole effect is dropping
+            // android.util.Log.d/.v calls so debug-level log lines don't
+            // reach release logcat. shrinkResources stays off.
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
