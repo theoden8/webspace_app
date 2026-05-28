@@ -39,6 +39,32 @@ void main() {
       expect(json['selectedWebspaceId'], equals('ws-1'));
       expect(json['currentIndex'], equals(0));
       expect(json['exportedAt'], equals('2024-01-15T10:30:00.000'));
+      // Omitted when not provided, so a default export is byte-identical
+      // to one produced without the feature.
+      expect(json.containsKey('extraSections'), isFalse);
+    });
+
+    test('extraSections is omitted when empty and round-trips when set', () {
+      final without = SettingsBackup(
+        version: 1,
+        sites: const [],
+        webspaces: const [],
+        themeMode: 0,
+        exportedAt: DateTime(2024, 1, 1),
+        extraSections: const [],
+      );
+      expect(without.toJson().containsKey('extraSections'), isFalse);
+
+      final withSections = SettingsBackup(
+        version: 1,
+        sites: const [],
+        webspaces: const [],
+        themeMode: 0,
+        exportedAt: DateTime(2024, 1, 1),
+        extraSections: const ['blobA==', 'blobB=='],
+      );
+      final restored = SettingsBackup.fromJson(withSections.toJson());
+      expect(restored.extraSections, equals(['blobA==', 'blobB==']));
     });
 
     test('should deserialize from JSON correctly', () {

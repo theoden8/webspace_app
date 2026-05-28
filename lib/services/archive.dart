@@ -189,6 +189,84 @@ class Archive {
     }
   }
 
+  /// Restores self-contained sections produced by [exportSection] into
+  /// the slot pool. Tries [passphrase] against each base64 blob; a blob
+  /// that decrypts is written to its archive's slot (existing slot for
+  /// that key, or a fresh one). Restored archives are written to disk
+  /// but NOT opened. Returns the blobs that did not decrypt under this
+  /// passphrase, so the caller can prompt again for a different one.
+  Future<List<String>> importSections(
+    String passphrase,
+    List<String> base64Sections,
+  ) async {
+    final key = await ArchiveKeyDerivation.derive(passphrase);
+    try {
+      return await importSectionsWithKey(key, base64Sections);
+    } finally {
+      ArchiveCrypto.zeroize(key);
+    }
+  }
+
+  /// Key-based core of [importSections]. Does not consume or zeroize
+  /// [key] (the caller owns its lifetime). Exposed for tests so they
+  /// can exercise section round-tripping without the per-call Argon2id
+  /// cost; derivation itself is covered by the crypto tests.
+  Future<List<String>> importSectionsWithKey(
+    Uint8List key,
+    List<String> base64Sections,
+  ) async {
+    await ensureInitialized();
+    final unmatched = <String>[];
+    for (final b64 in base64Sections) {
+      Uint8List wire;
+      try {
+        wire = Uint8List.fromList(base64.decode(b64));
+      } catch (_) {
+        unmatched.add(b64);
+        continue;
+      }
+      final plaintext = await ArchiveCrypto.open(key, wire);
+      if (plaintext == null) {
+        unmatched.add(b64);
+        continue;
+      }
+      final stateJson =
+          jsonDecode(utf8.decode(plaintext)) as Map<String, dynamic>;
+      await _writeState(key, ArchiveState.fromJson(stateJson));
+    }
+    return unmatched;
+  }
+
+  /// Seals an archive's state into a self-contained base64 blob (no
+  /// slot AAD) that [importSections] can later restore under the same
+  /// passphrase-derived key.
+  Future<String> exportSection(ArchiveHandle handle) async {
+    final plaintext =
+        Uint8List.fromList(utf8.encode(jsonEncode(handle.state.toJson())));
+    final wire = await ArchiveCrypto.seal(handle.key, plaintext);
+    return base64.encode(wire);
+  }
+
+  Future<void> _writeState(Uint8List key, ArchiveState state) async {
+    final match = await _scanSlots(key);
+    final int slotIndex;
+    if (match != null) {
+      slotIndex = match.slotIndex;
+    } else {
+      final claimed = <int>{for (final h in _openHandles) h.slotIndex};
+      slotIndex = _storage.pickRandomUnclaimedSlot(claimed);
+    }
+    // Build a transient handle over a private copy of the key just to
+    // persist; never registered as open, zeroed immediately after.
+    final handle = ArchiveHandle._(
+      key: Uint8List.fromList(key),
+      slotIndex: slotIndex,
+      state: state,
+    );
+    await _persist(handle);
+    handle._zeroizeAndMarkClosed();
+  }
+
   Future<_SlotMatch?> _scanSlots(Uint8List key) async {
     final slots = await _storage.readAllSlots();
     for (var i = 0; i < slots.length; i++) {

@@ -41,11 +41,18 @@ their membership rides the archive's own encrypted state and is
 re-captured on close. Reopening restores the grouping; closing falls
 back to the "All" view if the user was inside an archive collection.
 
-**Deferred from v1:**
-
-- **ARCH-010 (export tick):** exports remain app-tier-only with no
-  opt-in switch. Adding the tick later is additive and won't break the
-  existing on-device invariant.
+**ARCH-010 (export opt-in):** when one or more archives are open, the
+settings export prompts whether to bundle them. Each open archive is
+sealed into a self-contained base64 section (`Archive.exportSection`,
+AES-256-GCM under the passphrase-derived key, no slot AAD) stored under
+the optional `extraSections` key in the backup JSON. The prompt only
+appears while archives are open — at which point their content is
+already visible in the switcher — so a backup taken with none open is
+byte-identical to one produced without the feature (the key is omitted
+entirely). Import detects `extraSections` and prompts for a passphrase
+per round (`Archive.importSections`); sections that decrypt are written
+to the slot pool (not opened); the rest can be restored by entering
+another passphrase, or skipped.
 
 ## Purpose
 
