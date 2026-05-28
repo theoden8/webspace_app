@@ -3941,6 +3941,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
           .toList(),
       globalUserScripts: _globalUserScripts.map((s) => s.toJson()).toList(),
+      // User intent for the downloaded-data blockers: the chosen DNS
+      // severity level and the content-blocker list selection. The blobs
+      // themselves stay machine state; the user re-downloads after import.
+      dnsBlockLevel: DnsBlockService.instance.level,
+      contentBlockerLists: ContentBlockerService.instance.exportListSelection(),
     );
   }
 
@@ -4076,6 +4081,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // address/username without an app restart.
     final reloadedPrefs = await SharedPreferences.getInstance();
     await GlobalOutboundProxy.update(readGlobalOutboundProxy(reloadedPrefs));
+    // Restore the downloaded-data blockers' user intent. Both carry only
+    // the selection (DNS level / list URLs + enabled), never the blob —
+    // the user re-downloads from App Settings to activate blocking.
+    if (backup.dnsBlockLevel != null) {
+      await DnsBlockService.instance.applyImportedLevel(backup.dnsBlockLevel!);
+    }
+    if (backup.contentBlockerLists != null) {
+      await ContentBlockerService.instance
+          .importListSelection(backup.contentBlockerLists!);
+    }
     await _saveWebViewModels();
     await _saveWebspaces();
     await _saveThemeSettings();
@@ -4144,13 +4159,27 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       } catch (_) {/* malformed global proxy entry → no hint */}
       final globalProxyAuth = hasProxyUsername(globalProxyJson);
       final stripped = perSiteProxyAuth || globalProxyAuth;
+      // Blocklist/filter-list blobs aren't in the backup — only the
+      // selection. Hint the user to re-download if they had either set.
+      final needsBlocklistRedownload =
+          (backup.dnsBlockLevel ?? 0) > 0 ||
+              (backup.contentBlockerLists
+                      ?.any((e) => e['enabled'] == true) ??
+                  false);
+      final hints = <String>[
+        if (stripped)
+          'Proxy passwords aren\'t included in backups — re-enter them in '
+              'site / app settings.',
+        if (needsBlocklistRedownload)
+          'Re-download DNS / content blocker lists in App Settings to '
+              'activate blocking.',
+      ];
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(stripped
-              ? 'Settings imported. Proxy passwords aren\'t included in '
-                  'backups — re-enter them in site / app settings.'
-              : 'Settings imported successfully'),
-          duration: Duration(seconds: stripped ? 6 : 4),
+          content: Text(hints.isEmpty
+              ? 'Settings imported successfully'
+              : 'Settings imported. ${hints.join(' ')}'),
+          duration: Duration(seconds: hints.isEmpty ? 4 : 6),
         ),
       );
     }

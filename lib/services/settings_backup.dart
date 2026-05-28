@@ -30,6 +30,17 @@ class SettingsBackup {
   final List<Map<String, dynamic>>? suggestedSites;
   final List<Map<String, dynamic>>? globalUserScripts;
 
+  /// Chosen DNS blocklist severity level (0-5). User intent; the
+  /// downloaded domain blob is never part of a backup. Null when the
+  /// backup predates this field.
+  final int? dnsBlockLevel;
+
+  /// Content-blocker filter-list selection: `{id, name, url, enabled}`
+  /// per list. User intent only — rule counts / timestamps (machine
+  /// state tied to a downloaded blob) are not carried. Null when the
+  /// backup predates this field.
+  final List<Map<String, dynamic>>? contentBlockerLists;
+
   SettingsBackup({
     required this.version,
     required this.sites,
@@ -44,6 +55,8 @@ class SettingsBackup {
     required this.exportedAt,
     this.suggestedSites,
     this.globalUserScripts,
+    this.dnsBlockLevel,
+    this.contentBlockerLists,
   }) : globalPrefs = _normalizePrefs(
           globalPrefs,
           showUrlBar: showUrlBar,
@@ -67,6 +80,9 @@ class SettingsBackup {
         'exportedAt': exportedAt.toIso8601String(),
         if (suggestedSites != null) 'suggestedSites': suggestedSites,
         if (globalUserScripts != null) 'globalUserScripts': globalUserScripts,
+        if (dnsBlockLevel != null) 'dnsBlockLevel': dnsBlockLevel,
+        if (contentBlockerLists != null)
+          'contentBlockerLists': contentBlockerLists,
       };
 
   factory SettingsBackup.fromJson(Map<String, dynamic> json) {
@@ -100,6 +116,10 @@ class SettingsBackup {
           .toList(),
       globalUserScripts: (json['globalUserScripts'] as List<dynamic>?)
           ?.map((e) => e as Map<String, dynamic>)
+          .toList(),
+      dnsBlockLevel: json['dnsBlockLevel'] as int?,
+      contentBlockerLists: (json['contentBlockerLists'] as List<dynamic>?)
+          ?.map((e) => Map<String, dynamic>.from(e as Map))
           .toList(),
     );
   }
@@ -146,6 +166,8 @@ class SettingsBackupService {
     int? currentIndex,
     List<Map<String, dynamic>>? suggestedSites,
     List<Map<String, dynamic>>? globalUserScripts,
+    int? dnsBlockLevel,
+    List<Map<String, dynamic>>? contentBlockerLists,
   }) {
     // Convert sites to JSON. `model.toJson` already omits the proxy
     // password (per PWD-005); we still need to strip secure cookies here.
@@ -181,6 +203,8 @@ class SettingsBackupService {
       exportedAt: DateTime.now(),
       suggestedSites: suggestedSites,
       globalUserScripts: globalUserScripts,
+      dnsBlockLevel: dnsBlockLevel,
+      contentBlockerLists: contentBlockerLists,
     );
   }
 
@@ -200,6 +224,8 @@ class SettingsBackupService {
     int? currentIndex,
     List<Map<String, dynamic>>? suggestedSites,
     List<Map<String, dynamic>>? globalUserScripts,
+    int? dnsBlockLevel,
+    List<Map<String, dynamic>>? contentBlockerLists,
   }) async {
     try {
       final backup = createBackup(
@@ -211,6 +237,8 @@ class SettingsBackupService {
         currentIndex: currentIndex,
         suggestedSites: suggestedSites,
         globalUserScripts: globalUserScripts,
+        dnsBlockLevel: dnsBlockLevel,
+        contentBlockerLists: contentBlockerLists,
       );
 
       final jsonString = exportToJson(backup);

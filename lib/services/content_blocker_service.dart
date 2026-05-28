@@ -724,6 +724,53 @@ class ContentBlockerService {
     return count;
   }
 
+  /// User-intent slice of the filter-list configuration for settings
+  /// export: which lists exist, their source URLs, and whether they're
+  /// enabled. Download-side metadata (rule counts, last-updated, skipped
+  /// counts) is deliberately omitted — it's machine state tied to a blob
+  /// the backup doesn't carry. See content-blocker spec CB-011.
+  List<Map<String, dynamic>> exportListSelection() => _lists
+      .map((l) => <String, dynamic>{
+            'id': l.id,
+            'name': l.name,
+            'url': l.url,
+            'enabled': l.enabled,
+          })
+      .toList();
+
+  /// Restore a filter-list selection from a settings backup. Replaces the
+  /// current list set with the imported one and rebuilds the engine.
+  ///
+  /// Download metadata is unknown until the user re-downloads, except
+  /// where an imported id matches a list that was already present (its
+  /// cache file may still be on disk): the prior counts/timestamp are
+  /// kept so the engine rebuild reuses the existing blob and the UI shows
+  /// accurate counts without a re-download. Entries missing id/name/url
+  /// are skipped.
+  Future<void> importListSelection(List<Map<String, dynamic>> entries) async {
+    final priorById = {for (final l in _lists) l.id: l};
+    final restored = <FilterList>[];
+    for (final e in entries) {
+      final id = e['id'] as String?;
+      final name = e['name'] as String?;
+      final url = e['url'] as String?;
+      if (id == null || name == null || url == null) continue;
+      final prior = priorById[id];
+      restored.add(FilterList(
+        id: id,
+        name: name,
+        url: url,
+        enabled: e['enabled'] == true,
+        ruleCount: prior?.ruleCount ?? 0,
+        skippedCount: prior?.skippedCount ?? 0,
+        lastUpdated: prior?.lastUpdated,
+      ));
+    }
+    _lists = restored;
+    await _saveLists();
+    await _rebuildEngine();
+  }
+
   Future<void> _saveLists() async {
     final prefs = await SharedPreferences.getInstance();
     final json = jsonEncode(_lists.map((l) => l.toJson()).toList());
