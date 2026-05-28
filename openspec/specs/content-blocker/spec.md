@@ -454,6 +454,22 @@ The system SHALL gate `adblock-rust`'s uBO web_accessible_resources/ pool behind
 
 The `useUboResources` preference SHALL round-trip through settings export/import via the `kExportedAppPrefs` registry. The retired `useRustAdblockEngine` toggle SHALL NOT round-trip.
 
+The filter-list selection SHALL also round-trip, as user intent: each
+list's `id`, `name`, `url`, and `enabled` flag ride a dedicated
+`contentBlockerLists` backup field. Download-side metadata (rule counts,
+skipped counts, last-updated timestamps) and the cached rule blobs SHALL
+NOT be exported — they are machine state, repopulated by re-downloading
+after import. The selection rides a dedicated field rather than the
+`kExportedAppPrefs` registry because applying it on import must run
+through `ContentBlockerService` (replacing `_lists` and rebuilding the
+engine), which the registry's blind pref-write path cannot do.
+
+`exportListSelection()` produces the export entries;
+`importListSelection(entries)` applies them, preserving prior
+download metadata for any imported `id` that matches a list already
+present (its cache file may still be on disk) so the engine rebuild
+reuses the existing blob.
+
 #### Scenario: useUboResources preserved across devices
 
 **Given** the user has flipped the toggle off
@@ -468,6 +484,20 @@ The `useUboResources` preference SHALL round-trip through settings export/import
 **Then** the key is silently ignored
 **And** the engine is loaded as the unconditional default
 **And** no warning is required (forward-compat shape: unknown keys ignore)
+
+#### Scenario: Filter-list selection round-trips
+
+**Given** the user has EasyList enabled and a custom list disabled
+**When** they export settings and restore on another device
+**Then** both lists appear with their enabled/disabled state preserved
+**And** the engine rebuilds from whatever cache files are present (none on a
+fresh device, so the user re-downloads to activate blocking)
+
+#### Scenario: Download metadata excluded from export
+
+**Given** a filter list has a rule count and a last-updated timestamp
+**When** settings are exported
+**Then** its exported entry contains only `{id, name, url, enabled}`
 
 ---
 

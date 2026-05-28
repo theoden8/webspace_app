@@ -575,6 +575,38 @@ class DnsBlockService {
     return result;
   }
 
+  /// Apply a DNS severity level restored from a settings backup.
+  ///
+  /// A backup carries only the chosen level (user intent), never the
+  /// downloaded domain blob. This persists the level so the App Settings
+  /// slider reflects the user's choice; the user re-downloads from there
+  /// to repopulate `_blockedDomains`. When the imported level differs
+  /// from the level the on-disk cache was downloaded at, that cache is
+  /// dropped: `dns_blocklist.txt` is not level-tagged, so keeping a stale
+  /// blob under a new level number would make [level] lie about what
+  /// [blockedDomains] actually contains. Out-of-range levels are ignored.
+  Future<void> applyImportedLevel(int level) async {
+    if (level < 0 || level > 5) return;
+    if (level == _level) return;
+    _blockedDomains = {};
+    _bloomFilter = null;
+    try {
+      final file = await _getCacheFile();
+      if (await file.exists()) {
+        await file.delete();
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_levelKey, level);
+      await prefs.remove(_lastUpdatedKey);
+    } catch (e) {
+      LogService.instance.log('DnsBlock',
+          'Error applying imported level: $e', level: LogLevel.error);
+    }
+    _level = level;
+    await _clearDomainCache();
+    _notifyBlocklistChanged();
+  }
+
   /// Get the last time the blocklist was downloaded, or null if never.
   Future<DateTime?> getLastUpdated() async {
     final prefs = await SharedPreferences.getInstance();

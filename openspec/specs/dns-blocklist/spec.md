@@ -375,6 +375,48 @@ Existing sites without `dnsBlockEnabled` in their stored JSON SHALL default to `
 
 ---
 
+### Requirement: DNS-018 - Severity Level in Settings Backup
+
+The chosen DNS severity level SHALL round-trip through settings
+export/import as user intent. The downloaded domain blob, last-updated
+timestamp, and domain decision cache SHALL NOT be exported — they are
+machine state and are repopulated by re-downloading after import.
+
+Import SHALL apply the restored level through `DnsBlockService` (not by
+writing the `dns_block_level` pref directly), so the persisted level
+stays coherent with the on-disk blob: `dns_blocklist.txt` is not
+level-tagged, so when the imported level differs from the level the
+cached blob was downloaded at, that stale blob is dropped.
+
+#### Scenario: Level exported
+
+**Given** the user has DNS level "Pro" (3) configured
+**When** settings are exported
+**Then** the backup includes `"dnsBlockLevel": 3`
+**And** the backup does not include the domain blob, timestamp, or domain cache
+
+#### Scenario: Level restored on fresh install
+
+**Given** a backup with `dnsBlockLevel: 3`
+**When** the user imports it on a device with no blocklist downloaded
+**Then** the persisted level becomes 3 and the slider reflects it
+**And** `hasBlocklist` remains false until the user re-downloads
+
+#### Scenario: Imported level supersedes a mismatched cached blob
+
+**Given** the importing device has a "Ultimate" (5) blob cached
+**When** a backup with `dnsBlockLevel: 3` is imported
+**Then** the stale level-5 blob is dropped
+**And** the level becomes 3 with `hasBlocklist` false until re-download
+
+#### Scenario: Out-of-range level ignored
+
+**Given** a tampered backup with `dnsBlockLevel: 9`
+**When** the user imports it
+**Then** the level is left unchanged
+
+---
+
 ### Requirement: DNS-012 - Per-Site DNS Statistics
 
 The system SHALL track allowed and blocked DNS request counts per site at runtime, with a log of recent queries. Recording happens regardless of whether the per-site DNS blocking toggle is on or off — stats always record when a blocklist is loaded.

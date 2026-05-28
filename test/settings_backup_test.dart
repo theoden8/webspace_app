@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
@@ -843,6 +844,92 @@ void main() {
       expect(backup.showUrlBar, equals(true));
       expect(backup.showTabStrip, equals(true));
       expect(backup.showStatsBanner, equals(false));
+    });
+  });
+
+  group('Downloaded-data blocker prefs', () {
+    test('DNS level and content-blocker selection round-trip through JSON', () {
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [],
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+        dnsBlockLevel: 4,
+        contentBlockerLists: [
+          {
+            'id': 'easylist',
+            'name': 'EasyList',
+            'url': 'https://easylist.to/easylist/easylist.txt',
+            'enabled': true,
+          },
+          {
+            'id': 'custom_1',
+            'name': 'My List',
+            'url': 'https://example.com/list.txt',
+            'enabled': false,
+          },
+        ],
+      );
+
+      final restored = SettingsBackupService.importFromJson(
+        SettingsBackupService.exportToJson(backup),
+      )!;
+
+      expect(restored.dnsBlockLevel, equals(4));
+      expect(restored.contentBlockerLists, hasLength(2));
+      expect(restored.contentBlockerLists![0]['id'], equals('easylist'));
+      expect(restored.contentBlockerLists![0]['enabled'], isTrue);
+      expect(restored.contentBlockerLists![1]['url'],
+          equals('https://example.com/list.txt'));
+      expect(restored.contentBlockerLists![1]['enabled'], isFalse);
+    });
+
+    test('fields are absent when not provided (backward compatible)', () {
+      final backup = SettingsBackupService.createBackup(
+        webViewModels: [],
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+      );
+
+      final json = backup.toJson();
+      expect(json.containsKey('dnsBlockLevel'), isFalse);
+      expect(json.containsKey('contentBlockerLists'), isFalse);
+
+      // Older backups without these keys deserialize to null, not a throw.
+      final restored = SettingsBackup.fromJson({
+        'version': 1,
+        'sites': [],
+        'webspaces': [],
+        'themeMode': 0,
+      });
+      expect(restored.dnsBlockLevel, isNull);
+      expect(restored.contentBlockerLists, isNull);
+    });
+
+    test('exportListSelection omits download metadata', () {
+      final service = ContentBlockerService.instance;
+      addTearDown(service.reset);
+      service.setLists([
+        FilterList(
+          id: 'easylist',
+          name: 'EasyList',
+          url: 'https://easylist.to/easylist/easylist.txt',
+          enabled: true,
+          ruleCount: 99999,
+          skippedCount: 42,
+          lastUpdated: DateTime(2024, 1, 1),
+        ),
+      ]);
+
+      final selection = service.exportListSelection();
+
+      expect(selection, hasLength(1));
+      expect(
+        selection[0].keys.toSet(),
+        equals({'id', 'name', 'url', 'enabled'}),
+        reason: 'download metadata (ruleCount/skippedCount/lastUpdated) '
+            'must not appear in the exported selection',
+      );
+      expect(selection[0]['enabled'], isTrue);
     });
   });
 

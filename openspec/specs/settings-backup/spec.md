@@ -83,6 +83,53 @@ Backups SHALL include all settings, with cookies filtered by security flag.
 | Current site index | Yes | Last viewed site |
 | Non-secure cookies | Yes | Cookies with `isSecure=false` |
 | **Secure cookies** | **No** | `isSecure=true` never exported |
+| DNS blocklist level | Yes | Chosen severity (0-5); blob re-downloaded after import |
+| Content-blocker list selection | Yes | Per-list `{id, name, url, enabled}`; rule blob re-downloaded after import |
+| **DNS / filter rule blobs** | **No** | Downloaded domain lists + adblock rules are machine state |
+| **DNS / filter download metadata** | **No** | Rule counts, last-updated timestamps, domain cache |
+
+---
+
+### Requirement: BACKUP-009 - Downloaded-Data Blocker Preferences
+
+Backups SHALL carry the user-intent portion of the DNS blocklist and
+content-blocker configuration (the chosen DNS severity level and the
+content-blocker filter-list selection) while excluding the downloaded
+blobs and their machine-state metadata. After import the selection is
+restored, but the user re-downloads the blocklists to activate blocking.
+
+The DNS level and content-blocker list selection ride dedicated backup
+fields (`dnsBlockLevel`, `contentBlockerLists`), not the
+`kExportedAppPrefs` registry, because applying them on import must run
+through the owning service to keep the persisted level/selection coherent
+with whatever blob the importing device already has on disk.
+
+#### Scenario: DNS severity level restored
+
+**Given** a backup was taken on a device with DNS level "Pro++" (4)
+**When** the user imports it on a fresh install
+**Then** the App Settings DNS slider shows level 4
+**And** no domain blob is loaded (`hasBlocklist` is false) until the user re-downloads
+
+#### Scenario: Content-blocker selection restored without rule blobs
+
+**Given** a backup contains filter lists EasyList (enabled) and a custom list (disabled)
+**When** the user imports it
+**Then** both lists appear in App Settings with their enabled/disabled state
+**And** rule counts show as unknown until the user re-downloads
+
+#### Scenario: Download metadata never exported
+
+**Given** a content-blocker list has a rule count and last-updated timestamp
+**When** settings are exported
+**Then** the exported list entry contains only `{id, name, url, enabled}`
+**And** rule counts, skipped counts, and timestamps are excluded
+
+#### Scenario: Re-download hint after import
+
+**Given** an imported backup had a non-zero DNS level or any enabled filter list
+**When** the import completes
+**Then** the snackbar advises re-downloading DNS / content blocker lists in App Settings
 
 ---
 
@@ -170,9 +217,22 @@ Import/Export options SHALL only appear when on the webspaces list screen.
   "showUrlBar": false,
   "selectedWebspaceId": "__all_webspace__",
   "currentIndex": null,
-  "exportedAt": "2024-01-15T10:30:00.000Z"
+  "exportedAt": "2024-01-15T10:30:00.000Z",
+  "dnsBlockLevel": 3,
+  "contentBlockerLists": [
+    {
+      "id": "easylist",
+      "name": "EasyList",
+      "url": "https://easylist.to/easylist/easylist.txt",
+      "enabled": true
+    }
+  ]
 }
 ```
+
+`dnsBlockLevel` and `contentBlockerLists` are omitted entirely when the
+source device had no such configuration; importers treat their absence as
+"no change" (older backups simply lack the keys).
 
 ---
 
