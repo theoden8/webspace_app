@@ -97,9 +97,11 @@ final class WebClipInstaller {
     }
     listener.start(queue: .global(qos: .userInitiated))
 
-    // Safety net: reclaim the listener + background assertion if Safari
-    // never connects (user dismissed the download prompt, etc.).
-    DispatchQueue.global().asyncAfter(deadline: .now() + 30) { [weak self] in
+    // Keep serving for the whole window: Safari may make a preflight fetch
+    // plus the real one, so we must answer more than once. Reclaim the
+    // listener + background assertion once the window closes (or earlier if
+    // the background-task assertion expires).
+    DispatchQueue.global().asyncAfter(deadline: .now() + 120) { [weak self] in
       self?.teardown()
     }
     return true
@@ -114,20 +116,23 @@ final class WebClipInstaller {
         conn.cancel()
         return
       }
+      // No Content-Disposition: with attachment, Safari routes the profile
+      // through the download manager and re-fetches the bytes on a second
+      // request when the user taps "Download" — by which point a one-shot
+      // listener is gone. Serving it as a bare aspen-config lets Safari
+      // recognize it as a profile and show the install prompt on the first
+      // fetch. The listener also stays up (see serveAndOpen) to tolerate any
+      // preflight + actual fetch Safari still makes.
       let header =
         "HTTP/1.1 200 OK\r\n"
         + "Content-Type: application/x-apple-aspen-config\r\n"
-        + "Content-Disposition: attachment; filename=\"webspace.mobileconfig\"\r\n"
         + "Content-Length: \(self.profileData.count)\r\n"
         + "Connection: close\r\n\r\n"
       var payload = Data(header.utf8)
       payload.append(self.profileData)
       conn.send(
         content: payload,
-        completion: .contentProcessed { _ in
-          conn.cancel()
-          self.teardown()
-        })
+        completion: .contentProcessed { _ in conn.cancel() })
     }
   }
 
