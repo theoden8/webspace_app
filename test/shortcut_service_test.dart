@@ -83,6 +83,17 @@ void main() {
       }
     });
 
+    test('installWebClip is false off iOS', () async {
+      final ok = await ShortcutService.installWebClip(
+        label: 'A',
+        targetUrl: 'webspace://shortcut?siteId=a',
+      );
+      if (!Platform.isIOS) {
+        expect(ok, isFalse);
+        expect(calls, isEmpty);
+      }
+    });
+
     test('getLaunchSiteId is null on non-mobile host', () async {
       final id = await ShortcutService.getLaunchSiteId();
       if (!isMobileHost) {
@@ -117,6 +128,13 @@ void main() {
       // channel; this case really exercises mobile hosts. Still: the calls
       // must never throw a PlatformException out of the service.
       expect(await ShortcutService.pinShortcut(siteId: 'a', label: 'A'), isFalse);
+      expect(
+        await ShortcutService.installWebClip(
+          label: 'A',
+          targetUrl: 'webspace://shortcut?siteId=a',
+        ),
+        isFalse,
+      );
       expect(await ShortcutService.getLaunchSiteId(), isNull);
       expect(await ShortcutService.getPinnedSiteIds(), isEmpty);
       expect(await ShortcutService.isAppIntentsSupported(), isFalse);

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Allow users to add a site shortcut to the home screen. Tapping the shortcut launches WebSpace and navigates to that site. On Android the system pins the shortcut directly via `ShortcutManagerCompat.requestPinShortcut`. On iOS 16+ the system exposes WebSpace sites as App Intents (`OpenSiteIntent`) that the user adds through the Shortcuts app and pins to the home screen from there.
+Allow users to add a site shortcut to the home screen. Tapping the shortcut launches WebSpace and navigates to that site. On Android the system pins the shortcut directly via `ShortcutManagerCompat.requestPinShortcut`. On iOS 16+ the "Home Shortcut" menu item generates a Web Clip configuration profile carrying the site's favicon and a `webspace://shortcut?siteId=...` target, which the user installs to place a custom-icon tile on the Home Screen (HS-011). iOS sites are also exposed as App Intents (`OpenSiteIntent`) for Siri/Spotlight and manual Shortcuts-app use (HS-008/009); those remain, but are no longer the Home Screen path.
 
 ## Status
 
@@ -205,28 +205,65 @@ The system SHALL keep the iOS App Intents site picker in sync with the user's ac
 
 ### Requirement: HS-010 - iOS "Add to Home Screen" Dialog
 
-On iOS, tapping the "Home Shortcut" menu item SHALL show an instructional dialog explaining that iOS surfaces WebSpace sites through the Shortcuts app, with a primary button that deep-links to Shortcuts.app. The system SHALL NOT attempt to pin a shortcut programmatically (iOS has no such public API).
+On iOS, tapping the "Home Shortcut" menu item SHALL show an instructional dialog explaining that WebSpace will hand iOS a setup profile and that the user finishes installing it from Settings, with a primary button that proceeds to generate and deliver the Web Clip profile (HS-011). The system SHALL NOT attempt to pin a shortcut programmatically (iOS has no such public API).
 
 #### Scenario: Dialog content
 
 **Given** the user is on iOS 16+
 **When** the user taps "Home Shortcut" in the overflow menu
-**Then** an `AlertDialog` is shown explaining the iOS flow ("find the Open Site action under WebSpace, pick this site, then tap Add to Home Screen")
-**And** the dialog has an "Open Shortcuts" primary button and a "Cancel" button
+**Then** an `AlertDialog` is shown explaining the iOS flow (Safari opens, then install the WebSpace profile under Settings > General > VPN & Device Management)
+**And** the dialog has a "Continue" primary button and a "Cancel" button
 
 #### Scenario: User confirms
 
 **Given** the iOS instructional dialog is shown
-**When** the user taps "Open Shortcuts"
-**Then** the system opens the URL `shortcuts://` via `UIApplication.shared.open`
-**And** the Shortcuts.app launches
+**When** the user taps "Continue"
+**Then** the system builds the Web Clip profile and hands it to Safari (HS-011)
 
 #### Scenario: User cancels
 
 **Given** the iOS instructional dialog is shown
 **When** the user taps "Cancel"
 **Then** the dialog dismisses
-**And** Shortcuts.app is not opened
+**And** no profile is generated or delivered
+
+---
+
+### Requirement: HS-011 - iOS Web Clip Home Screen Icon
+
+On iOS 16+, confirming the HS-010 dialog SHALL generate a Web Clip configuration profile (`.mobileconfig`) for the site and deliver it to Safari for installation. The profile's single `com.apple.webClip.managed` payload SHALL set the site name as `Label`, the site's favicon (or the bundled app icon as fallback) as the `Icon`, and `webspace://shortcut?siteId=<siteId>` as the `URL`, with `IsRemovable = true`. The installed tile SHALL launch WebSpace to the targeted site, reusing the cold/warm launch path (HS-002, HS-006, HS-007). The system SHALL NOT install the profile silently (iOS forbids it); the user completes installation from Settings.
+
+#### Scenario: Profile carries the favicon
+
+**Given** the site has a cached non-SVG favicon that fetches successfully
+**When** the user confirms the HS-010 dialog
+**Then** the Web Clip `Icon` is the favicon, rendered to a square PNG
+
+#### Scenario: Favicon unavailable or SVG
+
+**Given** the site has no cached favicon, the favicon is an SVG, or the fetch fails
+**When** the user confirms the HS-010 dialog
+**Then** the Web Clip `Icon` falls back to the bundled WebSpace app icon
+
+#### Scenario: Delivery to Safari
+
+**Given** the profile has been built
+**When** delivery runs
+**Then** the profile is served from a one-shot loopback HTTP listener with `Content-Type: application/x-apple-aspen-config`
+**And** the system opens that loopback URL via `UIApplication.shared.open` so Safari downloads it and iOS shows "Profile Downloaded"
+
+#### Scenario: Tile launches the targeted site
+
+**Given** the user installed the Web Clip profile and tapped its Home Screen tile
+**When** WebSpace cold- or warm-launches
+**Then** `AppDelegate` parses `webspace://shortcut?siteId=...` and writes the siteId to App Group `pending_shortcut_site_id`
+**And** `ShortcutService.getLaunchSiteId()` drains it and the targeted site becomes active (resetting to `initUrl` on cold launch per HS-006)
+
+#### Scenario: Archive-tier site
+
+**Given** a site is archive-tier
+**When** the overflow menu is shown
+**Then** the "Home Shortcut" item is hidden (ARCH-006), so no Web Clip can be generated for it
 
 ---
 
@@ -293,7 +330,8 @@ This requirement applies only to **process-startup** launches (cold or post-kill
 Both Android and iOS share the channel `MethodChannel('org.codeberg.theoden8.webspace/shortcuts')`.
 
 Methods:
-- `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **iOS 16+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first).
+- `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **iOS 16+**: opens `shortcuts://` (retained for the Shortcuts-app/Siri path; the Home Screen menu now uses `installWebClip`).
+- `installWebClip({label, url, iconBase64})` — **iOS 16+ only**: builds a Web Clip `.mobileconfig` (`label`, base64 PNG `iconBase64`, `webspace://shortcut?siteId=...` `url`) and serves it from a one-shot loopback HTTP listener opened in Safari (HS-011). No-op elsewhere.
 - `removeShortcut(siteId)` — Android: disables and removes the dynamic+pinned shortcut for a deleted site. iOS: no-op (the App Intents site list is recomputed from `_webViewModels` on every save via HS-009).
 - `getLaunchSiteId()` — **Android**: returns the `siteId` from the launch intent extra. **iOS**: drains the `pending_shortcut_site_id` key from App Group UserDefaults (written by `OpenSiteIntent.perform()`).
 - `getPinnedSiteIds()` — Android: returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix. iOS: always returns an empty list (no public API for pin-state introspection).
@@ -339,13 +377,15 @@ no widget tree required.
 - `lib/services/startup_restore_engine.dart` — `resolveLaunchTarget` shortcut→index resolution
 - `ios/Runner/WebSpaceAppIntents.swift` — `SiteEntity`, `SiteEntityQuery`, `OpenSiteIntent`, `WebSpaceShortcuts` (iOS 16+)
 - `ios/Runner/ShortcutsPlugin.swift` — iOS method-channel handler
+- `ios/Runner/WebClipInstaller.swift` — builds + delivers the Web Clip profile (HS-011)
+- `lib/services/web_clip_icon.dart` — favicon → square PNG normalizer for the Web Clip `Icon`
 - `test/startup_restore_engine_test.dart` — unit tests for the resolution rule
 - `test/shortcut_service_test.dart` — unit tests for the Dart service surface
 - `openspec/specs/home-shortcut/spec.md` — this specification
 
 #### Modified
 - `android/app/src/main/kotlin/.../MainActivity.kt` — native shortcut creation and intent handling
-- `ios/Runner/AppDelegate.swift` — wire `ShortcutsPlugin`
+- `ios/Runner/AppDelegate.swift` — wire `ShortcutsPlugin`; route `webspace://shortcut?siteId=` to the App Group pending-siteId key (HS-011)
 - `ios/Runner.xcodeproj/project.pbxproj` — register the new Swift files
 - `lib/main.dart` — menu item, shortcut action, launch intent handling, iOS site sync
 

@@ -115,6 +115,21 @@ import UserNotifications
       #if DEBUG
       NSLog("[WebSpace] captured share inner URL: \(inner)")
       #endif
+    } else if host == "shortcut" {
+      // HS-011: a Home Screen Web Clip fires webspace://shortcut?siteId=...
+      // Funnel the siteId into the same App Group key the App Intents path
+      // writes (pending_shortcut_site_id) so getLaunchSiteId drains it on the
+      // next cold/warm launch and the existing reset-to-initUrl plumbing runs.
+      if let siteId = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+        .queryItems?.first(where: { $0.name == "siteId" })?.value,
+        !siteId.isEmpty,
+        let defaults = UserDefaults(suiteName: appGroupId)
+      {
+        defaults.set(siteId, forKey: "pending_shortcut_site_id")
+        #if DEBUG
+        NSLog("[WebSpace] captured web clip siteId: \(siteId)")
+        #endif
+      }
     } else if host == "qr" {
       // Pass the original webspace:// URL through; Dart routes it to the
       // QR-apply path by scheme.

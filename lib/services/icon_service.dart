@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -31,6 +32,30 @@ http.Client? _proxiedClient(UserProxySettings proxy) {
       'Outbound blocked: ${result.reason}',
       level: LogLevel.warning,
     );
+  }
+  return null;
+}
+
+/// Fetch the raw bytes of an already-resolved favicon URL, honoring the
+/// proxy posture of the owning site. Returns null when the proxy can't be
+/// honored (fail-closed, same as the rest of this service) or the request
+/// fails. Used by the iOS Web Clip path to embed the favicon in the
+/// configuration profile.
+Future<Uint8List?> fetchIconBytes(
+  String url, {
+  UserProxySettings? proxy,
+}) async {
+  final client = _proxiedClient(_resolve(proxy));
+  if (client == null) return null;
+  try {
+    final response = await client.get(Uri.parse(url)).timeout(
+          const Duration(seconds: 5),
+        );
+    if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+      return response.bodyBytes;
+    }
+  } catch (_) {
+    // best-effort; caller falls back to the bundled app icon.
   }
   return null;
 }

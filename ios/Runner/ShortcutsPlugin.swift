@@ -21,6 +21,7 @@ import AppIntents
 /// `_handleShortcutIntent`).
 class ShortcutsPlugin: NSObject {
   private let channel: FlutterMethodChannel
+  private var webClipInstaller: AnyObject?
   private static let channelName = "org.codeberg.theoden8.webspace/shortcuts"
   private static let appGroupId = "group.org.codeberg.theoden8.webspace"
   private static let sitesKey = "shortcut_sites"
@@ -54,6 +55,8 @@ class ShortcutsPlugin: NSObject {
       result(drainPendingSiteId())
     case "pinShortcut":
       openShortcutsApp(result: result)
+    case "installWebClip":
+      installWebClip(call.arguments as? [String: Any], result: result)
     case "removeShortcut":
       // No-op on iOS: we don't pin, we don't track.
       result(nil)
@@ -94,6 +97,26 @@ class ShortcutsPlugin: NSObject {
     else { return nil }
     defaults.removeObject(forKey: Self.pendingKey)
     return siteId
+  }
+
+  private func installWebClip(_ args: [String: Any]?, result: @escaping FlutterResult) {
+    guard
+      let label = args?["label"] as? String,
+      let urlString = args?["url"] as? String
+    else {
+      result(false)
+      return
+    }
+    let iconBase64 = args?["iconBase64"] as? String
+    guard #available(iOS 13, *) else {
+      result(false)
+      return
+    }
+    let installer = WebClipInstaller()
+    // Retain across the async serve/open + Safari round-trip.
+    webClipInstaller = installer
+    let ok = installer.install(label: label, urlString: urlString, iconBase64: iconBase64)
+    result(ok)
   }
 
   private func openShortcutsApp(result: @escaping FlutterResult) {

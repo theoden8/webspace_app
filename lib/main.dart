@@ -23,6 +23,7 @@ import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFavic
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
+import 'package:webspace/services/web_clip_icon.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -1140,9 +1141,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         builder: (ctx) => AlertDialog(
           title: const Text('Add to Home Screen'),
           content: Text(
-            'iOS adds WebSpace sites through the Shortcuts app.\n\n'
-            'In Shortcuts, find the "Open Site" action under WebSpace, pick '
-            '"${model.name}", then tap "Add to Home Screen" from the share menu.',
+            'WebSpace will hand iOS a setup profile for "${model.name}".\n\n'
+            'Safari opens, then iOS shows "Profile Downloaded". Open '
+            'Settings > General > VPN & Device Management, tap the WebSpace '
+            'profile, and Install it. A "${model.name}" icon then appears on '
+            'your Home Screen.',
           ),
           actions: [
             TextButton(
@@ -1151,18 +1154,54 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Open Shortcuts'),
+              child: const Text('Continue'),
             ),
           ],
         ),
       );
-      if (confirmed == true) {
-        await ShortcutService.pinShortcut(
-          siteId: model.siteId,
-          label: model.name,
+      if (confirmed != true) return;
+      final iconBase64 = await _buildWebClipIconBase64(model);
+      // HS-011: the tile fires webspace://shortcut?siteId=..., which
+      // AppDelegate funnels into the same pending-siteId launch path the
+      // App Intents shortcut uses (so HS-002/006/007 apply unchanged).
+      final target = Uri(
+        scheme: 'webspace',
+        host: 'shortcut',
+        queryParameters: {'siteId': model.siteId},
+      ).toString();
+      final ok = await ShortcutService.installWebClip(
+        label: model.name,
+        targetUrl: target,
+        iconPngBase64: iconBase64,
+      );
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not start Home Screen setup')),
         );
       }
     }
+  }
+
+  /// Build the Web Clip icon as a base64 PNG: the site's favicon when it is a
+  /// fetchable raster, otherwise the bundled app icon. SVG favicons aren't
+  /// rasterizable here, so they fall through to the app icon.
+  Future<String?> _buildWebClipIconBase64(WebViewModel model) async {
+    Uint8List? png;
+    final faviconUrl = FaviconUrlCache.get(model.initUrl);
+    final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
+    if (faviconUrl != null && !isSvg) {
+      final raw = await fetchIconBytes(faviconUrl, proxy: model.proxySettings);
+      if (raw != null) png = WebClipIcon.encodeSquarePng(raw);
+    }
+    if (png == null) {
+      try {
+        final data = await rootBundle.load('assets/webspace_icon.png');
+        png = WebClipIcon.encodeSquarePng(data.buffer.asUint8List());
+      } catch (_) {
+        return null;
+      }
+    }
+    return png == null ? null : base64Encode(png);
   }
 
   Future<void> _refreshPinnedSiteIds() async {

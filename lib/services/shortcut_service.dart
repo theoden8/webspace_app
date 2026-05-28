@@ -50,6 +50,32 @@ class ShortcutService {
     }
   }
 
+  /// Install an iOS Web Clip so the site gets a real Home Screen icon
+  /// carrying its favicon (HS-011). iOS has no API to place a custom-icon
+  /// tile directly, so this hands a generated configuration profile to
+  /// Safari; the user installs it via Settings. [targetUrl] is the
+  /// `webspace://shortcut?siteId=...` deep link the tile fires;
+  /// [iconPngBase64] is a base64 PNG (favicon or app-icon fallback), or null
+  /// to let iOS pick a generic glyph. iOS only; returns false elsewhere or
+  /// when the profile could not be handed off.
+  static Future<bool> installWebClip({
+    required String label,
+    required String targetUrl,
+    String? iconPngBase64,
+  }) async {
+    if (!Platform.isIOS) return false;
+    try {
+      final result = await _channel.invokeMethod('installWebClip', {
+        'label': label,
+        'url': targetUrl,
+        'iconBase64': iconPngBase64,
+      });
+      return result == true;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   /// Remove a pinned shortcut when a site is deleted (Android only).
   /// On iOS the App Intents site list is rebuilt from the user's actual
   /// sites by `syncSites` so a deletion drops out implicitly.
