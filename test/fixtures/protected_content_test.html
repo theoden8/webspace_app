@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protected Content (Widevine/EME) Test Fixture</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 16px; max-width: 540px; }
+    button { display: block; width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; cursor: pointer; }
+    button:active { opacity: 0.7; }
+    .section { margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+    .section h3 { margin-top: 0; }
+    #log { font-family: monospace; font-size: 12px; white-space: pre-wrap; background: #f5f5f5; padding: 8px; border-radius: 4px; max-height: 300px; overflow-y: auto; }
+    .pass { color: green; }
+    .fail { color: red; }
+    .info { color: #666; }
+    .result { font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+    .result.pass { background: #cef4d8; color: #186; }
+    .result.fail { background: #fde0e0; color: #a22; }
+    .result.pending { background: #fff3c4; color: #976; }
+  </style>
+</head>
+<body>
+  <h2>Protected Content (Widevine/EME) Test Fixture</h2>
+  <p class="info">
+    Exercises the Encrypted Media Extensions path that DRM web players (e.g.
+    Spotify) use. On Android, the first Widevine probe triggers WebSpace's
+    "Play protected content?" popup (the <code>PROTECTED_MEDIA_ID</code>
+    permission). Your Allow/Block choice is remembered per-site.
+  </p>
+
+  <div class="section">
+    <h3>EME API availability</h3>
+    <p><code>navigator.requestMediaKeySystemAccess</code>:
+      <span id="emeAvail" class="result pending">checking...</span></p>
+    <p class="info">If unavailable, the platform has no EME support (expected
+      on iOS/macOS WKWebView) and nothing below can succeed.</p>
+  </div>
+
+  <div class="section">
+    <h3>Widevine (triggers the DRM popup)</h3>
+    <p>Result: <span id="widevineResult" class="result pending">not run</span></p>
+    <button onclick="probe('com.widevine.alpha', 'optional', 'widevineResult')">
+      Probe Widevine</button>
+    <button onclick="probe('com.widevine.alpha', 'required', 'widevineResult')">
+      Probe Widevine (require device identifier)</button>
+    <p class="info">
+      First run on Android: expect the Allow/Block popup. After Allow, the
+      promise resolves and a CDM is created. Reload the page — there should be
+      NO second popup (decision remembered). Set the site's "Protected content
+      (DRM)" dropdown to Block and reload — the probe should fail with no popup.
+    </p>
+  </div>
+
+  <div class="section">
+    <h3>ClearKey (control — should NOT trigger the popup)</h3>
+    <p>Result: <span id="clearKeyResult" class="result pending">not run</span></p>
+    <button onclick="probe('org.w3.clearkey', 'optional', 'clearKeyResult')">
+      Probe ClearKey</button>
+    <p class="info">ClearKey needs no CDM or device identifier, so it should
+      resolve without any popup. If a popup appears here, the permission
+      handler is granting more than protected media.</p>
+  </div>
+
+  <div class="section">
+    <h3>Event Log</h3>
+    <button onclick="clearLog()">Clear Log</button>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    var logEl = document.getElementById('log');
+
+    function log(msg, cls) {
+      var ts = new Date().toLocaleTimeString();
+      var line = document.createElement('div');
+      line.className = cls || 'info';
+      line.textContent = '[' + ts + '] ' + msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function clearLog() { logEl.innerHTML = ''; }
+
+    function setResult(id, text, cls) {
+      var el = document.getElementById(id);
+      el.textContent = text;
+      el.className = 'result ' + cls;
+    }
+
+    function emeConfig(distinctiveIdentifier) {
+      return [{
+        initDataTypes: ['cenc'],
+        distinctiveIdentifier: distinctiveIdentifier,
+        persistentState: 'optional',
+        videoCapabilities: [
+          { contentType: 'video/mp4; codecs="avc1.42E01E"' }
+        ],
+        audioCapabilities: [
+          { contentType: 'audio/mp4; codecs="mp4a.40.2"' }
+        ]
+      }];
+    }
+
+    function checkEmeAvailable() {
+      var ok = typeof navigator.requestMediaKeySystemAccess === 'function';
+      setResult('emeAvail', ok ? 'available' : 'unavailable', ok ? 'pass' : 'fail');
+      log('EME API ' + (ok ? 'available' : 'unavailable'), ok ? 'pass' : 'fail');
+      return ok;
+    }
+
+    function probe(keySystem, distinctiveIdentifier, resultId) {
+      if (!checkEmeAvailable()) {
+        setResult(resultId, 'EME unavailable', 'fail');
+        return;
+      }
+      setResult(resultId, 'requesting...', 'pending');
+      log('requestMediaKeySystemAccess("' + keySystem + '", distinctiveIdentifier=' +
+        distinctiveIdentifier + ') ...');
+      navigator.requestMediaKeySystemAccess(keySystem, emeConfig(distinctiveIdentifier))
+        .then(function(access) {
+          log(keySystem + ': access GRANTED (keySystem=' + access.keySystem + ')', 'pass');
+          return access.createMediaKeys();
+        })
+        .then(function() {
+          log(keySystem + ': MediaKeys created — CDM is usable', 'pass');
+          setResult(resultId, 'available', 'pass');
+        })
+        .catch(function(err) {
+          log(keySystem + ': REJECTED — ' + err.name + ': ' + err.message, 'fail');
+          setResult(resultId, 'blocked / unsupported', 'fail');
+        });
+    }
+
+    // Auto-probe Widevine on load, the way a real DRM player does, so the
+    // popup fires without any tap.
+    checkEmeAvailable();
+    window.setTimeout(function() {
+      log('Auto-probing Widevine on load (mimics a DRM player startup)...');
+      probe('com.widevine.alpha', 'optional', 'widevineResult');
+    }, 500);
+  </script>
+</body>
+</html>
