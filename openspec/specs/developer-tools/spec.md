@@ -140,6 +140,42 @@ The app SHALL allow sharing, saving, or copying the current page's HTML source v
 
 ---
 
+### Requirement: DEVTOOLS-009 - Save Icon as PNG
+
+The app SHALL allow saving the current site's favicon as a PNG file via an
+AppBar action button, regardless of the source format the site serves.
+
+The favicon SHALL be fetched through the same proxy-aware client as all other
+favicon requests (per-site proxy, fail-closed when it cannot be honored), so
+the action never leaks the device IP.
+
+Because a site's favicon may be a PNG, an ICO (DuckDuckGo), or an SVG, the
+output SHALL always be a valid PNG: raster sources are decoded and re-encoded,
+and SVG sources are rasterized.
+
+#### Scenario: Save favicon to a PNG file
+
+**Given** a site is loaded with a resolvable favicon
+**When** the user taps the image icon in the AppBar
+**Then** the favicon is resolved (preferring the `FaviconUrlCache` entry for
+the site's `initUrl`) and fetched through the site's proxy
+**And** it is normalized to PNG bytes
+**And** a file save dialog appears with filename `{domain}_icon.png`
+
+#### Scenario: SVG favicon is rasterized
+
+**Given** the resolved favicon is an SVG
+**When** the user saves it
+**Then** the SVG is rasterized to a square PNG before the save dialog appears
+
+#### Scenario: No icon available
+
+**Given** the site has no resolvable favicon (or the proxy fails closed)
+**When** the user taps the image icon
+**Then** a snackbar reports that no icon is available and no file dialog appears
+
+---
+
 ### Requirement: DEVTOOLS-004 - App Logs
 
 The app SHALL maintain a ring buffer of app-level log entries accessible from both Developer Tools and App Settings, with live streaming updates and auto-scroll.
@@ -246,6 +282,7 @@ The reduced mode SHALL show:
 - Console tab (capture, filter, copy, clear, JS eval).
 - App Logs tab.
 - Share HTML AppBar action.
+- Save Icon as PNG AppBar action.
 
 The reduced mode SHALL NOT show Cookies, DNS, or Scripts surfaces. Cookies
 and scripts belong to the parent site (the nested webview reuses the
@@ -331,7 +368,8 @@ The app SHALL provide a JavaScript evaluation input in the Console tab, allowing
 | File | Role |
 |------|------|
 | `lib/services/log_service.dart` | LogService singleton, LogEntry, LogLevel enum |
-| `lib/screens/dev_tools.dart` | DevToolsScreen plus DevToolsHost abstraction (WebViewModelDevToolsHost, NestedDevToolsHost). Tabs/actions are gated on `host != null` (Console, Share HTML) and `host.blockedCookies != null` (Cookies, DNS, Scripts). |
+| `lib/screens/dev_tools.dart` | DevToolsScreen plus DevToolsHost abstraction (WebViewModelDevToolsHost, NestedDevToolsHost). Tabs/actions are gated on `host != null` (Console, Share HTML, Save Icon) and `host.blockedCookies != null` (Cookies, DNS, Scripts). |
+| `lib/services/icon_png_export.dart` | Resolves a site favicon, fetches it via the proxy-aware icon client, and normalizes any source (PNG/ICO/JPEG/SVG) to PNG bytes (`exportIconAsPng`). |
 | `lib/screens/inappbrowser.dart` | InAppWebViewScreen owns a NestedDevToolsHost: forwards onConsoleMessage / onUrlChanged / onControllerCreated and exposes a "Developer Tools" entry in the popup menu. |
 
 ### Data Models
@@ -370,6 +408,7 @@ class ConsoleLogEntry {
 3. **Console tab**: verify messages appear color-coded with timestamps
 4. **Cookies tab**: verify cookies listed with security chips; delete a cookie and confirm removal
 5. **Share HTML** (AppBar share icon): tap and verify bottom sheet with Share/Save/Copy options; test each option
+5a. **Save Icon as PNG** (AppBar image icon): tap and verify a save dialog with `{domain}_icon.png`; save and confirm the file opens as a PNG. Test on a site with an SVG favicon (e.g. codeberg) and one with an ICO favicon to confirm both rasterize/convert correctly
 6. **Scripts** (AppBar code icon): tap and verify bottom sheet shows user scripts (or "no scripts" message); expand a script and copy its source
 7. **App Logs tab**: verify app log entries appear; use filter chips; tap "Copy" and paste — verify only filtered entries are copied
 8. **Filtered copy**: on each tab, enter a search query, tap Copy, and verify clipboard contains only the matching entries (not all)
