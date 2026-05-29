@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/services.dart';
 
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// Dart side of the Android local authenticating proxy relay.
@@ -17,7 +18,24 @@ class ProxyRelay {
       MethodChannel('org.codeberg.theoden8.webspace/proxy_relay');
 
   static final ProxyRelay instance = ProxyRelay._();
-  ProxyRelay._();
+  ProxyRelay._() {
+    // The native side posts every relay event (accept, upstream connect
+    // attempt/result, 502, start/stop) over this channel so they land in
+    // the in-app Logs tab alongside the `Proxy` events.
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'logEvent') {
+        final msg = (call.arguments as Map?)?['msg']?.toString();
+        if (msg != null) {
+          LogService.instance.log(
+            'ProxyRelay',
+            msg,
+            sensitivity: LogSensitivity.sensitive,
+          );
+        }
+      }
+      return null;
+    });
+  }
 
   /// Start or reconfigure the relay for [upstream]. Returns the loopback
   /// port to hand to `ProxyController`, or `null` if it could not bind (the

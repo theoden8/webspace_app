@@ -112,6 +112,7 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
                 runCatching { client.close() }
                 continue
             }
+            log("accepted connection from ${client.inetAddress.hostAddress}:${client.port}")
             pool.execute {
                 try {
                     handle(client, cfg)
@@ -157,6 +158,7 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
             return
         }
 
+        log("upstream connecting via ${cfg.type} ${cfg.host}:${cfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
         val upstream: Socket = try {
             when (cfg.type) {
                 UpstreamType.SOCKS5 -> openViaSocks5(cfg, host, hostPort)
@@ -164,10 +166,11 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
                     openViaHttpProxy(cfg, host, hostPort, isConnect)
             }
         } catch (e: Exception) {
-            log("upstream connect failed: ${e.message}")
+            log("upstream connect FAILED for $host:$hostPort via ${cfg.type}: ${e.javaClass.simpleName}: ${e.message} — sending 502")
             writeStatus(cout, 502, "Bad Gateway")
             return
         }
+        log("upstream connected for $host:$hostPort")
 
         try {
             if (isConnect) {

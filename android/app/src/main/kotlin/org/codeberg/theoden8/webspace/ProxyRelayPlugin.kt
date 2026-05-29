@@ -1,5 +1,7 @@
 package org.codeberg.theoden8.webspace
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -20,7 +22,17 @@ import org.codeberg.theoden8.webspace.proxy.ProxyRelay
  */
 class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-    private val relay = ProxyRelay { msg -> Log.i(TAG, msg) }
+    private val mainHandler = Handler(Looper.getMainLooper())
+    // Forward every relay event to the Dart side so it surfaces in the
+    // in-app Logs tab next to the proxy-apply events — critical for the
+    // container-reach diagnostic (zero accepted connections during a
+    // proxied page load = ProxyController not reaching the container).
+    private val relay = ProxyRelay { msg ->
+        Log.i(TAG, msg)
+        mainHandler.post {
+            runCatching { channel.invokeMethod("logEvent", mapOf("msg" to msg)) }
+        }
+    }
 
     init {
         channel.setMethodCallHandler { call, result ->

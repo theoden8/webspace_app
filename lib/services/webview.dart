@@ -277,7 +277,13 @@ class ProxyManager {
         'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
         level: LogLevel.info,
       );
+      final sw = Stopwatch()..start();
       await controller.clearProxyOverride();
+      LogService.instance.log(
+        'Proxy',
+        'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
+        level: LogLevel.info,
+      );
       return;
     }
 
@@ -350,11 +356,19 @@ class ProxyManager {
         level: LogLevel.info,
         sensitivity: LogSensitivity.sensitive,
       );
+      final sw = Stopwatch()..start();
       await controller.setProxyOverride(
         settings: inapp.ProxySettings(
           proxyRules: [inapp.ProxyRule(url: 'http://127.0.0.1:$localPort')],
           bypassRules: ['<local>'],
         ),
+      );
+      LogService.instance.log(
+        'Proxy',
+        'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
+            'relay port=$localPort)',
+        level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
       );
       return;
     }
@@ -376,11 +390,19 @@ class ProxyManager {
       level: LogLevel.info,
       sensitivity: LogSensitivity.sensitive,
     );
+    final sw = Stopwatch()..start();
     await controller.setProxyOverride(
       settings: inapp.ProxySettings(
         proxyRules: [inapp.ProxyRule(url: proxyUrl)],
         bypassRules: ['<local>'],
       ),
+    );
+    LogService.instance.log(
+      'Proxy',
+      'Applied proxy override (native call took ${sw.elapsedMilliseconds}ms, '
+          'scheme=$scheme)',
+      level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
     );
   }
 
@@ -388,7 +410,13 @@ class ProxyManager {
     if (!PlatformInfo.isProxySupported) return;
     if (Platform.isIOS || Platform.isMacOS) return;
     if (Platform.isAndroid) await ProxyRelay.instance.stop();
+    final sw = Stopwatch()..start();
     await inapp.ProxyController.instance().clearProxyOverride();
+    LogService.instance.log(
+      'Proxy',
+      'Cleared proxy override via clearProxy() (native call took ${sw.elapsedMilliseconds}ms)',
+      level: LogLevel.info,
+    );
   }
 }
 
@@ -2826,6 +2854,11 @@ class WebViewFactory {
       // and LocalCDN replacement are both handled by the native
       // FastSubresourceInterceptor attached via WebInterceptNative.
       onLoadStart: (controller, url) async {
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'onLoadStart siteId=${config.siteId} url=$url',
+          sensitivity: LogSensitivity.sensitive,
+        );
         // Snapshot the navigation generation BEFORE any await — if a
         // later `shouldOverrideUrlLoading` advances the counter while
         // we're between IPCs, the previous frame is being torn down and
@@ -2893,6 +2926,11 @@ class WebViewFactory {
         }
       },
       onLoadStop: (controller, url) async {
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'onLoadStop siteId=${config.siteId} url=$url',
+          sensitivity: LogSensitivity.sensitive,
+        );
         // End pull-to-refresh animation
         config.pullToRefreshController?.endRefreshing();
         // Notify the call site that this navigation finished loading
@@ -3059,6 +3097,13 @@ class WebViewFactory {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
       onReceivedError: (controller, request, error) async {
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'onReceivedError siteId=${config.siteId} url=${request.url} '
+              'type=${error.type} desc=${error.description}',
+          level: LogLevel.warning,
+          sensitivity: LogSensitivity.sensitive,
+        );
         // For non-internal schemes (intent://, custom app schemes) Android
         // sometimes hands the URL straight to onReceivedError without
         // calling shouldOverrideUrlLoading first — observed every time on
