@@ -5763,8 +5763,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         && _showTabStrip
         && filteredIndices.isNotEmpty;
     return SafeArea(
-      top: false, // AppBar handles top inset; in fullscreen there's no AppBar either
-      bottom: _isFullscreen ? false : (!hasTabStrip && inputBar == null),
+      // Out of fullscreen the AppBar absorbs the top inset, so top stays false.
+      // In fullscreen there is no AppBar, and immersiveSticky does not reliably
+      // hide the status/navigation bars on Android 15 (edge-to-edge enforced) —
+      // when they remain, edge-to-edge content lands behind them and the site's
+      // top/bottom controls become untappable. Inset the body on both edges so
+      // it stays clear of any bars that persist; when they are truly hidden the
+      // padding is ~0 and the webview still fills the screen. github #385
+      top: _isFullscreen,
+      bottom: _isFullscreen || (!hasTabStrip && inputBar == null),
       // Use Stack + Offstage so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing

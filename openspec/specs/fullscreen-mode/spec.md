@@ -124,6 +124,24 @@ The system SHALL exit full screen when navigating to the webspaces list.
 
 ---
 
+### Requirement: FS-006 - Content Reachable Under Persistent System Bars
+
+The system SHALL keep the site's content reachable in full screen even when the platform fails to hide the system bars (e.g. Android 15 edge-to-edge, where `immersiveSticky` does not always hide the status/navigation bars).
+
+#### Scenario: System bar persists in full screen
+
+**Given** the user is in full screen mode on a device where a system bar remains visible
+**When** the user taps the site's controls near the top or bottom edge
+**Then** the body is inset by the system bar's safe area so the controls are not hidden behind the bar and remain tappable
+
+#### Scenario: System bars fully hidden
+
+**Given** the user is in full screen mode on a device where `immersiveSticky` hides both bars
+**Then** the body safe-area inset is ~0
+**And** the webview fills the entire screen
+
+---
+
 ## Implementation Details
 
 ### Data Model
@@ -142,7 +160,8 @@ The system SHALL exit full screen when navigating to the webspaces list.
 - **App bar**: Hidden when `_isFullscreen` is true (`appBar: _isFullscreen ? null : _buildAppBar()`)
 - **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen`
 - **Input bar**: `_buildInputBar()` returns null when `_isFullscreen`
-- **Exit zone**: GestureDetector at top edge when fullscreen (`MediaQuery.padding.top + 20px`) with visible translucent handle just below the notch/status bar
+- **Body insets**: The fullscreen body keeps `SafeArea` active on both edges (`top: _isFullscreen`, `bottom: _isFullscreen || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen.
+- **Exit zone**: GestureDetector at top edge when fullscreen (`MediaQuery.padding.top + 20px`, measured inside the body `SafeArea`) with visible translucent handle just below the notch/status bar
 - **Fullscreen hint**: SnackBar shown on entering fullscreen to explain exit method
 - **Menu items**: "Full Screen" added to both app bar and tab strip popup menus
 
