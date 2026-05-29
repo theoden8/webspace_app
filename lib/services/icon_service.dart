@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -94,6 +95,29 @@ Future<String?> getSvgContent(
     }
   } catch (e) {
     LogService.instance.log('Icon', 'Failed to fetch SVG content: $e', level: LogLevel.error);
+  } finally {
+    client.close();
+  }
+  return null;
+}
+
+/// Fetch the raw bytes of an icon at [iconUrl] through the proxy-aware
+/// client. Returns null when the proxy cannot be honored (fail-closed, same
+/// as every other favicon fetch) or the request fails. [proxy] is the
+/// per-site proxy of the site the icon belongs to; null means the app-global
+/// outbound proxy applies.
+Future<Uint8List?> fetchIconBytes(String iconUrl, {UserProxySettings? proxy}) async {
+  final client = _proxiedClient(_resolve(proxy));
+  if (client == null) return null;
+  try {
+    final response = await client.get(Uri.parse(iconUrl)).timeout(
+      const Duration(seconds: 10),
+    );
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    }
+  } catch (e) {
+    LogService.instance.log('Icon', 'Failed to fetch icon bytes: $e', level: LogLevel.error);
   } finally {
     client.close();
   }

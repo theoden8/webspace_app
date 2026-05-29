@@ -9,11 +9,14 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:share_plus/share_plus.dart';
 
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 
 typedef VoidAsyncCallback = Future<void> Function();
@@ -32,6 +35,11 @@ abstract class DevToolsHost {
   String get name;
   String? get siteId;
   String get currentUrl;
+  /// URL used as the favicon cache key for this host (the site's stable
+  /// `initUrl` for top-level sites; the current URL for nested webviews).
+  String get iconUrl;
+  /// Per-site proxy the favicon must be fetched through, or null for global.
+  UserProxySettings? get proxy;
   WebViewController? get controller;
   List<ConsoleLogEntry> get consoleLogs;
   set onConsoleLogChanged(VoidCallback? cb);
@@ -53,6 +61,10 @@ class WebViewModelDevToolsHost implements DevToolsHost {
   String? get siteId => model.siteId;
   @override
   String get currentUrl => model.currentUrl;
+  @override
+  String get iconUrl => model.initUrl;
+  @override
+  UserProxySettings? get proxy => model.proxySettings;
   @override
   WebViewController? get controller => model.controller;
   @override
@@ -99,6 +111,11 @@ class NestedDevToolsHost implements DevToolsHost {
   @override
   String get currentUrl => _currentUrl;
   set currentUrl(String value) => _currentUrl = value;
+
+  @override
+  String get iconUrl => _currentUrl;
+  @override
+  UserProxySettings? get proxy => null;
 
   @override
   WebViewController? get controller => _controller;
@@ -162,6 +179,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   bool _loadingCookies = false;
   String? _exportedHtml;
   bool _isFetchingHtml = false;
+  bool _isSavingIcon = false;
   final Set<LogLevel> _activeFilters = LogLevel.values.toSet();
 
   /// Runtime-only toggle: when true, the App Logs tab shows
@@ -319,6 +337,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 icon: const Icon(Icons.share, size: 20),
                 tooltip: 'Share HTML',
                 onPressed: _showShareSheet,
+              ),
+            if (_hasHost)
+              IconButton(
+                icon: const Icon(Icons.image_outlined, size: 20),
+                tooltip: 'Save icon as PNG',
+                onPressed: _isSavingIcon ? null : _saveIconAsPng,
               ),
             IconButton(
               icon: Icon(_isSearchVisible ? Icons.search_off : Icons.search),
@@ -1188,6 +1212,60 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('HTML copied to clipboard')),
       );
+    }
+  }
+
+  // ── Save Icon as PNG ──
+
+  Future<void> _saveIconAsPng() async {
+    if (_isSavingIcon) return;
+    setState(() => _isSavingIcon = true);
+    final host = widget.host!;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Preparing icon...')),
+    );
+    try {
+      final png = await exportIconAsPng(
+        host.iconUrl,
+        resolvedIconUrl: FaviconUrlCache.get(host.iconUrl),
+        proxy: host.proxy,
+      );
+      if (!mounted) return;
+      if (png == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('No icon available to save')),
+        );
+        return;
+      }
+
+      final domain = extractDomain(host.currentUrl);
+      final fileName = '${domain}_icon.png';
+      final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+      final outputPath = await FilePicker.saveFile(
+        dialogTitle: 'Save icon',
+        fileName: fileName,
+        bytes: isMobile ? png : null,
+      );
+
+      if (outputPath != null && !isMobile) {
+        final filePath = outputPath.endsWith('.png') ? outputPath : '$outputPath.png';
+        await File(filePath).writeAsBytes(png);
+      }
+
+      if (mounted && outputPath != null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Icon saved')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingIcon = false);
     }
   }
 
