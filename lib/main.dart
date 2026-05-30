@@ -876,6 +876,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isBackHandling = false;
   bool _isFindVisible = false;
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
+  // Toggled by _nudgeSurfaceRepaint to apply a transient 1px inset that
+  // forces Android hybrid-composition platform views to recomposite after
+  // the activity is recreated (shortcut/resume). Always false in steady state.
+  bool _repaintNudge = false;
   /// When true, a full-screen opaque mask covers every webview so the
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
   /// content (ARCH-009). Set on `inactive`/`paused` when at least one
@@ -1350,6 +1354,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       unawaited(_probeRendererAndRecover(_webViewModels[_currentIndex!]));
     }
+    // Force a relayout in case the activity was recreated while backgrounded
+    // and the platform-view surface came back blank.
+    _nudgeSurfaceRepaint();
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -1395,6 +1402,33 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
+  /// Android only: after the activity is recreated (a pinned-shortcut tap, or
+  /// a resume that recreated the activity) the Flutter base surface and the
+  /// hybrid-composition webview SurfaceView can come back without a paint —
+  /// the page area and the strip behind the edge-to-edge status bar render
+  /// black even though the page is alive. A relayout fixes it: that is what a
+  /// device rotation / lock-unlock / tab switch does, all of which the user
+  /// confirmed recover the screen. A JS `offsetHeight` read does not, because
+  /// it relayouts web content, not the Android surface.
+  ///
+  /// Toggle a 1px body inset a few times over ~0.5s: each setState repaints
+  /// the Flutter surface (status-bar strip, chrome) and each size flip forces
+  /// the webview platform view to recomposite. Spread across several frames
+  /// because the new surface may not be attached on the first frame after
+  /// resume, which is why a single rebuild (e.g. the one in _setCurrentIndex)
+  /// is not enough on its own.
+  void _nudgeSurfaceRepaint() {
+    if (!Platform.isAndroid) return;
+    var ticks = 0;
+    void tick() {
+      if (!mounted || ticks >= 6) return;
+      ticks++;
+      setState(() => _repaintNudge = !_repaintNudge);
+      Future.delayed(const Duration(milliseconds: 100), tick);
+    }
+    tick();
+  }
+
   Future<void> _handleShortcutIntent() async {
     final siteId = await ShortcutService.getLaunchSiteId();
     if (!mounted) return;
@@ -1407,6 +1441,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           if (!mounted) return;
         }
         setState(() {});
+        // The shortcut tap can recreate the activity; force a relayout so the
+        // activated site doesn't land on a blank platform-view surface.
+        _nudgeSurfaceRepaint();
         await _saveWebViewModels();
       }
     }
@@ -5939,7 +5976,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 if (_loadedIndices.isNotEmpty)
                   Offstage(
                     offstage: _currentIndex == null || _currentIndex! >= _webViewModels.length,
-                    child: IndexedStack(
+                    // The 1px inset is toggled by _nudgeSurfaceRepaint after
+                    // the activity is recreated (shortcut/resume) to force the
+                    // hybrid-composition webview SurfaceView to recomposite —
+                    // otherwise it can come back black on Android. No-op
+                    // (zero inset) in steady state.
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: _repaintNudge ? 1.0 : 0.0),
+                      child: IndexedStack(
                       index: _currentIndex ?? 0,
                       children: _webViewModels.asMap().entries.map<Widget>((entry) {
                         final index = entry.key;
@@ -6041,6 +6085,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           ),
                         );
                       }).toList(),
+                      ),
                     ),
                   ),
                 // Fullscreen exit zone: touch target at the top edge with a

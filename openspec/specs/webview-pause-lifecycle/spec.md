@@ -489,6 +489,38 @@ On Android the probe doubles as the surface paint nudge: reading `offsetHeight` 
 
 ---
 
+### Requirement: PAUSE-015 — Android Surface Repaint After Activity Restart
+
+On Android, tapping a pinned shortcut (or otherwise resuming) can recreate the activity. When it does, the Flutter base surface and the hybrid-composition webview `SurfaceView` can re-attach without receiving a paint: the renderer is alive (taps, scroll, JS all work) but the **web page area renders black, and the strip behind the edge-to-edge status bar renders black too** — distinct from a dead renderer (PAUSE-013/PAUSE-014), which a JS probe cannot detect because the renderer is healthy. The blank surface clears the moment a relayout occurs (device rotation, lock/unlock, or a tab switch).
+
+The system SHALL force a relayout on the activity-restart paths (`_resumeAfterLifecyclePause`, `_handleShortcutIntent`) via `_nudgeSurfaceRepaint`:
+
+- Toggle a transient 1px body inset around the IndexedStack several times over ~0.5s.
+- Each `setState` repaints the Flutter base surface (status-bar strip and chrome); each size flip resizes the webview platform view, forcing its `SurfaceView` to recomposite.
+- The nudge is spread across multiple frames because the recreated surface may not be attached on the first frame after resume — a single rebuild (the one already in `_setCurrentIndex`) fires too early to help.
+- The inset is always 0 in steady state and the nudge is a no-op on non-Android platforms.
+
+This is complementary to PAUSE-014: the probe recreates a *dead* renderer; the surface nudge repaints a *live* renderer whose surface came back blank. A JS `offsetHeight` read addresses neither the Flutter base surface nor the Android `SurfaceView` composition, which is why it is insufficient on its own.
+
+#### Scenario: Blank surface after shortcut recreates the activity
+
+**Given** a normal (non-fullscreen) site loaded in the background
+**And** the user taps its pinned shortcut, which recreates the Android activity
+**And** the webview platform-view surface re-attaches without a paint (page area and status-bar strip are black, page is alive)
+**When** `_handleShortcutIntent` activates the site
+**Then** `_nudgeSurfaceRepaint` toggles the 1px inset across several frames
+**And** the Flutter surface repaints and the webview `SurfaceView` recomposites
+**And** the page and status-bar strip become visible without the user rotating or locking the device
+
+#### Scenario: Nudge is inert off Android and in steady state
+
+**Given** the app is running on iOS/macOS/Linux, or no activity restart occurred
+**When** `_nudgeSurfaceRepaint` would run
+**Then** it is a no-op on non-Android platforms
+**And** `_repaintNudge` remains false so the body inset stays 0 — no visible jitter during normal use
+
+---
+
 ### Requirement: PAUSE-004 — Null-Safe Controller Access
 
 `pauseWebView()`, `resumeWebView()`, `pauseForAppLifecycle()`, and `resumeFromAppLifecycle()` SHALL be no-ops when the underlying controller has not yet been initialized or has been disposed.
