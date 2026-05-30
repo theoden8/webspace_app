@@ -50,6 +50,16 @@ The system SHALL navigate to the correct site when launched via a home screen sh
 **Then** the app is brought to the foreground
 **And** the correct site is selected
 
+#### Scenario: Resume after shortcut launch does not re-navigate
+
+**Given** the user launched WebSpace via a home shortcut for site A
+**And** the user then switched to site B inside the app
+**When** the user backgrounds WebSpace and returns to it (no new shortcut tap)
+**Then** site B stays selected
+**And** the app does not jump back to site A
+(The launch siteId is consumed on first read; subsequent
+`AppLifecycleState.resumed` polls return null.)
+
 ---
 
 ### Requirement: HS-003 - Shortcut Icon
@@ -295,7 +305,7 @@ Both Android and iOS share the channel `MethodChannel('org.codeberg.theoden8.web
 Methods:
 - `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **iOS 16+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first).
 - `removeShortcut(siteId)` — Android: disables and removes the dynamic+pinned shortcut for a deleted site. iOS: no-op (the App Intents site list is recomputed from `_webViewModels` on every save via HS-009).
-- `getLaunchSiteId()` — **Android**: returns the `siteId` from the launch intent extra. **iOS**: drains the `pending_shortcut_site_id` key from App Group UserDefaults (written by `OpenSiteIntent.perform()`).
+- `getLaunchSiteId()` — **Android**: returns the `siteId` from the launch intent extra, then drains it (`intent.removeExtra("siteId")`) so it fires once per tap. **iOS**: drains the `pending_shortcut_site_id` key from App Group UserDefaults (written by `OpenSiteIntent.perform()`). Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap.
 - `getPinnedSiteIds()` — Android: returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix. iOS: always returns an empty list (no public API for pin-state introspection).
 - `syncSites({sites: [{siteId, label, iconUrl?}]})` — **iOS only**: writes `[{id, name}]` to App Group UserDefaults under `shortcut_sites` and calls `WebSpaceShortcuts.updateAppShortcutParameters()` to refresh the Shortcuts.app picker. No-op on Android.
 - `isAppIntentsSupported()` — **iOS**: true if `#available(iOS 16, *)`. Other platforms: false.

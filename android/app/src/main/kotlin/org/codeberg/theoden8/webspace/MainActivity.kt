@@ -96,6 +96,12 @@ class MainActivity: FlutterActivity() {
                 }
                 "getLaunchSiteId" -> {
                     val siteId = intent?.getStringExtra("siteId")
+                    // Drain the extra after reading so it fires once per tap.
+                    // didChangeAppLifecycleState(resumed) re-polls this on every
+                    // foreground; without clearing, a plain background/return
+                    // would re-navigate to the pinned site (issue: shortcut
+                    // re-opens on resume).
+                    intent?.removeExtra("siteId")
                     result.success(siteId)
                 }
                 "getPinnedSiteIds" -> {
