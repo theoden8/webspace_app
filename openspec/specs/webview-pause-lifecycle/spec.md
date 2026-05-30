@@ -444,6 +444,51 @@ The wrapper exposes a single `WebViewConfig.onRendererGone(bool didCrash)` callb
 
 ---
 
+### Requirement: PAUSE-014 — Proactive Renderer Probe on Activation
+
+The event-driven recovery in PAUSE-013 is not sufficient on its own, because the platform terminations it listens for do not reliably surface for a webview that was **offscreen** when its renderer died:
+
+- **iOS**: when WKWebView's web content process is jettisoned for a webview that is not in the visible view hierarchy, `onWebContentProcessDidTerminate` frequently does not fire. The webview then comes back blank with no event to drive recovery. This is the dominant render-death the user reports when returning to a backgrounded site via a pinned shortcut (the shortcut activates a site that was offscreen).
+- **Android**: the renderer can be alive but the hybrid-composition surface re-attaches blank after an activity restart, which emits no event at all.
+
+The system SHALL therefore probe the renderer of a webview when it becomes active and recreate it if the renderer is gone. The host runs the probe `_probeRendererAndRecover(model)`:
+
+- After resuming the active site on app resume (`_resumeAfterLifecyclePause`).
+- After resuming the newly-activated site on every site switch (`_setCurrentIndex`), which is the path a pinned-shortcut tap funnels through.
+
+The probe evaluates `document.body ? document.body.offsetHeight : -1` via `evaluateJavascriptReturning`. A live renderer returns a number; a dead renderer (whose `evaluateJavascript` throws) is surfaced as a `null` result. `rendererProbeIndicatesGone(result)` returns true only for `null` — every numeric value (`0`, `-1`, positive height) is treated as alive, so a healthy or still-loading page is never recreated. When the probe indicates gone, the host calls `handleRendererGone(didCrash: false)`, joining the same destroy-and-rebuild path as PAUSE-013. The probe is fire-and-forget and a no-op when the model has no controller (a fresh first-load).
+
+On Android the probe doubles as the surface paint nudge: reading `offsetHeight` forces a synchronous layout that schedules the missing paint, so a blank-but-alive surface is fixed by the probe itself without a recreate.
+
+#### Scenario: iOS content process jettisoned while offscreen, recovered on shortcut tap
+
+**Given** site A is loaded but offscreen (the user was on a different site, or the app was backgrounded)
+**And** iOS jettisons site A's web content process to reclaim memory
+**And** `onWebContentProcessDidTerminate` does not fire because site A was not on screen
+**When** the user taps the pinned shortcut for site A, routing through `_setCurrentIndex`
+**Then** `_probeRendererAndRecover` evaluates the probe against the dead content process
+**And** `evaluateJavascriptReturning` returns null (the call threw on the dead process)
+**And** `rendererProbeIndicatesGone(null)` is true
+**And** `handleRendererGone(didCrash: false)` recreates the webview at `currentUrl`
+**And** the user sees the page reload instead of a blank screen
+
+#### Scenario: Live renderer is not recreated
+
+**Given** a webview whose renderer is alive (probe returns `0`, `-1`, or a positive height)
+**When** `_probeRendererAndRecover` runs on activation
+**Then** `rendererProbeIndicatesGone` returns false
+**And** `handleRendererGone` is not called
+**And** the existing webview, its JS heap, and its back/forward stack are preserved
+
+#### Scenario: Probe skips a fresh first-load
+
+**Given** a site being activated for the first time whose `controller` has not yet been created
+**When** `_probeRendererAndRecover` is invoked
+**Then** it returns immediately without evaluating any JS
+**Because** there is no renderer to probe yet; the about-to-be-built controller starts alive.
+
+---
+
 ### Requirement: PAUSE-004 — Null-Safe Controller Access
 
 `pauseWebView()`, `resumeWebView()`, `pauseForAppLifecycle()`, and `resumeFromAppLifecycle()` SHALL be no-ops when the underlying controller has not yet been initialized or has been disposed.

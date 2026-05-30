@@ -1348,25 +1348,50 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
         await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
       }
-      // Android-only: nudge the active WebView's renderer to issue a paint
-      // after the platform view's surface has been re-attached on activity
-      // restart. Without this nudge, the hybrid-composition surface can
-      // come back blank — the page is still alive (taps, scrolls, JS all
-      // work), but the user sees a black rectangle until something forces
-      // a layout pass. Reading `document.body.offsetHeight` is a no-op
-      // that triggers a synchronous layout, which schedules a paint.
-      // See issue #333. Fire-and-forget; failure is benign.
-      if (Platform.isAndroid) {
-        final ctrl = _webViewModels[_currentIndex!].controller;
-        if (ctrl != null) {
-          unawaited(ctrl.evaluateJavascript(
-              'void (document.body && document.body.offsetHeight);'));
-        }
-      }
+      unawaited(_probeRendererAndRecover(_webViewModels[_currentIndex!]));
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
+  }
+
+  /// Probe a just-resumed / just-activated webview's renderer and recreate it
+  /// if the renderer process is gone. Covers the two memory-reclaim outcomes
+  /// the user hits most when returning to a backgrounded site (typically via
+  /// a pinned shortcut, which can recreate the activity and re-attach every
+  /// platform-view surface):
+  ///
+  ///   - iOS: WKWebView's content process was jettisoned while this webview
+  ///     was offscreen. `onWebContentProcessDidTerminate` does not reliably
+  ///     fire for a webview that was not on screen at termination, so the
+  ///     event-driven recovery (PAUSE-013) never runs — the page comes back
+  ///     blank with no signal. `evaluateJavascript` against a dead content
+  ///     process throws, surfaced here as a null probe result.
+  ///   - Android: the renderer is alive but the hybrid-composition surface
+  ///     re-attached blank after an activity restart. Reading
+  ///     `document.body.offsetHeight` forces a synchronous layout that
+  ///     schedules the missing paint; the probe returns a number, so no
+  ///     recreate happens — the read alone fixes the blank surface.
+  ///
+  /// A live renderer returns a number (0 / -1 / positive); only null means
+  /// gone. Fire-and-forget; no-op when the model has no controller (a fresh
+  /// first-load whose controller hasn't been created yet).
+  Future<void> _probeRendererAndRecover(WebViewModel model) async {
+    final controller = model.controller;
+    if (controller == null) return;
+    final result = await controller
+        .evaluateJavascriptReturning('document.body ? document.body.offsetHeight : -1');
+    if (!mounted) return;
+    // identical() guard: a concurrent recreate may have already swapped the
+    // controller out from under us — don't null a fresh one.
+    if (rendererProbeIndicatesGone(result) && identical(model.controller, controller)) {
+      LogService.instance.log(
+        'WebView',
+        'Renderer probe failed for "${model.name}" (siteId: ${model.siteId}) — recreating',
+        level: LogLevel.warning,
+      );
+      model.handleRendererGone(didCrash: false);
     }
   }
 
@@ -2806,6 +2831,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     // Resume the newly active webview
     await _webViewModels[index].resumeWebView();
+
+    // A site that sat offscreen while the OS reclaimed memory can come back
+    // with a dead renderer (iOS content-process jettison whose termination
+    // delegate never fired) or a blank surface (Android hybrid-composition).
+    // Probe and recover so a shortcut tap or tab switch doesn't land on a
+    // black/blank page. See PAUSE-013.
+    unawaited(_probeRendererAndRecover(target));
 
     // Defensive sweep: pause every other loaded webview so background
     // sites don't run animations / GPS listeners / non-throttled

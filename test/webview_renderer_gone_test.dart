@@ -57,4 +57,22 @@ void main() {
       expect(rebuilds, 1);
     });
   });
+
+  group('rendererProbeIndicatesGone', () {
+    test('null result means the renderer process is gone', () {
+      // evaluateJavascriptReturning maps a dead-process throw to null
+      // (iOS WebContentProcessTerminated, Android renderer killed).
+      expect(rendererProbeIndicatesGone(null), isTrue);
+    });
+
+    test('numeric results mean the renderer is alive', () {
+      // Positive height (painted), 0 (about:blank), and -1 (document/body
+      // not built yet, still loading) are all live renderers — recreating
+      // on these would reload-loop a healthy page.
+      expect(rendererProbeIndicatesGone(640), isFalse);
+      expect(rendererProbeIndicatesGone(0), isFalse);
+      expect(rendererProbeIndicatesGone(-1), isFalse);
+      expect(rendererProbeIndicatesGone(12.5), isFalse);
+    });
+  });
 }

@@ -276,6 +276,15 @@ class BlockedCookie {
       BlockedCookie(name: json['name'] as String, domain: json['domain'] as String);
 }
 
+/// Interpret a renderer-health probe result. The probe reads
+/// `document.body.offsetHeight`: a live renderer returns a number — `0`
+/// (about:blank), `-1` (document/body not built yet, still loading), or a
+/// positive height. A dead renderer (iOS content-process jettisoned,
+/// Android renderer killed) makes `evaluateJavascript` throw, surfaced as a
+/// `null` result by [WebViewController.evaluateJavascriptReturning]. Only
+/// `null` means gone; every numeric value is alive.
+bool rendererProbeIndicatesGone(Object? probeResult) => probeResult == null;
+
 class WebViewModel {
   final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
