@@ -446,12 +446,12 @@ The wrapper exposes a single `WebViewConfig.onRendererGone(bool didCrash)` callb
 
 ### Requirement: PAUSE-014 — Proactive Renderer Probe on Activation
 
-The event-driven recovery in PAUSE-013 is not sufficient on its own, because the platform terminations it listens for do not reliably surface for a webview that was **offscreen** when its renderer died:
+The system SHALL probe the renderer of a webview when it becomes active and recreate it if the renderer is gone. This is required because the event-driven recovery in PAUSE-013 does not reliably fire for a webview that was **offscreen** when its renderer died:
 
 - **iOS**: when WKWebView's web content process is jettisoned for a webview that is not in the visible view hierarchy, `onWebContentProcessDidTerminate` frequently does not fire. The webview then comes back blank with no event to drive recovery. This is the dominant render-death the user reports when returning to a backgrounded site via a pinned shortcut (the shortcut activates a site that was offscreen).
 - **Android**: the renderer can be alive but the hybrid-composition surface re-attaches blank after an activity restart, which emits no event at all.
 
-The system SHALL therefore probe the renderer of a webview when it becomes active and recreate it if the renderer is gone. The host runs the probe `_probeRendererAndRecover(model)`:
+The host runs the probe `_probeRendererAndRecover(model)`:
 
 - After resuming the active site on app resume (`_resumeAfterLifecyclePause`).
 - After resuming the newly-activated site on every site switch (`_setCurrentIndex`), which is the path a pinned-shortcut tap funnels through.
@@ -491,9 +491,9 @@ On Android the probe doubles as the surface paint nudge: reading `offsetHeight` 
 
 ### Requirement: PAUSE-015 — Android Surface Repaint After Activity Restart
 
-On Android, tapping a pinned shortcut (or otherwise resuming) can recreate the activity. When it does, the Flutter base surface and the hybrid-composition webview `SurfaceView` can re-attach without receiving a paint: the renderer is alive (taps, scroll, JS all work) but the **web page area renders black, and the strip behind the edge-to-edge status bar renders black too** — distinct from a dead renderer (PAUSE-013/PAUSE-014), which a JS probe cannot detect because the renderer is healthy. The blank surface clears the moment a relayout occurs (device rotation, lock/unlock, or a tab switch).
+On Android, the system SHALL force a relayout on the activity-restart paths (`_resumeAfterLifecyclePause`, `_handleShortcutIntent`) to repaint a platform-view surface that re-attached blank. When the activity is recreated (e.g. a pinned-shortcut tap), the Flutter base surface and the hybrid-composition webview `SurfaceView` can re-attach without receiving a paint: the renderer is alive (taps, scroll, JS all work) but the **web page area renders black, and the strip behind the edge-to-edge status bar renders black too** — distinct from a dead renderer (PAUSE-013/PAUSE-014), which a JS probe cannot detect because the renderer is healthy. The blank surface clears the moment a relayout occurs (device rotation, lock/unlock, or a tab switch).
 
-The system SHALL force a relayout on the activity-restart paths (`_resumeAfterLifecyclePause`, `_handleShortcutIntent`) via `_nudgeSurfaceRepaint`:
+`_nudgeSurfaceRepaint` implements this:
 
 - Toggle a transient 1px body inset around the IndexedStack several times over ~0.5s.
 - Each `setState` repaints the Flutter base surface (status-bar strip and chrome); each size flip resizes the webview platform view, forcing its `SurfaceView` to recomposite.
