@@ -243,8 +243,11 @@ class ProxyManager {
 
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) {
-      LogService.instance.log('Proxy',
-          'setProxySettings: platform does not support proxy override; no-op');
+      LogService.instance.log(
+        'Proxy',
+        'setProxySettings: platform does not support proxy override; no-op',
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
 
@@ -255,8 +258,11 @@ class ProxyManager {
     // per-site proxy require the WebView to be rebuilt by the caller (see
     // [WebViewModel.updateProxySettings]).
     if (Platform.isIOS || Platform.isMacOS) {
-      LogService.instance.log('Proxy',
-          'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here');
+      LogService.instance.log(
+        'Proxy',
+        'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
 
@@ -276,6 +282,7 @@ class ProxyManager {
         'Proxy',
         'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
         level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
       );
       final sw = Stopwatch()..start();
       await controller.clearProxyOverride();
@@ -283,6 +290,7 @@ class ProxyManager {
         'Proxy',
         'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
         level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
       );
       return;
     }
@@ -416,6 +424,7 @@ class ProxyManager {
       'Proxy',
       'Cleared proxy override via clearProxy() (native call took ${sw.elapsedMilliseconds}ms)',
       level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
     );
   }
 }

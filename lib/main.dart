@@ -3196,6 +3196,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             '${loadedWebViewModels.length} site(s); '
             '$sitesWithCustomProxy site(s) have a non-DEFAULT per-site proxy',
         level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
       );
 
       // Load cookies from secure storage (keyed by siteId or legacy domain)

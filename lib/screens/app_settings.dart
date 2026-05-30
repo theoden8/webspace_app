@@ -297,12 +297,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         'Outbound proxy changed; resetting all loaded webviews so the new '
             'value is applied on next render',
         level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
       );
       widget.onOutboundProxyChanged?.call();
     } else {
       LogService.instance.log(
         'Proxy',
         'Outbound proxy save invoked but settings unchanged; skipping webview reset',
+        sensitivity: LogSensitivity.sensitive,
       );
     }
     if (mounted && changed) {
