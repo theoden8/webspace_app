@@ -615,5 +615,9 @@
   "homeShortcutDisable": "ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ",
   "homeShortcutPickTitle": "ಶಾರ್ಟ್‌ಕಟ್ ಅನ್ನು ಇದಕ್ಕೆ ಸೂಚಿಸಿ",
   "appSettingsLanguageTitle": "ಅಪ್ಲಿಕೇಶನ್ ಭಾಷೆ",
-  "appSettingsLanguageSystem": "ಸಿಸ್ಟಮ್ ಡೀಫಾಲ್ಟ್"
+  "appSettingsLanguageSystem": "ಸಿಸ್ಟಮ್ ಡೀಫಾಲ್ಟ್",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

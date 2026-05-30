@@ -615,5 +615,9 @@
   "homeShortcutDisable": "Desactiva",
   "homeShortcutPickTitle": "Apunta la drecera a",
   "appSettingsLanguageTitle": "Idioma de l'app",
-  "appSettingsLanguageSystem": "Predeterminat del sistema"
+  "appSettingsLanguageSystem": "Predeterminat del sistema",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

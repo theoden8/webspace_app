@@ -615,5 +615,9 @@
   "homeShortcutDisable": "Atspējot",
   "homeShortcutPickTitle": "Norādīt saīsni uz",
   "appSettingsLanguageTitle": "Lietotnes valoda",
-  "appSettingsLanguageSystem": "Sistēmas noklusējums"
+  "appSettingsLanguageSystem": "Sistēmas noklusējums",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

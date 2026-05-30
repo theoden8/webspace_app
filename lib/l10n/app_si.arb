@@ -615,5 +615,9 @@
   "homeShortcutDisable": "අක්‍රීය කරන්න",
   "homeShortcutPickTitle": "කෙටිමඟ යොමු කරන්න",
   "appSettingsLanguageTitle": "යෙදුම් භාෂාව",
-  "appSettingsLanguageSystem": "පද්ධති පෙරනිමිය"
+  "appSettingsLanguageSystem": "පද්ධති පෙරනිමිය",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

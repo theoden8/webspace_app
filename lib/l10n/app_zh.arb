@@ -615,5 +615,9 @@
   "homeShortcutDisable": "停用",
   "homeShortcutPickTitle": "將捷徑指向",
   "appSettingsLanguageTitle": "應用程式語言",
-  "appSettingsLanguageSystem": "系統預設"
+  "appSettingsLanguageSystem": "系統預設",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

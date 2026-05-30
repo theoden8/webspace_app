@@ -615,5 +615,9 @@
   "homeShortcutDisable": "غیر فعال کریں",
   "homeShortcutPickTitle": "شارٹ کٹ کا رخ کس سائٹ کی طرف کریں",
   "appSettingsLanguageTitle": "ایپ کی زبان",
-  "appSettingsLanguageSystem": "سسٹم ڈیفالٹ"
+  "appSettingsLanguageSystem": "سسٹم ڈیفالٹ",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

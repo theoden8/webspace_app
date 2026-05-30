@@ -615,5 +615,9 @@
   "homeShortcutDisable": "నిలిపివేయి",
   "homeShortcutPickTitle": "షార్ట్‌కట్‌ను దీనికి సూచించు",
   "appSettingsLanguageTitle": "యాప్ భాష",
-  "appSettingsLanguageSystem": "సిస్టమ్ డిఫాల్ట్"
+  "appSettingsLanguageSystem": "సిస్టమ్ డిఫాల్ట్",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

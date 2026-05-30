@@ -615,5 +615,9 @@
   "homeShortcutDisable": "Вимкнути",
   "homeShortcutPickTitle": "Спрямувати ярлик на",
   "appSettingsLanguageTitle": "Мова застосунку",
-  "appSettingsLanguageSystem": "Системна типова"
+  "appSettingsLanguageSystem": "Системна типова",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

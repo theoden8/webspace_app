@@ -615,5 +615,9 @@
   "homeShortcutDisable": "Zakázat",
   "homeShortcutPickTitle": "Nasměrovat zástupce na",
   "appSettingsLanguageTitle": "Jazyk aplikace",
-  "appSettingsLanguageSystem": "Výchozí systémový"
+  "appSettingsLanguageSystem": "Výchozí systémový",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

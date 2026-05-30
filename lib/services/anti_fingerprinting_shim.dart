@@ -11,6 +11,8 @@
 //   * Text metrics   — Canvas/Offscreen measureText jitter, document.fonts.check
 //                      restricted to a small common-fonts allowlist
 //   * Screen         — width/height/availWidth/availHeight/colorDepth/pixelDepth
+//   * Window         — inner/outer width+height, devicePixelRatio (pinned
+//                      to a seeded desktop size, or a user-set size)
 //   * Hardware       — navigator.hardwareConcurrency, navigator.deviceMemory
 //   * Plugins/MIME   — navigator.plugins / navigator.mimeTypes -> empty
 //   * Battery        — navigator.getBattery() -> fixed values
@@ -78,6 +80,8 @@ String? buildAntiFingerprintingScriptSource({
   required bool trackingProtectionEnabled,
   required bool incognito,
   required String launchNonce,
+  int? windowWidth,
+  int? windowHeight,
 }) {
   if (!trackingProtectionEnabled || siteId == null) return null;
   final seed = computeAntiFingerprintingSeed(
@@ -85,15 +89,29 @@ String? buildAntiFingerprintingScriptSource({
     incognito: incognito,
     launchNonce: launchNonce,
   );
-  return '${buildAntiFingerprintingShim(seed)}\n;null;';
+  return '${buildAntiFingerprintingShim(seed, windowWidth: windowWidth, windowHeight: windowHeight)}\n;null;';
 }
 
 /// Build the per-site anti-fingerprinting shim seeded by [seed]. The seed
 /// is computed via [computeAntiFingerprintingSeed] — siteId-only for
 /// non-incognito (stable per site) or `siteId:launchNonce` for incognito
 /// (stable per session, randomized per launch).
-String buildAntiFingerprintingShim(String seed) {
+/// [windowWidth]/[windowHeight], when both are set and positive, pin the
+/// site's reported `window.innerWidth`/`innerHeight` to that exact content
+/// size (ETP-021). When either is null the window size is picked from a
+/// seeded bucket so it is stable per site and varies across sites (ETP-020).
+String buildAntiFingerprintingShim(
+  String seed, {
+  int? windowWidth,
+  int? windowHeight,
+}) {
   final encodedSeed = jsonEncode(seed);
+  final hasManualWindow = windowWidth != null &&
+      windowHeight != null &&
+      windowWidth > 0 &&
+      windowHeight > 0;
+  final manualWindow =
+      hasManualWindow ? '[$windowWidth, $windowHeight]' : 'null';
   return '''
 (function() {
   'use strict';
@@ -160,6 +178,26 @@ String buildAntiFingerprintingShim(String seed) {
   // deviceMemory ∈ {4, 8}
   var DEVICE_MEMORY = (_baseRng() < 0.5) ? 4 : 8;
 
+  // Window dimensions. screen.* is pinned to a desktop 1920x1080 below, so
+  // the window must read as a desktop browser too — a phone-sized
+  // innerWidth against a 1920 screen is both a tell and inconsistent.
+  // MANUAL_WIN (ETP-021), when set, is the user-chosen content size;
+  // otherwise pick a plausible browser window from a seeded bucket so the
+  // size is stable per site (ETP-004) and varies across sites (ETP-020).
+  // 79 = a typical desktop chrome height (tab strip + toolbar) subtracted
+  // from the outer height to get the content height.
+  var MANUAL_WIN = $manualWindow;
+  var WIN_SIZES = [[1280,720],[1366,768],[1440,810],[1536,864],[1600,900],[1920,1040]];
+  var INNER_W, INNER_H, OUTER_W, OUTER_H;
+  if (MANUAL_WIN) {
+    INNER_W = MANUAL_WIN[0]; INNER_H = MANUAL_WIN[1];
+    OUTER_W = INNER_W; OUTER_H = INNER_H + 79;
+  } else {
+    var WIN = WIN_SIZES[Math.floor(_baseRng() * WIN_SIZES.length) | 0];
+    OUTER_W = WIN[0]; OUTER_H = WIN[1];
+    INNER_W = WIN[0]; INNER_H = WIN[1] - 79;
+  }
+
   function defineGetterOnProto(proto, name, value) {
     if (!proto) return;
     try {
@@ -181,6 +219,37 @@ String buildAntiFingerprintingShim(String seed) {
       defineGetterOnProto(Screen.prototype, 'colorDepth', COLOR_DEPTH);
       defineGetterOnProto(Screen.prototype, 'pixelDepth', COLOR_DEPTH);
     }
+  } catch (e) {}
+
+  // --- window.inner/outer dimensions + devicePixelRatio ---
+  // Real engines expose these as accessors on Window.prototype, so define
+  // there to avoid an own-property tell on `window`. jsdom (and some
+  // engines) carry them as own data properties on the instance instead;
+  // fall back to the instance when the prototype doesn't own the accessor.
+  try {
+    function pinWindowDim(name, value) {
+      try {
+        var proto = (typeof Window !== 'undefined') ? Window.prototype : null;
+        var target;
+        if (proto && Object.getOwnPropertyDescriptor(proto, name)) {
+          target = proto;
+        } else if (Object.getOwnPropertyDescriptor(window, name)) {
+          target = window;
+        } else {
+          target = proto || window;
+        }
+        Object.defineProperty(target, name, {
+          configurable: true,
+          enumerable: true,
+          get: asNative(function() { return value; }, name),
+        });
+      } catch (e) {}
+    }
+    pinWindowDim('innerWidth', INNER_W);
+    pinWindowDim('innerHeight', INNER_H);
+    pinWindowDim('outerWidth', OUTER_W);
+    pinWindowDim('outerHeight', OUTER_H);
+    pinWindowDim('devicePixelRatio', 1);
   } catch (e) {}
 
   // --- navigator.hardwareConcurrency / deviceMemory ---

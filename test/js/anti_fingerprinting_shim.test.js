@@ -166,6 +166,7 @@ function loadShim(rel, options) {
 
 const ALPHA = 'anti_fingerprinting/shim_seed_alpha.js';
 const BETA = 'anti_fingerprinting/shim_seed_beta.js';
+const ALPHA_WIN_1024 = 'anti_fingerprinting/shim_seed_alpha_window_1024x768.js';
 
 // --- screen.* ---
 
@@ -192,6 +193,48 @@ test('screen overrides land on Screen.prototype, not the instance', () => {
     assert.equal(own.includes(leaked), false,
       `${leaked} leaks as own-property: ${JSON.stringify(own)}`);
   }
+});
+
+// --- window dimensions (ETP-020 / ETP-021) ---
+
+test('window inner/outer dimensions are pinned and consistent with the screen', () => {
+  const dom = loadShim(ALPHA);
+  const w = dom.window;
+  // Seeded bucket: all entries are <= the pinned 1920x1080 screen, so a
+  // fingerprinter never reads a window larger than the screen.
+  assert.ok(w.innerWidth > 0 && w.innerWidth <= 1920, `innerWidth=${w.innerWidth}`);
+  assert.ok(w.innerHeight > 0 && w.innerHeight <= 1080, `innerHeight=${w.innerHeight}`);
+  assert.ok(w.outerWidth >= w.innerWidth, 'outerWidth should be >= innerWidth');
+  assert.ok(w.outerHeight >= w.innerHeight, 'outerHeight should be >= innerHeight');
+});
+
+test('devicePixelRatio is pinned to 1', () => {
+  assert.equal(loadShim(ALPHA).window.devicePixelRatio, 1);
+});
+
+test('window size is stable per seed across runs', () => {
+  const a = loadShim(ALPHA).window;
+  const b = loadShim(ALPHA).window;
+  assert.equal(a.innerWidth, b.innerWidth);
+  assert.equal(a.innerHeight, b.innerHeight);
+});
+
+test('window size differs across seeds (cross-site uniqueness)', () => {
+  const a = loadShim(ALPHA).window;
+  const b = loadShim(BETA).window;
+  // The two pinned fixture seeds were chosen to land on different buckets.
+  assert.ok(a.innerWidth !== b.innerWidth || a.innerHeight !== b.innerHeight,
+    `alpha=${a.innerWidth}x${a.innerHeight} beta=${b.innerWidth}x${b.innerHeight}`);
+});
+
+test('manual window size pins exactly the requested content dimensions', () => {
+  const w = loadShim(ALPHA_WIN_1024).window;
+  assert.equal(w.innerWidth, 1024);
+  assert.equal(w.innerHeight, 768);
+  assert.equal(w.outerWidth, 1024);
+  // Outer height adds the desktop chrome (79px) to the content height.
+  assert.equal(w.outerHeight, 768 + 79);
+  assert.equal(w.devicePixelRatio, 1);
 });
 
 // --- navigator.* ---

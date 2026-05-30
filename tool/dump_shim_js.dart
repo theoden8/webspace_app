@@ -145,6 +145,13 @@ Map<String, String> buildAllFixtures() {
   fixtures['anti_fingerprinting/shim_seed_beta.js'] =
       buildAntiFingerprintingShim('beta-fixture-seed');
 
+  // ETP-021: a user-pinned window content size. The Node tier asserts the
+  // shim reports exactly window.innerWidth=1024 / innerHeight=768 here,
+  // independent of the seed-derived bucket the alpha/beta fixtures use.
+  fixtures['anti_fingerprinting/shim_seed_alpha_window_1024x768.js'] =
+      buildAntiFingerprintingShim('alpha-fixture-seed',
+          windowWidth: 1024, windowHeight: 768);
+
   // Issue #327 / ETP-019: two simulated incognito launches under the
   // SAME siteId but DIFFERENT process-lifetime nonces. The real-engine
   // tier asserts FingerprintJS sees distinct canvas/WebGL/audio

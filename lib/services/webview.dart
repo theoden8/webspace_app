@@ -549,6 +549,12 @@ class WebViewConfig {
   /// [clearUrlEnabled], [dnsBlockEnabled], and [contentBlockEnabled]
   /// effectively-on whenever this flag is true.
   final bool trackingProtectionEnabled;
+  /// Optional user-set window content size spoofed by the anti-fingerprinting
+  /// shim (ETP-021). Both must be set and positive to take effect; otherwise
+  /// the shim picks a stable per-site size. Only applied when
+  /// [trackingProtectionEnabled] is true (the shim is gated on it).
+  final int? spoofWindowWidth;
+  final int? spoofWindowHeight;
   /// Whether to serve CDN resources from local cache (Android only).
   final bool localCdnEnabled;
   /// Callback for JS console messages.
@@ -643,6 +649,8 @@ class WebViewConfig {
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
     this.trackingProtectionEnabled = true,
+    this.spoofWindowWidth,
+    this.spoofWindowHeight,
     this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onLoadingChanged,
@@ -1504,6 +1512,8 @@ class WebViewFactory {
       trackingProtectionEnabled: config.trackingProtectionEnabled,
       incognito: config.incognito,
       launchNonce: LaunchNonce.value,
+      windowWidth: config.spoofWindowWidth,
+      windowHeight: config.spoofWindowHeight,
     );
     if (antiFpSource != null) {
       userScripts.add(inapp.UserScript(

@@ -134,6 +134,43 @@ void main() {
       expect(js, contains('getBoundingClientRect'));
     });
 
+    test('overrides window dimensions and devicePixelRatio', () {
+      // ETP-020: window.inner/outer width+height and devicePixelRatio are
+      // pinned so a fingerprinter can't read a phone-sized viewport against
+      // the desktop 1920x1080 screen the shim already reports.
+      expect(js, contains('pinWindowDim'));
+      expect(js, contains("'innerWidth'"));
+      expect(js, contains("'innerHeight'"));
+      expect(js, contains("'outerWidth'"));
+      expect(js, contains("'outerHeight'"));
+      expect(js, contains("'devicePixelRatio'"));
+    });
+
+    test('defaults to a seeded window size when no manual dims given', () {
+      expect(js, contains('var MANUAL_WIN = null'));
+      expect(js, contains('WIN_SIZES'));
+    });
+
+    test('manual window dims bake literal values and bypass the bucket', () {
+      // ETP-021: an explicit user-set size produces a different shim that
+      // pins exactly those dimensions.
+      final manual = buildAntiFingerprintingShim('alpha-fixture-seed',
+          windowWidth: 1024, windowHeight: 768);
+      expect(manual, contains('var MANUAL_WIN = [1024, 768]'));
+      expect(manual, isNot(equals(js)));
+    });
+
+    test('partial or non-positive manual dims fall back to seeded', () {
+      // Both must be present and positive; otherwise the seeded bucket
+      // stands so a half-filled UI never produces a degenerate size.
+      expect(buildAntiFingerprintingShim('s', windowWidth: 1024),
+          contains('var MANUAL_WIN = null'));
+      expect(buildAntiFingerprintingShim('s', windowWidth: 0, windowHeight: 0),
+          contains('var MANUAL_WIN = null'));
+      expect(buildAntiFingerprintingShim('s', windowWidth: -5, windowHeight: 768),
+          contains('var MANUAL_WIN = null'));
+    });
+
     test('wraps the body in try/catch so a missing API never breaks boot', () {
       // Rough proxy: the shim should have many try/catch blocks so a
       // thrown exception in one surface (e.g. AudioBuffer absent) does
@@ -368,6 +405,19 @@ void main() {
       expect(ephemeral, isNot(equals(stable)),
           reason: 'enabling incognito is the user opt-out from the stable '
               'per-site identity — the fingerprint must change');
+    });
+
+    test('manual window dims thread through the script source (ETP-021)', () {
+      final src = buildAntiFingerprintingScriptSource(
+        siteId: 'site-A',
+        trackingProtectionEnabled: true,
+        incognito: false,
+        launchNonce: LaunchNonce.value,
+        windowWidth: 800,
+        windowHeight: 600,
+      );
+      expect(src, isNotNull);
+      expect(src, contains('var MANUAL_WIN = [800, 600]'));
     });
 
     test('script source carries the InAppWebView return-value sentinel', () {

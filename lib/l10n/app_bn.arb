@@ -615,5 +615,9 @@
   "homeShortcutDisable": "নিষ্ক্রিয় করুন",
   "homeShortcutPickTitle": "শর্টকাট নির্দেশ করুন",
   "appSettingsLanguageTitle": "অ্যাপের ভাষা",
-  "appSettingsLanguageSystem": "সিস্টেম ডিফল্ট"
+  "appSettingsLanguageSystem": "সিস্টেম ডিফল্ট",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

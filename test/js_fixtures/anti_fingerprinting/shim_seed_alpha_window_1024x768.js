@@ -3,7 +3,7 @@
   if (window.__ws_anti_fp_shim__) return;
   window.__ws_anti_fp_shim__ = true;
 
-  var SEED = "alpha-fixture-seed:nonce-launch-two";
+  var SEED = "alpha-fixture-seed";
 
   // Shared Function.prototype.toString stubs — same WeakMap as
   // desktop_mode_shim.dart and location_spoof_service.dart so all three
@@ -71,7 +71,7 @@
   // size is stable per site (ETP-004) and varies across sites (ETP-020).
   // 79 = a typical desktop chrome height (tab strip + toolbar) subtracted
   // from the outer height to get the content height.
-  var MANUAL_WIN = null;
+  var MANUAL_WIN = [1024, 768];
   var WIN_SIZES = [[1280,720],[1366,768],[1440,810],[1536,864],[1600,900],[1920,1040]];
   var INNER_W, INNER_H, OUTER_W, OUTER_H;
   if (MANUAL_WIN) {

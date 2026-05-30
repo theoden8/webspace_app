@@ -31,6 +31,8 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool contentBlockEnabled;
   final bool localCdnEnabled;
   final bool trackingProtectionEnabled;
+  final int? spoofWindowWidth;
+  final int? spoofWindowHeight;
   final String? language;
   final int zoomPercent;
   final bool showUrlBar;
@@ -74,6 +76,8 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.contentBlockEnabled,
     required this.localCdnEnabled,
     required this.trackingProtectionEnabled,
+    this.spoofWindowWidth,
+    this.spoofWindowHeight,
     required this.language,
     this.zoomPercent = 100,
     this.showUrlBar = false,
@@ -180,6 +184,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         contentBlockEnabled: widget.contentBlockEnabled || widget.trackingProtectionEnabled,
         localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
         trackingProtectionEnabled: widget.trackingProtectionEnabled,
+        spoofWindowWidth: widget.spoofWindowWidth,
+        spoofWindowHeight: widget.spoofWindowHeight,
         language: widget.language,
         zoomPercent: widget.zoomPercent,
         // Geolocation mode is independent of the umbrella. Static

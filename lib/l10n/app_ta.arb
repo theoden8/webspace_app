@@ -615,5 +615,9 @@
   "homeShortcutDisable": "முடக்கு",
   "homeShortcutPickTitle": "குறுக்குவழியை இதற்குச் சுட்டிக்காட்டு",
   "appSettingsLanguageTitle": "செயலி மொழி",
-  "appSettingsLanguageSystem": "கணினி இயல்புநிலை"
+  "appSettingsLanguageSystem": "கணினி இயல்புநிலை",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

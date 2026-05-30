@@ -615,5 +615,9 @@
   "homeShortcutKeep": "Mbaj",
   "homeShortcutReassign": "Ricakto",
   "homeShortcutDisable": "Çaktivizo",
-  "homeShortcutPickTitle": "Trego shkurtoren te"
+  "homeShortcutPickTitle": "Trego shkurtoren te",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

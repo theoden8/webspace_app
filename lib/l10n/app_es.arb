@@ -615,5 +615,9 @@
   "homeShortcutDisable": "Desactivar",
   "homeShortcutPickTitle": "Apuntar el acceso directo a",
   "appSettingsLanguageTitle": "Idioma de la app",
-  "appSettingsLanguageSystem": "Predeterminado del sistema"
+  "appSettingsLanguageSystem": "Predeterminado del sistema",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

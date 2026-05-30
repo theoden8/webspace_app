@@ -304,6 +304,32 @@ void main() {
       expect(restored.trackingProtectionEnabled, isFalse);
     });
 
+    test('spoofWindowWidth/Height null by default; toJson omits them', () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      expect(m.spoofWindowWidth, isNull);
+      expect(m.spoofWindowHeight, isNull);
+      final json = m.toJson();
+      expect(json.containsKey('spoofWindowWidth'), isFalse);
+      expect(json.containsKey('spoofWindowHeight'), isFalse);
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.spoofWindowWidth, isNull);
+      expect(back.spoofWindowHeight, isNull);
+    });
+
+    test('explicit spoofWindowWidth/Height persist through JSON round-trip', () {
+      final m = WebViewModel(
+        initUrl: 'https://example.com',
+        spoofWindowWidth: 1280,
+        spoofWindowHeight: 720,
+      );
+      final json = m.toJson();
+      expect(json['spoofWindowWidth'], equals(1280));
+      expect(json['spoofWindowHeight'], equals(720));
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.spoofWindowWidth, equals(1280));
+      expect(back.spoofWindowHeight, equals(720));
+    });
+
     test('localCdnEnabled defaults to true when missing from JSON', () {
       final json = {
         'initUrl': 'https://example.com',

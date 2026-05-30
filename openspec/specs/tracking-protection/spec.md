@@ -28,9 +28,10 @@ about separately:
 2. **Browser fingerprinting.** Tracker scripts that can't load network
    beacons can still re-identify a user across sessions via Canvas
    pixel hashes, WebGL vendor/renderer strings, audio synthesis output,
-   font enumeration, screen dimensions, hardware concurrency, plugin
-   lists, battery state, voice list, high-resolution timers, and
-   element bounding boxes. None of these were addressed.
+   font enumeration, screen dimensions, window/viewport dimensions,
+   hardware concurrency, plugin lists, battery state, voice list,
+   high-resolution timers, and element bounding boxes. None of these
+   were addressed.
 
 The umbrella addresses both: one switch, both behaviours.
 
@@ -344,6 +345,81 @@ of `hardwareConcurrency`, `deviceMemory`, `plugins`, `mimeTypes`,
 
 ---
 
+### Requirement: ETP-020 - Window / viewport dimension overrides
+
+The shim SHALL pin `window.innerWidth`, `window.innerHeight`,
+`window.outerWidth`, `window.outerHeight`, and `window.devicePixelRatio`
+so a fingerprinter cannot read the real device viewport (which on mobile
+contradicts the desktop `screen.*` of ETP-010 and is itself a high-entropy
+axis). With no user-set size (ETP-021) the window dimensions SHALL be
+derived from the per-site seed: a plausible desktop browser window picked
+from a fixed bucket, each entry no larger than the pinned `screen` size,
+with `devicePixelRatio` fixed at `1`. The getters SHALL be installed on
+`Window.prototype` when it owns the accessor (no own-property tell),
+falling back to the `window` instance otherwise.
+
+#### Scenario: Window dimensions pinned and consistent with the screen
+
+**Given** the shim is loaded with no manual size
+**Then** `window.innerWidth` is in `(0, 1920]` and `window.innerHeight`
+is in `(0, 1080]`
+**And** `window.outerWidth >= window.innerWidth`
+**And** `window.outerHeight >= window.innerHeight`
+**And** `window.devicePixelRatio === 1`
+
+#### Scenario: Window size stable per site, distinct across sites
+
+**Given** `buildAntiFingerprintingShim('seed-A')` is loaded twice
+**Then** both report the same `window.innerWidth` / `innerHeight`
+**And** a load of `buildAntiFingerprintingShim('seed-B')` reports a size
+that may differ from `seed-A`
+
+---
+
+### Requirement: ETP-021 - User-set window size override
+
+`WebViewModel` SHALL carry per-site `spoofWindowWidth` and
+`spoofWindowHeight` integers (default null, omitted from `toJson` when
+null). When both are set and positive, the shim SHALL report exactly that
+content size as `window.innerWidth` / `innerHeight` (with
+`outerWidth = innerWidth`, `outerHeight = innerHeight + chrome`), bypassing
+the seeded bucket of ETP-020. When either is null or non-positive the
+seeded size SHALL stand. The fields SHALL flow into `WebViewConfig` and
+propagate to nested webviews opened via `launchUrl`. Because the shim is
+gated on `trackingProtectionEnabled`, a custom size only applies when the
+umbrella is on.
+
+#### Scenario: Manual size pins exact dimensions
+
+**Given** a site with `spoofWindowWidth: 1024`, `spoofWindowHeight: 768`,
+and `trackingProtectionEnabled: true`
+**When** the shim is loaded
+**Then** `window.innerWidth === 1024` and `window.innerHeight === 768`
+**And** `window.outerWidth === 1024`
+
+#### Scenario: Partial size falls back to the seeded bucket
+
+**Given** `buildAntiFingerprintingShim('s', windowWidth: 1024)` (height
+omitted)
+**Then** the generated shim uses the seeded bucket (`MANUAL_WIN` is null)
+
+#### Scenario: Fields round-trip and omit when null
+
+**Given** a site with `spoofWindowWidth` and `spoofWindowHeight` null
+**Then** `toJson` omits both keys
+**And** a `WebViewModel` with both set survives a `toJson` / `fromJson`
+round-trip with the values intact
+
+#### Scenario: Settings UI exposes the size and gates on the umbrella
+
+**Given** the per-site Settings screen
+**Then** width and height text fields are shown under Tracking Protection
+**And** they are enabled only when `trackingProtectionEnabled` is on
+**And** leaving either blank clears the custom size back to the seeded
+default
+
+---
+
 ### Requirement: ETP-011 - Battery and speech-synthesis
 
 The shim SHALL define `navigator.getBattery()` to resolve a Promise of
@@ -634,9 +710,18 @@ in `kExportedAppPrefs` is needed.
 ### Modified
 - `lib/web_view_model.dart` — Added `trackingProtectionEnabled` field,
   serialisation, getWebView forcing, propagation through `launchUrlFunc`
-  typedef and both nested-launch sites.
+  typedef and both nested-launch sites. Added `spoofWindowWidth` /
+  `spoofWindowHeight` (ETP-021) with the same serialisation +
+  propagation.
 - `lib/services/webview.dart` — Added `trackingProtectionEnabled` to
-  `WebViewConfig`, shim injection.
+  `WebViewConfig`, shim injection. Added `spoofWindowWidth` /
+  `spoofWindowHeight` to `WebViewConfig`, threaded into
+  `buildAntiFingerprintingScriptSource`.
+- `lib/services/anti_fingerprinting_shim.dart` — Window/viewport
+  dimension + devicePixelRatio overrides (ETP-020) and the optional
+  manual-size builder params (ETP-021).
+- `lib/screens/settings.dart` — Window width/height fields under the
+  Tracking Protection switch, gated on the umbrella.
 - `lib/main.dart` — Added `trackingProtectionEnabled` to `launchUrl`
   signature and the `InAppWebViewScreen` construction.
 - `lib/screens/inappbrowser.dart` — Added `trackingProtectionEnabled`

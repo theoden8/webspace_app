@@ -615,5 +615,9 @@
   "homeShortcutKeep": "រក្សា",
   "homeShortcutReassign": "Reassign",
   "homeShortcutDisable": "បិទ",
-  "homeShortcutPickTitle": "ចង្អុល shortcut ទៅ"
+  "homeShortcutPickTitle": "ចង្អុល shortcut ទៅ",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

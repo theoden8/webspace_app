@@ -615,5 +615,9 @@
   "homeShortcutDisable": "പ്രവർത്തനരഹിതമാക്കുക",
   "homeShortcutPickTitle": "കുറുക്കുവഴി ഇതിലേക്ക് ചൂണ്ടുക",
   "appSettingsLanguageTitle": "ആപ്പ് ഭാഷ",
-  "appSettingsLanguageSystem": "സിസ്റ്റം സ്ഥിരസ്ഥിതി"
+  "appSettingsLanguageSystem": "സിസ്റ്റം സ്ഥിരസ്ഥിതി",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

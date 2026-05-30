@@ -3004,5 +3004,21 @@
   "homeShortcutPickTitle": "Point shortcut at",
   "@homeShortcutPickTitle": {
     "description": "Title of the dialog listing existing sites to reassign an orphaned shortcut to."
+  },
+  "siteSettingsWindowWidth": "Window width",
+  "@siteSettingsWindowWidth": {
+    "description": "Label for the per-site spoofed window width input under Tracking Protection."
+  },
+  "siteSettingsWindowHeight": "Window height",
+  "@siteSettingsWindowHeight": {
+    "description": "Label for the per-site spoofed window height input under Tracking Protection."
+  },
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "@siteSettingsWindowSizeHelper": {
+    "description": "Helper text under the per-site window width and height inputs."
+  },
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "@siteSettingsWindowSizeRequiresProtection": {
+    "description": "Helper text shown when Tracking Protection is off; the window-size fields are inactive."
   }
 }

@@ -615,5 +615,9 @@
   "homeShortcutDisable": "Zima",
   "homeShortcutPickTitle": "Elekeza njia ya mkato kwa",
   "appSettingsLanguageTitle": "Lugha ya programu",
-  "appSettingsLanguageSystem": "Chaguomsingi la mfumo"
+  "appSettingsLanguageSystem": "Chaguomsingi la mfumo",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

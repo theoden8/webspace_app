@@ -615,5 +615,9 @@
   "homeShortcutDisable": "Disabilita",
   "homeShortcutPickTitle": "Fai puntare la scorciatoia a",
   "appSettingsLanguageTitle": "Lingua dell'app",
-  "appSettingsLanguageSystem": "Predefinita di sistema"
+  "appSettingsLanguageSystem": "Predefinita di sistema",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

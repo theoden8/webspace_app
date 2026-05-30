@@ -615,5 +615,9 @@
   "homeShortcutDisable": "비활성화",
   "homeShortcutPickTitle": "바로가기를 가리킬 대상",
   "appSettingsLanguageTitle": "앱 언어",
-  "appSettingsLanguageSystem": "시스템 기본값"
+  "appSettingsLanguageSystem": "시스템 기본값",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

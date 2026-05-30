@@ -615,5 +615,9 @@
   "homeShortcutDisable": "አሰናክል",
   "homeShortcutPickTitle": "አቋራጭ ጠቁም ወደ",
   "appSettingsLanguageTitle": "የመተግበሪያ ቋንቋ",
-  "appSettingsLanguageSystem": "የስርዓት ነባሪ"
+  "appSettingsLanguageSystem": "የስርዓት ነባሪ",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

@@ -615,5 +615,9 @@
   "homeShortcutDisable": "અક્ષમ કરો",
   "homeShortcutPickTitle": "શોર્ટકટ નિર્દેશ કરો",
   "appSettingsLanguageTitle": "એપ્લિકેશન ભાષા",
-  "appSettingsLanguageSystem": "સિસ્ટમ ડિફૉલ્ટ"
+  "appSettingsLanguageSystem": "સિસ્ટમ ડિફૉલ્ટ",
+  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size."
 }

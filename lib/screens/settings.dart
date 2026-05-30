@@ -145,6 +145,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _latitudeController;
   late TextEditingController _longitudeController;
   late TextEditingController _accuracyController;
+  late TextEditingController _windowWidthController;
+  late TextEditingController _windowHeightController;
   String? _spoofTimezone;
   bool _spoofTimezoneFromLocation = false;
   // Tracks the "live" geolocation mode. Mutually exclusive with static
@@ -183,6 +185,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _latitudeController = TextEditingController();
     _longitudeController = TextEditingController();
     _accuracyController = TextEditingController();
+    _windowWidthController = TextEditingController();
+    _windowHeightController = TextEditingController();
     _loadFromModel();
     _initialSnapshot = _currentSnapshot();
     _userAgentController.addListener(_onAnyFieldChanged);
@@ -192,6 +196,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _latitudeController.addListener(_onAnyFieldChanged);
     _longitudeController.addListener(_onAnyFieldChanged);
     _accuracyController.addListener(_onAnyFieldChanged);
+    _windowWidthController.addListener(_onAnyFieldChanged);
+    _windowHeightController.addListener(_onAnyFieldChanged);
     NotificationService.instance.addPermissionListener(_onPermissionChanged);
   }
 
@@ -227,6 +233,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'accuracy': _accuracyController.text,
         'spoofTimezone': _spoofTimezone,
         'spoofTimezoneFromLocation': _spoofTimezoneFromLocation,
+        'windowWidth': _windowWidthController.text,
+        'windowHeight': _windowHeightController.text,
         'isLiveLocation': _isLiveLocation,
         'liveLocationGranularity': _liveLocationGranularity,
         'webRtcPolicy': _webRtcPolicy,
@@ -308,6 +316,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _accuracyController.text = m.spoofAccuracy.toString();
     _spoofTimezone = m.spoofTimezone;
     _spoofTimezoneFromLocation = m.spoofTimezoneFromLocation;
+    _windowWidthController.text = m.spoofWindowWidth?.toString() ?? '';
+    _windowHeightController.text = m.spoofWindowHeight?.toString() ?? '';
     _isLiveLocation = m.locationMode == LocationMode.live;
     _liveLocationGranularity = m.liveLocationGranularity;
     _liveGpsApproximate =
@@ -326,6 +336,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _latitudeController.dispose();
     _longitudeController.dispose();
     _accuracyController.dispose();
+    _windowWidthController.dispose();
+    _windowHeightController.dispose();
     super.dispose();
   }
 
@@ -519,6 +531,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _spoofTimezoneFromLocation;
       widget.webViewModel.liveLocationGranularity = _liveLocationGranularity;
       widget.webViewModel.webRtcPolicy = _webRtcPolicy;
+      // Custom window size: both width and height must parse as positive
+      // integers, else clear back to the seeded per-site default.
+      final winW = int.tryParse(_windowWidthController.text.trim());
+      final winH = int.tryParse(_windowHeightController.text.trim());
+      if (winW != null && winW > 0 && winH != null && winH > 0) {
+        widget.webViewModel.spoofWindowWidth = winW;
+        widget.webViewModel.spoofWindowHeight = winH;
+      } else {
+        widget.webViewModel.spoofWindowWidth = null;
+        widget.webViewModel.spoofWindowHeight = null;
+      }
 
       if (!mounted) return;
 
@@ -1275,6 +1298,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _trackingProtectionEnabled = value;
               });
             },
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _windowWidthController,
+                    enabled: _trackingProtectionEnabled,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: loc.siteSettingsWindowWidth,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _windowHeightController,
+                    enabled: _trackingProtectionEnabled,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: loc.siteSettingsWindowHeight,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              _trackingProtectionEnabled
+                  ? loc.siteSettingsWindowSizeHelper
+                  : loc.siteSettingsWindowSizeRequiresProtection,
+              style: const TextStyle(fontSize: 12),
+            ),
           ),
           SwitchListTile(
             title: Row(
