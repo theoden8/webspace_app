@@ -732,6 +732,63 @@ void main() {
         expect(model.cookies, isEmpty);
       });
     });
+
+    group('settled-URL persistence (#333)', () {
+      // The persisted "currentUrl" JSON key reflects `lastSettledUrl`, NOT
+      // the live `currentUrl`. The WebViewFactory only advances
+      // `lastSettledUrl` once a page has held a URL for the full settle
+      // window without a new onLoadStart — so transient navigation states
+      // (Cloudflare js_challenge callbacks, mid-redirect interstitials)
+      // can't leak into the next launch's initialUrl + cached-HTML baseUrl.
+
+      test('toJson persists lastSettledUrl, not the live currentUrl', () {
+        final model = WebViewModel(
+          initUrl: 'https://reddit.com',
+          currentUrl: 'https://reddit.com',
+        );
+        // Live URL advances through a Cloudflare js_challenge callback
+        // (chromium fires onUrlChanged for each redirect hop). The page
+        // never settles on this URL — it 302s away within ~1 s — so
+        // `onPageSettled` never fires for it and `lastSettledUrl` stays
+        // pinned to the previous settled URL.
+        model.currentUrl =
+            'https://www.reddit.com/?solution=abc&js_challenge=1&token=xyz';
+        final json = model.toJson();
+        expect(json['currentUrl'], 'https://reddit.com',
+            reason: 'transient currentUrl must not be persisted');
+      });
+
+      test('lastSettledUrl advances together with the persisted URL', () {
+        final model = WebViewModel(initUrl: 'https://reddit.com');
+        // Simulate the settle Timer firing for a stable URL after the
+        // challenge clears.
+        model.lastSettledUrl = 'https://www.reddit.com/r/all';
+        expect(model.toJson()['currentUrl'], 'https://www.reddit.com/r/all');
+      });
+
+      test('fromJson hydrates lastSettledUrl to the persisted URL', () {
+        final model = WebViewModel.fromJson({
+          'siteId': 'test',
+          'initUrl': 'https://reddit.com',
+          'currentUrl': 'https://www.reddit.com/r/all',
+          'name': 'Reddit',
+          'cookies': const <Map<String, dynamic>>[],
+          'proxySettings': {'type': 0, 'address': null},
+          'javascriptEnabled': true,
+          'userAgent': '',
+          'thirdPartyCookiesEnabled': false,
+        }, null);
+        // Both fields start at the persisted URL so a cold-start without
+        // any settle event still round-trips correctly.
+        expect(model.currentUrl, 'https://www.reddit.com/r/all');
+        expect(model.lastSettledUrl, 'https://www.reddit.com/r/all');
+      });
+
+      test('defaults lastSettledUrl to initUrl when no currentUrl passed', () {
+        final model = WebViewModel(initUrl: 'https://example.com');
+        expect(model.lastSettledUrl, 'https://example.com');
+      });
+    });
   });
 
   group('extractDomain', () {

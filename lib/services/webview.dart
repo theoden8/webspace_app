@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
@@ -432,17 +433,51 @@ class WebViewConfig {
   /// Returns a widget (typically a WebView) to display in the popup.
   /// The callback receives the windowId for the popup and the requested URL.
   final Future<void> Function(int windowId, String url)? onWindowRequested;
-  /// Callback when page HTML should be cached. Called on page load with (url, html).
-  final Function(String url, String html)? onHtmlLoaded;
+  /// Fires once the page has held the same URL for [settleDelay] without
+  /// a new `onLoadStart`. The call site uses this to update the
+  /// model's `lastSettledUrl` (the URL persisted to JSON for next
+  /// launch) alongside [onHtmlLoaded] — both fire from the same Timer
+  /// callback so the (URL, HTML) pair stays atomic. Without this,
+  /// transient redirect targets (Cloudflare js_challenge callbacks,
+  /// mid-redirect interstitials) leak into persistence and poison the
+  /// next launch's initialUrl + cached-HTML baseUrl. See #333.
+  final Function(String settledUrl)? onPageSettled;
+  /// Callback when page HTML should be cached. Called from the same
+  /// Timer-deferred settle path as [onPageSettled], NOT on every
+  /// `onLoadStop`. The IPC into the renderer (`controller.getHtml()`)
+  /// and the encrypt+write only run once the page is stable, so
+  /// challenge / interstitial HTML never reaches the cache.
+  ///
+  /// The settle path awaits the returned Future before firing
+  /// [onPageSettled], so a crash between the cache write and the
+  /// JSON write can't desync the (URL, HTML) pair: the cache file
+  /// is on disk before `lastSettledUrl` advances.
+  final Future<void> Function(String url, String html)? onHtmlLoaded;
   /// Optional pre-gate for the [onHtmlLoaded] path. Returning `false`
-  /// makes `onLoadStop` skip the `controller.getHtml()` IPC entirely
-  /// (not just the encrypt+write that follows). The IPC is the
-  /// expensive, lifecycle-racing piece — the renderer has to walk and
-  /// serialize the live DOM, and during a frame teardown that walk
-  /// can hold a `raw_ptr` to a soon-to-be-freed Frame. Skipping the
-  /// IPC outright is the only way to drop the renderer pressure.
-  /// When unset, every `onLoadStop` fetches HTML (legacy behavior).
+  /// makes the settle Timer skip the `controller.getHtml()` IPC
+  /// entirely (not just the encrypt+write that follows). The IPC is
+  /// the expensive, lifecycle-racing piece — the renderer has to walk
+  /// and serialize the live DOM, and during a frame teardown that
+  /// walk can hold a `raw_ptr` to a soon-to-be-freed Frame. Skipping
+  /// the IPC outright is the only way to drop the renderer pressure.
+  /// When unset, the settle path always fetches HTML if `onHtmlLoaded`
+  /// is wired (legacy behavior).
   final bool Function()? shouldFetchHtml;
+  /// How long the page must hold the same URL without a new
+  /// `onLoadStart` before [onPageSettled] and [onHtmlLoaded] fire.
+  /// Defaults to 3 s — long enough to outlast a typical Cloudflare
+  /// js_challenge → 302 round trip, short enough that a user who
+  /// backgrounds the app after reading a page for ~3 s gets the right
+  /// URL persisted. Tests inject a shorter delay.
+  final Duration settleDelay;
+  /// Receives a callback that cancels (and bumps the epoch of) the
+  /// per-WebView settle Timer. Wired from the host so
+  /// `WebViewModel.disposeWebView` can drain a pending settle before
+  /// the controller is torn down — otherwise a Timer scheduled by an
+  /// onLoadStop fired ~1 s before unload can still fire and commit
+  /// transient state (cached HTML / settled URL) for a site the user
+  /// has already switched away from.
+  final void Function(void Function() cancelPendingSettle)? onSettleHandlerReady;
   /// Optional cached HTML to display when offline. Sub-resources (CSS/JS/images)
   /// load from the browser's HTTP cache via LOAD_CACHE_ELSE_NETWORK mode.
   final String? initialHtml;
@@ -556,8 +591,11 @@ class WebViewConfig {
     this.onFindResult,
     this.shouldOverrideUrlLoading,
     this.onWindowRequested,
+    this.onPageSettled,
     this.onHtmlLoaded,
     this.shouldFetchHtml,
+    this.settleDelay = const Duration(seconds: 3),
+    this.onSettleHandlerReady,
     this.initialHtml,
     this.onConsoleMessage,
     this.userScripts = const [],
@@ -1948,6 +1986,95 @@ class WebViewFactory {
     // that this branch has been chasing.
     var navigationGen = 0;
 
+    // Deferred page-settle Timer. Scheduled in `onLoadStop` /
+    // `onUpdateVisitedHistory`; fires `onPageSettled` + `onHtmlLoaded`
+    // after `config.settleDelay` of no further `onLoadStart`. Any new
+    // `onLoadStart` cancels it (the page is mid-transition; whatever
+    // we captured is no longer the settled state). Decouples
+    // persistence from individual load events so Cloudflare js_challenge
+    // interstitials — which fire onLoadStop and then redirect within
+    // ~1 s — never reach the cache or the persisted currentUrl.
+    // See #333.
+    //
+    // Three independent layers stop a stale settle from committing
+    // because the settle delay is wide-open to races (3 s in production
+    // is a lot of event loop):
+    //
+    //   1. `pendingSettleTimer.cancel()` in `cancelPendingSettle` stops
+    //      the Timer firing AT ALL when called before the delay elapses.
+    //   2. The settle body re-checks `navigationGen == settleGen` after
+    //      the Timer fires — covers the case where
+    //      `shouldOverrideUrlLoading` bumped navigationGen between
+    //      `cancelPendingSettle` (which doesn't bump nav state) and the
+    //      Timer's scheduled fire time.
+    //   3. `settleEpoch` is bumped by every cancel. The settle body
+    //      captures the epoch at schedule time and re-checks AFTER each
+    //      await — covers the worst case: the Timer already fired and
+    //      its async body is mid-flight when a new schedule/cancel
+    //      lands. Dart's `Timer.cancel()` cannot stop an already-firing
+    //      callback, so without this layer two settle bodies could race
+    //      to call `onHtmlLoaded` and the loser's stale (URL, HTML)
+    //      pair would be the one on disk afterward. The third await
+    //      barrier (after the URL re-read) is the most critical — by
+    //      then we're about to write.
+    Timer? pendingSettleTimer;
+    var settleEpoch = 0;
+    void cancelPendingSettle() {
+      pendingSettleTimer?.cancel();
+      pendingSettleTimer = null;
+      settleEpoch++;
+    }
+    config.onSettleHandlerReady?.call(cancelPendingSettle);
+    void schedulePageSettle(inapp.InAppWebViewController controller, String url) {
+      cancelPendingSettle();
+      if (config.onHtmlLoaded == null && config.onPageSettled == null) return;
+      final wantsCacheSave = config.onHtmlLoaded != null
+          && (config.shouldFetchHtml?.call() ?? true);
+      final settleGen = navigationGen;
+      final mySettleEpoch = settleEpoch;
+      bool stillSettling() =>
+          settleEpoch == mySettleEpoch && navigationGen == settleGen;
+      pendingSettleTimer = Timer(config.settleDelay, () async {
+        pendingSettleTimer = null;
+        if (!stillSettling()) return;
+        try {
+          if (wantsCacheSave) {
+            final html = await controller.getHtml();
+            if (!stillSettling()) return;
+            if (html != null && html.isNotEmpty) {
+              // Re-read the URL after `getHtml()` resolves. If a
+              // back/forward gesture or programmatic navigation landed
+              // mid-IPC, the serialized DOM belongs to the new page,
+              // not `url`. Skip; the new page's settle Timer will
+              // write the right pair.
+              final liveUrl = (await controller.getUrl())?.toString();
+              if (!stillSettling()) return;
+              if (liveUrl != url) {
+                LogService.instance.log('WebView',
+                    'Skipping settle: URL drifted during getHtml() '
+                    '($url -> $liveUrl)');
+                return;
+              }
+              // Await the cache write before advancing the settled URL.
+              // The settled URL is what `toJson` persists; if the cache
+              // file write lagged behind the JSON write, a crash in
+              // between would leave the JSON pointing at a URL whose
+              // matching HTML is still queued. Awaiting orders the two
+              // writes: cache to disk, then settled URL, then (later)
+              // JSON. A crash anywhere in that chain leaves consistent
+              // state — either both old or both new.
+              await config.onHtmlLoaded!(url, html);
+              if (!stillSettling()) return;
+            }
+          }
+          config.onPageSettled?.call(url);
+        } catch (_) {
+          // Controller disposed mid-settle (webview unloaded or model
+          // torn down). Drop the save silently.
+        }
+      });
+    }
+
     // iOS Universal Link bypass state (per-WebView). Tracks URLs we
     // just cancelled-and-reissued so the second-pass shouldOverrideUrlLoading
     // call (the reissued programmatic load landing here again) doesn't
@@ -2735,6 +2862,13 @@ class WebViewFactory {
       // and LocalCDN replacement are both handled by the native
       // FastSubresourceInterceptor attached via WebInterceptNative.
       onLoadStart: (controller, url) async {
+        // A new navigation started — the previous page is no longer
+        // the settled state. Drop any pending settle Timer so we don't
+        // commit interstitial markup / URLs that the user is
+        // actively navigating away from. The next `onLoadStop` will
+        // reschedule for whatever this navigation lands on.
+        cancelPendingSettle();
+
         // Snapshot the navigation generation BEFORE any await — if a
         // later `shouldOverrideUrlLoading` advances the counter while
         // we're between IPCs, the previous frame is being torn down and
@@ -2895,54 +3029,20 @@ class WebViewFactory {
           }
         }
         await userScriptService.reinjectOnLoadStop(controller);
-        // Cache HTML for offline viewing. Pre-gate the renderer IPC
-        // via shouldFetchHtml so the per-onLoadStop storm is collapsed
-        // before we ask chromium to serialize the DOM — the IPC, not
-        // the encrypt+write afterward, is the lifecycle-racing piece.
+
+        // Deferred-settle: only pages that hold the same URL for
+        // `config.settleDelay` without a new onLoadStart reach the
+        // cache + persisted lastSettledUrl. Cloudflare js_challenge
+        // interstitials (which redirect within ~1 s of their
+        // onLoadStop) never poison either store. See #333.
         //
-        // Skip when we just fired the cached-then-live reload above:
-        // the reload IPC reaches the renderer before our `getHtml()`
-        // does, so the serialized DOM here is the partial mid-reload
-        // markup (often a few-KB SPA shell) — and saving that clobbers
-        // the previously-cached fully-rendered snapshot. On next launch
-        // the corrupt shell loads as initialData and the SPA's hydration
-        // throws (`Cannot read properties of null`) leaving a blank
-        // page. The post-reload `onLoadStop` saves the live HTML
-        // instead; `_lastSaveAt` isn't bumped here, so its debounce
-        // stays open.
-        if (config.onHtmlLoaded != null
-            && !firedLiveReload
-            && (config.shouldFetchHtml?.call() ?? true)) {
-          try {
-            final html = await controller.getHtml();
-            if (html != null && html.isNotEmpty) {
-              // `urlStr` was captured at onLoadStop entry. `getHtml()` is
-              // an async IPC into the renderer; if the user kicked off a
-              // back/forward gesture or a link tap during that round trip,
-              // the markup we got back belongs to the *new* page, not
-              // `urlStr`. Saving (urlStr, html-of-new-page) under `siteId`
-              // poisons the cache: next webview construction renders that
-              // mismatched HTML at `baseUrl=currentUrl`, so the user sees
-              // the wrong page when they swipe back into the cached entry.
-              // Re-read the URL post-getHtml and skip the save on
-              // mismatch — the next stable onLoadStop will write the
-              // right pair.
-              final liveUrl = (await controller.getUrl())?.toString();
-              if (liveUrl == urlStr) {
-                config.onHtmlLoaded!(urlStr, html);
-              } else {
-                LogService.instance.log(
-                  'WebView',
-                  'Skipping cache save: URL changed during getHtml() '
-                      '($urlStr -> $liveUrl)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-              }
-            }
-          } catch (_) {
-            // Controller may have been disposed if webview was unloaded
-          }
-        }
+        // Skip when we just fired the cached-then-live reload: the
+        // live reload will fire its own onLoadStart →
+        // cancelPendingSettle → onLoadStop → new Timer pair, so
+        // scheduling here would just be redundant work that the
+        // upcoming cancel would tear down anyway.
+        if (firedLiveReload) return;
+        schedulePageSettle(controller, urlStr);
       },
       onUpdateVisitedHistory: (controller, url, androidIsReload) {
         // Fires on every history change including back/forward gestures.
@@ -2957,6 +3057,11 @@ class WebViewFactory {
           final urlStr = url.toString();
           if (urlStr != lastLoadStartUrl) {
             userScriptService.reinjectOnSpaNavigation(controller);
+            // SPA-only path: reschedule the settle Timer here. The
+            // onLoadStop branch never fires for pushState/replaceState,
+            // so without this lastSettledUrl would freeze at the
+            // initial load even as the user navigates around a SPA.
+            schedulePageSettle(controller, urlStr);
           }
           lastLoadStartUrl = null; // Reset for next navigation
         }
