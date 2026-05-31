@@ -491,11 +491,11 @@ On Android the probe doubles as the surface paint nudge: reading `offsetHeight` 
 
 ### Requirement: PAUSE-015 — Android Surface Repaint After Activity Restart
 
-On Android, the system SHALL force a relayout on the activity-restart paths (`_resumeAfterLifecyclePause`, `_handleShortcutIntent`) to repaint a platform-view surface that re-attached blank. When the activity is recreated (e.g. a pinned-shortcut tap), the Flutter base surface and the hybrid-composition webview `SurfaceView` can re-attach without receiving a paint: the renderer is alive (taps, scroll, JS all work) but the **web page area renders black, and the strip behind the edge-to-edge status bar renders black too** — distinct from a dead renderer (PAUSE-013/PAUSE-014), which a JS probe cannot detect because the renderer is healthy. The blank surface clears the moment a relayout occurs (device rotation, lock/unlock, or a tab switch).
+On Android, the system SHALL force a relayout once the resume sequence (`_onResumed`) has settled the active site, to repaint a platform-view surface that re-attached blank. When the activity is recreated (e.g. a pinned-shortcut tap), the Flutter base surface and the hybrid-composition webview `SurfaceView` can re-attach without receiving a paint: the renderer is alive (taps, scroll, JS all work) but the **web page area renders black, and the strip behind the edge-to-edge status bar renders black too** — distinct from a dead renderer (PAUSE-013/PAUSE-014), which a JS probe cannot detect because the renderer is healthy. The blank surface clears the moment a relayout occurs (device rotation, lock/unlock, or a tab switch).
 
-`_nudgeSurfaceRepaint` implements this:
+The resume sequence is ordered so the repaint is deterministic. `_onResumed` SHALL run the app-lifecycle resume (`_resumeAfterLifecyclePause`) to completion, then handle any pinned-shortcut and share intents, and only then fire `_nudgeSurfaceRepaint` once — against the final `_currentIndex`. Running the lifecycle resume and the shortcut switch concurrently (the previous fire-and-forget pair) raced over `_currentIndex` and webview pause/resume, and let two repaint loops interleave on the shared `_repaintNudge`. `_nudgeSurfaceRepaint` then:
 
-- Toggle a transient 1px body inset around the IndexedStack several times over ~0.5s.
+- Toggles a transient 1px body inset around the IndexedStack several times over ~0.5s.
 - Each `setState` repaints the Flutter base surface (status-bar strip and chrome); each size flip resizes the webview platform view, forcing its `SurfaceView` to recomposite.
 - The nudge is spread across multiple frames because the recreated surface may not be attached on the first frame after resume — a single rebuild (the one already in `_setCurrentIndex`) fires too early to help.
 - The inset is always 0 in steady state and the nudge is a no-op on non-Android platforms.
@@ -507,10 +507,18 @@ This is complementary to PAUSE-014: the probe recreates a *dead* renderer; the s
 **Given** a normal (non-fullscreen) site loaded in the background
 **And** the user taps its pinned shortcut, which recreates the Android activity
 **And** the webview platform-view surface re-attaches without a paint (page area and status-bar strip are black, page is alive)
-**When** `_handleShortcutIntent` activates the site
-**Then** `_nudgeSurfaceRepaint` toggles the 1px inset across several frames
+**When** `_onResumed` finishes the lifecycle resume, then `_handleShortcutIntent` activates the site, then fires `_nudgeSurfaceRepaint`
+**Then** `_nudgeSurfaceRepaint` toggles the 1px inset across several frames against the activated site
 **And** the Flutter surface repaints and the webview `SurfaceView` recomposites
 **And** the page and status-bar strip become visible without the user rotating or locking the device
+
+#### Scenario: Shortcut switch does not race the lifecycle resume
+
+**Given** the app is resuming from background via a pinned-shortcut tap
+**When** `_onResumed` runs
+**Then** `_resumeAfterLifecyclePause` completes (the in-flight `pauseForAppLifecycle` is drained and process-global JS timers are resumed) before `_handleShortcutIntent` switches `_currentIndex`
+**And** only one `_nudgeSurfaceRepaint` runs, after the final site is active
+**And** re-entry is guarded so a second `resumed` event does not start an overlapping sequence
 
 #### Scenario: Nudge is inert off Android and in steady state
 

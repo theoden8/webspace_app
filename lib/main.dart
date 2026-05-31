@@ -1324,13 +1324,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         setState(() => _maskBackground = false);
       }
       _startForegroundPollTimer();
-      // Await any in-flight pause before resuming to prevent ordering inversion
-      _resumeAfterLifecyclePause();
-      _handleShortcutIntent();
-      _handleShareIntent();
-      // Pinned shortcuts may have been added (via the launcher's pin dialog)
-      // or removed (by the user from the launcher) while we were backgrounded.
-      _refreshPinnedSiteIds();
+      // Resume + shortcut + share are sequenced in _onResumed: the
+      // app-lifecycle resume must finish before a shortcut intent switches
+      // sites, or the two race over _currentIndex and webview pause/resume.
+      unawaited(_onResumed());
       // Release the iOS grace-period background task. Foregrounded again,
       // so we don't need the extension; iOS auto-ends after the expiration
       // handler fires, but explicit end is cleaner.
@@ -1340,6 +1337,38 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // be torn down; if any are still loaded the schedule submission
       // is a no-op.
       unawaited(_updateBackgroundRefreshSchedule());
+    }
+  }
+
+  bool _isResuming = false;
+
+  /// Run the resume sequence in a fixed order. The app-lifecycle resume
+  /// (drains the in-flight `pauseForAppLifecycle`, resumes process-global JS
+  /// timers and the active site) MUST complete before a pinned-shortcut
+  /// intent is handled: both mutate `_currentIndex` and pause/resume
+  /// webviews, and the previous fire-and-forget pair let the shortcut's site
+  /// switch race the resume. Sequencing also lets a single surface repaint
+  /// run once, against the final visible site, instead of two `_repaintNudge`
+  /// loops interleaving. Re-entry guarded in case `resumed` fires twice.
+  Future<void> _onResumed() async {
+    if (_isResuming) return;
+    _isResuming = true;
+    try {
+      await _resumeAfterLifecyclePause();
+      if (!mounted) return;
+      await _handleShortcutIntent();
+      if (!mounted) return;
+      await _handleShareIntent();
+      if (!mounted) return;
+      // Pinned shortcuts may have been added (via the launcher's pin dialog)
+      // or removed (by the user from the launcher) while we were backgrounded.
+      _refreshPinnedSiteIds();
+      // One relayout against the now-final visible site, in case the activity
+      // was recreated and the platform-view surface came back blank. See
+      // PAUSE-015.
+      _nudgeSurfaceRepaint();
+    } finally {
+      _isResuming = false;
     }
   }
 
@@ -1354,9 +1383,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       unawaited(_probeRendererAndRecover(_webViewModels[_currentIndex!]));
     }
-    // Force a relayout in case the activity was recreated while backgrounded
-    // and the platform-view surface came back blank.
-    _nudgeSurfaceRepaint();
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -1441,9 +1467,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           if (!mounted) return;
         }
         setState(() {});
-        // The shortcut tap can recreate the activity; force a relayout so the
-        // activated site doesn't land on a blank platform-view surface.
-        _nudgeSurfaceRepaint();
         await _saveWebViewModels();
       }
     }
