@@ -1101,7 +1101,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.image_outlined),
-                title: const Text('Save icon as PNG'),
+                title: const Text('Save icon'),
                 enabled: !_isSavingIcon,
                 onTap: () {
                   Navigator.pop(sheetContext);
