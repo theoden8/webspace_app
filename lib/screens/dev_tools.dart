@@ -335,14 +335,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             if (_hasHost)
               IconButton(
                 icon: const Icon(Icons.share, size: 20),
-                tooltip: 'Share HTML',
+                tooltip: 'Export',
                 onPressed: _showShareSheet,
-              ),
-            if (_hasHost)
-              IconButton(
-                icon: const Icon(Icons.image_outlined, size: 20),
-                tooltip: 'Save icon as PNG',
-                onPressed: _isSavingIcon ? null : _saveIconAsPng,
               ),
             IconButton(
               icon: Icon(_isSearchVisible ? Icons.search_off : Icons.search),
@@ -1103,6 +1097,15 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _copyHtml();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.image_outlined),
+                title: const Text('Save icon as PNG'),
+                enabled: !_isSavingIcon,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _saveIconAsPng();
                 },
               ),
             ],
