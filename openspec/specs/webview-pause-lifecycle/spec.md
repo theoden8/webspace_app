@@ -77,7 +77,7 @@ calls, so the active site is never left paused.
 
 ### Requirement: PAUSE-002 — Process-Global Pause Only at App Lifecycle
 
-The system SHALL pause both the active webview and process-global JS timers when the app goes to background, so every loaded webview's JS halts.
+The system SHALL pause both the active webview and process-global JS timers when the app goes to background, so every loaded webview's JS halts. The per-instance and process-global calls SHALL be bound to a single captured controller so a concurrent `disposeWebView()` cannot strand the global half.
 
 #### Scenario: App goes to background
 
@@ -91,24 +91,17 @@ The system SHALL pause both the active webview and process-global JS timers when
 
 **Given** the app was backgrounded via `pauseForAppLifecycle`
 **When** `AppLifecycleState.resumed` fires
-**Then** `_resumeAfterLifecyclePause()` awaits the pending pause Future to prevent ordering inversion
+**Then** `_onResumed` awaits `_resumeAfterLifecyclePause()` (which awaits the pending pause Future to prevent ordering inversion) before handling any shortcut/share intent
 **And** `resumeFromAppLifecycle()` is called on the active webview
 **And** the controller receives `resume()` followed by `resumeAllJsTimers()`
 
-#### Scenario: Android — paint nudge after activity restart
+#### Scenario: Concurrent dispose does not strand process-global timers
 
-**Given** the user backgrounds the app, switches to another app, then returns
-**And** the platform view's surface was torn down and recreated by the activity restart
-**When** `AppLifecycleState.resumed` fires and `_resumeAfterLifecyclePause()` runs
-**Then** after `resumeFromAppLifecycle()` resolves, the active webview receives a
-no-op `evaluateJavascript` (`void (document.body && document.body.offsetHeight);`)
-**Because** Android's hybrid-composition pipeline can leave the freshly re-attached
-surface blank until something forces a layout pass. Reading `offsetHeight`
-synchronously triggers layout, which schedules a paint, which fills the surface
-with the page's pixels. The page itself is never paused-stuck — taps and JS still
-work — but without the nudge the user sees a black rectangle. iOS/macOS use the
-WebKit content process model and don't exhibit this; the nudge is gated on
-`Platform.isAndroid`. Fire-and-forget; failure is benign.
+**Given** `pauseForAppLifecycle()` / `resumeFromAppLifecycle()` is mid-flight on the active webview
+**And** a concurrent path calls `disposeWebView()` on that model (which only nulls the Dart `webview`/`controller` references — the native webview stays alive until the next widget rebuild)
+**When** the dispose lands between the per-instance `pause()`/`resume()` and the process-global `pauseAllJsTimers()`/`resumeAllJsTimers()`
+**Then** the global call still runs against the captured-local controller rather than throwing on a re-read `controller!`
+**Because** skipping `resumeAllJsTimers()` would leave every webview's JS timers frozen process-wide with no other path re-issuing the call — the page would be up but dead. The Android surface repaint and renderer recovery live in PAUSE-015 and PAUSE-014 respectively.
 
 ---
 
