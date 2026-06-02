@@ -209,9 +209,11 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
         val out = s.getOutputStream()
         val ins = s.getInputStream()
 
-        // Greeting: offer user/pass auth only when we actually have creds.
+        // Greeting: when the user explicitly configured credentials,
+        // insist on RFC 1929 user/pass — offering no-auth alongside lets
+        // the server silently skip the credentials the user provided.
         if (cfg.hasCredentials) {
-            out.write(byteArrayOf(0x05, 0x02, 0x00, 0x02))
+            out.write(byteArrayOf(0x05, 0x01, 0x02))
         } else {
             out.write(byteArrayOf(0x05, 0x01, 0x00))
         }
