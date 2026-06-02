@@ -79,15 +79,20 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
         stop()
         val socket = ServerSocket()
         socket.reuseAddress = true
-        // Loopback-only bind; port 0 lets the OS pick a free ephemeral port.
-        socket.bind(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), BACKLOG)
+        // Pin to IPv4 loopback (127.0.0.1) explicitly. InetAddress
+        // .getLoopbackAddress() can return ::1 on dual-stack JVMs, which
+        // is unreachable from the http://127.0.0.1:<port> rule we hand to
+        // ProxyController — Chromium gets ERR_PROXY_CONNECTION_FAILED
+        // without ever opening a TCP connection to our listener.
+        val bindAddr = InetAddress.getByName("127.0.0.1")
+        socket.bind(InetSocketAddress(bindAddr, 0), BACKLOG)
         serverSocket = socket
         config = cfg
         boundPort = socket.localPort
         val t = Thread({ acceptLoop(socket) }, "proxy-relay-accept").apply { isDaemon = true }
         acceptThread = t
         t.start()
-        log("started on 127.0.0.1:$boundPort (upstream type=${cfg.type})")
+        log("started on ${bindAddr.hostAddress}:$boundPort (upstream type=${cfg.type})")
         return boundPort
     }
 
@@ -105,7 +110,12 @@ class ProxyRelay(private val logger: ((String) -> Unit)? = null) {
             val client = try {
                 socket.accept()
             } catch (e: Exception) {
-                break // socket closed by stop()
+                // socket.close() from stop() throws SocketException here
+                // and we exit cleanly. Any other exception is worth seeing.
+                if (!socket.isClosed) {
+                    log("accept loop ended with ${e.javaClass.simpleName}: ${e.message}")
+                }
+                break
             }
             val cfg = config
             if (cfg == null) {
