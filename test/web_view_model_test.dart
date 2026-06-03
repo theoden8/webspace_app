@@ -375,6 +375,48 @@ void main() {
       expect(restored.notificationsEnabled, isTrue);
     });
 
+    test('protectedContentAllowed defaults to null (ask) and toJson omits it',
+        () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      expect(model.protectedContentAllowed, isNull);
+      expect(model.toJson().containsKey('protectedContentAllowed'), isFalse);
+
+      final restored = WebViewModel.fromJson(model.toJson(), null);
+      expect(restored.protectedContentAllowed, isNull);
+    });
+
+    test('protectedContentAllowed allow/block round-trips through JSON', () {
+      for (final decision in [true, false]) {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          protectedContentAllowed: decision,
+        );
+        final json = model.toJson();
+        expect(json['protectedContentAllowed'], equals(decision));
+        final restored = WebViewModel.fromJson(json, null);
+        expect(restored.protectedContentAllowed, equals(decision));
+      }
+    });
+
+    test('effectiveProtectedContentAllowed forces deny for archive-tier (ARCH-006)',
+        () {
+      final allowed = WebViewModel(
+        initUrl: 'https://example.com',
+        protectedContentAllowed: true,
+        isArchiveTier: true,
+      );
+      // Stored value is preserved, but the effective value never grants
+      // DRM for archive sites.
+      expect(allowed.protectedContentAllowed, isTrue);
+      expect(allowed.effectiveProtectedContentAllowed, isFalse);
+
+      final appTier = WebViewModel(
+        initUrl: 'https://example.com',
+        protectedContentAllowed: true,
+      );
+      expect(appTier.effectiveProtectedContentAllowed, isTrue);
+    });
+
     test('legacy backgroundPoll JSON migrates to notificationsEnabled', () {
       // Sites stored under the previous schema (separate backgroundPoll
       // toggle, notifications off) should still be polled and able to

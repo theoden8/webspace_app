@@ -313,6 +313,14 @@ class WebViewModel {
   /// the foreground poll timer so it can detect new content and fire
   /// notifications even when the user isn't looking at it.
   bool notificationsEnabled;
+  /// Remembered per-site decision for protected (DRM/Widevine EME) content,
+  /// e.g. the Spotify web player. null = not yet decided (the webview shows
+  /// an Allow/Block popup on the first `PROTECTED_MEDIA_ID` permission
+  /// request); true = grant silently; false = deny silently. Granting lets
+  /// the origin provision a Widevine device identifier, so the default is
+  /// "ask" rather than always-on. Android-only: WKWebView (iOS/macOS) has no
+  /// EME/Widevine support and never issues this request.
+  bool? protectedContentAllowed;
   List<UserScriptConfig> userScripts; // Per-site user scripts
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -406,11 +414,24 @@ class WebViewModel {
   bool get effectiveHtmlCachingEnabled =>
       isArchiveTier ? false : htmlCachingEnabled;
 
+  /// Effective protected-content (Widevine/EME) decision. Archive-tier
+  /// sites never grant DRM regardless of stored value: a grant provisions
+  /// a per-container Widevine device identifier on disk and the prompt is
+  /// OS-level UI, both of which ARCH-006 forbids for archive sites. They
+  /// deny without prompting (false, never null = never "ask").
+  bool? get effectiveProtectedContentAllowed =>
+      isArchiveTier ? false : protectedContentAllowed;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
 
   String? defaultUserAgent;
+  /// In-flight protected-content decision. A page can fire several
+  /// `PROTECTED_MEDIA_ID` requests in a burst while EME initializes; this
+  /// coalesces them onto a single Allow/Block popup instead of stacking
+  /// dialogs. Cleared once [protectedContentAllowed] is recorded.
+  Future<bool>? _protectedMediaDecisionInFlight;
   Function? stateSetterF;
   FindMatchesResult findMatches = FindMatchesResult();
   WebViewTheme _currentTheme = WebViewTheme.light;
@@ -442,6 +463,7 @@ class WebViewModel {
     this.fullscreenMode = false,
     this.htmlCachingEnabled = false,
     this.notificationsEnabled = false,
+    this.protectedContentAllowed,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
@@ -628,6 +650,7 @@ class WebViewModel {
       inapp.SslCertificate? certificate,
     )? onUntrustedCertificate,
     Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
+    Future<bool> Function(String origin)? onProtectedMediaRequest,
     List<UserScriptConfig> globalUserScripts = const [],
   }) {
     if (webview == null) {
@@ -726,6 +749,27 @@ class WebViewModel {
           onConfirmScriptFetch: onConfirmScriptFetch,
           onUntrustedCertificate: onUntrustedCertificate,
           onExternalSchemeUrl: onExternalSchemeUrl,
+          onProtectedMediaRequest: onProtectedMediaRequest == null
+              ? null
+              : (origin) async {
+                  // Archive-tier sites deny without prompting; otherwise a
+                  // previously remembered Allow/Block decision short-circuits
+                  // the popup.
+                  final remembered = effectiveProtectedContentAllowed;
+                  if (remembered != null) return remembered;
+                  // Coalesce a burst of requests onto one popup.
+                  _protectedMediaDecisionInFlight ??= () async {
+                    final granted = await onProtectedMediaRequest(origin);
+                    protectedContentAllowed = granted;
+                    await saveFunc();
+                    return granted;
+                  }();
+                  try {
+                    return await _protectedMediaDecisionInFlight!;
+                  } finally {
+                    _protectedMediaDecisionInFlight = null;
+                  }
+                },
           pullToRefreshController: pullToRefreshController,
           onWindowRequested: onWindowRequested,
           shouldOverrideUrlLoading: (url, hasGesture) {
@@ -1412,6 +1456,8 @@ class WebViewModel {
         'fullscreenMode': fullscreenMode,
         'htmlCachingEnabled': htmlCachingEnabled,
         'notificationsEnabled': notificationsEnabled,
+        if (protectedContentAllowed != null)
+          'protectedContentAllowed': protectedContentAllowed,
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -1474,6 +1520,7 @@ class WebViewModel {
           (json['notificationsEnabled'] as bool?) ??
               (json['backgroundPoll'] as bool?) ??
               false,
+      protectedContentAllowed: json['protectedContentAllowed'] as bool?,
       userScripts: (json['userScripts'] as List<dynamic>?)
           ?.map((e) => UserScriptConfig.fromJson(e as Map<String, dynamic>))
           .toList(),

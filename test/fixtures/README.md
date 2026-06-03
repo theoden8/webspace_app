@@ -81,6 +81,30 @@ This directory contains HTML test files for automated testing of WebSpace featur
 - **Usage**: Import this file via "Import HTML file" on the Add Site screen, then use the buttons to exercise each notification requirement. Enable/disable the per-site notification toggle and background-active toggle to test different scenarios.
 - **Note**: This is for manual testing. The fixture logs all events with timestamps in an on-page log panel.
 
+## Protected Content (DRM) Tests
+
+### `protected_content_test.html`
+- **Feature**: Per-site protected-content (Widevine/EME) permission popup
+- **Purpose**: Manual verification on a real Android device/emulator that a
+  DRM site (e.g. the Spotify web player) triggers the `PROTECTED_MEDIA_ID`
+  permission and that the per-site Allow/Block decision is honored and
+  remembered. EME is a native path — jsdom has no EME and CI WebViews
+  usually lack a Widevine CDM, so this is not an automated test.
+- **Tests**:
+  - EME API availability (`navigator.requestMediaKeySystemAccess`)
+  - Widevine probe (`com.widevine.alpha`) — fires the Allow/Block popup on
+    first request, auto-run on page load to mimic a DRM player startup
+  - ClearKey control (`org.w3.clearkey`) — should resolve with no popup
+- **Usage**: Import via "Import HTML file" on the Add Site screen (or host it
+  and add the URL), then on Android:
+  1. First load → expect the "Play protected content?" popup. Tap Allow → the
+     Widevine result turns green and a CDM is created.
+  2. Reload → no second popup (the grant is remembered per-site).
+  3. Set the site's "Protected content (DRM)" dropdown to **Always block** and
+     reload → the probe fails with no popup.
+  4. On iOS/macOS the EME API is unavailable, so every probe fails — expected.
+- **Note**: For manual testing. The fixture logs all events with timestamps.
+
 ## General Test Page
 
 ### `test_page.html`
