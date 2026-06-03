@@ -88,10 +88,12 @@ test('synthetic matchMedia result has addEventListener / removeEventListener', (
   fine.removeEventListener('change', listener);
 });
 
-test('existing <meta name="viewport"> is rewritten to width=1280', () => {
+test('existing <meta name="viewport"> is rewritten to width=1366', () => {
   // A site shipping `width=device-width` defeats useWideViewPort. The
   // shim rewrites every viewport meta — including ones present at
-  // injection time — to width=1280, initial-scale=1.0.
+  // injection time — to width=1366, initial-scale=1.0. 1366 clears
+  // Bluesky's `(min-width: 1300px)` desktop breakpoint; a smaller
+  // value would ship the tablet layout on Android.
   const html = `<!doctype html><html><head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head><body></body></html>`;
@@ -99,7 +101,7 @@ test('existing <meta name="viewport"> is rewritten to width=1280', () => {
   runInDom(dom, readFixture('desktop_mode/linux.js'));
   const meta = dom.window.document.querySelector('meta[name="viewport"]');
   assert.ok(meta);
-  assert.equal(meta.getAttribute('content'), 'width=1280, initial-scale=1.0');
+  assert.equal(meta.getAttribute('content'), 'width=1366, initial-scale=1.0');
 });
 
 test('viewport meta added later is rewritten via MutationObserver', async () => {
@@ -111,7 +113,7 @@ test('viewport meta added later is rewritten via MutationObserver', async () => 
   // MutationObserver callbacks are queued as microtasks. Yield to let
   // them flush.
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(meta.getAttribute('content'), 'width=1280, initial-scale=1.0');
+  assert.equal(meta.getAttribute('content'), 'width=1366, initial-scale=1.0');
 });
 
 test('re-entrance guard: running the shim twice is a no-op', () => {
