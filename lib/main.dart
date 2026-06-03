@@ -955,6 +955,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // every overflow-menu open.
   bool _iosAppIntentsSupported = false;
 
+  // HS-011: a tapped shortcut whose siteId is gone (settings restore on a new
+  // device, delete+recreate) is rebound — on confirm — to a domain-matching or
+  // freshly created site. The user's choice is remembered here (stale siteId ->
+  // live siteId) and persisted so later taps resolve silently. Machine state
+  // derived from shortcut activity, not a user setting: excluded from backups.
+  static const _kShortcutRemapKey = 'shortcutSiteRemap';
+  Map<String, String> _shortcutSiteRemap = {};
+
+  // A cold-launch shortcut that needs a confirm/create prompt can't show a
+  // dialog mid-restore (no UI yet); it's parked here and handled on the first
+  // post-frame. Guards re-entry while a prompt is on screen.
+  LaunchResolution? _pendingShortcutResolution;
+  bool _handlingShortcutPrompt = false;
+
   StreamSubscription<TrustedHostEntry>? _untrustSub;
 
   @override
@@ -1135,6 +1149,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       await ShortcutService.pinShortcut(
         siteId: model.siteId,
         label: model.name,
+        url: model.initUrl,
         iconUrl: isSvg ? null : faviconUrl,
       );
       return;
@@ -1468,19 +1483,143 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _handleShortcutIntent() async {
-    final siteId = await ShortcutService.getLaunchSiteId();
-    if (!mounted) return;
-    if (siteId != null) {
-      final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
-      if (index >= 0) {
-        _resetAlwaysOpenHomeOnShortcut(index);
-        if (index != _currentIndex) {
-          await _setCurrentIndex(index);
-          if (!mounted) return;
+    final launch = await ShortcutService.getLaunch();
+    if (!mounted || launch == null) return;
+    final resolution = StartupRestoreEngine.resolveLaunch(
+      shortcutSiteId: launch.siteId,
+      shortcutUrl: launch.url,
+      models: _webViewModels,
+      rememberedRemap: _shortcutSiteRemap,
+    );
+    if (resolution is LaunchOpenSite) {
+      await _openShortcutIndex(resolution.index);
+    } else if (resolution is! LaunchNone) {
+      await _applyInteractiveShortcut(resolution, coldLaunch: false);
+    }
+  }
+
+  /// Warm-tap switch to a resolved site: reset flagged siblings to home
+  /// (HS-007), switch if not already active, persist. Does NOT reset the
+  /// launched site's own currentUrl — a warm tap preserves the live session
+  /// (HS-006); cold launch handles the initUrl reset separately.
+  Future<void> _openShortcutIndex(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    _resetAlwaysOpenHomeOnShortcut(index);
+    if (index != _currentIndex) {
+      await _setCurrentIndex(index);
+      if (!mounted) return;
+    }
+    setState(() {});
+    await _saveWebViewModels();
+  }
+
+  /// HS-011: drive the confirm/create prompt for a shortcut whose siteId no
+  /// longer maps to a site. On confirm, remembers the rebind so future taps
+  /// resolve directly via [_shortcutSiteRemap].
+  Future<void> _applyInteractiveShortcut(
+    LaunchResolution resolution, {
+    required bool coldLaunch,
+  }) async {
+    if (_handlingShortcutPrompt) return;
+    _handlingShortcutPrompt = true;
+    try {
+      if (resolution is LaunchConfirmExisting) {
+        if (resolution.index < 0 ||
+            resolution.index >= _webViewModels.length) {
+          return;
         }
-        setState(() {});
-        await _saveWebViewModels();
+        final model = _webViewModels[resolution.index];
+        final ok = await _showShortcutConfirm(
+          title: 'Open site?',
+          message:
+              'This shortcut points to a site that no longer exists. Open '
+              '"${model.getDisplayName()}" instead? It matches the same address.',
+          confirmLabel: 'Open',
+        );
+        if (ok != true || !mounted) return;
+        await _rememberShortcutRemap(resolution.shortcutSiteId, model.siteId);
+        if (coldLaunch && model.currentUrl != model.initUrl) {
+          model.currentUrl = model.initUrl;
+        }
+        await _openShortcutIndex(resolution.index);
+      } else if (resolution is LaunchOfferCreate) {
+        final ok = await _showShortcutConfirm(
+          title: 'Create site?',
+          message:
+              'This shortcut points to a site that no longer exists. Create a '
+              'new site for ${resolution.url}?',
+          confirmLabel: 'Create',
+        );
+        if (ok != true || !mounted) return;
+        final model = WebViewModel(
+          initUrl: resolution.url,
+          stateSetterF: () {
+            if (mounted) setState(() {});
+          },
+        );
+        final title = await getPageTitle(resolution.url);
+        if (!mounted) return;
+        if (title != null && title.isNotEmpty) {
+          model.name = title;
+          model.pageTitle = title;
+        }
+        // _registerNewSite adds, activates, applies theme, and persists.
+        await _registerNewSite(model);
+        if (!mounted) return;
+        await _rememberShortcutRemap(resolution.shortcutSiteId, model.siteId);
       }
+    } finally {
+      _handlingShortcutPrompt = false;
+    }
+  }
+
+  Future<bool?> _showShortcutConfirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _rememberShortcutRemap(
+    String shortcutSiteId,
+    String resolvedSiteId,
+  ) async {
+    if (_shortcutSiteRemap[shortcutSiteId] == resolvedSiteId) return;
+    _shortcutSiteRemap[shortcutSiteId] = resolvedSiteId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
+  }
+
+  void _loadShortcutRemap(SharedPreferences prefs) {
+    final raw = prefs.getString(_kShortcutRemapKey);
+    if (raw == null) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        _shortcutSiteRemap = {
+          for (final e in decoded.entries)
+            e.key.toString(): e.value.toString(),
+        };
+      }
+    } catch (_) {
+      // Corrupt entry — start fresh; it'll be rewritten on the next rebind.
     }
   }
 
@@ -2441,6 +2580,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           ShortcutSite(
             siteId: m.siteId,
             label: m.name,
+            url: m.initUrl,
             iconUrl: FaviconUrlCache.get(m.initUrl),
           ),
     ];
@@ -3383,6 +3523,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _tabStripInFullscreen = prefs.getBool('tabStripInFullscreen') ?? false;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
+      _loadShortcutRemap(prefs);
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
@@ -3417,6 +3558,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // activated site. `_restoreCookiesForSite` re-nukes on every switch; this
     // extra pass covers launch before any site is activated.
     final activeSiteIdsAtStartup = _webViewModels.map((m) => m.siteId).toSet();
+    // HS-011: drop remap entries whose resolved target was since deleted —
+    // they'd never resolve, and a fresh tap re-prompts (and re-remembers).
+    if (_shortcutSiteRemap.isNotEmpty) {
+      final before = _shortcutSiteRemap.length;
+      _shortcutSiteRemap.removeWhere(
+        (_, resolved) => !activeSiteIdsAtStartup.contains(resolved),
+      );
+      if (_shortcutSiteRemap.length != before) {
+        await prefs.setString(
+            _kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
+      }
+    }
     // Incognito sites are treated as orphans for any session-scoped GC
     // (cookies, html cache, navigation state, container) so on-disk
     // remnants don't outlive the process — see issue #298. Their config
@@ -3447,11 +3600,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     // Always start at home screen on launch - only restore index if launched via shortcut
-    final shortcutSiteId = await ShortcutService.getLaunchSiteId();
-    final indexToRestore = StartupRestoreEngine.resolveLaunchTarget(
-      shortcutSiteId: shortcutSiteId,
+    final launch = await ShortcutService.getLaunch();
+    final resolution = StartupRestoreEngine.resolveLaunch(
+      shortcutSiteId: launch?.siteId,
+      shortcutUrl: launch?.url,
       models: _webViewModels,
+      rememberedRemap: _shortcutSiteRemap,
     );
+    // A direct hit activates inline below; a confirm/create outcome can't show
+    // a dialog mid-restore (no UI yet), so park it and prompt post-frame.
+    int? indexToRestore;
+    if (resolution is LaunchOpenSite) {
+      indexToRestore = resolution.index;
+    } else if (resolution is! LaunchNone) {
+      _pendingShortcutResolution = resolution;
+    }
     // A Home Shortcut represents the user's stated entry point for that
     // site — they pinned it expecting "open google maps", not "resume
     // wherever I last drifted to". Reset the launched site's currentUrl
@@ -3494,6 +3657,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _setCurrentIndex(indexToRestore);
     if (!mounted) return;
     setState(() {}); // Trigger UI update after async operation
+
+    // HS-011: a shortcut whose siteId is gone but that carried a url needs a
+    // confirm/create prompt. The UI is up now, so fire it on the next frame.
+    if (_pendingShortcutResolution != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final pending = _pendingShortcutResolution;
+        _pendingShortcutResolution = null;
+        if (pending != null) {
+          unawaited(_applyInteractiveShortcut(pending, coldLaunch: true));
+        }
+      });
+    }
 
     // Refresh the iOS App Intents picker on every launch, not just on save.
     // iOS queries `suggestedEntities()` (and may re-materialize the per-site

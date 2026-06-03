@@ -47,6 +47,19 @@ void main() {
         'iconUrl': 'https://example.com/favicon.png',
       });
     });
+
+    test('toMap includes url when present', () {
+      final m = const ShortcutSite(
+        siteId: 'abc',
+        label: 'Site A',
+        url: 'https://example.com/',
+      ).toMap();
+      expect(m, {
+        'siteId': 'abc',
+        'label': 'Site A',
+        'url': 'https://example.com/',
+      });
+    });
   });
 
   group('ShortcutService — non-mobile host', () {
@@ -83,10 +96,10 @@ void main() {
       }
     });
 
-    test('getLaunchSiteId is null on non-mobile host', () async {
-      final id = await ShortcutService.getLaunchSiteId();
+    test('getLaunch is null on non-mobile host', () async {
+      final launch = await ShortcutService.getLaunch();
       if (!isMobileHost) {
-        expect(id, isNull);
+        expect(launch, isNull);
         expect(calls, isEmpty);
       }
     });
@@ -117,7 +130,7 @@ void main() {
       // channel; this case really exercises mobile hosts. Still: the calls
       // must never throw a PlatformException out of the service.
       expect(await ShortcutService.pinShortcut(siteId: 'a', label: 'A'), isFalse);
-      expect(await ShortcutService.getLaunchSiteId(), isNull);
+      expect(await ShortcutService.getLaunch(), isNull);
       expect(await ShortcutService.getPinnedSiteIds(), isEmpty);
       expect(await ShortcutService.isAppIntentsSupported(), isFalse);
       await ShortcutService.syncSites(const []);

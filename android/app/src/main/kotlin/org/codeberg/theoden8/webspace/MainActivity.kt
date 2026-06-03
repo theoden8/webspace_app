@@ -79,13 +79,14 @@ class MainActivity: FlutterActivity() {
                     val siteId = call.argument<String>("siteId")
                     val label = call.argument<String>("label")
                     val iconUrl = call.argument<String>("iconUrl")
+                    val siteUrl = call.argument<String>("siteUrl")
 
                     if (siteId == null || label == null) {
                         result.error("INVALID_ARGS", "siteId and label are required", null)
                         return@setMethodCallHandler
                     }
 
-                    pinShortcut(siteId, label, iconUrl, result)
+                    pinShortcut(siteId, label, iconUrl, siteUrl, result)
                 }
                 "removeShortcut" -> {
                     val siteId = call.argument<String>("siteId")
@@ -98,13 +99,21 @@ class MainActivity: FlutterActivity() {
                 }
                 "getLaunchSiteId" -> {
                     val siteId = intent?.getStringExtra("siteId")
-                    // Drain the extra after reading so it fires once per tap.
+                    val siteUrl = intent?.getStringExtra("siteUrl")
+                    // Drain the extras after reading so it fires once per tap.
                     // didChangeAppLifecycleState(resumed) re-polls this on every
                     // foreground; without clearing, a plain background/return
                     // would re-navigate to the pinned site (issue: shortcut
                     // re-opens on resume).
                     intent?.removeExtra("siteId")
-                    result.success(siteId)
+                    intent?.removeExtra("siteUrl")
+                    if (siteId == null) {
+                        result.success(null)
+                    } else {
+                        // url lets the Dart side fall back to a domain match when
+                        // the pinned siteId no longer maps to a site (HS-011).
+                        result.success(mapOf("siteId" to siteId, "url" to siteUrl))
+                    }
                 }
                 "getPinnedSiteIds" -> {
                     try {
@@ -125,7 +134,7 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    private fun pinShortcut(siteId: String, label: String, iconUrl: String?, result: MethodChannel.Result) {
+    private fun pinShortcut(siteId: String, label: String, iconUrl: String?, siteUrl: String?, result: MethodChannel.Result) {
         if (!ShortcutManagerCompat.isRequestPinShortcutSupported(this)) {
             result.error("NOT_SUPPORTED", "Pinned shortcuts not supported on this device", null)
             return
@@ -136,6 +145,7 @@ class MainActivity: FlutterActivity() {
                 val intent = Intent(this, MainActivity::class.java).apply {
                     action = Intent.ACTION_VIEW
                     putExtra("siteId", siteId)
+                    if (siteUrl != null) putExtra("siteUrl", siteUrl)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
 
