@@ -31,6 +31,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool localCdnEnabled;
   final bool trackingProtectionEnabled;
   final String? language;
+  final int zoomPercent;
   final bool showUrlBar;
   final LocationMode locationMode;
   final double? spoofLatitude;
@@ -73,6 +74,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.localCdnEnabled,
     required this.trackingProtectionEnabled,
     required this.language,
+    this.zoomPercent = 100,
     this.showUrlBar = false,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
@@ -178,6 +180,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
         trackingProtectionEnabled: widget.trackingProtectionEnabled,
         language: widget.language,
+        zoomPercent: widget.zoomPercent,
         // Geolocation mode is independent of the umbrella. Static
         // spoof coords still force the timezone to "From picked
         // location" so Date/Intl match the spoofed geo. With no coords

@@ -492,6 +492,10 @@ class WebViewConfig {
   /// Language code for Accept-Language header (e.g., 'en', 'es', 'fr').
   /// If null, uses system default.
   final String? language;
+  /// Browser-style page zoom (percent, 100 = unscaled). Applied via a
+  /// DOCUMENT_START CSS `zoom` shim so it survives navigations and reaches
+  /// iframes. Distinct from the OS font-scale `textZoom`.
+  final int zoomPercent;
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
   /// Cookie reader used inside [_onLoadStop] before invoking
@@ -633,6 +637,7 @@ class WebViewConfig {
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
     this.language,
+    this.zoomPercent = 100,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
@@ -1246,6 +1251,32 @@ class WebViewFactory {
   else{document.addEventListener('DOMContentLoaded',apply);}
 })();''';
 
+  /// Per-site browser-style page zoom. CSS `zoom` scales the whole page
+  /// (text and images) and is honoured by Chromium and modern WebKit
+  /// (Safari 17+/WPE 2.40+), so a single CSS path covers every platform —
+  /// no native textZoom split. Injected at DOCUMENT_START via a re-applied
+  /// style element so it survives same-document navigations and reaches
+  /// iframes.
+  static String _pageZoomCss(int zoomPercent) =>
+      'html{zoom:$zoomPercent% !important;}';
+
+  static String _pageZoomScript(int zoomPercent) => '''
+(function(){
+  var id='__webspace_page_zoom__';
+  var css='${_pageZoomCss(zoomPercent)}';
+  function apply(){
+    var el=document.getElementById(id);
+    if(!el){
+      el=document.createElement('style');
+      el.id=id;
+      (document.head||document.documentElement).appendChild(el);
+    }
+    el.textContent=css;
+  }
+  if(document.documentElement){apply();}
+  else{document.addEventListener('DOMContentLoaded',apply);}
+})();''';
+
   /// Determine if a navigation was triggered by a user gesture.
   /// Android: uses hasGesture property.
   /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
@@ -1513,6 +1544,17 @@ class WebViewFactory {
       userScripts.add(inapp.UserScript(
         groupName: 'system_text_zoom',
         source: '${_textSizeAdjustScript(textZoom)}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
+
+    // Per-site browser-style page zoom (all platforms). Skipped at 100%
+    // so the default site carries no zoom shim.
+    if (config.zoomPercent != 100) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'page_zoom',
+        source: '${_pageZoomScript(config.zoomPercent)}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));

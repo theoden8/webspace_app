@@ -138,6 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _notificationsEnabled;
   bool? _protectedContentAllowed;
   String? _selectedLanguage;
+  late int _zoomPercent;
   bool _obscureProxyPassword = true;
   bool _showProxyCredentials = false;
   late TextEditingController _latitudeController;
@@ -219,6 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'notificationsEnabled': _notificationsEnabled,
         'protectedContentAllowed': _protectedContentAllowed,
         'selectedLanguage': _selectedLanguage,
+        'zoomPercent': _zoomPercent,
         'latitude': _latitudeController.text,
         'longitude': _longitudeController.text,
         'accuracy': _accuracyController.text,
@@ -301,6 +303,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _notificationsEnabled = m.notificationsEnabled;
     _protectedContentAllowed = m.protectedContentAllowed;
     _selectedLanguage = m.language;
+    _zoomPercent = m.zoomPercent;
     _latitudeController.text = m.spoofLatitude?.toString() ?? '';
     _longitudeController.text = m.spoofLongitude?.toString() ?? '';
     _accuracyController.text = m.spoofAccuracy.toString();
@@ -476,6 +479,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
       widget.webViewModel.protectedContentAllowed = _protectedContentAllowed;
       widget.webViewModel.language = _selectedLanguage;
+      widget.webViewModel.zoomPercent = _zoomPercent;
       // locationMode is derived from the UI state:
       // - `_isLiveLocation` → live (real device GPS forwarded through the shim)
       // - else if custom coords are set → spoof (static custom coords)
@@ -1172,6 +1176,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (String? value) {
                 setState(() {
                   _selectedLanguage = value;
+                });
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
+            child: Row(
+              children: [
+                const Expanded(child: Text('Page zoom')),
+                IconButton(
+                  icon: const Icon(Icons.remove),
+                  tooltip: 'Zoom out',
+                  onPressed: _zoomPercent > kMinZoomPercent
+                      ? () => setState(() {
+                            _zoomPercent =
+                                clampZoomPercent(_zoomPercent - 10);
+                          })
+                      : null,
+                ),
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _zoomPercent = kDefaultZoomPercent;
+                  }),
+                  child: SizedBox(
+                    width: 56,
+                    child: Text(
+                      '$_zoomPercent%',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: 'Zoom in',
+                  onPressed: _zoomPercent < kMaxZoomPercent
+                      ? () => setState(() {
+                            _zoomPercent =
+                                clampZoomPercent(_zoomPercent + 10);
+                          })
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 8.0),
+            child: Slider(
+              value: _zoomPercent.toDouble(),
+              min: kMinZoomPercent.toDouble(),
+              max: kMaxZoomPercent.toDouble(),
+              divisions: (kMaxZoomPercent - kMinZoomPercent) ~/ 10,
+              label: '$_zoomPercent%',
+              onChanged: (double value) {
+                setState(() {
+                  _zoomPercent = clampZoomPercent((value / 10).round() * 10);
                 });
               },
             ),

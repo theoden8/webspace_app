@@ -175,6 +175,47 @@ void main() {
       expect(restored.clearUrlEnabled, isFalse);
     });
 
+    test('zoomPercent defaults to 100 and is omitted from JSON at default', () {
+      final model = WebViewModel(initUrl: 'https://example.com');
+      expect(model.zoomPercent, equals(kDefaultZoomPercent));
+      expect(model.toJson().containsKey('zoomPercent'), isFalse);
+      expect(
+        WebViewModel.fromJson(model.toJson(), null).zoomPercent,
+        equals(kDefaultZoomPercent),
+      );
+    });
+
+    test('non-default zoomPercent is preserved through serialization', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com',
+        zoomPercent: 150,
+      );
+
+      final json = model.toJson();
+      expect(json['zoomPercent'], equals(150));
+
+      final restored = WebViewModel.fromJson(json, null);
+      expect(restored.zoomPercent, equals(150));
+    });
+
+    test('zoomPercent out of range is clamped on deserialization', () {
+      Map<String, dynamic> jsonWithZoom(int zoom) => {
+            'initUrl': 'https://example.com',
+            'cookies': [],
+            'proxySettings': {'type': 0, 'address': null},
+            'javascriptEnabled': true,
+            'userAgent': '',
+            'thirdPartyCookiesEnabled': false,
+            'zoomPercent': zoom,
+          };
+
+      final tooHigh = WebViewModel.fromJson(jsonWithZoom(5000), null);
+      expect(tooHigh.zoomPercent, equals(kMaxZoomPercent));
+
+      final tooLow = WebViewModel.fromJson(jsonWithZoom(1), null);
+      expect(tooLow.zoomPercent, equals(kMinZoomPercent));
+    });
+
     test('dnsBlockEnabled defaults to true when missing from JSON', () {
       final json = {
         'initUrl': 'https://example.com',
