@@ -3926,6 +3926,44 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // match what a user with zero archives would produce.
     final appTierModels =
         _webViewModels.where((m) => !m.isArchiveTier).toList();
+
+    // When archives are open, offer to bundle them into the backup as
+    // opaque encrypted sections. The prompt only appears while archives
+    // are open (their content is already visible in the switcher at
+    // that point); a backup with none open is byte-identical to one
+    // produced without the feature.
+    List<String>? extraSections;
+    final open = _archive.openArchives;
+    if (open.isNotEmpty) {
+      final include = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Include open archives?'),
+          content: Text(
+            'You have ${open.length} archive(s) open. Include them in this '
+            'backup? They stay encrypted, but the file will reveal that '
+            'archived data exists.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Exclude'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Include'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (include == true) {
+        extraSections = [
+          for (final h in open) await _archive.exportSection(h),
+        ];
+      }
+    }
+
     await SettingsBackupService.exportAndSave(
       context,
       webViewModels: appTierModels,
@@ -3946,6 +3984,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // themselves stay machine state; the user re-downloads after import.
       dnsBlockLevel: DnsBlockService.instance.level,
       contentBlockerLists: ContentBlockerService.instance.exportListSelection(),
+      extraSections: extraSections,
     );
   }
 
@@ -4180,6 +4219,39 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               ? 'Settings imported successfully'
               : 'Settings imported. ${hints.join(' ')}'),
           duration: Duration(seconds: hints.isEmpty ? 4 : 6),
+        ),
+      );
+    }
+
+    // If the backup carries encrypted sections, offer to restore them
+    // by passphrase. Each prompt restores the section(s) matching the
+    // entered passphrase; remaining ones can be restored by entering
+    // another passphrase, or skipped by cancelling.
+    final sections = backup.extraSections;
+    if (sections != null && sections.isNotEmpty && mounted) {
+      await _restoreBackupSections(sections);
+    }
+  }
+
+  Future<void> _restoreBackupSections(List<String> sections) async {
+    var remaining = List<String>.from(sections);
+    while (remaining.isNotEmpty && mounted) {
+      final passphrase = await _showPassphraseDialog(
+        title: 'Restore archived data',
+        hint: 'Passphrase (cancel to skip)',
+        submitLabel: 'Restore',
+      );
+      if (passphrase == null || passphrase.isEmpty) break;
+      final before = remaining.length;
+      final unmatched = await _archive.importSections(passphrase, remaining);
+      if (!mounted) return;
+      final restored = before - unmatched.length;
+      remaining = unmatched;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(restored > 0
+              ? 'Restored $restored archived section(s)'
+              : 'No section matched that passphrase'),
         ),
       );
     }

@@ -130,4 +130,44 @@ void main() {
       expect(archive.openArchives, hasLength(1));
     });
   });
+
+  // Section export/import round-trips with fixed keys — no Argon2id, so
+  // fast and CI-stable. Passphrase derivation is covered by the crypto
+  // tests; here we only exercise the seal/restore-into-slot logic.
+  group('Archive export/import sections', () {
+    test('exportSection then importSectionsWithKey round-trips into a fresh pool', () async {
+      final src = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
+      final handle = await src.createWithKey(_testKey(50));
+      handle.state.sites.add({'siteId': 's1', 'initUrl': 'https://a.test'});
+      handle.state.webspaces
+          .add({'id': 'w', 'name': 'Group', 'siteIds': ['s1']});
+      await src.save(handle);
+      final blob = await src.exportSection(handle);
+      await src.close(handle);
+
+      final dst = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
+      final unmatched = await dst.importSectionsWithKey(_testKey(50), [blob]);
+      expect(unmatched, isEmpty);
+
+      final reopened = await dst.tryOpenWithKey(_testKey(50));
+      expect(reopened, isNotNull);
+      expect(reopened!.state.sites, hasLength(1));
+      expect(reopened.state.webspaces, hasLength(1));
+      expect(reopened.state.webspaces.first['name'], equals('Group'));
+    });
+
+    test('importSectionsWithKey returns the blob unmatched under a wrong key', () async {
+      final src = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
+      final handle = await src.createWithKey(_testKey(51));
+      handle.state.sites.add({'siteId': 's1', 'initUrl': 'https://a.test'});
+      await src.save(handle);
+      final blob = await src.exportSection(handle);
+      await src.close(handle);
+
+      final dst = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
+      final unmatched = await dst.importSectionsWithKey(_testKey(99), [blob]);
+      expect(unmatched, equals([blob]));
+      expect(await dst.tryOpenWithKey(_testKey(99)), isNull);
+    });
+  });
 }

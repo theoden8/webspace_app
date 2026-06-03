@@ -29,6 +29,12 @@ class SettingsBackup {
   final DateTime exportedAt;
   final List<Map<String, dynamic>>? suggestedSites;
   final List<Map<String, dynamic>>? globalUserScripts;
+  /// Optional opaque encrypted sections the user chose to bundle into
+  /// the backup. Each entry is a base64 self-decrypting blob; only
+  /// present when the user opted in at export time. Omitted entirely
+  /// otherwise, so a default export is byte-identical to one produced
+  /// without the feature.
+  final List<String>? extraSections;
 
   /// Chosen DNS blocklist severity level (0-5). User intent; the
   /// downloaded domain blob is never part of a backup. Null when the
@@ -57,6 +63,7 @@ class SettingsBackup {
     this.globalUserScripts,
     this.dnsBlockLevel,
     this.contentBlockerLists,
+    this.extraSections,
   }) : globalPrefs = _normalizePrefs(
           globalPrefs,
           showUrlBar: showUrlBar,
@@ -83,6 +90,8 @@ class SettingsBackup {
         if (dnsBlockLevel != null) 'dnsBlockLevel': dnsBlockLevel,
         if (contentBlockerLists != null)
           'contentBlockerLists': contentBlockerLists,
+        if (extraSections != null && extraSections!.isNotEmpty)
+          'extraSections': extraSections,
       };
 
   factory SettingsBackup.fromJson(Map<String, dynamic> json) {
@@ -120,6 +129,9 @@ class SettingsBackup {
       dnsBlockLevel: json['dnsBlockLevel'] as int?,
       contentBlockerLists: (json['contentBlockerLists'] as List<dynamic>?)
           ?.map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
+      extraSections: (json['extraSections'] as List<dynamic>?)
+          ?.map((e) => e as String)
           .toList(),
     );
   }
@@ -168,6 +180,7 @@ class SettingsBackupService {
     List<Map<String, dynamic>>? globalUserScripts,
     int? dnsBlockLevel,
     List<Map<String, dynamic>>? contentBlockerLists,
+    List<String>? extraSections,
   }) {
     // Convert sites to JSON. `model.toJson` already omits the proxy
     // password (per PWD-005); we still need to strip secure cookies here.
@@ -205,6 +218,7 @@ class SettingsBackupService {
       globalUserScripts: globalUserScripts,
       dnsBlockLevel: dnsBlockLevel,
       contentBlockerLists: contentBlockerLists,
+      extraSections: extraSections,
     );
   }
 
@@ -226,6 +240,7 @@ class SettingsBackupService {
     List<Map<String, dynamic>>? globalUserScripts,
     int? dnsBlockLevel,
     List<Map<String, dynamic>>? contentBlockerLists,
+    List<String>? extraSections,
   }) async {
     try {
       final backup = createBackup(
@@ -239,6 +254,7 @@ class SettingsBackupService {
         globalUserScripts: globalUserScripts,
         dnsBlockLevel: dnsBlockLevel,
         contentBlockerLists: contentBlockerLists,
+        extraSections: extraSections,
       );
 
       final jsonString = exportToJson(backup);
