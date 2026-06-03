@@ -199,18 +199,20 @@ void main() {
     });
 
     test('zoomPercent out of range is clamped on deserialization', () {
-      final tooHigh = WebViewModel.fromJson({
-        'initUrl': 'https://example.com',
-        'cookies': [],
-        'zoomPercent': 5000,
-      }, null);
+      Map<String, dynamic> jsonWithZoom(int zoom) => {
+            'initUrl': 'https://example.com',
+            'cookies': [],
+            'proxySettings': {'type': 0, 'address': null},
+            'javascriptEnabled': true,
+            'userAgent': '',
+            'thirdPartyCookiesEnabled': false,
+            'zoomPercent': zoom,
+          };
+
+      final tooHigh = WebViewModel.fromJson(jsonWithZoom(5000), null);
       expect(tooHigh.zoomPercent, equals(kMaxZoomPercent));
 
-      final tooLow = WebViewModel.fromJson({
-        'initUrl': 'https://example.com',
-        'cookies': [],
-        'zoomPercent': 1,
-      }, null);
+      final tooLow = WebViewModel.fromJson(jsonWithZoom(1), null);
       expect(tooLow.zoomPercent, equals(kMinZoomPercent));
     });
 
