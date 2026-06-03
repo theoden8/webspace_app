@@ -124,6 +124,31 @@ The system SHALL exit full screen when navigating to the webspaces list.
 
 ---
 
+### Requirement: FS-007 - Keep Tab Strip in Full Screen
+
+The system SHALL support a global option to keep the site tab strip visible in full screen while the app bar and URL bar stay hidden, giving more screen space without losing quick site switching. The option only applies when the tab strip is enabled.
+
+#### Scenario: Tab strip kept in full screen
+
+**Given** "Site Tab Strip" is enabled
+**And** "Keep Tab Strip in Full Screen" is enabled
+**When** the user enters full screen mode
+**Then** the app bar, URL bar, find toolbar, and system UI are hidden
+**And** the tab strip remains visible at the bottom
+
+#### Scenario: Tab strip hidden in full screen (default)
+
+**Given** "Keep Tab Strip in Full Screen" is disabled
+**When** the user enters full screen mode
+**Then** the tab strip is hidden along with the app bar and URL bar
+
+#### Scenario: Option gated on tab strip
+
+**Given** "Site Tab Strip" is disabled
+**Then** the "Keep Tab Strip in Full Screen" toggle is disabled (no tab strip to keep)
+
+---
+
 ### Requirement: FS-006 - Content Reachable Under Persistent System Bars
 
 The system SHALL keep the site's content reachable in full screen even when the platform fails to hide the system bars (e.g. Android 15 edge-to-edge, where `immersiveSticky` does not always hide the status/navigation bars).
@@ -154,11 +179,12 @@ The system SHALL keep the site's content reachable in full screen even when the 
 
 **_WebSpacePageState** (`lib/main.dart`):
 - `bool _isFullscreen = false` - Current fullscreen state (not persisted; runtime only)
+- `bool _tabStripInFullscreen = false` - Global pref mirror of the `tabStripInFullscreen` SharedPreferences key (registered in `kExportedAppPrefs`, round-trips through settings backup)
 
 ### UI Changes
 
 - **App bar**: Hidden when `_isFullscreen` is true (`appBar: _isFullscreen ? null : _buildAppBar()`)
-- **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen`
+- **Tab strip**: `_buildTabStrip()` returns null when `_isFullscreen` unless the global `tabStripInFullscreen` pref is set (then it stays in `bottomNavigationBar` and owns the bottom safe-area inset)
 - **Input bar**: `_buildInputBar()` returns null when `_isFullscreen`
 - **Body insets**: The fullscreen body keeps `SafeArea` active on both edges (`top: _isFullscreen`, `bottom: _isFullscreen || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen.
 - **Exit zone**: GestureDetector at top edge when fullscreen (`MediaQuery.padding.top + 20px`, measured inside the body `SafeArea`) with visible translucent handle just below the notch/status bar
