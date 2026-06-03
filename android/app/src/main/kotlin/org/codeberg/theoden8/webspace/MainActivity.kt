@@ -20,6 +20,7 @@ class MainActivity: FlutterActivity() {
     private var locationPlugin: LocationPlugin? = null
     private var webSpaceContainerPlugin: WebSpaceContainerPlugin? = null
     private var backgroundTaskPlugin: BackgroundTaskAndroidPlugin? = null
+    private var proxyRelayPlugin: ProxyRelayPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
 
@@ -47,6 +48,7 @@ class MainActivity: FlutterActivity() {
         locationPlugin = LocationPlugin(this, flutterEngine)
         webSpaceContainerPlugin = WebSpaceContainerPlugin(flutterEngine)
         backgroundTaskPlugin = BackgroundTaskAndroidPlugin(applicationContext, flutterEngine)
+        proxyRelayPlugin = ProxyRelayPlugin(flutterEngine)
         captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -256,6 +258,8 @@ class MainActivity: FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         backgroundTaskPlugin?.dispose()
         backgroundTaskPlugin = null
+        proxyRelayPlugin?.dispose()
+        proxyRelayPlugin = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

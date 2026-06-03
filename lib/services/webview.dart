@@ -12,6 +12,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
+import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -225,7 +226,11 @@ enum WebViewTheme { light, dark, system }
 ///     singleton override (`PROXY_OVERRIDE` WebViewFeature). Per-site config
 ///     in the data model is fictional under container mode: with multiple
 ///     same-base-domain sites loaded concurrently, the last applied proxy
-///     wins for every WebView. See PROXY-008.
+///     wins for every WebView. See PROXY-008. Credentialed upstreams cannot
+///     be expressed to `ProxyController` (Chromium rejects userinfo in a
+///     proxy rule), so they are fronted by a native loopback relay
+///     ([`ProxyRelay`]) that injects the credentials; WebView points at
+///     `127.0.0.1:<ephemeral>` with none. See PROXY-010.
 ///   * **iOS 17+ / macOS 14+.** Genuine per-site proxy via
 ///     `WKWebsiteDataStore.proxyConfigurations` on the per-container data
 ///     store, created by the WebSpace fork's `preWKWebViewConfiguration`
@@ -238,8 +243,11 @@ class ProxyManager {
 
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) {
-      LogService.instance.log('Proxy',
-          'setProxySettings: platform does not support proxy override; no-op');
+      LogService.instance.log(
+        'Proxy',
+        'setProxySettings: platform does not support proxy override; no-op',
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
 
@@ -250,8 +258,11 @@ class ProxyManager {
     // per-site proxy require the WebView to be rebuilt by the caller (see
     // [WebViewModel.updateProxySettings]).
     if (Platform.isIOS || Platform.isMacOS) {
-      LogService.instance.log('Proxy',
-          'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here');
+      LogService.instance.log(
+        'Proxy',
+        'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
 
@@ -266,12 +277,21 @@ class ProxyManager {
         effective.type != ProxyType.DEFAULT;
 
     if (effective.type == ProxyType.DEFAULT) {
+      if (Platform.isAndroid) await ProxyRelay.instance.stop();
       LogService.instance.log(
         'Proxy',
         'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
         level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
       );
+      final sw = Stopwatch()..start();
       await controller.clearProxyOverride();
+      LogService.instance.log(
+        'Proxy',
+        'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
+        level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
+      );
       return;
     }
 
@@ -317,30 +337,95 @@ class ProxyManager {
       _ => 'http',
     };
 
+    // Android's ProxyController has no proxy-auth primitive: a rule with
+    // embedded `user:pass@` userinfo is rejected by Chromium and the
+    // WebView silently goes direct (leaking the real IP). Route a
+    // credentialed upstream through the native loopback relay and point
+    // WebView at it with NO credentials; the relay injects them upstream.
+    // iOS/macOS never reach here; Linux/WebKit accepts a credentialed
+    // proxy URI directly, so it keeps the inline-credential path below.
+    if (Platform.isAndroid && effective.hasCredentials) {
+      final localPort = await ProxyRelay.instance.start(effective);
+      if (localPort == null) {
+        LogService.instance.log(
+          'Proxy',
+          'Auth proxy relay failed to start; refusing to fall back to a '
+              'direct connection. Effective: ${effective.describeForLogs()}',
+          level: LogLevel.error,
+          sensitivity: LogSensitivity.sensitive,
+        );
+        throw Exception('Proxy relay failed to start');
+      }
+      LogService.instance.log(
+        'Proxy',
+        'Applying Android proxy override via auth relay (upstream scheme=$scheme'
+            '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
+            'effective: ${effective.describeForLogs()})',
+        level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      final sw = Stopwatch()..start();
+      await controller.setProxyOverride(
+        settings: inapp.ProxySettings(
+          proxyRules: [inapp.ProxyRule(url: 'http://127.0.0.1:$localPort')],
+          bypassRules: ['<local>'],
+        ),
+      );
+      LogService.instance.log(
+        'Proxy',
+        'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
+            'relay port=$localPort)',
+        level: LogLevel.info,
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return;
+    }
+
+    // No credentials (or Linux): point ProxyController straight at the
+    // upstream. Stop any relay left over from a previous credentialed
+    // config so its loopback port isn't left listening.
+    if (Platform.isAndroid) await ProxyRelay.instance.stop();
+
     final proxyUrl = effective.hasCredentials
         ? '$scheme://${Uri.encodeComponent(effective.username!)}:${Uri.encodeComponent(effective.password!)}@$host:$port'
         : '$scheme://$host:$port';
 
     LogService.instance.log(
       'Proxy',
-      'Applying Android proxy override (scheme=$scheme'
+      'Applying proxy override (scheme=$scheme'
           '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
           'effective: ${effective.describeForLogs()})',
       level: LogLevel.info,
       sensitivity: LogSensitivity.sensitive,
     );
+    final sw = Stopwatch()..start();
     await controller.setProxyOverride(
       settings: inapp.ProxySettings(
         proxyRules: [inapp.ProxyRule(url: proxyUrl)],
         bypassRules: ['<local>'],
       ),
     );
+    LogService.instance.log(
+      'Proxy',
+      'Applied proxy override (native call took ${sw.elapsedMilliseconds}ms, '
+          'scheme=$scheme)',
+      level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   Future<void> clearProxy() async {
     if (!PlatformInfo.isProxySupported) return;
     if (Platform.isIOS || Platform.isMacOS) return;
+    if (Platform.isAndroid) await ProxyRelay.instance.stop();
+    final sw = Stopwatch()..start();
     await inapp.ProxyController.instance().clearProxyOverride();
+    LogService.instance.log(
+      'Proxy',
+      'Cleared proxy override via clearProxy() (native call took ${sw.elapsedMilliseconds}ms)',
+      level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 }
 
@@ -2778,6 +2863,11 @@ class WebViewFactory {
       // and LocalCDN replacement are both handled by the native
       // FastSubresourceInterceptor attached via WebInterceptNative.
       onLoadStart: (controller, url) async {
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'onLoadStart siteId=${config.siteId} url=$url',
+          sensitivity: LogSensitivity.sensitive,
+        );
         // Snapshot the navigation generation BEFORE any await — if a
         // later `shouldOverrideUrlLoading` advances the counter while
         // we're between IPCs, the previous frame is being torn down and
@@ -2845,6 +2935,11 @@ class WebViewFactory {
         }
       },
       onLoadStop: (controller, url) async {
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'onLoadStop siteId=${config.siteId} url=$url',
+          sensitivity: LogSensitivity.sensitive,
+        );
         // End pull-to-refresh animation
         config.pullToRefreshController?.endRefreshing();
         // Notify the call site that this navigation finished loading
@@ -3011,6 +3106,13 @@ class WebViewFactory {
         config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
       },
       onReceivedError: (controller, request, error) async {
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'onReceivedError siteId=${config.siteId} url=${request.url} '
+              'type=${error.type} desc=${error.description}',
+          level: LogLevel.warning,
+          sensitivity: LogSensitivity.sensitive,
+        );
         // For non-internal schemes (intent://, custom app schemes) Android
         // sometimes hands the URL straight to onReceivedError without
         // calling shouldOverrideUrlLoading first — observed every time on
