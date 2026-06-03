@@ -30,9 +30,11 @@ Universal Link routing happens **after** `decidePolicyForNavigationAction:decisi
 
 ## Solution
 
-Generic prophylactic bypass: on iOS, treat **every main-frame http(s) navigation whose `navigationType` is `.linkActivated` (user tap on a link)** as at-risk. Cancel the navigation, then reissue the same URL via `controller.loadUrl`. WebKit treats programmatic loads as navigation type `.other` and **does not match them against AASA**, so the URL renders inside the webview regardless of which apps are installed.
+Generic prophylactic bypass: on iOS, treat **every main-frame http(s) navigation whose `navigationType` is `.linkActivated` (user tap on a link)**, plus **bodyless (`GET`/`HEAD`) `.formSubmitted` navigations**, as at-risk. Cancel the navigation, then reissue the same URL via `controller.loadUrl`. WebKit treats programmatic loads as navigation type `.other` and **does not match them against AASA**, so the URL renders inside the webview regardless of which apps are installed.
 
-`.formSubmitted` is intentionally excluded. `loadUrl` is a GET, so reissuing a form submit would drop the POST body and break every credentialed form (logins, search, payments) — LinkedIn's `/checkpoint/lg/login-submit` 404ing under the broader filter was the prompt to narrow the scope. AASA matches on POST endpoints are vanishingly rare in practice; apps publish AASA for content URLs, not form handlers.
+A `.formSubmitted` action whose request method carries a body (`POST`/`PUT`/`PATCH`) is excluded. `loadUrl` is a GET, so reissuing it would drop the body and break every credentialed form (logins, search, payments) — LinkedIn's `/checkpoint/lg/login-submit` 404ing under the broader filter was the prompt to narrow the scope. AASA matches on POST endpoints are vanishingly rare in practice; apps publish AASA for content URLs, not form handlers.
+
+The catch is that WKWebView also tags the **server redirect that follows a form POST** as `.formSubmitted`, and that hop is re-fetched as a bodyless `GET` (302/303 → GET). That hop is exactly the one that escaped the original `.linkActivated`-only filter: the user-reported Google Maps chain ends with `consent.google.com/save` (a POST) 302ing to `www.google.com/maps`, which the device then routes into the native Maps app. Because the redirect target is a `GET`, reissuing it via `loadUrl` is lossless, so `.formSubmitted` navigations are bypassed when — and only when — the request method is `GET`/`HEAD`. An unknown/unreported method passes through unchanged (conservative: we can't rule out a POST body).
 
 Pure programmatic navigations (initial nav from `initialUrlRequest`, server redirects without a tap origin, pushState SPA navs) carry no user gesture and don't activate AASA in the first place. Those are passed through without interception, so the bypass adds no overhead to the common case.
 
@@ -54,7 +56,7 @@ This is consistent with WebSpace's overall posture (webview-first, opt-in extern
 
 ### Requirement: IOS-UL-001 - Cancel-and-Reissue Tap-Rooted Navigations
 
-The system SHALL cancel main-frame http(s) navigations whose `WKNavigationAction.navigationType` is `.linkActivated` and reissue the same URL via `controller.loadUrl` with the original headers preserved.
+The system SHALL cancel main-frame http(s) navigations whose `WKNavigationAction.navigationType` is `.linkActivated`, or whose `navigationType` is `.formSubmitted` with a bodyless request method (`GET`/`HEAD`), and reissue the same URL via `controller.loadUrl` with the original headers preserved.
 
 #### Scenario: User taps a link to a URL that matches an installed app's AASA
 
@@ -66,21 +68,30 @@ The system SHALL cancel main-frame http(s) navigations whose `WKNavigationAction
 **And** the page renders inside the webview
 **And** the native app does NOT open
 
+#### Scenario: GET redirect following a form POST is bypassed
+
+**Given** the device has the Google Maps app installed
+**And** the user accepts the cookie consent banner, which POSTs to `consent.google.com/save`
+**When** the server 302-redirects to `https://www.google.com/maps` and WKWebView fires `decidePolicyForNavigationAction` with `navigationType == .formSubmitted` and `request.method == "GET"`
+**Then** the navigation is cancelled and reissued via `controller.loadUrl`
+**And** the maps page renders inside the webview
+**And** the native Google Maps app does NOT open
+
 #### Scenario: Form POST is passed through unchanged
 
-**Given** the user submits a credentialed form (login, search, payment) via POST
-**When** WKWebView fires `decidePolicyForNavigationAction` with `navigationType == .formSubmitted`
+**Given** the user submits a credentialed form (login, payment) via POST
+**When** WKWebView fires `decidePolicyForNavigationAction` with `navigationType == .formSubmitted` and `request.method == "POST"`
 **Then** the bypass does NOT fire
 **And** the navigation is allowed through with the POST body intact
 **And** the server receives the POST and responds normally (e.g. LinkedIn's `/checkpoint/lg/login-submit` accepts the credentials instead of 404ing a GET)
 
-Rationale: `loadUrl` is a GET. Reissuing a `.formSubmitted` action would drop the POST body and break every credentialed form on the web. Form POSTs to AASA-matching endpoints are exceedingly rare in practice — apps publish AASA for content URLs (profile pages, map locations), not POST handlers — so passing them through trades a rare false-negative for a critical false-positive that broke logins on major sites.
+Rationale: `loadUrl` is a GET. Reissuing a body-carrying `.formSubmitted` action would drop the POST body and break every credentialed form on the web. The discriminator is the request method: a server redirect that follows a form POST is re-fetched as a bodyless GET (and still tagged `.formSubmitted`), so it is safe to reissue and is exactly the hop that escaped the original `.linkActivated`-only filter. A reported/known POST method is passed through; an unknown method is also passed through (conservative — we can't rule out a body).
 
 ---
 
 ### Requirement: IOS-UL-002 - Pass Through Programmatic Navigations
 
-The system SHALL NOT intercept navigations whose `navigationType` is anything other than `.linkActivated` (including `.formSubmitted`, `.other`, `.backForward`, `.reload`).
+The system SHALL NOT intercept navigations whose `navigationType` is `.other`, `.backForward`, or `.reload`, nor `.formSubmitted` navigations carrying a body (`POST`/`PUT`/`PATCH` or an unreported method).
 
 #### Scenario: Initial site load
 
@@ -207,9 +218,15 @@ The class is the entire URL-matching surface: no domain or path filter. The webv
 
 ```dart
 if (Platform.isIOS &&
-    isMainFrame &&
-    url.startsWith('http') &&
-    navigationAction.navigationType == inapp.NavigationType.LINK_ACTIVATED) {
+    IosUniversalLinkBypass.isEligibleNavigation(
+      isMainFrame: isMainFrame,
+      url: url,
+      isLinkActivated:
+          navigationAction.navigationType == inapp.NavigationType.LINK_ACTIVATED,
+      isFormSubmitted:
+          navigationAction.navigationType == inapp.NavigationType.FORM_SUBMITTED,
+      httpMethod: navigationAction.request.method,
+    )) {
   if (iosUlBypass.shouldCancelAndReissue(url)) {
     final originalUrl = navigationAction.request.url;
     final originalHeaders = navigationAction.request.headers;
@@ -224,7 +241,7 @@ if (Platform.isIOS &&
 return inapp.NavigationActionPolicy.ALLOW;
 ```
 
-`LINK_ACTIVATED` is the eligibility filter: iOS routes both `.linkActivated` and `.formSubmitted` through AASA, but reissuing `.formSubmitted` via `loadUrl` (a GET) would drop the POST body. The narrower filter accepts the rare false-negative (form POST whose response would have UL-matched) in exchange for not breaking every credentialed login form.
+iOS routes both `.linkActivated` and `.formSubmitted` through AASA. `.linkActivated` is always eligible. `.formSubmitted` is eligible only when `request.method` is `GET`/`HEAD`: that covers the server redirect that follows a form POST (re-fetched as a bodyless GET, still tagged `.formSubmitted`) — the hop that launched the native Maps app — without reissuing a real `POST` as a body-dropping GET and breaking credentialed login forms.
 
 ### Why the bypass runs after all other policy checks
 

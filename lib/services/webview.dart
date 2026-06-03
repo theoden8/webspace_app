@@ -2617,14 +2617,17 @@ class WebViewFactory {
         // reissued nav fires `shouldOverrideUrlLoading` again; the
         // per-URL memo passes that second pass through.
         //
-        // Scoped to LINK_ACTIVATED only — FORM_SUBMITTED is
-        // intentionally passed through. Reissuing a form submit via
-        // `loadUrl` would drop the POST body (loadUrl is GET), which
-        // breaks every credentialed form on the web (logins, search,
-        // payments). LinkedIn's `/checkpoint/lg/login-submit` was the
-        // canonical 404 case. Form POSTs to AASA-matching endpoints
-        // are exceedingly rare; apps publish AASA for content URLs
-        // (profile pages, map locations), not POST handlers.
+        // Scoped to LINK_ACTIVATED plus bodyless (GET/HEAD)
+        // FORM_SUBMITTED. A body-carrying form POST is passed through:
+        // reissuing it via `loadUrl` (a GET) would drop the POST body
+        // and break every credentialed form on the web (logins, search,
+        // payments) — LinkedIn's `/checkpoint/lg/login-submit` was the
+        // canonical 404 case. But WKWebView also tags the server
+        // redirect that *follows* a form POST as FORM_SUBMITTED, and
+        // that hop is re-fetched as a GET (302/303 → GET). That hop is
+        // exactly the one that lets Google Maps'
+        // `consent.google.com/save → maps.google.com` redirect escape
+        // into the native app, so a GET/HEAD FORM_SUBMITTED is eligible.
         //
         // Pure programmatic navigations (initial nav, server
         // redirects without a tap origin, pushState) carry no user
@@ -2636,6 +2639,9 @@ class WebViewFactory {
               url: url,
               isLinkActivated: navigationAction.navigationType ==
                   inapp.NavigationType.LINK_ACTIVATED,
+              isFormSubmitted: navigationAction.navigationType ==
+                  inapp.NavigationType.FORM_SUBMITTED,
+              httpMethod: navigationAction.request.method,
             )) {
           if (iosUlBypass.shouldCancelAndReissue(url)) {
             LogService.instance.log(

@@ -114,6 +114,56 @@ void main() {
           isMainFrame: true,
           url: 'https://www.linkedin.com/checkpoint/lg/login-submit?_l=de_DE',
           isLinkActivated: false,
+          isFormSubmitted: true,
+          httpMethod: 'POST',
+        ),
+        isFalse,
+      );
+    });
+
+    test('GET redirect following a form POST IS eligible', () {
+      // The user-reported Google Maps case: tapping "accept cookies" on
+      // consent.google.com POSTs to /save, which 302s to maps.google.com.
+      // WKWebView tags that redirect hop .formSubmitted, but it is
+      // re-fetched as a bodyless GET. Reissuing a GET via loadUrl is
+      // lossless and is what keeps the native Maps app from launching.
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: true,
+          url: 'https://maps.google.com/maps',
+          isLinkActivated: false,
+          isFormSubmitted: true,
+          httpMethod: 'GET',
+        ),
+        isTrue,
+      );
+    });
+
+    test('GET-method form submit (search box) IS eligible', () {
+      // A GET form (e.g. a search box) has its params in the query
+      // string, no body to drop, so reissuing via loadUrl is safe.
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: true,
+          url: 'https://maps.google.com/maps?q=cafe',
+          isLinkActivated: false,
+          isFormSubmitted: true,
+          httpMethod: 'get',
+        ),
+        isTrue,
+      );
+    });
+
+    test('form submit with unknown method is NOT eligible', () {
+      // Conservative default: if the platform doesn't report a method,
+      // we can't rule out a POST body, so pass through unchanged.
+      expect(
+        IosUniversalLinkBypass.isEligibleNavigation(
+          isMainFrame: true,
+          url: 'https://maps.google.com/maps',
+          isLinkActivated: false,
+          isFormSubmitted: true,
+          httpMethod: null,
         ),
         isFalse,
       );

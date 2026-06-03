@@ -17,12 +17,17 @@
 /// redirects without a tap origin, pushState) don't activate AASA
 /// in the first place and are passed through without interception.
 ///
-/// `.formSubmitted` is intentionally NOT bypassed. `loadUrl` is a
-/// GET, so reissuing a form submit drops the POST body, which
-/// breaks credentialed flows (login, search, payments). Form POSTs
-/// to AASA-matching endpoints are exceedingly rare; apps publish
-/// AASA for content URLs (profile pages, map locations), not POST
-/// handlers.
+/// A `.formSubmitted` action whose HTTP method carries a body (POST,
+/// PUT, PATCH) is NOT bypassed. `loadUrl` is a GET, so reissuing it
+/// drops the body and breaks credentialed flows (login, search,
+/// payments). But WKWebView also tags a *server redirect that
+/// follows* a form POST as `.formSubmitted`, and that hop is
+/// re-fetched as a bodyless GET (302/303 → GET). Those are eligible:
+/// reissuing a GET via `loadUrl` is lossless, and it is exactly the
+/// hop that lets Google Maps' `consent.google.com/save → maps.google.com`
+/// redirect escape into the native app. So `.formSubmitted` is
+/// bypassed only when the request method is GET/HEAD; POST/PUT/PATCH
+/// pass through with the body intact.
 ///
 /// No domain/path list. iOS exposes no public API to ask "does this
 /// URL match an installed app's AASA?", so the bypass treats every
@@ -35,19 +40,33 @@ class IosUniversalLinkBypass {
   IosUniversalLinkBypass();
 
   /// Webview-side gate: is this navigation eligible for the AASA
-  /// bypass? Returns true only for main-frame http(s) navigations
-  /// rooted in a user tap on a link. Form POSTs are intentionally
-  /// excluded — see the class doc for why.
+  /// bypass? Returns true for main-frame http(s) navigations rooted
+  /// in a user tap on a link, and for form-submit navigations whose
+  /// HTTP method has no body (a server redirect following a form POST
+  /// is re-issued by WebKit as a GET but still tagged `.formSubmitted`).
+  /// Body-carrying form submits (POST/PUT/PATCH) are excluded — see
+  /// the class doc for why.
   ///
-  /// Caller passes `isLinkActivated = navigationAction.navigationType
-  /// == NavigationType.LINK_ACTIVATED` to keep this predicate free of
+  /// Caller passes `isLinkActivated` / `isFormSubmitted` derived from
+  /// `navigationAction.navigationType` and `httpMethod` from
+  /// `navigationAction.request.method` to keep this predicate free of
   /// flutter_inappwebview imports (and unit-testable from pure Dart).
   static bool isEligibleNavigation({
     required bool isMainFrame,
     required String url,
     required bool isLinkActivated,
+    bool isFormSubmitted = false,
+    String? httpMethod,
   }) {
-    return isMainFrame && url.startsWith('http') && isLinkActivated;
+    if (!isMainFrame || !url.startsWith('http')) return false;
+    if (isLinkActivated) return true;
+    if (isFormSubmitted) {
+      // Only reissue when we positively know the method is bodyless.
+      // Unknown method → pass through (preserve a possible POST body).
+      final m = httpMethod?.toUpperCase();
+      return m == 'GET' || m == 'HEAD';
+    }
+    return false;
   }
 
   /// Per-WebView memo: URL → timestamp of the cancel-and-reissue.
