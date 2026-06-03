@@ -1282,14 +1282,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Umbrella per-site Enhanced Tracking Protection. When on, '
                       'forces ClearURLs, DNS Blocklist, and Content Blocker to be '
                       'active for this site, AND injects an anti-fingerprinting '
-                      'shim that randomizes Canvas, WebGL, audio, font metrics, '
+                      'shim that randomizes Canvas, audio, font metrics, '
                       'screen dimensions, hardware concurrency, plugins, battery, '
                       'speech voices, high-resolution timers, and bounding-box '
                       'measurements. The fingerprint stays stable per site across '
                       'launches but differs between sites and between users. '
                       'When Incognito is also enabled for this site, the '
                       'fingerprint is rerolled on every app launch so the '
-                      'site cannot re-identify you across cold restarts.',
+                      'site cannot re-identify you across cold restarts. '
+                      'WebGL is disabled entirely while this is on; turn it off '
+                      'for sites that need WebGL (maps, 3D viewers).',
                 ),
               ],
             ),

@@ -1433,22 +1433,27 @@ class WebViewFactory {
 
     final userScripts = <inapp.UserScript>[];
 
-    // WebGL kill-switch (Android). LinkedIn's `protechts.net`
-    // fingerprint script (and other sites) try to create a WebGL
-    // context on every page; on this device's WebView build that
-    // walks a chromium code path with a dangling-raw_ptr regression
-    // and SIGTRAPs the renderer at `partition_alloc_support.cc:770`.
-    // `hardwareAcceleration: false` does NOT prevent this — chromium
-    // still walks the WebGL blocklist code path even with software
-    // compositing — and there's no `disableWebGL` flag in
-    // InAppWebViewSettings. The only mechanism that actually works
-    // is shimming the JS API so getContext() returns null for WebGL
-    // types, which means JS never asks for the context and chromium
-    // never enters the blocklist cleanup path.
+    // WebGL kill-switch, folded under tracking protection. Stripping the
+    // entire WebGL surface is the strongest answer to WebGL
+    // fingerprinting, so it rides the per-site tracking protection
+    // toggle on every platform: ETP-on sites get no WebGL at all (the
+    // anti-fingerprinting shim's vendor/renderer masking is moot once
+    // the constructors are gone), while turning tracking protection off
+    // for a site restores WebGL2 for legitimate uses like maps and 3D
+    // viewers (issue #391, gpx.studio).
     //
-    // iOS/macOS WebKit doesn't have the regression, so leave WebGL
-    // alone there.
-    if (Platform.isAndroid) {
+    // On Android it doubles as a crash workaround: LinkedIn's
+    // `protechts.net` fingerprint script (and others) try to create a
+    // WebGL context on every page, and on this device's WebView build
+    // that walks a chromium code path with a dangling-raw_ptr regression
+    // and SIGTRAPs the renderer at `partition_alloc_support.cc:770`.
+    // `hardwareAcceleration: false` does NOT prevent this (chromium
+    // still walks the WebGL blocklist code path even with software
+    // compositing), and there's no `disableWebGL` flag in
+    // InAppWebViewSettings. Shimming the JS API so getContext() returns
+    // null for WebGL types means JS never asks for the context and
+    // chromium never enters the blocklist cleanup path.
+    if (config.trackingProtectionEnabled) {
       userScripts.add(inapp.UserScript(
         groupName: 'webgl_kill_switch',
         source: '$_webGlKillSwitchScript\n;null;',
