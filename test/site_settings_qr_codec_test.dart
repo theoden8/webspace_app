@@ -18,6 +18,7 @@ void main() {
         thirdPartyCookiesEnabled: true,
         incognito: true,
         language: 'fr',
+        zoomPercent: 125,
         clearUrlEnabled: false,
         dnsBlockEnabled: false,
         contentBlockEnabled: false,
@@ -61,6 +62,7 @@ void main() {
           source.thirdPartyCookiesEnabled);
       expect(hydrated.incognito, source.incognito);
       expect(hydrated.language, source.language);
+      expect(hydrated.zoomPercent, source.zoomPercent);
       expect(hydrated.clearUrlEnabled, source.clearUrlEnabled);
       expect(hydrated.dnsBlockEnabled, source.dnsBlockEnabled);
       expect(hydrated.contentBlockEnabled, source.contentBlockEnabled);

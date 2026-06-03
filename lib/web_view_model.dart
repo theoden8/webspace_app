@@ -24,6 +24,15 @@ import 'package:webspace/utils/url_utils.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
+/// Per-site page-zoom bounds (percent). Mirrors the range desktop browsers
+/// expose; 100 is unscaled.
+const int kMinZoomPercent = 30;
+const int kMaxZoomPercent = 300;
+const int kDefaultZoomPercent = 100;
+
+int clampZoomPercent(int value) =>
+    value.clamp(kMinZoomPercent, kMaxZoomPercent);
+
 class ConsoleLogEntry {
   final DateTime timestamp;
   final String message;
@@ -288,6 +297,11 @@ class WebViewModel {
   /// by [incognito], which adds the cookie/storage wipe on top.
   bool alwaysOpenHome;
   String? language; // Language code (e.g., 'en', 'es'), null = system default
+  /// Browser-style page zoom for this site, as a percent (100 = unscaled).
+  /// Scales the whole page (text and images) via CSS `zoom`, independent of
+  /// the OS accessibility font scale that [WebViewController.setTextZoom]
+  /// tracks. Clamped to [kMinZoomPercent]..[kMaxZoomPercent].
+  int zoomPercent;
   bool clearUrlEnabled; // Strip tracking parameters from URLs via ClearURLs
   bool dnsBlockEnabled; // Block navigation to domains on Hagezi DNS blocklist
   bool contentBlockEnabled; // Block ads/trackers via ABP filter list rules
@@ -454,6 +468,7 @@ class WebViewModel {
     this.incognito = false,
     this.alwaysOpenHome = false,
     this.language,
+    this.zoomPercent = kDefaultZoomPercent,
     this.clearUrlEnabled = true,
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
@@ -633,7 +648,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -705,6 +720,7 @@ class WebViewModel {
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
+          zoomPercent: zoomPercent,
           // Umbrella `trackingProtectionEnabled`: when on, the four
           // tracker-protection subordinates behave as ON regardless of
           // their per-site stored value. The stored values are still
@@ -825,7 +841,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                 return false;
             }
           },
@@ -907,7 +923,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                   }
                   return;
                 case NavigationDecision.allow:
@@ -1072,7 +1088,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -1447,6 +1463,7 @@ class WebViewModel {
         'incognito': incognito,
         'alwaysOpenHome': alwaysOpenHome,
         'language': language,
+        if (zoomPercent != kDefaultZoomPercent) 'zoomPercent': zoomPercent,
         'clearUrlEnabled': clearUrlEnabled,
         'dnsBlockEnabled': dnsBlockEnabled,
         'contentBlockEnabled': contentBlockEnabled,
@@ -1508,6 +1525,8 @@ class WebViewModel {
       incognito: isIncognito,
       alwaysOpenHome: isAlwaysOpenHome,
       language: json['language'],
+      zoomPercent: clampZoomPercent(
+          (json['zoomPercent'] as num?)?.toInt() ?? kDefaultZoomPercent),
       clearUrlEnabled: json['clearUrlEnabled'] ?? true,
       dnsBlockEnabled: json['dnsBlockEnabled'] ?? true,
       contentBlockEnabled: json['contentBlockEnabled'] ?? true,

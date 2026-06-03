@@ -36,6 +36,7 @@ class SiteSettingsQrCodec {
     'incognito',
     'alwaysOpenHome',
     'language',
+    'zoomPercent',
     'clearUrlEnabled',
     'dnsBlockEnabled',
     'contentBlockEnabled',
