@@ -5844,6 +5844,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     final wasCurrentIndex = _currentIndex == index;
     final deletedModel = _webViewModels[index];
+    // Capture before mutation: HS-011 delete-time shortcut prompt (Android).
+    final hadPinnedShortcut =
+        Platform.isAndroid && _pinnedSiteIds.contains(deletedModel.siteId);
     deletedModel.disposeWebView();
     _loadedIndices.remove(index);
 
@@ -5920,8 +5923,91 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // platforms.
     unawaited(_updateBackgroundRefreshSchedule());
 
+    if (hadPinnedShortcut) {
+      await _handleDeletedSiteShortcut(deletedSiteId);
+    }
+
     if (!mounted) return;
     Navigator.pop(context);
+  }
+
+  /// HS-011: the deleted site had a pinned home shortcut. Ask what to do with
+  /// the now-orphaned launcher tile (Android can't remove it for the user):
+  /// keep it (a tap re-routes via the ledger — open a domain match or offer to
+  /// create), point it at another site, or disable it.
+  Future<void> _handleDeletedSiteShortcut(String deletedSiteId) async {
+    if (!mounted) return;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Home screen shortcut'),
+        content: const Text(
+          'This site had a home screen shortcut. By default, tapping it lets '
+          'you reopen a matching site or create a new one.\n\n'
+          'You can instead point it at another site, or disable it. (Android '
+          "can't delete a pinned shortcut for you — disabling greys it out "
+          'until you remove it from the home screen.)',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'keep'),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'reassign'),
+            child: const Text('Reassign'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'disable'),
+            child: const Text('Disable'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || choice == null || choice == 'keep') return;
+
+    if (choice == 'disable') {
+      await ShortcutService.disableShortcut(deletedSiteId);
+      _shortcutSiteRemap.remove(deletedSiteId);
+      _shortcutUrlLedger.remove(deletedSiteId);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
+      await prefs.setString(
+          _kShortcutUrlLedgerKey, jsonEncode(_shortcutUrlLedger));
+      if (!mounted) return;
+      setState(() {
+        _pinnedSiteIds = {..._pinnedSiteIds}..remove(deletedSiteId);
+      });
+      return;
+    }
+
+    // 'reassign': point the tile at an existing site via the rebind map.
+    final targetSiteId = await _pickSiteForShortcut();
+    if (targetSiteId == null || !mounted) return;
+    await _rememberShortcutRemap(deletedSiteId, targetSiteId);
+  }
+
+  /// Pick an existing (non-archive) site to reassign an orphaned shortcut to.
+  /// Returns the chosen siteId, or null if dismissed / nothing to pick.
+  Future<String?> _pickSiteForShortcut() async {
+    final candidates = [
+      for (final m in _webViewModels)
+        if (!m.isArchiveTier) m,
+    ];
+    if (candidates.isEmpty || !mounted) return null;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Point shortcut at'),
+        children: [
+          for (final m in candidates)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, m.siteId),
+              child: Text(m.getDisplayName()),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSiteGridTile(BuildContext context, int index, int listIndex) {

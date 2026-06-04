@@ -102,6 +102,21 @@ class MainActivity: FlutterActivity() {
                     }
                     result.success(true)
                 }
+                "disableShortcut" -> {
+                    // Explicit user opt-in (HS-011): the app can't remove a
+                    // pinned tile, but it can disable it — greyed out, launcher
+                    // shows "shortcut isn't available" on tap until the user
+                    // drags it off the home screen.
+                    val siteId = call.argument<String>("siteId")
+                    if (siteId != null) {
+                        ShortcutManagerCompat.disableShortcuts(
+                            this,
+                            listOf("site_$siteId"),
+                            "Site has been removed"
+                        )
+                    }
+                    result.success(true)
+                }
                 "getLaunchSiteId" -> {
                     val siteId = intent?.getStringExtra("siteId")
                     // Drain the extra after reading so it fires once per tap.

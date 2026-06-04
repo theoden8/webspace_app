@@ -103,6 +103,21 @@ class ShortcutService {
     }
   }
 
+  /// Disable a pinned shortcut for a deleted site (Android only). Android has
+  /// no API to remove a pinned tile, so this greys it out and makes the
+  /// launcher show "shortcut isn't available" on tap until the user drags it
+  /// off the home screen. Used only when the user explicitly opts to kill a
+  /// deleted site's shortcut (HS-011); the default leaves the tile tappable so
+  /// it can re-route via the url ledger.
+  static Future<void> disableShortcut(String siteId) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('disableShortcut', {'siteId': siteId});
+    } on PlatformException {
+      // Ignore — shortcut may not exist.
+    }
+  }
+
   /// Push the user's current site list to the iOS App Intents picker
   /// (HS-007). Writes `[{id, name}]` into the shared App Group UserDefaults
   /// so `SiteEntityQuery` returns real sites. No-op on non-iOS platforms.

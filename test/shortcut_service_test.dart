@@ -105,6 +105,13 @@ void main() {
         expect(calls, isEmpty);
       }
     });
+
+    test('disableShortcut is a no-op off Android', () async {
+      await ShortcutService.disableShortcut('a');
+      if (!Platform.isAndroid) {
+        expect(calls, isEmpty);
+      }
+    });
   });
 
   group('ShortcutService — channel error handling', () {

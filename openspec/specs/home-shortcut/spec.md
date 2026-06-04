@@ -345,6 +345,44 @@ The reconcile logic is a pure function exercised in [test/startup_restore_engine
 
 ---
 
+### Requirement: HS-013 - Delete-Time Shortcut Prompt (Android)
+
+When the user deletes a site that currently has a pinned home shortcut (`siteId` in the cached pinned set), the system SHALL prompt for the fate of the now-orphaned launcher tile, since Android cannot remove a pinned tile programmatically. The prompt offers three choices:
+
+- **Keep** — leave the tile enabled; a tap re-routes via HS-011 (open a domain match or offer to create). This is also the outcome if the prompt is dismissed.
+- **Reassign** — pick another existing site; the system records a rebind (`deletedSiteId -> chosen siteId`) so a tap opens the chosen site directly (HS-011 step 2).
+- **Disable** — disable the pinned shortcut (it greys out and the launcher rejects the tap until the user removes it from the home screen) and drop the deleted id's ledger and rebind entries.
+
+The prompt SHALL only appear on Android and only when the deleted site actually had a pinned shortcut; deleting a site with no shortcut is unaffected.
+
+#### Scenario: Deleting a shortcutted site offers keep / reassign / disable
+
+**Given** the user deletes a site that has a pinned home shortcut
+**When** the deletion completes
+**Then** the system prompts with Keep, Reassign, and Disable
+
+#### Scenario: Reassign points the tile at another site
+
+**Given** the delete-time prompt is shown
+**When** the user chooses Reassign and picks another site
+**Then** a rebind from the deleted siteId to the chosen site is remembered
+**And** a later tap of the tile opens the chosen site with no prompt
+
+#### Scenario: Disable greys out the tile
+
+**Given** the delete-time prompt is shown
+**When** the user chooses Disable
+**Then** the pinned shortcut is disabled
+**And** the deleted id's ledger and rebind entries are dropped
+
+#### Scenario: Deleting a site with no shortcut shows no prompt
+
+**Given** the user deletes a site that has no pinned shortcut
+**When** the deletion completes
+**Then** no shortcut prompt is shown
+
+---
+
 ### Requirement: HS-006 - Shortcut Launch Resets To Home URL
 
 A pinned shortcut SHALL launch the targeted site at its `initUrl`, not at the last persisted `currentUrl`. The shortcut represents the user's stated entry point for that site (the URL they pinned), not the URL the previous session happened to drift to. Without this, location/tracking/state parameters that accumulate during a session resurface every time the shortcut is tapped — particularly visible on map and search sites that encode coordinates or query state in the URL (issue #298).
