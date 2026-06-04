@@ -956,13 +956,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // every overflow-menu open.
   bool _iosAppIntentsSupported = false;
 
-  // HS-011 (Android only): a pinned shortcut's intent carries only the random
+  // HS-011 (Android): a pinned shortcut's intent carries only the random
   // siteId. Once the owning site is deleted (delete+recreate) that id is opaque,
   // so we keep a `siteId -> url` ledger — recorded for pinned sites, pruned to
-  // the pinned/current set — to drive the domain fallback. iOS needs none of
-  // this: a deleted SiteEntity resolves to nil, so a stale id never launches.
+  // the pinned/current set — to drive the domain fallback.
   static const _kShortcutUrlLedgerKey = 'shortcutUrlLedger';
   Map<String, String> _shortcutUrlLedger = {};
+
+  // HS-011 (iOS): iOS can't enumerate home-screen tiles, so the Android ledger
+  // approach can't GC. Instead we keep a bounded tombstone list of deleted
+  // `{siteId, label, url}` and sync it to the App Group: `entities(for:)`
+  // resolves a deleted-site Shortcut from live ∪ tombstones (so it still
+  // launches and routes by domain), while the picker stays live-only (HS-009).
+  static const _kShortcutTombstonesKey = 'shortcutTombstones';
+  List<Map<String, String>> _shortcutTombstones = [];
 
   // When the user confirms a rebind, the choice is remembered here (stale
   // siteId -> live siteId) and persisted so later taps of the same shortcut
@@ -1509,11 +1516,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _handleShortcutIntent() async {
-    final siteId = await ShortcutService.getLaunchSiteId();
-    if (!mounted || siteId == null) return;
+    final launch = await ShortcutService.getLaunch();
+    if (!mounted || launch == null) return;
     final resolution = StartupRestoreEngine.resolveLaunch(
-      shortcutSiteId: siteId,
-      shortcutUrl: _shortcutUrlLedger[siteId],
+      shortcutSiteId: launch.siteId,
+      // iOS carries the url in the launch payload; Android pairs the id with
+      // its url ledger.
+      shortcutUrl: launch.url ?? _shortcutUrlLedger[launch.siteId],
       models: _webViewModels,
       rememberedRemap: _shortcutSiteRemap,
     );
@@ -1636,6 +1645,43 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   void _loadShortcutRemap(SharedPreferences prefs) {
     _shortcutSiteRemap = _decodeStringMap(prefs.getString(_kShortcutRemapKey));
     _shortcutUrlLedger = _decodeStringMap(prefs.getString(_kShortcutUrlLedgerKey));
+    _shortcutTombstones = _decodeTombstones(prefs.getString(_kShortcutTombstonesKey));
+  }
+
+  List<Map<String, String>> _decodeTombstones(String? raw) {
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return [
+          for (final e in decoded)
+            if (e is Map)
+              {
+                for (final kv in e.entries) kv.key.toString(): kv.value.toString(),
+              },
+        ];
+      }
+    } catch (_) {
+      // Corrupt entry — start fresh.
+    }
+    return [];
+  }
+
+  /// HS-011 (iOS): tombstone a deleted site so a Shortcut tile bound to it
+  /// still resolves and routes by domain. Persists and re-syncs the App Group.
+  Future<void> _recordShortcutTombstone(
+    String siteId,
+    String label,
+    String url,
+  ) async {
+    _shortcutTombstones = ShortcutTombstones.add(
+      tombstones: _shortcutTombstones,
+      entry: {'siteId': siteId, 'label': label, 'url': url},
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        _kShortcutTombstonesKey, jsonEncode(_shortcutTombstones));
+    _syncShortcutSites();
   }
 
   Map<String, String> _decodeStringMap(String? raw) {
@@ -2636,10 +2682,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           ShortcutSite(
             siteId: m.siteId,
             label: m.name,
+            url: m.initUrl,
             iconUrl: FaviconUrlCache.get(m.initUrl),
           ),
     ];
-    unawaited(ShortcutService.syncSites(sites));
+    // HS-011: a deleted-site Shortcut still resolves via these tombstones, so
+    // it launches and routes by domain instead of failing "no longer available".
+    final tombstones = [
+      for (final t in _shortcutTombstones)
+        ShortcutSite(
+          siteId: t['siteId'] ?? '',
+          label: t['label'] ?? '',
+          url: t['url'],
+        ),
+    ];
+    unawaited(ShortcutService.syncSites(sites, tombstones: tombstones));
   }
 
   Future<void> _saveCurrentIndex() async {
@@ -3655,11 +3712,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     // Always start at home screen on launch - only restore index if launched via shortcut
-    final shortcutSiteId = await ShortcutService.getLaunchSiteId();
+    final launch = await ShortcutService.getLaunch();
     final resolution = StartupRestoreEngine.resolveLaunch(
-      shortcutSiteId: shortcutSiteId,
-      shortcutUrl:
-          shortcutSiteId == null ? null : _shortcutUrlLedger[shortcutSiteId],
+      shortcutSiteId: launch?.siteId,
+      // iOS carries the url in the launch payload; Android pairs the id with
+      // its url ledger.
+      shortcutUrl: launch == null
+          ? null
+          : (launch.url ?? _shortcutUrlLedger[launch.siteId]),
       models: _webViewModels,
       rememberedRemap: _shortcutSiteRemap,
     );
@@ -5925,6 +5985,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     if (hadPinnedShortcut) {
       await _handleDeletedSiteShortcut(deletedSiteId);
+    }
+    // iOS can't tell whether a Shortcut tile exists, so tombstone every
+    // (non-archive) deletion: if a tile was pointing here it now resolves and
+    // routes by domain; the list is capped so this stays bounded (HS-011).
+    if (Platform.isIOS && !deletedModel.isArchiveTier) {
+      await _recordShortcutTombstone(
+          deletedSiteId, deletedModel.name, deletedModel.initUrl);
     }
 
     if (!mounted) return;

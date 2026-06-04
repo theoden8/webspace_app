@@ -146,3 +146,44 @@ class ShortcutUrlLedger {
     return next;
   }
 }
+
+/// iOS-only tombstone list backing HS-011 parity. iOS can't enumerate
+/// home-screen Shortcut tiles, so when a site is deleted we keep a small
+/// `{siteId, label, url}` record. `SiteEntityQuery.entities(for:)` resolves
+/// from live sites ∪ tombstones (so a tile bound to the deleted site still
+/// launches and routes by domain), while `suggestedEntities()` stays
+/// live-only (HS-009 — the picker doesn't show dead sites). Because a tile may
+/// outlive any number of deletes and iOS gives no pin introspection to GC
+/// against, the list is bounded by a cap (oldest evicted).
+class ShortcutTombstones {
+  /// Append [entry] (`{siteId, label, url}`), de-duped by siteId and moved to
+  /// the most-recent end, capping the list at [cap] (oldest dropped). Returns
+  /// the new list; the caller persists it.
+  static List<Map<String, String>> add({
+    required List<Map<String, String>> tombstones,
+    required Map<String, String> entry,
+    int cap = 64,
+  }) {
+    final id = entry['siteId'];
+    if (id == null || id.isEmpty) return tombstones;
+    final next = <Map<String, String>>[
+      for (final t in tombstones)
+        if (t['siteId'] != id) t,
+      entry,
+    ];
+    if (next.length > cap) return next.sublist(next.length - cap);
+    return next;
+  }
+
+  /// Drop tombstones whose siteId is now a live site (defensive: ids are
+  /// unique per create, so this only fires if a backup reintroduces one).
+  static List<Map<String, String>> pruneLive(
+    List<Map<String, String>> tombstones,
+    Set<String> liveSiteIds,
+  ) {
+    return [
+      for (final t in tombstones)
+        if (!liveSiteIds.contains(t['siteId'])) t,
+    ];
+  }
+}

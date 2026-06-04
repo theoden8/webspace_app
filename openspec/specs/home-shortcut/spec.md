@@ -208,8 +208,8 @@ The system SHALL keep the iOS App Intents site picker in sync with the user's ac
 
 **Given** a site is referenced by an existing user-created Shortcut
 **When** the user deletes the site in WebSpace
-**Then** the deleted site no longer appears in the App Intents picker
-**And** invoking the orphaned Shortcut performs no navigation (the entity resolves to nil)
+**Then** the deleted site no longer appears in the App Intents picker (`suggestedEntities` is live-only)
+**And** invoking the orphaned Shortcut still launches WebSpace and routes the id by domain via the tombstone list (HS-011 / HS-014), rather than failing to resolve
 
 #### Scenario: App Group unavailable
 
@@ -269,20 +269,23 @@ in any webspace containing the launched site.
 
 ---
 
-### Requirement: HS-011 - Domain Fallback For Orphaned Shortcuts (Android)
+### Requirement: HS-011 - Domain Fallback For Orphaned Shortcuts (Android + iOS)
 
-An Android pinned shortcut's launch intent carries only the random `siteId`. When that `siteId` no longer maps to any site — the user deleted the site and created a new one for the same address — the tap would otherwise fall back to the home screen. The system SHALL recover by routing the orphaned id through a persisted `siteId -> url` ledger and matching by base domain. Resolution runs in order:
+A home shortcut identifies its site by the random `siteId`. When that `siteId` no longer maps to any site — the user deleted the site and created a new one for the same address — the tap would otherwise fail (Android falls back to the home screen; iOS shows "no longer available"). The system SHALL recover by resolving the launch against the current site list with a base-domain fallback, in order:
 
 1. **Direct match** — the `siteId` maps to a current site. Open it (HS-002), no prompt.
 2. **Remembered rebind** — a prior user choice mapped this `siteId` to a live site. Open it, no prompt.
-3. **Domain match** — the ledger has a url for this `siteId` and a current site shares its base domain. The system SHALL prompt the user to open that site; on confirm it SHALL remember the rebind so later taps resolve via step 2.
-4. **Offer to create** — the ledger has a url but no current site matches. The system SHALL prompt the user to create a new site for that url; on confirm it SHALL create the site, open it, and remember the rebind.
+3. **Domain match** — a url is known for this `siteId` and a current site shares its base domain. The system SHALL prompt the user to open that site; on confirm it SHALL remember the rebind so later taps resolve via step 2.
+4. **Offer to create** — a url is known but no current site matches. The system SHALL prompt the user to create a new site for that url; on confirm it SHALL create the site, open it, and remember the rebind.
 
-With no ledger url for the id (e.g. a shortcut pinned before this feature whose site was deleted before any reconcile recorded its url), the system falls back to the home screen (legacy HS-002 behavior).
+With no url known for the id, the system falls back to the home screen (legacy HS-002 behavior).
 
-The ledger is **Android-only**. iOS needs no recovery: a Shortcuts.app tile binds to a `SiteEntity` whose query resolves a deleted site to nil, so `OpenSiteIntent.perform()` never runs and a stale id never reaches the app.
+The resolution engine (`StartupRestoreEngine.resolveLaunch`) is platform-agnostic; the two platforms differ only in **where the url comes from**:
 
-The ledger and the remembered-rebind map are machine state derived from shortcut activity: both are persisted in `SharedPreferences` (`shortcutUrlLedger`, `shortcutSiteRemap`), are NOT part of settings export/import, and are pruned to reachable entries (see HS-012). A rebind whose resolved target is later deleted is dropped at startup.
+- **Android** — the launch intent is siteId-only, so a persisted `siteId -> url` ledger supplies the url (recorded for pinned sites, pruned to the pinned/current set; see HS-012).
+- **iOS** — the launch can't be intercepted for a deleted entity unless the entity still resolves, so a deleted site is kept in a bounded **tombstone** list that `SiteEntityQuery.entities(for:)` resolves (while the picker stays live-only, HS-009). The resolved `SiteEntity` carries the url, which `OpenSiteIntent.perform()` writes into the launch payload (see HS-014).
+
+The ledger, tombstone list, and remembered-rebind map are machine state derived from shortcut activity: all are persisted in `SharedPreferences` (`shortcutUrlLedger`, `shortcutTombstones`, `shortcutSiteRemap`), are NOT part of settings export/import, and are bounded/pruned (HS-012, HS-014). A rebind whose resolved target is later deleted is dropped at startup.
 
 #### Scenario: Pinned site deleted and recreated under a new id
 
@@ -383,6 +386,37 @@ The prompt SHALL only appear on Android and only when the deleted site actually 
 
 ---
 
+### Requirement: HS-014 - Shortcut Tombstones (iOS)
+
+iOS cannot enumerate or disable home-screen Shortcut tiles, so to give HS-011 parity the system SHALL keep a bounded tombstone list of deleted sites and sync it to the App Group alongside the live site list. The system SHALL:
+
+- on deletion of any non-archive site, append `{siteId, label, url}` to the tombstone list (deduped by siteId, capped — oldest evicted) and re-sync;
+- write tombstones under a key (`shortcut_tombstones`) distinct from the live list, so `SiteEntityQuery.entities(for:)` resolves a bound parameter from **live ∪ tombstones** while `suggestedEntities()` (the Shortcuts.app picker) returns **live only** (HS-009);
+- have `OpenSiteIntent.perform()` write the resolved entity's url to the App Group (`pending_shortcut_url`) so the Dart side can route by domain.
+
+Because iOS gives no way to know whether a tile actually exists, the system tombstones every qualifying deletion rather than only shortcutted ones; the cap bounds growth. Archive-tier sites are never tombstoned (ARCH-006).
+
+#### Scenario: Deleted-site Shortcut still launches and routes
+
+**Given** the user added an iOS home Shortcut for a site, then deleted that site
+**When** the user taps the Shortcut
+**Then** the bound `SiteEntity` resolves from the tombstone list (it is NOT in the picker)
+**And** WebSpace launches and routes the orphaned id by domain per HS-011 (open a match or offer to create)
+
+#### Scenario: Tombstoned site stays out of the picker
+
+**Given** a site has been deleted and tombstoned
+**When** the user opens the "Open Site" action in Shortcuts.app
+**Then** the deleted site does NOT appear in the site picker (HS-009)
+
+#### Scenario: Tombstone list is bounded
+
+**Given** the user deletes more sites than the tombstone cap
+**When** each deletion is recorded
+**Then** the oldest tombstones are evicted so the list never exceeds the cap
+
+---
+
 ### Requirement: HS-006 - Shortcut Launch Resets To Home URL
 
 A pinned shortcut SHALL launch the targeted site at its `initUrl`, not at the last persisted `currentUrl`. The shortcut represents the user's stated entry point for that site (the URL they pinned), not the URL the previous session happened to drift to. Without this, location/tracking/state parameters that accumulate during a session resurface every time the shortcut is tapped — particularly visible on map and search sites that encode coordinates or query state in the URL (issue #298).
@@ -426,18 +460,19 @@ Both Android and iOS share the channel `MethodChannel('org.codeberg.theoden8.web
 Methods:
 - `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **iOS 16+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first).
 - `removeShortcut(siteId)` — Android: removes any dynamic shortcut copy but leaves the pinned launcher tile ENABLED, so an HS-011 tap on the now-orphaned shortcut still launches the app and re-routes via the ledger. (It MUST NOT call `disableShortcuts`, which makes the launcher reject the tap with "shortcut isn't available".) iOS: no-op (the App Intents site list is recomputed from `_webViewModels` on every save via HS-009).
-- `getLaunchSiteId()` — **Android**: returns the `siteId` from the launch intent extra, then drains it (`intent.removeExtra("siteId")`) so it fires once per tap. **iOS**: drains the `pending_shortcut_site_id` key from App Group UserDefaults (written by `OpenSiteIntent.perform()`). Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. For HS-011 the Android caller pairs the returned `siteId` with its `shortcutUrlLedger` url before resolving.
+- `getLaunchSiteId()` — **Android**: returns the bare `siteId` string from the launch intent extra, then drains it (`intent.removeExtra("siteId")`) so it fires once per tap. **iOS**: drains `pending_shortcut_site_id` + `pending_shortcut_url` from App Group UserDefaults (written by `OpenSiteIntent.perform()`) and returns a `{siteId, url}` map. Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. The Dart `ShortcutService.getLaunch()` tolerates both shapes (`ShortcutLaunch`); for HS-011 the caller uses `launch.url ?? shortcutUrlLedger[siteId]` (iOS carries the url, Android supplies it from the ledger).
 - `getPinnedSiteIds()` — Android: returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix. iOS: always returns an empty list (no public API for pin-state introspection).
-- `syncSites({sites: [{siteId, label, iconUrl?}]})` — **iOS only**: writes `[{id, name}]` to App Group UserDefaults under `shortcut_sites` and calls `WebSpaceShortcuts.updateAppShortcutParameters()` to refresh the Shortcuts.app picker. No-op on Android.
+- `disableShortcut(siteId)` — **Android only** (HS-013): `ShortcutManagerCompat.disableShortcuts` greys out a pinned tile when the user opts to kill a deleted site's shortcut. No-op elsewhere.
+- `syncSites({sites: [{siteId, label, url?, iconUrl?}], tombstones: [{siteId, label, url?}]})` — **iOS only**: writes the live `sites` to `shortcut_sites` and the deleted-site `tombstones` to `shortcut_tombstones` in App Group UserDefaults (HS-014), then calls `WebSpaceShortcuts.updateAppShortcutParameters()` to refresh the picker. No-op on Android.
 - `isAppIntentsSupported()` — **iOS**: true if `#available(iOS 16, *)`. Other platforms: false.
 
 ### iOS App Intents
 
 `ios/Runner/WebSpaceAppIntents.swift` defines (all `@available(iOS 16, *)`):
 
-- `SiteEntity: AppEntity` — one synced site with `id: String` (siteId) and `name: String`. `displayRepresentation` MUST use `DisplayRepresentation(title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name)))`. The static `"%@"` key is stable for the compile-time App Intents metadata extractor while the runtime `defaultValue` still resolves to each site's name. Two earlier forms both collapse the materialized parameterized App Shortcuts (one per entity) down to a single visible entry in Shortcuts.app: `DisplayRepresentation(title: "\(name)")` (interpolation renders the literal `%@`), and `DisplayRepresentation(stringLiteral: name)` (resolves in the live picker but not in the materialized tiles, since a runtime string can't be a compile-time title key — the surviving tile also keeps a stale bound target).
-- `SiteEntityQuery: EntityQuery` — reads the synced site list from App Group UserDefaults under `shortcut_sites` so Shortcuts.app's parameter picker shows real WebSpace sites.
-- `OpenSiteIntent: AppIntent, OpenIntent` — parameterized on `SiteEntity`. `openAppWhenRun = true` foregrounds WebSpace; `perform()` writes the chosen siteId to App Group UserDefaults under `pending_shortcut_site_id`.
+- `SiteEntity: AppEntity` — one synced site with `id: String` (siteId), `name: String`, and `url: String?` (so a tombstone-resolved deleted site can route by domain, HS-011/HS-014). `displayRepresentation` MUST use `DisplayRepresentation(title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name)))`. The static `"%@"` key is stable for the compile-time App Intents metadata extractor while the runtime `defaultValue` still resolves to each site's name. Two earlier forms both collapse the materialized parameterized App Shortcuts (one per entity) down to a single visible entry in Shortcuts.app: `DisplayRepresentation(title: "\(name)")` (interpolation renders the literal `%@`), and `DisplayRepresentation(stringLiteral: name)` (resolves in the live picker but not in the materialized tiles, since a runtime string can't be a compile-time title key — the surviving tile also keeps a stale bound target).
+- `SiteEntityQuery: EntityQuery` — `suggestedEntities()` reads `shortcut_sites` (live only) so the picker shows real WebSpace sites; `entities(for:)` resolves from `shortcut_sites` ∪ `shortcut_tombstones` so a tile bound to a deleted site still resolves and launches (HS-014).
+- `OpenSiteIntent: AppIntent, OpenIntent` — parameterized on `SiteEntity`. `openAppWhenRun = true` foregrounds WebSpace; `perform()` writes the chosen siteId to `pending_shortcut_site_id` and its url to `pending_shortcut_url` in App Group UserDefaults.
 - `WebSpaceShortcuts: AppShortcutsProvider` — declares the discoverable "Open Site" App Shortcut with phrase template `"Open \(\.$target) in WebSpace"`.
 
 The Swift method-channel handler lives in `ios/Runner/ShortcutsPlugin.swift` and is registered alongside the other plugins in `AppDelegate.application(_:didFinishLaunchingWithOptions:)`.

@@ -3,25 +3,36 @@ import Foundation
 #if canImport(AppIntents)
 import AppIntents
 
-/// Key for the JSON-encoded `[{id, name}]` site list in the shared App Group
-/// UserDefaults. Written by Dart via `ShortcutsPlugin.syncSites`; read by
-/// `SiteEntityQuery` when Shortcuts.app asks for available entities.
+/// Key for the JSON-encoded `[{id, name, url}]` live site list in the shared
+/// App Group UserDefaults. Written by Dart via `ShortcutsPlugin.syncSites`;
+/// read by `SiteEntityQuery` for the Shortcuts.app picker.
 let kShortcutSitesKey = "shortcut_sites"
+
+/// Key for the JSON-encoded `[{id, name, url}]` tombstone list — recently
+/// deleted sites. NOT shown in the picker (`suggestedEntities`), but resolved
+/// by `entities(for:)` so a Shortcut tile bound to a deleted site still runs
+/// and routes by domain on the Dart side (HS-011).
+let kShortcutTombstonesKey = "shortcut_tombstones"
 
 /// Key for the pending siteId that an `OpenSiteIntent` has just resolved.
 /// Drained by `ShortcutsPlugin.getLaunchSiteId` (and ultimately by the
 /// Dart-side `_handleShortcutIntent` / `_restoreAppState` paths).
 let kPendingShortcutSiteIdKey = "pending_shortcut_site_id"
 
+/// Key for the pending site url an `OpenSiteIntent` carries alongside the id,
+/// so a deleted-site tap can route by domain (HS-011). Drained with the id.
+let kPendingShortcutUrlKey = "pending_shortcut_url"
+
 let kShortcutAppGroupId = "group.org.codeberg.theoden8.webspace"
 
 /// One synced WebSpace site as it appears to App Intents. Decoded from the
-/// JSON the Dart side writes; only the fields the picker / OpenIntent need
-/// live here (`id`, `name`) so the on-disk shape stays small.
+/// JSON the Dart side writes. `url` lets a deleted-site Shortcut (resolved via
+/// the tombstone list) carry its address so the Dart side can route by domain.
 @available(iOS 16, *)
 struct SiteEntity: AppEntity {
   let id: String
   let name: String
+  let url: String?
 
   static var typeDisplayRepresentation: TypeDisplayRepresentation {
     TypeDisplayRepresentation(name: "Site")
@@ -55,19 +66,34 @@ struct SiteEntity: AppEntity {
 /// missing or no sites have been synced yet.
 @available(iOS 16, *)
 struct SiteEntityQuery: EntityQuery {
+  // Resolve a bound parameter from live sites AND tombstones, so a Shortcut
+  // tile pointing at a since-deleted site still resolves (its run then routes
+  // by domain on the Dart side) instead of failing with "no longer available".
   func entities(for identifiers: [SiteEntity.ID]) async throws -> [SiteEntity] {
-    let all = Self.loadAll()
+    let all = Self.loadSites() + Self.loadTombstones()
     let wanted = Set(identifiers)
-    return all.filter { wanted.contains($0.id) }
+    // De-dupe by id (a tombstone should never shadow a live site).
+    var seen = Set<String>()
+    return all.filter { wanted.contains($0.id) && seen.insert($0.id).inserted }
   }
 
+  // The picker only offers live sites — deleted sites must not reappear here
+  // (HS-009).
   func suggestedEntities() async throws -> [SiteEntity] {
-    Self.loadAll()
+    Self.loadSites()
   }
 
-  static func loadAll() -> [SiteEntity] {
+  static func loadSites() -> [SiteEntity] {
+    load(key: kShortcutSitesKey)
+  }
+
+  static func loadTombstones() -> [SiteEntity] {
+    load(key: kShortcutTombstonesKey)
+  }
+
+  static func load(key: String) -> [SiteEntity] {
     guard let defaults = UserDefaults(suiteName: kShortcutAppGroupId),
-          let data = defaults.data(forKey: kShortcutSitesKey) ?? defaults.string(forKey: kShortcutSitesKey)?.data(using: .utf8)
+          let data = defaults.data(forKey: key) ?? defaults.string(forKey: key)?.data(using: .utf8)
     else {
       return []
     }
@@ -78,7 +104,7 @@ struct SiteEntityQuery: EntityQuery {
       guard let id = dict["id"] as? String, let name = dict["name"] as? String else {
         return nil
       }
-      return SiteEntity(id: id, name: name)
+      return SiteEntity(id: id, name: name, url: dict["url"] as? String)
     }
   }
 }
@@ -105,6 +131,11 @@ struct OpenSiteIntent: AppIntent, OpenIntent {
   func perform() async throws -> some IntentResult {
     if let defaults = UserDefaults(suiteName: kShortcutAppGroupId) {
       defaults.set(target.id, forKey: kPendingShortcutSiteIdKey)
+      if let url = target.url, !url.isEmpty {
+        defaults.set(url, forKey: kPendingShortcutUrlKey)
+      } else {
+        defaults.removeObject(forKey: kPendingShortcutUrlKey)
+      }
     } else {
       NSLog("[WebSpace] OpenSiteIntent: App Group \(kShortcutAppGroupId) unavailable")
     }

@@ -216,16 +216,60 @@ void main() {
       expect(next, {'s1': 'https://a.com'});
     });
 
-    test('an orphan with no pinned tile is pruned (iOS getPinnedSiteIds=[])', () {
-      // On iOS getPinnedSiteIds is always empty, so a deleted site's entry is
-      // pruned. That is fine: iOS resolves a stale SiteEntity to nil, so a gone
-      // id never reaches the app and never needs the ledger.
+    test('an orphan with no pinned tile is pruned (Android getPinnedSiteIds)', () {
       final next = ShortcutUrlLedger.reconcile(
         ledger: const {'gone': 'https://gone.com'},
         currentSiteUrls: const {},
         pinnedSiteIds: const {},
       );
       expect(next, isEmpty);
+    });
+  });
+
+  group('ShortcutTombstones.add (iOS HS-011)', () {
+    Map<String, String> tomb(String id, String url) =>
+        {'siteId': id, 'label': id, 'url': url};
+
+    test('appends a new tombstone', () {
+      final next = ShortcutTombstones.add(
+        tombstones: const [],
+        entry: tomb('s1', 'https://a.com'),
+      );
+      expect(next, [tomb('s1', 'https://a.com')]);
+    });
+
+    test('de-dupes by siteId and moves the entry to the most-recent end', () {
+      final next = ShortcutTombstones.add(
+        tombstones: [tomb('s1', 'https://old.com'), tomb('s2', 'https://b.com')],
+        entry: tomb('s1', 'https://new.com'),
+      );
+      expect(next, [tomb('s2', 'https://b.com'), tomb('s1', 'https://new.com')]);
+    });
+
+    test('caps the list, evicting the oldest', () {
+      final start = [for (var i = 0; i < 3; i++) tomb('s$i', 'https://$i.com')];
+      final next = ShortcutTombstones.add(
+        tombstones: start,
+        entry: tomb('s3', 'https://3.com'),
+        cap: 3,
+      );
+      expect(next.map((t) => t['siteId']), ['s1', 's2', 's3']);
+    });
+
+    test('ignores an entry with an empty siteId', () {
+      final next = ShortcutTombstones.add(
+        tombstones: [tomb('s1', 'https://a.com')],
+        entry: tomb('', 'https://x.com'),
+      );
+      expect(next, [tomb('s1', 'https://a.com')]);
+    });
+
+    test('pruneLive drops tombstones whose id is now live', () {
+      final next = ShortcutTombstones.pruneLive(
+        [tomb('s1', 'https://a.com'), tomb('s2', 'https://b.com')],
+        {'s1'},
+      );
+      expect(next, [tomb('s2', 'https://b.com')]);
     });
   });
 }

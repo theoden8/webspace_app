@@ -4,23 +4,39 @@ import 'package:flutter/services.dart';
 
 /// One site as it crosses the platform-channel boundary into the iOS App
 /// Intents picker (HS-007). `iconUrl` is reserved for future favicon syncing
-/// and is currently unused on the Swift side.
+/// and is currently unused on the Swift side. `url` lets the iOS `SiteEntity`
+/// carry the site address so an orphaned Shortcut (a tile bound to a deleted
+/// site, resolved via the tombstone list) can route by domain (HS-011).
 class ShortcutSite {
   final String siteId;
   final String label;
+  final String? url;
   final String? iconUrl;
 
   const ShortcutSite({
     required this.siteId,
     required this.label,
+    this.url,
     this.iconUrl,
   });
 
   Map<String, dynamic> toMap() => {
         'siteId': siteId,
         'label': label,
+        if (url != null) 'url': url,
         if (iconUrl != null) 'iconUrl': iconUrl,
       };
+}
+
+/// What a tapped home shortcut hands back: the `siteId` plus, on iOS, the
+/// site's `url` carried through the App Group (`OpenSiteIntent` writes it). On
+/// Android the launch intent is siteId-only and `url` is null — the caller
+/// supplies it from the Android-side url ledger instead.
+class ShortcutLaunch {
+  final String siteId;
+  final String? url;
+
+  const ShortcutLaunch({required this.siteId, this.url});
 }
 
 class ShortcutService {
@@ -74,14 +90,32 @@ class ShortcutService {
     }
   }
 
-  /// Get the siteId from the launch intent if the app was opened via a
-  /// pinned shortcut (Android) or a Shortcuts.app `OpenSiteIntent` (iOS 16+).
-  /// Drains the underlying pending state on read (consume-once), so callers
-  /// polling on every resume don't re-navigate on a plain background/return.
-  static Future<String?> getLaunchSiteId() async {
+  /// Get the launch target if the app was opened via a pinned shortcut
+  /// (Android) or a Shortcuts.app `OpenSiteIntent` (iOS 16+). Drains the
+  /// underlying pending state on read (consume-once), so callers polling on
+  /// every resume don't re-navigate on a plain background/return.
+  ///
+  /// Android returns a bare siteId string (`url` null — the caller pairs it
+  /// with the url ledger); iOS returns a `{siteId, url}` map. Both shapes are
+  /// tolerated so the two platforms can share one call site.
+  static Future<ShortcutLaunch?> getLaunch() async {
     if (!Platform.isAndroid && !Platform.isIOS) return null;
     try {
-      return await _channel.invokeMethod('getLaunchSiteId');
+      final res = await _channel.invokeMethod('getLaunchSiteId');
+      if (res is String) {
+        return res.isEmpty ? null : ShortcutLaunch(siteId: res);
+      }
+      if (res is Map) {
+        final id = res['siteId'];
+        if (id is String && id.isNotEmpty) {
+          final url = res['url'];
+          return ShortcutLaunch(
+            siteId: id,
+            url: url is String && url.isNotEmpty ? url : null,
+          );
+        }
+      }
+      return null;
     } on PlatformException {
       return null;
     }
@@ -118,14 +152,21 @@ class ShortcutService {
     }
   }
 
-  /// Push the user's current site list to the iOS App Intents picker
-  /// (HS-007). Writes `[{id, name}]` into the shared App Group UserDefaults
-  /// so `SiteEntityQuery` returns real sites. No-op on non-iOS platforms.
-  static Future<void> syncSites(List<ShortcutSite> sites) async {
+  /// Push the user's current site list to the iOS App Intents picker (HS-007).
+  /// Writes the live `sites` (shown in the Shortcuts.app picker) and the
+  /// `tombstones` (recently-deleted sites — NOT shown in the picker, but kept
+  /// resolvable so a Shortcut tile bound to a deleted site still launches and
+  /// routes via HS-011) into the shared App Group UserDefaults. No-op on
+  /// non-iOS platforms.
+  static Future<void> syncSites(
+    List<ShortcutSite> sites, {
+    List<ShortcutSite> tombstones = const [],
+  }) async {
     if (!Platform.isIOS) return;
     try {
       await _channel.invokeMethod('syncSites', {
         'sites': sites.map((s) => s.toMap()).toList(),
+        'tombstones': tombstones.map((s) => s.toMap()).toList(),
       });
     } on PlatformException {
       // best-effort; the picker just shows stale data until next call.

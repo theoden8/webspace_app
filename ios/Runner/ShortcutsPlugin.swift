@@ -24,7 +24,9 @@ class ShortcutsPlugin: NSObject {
   private static let channelName = "org.codeberg.theoden8.webspace/shortcuts"
   private static let appGroupId = "group.org.codeberg.theoden8.webspace"
   private static let sitesKey = "shortcut_sites"
+  private static let tombstonesKey = "shortcut_tombstones"
   private static let pendingKey = "pending_shortcut_site_id"
+  private static let pendingUrlKey = "pending_shortcut_url"
 
   init(messenger: FlutterBinaryMessenger) {
     self.channel = FlutterMethodChannel(
@@ -48,10 +50,11 @@ class ShortcutsPlugin: NSObject {
     case "syncSites":
       let args = call.arguments as? [String: Any]
       let sites = args?["sites"] as? [[String: Any]] ?? []
-      syncSites(sites)
+      let tombstones = args?["tombstones"] as? [[String: Any]] ?? []
+      syncSites(sites, tombstones: tombstones)
       result(true)
     case "getLaunchSiteId":
-      result(drainPendingSiteId())
+      result(drainPendingLaunch())
     case "pinShortcut":
       openShortcutsApp(result: result)
     case "removeShortcut":
@@ -65,20 +68,16 @@ class ShortcutsPlugin: NSObject {
     }
   }
 
-  private func syncSites(_ rawSites: [[String: Any]]) {
-    let entries: [[String: String]] = rawSites.compactMap { dict in
-      guard let id = dict["siteId"] as? String,
-            let name = dict["label"] as? String,
-            !id.isEmpty
-      else { return nil }
-      return ["id": id, "name": name]
-    }
+  private func syncSites(_ rawSites: [[String: Any]], tombstones rawTombstones: [[String: Any]]) {
     guard let defaults = UserDefaults(suiteName: Self.appGroupId) else {
       NSLog("[WebSpace] ShortcutsPlugin: App Group \(Self.appGroupId) unavailable")
       return
     }
-    if let json = try? JSONSerialization.data(withJSONObject: entries) {
+    if let json = try? JSONSerialization.data(withJSONObject: Self.normalize(rawSites)) {
       defaults.set(json, forKey: Self.sitesKey)
+    }
+    if let json = try? JSONSerialization.data(withJSONObject: Self.normalize(rawTombstones)) {
+      defaults.set(json, forKey: Self.tombstonesKey)
     }
     #if canImport(AppIntents)
     if #available(iOS 16, *) {
@@ -87,13 +86,31 @@ class ShortcutsPlugin: NSObject {
     #endif
   }
 
-  private func drainPendingSiteId() -> String? {
+  private static func normalize(_ raw: [[String: Any]]) -> [[String: String]] {
+    raw.compactMap { dict in
+      guard let id = dict["siteId"] as? String,
+            let name = dict["label"] as? String,
+            !id.isEmpty
+      else { return nil }
+      var entry = ["id": id, "name": name]
+      if let url = dict["url"] as? String, !url.isEmpty {
+        entry["url"] = url
+      }
+      return entry
+    }
+  }
+
+  private func drainPendingLaunch() -> [String: String]? {
     guard let defaults = UserDefaults(suiteName: Self.appGroupId),
           let siteId = defaults.string(forKey: Self.pendingKey),
           !siteId.isEmpty
     else { return nil }
+    let url = defaults.string(forKey: Self.pendingUrlKey)
     defaults.removeObject(forKey: Self.pendingKey)
-    return siteId
+    defaults.removeObject(forKey: Self.pendingUrlKey)
+    var payload = ["siteId": siteId]
+    if let url = url, !url.isEmpty { payload["url"] = url }
+    return payload
   }
 
   private func openShortcutsApp(result: @escaping FlutterResult) {
