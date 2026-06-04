@@ -311,6 +311,39 @@ probes and downloads.
 
 ---
 
+### Requirement: TLS-010 - Loopback sinkhole certs are cancelled without a prompt
+
+The app SHALL NOT prompt the user for a self-signed `CN=localhost`
+certificate served for a non-loopback host. A device-level DNS/ad
+blocker (VPN-based blocker, hosts-file sinkhole, Private DNS) may
+resolve a blocked tracker host to `127.0.0.1`, where a local responder
+answers with a self-signed `localhost` cert. Because every such host
+shares the same loopback cert, the post-failure trust callback would
+otherwise stack one "Untrusted certificate" dialog per blocked
+sub-resource on the page. The app SHALL `CANCEL` these loads silently
+and SHALL NOT pin them. A genuine `https://localhost` dev server is
+unaffected because the requested host then matches the cert identity.
+
+#### Scenario: Tracker sinkholed to a localhost responder
+
+**Given** a device DNS/ad blocker resolves `htlb.casalemedia.com` to a local responder presenting a self-signed cert whose `issuedTo.CName` / `issuedBy.CName` is `localhost`
+**And** no pin exists for `htlb.casalemedia.com:443`
+**When** the page loads it as a sub-resource and the OS rejects the cert
+**Then** `_handleServerTrust` detects the loopback sinkhole cert
+**And** returns `ServerTrustAuthResponseAction.CANCEL`
+**And** no dialog is shown
+**And** no pin is persisted
+**And** a `[TLS] localhost sinkhole cert for ... — cancelling silently` log line is emitted
+
+#### Scenario: Real local dev server still prompts
+
+**Given** the user navigates to `https://localhost:8443` which presents a self-signed `CN=localhost` cert
+**When** the OS rejects the chain and fires the trust callback
+**Then** the requested host matches the loopback identity, so the sinkhole guard does not apply
+**And** the normal Android/Linux prompt is shown (TLS-002)
+
+---
+
 ## Implementation Notes
 
 ### Why `null` and not `ServerTrustAuthResponse()` for the defer path
