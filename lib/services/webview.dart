@@ -3401,6 +3401,27 @@ class WebViewFactory {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
     }
+    // Loopback sinkhole: a device-level DNS/ad blocker (VPN-based
+    // blocker, hosts-file sinkhole, Private DNS, etc.) may resolve a
+    // tracker host to 127.0.0.1 where a local responder answers with a
+    // self-signed `CN=localhost` cert. The OS rejects it (hostname
+    // mismatch + untrusted self-signed) and the trust callback fires
+    // per sub-resource, which used to stack a separate "Untrusted
+    // certificate" prompt for every blocked ad domain on the page. No
+    // user would trust `localhost` for a remote host, so cancel
+    // silently — never prompt, never pin. The genuine local-dev case
+    // (browsing to `https://localhost`) is preserved because the
+    // requested host then matches the cert identity.
+    if (_isLoopbackSinkholeCert(host, cert)) {
+      LogService.instance.log(
+        'TLS',
+        'localhost sinkhole cert for $host:$port — cancelling silently '
+            '(no prompt; likely a device-level DNS/ad blocker)',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return inapp.ServerTrustAuthResponse(
+          action: inapp.ServerTrustAuthResponseAction.CANCEL);
+    }
     // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.
     if (prompt == null) {
@@ -3458,6 +3479,40 @@ class WebViewFactory {
 
   static String _certCacheKey(String host, int port) =>
       '${host.toLowerCase()}:$port';
+
+  static bool _isLoopbackHost(String host) {
+    final h = host.toLowerCase();
+    return h == 'localhost' || h == '127.0.0.1' || h == '::1' || h == '[::1]';
+  }
+
+  /// True when [cert] is a self-signed `CN=localhost` certificate served
+  /// for a non-loopback [host] — the signature of a device-level DNS/ad
+  /// sinkhole answering a blocked tracker on `127.0.0.1`. Such a cert is
+  /// never something the user means to trust for a remote host, so the
+  /// caller cancels the load without prompting. A real `https://localhost`
+  /// dev server is excluded because [host] then matches the cert identity.
+  static bool _isLoopbackSinkholeCert(String host, inapp.SslCertificate? cert) {
+    if (cert == null) return false;
+    return isLoopbackSinkholeCert(
+      host: host,
+      issuedToCName: cert.issuedTo?.CName,
+      issuedByCName: cert.issuedBy?.CName,
+    );
+  }
+
+  /// Pure classification behind [_isLoopbackSinkholeCert], split out so it
+  /// can be unit-tested without constructing a plugin `SslCertificate`.
+  @visibleForTesting
+  static bool isLoopbackSinkholeCert({
+    required String host,
+    String? issuedToCName,
+    String? issuedByCName,
+  }) {
+    if (_isLoopbackHost(host)) return false;
+    final issuedTo = issuedToCName?.trim().toLowerCase();
+    final issuedBy = issuedByCName?.trim().toLowerCase();
+    return issuedTo == 'localhost' || issuedBy == 'localhost';
+  }
 
   /// Whether [error] indicates the OS rejected the server certificate.
   /// Used by the iOS/macOS post-failure branch in `onReceivedError`.
