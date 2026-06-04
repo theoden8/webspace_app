@@ -51,6 +51,8 @@ class AppSettingsScreen extends StatefulWidget {
   final VoidCallback? onCloseAllArchives;
   final bool showTabStrip;
   final ValueChanged<bool> onShowTabStripChanged;
+  final bool tabStripInFullscreen;
+  final ValueChanged<bool> onTabStripInFullscreenChanged;
   final bool showStatsBanner;
   final ValueChanged<bool> onShowStatsBannerChanged;
   /// LIR-008: master "Handle shared links" switch + entry into the
@@ -83,6 +85,8 @@ class AppSettingsScreen extends StatefulWidget {
     this.onCloseAllArchives,
     required this.showTabStrip,
     required this.onShowTabStripChanged,
+    required this.tabStripInFullscreen,
+    required this.onTabStripInFullscreenChanged,
     required this.showStatsBanner,
     required this.onShowStatsBannerChanged,
     required this.linkHandlingEnabled,
@@ -101,6 +105,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     with SingleTickerProviderStateMixin {
   late AppThemeSettings _settings;
   late bool _showTabStrip;
+  late bool _tabStripInFullscreen;
   late bool _showStatsBanner;
   late TextEditingController _osmTileUrlController;
   bool _isDownloadingRules = false;
@@ -154,6 +159,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     super.initState();
     _settings = widget.currentSettings;
     _showTabStrip = widget.showTabStrip;
+    _tabStripInFullscreen = widget.tabStripInFullscreen;
     _showStatsBanner = widget.showStatsBanner;
     _osmTileUrlController = TextEditingController();
     _loadOsmTileUrl();
@@ -721,6 +727,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               });
               widget.onShowTabStripChanged(value);
             },
+          ),
+          SwitchListTile(
+            title: const Text('Keep Tab Strip in Full Screen'),
+            subtitle: const Text('Keep the tab bar visible in full screen while the top bar stays hidden'),
+            value: _tabStripInFullscreen,
+            onChanged: _showTabStrip
+                ? (value) {
+                    setState(() {
+                      _tabStripInFullscreen = value;
+                    });
+                    widget.onTabStripInFullscreenChanged(value);
+                  }
+                : null,
           ),
           SwitchListTile(
             title: const Text('Stats Bar'),

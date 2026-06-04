@@ -889,6 +889,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _maskBackground = false;
   bool _showUrlBar = false;
   bool _showTabStrip = false;
+  bool _tabStripInFullscreen = false;
   bool _linkHandlingEnabled = true;
   bool _showStatsBanner = true;
 
@@ -2459,6 +2460,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await prefs.setBool('showTabStrip', _showTabStrip);
   }
 
+  Future<void> _saveTabStripInFullscreen() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('tabStripInFullscreen', _tabStripInFullscreen);
+  }
+
   Future<void> _saveShowStatsBanner() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -3362,6 +3369,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
+      _tabStripInFullscreen = prefs.getBool('tabStripInFullscreen') ?? false;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
       widget.onThemeSettingsChanged(_themeSettings);
@@ -4198,6 +4206,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           backup.globalPrefs['showUrlBar'] as bool? ?? _showUrlBar;
       _showTabStrip =
           backup.globalPrefs['showTabStrip'] as bool? ?? _showTabStrip;
+      _tabStripInFullscreen =
+          backup.globalPrefs['tabStripInFullscreen'] as bool? ?? _tabStripInFullscreen;
       _showStatsBanner =
           backup.globalPrefs['showStatsBanner'] as bool? ?? _showStatsBanner;
 
@@ -4623,6 +4633,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       });
                       _saveShowTabStrip();
                     },
+                    tabStripInFullscreen: _tabStripInFullscreen,
+                    onTabStripInFullscreenChanged: (value) {
+                      setState(() {
+                        _tabStripInFullscreen = value;
+                      });
+                      _saveTabStripInFullscreen();
+                    },
                     showStatsBanner: _showStatsBanner,
                     onShowStatsBannerChanged: (value) {
                       setState(() {
@@ -4848,7 +4865,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// Build the tab strip shown in bottomNavigationBar.
   /// This stays at the screen bottom and doesn't need to be above the keyboard.
   Widget? _buildTabStrip() {
-    if (_isFullscreen) return null;
+    if (_isFullscreen && !_tabStripInFullscreen) return null;
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       return null;
     }
@@ -5959,7 +5976,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Input bar has its own SafeArea. Only apply body safe area when neither
     // is present (e.g. webspace list screen).
     final filteredIndices = _getFilteredSiteIndices();
-    final hasTabStrip = _currentIndex != null
+    // The tab strip is also rendered (in bottomNavigationBar) when kept in
+    // fullscreen, in which case it owns the bottom safe-area inset.
+    final hasTabStrip = (!_isFullscreen || _tabStripInFullscreen)
+        && _currentIndex != null
         && _currentIndex! < _webViewModels.length
         && _showTabStrip
         && filteredIndices.isNotEmpty;
@@ -5972,7 +5992,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // it stays clear of any bars that persist; when they are truly hidden the
       // padding is ~0 and the webview still fills the screen. github #385
       top: _isFullscreen,
-      bottom: _isFullscreen || (!hasTabStrip && inputBar == null),
+      bottom: !hasTabStrip && inputBar == null,
       // Use Stack + Offstage so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing

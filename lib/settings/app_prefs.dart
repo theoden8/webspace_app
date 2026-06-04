@@ -23,6 +23,9 @@ import 'package:webspace/settings/global_outbound_proxy.dart';
 final Map<String, Object> kExportedAppPrefs = <String, Object>{
   'showUrlBar': false,
   'showTabStrip': false,
+  // Keep the site tab strip visible in fullscreen (top bar still hidden).
+  // Only meaningful when showTabStrip is on.
+  'tabStripInFullscreen': false,
   'showStatsBanner': true,
   // Tile URL used by the optional location picker map. Only queried after
   // the user explicitly taps "Load map" on the picker — no requests happen
