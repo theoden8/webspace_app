@@ -876,6 +876,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _isBackHandling = false;
   bool _isFindVisible = false;
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
+  // Toggled by _nudgeSurfaceRepaint to apply a transient 1px inset that
+  // forces Android hybrid-composition platform views to recomposite after
+  // the activity is recreated (shortcut/resume). Always false in steady state.
+  bool _repaintNudge = false;
   /// When true, a full-screen opaque mask covers every webview so the
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
   /// content (ARCH-009). Set on `inactive`/`paused` when at least one
@@ -1320,13 +1324,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         setState(() => _maskBackground = false);
       }
       _startForegroundPollTimer();
-      // Await any in-flight pause before resuming to prevent ordering inversion
-      _resumeAfterLifecyclePause();
-      _handleShortcutIntent();
-      _handleShareIntent();
-      // Pinned shortcuts may have been added (via the launcher's pin dialog)
-      // or removed (by the user from the launcher) while we were backgrounded.
-      _refreshPinnedSiteIds();
+      // Resume + shortcut + share are sequenced in _onResumed: the
+      // app-lifecycle resume must finish before a shortcut intent switches
+      // sites, or the two race over _currentIndex and webview pause/resume.
+      unawaited(_onResumed());
       // Release the iOS grace-period background task. Foregrounded again,
       // so we don't need the extension; iOS auto-ends after the expiration
       // handler fires, but explicit end is cleaner.
@@ -1339,6 +1340,38 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
+  bool _isResuming = false;
+
+  /// Run the resume sequence in a fixed order. The app-lifecycle resume
+  /// (drains the in-flight `pauseForAppLifecycle`, resumes process-global JS
+  /// timers and the active site) MUST complete before a pinned-shortcut
+  /// intent is handled: both mutate `_currentIndex` and pause/resume
+  /// webviews, and the previous fire-and-forget pair let the shortcut's site
+  /// switch race the resume. Sequencing also lets a single surface repaint
+  /// run once, against the final visible site, instead of two `_repaintNudge`
+  /// loops interleaving. Re-entry guarded in case `resumed` fires twice.
+  Future<void> _onResumed() async {
+    if (_isResuming) return;
+    _isResuming = true;
+    try {
+      await _resumeAfterLifecyclePause();
+      if (!mounted) return;
+      await _handleShortcutIntent();
+      if (!mounted) return;
+      await _handleShareIntent();
+      if (!mounted) return;
+      // Pinned shortcuts may have been added (via the launcher's pin dialog)
+      // or removed (by the user from the launcher) while we were backgrounded.
+      _refreshPinnedSiteIds();
+      // One relayout against the now-final visible site, in case the activity
+      // was recreated and the platform-view surface came back blank. See
+      // PAUSE-015.
+      _nudgeSurfaceRepaint();
+    } finally {
+      _isResuming = false;
+    }
+  }
+
   Future<void> _resumeAfterLifecyclePause() async {
     if (_lifecyclePauseFuture != null) {
       await _lifecyclePauseFuture;
@@ -1348,26 +1381,78 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
         await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
       }
-      // Android-only: nudge the active WebView's renderer to issue a paint
-      // after the platform view's surface has been re-attached on activity
-      // restart. Without this nudge, the hybrid-composition surface can
-      // come back blank — the page is still alive (taps, scrolls, JS all
-      // work), but the user sees a black rectangle until something forces
-      // a layout pass. Reading `document.body.offsetHeight` is a no-op
-      // that triggers a synchronous layout, which schedules a paint.
-      // See issue #333. Fire-and-forget; failure is benign.
-      if (Platform.isAndroid) {
-        final ctrl = _webViewModels[_currentIndex!].controller;
-        if (ctrl != null) {
-          unawaited(ctrl.evaluateJavascript(
-              'void (document.body && document.body.offsetHeight);'));
-        }
-      }
+      unawaited(_probeRendererAndRecover(_webViewModels[_currentIndex!]));
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     }
+  }
+
+  /// Probe a just-resumed / just-activated webview's renderer and recreate it
+  /// if the renderer process is gone. Covers the two memory-reclaim outcomes
+  /// the user hits most when returning to a backgrounded site (typically via
+  /// a pinned shortcut, which can recreate the activity and re-attach every
+  /// platform-view surface):
+  ///
+  ///   - iOS: WKWebView's content process was jettisoned while this webview
+  ///     was offscreen. `onWebContentProcessDidTerminate` does not reliably
+  ///     fire for a webview that was not on screen at termination, so the
+  ///     event-driven recovery (PAUSE-013) never runs — the page comes back
+  ///     blank with no signal. `evaluateJavascript` against a dead content
+  ///     process throws, surfaced here as a null probe result.
+  ///   - Android: the renderer is alive but the hybrid-composition surface
+  ///     re-attached blank after an activity restart. Reading
+  ///     `document.body.offsetHeight` forces a synchronous layout that
+  ///     schedules the missing paint; the probe returns a number, so no
+  ///     recreate happens — the read alone fixes the blank surface.
+  ///
+  /// A live renderer returns a number (0 / -1 / positive); only null means
+  /// gone. Fire-and-forget; no-op when the model has no controller (a fresh
+  /// first-load whose controller hasn't been created yet).
+  Future<void> _probeRendererAndRecover(WebViewModel model) async {
+    final controller = model.controller;
+    if (controller == null) return;
+    final result = await controller
+        .evaluateJavascriptReturning('document.body ? document.body.offsetHeight : -1');
+    if (!mounted) return;
+    // identical() guard: a concurrent recreate may have already swapped the
+    // controller out from under us — don't null a fresh one.
+    if (rendererProbeIndicatesGone(result) && identical(model.controller, controller)) {
+      LogService.instance.log(
+        'WebView',
+        'Renderer probe failed for "${model.name}" (siteId: ${model.siteId}) — recreating',
+        level: LogLevel.warning,
+      );
+      model.handleRendererGone(didCrash: false);
+    }
+  }
+
+  /// Android only: after the activity is recreated (a pinned-shortcut tap, or
+  /// a resume that recreated the activity) the Flutter base surface and the
+  /// hybrid-composition webview SurfaceView can come back without a paint —
+  /// the page area and the strip behind the edge-to-edge status bar render
+  /// black even though the page is alive. A relayout fixes it: that is what a
+  /// device rotation / lock-unlock / tab switch does, all of which the user
+  /// confirmed recover the screen. A JS `offsetHeight` read does not, because
+  /// it relayouts web content, not the Android surface.
+  ///
+  /// Toggle a 1px body inset a few times over ~0.5s: each setState repaints
+  /// the Flutter surface (status-bar strip, chrome) and each size flip forces
+  /// the webview platform view to recomposite. Spread across several frames
+  /// because the new surface may not be attached on the first frame after
+  /// resume, which is why a single rebuild (e.g. the one in _setCurrentIndex)
+  /// is not enough on its own.
+  void _nudgeSurfaceRepaint() {
+    if (!Platform.isAndroid) return;
+    var ticks = 0;
+    void tick() {
+      if (!mounted || ticks >= 6) return;
+      ticks++;
+      setState(() => _repaintNudge = !_repaintNudge);
+      Future.delayed(const Duration(milliseconds: 100), tick);
+    }
+    tick();
   }
 
   Future<void> _handleShortcutIntent() async {
@@ -2806,6 +2891,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     // Resume the newly active webview
     await _webViewModels[index].resumeWebView();
+
+    // A site that sat offscreen while the OS reclaimed memory can come back
+    // with a dead renderer (iOS content-process jettison whose termination
+    // delegate never fired) or a blank surface (Android hybrid-composition).
+    // Probe and recover so a shortcut tap or tab switch doesn't land on a
+    // black/blank page. See PAUSE-013.
+    unawaited(_probeRendererAndRecover(target));
 
     // Defensive sweep: pause every other loaded webview so background
     // sites don't run animations / GPS listeners / non-throttled
@@ -5907,7 +5999,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 if (_loadedIndices.isNotEmpty)
                   Offstage(
                     offstage: _currentIndex == null || _currentIndex! >= _webViewModels.length,
-                    child: IndexedStack(
+                    // The 1px inset is toggled by _nudgeSurfaceRepaint after
+                    // the activity is recreated (shortcut/resume) to force the
+                    // hybrid-composition webview SurfaceView to recomposite —
+                    // otherwise it can come back black on Android. No-op
+                    // (zero inset) in steady state.
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: _repaintNudge ? 1.0 : 0.0),
+                      child: IndexedStack(
                       index: _currentIndex ?? 0,
                       children: _webViewModels.asMap().entries.map<Widget>((entry) {
                         final index = entry.key;
@@ -6009,6 +6108,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           ),
                         );
                       }).toList(),
+                      ),
                     ),
                   ),
                 // Fullscreen exit zone: touch target at the top edge with a

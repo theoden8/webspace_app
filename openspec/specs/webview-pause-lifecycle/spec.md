@@ -77,7 +77,7 @@ calls, so the active site is never left paused.
 
 ### Requirement: PAUSE-002 — Process-Global Pause Only at App Lifecycle
 
-The system SHALL pause both the active webview and process-global JS timers when the app goes to background, so every loaded webview's JS halts.
+The system SHALL pause both the active webview and process-global JS timers when the app goes to background, so every loaded webview's JS halts. The per-instance and process-global calls SHALL be bound to a single captured controller so a concurrent `disposeWebView()` cannot strand the global half.
 
 #### Scenario: App goes to background
 
@@ -91,24 +91,17 @@ The system SHALL pause both the active webview and process-global JS timers when
 
 **Given** the app was backgrounded via `pauseForAppLifecycle`
 **When** `AppLifecycleState.resumed` fires
-**Then** `_resumeAfterLifecyclePause()` awaits the pending pause Future to prevent ordering inversion
+**Then** `_onResumed` awaits `_resumeAfterLifecyclePause()` (which awaits the pending pause Future to prevent ordering inversion) before handling any shortcut/share intent
 **And** `resumeFromAppLifecycle()` is called on the active webview
 **And** the controller receives `resume()` followed by `resumeAllJsTimers()`
 
-#### Scenario: Android — paint nudge after activity restart
+#### Scenario: Concurrent dispose does not strand process-global timers
 
-**Given** the user backgrounds the app, switches to another app, then returns
-**And** the platform view's surface was torn down and recreated by the activity restart
-**When** `AppLifecycleState.resumed` fires and `_resumeAfterLifecyclePause()` runs
-**Then** after `resumeFromAppLifecycle()` resolves, the active webview receives a
-no-op `evaluateJavascript` (`void (document.body && document.body.offsetHeight);`)
-**Because** Android's hybrid-composition pipeline can leave the freshly re-attached
-surface blank until something forces a layout pass. Reading `offsetHeight`
-synchronously triggers layout, which schedules a paint, which fills the surface
-with the page's pixels. The page itself is never paused-stuck — taps and JS still
-work — but without the nudge the user sees a black rectangle. iOS/macOS use the
-WebKit content process model and don't exhibit this; the nudge is gated on
-`Platform.isAndroid`. Fire-and-forget; failure is benign.
+**Given** `pauseForAppLifecycle()` / `resumeFromAppLifecycle()` is mid-flight on the active webview
+**And** a concurrent path calls `disposeWebView()` on that model (which only nulls the Dart `webview`/`controller` references — the native webview stays alive until the next widget rebuild)
+**When** the dispose lands between the per-instance `pause()`/`resume()` and the process-global `pauseAllJsTimers()`/`resumeAllJsTimers()`
+**Then** the global call still runs against the captured-local controller rather than throwing on a re-read `controller!`
+**Because** skipping `resumeAllJsTimers()` would leave every webview's JS timers frozen process-wide with no other path re-issuing the call — the page would be up but dead. The Android surface repaint and renderer recovery live in PAUSE-015 and PAUSE-014 respectively.
 
 ---
 
@@ -441,6 +434,91 @@ The wrapper exposes a single `WebViewConfig.onRendererGone(bool didCrash)` callb
 **Then** `webview` and `controller` are cleared
 **And** no exception is thrown
 **Because** the null-aware `stateSetterF?.call()` makes the host hook optional. The next time the model is wired into a tree, the caller assigns `stateSetterF` and any subsequent rebuild reconstructs the WebView.
+
+---
+
+### Requirement: PAUSE-014 — Proactive Renderer Probe on Activation
+
+The system SHALL probe the renderer of a webview when it becomes active and recreate it if the renderer is gone. This is required because the event-driven recovery in PAUSE-013 does not reliably fire for a webview that was **offscreen** when its renderer died:
+
+- **iOS**: when WKWebView's web content process is jettisoned for a webview that is not in the visible view hierarchy, `onWebContentProcessDidTerminate` frequently does not fire. The webview then comes back blank with no event to drive recovery. This is the dominant render-death the user reports when returning to a backgrounded site via a pinned shortcut (the shortcut activates a site that was offscreen).
+- **Android**: the renderer can be alive but the hybrid-composition surface re-attaches blank after an activity restart, which emits no event at all.
+
+The host runs the probe `_probeRendererAndRecover(model)`:
+
+- After resuming the active site on app resume (`_resumeAfterLifecyclePause`).
+- After resuming the newly-activated site on every site switch (`_setCurrentIndex`), which is the path a pinned-shortcut tap funnels through.
+
+The probe evaluates `document.body ? document.body.offsetHeight : -1` via `evaluateJavascriptReturning`. A live renderer returns a number; a dead renderer (whose `evaluateJavascript` throws) is surfaced as a `null` result. `rendererProbeIndicatesGone(result)` returns true only for `null` — every numeric value (`0`, `-1`, positive height) is treated as alive, so a healthy or still-loading page is never recreated. When the probe indicates gone, the host calls `handleRendererGone(didCrash: false)`, joining the same destroy-and-rebuild path as PAUSE-013. The probe is fire-and-forget and a no-op when the model has no controller (a fresh first-load).
+
+On Android the probe doubles as the surface paint nudge: reading `offsetHeight` forces a synchronous layout that schedules the missing paint, so a blank-but-alive surface is fixed by the probe itself without a recreate.
+
+#### Scenario: iOS content process jettisoned while offscreen, recovered on shortcut tap
+
+**Given** site A is loaded but offscreen (the user was on a different site, or the app was backgrounded)
+**And** iOS jettisons site A's web content process to reclaim memory
+**And** `onWebContentProcessDidTerminate` does not fire because site A was not on screen
+**When** the user taps the pinned shortcut for site A, routing through `_setCurrentIndex`
+**Then** `_probeRendererAndRecover` evaluates the probe against the dead content process
+**And** `evaluateJavascriptReturning` returns null (the call threw on the dead process)
+**And** `rendererProbeIndicatesGone(null)` is true
+**And** `handleRendererGone(didCrash: false)` recreates the webview at `currentUrl`
+**And** the user sees the page reload instead of a blank screen
+
+#### Scenario: Live renderer is not recreated
+
+**Given** a webview whose renderer is alive (probe returns `0`, `-1`, or a positive height)
+**When** `_probeRendererAndRecover` runs on activation
+**Then** `rendererProbeIndicatesGone` returns false
+**And** `handleRendererGone` is not called
+**And** the existing webview, its JS heap, and its back/forward stack are preserved
+
+#### Scenario: Probe skips a fresh first-load
+
+**Given** a site being activated for the first time whose `controller` has not yet been created
+**When** `_probeRendererAndRecover` is invoked
+**Then** it returns immediately without evaluating any JS
+**Because** there is no renderer to probe yet; the about-to-be-built controller starts alive.
+
+---
+
+### Requirement: PAUSE-015 — Android Surface Repaint After Activity Restart
+
+On Android, the system SHALL force a relayout once the resume sequence (`_onResumed`) has settled the active site, to repaint a platform-view surface that re-attached blank. When the activity is recreated (e.g. a pinned-shortcut tap), the Flutter base surface and the hybrid-composition webview `SurfaceView` can re-attach without receiving a paint: the renderer is alive (taps, scroll, JS all work) but the **web page area renders black, and the strip behind the edge-to-edge status bar renders black too** — distinct from a dead renderer (PAUSE-013/PAUSE-014), which a JS probe cannot detect because the renderer is healthy. The blank surface clears the moment a relayout occurs (device rotation, lock/unlock, or a tab switch).
+
+The resume sequence is ordered so the repaint is deterministic. `_onResumed` SHALL run the app-lifecycle resume (`_resumeAfterLifecyclePause`) to completion, then handle any pinned-shortcut and share intents, and only then fire `_nudgeSurfaceRepaint` once — against the final `_currentIndex`. Running the lifecycle resume and the shortcut switch concurrently (the previous fire-and-forget pair) raced over `_currentIndex` and webview pause/resume, and let two repaint loops interleave on the shared `_repaintNudge`. `_nudgeSurfaceRepaint` then:
+
+- Toggles a transient 1px body inset around the IndexedStack several times over ~0.5s.
+- Each `setState` repaints the Flutter base surface (status-bar strip and chrome); each size flip resizes the webview platform view, forcing its `SurfaceView` to recomposite.
+- The nudge is spread across multiple frames because the recreated surface may not be attached on the first frame after resume — a single rebuild (the one already in `_setCurrentIndex`) fires too early to help.
+- The inset is always 0 in steady state and the nudge is a no-op on non-Android platforms.
+
+This is complementary to PAUSE-014: the probe recreates a *dead* renderer; the surface nudge repaints a *live* renderer whose surface came back blank. A JS `offsetHeight` read addresses neither the Flutter base surface nor the Android `SurfaceView` composition, which is why it is insufficient on its own.
+
+#### Scenario: Blank surface after shortcut recreates the activity
+
+**Given** a normal (non-fullscreen) site loaded in the background
+**And** the user taps its pinned shortcut, which recreates the Android activity
+**And** the webview platform-view surface re-attaches without a paint (page area and status-bar strip are black, page is alive)
+**When** `_onResumed` finishes the lifecycle resume, then `_handleShortcutIntent` activates the site, then fires `_nudgeSurfaceRepaint`
+**Then** `_nudgeSurfaceRepaint` toggles the 1px inset across several frames against the activated site
+**And** the Flutter surface repaints and the webview `SurfaceView` recomposites
+**And** the page and status-bar strip become visible without the user rotating or locking the device
+
+#### Scenario: Shortcut switch does not race the lifecycle resume
+
+**Given** the app is resuming from background via a pinned-shortcut tap
+**When** `_onResumed` runs
+**Then** `_resumeAfterLifecyclePause` completes (the in-flight `pauseForAppLifecycle` is drained and process-global JS timers are resumed) before `_handleShortcutIntent` switches `_currentIndex`
+**And** only one `_nudgeSurfaceRepaint` runs, after the final site is active
+**And** re-entry is guarded so a second `resumed` event does not start an overlapping sequence
+
+#### Scenario: Nudge is inert off Android and in steady state
+
+**Given** the app is running on iOS/macOS/Linux, or no activity restart occurred
+**When** `_nudgeSurfaceRepaint` would run
+**Then** it is a no-op on non-Android platforms
+**And** `_repaintNudge` remains false so the body inset stays 0 — no visible jitter during normal use
 
 ---
 

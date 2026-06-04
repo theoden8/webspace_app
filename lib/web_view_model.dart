@@ -276,6 +276,15 @@ class BlockedCookie {
       BlockedCookie(name: json['name'] as String, domain: json['domain'] as String);
 }
 
+/// Interpret a renderer-health probe result. The probe reads
+/// `document.body.offsetHeight`: a live renderer returns a number — `0`
+/// (about:blank), `-1` (document/body not built yet, still loading), or a
+/// positive height. A dead renderer (iOS content-process jettisoned,
+/// Android renderer killed) makes `evaluateJavascript` throw, surfaced as a
+/// `null` result by [WebViewController.evaluateJavascriptReturning]. Only
+/// `null` means gone; every numeric value is alive.
+bool rendererProbeIndicatesGone(Object? probeResult) => probeResult == null;
+
 class WebViewModel {
   final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
@@ -1209,10 +1218,17 @@ class WebViewModel {
   /// background we want every loaded webview's JS frozen, not just the active
   /// one. Pair with [resumeFromAppLifecycle] on resume.
   Future<void> pauseForAppLifecycle() async {
-    if (controller == null) return;
+    // Bind both calls to one local controller: disposeWebView() only nulls
+    // the `controller` field (the native webview stays alive until the next
+    // widget rebuild), so a concurrent dispose landing between these awaits
+    // would, if we re-read `controller!`, throw and skip the process-global
+    // pauseAllJsTimers — stranding every webview's JS timers. The local keeps
+    // both calls on the same still-live controller.
+    final c = controller;
+    if (c == null) return;
     try {
-      await controller!.pause();
-      await controller!.pauseAllJsTimers();
+      await c.pause();
+      await c.pauseAllJsTimers();
       LogService.instance.log(
         'WebView',
         'App-lifecycle paused webview for "$name" (siteId: $siteId)',
@@ -1225,10 +1241,13 @@ class WebViewModel {
 
   /// Inverse of [pauseForAppLifecycle].
   Future<void> resumeFromAppLifecycle() async {
-    if (controller == null) return;
+    // See [pauseForAppLifecycle]: bind both calls to one local controller so a
+    // concurrent dispose can't strand the process-global resumeAllJsTimers.
+    final c = controller;
+    if (c == null) return;
     try {
-      await controller!.resume();
-      await controller!.resumeAllJsTimers();
+      await c.resume();
+      await c.resumeAllJsTimers();
       LogService.instance.log(
         'WebView',
         'App-lifecycle resumed webview for "$name" (siteId: $siteId)',
