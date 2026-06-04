@@ -165,4 +165,67 @@ void main() {
       expect(r, isA<LaunchNone>());
     });
   });
+
+  group('ShortcutUrlLedger.reconcile', () {
+    test('records url for a pinned site that still exists', () {
+      final next = ShortcutUrlLedger.reconcile(
+        ledger: const {},
+        currentSiteUrls: const {'s1': 'https://a.com'},
+        pinnedSiteIds: const {'s1'},
+      );
+      expect(next, {'s1': 'https://a.com'});
+    });
+
+    test('keeps an orphan trail: site deleted but shortcut still pinned', () {
+      // s1 was pinned and its url recorded; the site is since gone but the
+      // launcher tile remains, so we must keep the url to route the next tap.
+      final next = ShortcutUrlLedger.reconcile(
+        ledger: const {'s1': 'https://a.com'},
+        currentSiteUrls: const {},
+        pinnedSiteIds: const {'s1'},
+      );
+      expect(next, {'s1': 'https://a.com'});
+    });
+
+    test('prunes entries that are neither current nor pinned', () {
+      final next = ShortcutUrlLedger.reconcile(
+        ledger: const {'gone': 'https://gone.com', 's1': 'https://a.com'},
+        currentSiteUrls: const {'s1': 'https://a.com'},
+        pinnedSiteIds: const {'s1'},
+      );
+      expect(next, {'s1': 'https://a.com'});
+    });
+
+    test('does not record pinned ids that have no current url', () {
+      // An id pinned but not in the model list and not already in the ledger
+      // can't be recorded (no url to record) — and is pruned as unreachable.
+      final next = ShortcutUrlLedger.reconcile(
+        ledger: const {},
+        currentSiteUrls: const {},
+        pinnedSiteIds: const {'s1'},
+      );
+      expect(next, isEmpty);
+    });
+
+    test('current sites are kept even when not pinned', () {
+      final next = ShortcutUrlLedger.reconcile(
+        ledger: const {'s1': 'https://a.com'},
+        currentSiteUrls: const {'s1': 'https://a.com'},
+        pinnedSiteIds: const {},
+      );
+      expect(next, {'s1': 'https://a.com'});
+    });
+
+    test('an orphan with no pinned tile is pruned (iOS getPinnedSiteIds=[])', () {
+      // On iOS getPinnedSiteIds is always empty, so a deleted site's entry is
+      // pruned. That is fine: iOS resolves a stale SiteEntity to nil, so a gone
+      // id never reaches the app and never needs the ledger.
+      final next = ShortcutUrlLedger.reconcile(
+        ledger: const {'gone': 'https://gone.com'},
+        currentSiteUrls: const {},
+        pinnedSiteIds: const {},
+      );
+      expect(next, isEmpty);
+    });
+  });
 }

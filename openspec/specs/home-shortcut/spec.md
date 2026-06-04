@@ -262,24 +262,26 @@ in any webspace containing the launched site.
 
 ---
 
-### Requirement: HS-011 - Domain Fallback For Orphaned Shortcuts
+### Requirement: HS-011 - Domain Fallback For Orphaned Shortcuts (Android)
 
-A pinned shortcut carries the site's `url` alongside its `siteId`. The system SHALL use that url to recover when a tapped shortcut's `siteId` no longer maps to any site — which happens after a settings restore on a new device (siteIds are random per install) or a delete+recreate. Recovery resolution runs in order:
+An Android pinned shortcut's launch intent carries only the random `siteId`. When that `siteId` no longer maps to any site — the user deleted the site and created a new one for the same address — the tap would otherwise fall back to the home screen. The system SHALL recover by routing the orphaned id through a persisted `siteId -> url` ledger and matching by base domain. Resolution runs in order:
 
 1. **Direct match** — the `siteId` maps to a current site. Open it (HS-002), no prompt.
 2. **Remembered rebind** — a prior user choice mapped this `siteId` to a live site. Open it, no prompt.
-3. **Domain match** — a current site shares the shortcut url's base domain. The system SHALL prompt the user to open that site; on confirm it SHALL remember the rebind so later taps resolve via step 2.
-4. **Offer to create** — no current site matches. The system SHALL prompt the user to create a new site for the shortcut url; on confirm it SHALL create the site, open it, and remember the rebind.
+3. **Domain match** — the ledger has a url for this `siteId` and a current site shares its base domain. The system SHALL prompt the user to open that site; on confirm it SHALL remember the rebind so later taps resolve via step 2.
+4. **Offer to create** — the ledger has a url but no current site matches. The system SHALL prompt the user to create a new site for that url; on confirm it SHALL create the site, open it, and remember the rebind.
 
-A shortcut pinned before this feature carries no url; if its `siteId` is gone the system falls back to the home screen (legacy HS-002 behavior). The remembered rebind map is machine state derived from shortcut activity: it is persisted in `SharedPreferences` under `shortcutSiteRemap`, is NOT part of settings export/import, and entries whose resolved target is later deleted are pruned at startup.
+With no ledger url for the id (e.g. a shortcut pinned before this feature whose site was deleted before any reconcile recorded its url), the system falls back to the home screen (legacy HS-002 behavior).
 
-On Android the url rides the launch intent as the `siteUrl` extra (drained with `siteId`). On iOS the synced site list and `OpenSiteIntent` carry the url through the App Group (`pending_shortcut_url`).
+The ledger is **Android-only**. iOS needs no recovery: a Shortcuts.app tile binds to a `SiteEntity` whose query resolves a deleted site to nil, so `OpenSiteIntent.perform()` never runs and a stale id never reaches the app.
 
-#### Scenario: Restored backup, same site exists under a new siteId
+The ledger and the remembered-rebind map are machine state derived from shortcut activity: both are persisted in `SharedPreferences` (`shortcutUrlLedger`, `shortcutSiteRemap`), are NOT part of settings export/import, and are pruned to reachable entries (see HS-012). A rebind whose resolved target is later deleted is dropped at startup.
 
-**Given** the user restored a settings backup on a new device, so a site for `https://www.example.com` exists but under a different `siteId` than the one baked into a previously pinned shortcut
-**When** the user taps that shortcut
-**Then** the app prompts "Open <matching site>?" because the shortcut url's base domain matches the restored site
+#### Scenario: Pinned site deleted and recreated under a new id
+
+**Given** the user pinned a shortcut for a site at `https://www.example.com`, then deleted that site and created a new one for the same address (a new random `siteId`)
+**When** the user taps the original shortcut
+**Then** the app prompts "Open <matching site>?" because the ledger url's base domain matches the recreated site
 **And** on confirm the matching site is selected
 **And** a subsequent tap of the same shortcut opens it directly with no prompt
 
@@ -287,8 +289,8 @@ On Android the url rides the launch intent as the `siteUrl` extra (drained with 
 
 **Given** the user deleted the site a shortcut pointed to and has no other site on that domain
 **When** the user taps the shortcut
-**Then** the app prompts "Create a new site for <url>?"
-**And** on confirm a new site rooted at the shortcut url is created, selected, and remembered for that shortcut
+**Then** the app prompts "Create a new site for <url>?" using the ledger url
+**And** on confirm a new site rooted at that url is created, selected, and remembered for that shortcut
 
 #### Scenario: User declines the prompt
 
@@ -297,11 +299,34 @@ On Android the url rides the launch intent as the `siteUrl` extra (drained with 
 **Then** no site is opened or created and no rebind is remembered
 **And** a later tap shows the prompt again
 
-#### Scenario: Legacy shortcut without a url
+#### Scenario: Orphaned id with no ledger url
 
-**Given** a shortcut pinned before HS-011 (no url extra) whose `siteId` no longer maps to a site
-**When** the user taps it
-**Then** the app launches on the home screen with no site activated (HS-002)
+**Given** a tapped shortcut whose `siteId` maps to no site and for which the ledger holds no url
+**When** the app resolves the launch
+**Then** it launches on the home screen with no site activated (HS-002)
+
+---
+
+### Requirement: HS-012 - Shortcut URL Ledger Maintenance (Android)
+
+The system SHALL maintain the HS-011 `siteId -> url` ledger against the launcher's actual pinned set, so it carries exactly the entries needed to route orphaned shortcuts and no stale cruft. On pin, and on every `initState` / `AppLifecycleState.resumed` (the same cadence as the HS-005 pinned-set refresh), the system SHALL:
+
+- record `siteId -> initUrl` for every pinned shortcut whose site still exists, so a later deletion leaves a routable trail; and
+- drop any ledger entry whose `siteId` is neither a current site nor in the pinned set (unreachable: the site is gone and no launcher tile points at it).
+
+The reconcile logic is a pure function exercised in [test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart).
+
+#### Scenario: Pinning records the url
+
+**Given** the user pins a shortcut for a site at `https://www.example.com`
+**When** the pin completes
+**Then** the ledger holds that site's `siteId -> https://www.example.com`
+
+#### Scenario: Removing the launcher tile prunes the entry
+
+**Given** a ledger entry exists for a site that has since been deleted and whose launcher tile the user has now removed
+**When** the app next reconciles on resume
+**Then** the entry is dropped (neither current nor pinned)
 
 ---
 
@@ -346,9 +371,9 @@ This requirement applies only to **process-startup** launches (cold or post-kill
 Both Android and iOS share the channel `MethodChannel('org.codeberg.theoden8.webspace/shortcuts')`.
 
 Methods:
-- `pinShortcut({siteId, label, siteUrl, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`, baking `siteUrl` into the launch intent for HS-011 domain fallback. **iOS 16+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first).
+- `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **iOS 16+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first).
 - `removeShortcut(siteId)` — Android: disables and removes the dynamic+pinned shortcut for a deleted site. iOS: no-op (the App Intents site list is recomputed from `_webViewModels` on every save via HS-009).
-- `getLaunchSiteId()` — **Android**: returns a `{siteId, url}` map from the launch intent extras, then drains both (`intent.removeExtra(...)`) so it fires once per tap. **iOS**: drains the `pending_shortcut_site_id` + `pending_shortcut_url` keys from App Group UserDefaults (written by `OpenSiteIntent.perform()`) into the same map. Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. The Dart `ShortcutService.getLaunch()` wraps the map as a `ShortcutLaunch`; a bare-string return is tolerated for shortcuts pinned before HS-011 (url null).
+- `getLaunchSiteId()` — **Android**: returns the `siteId` from the launch intent extra, then drains it (`intent.removeExtra("siteId")`) so it fires once per tap. **iOS**: drains the `pending_shortcut_site_id` key from App Group UserDefaults (written by `OpenSiteIntent.perform()`). Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. For HS-011 the Android caller pairs the returned `siteId` with its `shortcutUrlLedger` url before resolving.
 - `getPinnedSiteIds()` — Android: returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix. iOS: always returns an empty list (no public API for pin-state introspection).
 - `syncSites({sites: [{siteId, label, iconUrl?}]})` — **iOS only**: writes `[{id, name}]` to App Group UserDefaults under `shortcut_sites` and calls `WebSpaceShortcuts.updateAppShortcutParameters()` to refresh the Shortcuts.app picker. No-op on Android.
 - `isAppIntentsSupported()` — **iOS**: true if `#available(iOS 16, *)`. Other platforms: false.
@@ -374,7 +399,8 @@ The shortcut launches `MainActivity` with:
 ### Launch Handling
 
 On app start and on `onNewIntent` (app already running), read the launch
-target via `ShortcutService.getLaunch()` and resolve it through
+`siteId` via `ShortcutService.getLaunchSiteId()`, pair it with its
+`shortcutUrlLedger` url (HS-011/HS-012), and resolve through
 [`StartupRestoreEngine.resolveLaunch`](../../../lib/services/startup_restore_engine.dart):
 
 1. `resolveLaunch(shortcutSiteId, shortcutUrl, models, rememberedRemap)`
@@ -387,13 +413,15 @@ target via `ShortcutService.getLaunch()` and resolve it through
    - `LaunchOfferCreate(url, shortcutSiteId)` — siteId gone, no domain
      match; caller prompts to create a site for `url`, remembering the
      rebind on confirm.
-   - `LaunchNone` — no intent, or a legacy url-less shortcut whose siteId
-     is gone (home screen).
+   - `LaunchNone` — no intent, or an orphaned siteId with no ledger url
+     (home screen).
 2. On cold launch the confirm/create prompts are deferred to the first
    post-frame (no UI exists mid-`_restoreAppState`); direct hits activate
    inline. The warm path (`_handleShortcutIntent`) prompts immediately.
-3. The remembered rebind map is persisted in `SharedPreferences` under
-   `shortcutSiteRemap` (HS-011) and pruned of dangling targets at startup.
+3. The remembered rebind map (`shortcutSiteRemap`) and the url ledger
+   (`shortcutUrlLedger`) are persisted in `SharedPreferences` (HS-011 /
+   HS-012); dangling rebind targets are pruned at startup and the ledger
+   is reconciled to the pinned set.
 
 `resolveLaunchTarget` is retained as the siteId-only view (direct hit or
 null). Both rules are exercised headlessly in

@@ -955,11 +955,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // every overflow-menu open.
   bool _iosAppIntentsSupported = false;
 
-  // HS-011: a tapped shortcut whose siteId is gone (settings restore on a new
-  // device, delete+recreate) is rebound — on confirm — to a domain-matching or
-  // freshly created site. The user's choice is remembered here (stale siteId ->
-  // live siteId) and persisted so later taps resolve silently. Machine state
-  // derived from shortcut activity, not a user setting: excluded from backups.
+  // HS-011 (Android only): a pinned shortcut's intent carries only the random
+  // siteId. Once the owning site is deleted (delete+recreate) that id is opaque,
+  // so we keep a `siteId -> url` ledger — recorded for pinned sites, pruned to
+  // the pinned/current set — to drive the domain fallback. iOS needs none of
+  // this: a deleted SiteEntity resolves to nil, so a stale id never launches.
+  static const _kShortcutUrlLedgerKey = 'shortcutUrlLedger';
+  Map<String, String> _shortcutUrlLedger = {};
+
+  // When the user confirms a rebind, the choice is remembered here (stale
+  // siteId -> live siteId) and persisted so later taps of the same shortcut
+  // resolve silently. Machine state derived from shortcut activity, not a user
+  // setting: excluded from settings backups.
   static const _kShortcutRemapKey = 'shortcutSiteRemap';
   Map<String, String> _shortcutSiteRemap = {};
 
@@ -1149,9 +1156,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       await ShortcutService.pinShortcut(
         siteId: model.siteId,
         label: model.name,
-        url: model.initUrl,
         iconUrl: isSvg ? null : faviconUrl,
       );
+      // HS-011: remember this id's url now so a later delete+recreate can be
+      // routed by domain. _refreshPinnedSiteIds also reconciles on resume.
+      await _recordShortcutLedger(model.siteId, model.initUrl);
       return;
     }
     if (Platform.isIOS && _iosAppIntentsSupported) {
@@ -1187,6 +1196,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   Future<void> _refreshPinnedSiteIds() async {
     final ids = await ShortcutService.getPinnedSiteIds();
+    if (!mounted) return;
+    // HS-011: keep the url ledger in step with the launcher — record urls for
+    // pinned sites that still exist, drop entries no longer reachable. Runs on
+    // initState and every resume, so it catches in-app pins and out-of-app
+    // removals. Android-only (iOS getPinnedSiteIds is always empty).
+    await _reconcileShortcutLedger(ids);
     if (!mounted) return;
     if (ids.length == _pinnedSiteIds.length &&
         ids.containsAll(_pinnedSiteIds)) {
@@ -1483,11 +1498,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _handleShortcutIntent() async {
-    final launch = await ShortcutService.getLaunch();
-    if (!mounted || launch == null) return;
+    final siteId = await ShortcutService.getLaunchSiteId();
+    if (!mounted || siteId == null) return;
     final resolution = StartupRestoreEngine.resolveLaunch(
-      shortcutSiteId: launch.siteId,
-      shortcutUrl: launch.url,
+      shortcutSiteId: siteId,
+      shortcutUrl: _shortcutUrlLedger[siteId],
       models: _webViewModels,
       rememberedRemap: _shortcutSiteRemap,
     );
@@ -1608,19 +1623,49 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   void _loadShortcutRemap(SharedPreferences prefs) {
-    final raw = prefs.getString(_kShortcutRemapKey);
-    if (raw == null) return;
+    _shortcutSiteRemap = _decodeStringMap(prefs.getString(_kShortcutRemapKey));
+    _shortcutUrlLedger = _decodeStringMap(prefs.getString(_kShortcutUrlLedgerKey));
+  }
+
+  Map<String, String> _decodeStringMap(String? raw) {
+    if (raw == null) return {};
     try {
       final decoded = jsonDecode(raw);
       if (decoded is Map) {
-        _shortcutSiteRemap = {
-          for (final e in decoded.entries)
-            e.key.toString(): e.value.toString(),
+        return {
+          for (final e in decoded.entries) e.key.toString(): e.value.toString(),
         };
       }
     } catch (_) {
-      // Corrupt entry — start fresh; it'll be rewritten on the next rebind.
+      // Corrupt entry — start fresh; it'll be rewritten on the next update.
     }
+    return {};
+  }
+
+  /// Record one `siteId -> url` ledger entry (HS-011) and persist if it changed.
+  Future<void> _recordShortcutLedger(String siteId, String url) async {
+    if (url.isEmpty || _shortcutUrlLedger[siteId] == url) return;
+    _shortcutUrlLedger[siteId] = url;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kShortcutUrlLedgerKey, jsonEncode(_shortcutUrlLedger));
+  }
+
+  /// Reconcile the ledger against the launcher's [pinnedSiteIds] (HS-011):
+  /// record urls for pinned sites that still exist, prune unreachable entries.
+  Future<void> _reconcileShortcutLedger(Set<String> pinnedSiteIds) async {
+    final currentSiteUrls = {
+      for (final m in _webViewModels)
+        if (!m.isArchiveTier) m.siteId: m.initUrl,
+    };
+    final next = ShortcutUrlLedger.reconcile(
+      ledger: _shortcutUrlLedger,
+      currentSiteUrls: currentSiteUrls,
+      pinnedSiteIds: pinnedSiteIds,
+    );
+    if (mapEquals(next, _shortcutUrlLedger)) return;
+    _shortcutUrlLedger = next;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kShortcutUrlLedgerKey, jsonEncode(_shortcutUrlLedger));
   }
 
   bool _handlingShareIntent = false;
@@ -2580,7 +2625,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           ShortcutSite(
             siteId: m.siteId,
             label: m.name,
-            url: m.initUrl,
             iconUrl: FaviconUrlCache.get(m.initUrl),
           ),
     ];
@@ -3600,10 +3644,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     // Always start at home screen on launch - only restore index if launched via shortcut
-    final launch = await ShortcutService.getLaunch();
+    final shortcutSiteId = await ShortcutService.getLaunchSiteId();
     final resolution = StartupRestoreEngine.resolveLaunch(
-      shortcutSiteId: launch?.siteId,
-      shortcutUrl: launch?.url,
+      shortcutSiteId: shortcutSiteId,
+      shortcutUrl:
+          shortcutSiteId == null ? null : _shortcutUrlLedger[shortcutSiteId],
       models: _webViewModels,
       rememberedRemap: _shortcutSiteRemap,
     );

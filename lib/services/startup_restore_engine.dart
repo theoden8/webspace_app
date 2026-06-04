@@ -113,3 +113,36 @@ class StartupRestoreEngine {
     return LaunchOfferCreate(url: url, shortcutSiteId: shortcutSiteId);
   }
 }
+
+/// Android-only `siteId -> url` ledger backing HS-011 routing. A pinned
+/// shortcut's launch intent carries only the random `siteId`; once the owning
+/// site is deleted that id is opaque, so we keep a trail of the url it pointed
+/// at to drive [StartupRestoreEngine.resolveLaunch]'s domain fallback.
+///
+/// iOS needs none of this: a Shortcuts.app tile binds to a `SiteEntity` whose
+/// query resolves a deleted site to nil, so a stale id never reaches the app.
+class ShortcutUrlLedger {
+  /// Returns the ledger after recording urls for currently-pinned sites and
+  /// dropping entries that are no longer reachable. An entry survives only if
+  /// its site still exists ([currentSiteUrls]) or a pinned shortcut still
+  /// references it ([pinnedSiteIds]) — the latter is the orphan trail we route
+  /// on; the former lets a still-present pinned site's url be recorded so a
+  /// later delete leaves something to match. Everything else is unreachable
+  /// (the site is gone and no launcher tile points at it) and is pruned.
+  ///
+  /// Caller compares against the input and persists only when it changed.
+  static Map<String, String> reconcile({
+    required Map<String, String> ledger,
+    required Map<String, String> currentSiteUrls,
+    required Set<String> pinnedSiteIds,
+  }) {
+    final next = Map<String, String>.from(ledger);
+    for (final id in pinnedSiteIds) {
+      final url = currentSiteUrls[id];
+      if (url != null && url.isNotEmpty) next[id] = url;
+    }
+    next.removeWhere((id, _) =>
+        !currentSiteUrls.containsKey(id) && !pinnedSiteIds.contains(id));
+    return next;
+  }
+}

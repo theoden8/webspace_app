@@ -25,7 +25,6 @@ class ShortcutsPlugin: NSObject {
   private static let appGroupId = "group.org.codeberg.theoden8.webspace"
   private static let sitesKey = "shortcut_sites"
   private static let pendingKey = "pending_shortcut_site_id"
-  private static let pendingUrlKey = "pending_shortcut_url"
 
   init(messenger: FlutterBinaryMessenger) {
     self.channel = FlutterMethodChannel(
@@ -52,7 +51,7 @@ class ShortcutsPlugin: NSObject {
       syncSites(sites)
       result(true)
     case "getLaunchSiteId":
-      result(drainPendingLaunch())
+      result(drainPendingSiteId())
     case "pinShortcut":
       openShortcutsApp(result: result)
     case "removeShortcut":
@@ -72,11 +71,7 @@ class ShortcutsPlugin: NSObject {
             let name = dict["label"] as? String,
             !id.isEmpty
       else { return nil }
-      var entry = ["id": id, "name": name]
-      if let url = dict["url"] as? String, !url.isEmpty {
-        entry["url"] = url
-      }
-      return entry
+      return ["id": id, "name": name]
     }
     guard let defaults = UserDefaults(suiteName: Self.appGroupId) else {
       NSLog("[WebSpace] ShortcutsPlugin: App Group \(Self.appGroupId) unavailable")
@@ -92,19 +87,13 @@ class ShortcutsPlugin: NSObject {
     #endif
   }
 
-  private func drainPendingLaunch() -> [String: String]? {
+  private func drainPendingSiteId() -> String? {
     guard let defaults = UserDefaults(suiteName: Self.appGroupId),
           let siteId = defaults.string(forKey: Self.pendingKey),
           !siteId.isEmpty
     else { return nil }
-    let url = defaults.string(forKey: Self.pendingUrlKey)
     defaults.removeObject(forKey: Self.pendingKey)
-    defaults.removeObject(forKey: Self.pendingUrlKey)
-    var payload = ["siteId": siteId]
-    if let url = url, !url.isEmpty {
-      payload["url"] = url
-    }
-    return payload
+    return siteId
   }
 
   private func openShortcutsApp(result: @escaping FlutterResult) {

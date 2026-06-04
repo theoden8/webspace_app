@@ -13,11 +13,6 @@ let kShortcutSitesKey = "shortcut_sites"
 /// Dart-side `_handleShortcutIntent` / `_restoreAppState` paths).
 let kPendingShortcutSiteIdKey = "pending_shortcut_site_id"
 
-/// Key for the pending site url that an `OpenSiteIntent` carries alongside the
-/// siteId, so the Dart side can fall back to a domain match when the siteId no
-/// longer maps to a site (HS-011). Drained together with the siteId.
-let kPendingShortcutUrlKey = "pending_shortcut_url"
-
 let kShortcutAppGroupId = "group.org.codeberg.theoden8.webspace"
 
 /// One synced WebSpace site as it appears to App Intents. Decoded from the
@@ -27,7 +22,6 @@ let kShortcutAppGroupId = "group.org.codeberg.theoden8.webspace"
 struct SiteEntity: AppEntity {
   let id: String
   let name: String
-  let url: String?
 
   static var typeDisplayRepresentation: TypeDisplayRepresentation {
     TypeDisplayRepresentation(name: "Site")
@@ -84,7 +78,7 @@ struct SiteEntityQuery: EntityQuery {
       guard let id = dict["id"] as? String, let name = dict["name"] as? String else {
         return nil
       }
-      return SiteEntity(id: id, name: name, url: dict["url"] as? String)
+      return SiteEntity(id: id, name: name)
     }
   }
 }
@@ -111,11 +105,6 @@ struct OpenSiteIntent: AppIntent, OpenIntent {
   func perform() async throws -> some IntentResult {
     if let defaults = UserDefaults(suiteName: kShortcutAppGroupId) {
       defaults.set(target.id, forKey: kPendingShortcutSiteIdKey)
-      if let url = target.url, !url.isEmpty {
-        defaults.set(url, forKey: kPendingShortcutUrlKey)
-      } else {
-        defaults.removeObject(forKey: kPendingShortcutUrlKey)
-      }
     } else {
       NSLog("[WebSpace] OpenSiteIntent: App Group \(kShortcutAppGroupId) unavailable")
     }
