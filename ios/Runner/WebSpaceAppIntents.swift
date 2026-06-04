@@ -70,11 +70,15 @@ struct SiteEntityQuery: EntityQuery {
   // tile pointing at a since-deleted site still resolves (its run then routes
   // by domain on the Dart side) instead of failing with "no longer available".
   func entities(for identifiers: [SiteEntity.ID]) async throws -> [SiteEntity] {
-    let all = Self.loadSites() + Self.loadTombstones()
+    let live = Self.loadSites()
+    let tombs = Self.loadTombstones()
+    let all = live + tombs
     let wanted = Set(identifiers)
     // De-dupe by id (a tombstone should never shadow a live site).
     var seen = Set<String>()
-    return all.filter { wanted.contains($0.id) && seen.insert($0.id).inserted }
+    let resolved = all.filter { wanted.contains($0.id) && seen.insert($0.id).inserted }
+    NSLog("[WebSpace] SiteEntityQuery.entities(for: \(identifiers)) live=\(live.count) tombstones=\(tombs.count) resolved=\(resolved.count)")
+    return resolved
   }
 
   // The picker only offers live sites — deleted sites must not reappear here
@@ -129,6 +133,7 @@ struct OpenSiteIntent: AppIntent, OpenIntent {
   }
 
   func perform() async throws -> some IntentResult {
+    NSLog("[WebSpace] OpenSiteIntent.perform id=\(target.id) url=\(target.url ?? "nil")")
     if let defaults = UserDefaults(suiteName: kShortcutAppGroupId) {
       defaults.set(target.id, forKey: kPendingShortcutSiteIdKey)
       if let url = target.url, !url.isEmpty {

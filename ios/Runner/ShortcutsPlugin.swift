@@ -73,10 +73,13 @@ class ShortcutsPlugin: NSObject {
       NSLog("[WebSpace] ShortcutsPlugin: App Group \(Self.appGroupId) unavailable")
       return
     }
-    if let json = try? JSONSerialization.data(withJSONObject: Self.normalize(rawSites)) {
+    let sites = Self.normalize(rawSites)
+    let tombs = Self.normalize(rawTombstones)
+    NSLog("[WebSpace] ShortcutsPlugin.syncSites sites=\(sites.count) tombstones=\(tombs.count)")
+    if let json = try? JSONSerialization.data(withJSONObject: sites) {
       defaults.set(json, forKey: Self.sitesKey)
     }
-    if let json = try? JSONSerialization.data(withJSONObject: Self.normalize(rawTombstones)) {
+    if let json = try? JSONSerialization.data(withJSONObject: tombs) {
       defaults.set(json, forKey: Self.tombstonesKey)
     }
     #if canImport(AppIntents)
@@ -110,6 +113,7 @@ class ShortcutsPlugin: NSObject {
     defaults.removeObject(forKey: Self.pendingUrlKey)
     var payload = ["siteId": siteId]
     if let url = url, !url.isEmpty { payload["url"] = url }
+    NSLog("[WebSpace] drainPendingLaunch siteId=\(siteId) url=\(url ?? "nil")")
     return payload
   }
 

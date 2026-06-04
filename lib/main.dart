@@ -1518,11 +1518,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _handleShortcutIntent() async {
     final launch = await ShortcutService.getLaunch();
     if (!mounted || launch == null) return;
+    final url = launch.url ??
+        _shortcutUrlLedger[launch.siteId] ??
+        _tombstoneUrlFor(launch.siteId);
+    LogService.instance.log(
+      'Shortcut',
+      'warm launch siteId=${launch.siteId} payloadUrl=${launch.url} '
+          'resolvedUrl=$url',
+      sensitivity: LogSensitivity.sensitive,
+    );
     final resolution = StartupRestoreEngine.resolveLaunch(
       shortcutSiteId: launch.siteId,
       // iOS carries the url in the launch payload; Android pairs the id with
-      // its url ledger.
-      shortcutUrl: launch.url ?? _shortcutUrlLedger[launch.siteId],
+      // its url ledger. Fall back to the iOS tombstone url in case iOS handed
+      // back a stale cached entity without a url.
+      shortcutUrl: url,
       models: _webViewModels,
       rememberedRemap: _shortcutSiteRemap,
     );
@@ -1531,6 +1541,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     } else if (resolution is! LaunchNone) {
       await _applyInteractiveShortcut(resolution, coldLaunch: false);
     }
+  }
+
+  /// Look up a deleted site's url from the iOS tombstone list (HS-014), so a
+  /// stale launch payload without a url can still route by domain.
+  String? _tombstoneUrlFor(String siteId) {
+    for (final t in _shortcutTombstones) {
+      if (t['siteId'] == siteId) return t['url'];
+    }
+    return null;
   }
 
   /// Warm-tap switch to a resolved site: reset flagged siblings to home
@@ -3713,13 +3732,25 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     // Always start at home screen on launch - only restore index if launched via shortcut
     final launch = await ShortcutService.getLaunch();
+    final launchUrl = launch == null
+        ? null
+        : (launch.url ??
+            _shortcutUrlLedger[launch.siteId] ??
+            _tombstoneUrlFor(launch.siteId));
+    if (launch != null) {
+      LogService.instance.log(
+        'Shortcut',
+        'cold launch siteId=${launch.siteId} payloadUrl=${launch.url} '
+            'resolvedUrl=$launchUrl',
+        sensitivity: LogSensitivity.sensitive,
+      );
+    }
     final resolution = StartupRestoreEngine.resolveLaunch(
       shortcutSiteId: launch?.siteId,
       // iOS carries the url in the launch payload; Android pairs the id with
-      // its url ledger.
-      shortcutUrl: launch == null
-          ? null
-          : (launch.url ?? _shortcutUrlLedger[launch.siteId]),
+      // its url ledger; the iOS tombstone url is the last fallback if iOS
+      // handed back a stale cached entity without a url.
+      shortcutUrl: launchUrl,
       models: _webViewModels,
       rememberedRemap: _shortcutSiteRemap,
     );
