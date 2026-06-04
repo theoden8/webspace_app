@@ -79,20 +79,26 @@ class MainActivity: FlutterActivity() {
                     val siteId = call.argument<String>("siteId")
                     val label = call.argument<String>("label")
                     val iconUrl = call.argument<String>("iconUrl")
+                    val iconBytes = call.argument<ByteArray>("iconBytes")
 
                     if (siteId == null || label == null) {
                         result.error("INVALID_ARGS", "siteId and label are required", null)
                         return@setMethodCallHandler
                     }
 
-                    pinShortcut(siteId, label, iconUrl, result)
+                    pinShortcut(siteId, label, iconBytes, iconUrl, result)
                 }
                 "removeShortcut" -> {
                     val siteId = call.argument<String>("siteId")
                     if (siteId != null) {
+                        // Remove any dynamic copy, but DO NOT disable the pinned
+                        // shortcut: HS-011 keeps the launcher tile alive so a tap
+                        // after the site is deleted still launches the app and
+                        // re-routes via the siteId->url ledger (offer to open a
+                        // domain match or create a new site). Disabling it makes
+                        // the launcher refuse the tap with "shortcut isn't
+                        // available", which defeats that recovery.
                         ShortcutManagerCompat.removeDynamicShortcuts(this, listOf("site_$siteId"))
-                        // Also disable the pinned shortcut so it shows as unavailable
-                        ShortcutManagerCompat.disableShortcuts(this, listOf("site_$siteId"), "Site has been removed")
                     }
                     result.success(true)
                 }
@@ -125,7 +131,7 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    private fun pinShortcut(siteId: String, label: String, iconUrl: String?, result: MethodChannel.Result) {
+    private fun pinShortcut(siteId: String, label: String, iconBytes: ByteArray?, iconUrl: String?, result: MethodChannel.Result) {
         if (!ShortcutManagerCompat.isRequestPinShortcutSupported(this)) {
             result.error("NOT_SUPPORTED", "Pinned shortcuts not supported on this device", null)
             return
@@ -139,17 +145,26 @@ class MainActivity: FlutterActivity() {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
 
-                val icon = if (iconUrl != null) {
-                    try {
-                        val stream = URL(iconUrl).openStream()
-                        val bitmap = BitmapFactory.decodeStream(stream)
-                        stream.close()
-                        if (bitmap != null) IconCompat.createWithBitmap(bitmap) else IconCompat.createWithResource(this, R.mipmap.ic_launcher)
-                    } catch (e: Exception) {
-                        IconCompat.createWithResource(this, R.mipmap.ic_launcher)
+                val appIcon = IconCompat.createWithResource(this, R.mipmap.ic_launcher)
+                // Prefer Dart-rasterized PNG bytes (handles SVG/ICO favicons that
+                // BitmapFactory.decodeStream can't). Fall back to downloading the
+                // raw iconUrl, then to the app icon.
+                val icon = when {
+                    iconBytes != null -> {
+                        val bmp = BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
+                        if (bmp != null) IconCompat.createWithBitmap(bmp) else appIcon
                     }
-                } else {
-                    IconCompat.createWithResource(this, R.mipmap.ic_launcher)
+                    iconUrl != null -> {
+                        try {
+                            val stream = URL(iconUrl).openStream()
+                            val bitmap = BitmapFactory.decodeStream(stream)
+                            stream.close()
+                            if (bitmap != null) IconCompat.createWithBitmap(bitmap) else appIcon
+                        } catch (e: Exception) {
+                            appIcon
+                        }
+                    }
+                    else -> appIcon
                 }
 
                 val shortcut = ShortcutInfoCompat.Builder(this, "site_$siteId")

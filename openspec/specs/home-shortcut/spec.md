@@ -64,17 +64,24 @@ The system SHALL navigate to the correct site when launched via a home screen sh
 
 ### Requirement: HS-003 - Shortcut Icon
 
-The system SHALL use the site's favicon as the shortcut icon when available, falling back to the app icon.
+The system SHALL use the site's favicon as the shortcut icon when available, falling back to the app icon. The favicon is rasterized to a PNG on the Dart side (`exportIconAsPng`) before it crosses to native, because Android's `BitmapFactory` cannot decode SVG; this covers PNG, ICO, and SVG favicons uniformly.
 
-#### Scenario: Site has favicon
+#### Scenario: Site has a raster favicon
 
-**Given** the site has a cached favicon URL (non-SVG)
+**Given** the site has a cached PNG or ICO favicon URL
 **When** a shortcut is created
-**Then** the shortcut icon is the site's favicon
+**Then** the favicon is decoded and re-encoded to PNG and used as the shortcut icon
 
-#### Scenario: Site has no favicon or SVG favicon
+#### Scenario: Site has an SVG favicon
 
-**Given** the site has no cached favicon, or the favicon is SVG (not supported by Android shortcuts)
+**Given** the site's favicon is an SVG (e.g. claude.ai)
+**When** a shortcut is created
+**Then** the SVG is rasterized to a PNG and used as the shortcut icon
+**And** the shortcut does NOT fall back to the WebSpace app icon
+
+#### Scenario: Favicon cannot be fetched or rasterized
+
+**Given** the site has no resolvable favicon, or fetch/rasterize fails (e.g. proxy fail-closed)
 **When** a shortcut is created
 **Then** the shortcut icon is the WebSpace app icon
 
@@ -292,6 +299,14 @@ The ledger and the remembered-rebind map are machine state derived from shortcut
 **Then** the app prompts "Create a new site for <url>?" using the ledger url
 **And** on confirm a new site rooted at that url is created, selected, and remembered for that shortcut
 
+#### Scenario: Deleting a site leaves its shortcut tappable
+
+**Given** the user pinned a shortcut for a site and then deleted that site
+**When** the user taps the pinned shortcut
+**Then** the launcher launches WebSpace (it MUST NOT show "shortcut isn't available")
+**And** the app routes the orphaned id through the ledger per this requirement
+(`removeShortcut` removes only any dynamic copy and never disables the pinned tile)
+
 #### Scenario: User declines the prompt
 
 **Given** an orphaned shortcut's confirm/create prompt is shown
@@ -372,7 +387,7 @@ Both Android and iOS share the channel `MethodChannel('org.codeberg.theoden8.web
 
 Methods:
 - `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **iOS 16+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first).
-- `removeShortcut(siteId)` — Android: disables and removes the dynamic+pinned shortcut for a deleted site. iOS: no-op (the App Intents site list is recomputed from `_webViewModels` on every save via HS-009).
+- `removeShortcut(siteId)` — Android: removes any dynamic shortcut copy but leaves the pinned launcher tile ENABLED, so an HS-011 tap on the now-orphaned shortcut still launches the app and re-routes via the ledger. (It MUST NOT call `disableShortcuts`, which makes the launcher reject the tap with "shortcut isn't available".) iOS: no-op (the App Intents site list is recomputed from `_webViewModels` on every save via HS-009).
 - `getLaunchSiteId()` — **Android**: returns the `siteId` from the launch intent extra, then drains it (`intent.removeExtra("siteId")`) so it fires once per tap. **iOS**: drains the `pending_shortcut_site_id` key from App Group UserDefaults (written by `OpenSiteIntent.perform()`). Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. For HS-011 the Android caller pairs the returned `siteId` with its `shortcutUrlLedger` url before resolving.
 - `getPinnedSiteIds()` — Android: returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix. iOS: always returns an empty list (no public API for pin-state introspection).
 - `syncSites({sites: [{siteId, label, iconUrl?}]})` — **iOS only**: writes `[{id, name}]` to App Group UserDefaults under `shortcut_sites` and calls `WebSpaceShortcuts.updateAppShortcutParameters()` to refresh the Shortcuts.app picker. No-op on Android.

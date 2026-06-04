@@ -23,6 +23,7 @@ import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFavic
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
+import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -1152,11 +1153,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _handleAddToHome(WebViewModel model) async {
     if (Platform.isAndroid) {
       final faviconUrl = FaviconUrlCache.get(model.initUrl);
-      final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
+      // Rasterize the favicon to PNG here (HS-003): Android's BitmapFactory
+      // can't decode SVG, so an SVG favicon would otherwise fall back to the
+      // WebSpace app icon. exportIconAsPng also normalizes ICO/PNG and applies
+      // the site's proxy. iconUrl stays as a native-side fallback if it fails.
+      final iconBytes = await exportIconAsPng(
+        model.initUrl,
+        resolvedIconUrl: faviconUrl,
+        proxy: model.proxySettings,
+      );
+      if (!mounted) return;
       await ShortcutService.pinShortcut(
         siteId: model.siteId,
         label: model.name,
-        iconUrl: isSvg ? null : faviconUrl,
+        iconBytes: iconBytes,
+        iconUrl: iconBytes == null ? faviconUrl : null,
       );
       // HS-011: remember this id's url now so a later delete+recreate can be
       // routed by domain. _refreshPinnedSiteIds also reconciles on resume.

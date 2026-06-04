@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/services.dart';
 
 /// One site as it crosses the platform-channel boundary into the iOS App
@@ -32,9 +33,16 @@ class ShortcutService {
   /// Shortcuts app — the caller is responsible for showing the
   /// instructional dialog (HS-008) before invoking. Returns false on
   /// platforms without either path.
+  ///
+  /// [iconBytes] is a ready-to-use raster PNG (the caller rasterizes the
+  /// favicon, including SVG, before invoking — Android's BitmapFactory can't
+  /// decode SVG). When present the native side uses it directly; [iconUrl] is
+  /// only a fallback the native side downloads if no bytes were supplied. With
+  /// neither, the shortcut uses the WebSpace app icon.
   static Future<bool> pinShortcut({
     required String siteId,
     required String label,
+    Uint8List? iconBytes,
     String? iconUrl,
   }) async {
     if (!Platform.isAndroid && !Platform.isIOS) return false;
@@ -42,6 +50,7 @@ class ShortcutService {
       final result = await _channel.invokeMethod('pinShortcut', {
         'siteId': siteId,
         'label': label,
+        'iconBytes': iconBytes,
         'iconUrl': iconUrl,
       });
       return result == true;
@@ -50,9 +59,12 @@ class ShortcutService {
     }
   }
 
-  /// Remove a pinned shortcut when a site is deleted (Android only).
-  /// On iOS the App Intents site list is rebuilt from the user's actual
-  /// sites by `syncSites` so a deletion drops out implicitly.
+  /// Drop any dynamic shortcut copy for a deleted site (Android only). The
+  /// pinned launcher tile is deliberately left ENABLED: HS-011 routes a tap on
+  /// an orphaned shortcut through the url ledger (open a domain match / offer
+  /// to create), which only works if the launcher still launches the app.
+  /// On iOS the App Intents site list is rebuilt from the user's actual sites
+  /// by `syncSites`, so a deletion drops out of the picker implicitly.
   static Future<void> removeShortcut(String siteId) async {
     if (!Platform.isAndroid) return;
     try {
