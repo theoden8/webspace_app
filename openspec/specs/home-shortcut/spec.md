@@ -208,8 +208,8 @@ The system SHALL keep the iOS App Intents site picker in sync with the user's ac
 
 **Given** a site is referenced by an existing user-created Shortcut
 **When** the user deletes the site in WebSpace
-**Then** the deleted site no longer appears in the App Intents picker (`suggestedEntities` is live-only)
-**And** invoking the orphaned Shortcut still launches WebSpace and routes the id by domain via the tombstone list (HS-011 / HS-014), rather than failing to resolve
+**Then** invoking the orphaned Shortcut still launches WebSpace and routes the id by domain via the tombstone list (HS-011 / HS-014), rather than failing to resolve
+**And** the deleted site stays visible in the App Intents picker until its tombstone is evicted (HS-014 — iOS validates a bound parameter against `suggestedEntities`, so a deleted entity must remain surfaced there to stay runnable)
 
 #### Scenario: App Group unavailable
 
@@ -391,7 +391,7 @@ The prompt SHALL only appear on Android and only when the deleted site actually 
 iOS cannot enumerate or disable home-screen Shortcut tiles, so to give HS-011 parity the system SHALL keep a bounded tombstone list of deleted sites and sync it to the App Group alongside the live site list. The system SHALL:
 
 - on deletion of any non-archive site, append `{siteId, label, url}` to the tombstone list (deduped by siteId, capped — oldest evicted) and re-sync;
-- write tombstones under a key (`shortcut_tombstones`) distinct from the live list, so `SiteEntityQuery.entities(for:)` resolves a bound parameter from **live ∪ tombstones** while `suggestedEntities()` (the Shortcuts.app picker) returns **live only** (HS-009);
+- write tombstones under a key (`shortcut_tombstones`) distinct from the live list; BOTH `SiteEntityQuery.entities(for:)` and `suggestedEntities()` resolve from **live ∪ tombstones**. iOS validates a Shortcut's bound parameter against the *suggested* set, not just `entities(for:)`, so a deleted entity must remain surfaced in `suggestedEntities()` to stay runnable — the accepted cost is that recently-deleted sites stay visible in the Shortcuts.app picker (and Siri/Spotlight) until evicted from the capped tombstone list;
 - have `OpenSiteIntent.perform()` write the resolved entity's url to the App Group (`pending_shortcut_url`) so the Dart side can route by domain.
 
 Because iOS gives no way to know whether a tile actually exists, the system tombstones every qualifying deletion rather than only shortcutted ones; the cap bounds growth. Archive-tier sites are never tombstoned (ARCH-006).
@@ -403,11 +403,11 @@ Because iOS gives no way to know whether a tile actually exists, the system tomb
 **Then** the bound `SiteEntity` resolves from the tombstone list (it is NOT in the picker)
 **And** WebSpace launches and routes the orphaned id by domain per HS-011 (open a match or offer to create)
 
-#### Scenario: Tombstoned site stays out of the picker
+#### Scenario: Tombstoned site stays runnable from the picker
 
 **Given** a site has been deleted and tombstoned
 **When** the user opens the "Open Site" action in Shortcuts.app
-**Then** the deleted site does NOT appear in the site picker (HS-009)
+**Then** the deleted site is still listed (so an existing Shortcut bound to it stays valid and runnable), until its tombstone is evicted from the capped list
 
 #### Scenario: Tombstone list is bounded
 
@@ -471,7 +471,7 @@ Methods:
 `ios/Runner/WebSpaceAppIntents.swift` defines (all `@available(iOS 16, *)`):
 
 - `SiteEntity: AppEntity` — one synced site with `id: String` (siteId), `name: String`, and `url: String?` (so a tombstone-resolved deleted site can route by domain, HS-011/HS-014). `displayRepresentation` MUST use `DisplayRepresentation(title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name)))`. The static `"%@"` key is stable for the compile-time App Intents metadata extractor while the runtime `defaultValue` still resolves to each site's name. Two earlier forms both collapse the materialized parameterized App Shortcuts (one per entity) down to a single visible entry in Shortcuts.app: `DisplayRepresentation(title: "\(name)")` (interpolation renders the literal `%@`), and `DisplayRepresentation(stringLiteral: name)` (resolves in the live picker but not in the materialized tiles, since a runtime string can't be a compile-time title key — the surviving tile also keeps a stale bound target).
-- `SiteEntityQuery: EntityQuery` — `suggestedEntities()` reads `shortcut_sites` (live only) so the picker shows real WebSpace sites; `entities(for:)` resolves from `shortcut_sites` ∪ `shortcut_tombstones` so a tile bound to a deleted site still resolves and launches (HS-014).
+- `SiteEntityQuery: EntityQuery` — both `suggestedEntities()` and `entities(for:)` resolve from `shortcut_sites` ∪ `shortcut_tombstones`, so a tile bound to a deleted site stays valid and runnable (HS-014). Deleted sites therefore remain in the picker until their tombstone is evicted.
 - `OpenSiteIntent: AppIntent, OpenIntent` — parameterized on `SiteEntity`. `openAppWhenRun = true` foregrounds WebSpace; `perform()` writes the chosen siteId to `pending_shortcut_site_id` and its url to `pending_shortcut_url` in App Group UserDefaults.
 - `WebSpaceShortcuts: AppShortcutsProvider` — declares the discoverable "Open Site" App Shortcut with phrase template `"Open \(\.$target) in WebSpace"`.
 

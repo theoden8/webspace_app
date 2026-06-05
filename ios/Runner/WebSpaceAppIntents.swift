@@ -81,10 +81,17 @@ struct SiteEntityQuery: EntityQuery {
     return resolved
   }
 
-  // The picker only offers live sites — deleted sites must not reappear here
-  // (HS-009).
+  // iOS validates a Shortcut's bound parameter against the suggested set (not
+  // just entities(for:)), so to keep a deleted-site Shortcut runnable (HS-011)
+  // tombstones must be surfaced here too. Tradeoff: recently-deleted sites stay
+  // visible in the Shortcuts.app picker until evicted from the capped list.
   func suggestedEntities() async throws -> [SiteEntity] {
-    Self.loadSites()
+    let live = Self.loadSites()
+    let tombs = Self.loadTombstones()
+    var seen = Set<String>()
+    let merged = (live + tombs).filter { seen.insert($0.id).inserted }
+    NSLog("[WebSpace] SiteEntityQuery.suggestedEntities live=\(live.count) tombstones=\(tombs.count)")
+    return merged
   }
 
   static func loadSites() -> [SiteEntity] {
