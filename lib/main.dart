@@ -5935,9 +5935,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     final wasCurrentIndex = _currentIndex == index;
     final deletedModel = _webViewModels[index];
-    // Capture before mutation: HS-011 delete-time shortcut prompt (Android).
-    final hadPinnedShortcut =
-        Platform.isAndroid && _pinnedSiteIds.contains(deletedModel.siteId);
+    // Capture before mutation: HS-013 delete-time shortcut prompt (Android).
+    // Query the launcher fresh rather than trusting the cached _pinnedSiteIds,
+    // which only refreshes on init/resume — a shortcut pinned and deleted in
+    // the same session wouldn't be in the cache yet, so the prompt would be
+    // silently skipped.
+    final hadPinnedShortcut = Platform.isAndroid &&
+        (await ShortcutService.getPinnedSiteIds())
+            .contains(deletedModel.siteId);
+    if (!mounted) return;
+    if (Platform.isAndroid) {
+      LogService.instance.log(
+        'Shortcut',
+        'delete siteId=${deletedModel.siteId} hadPinnedShortcut=$hadPinnedShortcut',
+        sensitivity: LogSensitivity.sensitive,
+      );
+    }
     deletedModel.disposeWebView();
     _loadedIndices.remove(index);
 
