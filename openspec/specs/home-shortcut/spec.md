@@ -358,13 +358,20 @@ The reconcile logic is a pure function exercised in [test/startup_restore_engine
 
 ### Requirement: HS-013 - Delete-Time Shortcut Prompt (Android)
 
-When the user deletes a site that currently has a pinned home shortcut (`siteId` in the cached pinned set), the system SHALL prompt for the fate of the now-orphaned launcher tile, since Android cannot remove a pinned tile programmatically. The prompt offers three choices:
+When the user deletes a site that is reachable by one or more pinned tiles, the system SHALL prompt for the fate of those now-orphaned tiles, since Android cannot remove a pinned tile programmatically. A tile "reaches" the deleted site if its id IS the deleted `siteId` OR a prior HS-011 rebind points it there (`remap[tile] == siteId`) — computed via `ShortcutPinState.tilesReaching` against a **fresh** `getPinnedSiteIds()` query (not the cached set, which lags pins made this session). The prompt offers three choices, applied to every reaching tile:
 
-- **Keep** — leave the tile enabled; a tap re-routes via HS-011 (open a domain match or offer to create). This is also the outcome if the prompt is dismissed.
-- **Reassign** — pick another existing site; the system records a rebind (`deletedSiteId -> chosen siteId`) so a tap opens the chosen site directly (HS-011 step 2).
-- **Disable** — disable the pinned shortcut (it greys out and the launcher rejects the tap until the user removes it from the home screen) and drop the deleted id's ledger and rebind entries.
+- **Keep** — leave the tile(s) enabled; a tap re-routes via HS-011 (open a domain match or offer to create). This is also the outcome if the prompt is dismissed.
+- **Reassign** — pick another existing site; the system records a rebind (`tile -> chosen siteId`) for each reaching tile so a tap opens the chosen site directly (HS-011 step 2).
+- **Disable** — disable each reaching tile (it greys out and the launcher rejects the tap until the user removes it from the home screen) and drop its ledger and rebind entries.
 
-The prompt SHALL only appear on Android and only when the deleted site actually had a pinned shortcut; deleting a site with no shortcut is unaffected.
+The prompt SHALL only appear on Android and only when at least one pinned tile reaches the deleted site; deleting a site no tile reaches is unaffected.
+
+#### Scenario: Deleting a site a tile was rebound to still prompts
+
+**Given** an orphaned tile was rebound (HS-011) to site B, and B has no shortcut of its own
+**When** the user deletes B
+**Then** the prompt still appears (the rebound tile reaches B)
+**And** the chosen action applies to that tile, not to B's own (absent) shortcut
 
 #### Scenario: Deleting a shortcutted site offers keep / reassign / disable
 

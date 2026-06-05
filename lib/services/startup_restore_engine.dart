@@ -165,6 +165,22 @@ class ShortcutPinState {
     }
     return result;
   }
+
+  /// The pinned tile ids that currently reach [siteId] — either directly (the
+  /// tile's id IS the siteId) or through an HS-011 rebind (`remap[tile] ==
+  /// siteId`). Used by the delete-time prompt (HS-013) so deleting a site an
+  /// orphaned tile was rebound to still prompts about that tile, not just the
+  /// site that was originally pinned.
+  static Set<String> tilesReaching({
+    required String siteId,
+    required Set<String> pinnedSiteIds,
+    required Map<String, String> rememberedRemap,
+  }) {
+    return {
+      for (final tile in pinnedSiteIds)
+        if (tile == siteId || rememberedRemap[tile] == siteId) tile,
+    };
+  }
 }
 
 /// iOS-only tombstone list backing HS-011 parity. iOS can't enumerate

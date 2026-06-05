@@ -5943,20 +5943,27 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final deletedModel = _webViewModels[index];
     // Capture before mutation: HS-013 delete-time shortcut prompt (Android).
     // Query the launcher fresh rather than trusting the cached _pinnedSiteIds,
-    // which only refreshes on init/resume — a shortcut pinned and deleted in
-    // the same session wouldn't be in the cache yet, so the prompt would be
-    // silently skipped.
-    final hadPinnedShortcut = Platform.isAndroid &&
-        (await ShortcutService.getPinnedSiteIds())
-            .contains(deletedModel.siteId);
-    if (!mounted) return;
+    // which only refreshes on init/resume. Find every pinned tile that REACHES
+    // this site — directly (tile id == siteId) or via an HS-011 rebind
+    // (remap[tile] == siteId) — so deleting a site an orphaned tile was
+    // rebound to still prompts about that tile.
+    Set<String> reachingTiles = const {};
     if (Platform.isAndroid) {
+      final pinnedNow = await ShortcutService.getPinnedSiteIds();
+      if (!mounted) return;
+      reachingTiles = ShortcutPinState.tilesReaching(
+        siteId: deletedModel.siteId,
+        pinnedSiteIds: pinnedNow,
+        rememberedRemap: _shortcutSiteRemap,
+      );
       LogService.instance.log(
         'Shortcut',
-        'delete siteId=${deletedModel.siteId} hadPinnedShortcut=$hadPinnedShortcut',
+        'delete siteId=${deletedModel.siteId} pinned=$pinnedNow '
+            'reachingTiles=$reachingTiles',
         sensitivity: LogSensitivity.sensitive,
       );
     }
+    final hadPinnedShortcut = reachingTiles.isNotEmpty;
     deletedModel.disposeWebView();
     _loadedIndices.remove(index);
 
@@ -6034,7 +6041,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     unawaited(_updateBackgroundRefreshSchedule());
 
     if (hadPinnedShortcut) {
-      await _handleDeletedSiteShortcut(deletedSiteId);
+      await _handleDeletedSiteShortcut(reachingTiles);
     }
     // iOS can't tell whether a Shortcut tile exists, so tombstone every
     // (non-archive) deletion: if a tile was pointing here it now resolves and
@@ -6048,12 +6055,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     Navigator.pop(context);
   }
 
-  /// HS-011: the deleted site had a pinned home shortcut. Ask what to do with
-  /// the now-orphaned launcher tile (Android can't remove it for the user):
-  /// keep it (a tap re-routes via the ledger — open a domain match or offer to
-  /// create), point it at another site, or disable it.
-  Future<void> _handleDeletedSiteShortcut(String deletedSiteId) async {
-    if (!mounted) return;
+  /// HS-013: the deleted site was reachable by one or more pinned tiles
+  /// ([tileIds] — directly or via an HS-011 rebind). Ask what to do with those
+  /// now-orphaned launcher tiles (Android can't remove them for the user):
+  /// keep them (a tap re-routes — open a domain match or offer to create),
+  /// point them at another site, or disable them.
+  Future<void> _handleDeletedSiteShortcut(Set<String> tileIds) async {
+    if (!mounted || tileIds.isEmpty) return;
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -6084,24 +6092,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (!mounted || choice == null || choice == 'keep') return;
 
     if (choice == 'disable') {
-      await ShortcutService.disableShortcut(deletedSiteId);
-      _shortcutSiteRemap.remove(deletedSiteId);
-      _shortcutUrlLedger.remove(deletedSiteId);
+      for (final tile in tileIds) {
+        await ShortcutService.disableShortcut(tile);
+        _shortcutSiteRemap.remove(tile);
+        _shortcutUrlLedger.remove(tile);
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
       await prefs.setString(
           _kShortcutUrlLedgerKey, jsonEncode(_shortcutUrlLedger));
       if (!mounted) return;
       setState(() {
-        _pinnedSiteIds = {..._pinnedSiteIds}..remove(deletedSiteId);
+        _pinnedSiteIds = {..._pinnedSiteIds}..removeAll(tileIds);
       });
       return;
     }
 
-    // 'reassign': point the tile at an existing site via the rebind map.
+    // 'reassign': point every reaching tile at an existing site via the remap.
     final targetSiteId = await _pickSiteForShortcut();
     if (targetSiteId == null || !mounted) return;
-    await _rememberShortcutRemap(deletedSiteId, targetSiteId);
+    for (final tile in tileIds) {
+      await _rememberShortcutRemap(tile, targetSiteId);
+    }
   }
 
   /// Pick an existing (non-archive) site to reassign an orphaned shortcut to.

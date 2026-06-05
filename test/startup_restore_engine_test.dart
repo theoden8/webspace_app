@@ -307,4 +307,52 @@ void main() {
       );
     });
   });
+
+  group('ShortcutPinState.tilesReaching', () {
+    test('finds the directly-pinned tile', () {
+      expect(
+        ShortcutPinState.tilesReaching(
+          siteId: 'a',
+          pinnedSiteIds: {'a', 'b'},
+          rememberedRemap: const {},
+        ),
+        {'a'},
+      );
+    });
+
+    test('finds a tile rebound to the site (delete a rebind target)', () {
+      // Tile "old" (pinned) was rebound to "new"; deleting "new" must still
+      // surface "old" so the prompt can manage that tile.
+      expect(
+        ShortcutPinState.tilesReaching(
+          siteId: 'new',
+          pinnedSiteIds: {'old'},
+          rememberedRemap: const {'old': 'new'},
+        ),
+        {'old'},
+      );
+    });
+
+    test('finds both a direct tile and rebound tiles', () {
+      expect(
+        ShortcutPinState.tilesReaching(
+          siteId: 's',
+          pinnedSiteIds: {'s', 'x', 'y'},
+          rememberedRemap: const {'x': 's', 'y': 'other'},
+        ),
+        {'s', 'x'},
+      );
+    });
+
+    test('returns empty when nothing reaches the site', () {
+      expect(
+        ShortcutPinState.tilesReaching(
+          siteId: 'z',
+          pinnedSiteIds: {'a'},
+          rememberedRemap: const {'a': 'b'},
+        ),
+        isEmpty,
+      );
+    });
+  });
 }
