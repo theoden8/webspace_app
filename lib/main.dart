@@ -6126,14 +6126,46 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (candidates.isEmpty || !mounted) return null;
     return showDialog<String>(
       context: context,
-      builder: (ctx) => SimpleDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Point shortcut at'),
-        children: [
-          for (final m in candidates)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, m.siteId),
-              child: Text(m.getDisplayName()),
-            ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: candidates.length,
+            itemBuilder: (context, i) {
+              final m = candidates[i];
+              return ListTile(
+                leading: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: UnifiedFaviconImage(
+                    url: m.initUrl,
+                    size: 32,
+                    proxy: m.proxySettings,
+                  ),
+                ),
+                title: Text(
+                  m.getDisplayName(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  m.initUrl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => Navigator.of(ctx).pop(m.siteId),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
         ],
       ),
     );
