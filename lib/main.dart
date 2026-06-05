@@ -1147,7 +1147,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // shortcuts (visible in the launcher / Shortcuts.app indefinitely).
     if (_webViewModels[index].isArchiveTier) return false;
     if (Platform.isAndroid) {
-      return !_pinnedSiteIds.contains(_webViewModels[index].siteId);
+      // Treat a site an orphaned tile was rebound to (HS-011) as already
+      // pinned — it's reachable via that tile, so don't offer a second one.
+      final effective = ShortcutPinState.effectivePinnedSiteIds(
+        pinnedSiteIds: _pinnedSiteIds,
+        rememberedRemap: _shortcutSiteRemap,
+      );
+      return !effective.contains(_webViewModels[index].siteId);
     }
     if (Platform.isIOS) {
       return _iosAppIntentsSupported;

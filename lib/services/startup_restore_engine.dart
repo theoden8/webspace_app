@@ -147,6 +147,26 @@ class ShortcutUrlLedger {
   }
 }
 
+/// Helpers for "is this site already reachable by a home shortcut?", used to
+/// gate the "Home Shortcut" menu item (HS-005).
+class ShortcutPinState {
+  /// The set of siteIds that already have a reachable shortcut: the pinned
+  /// tiles themselves, plus any site a pinned tile has been rebound to via the
+  /// HS-011 remap. Without folding in remap targets, a site an orphaned tile
+  /// now routes to would still offer to create a second, redundant tile.
+  static Set<String> effectivePinnedSiteIds({
+    required Set<String> pinnedSiteIds,
+    required Map<String, String> rememberedRemap,
+  }) {
+    final result = Set<String>.from(pinnedSiteIds);
+    for (final pinned in pinnedSiteIds) {
+      final target = rememberedRemap[pinned];
+      if (target != null) result.add(target);
+    }
+    return result;
+  }
+}
+
 /// iOS-only tombstone list backing HS-011 parity. iOS can't enumerate
 /// home-screen Shortcut tiles, so when a site is deleted we keep a small
 /// `{siteId, label, url}` record. `SiteEntityQuery.entities(for:)` resolves

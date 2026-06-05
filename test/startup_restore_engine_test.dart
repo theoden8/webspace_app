@@ -272,4 +272,39 @@ void main() {
       expect(next, [tomb('s2', 'https://b.com')]);
     });
   });
+
+  group('ShortcutPinState.effectivePinnedSiteIds', () {
+    test('returns the pinned set when there is no remap', () {
+      expect(
+        ShortcutPinState.effectivePinnedSiteIds(
+          pinnedSiteIds: {'a', 'b'},
+          rememberedRemap: const {},
+        ),
+        {'a', 'b'},
+      );
+    });
+
+    test('folds in a pinned tile\'s rebind target', () {
+      // Tile "old" (pinned) was rebound to "new"; "new" is now reachable.
+      expect(
+        ShortcutPinState.effectivePinnedSiteIds(
+          pinnedSiteIds: {'old'},
+          rememberedRemap: const {'old': 'new'},
+        ),
+        {'old', 'new'},
+      );
+    });
+
+    test('ignores remap entries whose source tile is not pinned', () {
+      // A stale remap from a tile the user has since removed should not mark
+      // its target as pinned.
+      expect(
+        ShortcutPinState.effectivePinnedSiteIds(
+          pinnedSiteIds: {'a'},
+          rememberedRemap: const {'removed': 'target'},
+        ),
+        {'a'},
+      );
+    });
+  });
 }

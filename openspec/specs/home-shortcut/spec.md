@@ -141,6 +141,14 @@ Sites in WebSpace are stable, so a home shortcut is a one-time setup per site. O
 
 The Android pinned-shortcut set is queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` exposed through the platform channel as `getPinnedSiteIds`. The cached set is refreshed on `initState` and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal. On iOS the same channel method returns an empty list.
 
+For the menu-visibility check the pinned set is widened to its **effective** form (`ShortcutPinState.effectivePinnedSiteIds`): the pinned ids plus any site a pinned tile has been rebound to via the HS-011 remap. A site an orphaned tile now routes to is already reachable, so the "Home Shortcut" item is hidden for it too — otherwise the user could pin a second, redundant tile to the same site.
+
+#### Scenario: Android — rebound site hides the menu
+
+**Given** an orphaned pinned tile was rebound to (or created) a site via HS-011
+**When** the user opens the overflow menu for that site
+**Then** the "Home Shortcut" option is not shown (the existing tile already reaches it)
+
 ---
 
 ### Requirement: HS-008 - iOS App Intent for Site Launching
