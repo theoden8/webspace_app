@@ -6143,18 +6143,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       left: 0,
                       right: 0,
                       height: topPadding + 20,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: _exitFullscreen,
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
+                      // Only the centered handle catches the exit tap. The rest
+                      // of the strip stays transparent to pointers so web-app
+                      // controls in the top corners (e.g. a sidebar toggle) get
+                      // the tap instead of exiting fullscreen. github #401
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _exitFullscreen,
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: 5),
-                            width: 36,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(2.5),
+                            width: 96,
+                            height: topPadding + 20,
+                            alignment: Alignment.bottomCenter,
+                            color: Colors.transparent,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 5),
+                              width: 36,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(2.5),
+                              ),
                             ),
                           ),
                         ),
