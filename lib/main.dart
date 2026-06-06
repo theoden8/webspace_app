@@ -3707,6 +3707,17 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             _kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
       }
     }
+    // HS-014: drop tombstones whose siteId is live again (defensive — ids are
+    // unique per create, so this only fires if a backup reintroduced one).
+    if (_shortcutTombstones.isNotEmpty) {
+      final before = _shortcutTombstones.length;
+      _shortcutTombstones =
+          ShortcutTombstones.pruneLive(_shortcutTombstones, activeSiteIdsAtStartup);
+      if (_shortcutTombstones.length != before) {
+        await prefs.setString(
+            _kShortcutTombstonesKey, jsonEncode(_shortcutTombstones));
+      }
+    }
     // Incognito sites are treated as orphans for any session-scoped GC
     // (cookies, html cache, navigation state, container) so on-disk
     // remnants don't outlive the process — see issue #298. Their config
