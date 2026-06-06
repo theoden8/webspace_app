@@ -6054,11 +6054,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (hadPinnedShortcut) {
       await _handleDeletedSiteShortcut(reachingTiles);
     }
-    // iOS can't tell whether a Shortcut tile exists, so tombstone every
-    // (non-archive) deletion: if a tile was pointing here it now resolves and
-    // routes by domain; the list is capped so this stays bounded (HS-011).
+    // iOS: can't detect whether a Shortcut tile exists, so prompt on every
+    // (non-archive) deletion (HS-013/HS-014) — keep/reassign records a
+    // tombstone so a tile stays resolvable, disable records nothing.
     if (Platform.isIOS && !deletedModel.isArchiveTier) {
-      await _recordShortcutTombstone(
+      await _handleDeletedSiteShortcutIos(
           deletedSiteId, deletedModel.name, deletedModel.initUrl);
     }
 
@@ -6066,24 +6066,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     Navigator.pop(context);
   }
 
-  /// HS-013: the deleted site was reachable by one or more pinned tiles
-  /// ([tileIds] — directly or via an HS-011 rebind). Ask what to do with those
-  /// now-orphaned launcher tiles (Android can't remove them for the user):
-  /// keep them (a tap re-routes — open a domain match or offer to create),
-  /// point them at another site, or disable them.
-  Future<void> _handleDeletedSiteShortcut(Set<String> tileIds) async {
-    if (!mounted || tileIds.isEmpty) return;
-    final choice = await showDialog<String>(
+  /// Shared Keep/Reassign/Disable chooser for the delete-time shortcut prompt
+  /// (HS-013). Returns 'keep' | 'reassign' | 'disable' | null (dismissed).
+  Future<String?> _showShortcutFateChoice(String message) {
+    return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Home screen shortcut'),
-        content: const Text(
-          'This site had a home screen shortcut. By default, tapping it lets '
-          'you reopen a matching site or create a new one.\n\n'
-          'You can instead point it at another site, or disable it. (Android '
-          "can't delete a pinned shortcut for you — disabling greys it out "
-          'until you remove it from the home screen.)',
-        ),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'keep'),
@@ -6099,6 +6089,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           ),
         ],
       ),
+    );
+  }
+
+  /// HS-013: the deleted site was reachable by one or more pinned tiles
+  /// ([tileIds] — directly or via an HS-011 rebind). Ask what to do with those
+  /// now-orphaned launcher tiles (Android can't remove them for the user):
+  /// keep them (a tap re-routes — open a domain match or offer to create),
+  /// point them at another site, or disable them.
+  Future<void> _handleDeletedSiteShortcut(Set<String> tileIds) async {
+    if (!mounted || tileIds.isEmpty) return;
+    final choice = await _showShortcutFateChoice(
+      'This site had a home screen shortcut. By default, tapping it lets '
+      'you reopen a matching site or create a new one.\n\n'
+      'You can instead point it at another site, or disable it. (Android '
+      "can't delete a pinned shortcut for you — disabling greys it out "
+      'until you remove it from the home screen.)',
     );
     if (!mounted || choice == null || choice == 'keep') return;
 
@@ -6125,6 +6131,45 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     for (final tile in tileIds) {
       await _rememberShortcutRemap(tile, targetSiteId);
     }
+  }
+
+  /// HS-013/HS-014 (iOS): iOS can't tell whether a home-screen tile exists, so
+  /// the prompt fires on every (non-archive) deletion. Keep records a tombstone
+  /// so a tile bound to this site still resolves and routes; Reassign also
+  /// remaps it to a chosen site; Disable records nothing and drops any remap,
+  /// so the handle no longer resolves and the tile stops running.
+  Future<void> _handleDeletedSiteShortcutIos(
+    String siteId,
+    String label,
+    String url,
+  ) async {
+    if (!mounted) return;
+    final choice = await _showShortcutFateChoice(
+      'If you made a home screen shortcut for this site, choose what it does '
+      'now.\n\n'
+      'Keep: tapping it reopens a matching site or offers to create one. '
+      'Reassign: point it at another site. Disable: it stops opening anything.',
+    );
+    if (!mounted) return;
+
+    if (choice == 'disable') {
+      _shortcutSiteRemap.remove(siteId);
+      _shortcutTombstones =
+          ShortcutTombstones.pruneLive(_shortcutTombstones, {siteId});
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
+      await prefs.setString(
+          _kShortcutTombstonesKey, jsonEncode(_shortcutTombstones));
+      _syncShortcutSites();
+      return;
+    }
+
+    // 'keep' / dismissed / 'reassign' all keep the tile resolvable.
+    await _recordShortcutTombstone(siteId, label, url);
+    if (choice != 'reassign' || !mounted) return;
+    final targetSiteId = await _pickSiteForShortcut();
+    if (targetSiteId == null || !mounted) return;
+    await _rememberShortcutRemap(siteId, targetSiteId);
   }
 
   /// Pick an existing (non-archive) site to reassign an orphaned shortcut to.

@@ -364,7 +364,14 @@ When the user deletes a site that is reachable by one or more pinned tiles, the 
 - **Reassign** — pick another existing site; the system records a rebind (`tile -> chosen siteId`) for each reaching tile so a tap opens the chosen site directly (HS-011 step 2).
 - **Disable** — disable each reaching tile (it greys out and the launcher rejects the tap until the user removes it from the home screen) and drop its ledger and rebind entries.
 
-The prompt SHALL only appear on Android and only when at least one pinned tile reaches the deleted site; deleting a site no tile reaches is unaffected.
+On **Android** the prompt appears only when at least one pinned tile reaches the deleted site (detectable via `getPinnedSiteIds`); deleting a site no tile reaches is unaffected. On **iOS** there is no tile-introspection API, so the prompt appears on every non-archive deletion, and the actions map to the tombstone (HS-014): Keep/Reassign record a tombstone so a tile bound to the site stays resolvable (Reassign also remaps it to the chosen site); Disable records no tombstone and drops any remap, so the handle no longer resolves and the tile stops running.
+
+#### Scenario: iOS prompts on delete and Disable kills the handle
+
+**Given** the user deletes a non-archive site on iOS
+**When** the prompt appears and the user chooses Disable
+**Then** no tombstone is kept for that site
+**And** a Shortcut bound to it no longer resolves or runs
 
 #### Scenario: Deleting a site a tile was rebound to still prompts
 
