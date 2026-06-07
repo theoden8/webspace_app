@@ -62,43 +62,46 @@ void main() {
     });
   });
 
-  group('ShortcutService — non-mobile host', () {
+  group('ShortcutService — host gating', () {
     // Test host is the OS running `flutter test` (Linux on CI, macOS for local
-    // dev). All methods that gate on Platform.isAndroid / Platform.isIOS must
-    // short-circuit without touching the channel.
-    final isMobileHost = Platform.isAndroid || Platform.isIOS;
+    // dev and some CI lanes). Methods gate on the platform: pin/getLaunch run
+    // on Android + iOS + macOS; syncSites/isAppIntentsSupported run on the App
+    // Intents hosts (iOS + macOS); the rest short-circuit without the channel.
+    final isShortcutHost =
+        Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+    final isAppIntentsHost = Platform.isIOS || Platform.isMacOS;
 
-    test('syncSites is a no-op off iOS', () async {
+    test('syncSites is a no-op off iOS/macOS', () async {
       await ShortcutService.syncSites(const [
         ShortcutSite(siteId: 'a', label: 'A'),
       ]);
-      if (!Platform.isIOS) {
+      if (!isAppIntentsHost) {
         expect(calls, isEmpty);
       }
     });
 
-    test('isAppIntentsSupported is false off iOS', () async {
+    test('isAppIntentsSupported is false off iOS/macOS', () async {
       final supported = await ShortcutService.isAppIntentsSupported();
-      if (!Platform.isIOS) {
+      if (!isAppIntentsHost) {
         expect(supported, isFalse);
         expect(calls, isEmpty);
       }
     });
 
-    test('pinShortcut is false on non-mobile host', () async {
+    test('pinShortcut is false off a shortcut host', () async {
       final ok = await ShortcutService.pinShortcut(
         siteId: 'a',
         label: 'A',
       );
-      if (!isMobileHost) {
+      if (!isShortcutHost) {
         expect(ok, isFalse);
         expect(calls, isEmpty);
       }
     });
 
-    test('getLaunch is null on non-mobile host', () async {
+    test('getLaunch is null off a shortcut host', () async {
       final launch = await ShortcutService.getLaunch();
-      if (!isMobileHost) {
+      if (!isShortcutHost) {
         expect(launch, isNull);
         expect(calls, isEmpty);
       }
