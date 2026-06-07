@@ -1302,7 +1302,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (state == AppLifecycleState.paused) {
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
-      if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
+      // AOH-006: URL-ephemeral sites (alwaysOpenHome / incognito) revert to
+      // their initUrl when the app leaves the foreground, so reopening lands
+      // on home. This is the only warm-resume reset — fromJson handles cold
+      // start. In-app site switches never trigger it; only app close does.
+      final activeWentHome = _resetAlwaysOpenHomeForAppClose();
+      if (activeWentHome && mounted) {
+        // The active webview was disposed above. Mark dirty so the rebuild
+        // recreates it at initUrl once frames resume.
+        setState(() {});
+      }
+      if (!activeWentHome &&
+          _currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
         if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
           _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
         }
@@ -4493,6 +4504,37 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       m.disposeWebView();
       _loadedIndices.remove(i);
     }
+  }
+
+  /// Reset every URL-ephemeral site (`alwaysOpenHome`, or incognito which
+  /// implies it per AOH-005) back to its initUrl when the app leaves the
+  /// foreground, disposing the live webview so the next foreground rebuild
+  /// loads home. Cookies, localStorage, and other persistent state are left
+  /// intact — that is the boundary between this toggle and incognito.
+  ///
+  /// Notification sites are skipped: their page must keep running in the
+  /// background to fire notifications, and resetting the URL would tear it
+  /// down. The active site stays in `_loadedIndices` (only its webview is
+  /// dropped) so the IndexedStack still has a child to rebuild at initUrl.
+  /// Returns true if the currently-active site was reset, so the caller can
+  /// skip the now-redundant pause/capture and schedule a rebuild instead.
+  bool _resetAlwaysOpenHomeForAppClose() {
+    bool activeReset = false;
+    for (int i = 0; i < _webViewModels.length; i++) {
+      final m = _webViewModels[i];
+      if (!(m.alwaysOpenHome || m.incognito)) continue;
+      if (m.effectiveNotificationsEnabled) continue;
+      if (m.currentUrl == m.initUrl && m.webview == null) continue;
+      _evictCacheIfOnline(m.siteId);
+      m.currentUrl = m.initUrl;
+      m.disposeWebView();
+      if (i == _currentIndex) {
+        activeReset = true;
+      } else {
+        _loadedIndices.remove(i);
+      }
+    }
+    return activeReset;
   }
 
   void _goHome() {

@@ -5,9 +5,11 @@
 A per-site `alwaysOpenHome` toggle that makes the site's *navigation
 URL* ephemeral while keeping its persistent state (cookies,
 localStorage, IndexedDB, HTTP cache) intact. The site reverts to its
-`initUrl` on **app restart** and on **Android home-shortcut tap**, but
-the user's logged-in session, preferences, and other cookie-backed
-state survive both events.
+`initUrl` on **app restart**, on **app close** (the app leaving the
+foreground), and on **Android home-shortcut tap**, but the user's
+logged-in session, preferences, and other cookie-backed state survive
+all three events. Switching between sites *within* the app is not a
+reset trigger.
 
 Two motivating cases the user split out from
 [incognito-mode](../incognito-mode/spec.md) (which ALSO drops
@@ -161,6 +163,38 @@ regardless of the stored `alwaysOpenHome` value.
 
 ---
 
+### Requirement: AOH-006 - Reset On App Close, Not On Site Switch
+
+The system SHALL reset `currentUrl` to `initUrl` for every flagged site
+(`alwaysOpenHome = true` or `incognito = true`) when the app transitions
+to the backgrounded (`AppLifecycleState.paused`) lifecycle state, and SHALL
+dispose each such site's live webview so the next foregrounding rebuilds it
+at `initUrl`. Cookies and all other persistent per-site state SHALL be left
+untouched (AOH-003). Sites with notifications enabled SHALL be skipped so
+their background page keeps running. Switching the active site within the
+app SHALL NOT reset any flagged site.
+
+#### Scenario: Backgrounding the app sends the active flagged site home
+
+**Given** a site with `alwaysOpenHome = true` is active and navigated to a deep URL
+**When** the app is backgrounded (`AppLifecycleState.paused`) and later resumed
+**Then** the site's webview is rebuilt at `initUrl`
+**And** its persisted cookies are unchanged
+
+#### Scenario: Switching sites in-app does not reset
+
+**Given** site A (`alwaysOpenHome = true`) is active and navigated to a deep URL
+**And** the user switches to site B and back to A, with the app staying foregrounded
+**Then** A is still showing the deep URL (no reset)
+
+#### Scenario: Notification-enabled flagged site is not reset on background
+
+**Given** a site with `alwaysOpenHome = true` and notifications enabled
+**When** the app is backgrounded
+**Then** the site's `currentUrl` is unchanged and its webview is not disposed
+
+---
+
 ## Implementation
 
 ### Files
@@ -171,7 +205,8 @@ regardless of the stored `alwaysOpenHome` value.
   `toJson` URL-strip gate, `fromJson` URL-strip gate.
 - `lib/main.dart` — `_resetAlwaysOpenHomeOnShortcut(int)` helper
   invoked from `_restoreAppState` (cold) and `_handleShortcutIntent`
-  (warm).
+  (warm); `_resetAlwaysOpenHomeForAppClose()` invoked from
+  `didChangeAppLifecycleState` on `paused` (AOH-006).
 - `lib/services/webspace_selection_engine.dart` —
   `indicesToResetOnShortcutLaunch` pure helper computes the reset set
   from the launched index + the webspaces list + a flag predicate.
