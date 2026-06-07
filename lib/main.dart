@@ -1603,14 +1603,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         }
         await _openShortcutIndex(resolution.index);
       } else if (resolution is LaunchOfferCreate) {
-        final ok = await _showShortcutConfirm(
-          title: 'Create site?',
-          message:
-              'This shortcut points to a site that no longer exists. Create a '
-              'new site for ${resolution.url}?',
-          confirmLabel: 'Create',
-        );
-        if (ok != true || !mounted) return;
+        // No live site and no domain match: let the user reroute this handle to
+        // any existing site or create a fresh one. Either choice is remembered
+        // as a remap so the next tap resolves directly (HS-011/HS-014).
+        final choice = await _showShortcutMissingChoice(resolution.url);
+        if (choice == null || !mounted) return;
+        if (choice == 'reroute') {
+          final targetSiteId = await _pickSiteForShortcut();
+          if (targetSiteId == null || !mounted) return;
+          await _rememberShortcutRemap(resolution.shortcutSiteId, targetSiteId);
+          final i =
+              _webViewModels.indexWhere((m) => m.siteId == targetSiteId);
+          if (i >= 0) await _openShortcutIndex(i);
+          return;
+        }
         final model = WebViewModel(
           initUrl: resolution.url,
           stateSetterF: () {
@@ -1651,6 +1657,35 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tap-time chooser for a handle whose site is gone and that has no domain
+  /// match (HS-011 step 3). Returns 'reroute' | 'create' | null (dismissed).
+  Future<String?> _showShortcutMissingChoice(String url) {
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Shortcut site missing'),
+        content: Text(
+          'This shortcut points to a site that no longer exists. Open another '
+          'site instead, or create a new one for $url?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('reroute'),
+            child: const Text('Open another'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('create'),
+            child: const Text('Create'),
           ),
         ],
       ),
@@ -6054,11 +6089,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (hadPinnedShortcut) {
       await _handleDeletedSiteShortcut(reachingTiles);
     }
-    // iOS: can't detect whether a Shortcut tile exists, so prompt on every
-    // (non-archive) deletion (HS-013/HS-014) — keep/reassign records a
-    // tombstone so a tile stays resolvable, disable records nothing.
+    // iOS can't detect whether a Shortcut tile exists, so prompting on delete
+    // would fire blindly on every deletion. Instead, tombstone silently: if a
+    // tile was bound here it stays resolvable and routes (or offers to reroute)
+    // when actually tapped (HS-011/HS-014). The list is capped (HS-014).
     if (Platform.isIOS && !deletedModel.isArchiveTier) {
-      await _handleDeletedSiteShortcutIos(
+      await _recordShortcutTombstone(
           deletedSiteId, deletedModel.name, deletedModel.initUrl);
     }
 
@@ -6131,45 +6167,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     for (final tile in tileIds) {
       await _rememberShortcutRemap(tile, targetSiteId);
     }
-  }
-
-  /// HS-013/HS-014 (iOS): iOS can't tell whether a home-screen tile exists, so
-  /// the prompt fires on every (non-archive) deletion. Keep records a tombstone
-  /// so a tile bound to this site still resolves and routes; Reassign also
-  /// remaps it to a chosen site; Disable records nothing and drops any remap,
-  /// so the handle no longer resolves and the tile stops running.
-  Future<void> _handleDeletedSiteShortcutIos(
-    String siteId,
-    String label,
-    String url,
-  ) async {
-    if (!mounted) return;
-    final choice = await _showShortcutFateChoice(
-      'If you made a home screen shortcut for this site, choose what it does '
-      'now.\n\n'
-      'Keep: tapping it reopens a matching site or offers to create one. '
-      'Reassign: point it at another site. Disable: it stops opening anything.',
-    );
-    if (!mounted) return;
-
-    if (choice == 'disable') {
-      _shortcutSiteRemap.remove(siteId);
-      _shortcutTombstones =
-          ShortcutTombstones.pruneLive(_shortcutTombstones, {siteId});
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
-      await prefs.setString(
-          _kShortcutTombstonesKey, jsonEncode(_shortcutTombstones));
-      _syncShortcutSites();
-      return;
-    }
-
-    // 'keep' / dismissed / 'reassign' all keep the tile resolvable.
-    await _recordShortcutTombstone(siteId, label, url);
-    if (choice != 'reassign' || !mounted) return;
-    final targetSiteId = await _pickSiteForShortcut();
-    if (targetSiteId == null || !mounted) return;
-    await _rememberShortcutRemap(siteId, targetSiteId);
   }
 
   /// Pick an existing (non-archive) site to reassign an orphaned shortcut to.

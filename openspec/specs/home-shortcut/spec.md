@@ -364,14 +364,21 @@ When the user deletes a site that is reachable by one or more pinned tiles, the 
 - **Reassign** — pick another existing site; the system records a rebind (`tile -> chosen siteId`) for each reaching tile so a tap opens the chosen site directly (HS-011 step 2).
 - **Disable** — disable each reaching tile (it greys out and the launcher rejects the tap until the user removes it from the home screen) and drop its ledger and rebind entries.
 
-On **Android** the prompt appears only when at least one pinned tile reaches the deleted site (detectable via `getPinnedSiteIds`); deleting a site no tile reaches is unaffected. On **iOS** there is no tile-introspection API, so the prompt appears on every non-archive deletion, and the actions map to the tombstone (HS-014): Keep/Reassign record a tombstone so a tile bound to the site stays resolvable (Reassign also remaps it to the chosen site); Disable records no tombstone and drops any remap, so the handle no longer resolves and the tile stops running.
+The prompt appears only on **Android**, and only when at least one pinned tile reaches the deleted site (detectable via `getPinnedSiteIds`); deleting a site no tile reaches is unaffected. The prompt is Android-only because only Android can enumerate tiles (to know one exists) and disable them (so the choice has a system-UI effect). On platforms with no tile-introspection or disable API (**iOS**; macOS and Linux if/when they gain a shortcut path), a delete-time prompt would fire blindly on every deletion, so the site is tombstoned silently (HS-014) and the choice is deferred to the only moment a handle reveals itself — when it is tapped (HS-011 step 3): a tap with no live/remap/domain match offers to reroute the handle to an existing site or create a new one, and the choice is remembered as a remap.
 
-#### Scenario: iOS prompts on delete and Disable kills the handle
+#### Scenario: iOS records a tombstone silently on delete
 
 **Given** the user deletes a non-archive site on iOS
-**When** the prompt appears and the user chooses Disable
-**Then** no tombstone is kept for that site
-**And** a Shortcut bound to it no longer resolves or runs
+**When** the deletion completes
+**Then** no prompt is shown
+**And** a tombstone is recorded so a Shortcut bound to the site stays resolvable and routes when tapped
+
+#### Scenario: Tapping a handle with no match offers reroute or create
+
+**Given** a tapped Shortcut handle resolves to no live site, remap, or domain match
+**When** the launch is handled
+**Then** the user is offered to reroute the handle to an existing site or create a new one
+**And** the choice is remembered as a remap so the next tap resolves directly
 
 #### Scenario: Deleting a site a tile was rebound to still prompts
 
