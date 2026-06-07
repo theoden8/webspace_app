@@ -951,10 +951,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // "Home Shortcut" menu item can hide for sites that are already pinned.
   Set<String> _pinnedSiteIds = const <String>{};
 
-  // HS-006/007: iOS 16+ exposes home shortcuts via App Intents. Probed once
-  // at startup so the menu can render synchronously without a future on
-  // every overflow-menu open.
-  bool _iosAppIntentsSupported = false;
+  // HS-006/007: iOS 16+ / macOS 13+ expose home shortcuts via App Intents.
+  // Probed once at startup so the menu can render synchronously without a
+  // future on every overflow-menu open.
+  bool _appIntentsSupported = false;
 
   // HS-011 (Android): a pinned shortcut's intent carries only the random
   // siteId. Once the owning site is deleted (delete+recreate) that id is opaque,
@@ -992,7 +992,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     _restoreAppState();
     _refreshPinnedSiteIds();
-    _probeIosAppIntents();
+    _probeAppIntents();
     // When a pin is revoked while the site is still rendered, the
     // existing webview keeps showing the cached DOM and the live
     // reload may serve from WebView HTTP cache without doing a fresh
@@ -1129,18 +1129,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (changed && mounted) setState(() {});
   }
 
-  Future<void> _probeIosAppIntents() async {
+  Future<void> _probeAppIntents() async {
     final supported = await ShortcutService.isAppIntentsSupported();
-    if (!mounted || supported == _iosAppIntentsSupported) return;
+    if (!mounted || supported == _appIntentsSupported) return;
     setState(() {
-      _iosAppIntentsSupported = supported;
+      _appIntentsSupported = supported;
     });
   }
 
   /// HS-004 / HS-005: gate the "Home Shortcut" menu item. On Android, hide
-  /// once the site already has a pinned shortcut (HS-005). On iOS 16+ the
-  /// item is always visible (iOS has no API to detect home-screen pinning).
-  /// Other platforms hide it.
+  /// once the site already has a pinned shortcut (HS-005). On iOS 16+ /
+  /// macOS 13+ the item is always visible (no API to detect home-screen /
+  /// Shortcuts.app pinning). Other platforms hide it.
   bool _isHomeShortcutMenuVisible(int index) {
     if (index >= _webViewModels.length) return false;
     // ARCH-006: archive-tier sites must not get OS-level pinned
@@ -1155,8 +1155,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       );
       return !effective.contains(_webViewModels[index].siteId);
     }
-    if (Platform.isIOS) {
-      return _iosAppIntentsSupported;
+    if (Platform.isIOS || Platform.isMacOS) {
+      return _appIntentsSupported;
     }
     return false;
   }
@@ -1187,15 +1187,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       await _recordShortcutLedger(model.siteId, model.initUrl);
       return;
     }
-    if (Platform.isIOS && _iosAppIntentsSupported) {
+    if ((Platform.isIOS || Platform.isMacOS) && _appIntentsSupported) {
+      final addStep = Platform.isMacOS
+          ? 'then add it to the Dock or run it from the menu bar.'
+          : 'then tap "Add to Home Screen" from the share menu.';
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Add to Home Screen'),
+          title: Text(
+              Platform.isMacOS ? 'Add a Shortcut' : 'Add to Home Screen'),
           content: Text(
-            'iOS adds WebSpace sites through the Shortcuts app.\n\n'
+            '${Platform.isMacOS ? "macOS" : "iOS"} adds WebSpace sites through '
+            'the Shortcuts app.\n\n'
             'In Shortcuts, find the "Open Site" action under WebSpace, pick '
-            '"${model.name}", then tap "Add to Home Screen" from the share menu.',
+            '"${model.name}", $addStep',
           ),
           actions: [
             TextButton(
@@ -2735,7 +2740,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// renames / additions / deletions show up in Shortcuts.app the next time
   /// the user touches it. No-op on non-iOS platforms.
   void _syncShortcutSites() {
-    if (!Platform.isIOS) return;
+    if (!Platform.isIOS && !Platform.isMacOS) return;
     final sites = [
       for (final m in _webViewModels)
         if (!m.isArchiveTier)
@@ -6089,11 +6094,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (hadPinnedShortcut) {
       await _handleDeletedSiteShortcut(reachingTiles);
     }
-    // iOS can't detect whether a Shortcut tile exists, so prompting on delete
-    // would fire blindly on every deletion. Instead, tombstone silently: if a
-    // tile was bound here it stays resolvable and routes (or offers to reroute)
-    // when actually tapped (HS-011/HS-014). The list is capped (HS-014).
-    if (Platform.isIOS && !deletedModel.isArchiveTier) {
+    // iOS/macOS can't detect whether a Shortcut tile exists, so prompting on
+    // delete would fire blindly on every deletion. Instead, tombstone silently:
+    // if a tile was bound here it stays resolvable and routes (or offers to
+    // reroute) when actually tapped (HS-011/HS-014). The list is capped.
+    if ((Platform.isIOS || Platform.isMacOS) && !deletedModel.isArchiveTier) {
       await _recordShortcutTombstone(
           deletedSiteId, deletedModel.name, deletedModel.initUrl);
     }

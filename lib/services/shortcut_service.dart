@@ -61,7 +61,9 @@ class ShortcutService {
     Uint8List? iconBytes,
     String? iconUrl,
   }) async {
-    if (!Platform.isAndroid && !Platform.isIOS) return false;
+    if (!Platform.isAndroid && !Platform.isIOS && !Platform.isMacOS) {
+      return false;
+    }
     try {
       final result = await _channel.invokeMethod('pinShortcut', {
         'siteId': siteId,
@@ -96,10 +98,12 @@ class ShortcutService {
   /// every resume don't re-navigate on a plain background/return.
   ///
   /// Android returns a bare siteId string (`url` null — the caller pairs it
-  /// with the url ledger); iOS returns a `{siteId, url}` map. Both shapes are
-  /// tolerated so the two platforms can share one call site.
+  /// with the url ledger); iOS/macOS return a `{siteId, url}` map. Both shapes
+  /// are tolerated so the platforms can share one call site.
   static Future<ShortcutLaunch?> getLaunch() async {
-    if (!Platform.isAndroid && !Platform.isIOS) return null;
+    if (!Platform.isAndroid && !Platform.isIOS && !Platform.isMacOS) {
+      return null;
+    }
     try {
       final res = await _channel.invokeMethod('getLaunchSiteId');
       if (res is String) {
@@ -157,12 +161,12 @@ class ShortcutService {
   /// `tombstones` (recently-deleted sites — NOT shown in the picker, but kept
   /// resolvable so a Shortcut tile bound to a deleted site still launches and
   /// routes via HS-011) into the shared App Group UserDefaults. No-op on
-  /// non-iOS platforms.
+  /// platforms without App Intents (everything but iOS/macOS).
   static Future<void> syncSites(
     List<ShortcutSite> sites, {
     List<ShortcutSite> tombstones = const [],
   }) async {
-    if (!Platform.isIOS) return;
+    if (!Platform.isIOS && !Platform.isMacOS) return;
     try {
       await _channel.invokeMethod('syncSites', {
         'sites': sites.map((s) => s.toMap()).toList(),
@@ -173,11 +177,11 @@ class ShortcutService {
     }
   }
 
-  /// True iff the iOS App Intents-based path is available (iOS 16+). False
-  /// on Android (Android uses its own pin path, not gated by this), on
-  /// older iOS, and on every other platform.
+  /// True iff the App Intents-based path is available (iOS 16+ / macOS 13+).
+  /// False on Android (Android uses its own pin path, not gated by this), on
+  /// older iOS/macOS, and on every other platform.
   static Future<bool> isAppIntentsSupported() async {
-    if (!Platform.isIOS) return false;
+    if (!Platform.isIOS && !Platform.isMacOS) return false;
     try {
       final result = await _channel.invokeMethod('isAppIntentsSupported');
       return result == true;

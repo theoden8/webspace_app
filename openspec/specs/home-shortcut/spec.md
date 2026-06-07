@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Allow users to add a site shortcut to the home screen. Tapping the shortcut launches WebSpace and navigates to that site. On Android the system pins the shortcut directly via `ShortcutManagerCompat.requestPinShortcut`. On iOS 16+ the system exposes WebSpace sites as App Intents (`OpenSiteIntent`) that the user adds through the Shortcuts app and pins to the home screen from there.
+Allow users to add a site shortcut to the home screen. Tapping the shortcut launches WebSpace and navigates to that site. On Android the system pins the shortcut directly via `ShortcutManagerCompat.requestPinShortcut`. On iOS 16+ and macOS 13+ the system exposes WebSpace sites as App Intents (`OpenSiteIntent`) that the user adds through the Shortcuts app (and pins to the home screen / Dock from there). The iOS and macOS Runner targets keep separate copies of the App Intents + plugin Swift because the App Group id differs (sandboxed macOS requires the team-prefixed form).
 
 ## Status
 
@@ -89,7 +89,7 @@ The system SHALL use the site's favicon as the shortcut icon when available, fal
 
 ### Requirement: HS-004 - Platform Availability
 
-The "Home Shortcut" menu item SHALL be shown on Android and on iOS 16+. On macOS, Linux, web, and iOS 13/14/15 the menu item SHALL be hidden.
+The "Home Shortcut" menu item SHALL be shown on Android, on iOS 16+, and on macOS 13+ (the App Intents path is shared between iOS and macOS). On Linux, web, iOS 13/14/15, and macOS 12 or earlier the menu item SHALL be hidden.
 
 #### Scenario: Menu item shown on Android
 
@@ -97,21 +97,21 @@ The "Home Shortcut" menu item SHALL be shown on Android and on iOS 16+. On macOS
 **When** the user opens the overflow menu for a site that is not already pinned
 **Then** the "Home Shortcut" option is shown
 
-#### Scenario: Menu item shown on iOS 16 or later
+#### Scenario: Menu item shown on iOS 16+ or macOS 13+
 
-**Given** the app is running on iOS 16.0 or later
+**Given** the app is running on iOS 16.0+ or macOS 13.0+
 **When** the user opens the overflow menu for any site
 **Then** the "Home Shortcut" option is shown
 
-#### Scenario: Menu item hidden on iOS 15 or earlier
+#### Scenario: Menu item hidden on older iOS/macOS
 
-**Given** the app is running on iOS 13, 14, or 15
+**Given** the app is running on iOS 13/14/15 or macOS 12 or earlier
 **When** the user opens the overflow menu
 **Then** the "Home Shortcut" option is not shown
 
-#### Scenario: Menu item hidden on macOS and Linux
+#### Scenario: Menu item hidden on Linux
 
-**Given** the app is running on macOS or Linux
+**Given** the app is running on Linux
 **When** the user opens the overflow menu
 **Then** the "Home Shortcut" option is not shown
 
@@ -153,9 +153,9 @@ For the menu-visibility check the pinned set is widened to its **effective** for
 
 ### Requirement: HS-008 - iOS App Intent for Site Launching
 
-The system SHALL expose an iOS App Intent named "Open Site" that opens WebSpace and navigates to a chosen site. The intent SHALL conform to `OpenIntent` so iOS brings WebSpace to the foreground when the intent runs. The intent's site parameter SHALL be backed by a dynamic `AppEntity` query that returns the user's actual WebSpace sites.
+The system SHALL expose an App Intent named "Open Site" (on iOS 16+ and macOS 13+) that opens WebSpace and navigates to a chosen site. The intent SHALL conform to `OpenIntent` so the system brings WebSpace to the foreground when the intent runs. The intent's site parameter SHALL be backed by a dynamic `AppEntity` query that returns the user's actual WebSpace sites.
 
-Only available on iOS 16+. On older iOS the intent type is compiled but never registered; the menu item is hidden per HS-004.
+Available on iOS 16+ / macOS 13+. On older OS versions the intent type is compiled (guarded by `@available`) but never registered; the menu item is hidden per HS-004.
 
 #### Scenario: User adds the Open Site shortcut in Shortcuts.app
 
@@ -198,7 +198,7 @@ Only available on iOS 16+. On older iOS the intent type is compiled but never re
 
 ### Requirement: HS-009 - Site List Synced to App Group
 
-The system SHALL keep the iOS App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_saveWebViewModels`) and once per launch after `_restoreAppState` finishes loading models, the system SHALL write the current `[{id, name}]` list to `UserDefaults(suiteName: "group.org.codeberg.theoden8.webspace")` under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider. The per-launch sync guards against iOS materializing the per-site App Shortcuts against an empty/stale App Group (e.g. on first launch after install, before any save has run), which can otherwise surface a single stale entry whose bound target no longer matches its displayed title.
+The system SHALL keep the App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_saveWebViewModels`) and once per launch after `_restoreAppState` finishes loading models, the system SHALL write the current `[{id, name}]` list to the shared App Group `UserDefaults` (suite `group.org.codeberg.theoden8.webspace` on iOS; the team-prefixed `<TEAMID>.group.org.codeberg.theoden8.webspace` on sandboxed macOS) under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider. The per-launch sync guards against iOS materializing the per-site App Shortcuts against an empty/stale App Group (e.g. on first launch after install, before any save has run), which can otherwise surface a single stale entry whose bound target no longer matches its displayed title.
 
 #### Scenario: Site added
 
@@ -228,27 +228,27 @@ The system SHALL keep the iOS App Intents site picker in sync with the user's ac
 
 ---
 
-### Requirement: HS-010 - iOS "Add to Home Screen" Dialog
+### Requirement: HS-010 - "Add to Home Screen" Dialog (iOS/macOS)
 
-On iOS, tapping the "Home Shortcut" menu item SHALL show an instructional dialog explaining that iOS surfaces WebSpace sites through the Shortcuts app, with a primary button that deep-links to Shortcuts.app. The system SHALL NOT attempt to pin a shortcut programmatically (iOS has no such public API).
+On iOS and macOS, tapping the "Home Shortcut" menu item SHALL show an instructional dialog explaining that the OS surfaces WebSpace sites through the Shortcuts app, with a primary button that deep-links to Shortcuts.app. The dialog copy SHALL match the platform (iOS: "Add to Home Screen" from the share menu; macOS: add to the Dock / run from the menu bar). The system SHALL NOT attempt to pin a shortcut programmatically (neither OS has such a public API).
 
 #### Scenario: Dialog content
 
-**Given** the user is on iOS 16+
+**Given** the user is on iOS 16+ or macOS 13+
 **When** the user taps "Home Shortcut" in the overflow menu
-**Then** an `AlertDialog` is shown explaining the iOS flow ("find the Open Site action under WebSpace, pick this site, then tap Add to Home Screen")
+**Then** an `AlertDialog` is shown explaining the flow ("find the Open Site action under WebSpace, pick this site, then add it")
 **And** the dialog has an "Open Shortcuts" primary button and a "Cancel" button
 
 #### Scenario: User confirms
 
-**Given** the iOS instructional dialog is shown
+**Given** the instructional dialog is shown
 **When** the user taps "Open Shortcuts"
-**Then** the system opens the URL `shortcuts://` via `UIApplication.shared.open`
+**Then** the system opens the URL `shortcuts://` (`UIApplication.shared.open` on iOS, `NSWorkspace.shared.open` on macOS)
 **And** the Shortcuts.app launches
 
 #### Scenario: User cancels
 
-**Given** the iOS instructional dialog is shown
+**Given** the instructional dialog is shown
 **When** the user taps "Cancel"
 **Then** the dialog dismisses
 **And** Shortcuts.app is not opened
@@ -277,7 +277,7 @@ in any webspace containing the launched site.
 
 ---
 
-### Requirement: HS-011 - Domain Fallback For Orphaned Shortcuts (Android + iOS)
+### Requirement: HS-011 - Domain Fallback For Orphaned Shortcuts (Android + iOS/macOS)
 
 A home shortcut identifies its site by the random `siteId`. When that `siteId` no longer maps to any site — the user deleted the site and created a new one for the same address — the tap would otherwise fail (Android falls back to the home screen; iOS shows "no longer available"). The system SHALL recover by resolving the launch against the current site list with a base-domain fallback, in order:
 
@@ -291,7 +291,7 @@ With no url known for the id, the system falls back to the home screen (legacy H
 The resolution engine (`StartupRestoreEngine.resolveLaunch`) is platform-agnostic; the two platforms differ only in **where the url comes from**:
 
 - **Android** — the launch intent is siteId-only, so a persisted `siteId -> url` ledger supplies the url (recorded for pinned sites, pruned to the pinned/current set; see HS-012).
-- **iOS** — the launch can't be intercepted for a deleted entity unless the entity still resolves, so a deleted site is kept in a bounded **tombstone** list that `SiteEntityQuery.entities(for:)` resolves (while the picker stays live-only, HS-009). The resolved `SiteEntity` carries the url, which `OpenSiteIntent.perform()` writes into the launch payload (see HS-014).
+- **iOS / macOS** — the launch can't be intercepted for a deleted entity unless the entity still resolves, so a deleted site is kept in a bounded **tombstone** list that `SiteEntityQuery.entities(for:)` resolves (while the picker stays live-only, HS-009). The resolved `SiteEntity` carries the url, which `OpenSiteIntent.perform()` writes into the launch payload (see HS-014). The choice for a no-match tap (reroute to an existing site or create one) is made when the handle is tapped, not at delete time, since neither OS can enumerate or disable home-screen tiles.
 
 The ledger, tombstone list, and remembered-rebind map are machine state derived from shortcut activity: all are persisted in `SharedPreferences` (`shortcutUrlLedger`, `shortcutTombstones`, `shortcutSiteRemap`), are NOT part of settings export/import, and are bounded/pruned (HS-012, HS-014). A rebind whose resolved target is later deleted is dropped at startup.
 
