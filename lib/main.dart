@@ -1638,6 +1638,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         await _registerNewSite(model);
         if (!mounted) return;
         await _rememberShortcutRemap(resolution.shortcutSiteId, model.siteId);
+      } else if (resolution is LaunchOfferReroute) {
+        // Handle resolved to a placeholder (site removed, no url known). Let the
+        // user point it at an existing site; remembered so the next tap is direct.
+        final targetSiteId = await _pickSiteForShortcut();
+        if (targetSiteId == null || !mounted) return;
+        await _rememberShortcutRemap(resolution.shortcutSiteId, targetSiteId);
+        final i = _webViewModels.indexWhere((m) => m.siteId == targetSiteId);
+        if (i >= 0) await _openShortcutIndex(i);
       }
     } finally {
       _handlingShortcutPrompt = false;

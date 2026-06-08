@@ -59,16 +59,19 @@ struct SiteEntity: AppEntity {
 /// App Group UserDefaults so the Shortcuts.app picker shows real sites.
 @available(macOS 13, *)
 struct SiteEntityQuery: EntityQuery {
-  // Resolve a bound parameter from live sites AND tombstones, so a Shortcut
-  // pointing at a since-deleted site still resolves (its run then routes by
-  // domain on the Dart side) instead of failing "no longer available".
+  // Resolve EVERY requested id: a live site, then a tombstone, else a
+  // placeholder, so a Shortcut bound to a since-removed site stays tappable
+  // instead of reading "no longer available" (HS-014). De-dupe; preserve order.
   func entities(for identifiers: [SiteEntity.ID]) async throws -> [SiteEntity] {
     let live = Self.loadSites()
     let tombs = Self.loadTombstones()
-    let all = live + tombs
-    let wanted = Set(identifiers)
+    var byId: [String: SiteEntity] = [:]
+    for e in (live + tombs) where byId[e.id] == nil { byId[e.id] = e }
     var seen = Set<String>()
-    let resolved = all.filter { wanted.contains($0.id) && seen.insert($0.id).inserted }
+    var resolved: [SiteEntity] = []
+    for id in identifiers where seen.insert(id).inserted {
+      resolved.append(byId[id] ?? SiteEntity(id: id, name: "Removed WebSpace site", url: nil))
+    }
     NSLog("[WebSpace.macOS] SiteEntityQuery.entities(for: \(identifiers)) live=\(live.count) tombstones=\(tombs.count) resolved=\(resolved.count)")
     return resolved
   }

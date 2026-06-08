@@ -66,17 +66,22 @@ struct SiteEntity: AppEntity {
 /// missing or no sites have been synced yet.
 @available(iOS 16, *)
 struct SiteEntityQuery: EntityQuery {
-  // Resolve a bound parameter from live sites AND tombstones, so a Shortcut
-  // tile pointing at a since-deleted site still resolves (its run then routes
-  // by domain on the Dart side) instead of failing with "no longer available".
+  // Resolve EVERY requested id: a live site, then a tombstone, else a
+  // placeholder. Returning a placeholder for an unknown id (a Shortcut bound to
+  // a site deleted before tombstones existed) keeps the tile from reading "no
+  // longer available" — a tap opens WebSpace and offers to reroute the handle
+  // to an existing site on the Dart side (HS-014). De-dupe by id; preserve the
+  // requested order.
   func entities(for identifiers: [SiteEntity.ID]) async throws -> [SiteEntity] {
     let live = Self.loadSites()
     let tombs = Self.loadTombstones()
-    let all = live + tombs
-    let wanted = Set(identifiers)
-    // De-dupe by id (a tombstone should never shadow a live site).
+    var byId: [String: SiteEntity] = [:]
+    for e in (live + tombs) where byId[e.id] == nil { byId[e.id] = e }
     var seen = Set<String>()
-    let resolved = all.filter { wanted.contains($0.id) && seen.insert($0.id).inserted }
+    var resolved: [SiteEntity] = []
+    for id in identifiers where seen.insert(id).inserted {
+      resolved.append(byId[id] ?? SiteEntity(id: id, name: "Removed WebSpace site", url: nil))
+    }
     NSLog("[WebSpace] SiteEntityQuery.entities(for: \(identifiers)) live=\(live.count) tombstones=\(tombs.count) resolved=\(resolved.count)")
     return resolved
   }

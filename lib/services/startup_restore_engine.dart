@@ -45,6 +45,16 @@ class LaunchOfferCreate extends LaunchResolution {
   });
 }
 
+/// The shortcut's siteId is gone and no url is known to match or create on —
+/// e.g. a handle bound to a site deleted before tombstones existed, which iOS
+/// resolves to a placeholder entity so the tile stays tappable instead of
+/// reading "no longer available". Caller offers to reroute the handle to an
+/// existing site; on confirm, remembers `shortcutSiteId -> chosen site`.
+class LaunchOfferReroute extends LaunchResolution {
+  final String shortcutSiteId;
+  const LaunchOfferReroute({required this.shortcutSiteId});
+}
+
 /// Pure helpers for `_WebSpacePageState._restoreAppState`. Only the
 /// straight-line decisions live here; SharedPreferences I/O, native
 /// cookie-jar nuking, and `_setCurrentIndex` chaining stay at the
@@ -78,10 +88,11 @@ class StartupRestoreEngine {
   ///    user choice) that still resolves — [LaunchOpenSite];
   /// 3. a current site whose base domain matches the shortcut url —
   ///    [LaunchConfirmExisting] (caller prompts before binding);
-  /// 4. otherwise, with a usable url — [LaunchOfferCreate].
+  /// 4. with a usable url but no domain match — [LaunchOfferCreate];
+  /// 5. siteId gone and no url, but sites exist — [LaunchOfferReroute].
   ///
   /// Falls back to [LaunchNone] when there's no intent, or the siteId is
-  /// gone and no url is available to match on (legacy shortcuts).
+  /// gone with no url and no sites to reroute to.
   static LaunchResolution resolveLaunch({
     required String? shortcutSiteId,
     required String? shortcutUrl,
@@ -100,7 +111,14 @@ class StartupRestoreEngine {
     }
 
     final url = shortcutUrl?.trim() ?? '';
-    if (url.isEmpty) return const LaunchNone();
+    if (url.isEmpty) {
+      // No url to match a domain or seed a create — but the handle still
+      // resolved (placeholder), so offer to reroute it to an existing site if
+      // there is one; otherwise land on the home screen.
+      return models.isEmpty
+          ? const LaunchNone()
+          : LaunchOfferReroute(shortcutSiteId: shortcutSiteId);
+    }
 
     final base = getBaseDomain(url);
     if (base.isNotEmpty) {

@@ -154,12 +154,25 @@ void main() {
       expect(r.shortcutSiteId, 'stale-id');
     });
 
-    test('legacy shortcut (siteId gone, no url) -> LaunchNone', () {
+    test('placeholder handle (siteId gone, no url) with sites -> LaunchOfferReroute',
+        () {
       final a = _site('https://a.com');
       final r = StartupRestoreEngine.resolveLaunch(
         shortcutSiteId: 'stale-id',
         shortcutUrl: null,
         models: [a],
+        rememberedRemap: const {},
+      );
+      expect(r, isA<LaunchOfferReroute>());
+      expect((r as LaunchOfferReroute).shortcutSiteId, 'stale-id');
+    });
+
+    test('placeholder handle (siteId gone, no url) with no sites -> LaunchNone',
+        () {
+      final r = StartupRestoreEngine.resolveLaunch(
+        shortcutSiteId: 'stale-id',
+        shortcutUrl: null,
+        models: const [],
         rememberedRemap: const {},
       );
       expect(r, isA<LaunchNone>());
