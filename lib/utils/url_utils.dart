@@ -17,6 +17,8 @@ bool hasUrlScheme(String url) {
 
 final RegExp _authoritySchemeRegex =
     RegExp(r'^[a-zA-Z][a-zA-Z0-9+\-]*://');
+
+bool isGeminiUrl(String url) => url.startsWith('gemini://');
 final RegExp _authorityLessSchemeRegex =
     RegExp(r'^(about|javascript|data|mailto|tel|view-source):');
 

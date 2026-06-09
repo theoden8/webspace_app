@@ -32,6 +32,8 @@ import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
+import 'package:webspace/services/gemini_client.dart';
+import 'package:webspace/services/gemini_renderer.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -1291,6 +1293,29 @@ class WebViewFactory {
     return true; // Default allow on unknown platforms
   }
 
+  static Future<void> _loadGeminiUrl(
+    inapp.InAppWebViewController controller,
+    String url,
+    WebViewConfig config,
+  ) async {
+    final response = await GeminiClient.fetch(url);
+    String html;
+    if (response.isSuccess && response.isGemtext) {
+      html = GeminiRenderer.render(response.body, url);
+    } else if (response.isSuccess) {
+      html = response.body;
+    } else {
+      html = GeminiRenderer.renderError(response.status, response.meta, url);
+    }
+    await controller.loadData(
+      data: html,
+      mimeType: 'text/html',
+      encoding: 'utf-8',
+      baseUrl: inapp.WebUri(url),
+    );
+    config.onUrlChanged?.call(url);
+  }
+
   static bool _shouldBlockUrl(String url) {
     // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile
     if (url.startsWith('about:') && url != 'about:blank' && url != 'about:srcdoc') return true;
@@ -1414,13 +1439,16 @@ class WebViewFactory {
     // Production users get the speed-up of cached first paint without
     // the dev-only crash.
     final isFileImport = config.initialUrl.startsWith('file://');
+    final isGemini = GeminiClient.isGeminiUrl(config.initialUrl);
     // When the cache is missing for a file import (incognito mode,
     // post-upgrade cache wipe, …) we feed initialData with a synthetic
     // "content unavailable" page rather than letting chromium attempt
     // to load the synthetic file:// URL — there's no actual file on
     // disk, so the load would surface as ERR_INVALID_URL or
     // ERR_FILE_NOT_FOUND in the user's face.
-    final renderInitialData = config.initialHtml != null || isFileImport;
+    // Gemini sites also use initialData: a loading placeholder that is
+    // replaced by the fetched+rendered gemtext in onWebViewCreated.
+    final renderInitialData = config.initialHtml != null || isFileImport || isGemini;
     final usesCachedHtml = config.initialHtml != null;
     // One-shot: when the cached HTML's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
@@ -2142,7 +2170,7 @@ class WebViewFactory {
       containerId: containerId,
       proxySettings: inappProxy,
     )
-      ..javaScriptEnabled = config.javascriptEnabled
+      ..javaScriptEnabled = isGemini ? false : config.javascriptEnabled
       ..userAgent = config.userAgent
       // Sec-CH-UA*/navigator.userAgentData on Android come from a separate
       // metadata object — not the UA string. Without this override the
@@ -2201,7 +2229,9 @@ class WebViewFactory {
         headers: headers.isNotEmpty ? headers : null,
       ),
       initialData: renderInitialData ? inapp.InAppWebViewInitialData(
-        data: config.initialHtml ?? buildFileImportFallbackHtml(config.initialUrl),
+        data: config.initialHtml
+            ?? (isGemini ? GeminiRenderer.renderLoading(config.initialUrl) : null)
+            ?? buildFileImportFallbackHtml(config.initialUrl),
         mimeType: 'text/html',
         encoding: 'utf-8',
         baseUrl: inapp.WebUri(config.initialUrl),
@@ -2242,6 +2272,9 @@ class WebViewFactory {
       onWebViewCreated: (controller) async {
         final wrappedController = _WebViewController(controller);
         onControllerCreated(wrappedController);
+        if (isGemini) {
+          _loadGeminiUrl(controller, config.initialUrl, config);
+        }
         // Live geolocation: forward navigator.geolocation calls from the
         // shim into the platform's native location service. Permission is
         // requested by the native plugin only when this handler is first
@@ -2626,6 +2659,10 @@ class WebViewFactory {
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
         if (isCaptchaChallenge(url)) return inapp.NavigationActionPolicy.ALLOW;
+        if (GeminiClient.isGeminiUrl(url)) {
+          _loadGeminiUrl(controller, url, config);
+          return inapp.NavigationActionPolicy.CANCEL;
+        }
         // External app schemes (intent://, tel:, mailto:, market:, custom
         // app schemes) can't be rendered in a webview — flutter_inappwebview
         // returns ERR_UNKNOWN_URL_SCHEME. Cancel and hand the URL to the
@@ -2849,6 +2886,11 @@ class WebViewFactory {
             await config.onWindowRequested!(windowId, url);
             return true;
           }
+          return false;
+        }
+
+        if (GeminiClient.isGeminiUrl(url)) {
+          _loadGeminiUrl(controller, url, config);
           return false;
         }
 

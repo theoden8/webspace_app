@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/magnet_parser.dart';
 import 'package:webspace/services/webview.dart' show WebViewController;
 import 'package:webspace/widgets/root_messenger.dart';
 
@@ -150,9 +152,14 @@ Future<void> confirmAndLaunchExternalUrl(
     }
 
     final hasFallback = cleanedFallback.isNotEmpty;
+    final magnetInfo = info.scheme == 'magnet'
+        ? MagnetInfo.parse(cleanedLaunchUrl)
+        : null;
     final choice = await showDialog<_ExternalUrlChoice>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => magnetInfo != null
+          ? _buildMagnetDialog(ctx, magnetInfo, cleanedLaunchUrl)
+          : AlertDialog(
         title: const Text('Open external app?'),
         content: SingleChildScrollView(
           child: Column(
@@ -303,4 +310,89 @@ Future<void> _launchInApp(
     LogService.instance.log('ExternalUrl', 'app launch failed, opening fallback externally');
     await _launchExternally(cleanedFallback, label: 'browser fallback after app failure');
   }
+}
+
+Widget _buildMagnetDialog(
+  BuildContext ctx,
+  MagnetInfo magnet,
+  String launchUrl,
+) {
+  return AlertDialog(
+    title: const Text('Magnet Link'),
+    content: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (magnet.displayName != null) ...[
+            Text(
+              magnet.displayName!,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (magnet.infoHash != null) ...[
+            Text('Hash', style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(ctx).textTheme.bodySmall?.color,
+            )),
+            const SizedBox(height: 2),
+            SelectableText(
+              magnet.infoHash!,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (magnet.size != null) ...[
+            Text('Size', style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(ctx).textTheme.bodySmall?.color,
+            )),
+            const SizedBox(height: 2),
+            Text(MagnetInfo.formatSize(magnet.size!)),
+            const SizedBox(height: 8),
+          ],
+          if (magnet.trackers.isNotEmpty) ...[
+            Text('Trackers (${magnet.trackers.length})', style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(ctx).textTheme.bodySmall?.color,
+            )),
+            const SizedBox(height: 2),
+            ...magnet.trackers.take(3).map((t) {
+              final uri = Uri.tryParse(t);
+              final display = uri?.host ?? t;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(display,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+              );
+            }),
+            if (magnet.trackers.length > 3)
+              Text('+${magnet.trackers.length - 3} more',
+                  style: TextStyle(fontSize: 12, color: Theme.of(ctx).hintColor)),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.cancel),
+        child: const Text('Cancel'),
+      ),
+      TextButton(
+        onPressed: () {
+          Clipboard.setData(ClipboardData(text: launchUrl));
+          rootScaffoldMessengerKey.currentState?.showSnackBar(
+            const SnackBar(content: Text('Magnet link copied')),
+          );
+          Navigator.pop(ctx, _ExternalUrlChoice.cancel);
+        },
+        child: const Text('Copy Link'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInApp),
+        child: const Text('Open in App'),
+      ),
+    ],
+  );
 }
