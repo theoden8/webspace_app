@@ -1,28 +1,24 @@
-import Flutter
+import Cocoa
+import FlutterMacOS
 import Foundation
-import UIKit
 
 #if canImport(AppIntents)
 import AppIntents
 #endif
 
-/// iOS bridge for [`ShortcutService`](../../lib/services/shortcut_service.dart).
-///
-/// Android pins shortcuts directly via `ShortcutManager.requestPinShortcut`.
-/// iOS has no equivalent public API, so on iOS the menu defers to the
-/// Shortcuts app: this plugin keeps an App Group-backed site list in sync so
-/// `WebSpaceShortcuts` / `SiteEntityQuery` (iOS 16+) can surface the user's
-/// real sites in the action picker, and deep-links to `shortcuts://` when
-/// the user taps "Add to Home Screen" on iOS.
-///
-/// When an `OpenSiteIntent` runs, it stashes the chosen siteId in App Group
-/// UserDefaults; `getLaunchSiteId` drains that key the next time Flutter
-/// asks (cold launch in `_restoreAppState`, warm launch in
-/// `_handleShortcutIntent`).
+/// macOS bridge for [`ShortcutService`](../../lib/services/shortcut_service.dart),
+/// mirroring ios/Runner/ShortcutsPlugin.swift. macOS has no programmatic pin
+/// API either, so the menu defers to Shortcuts.app: this plugin keeps an App
+/// Group-backed site list in sync so `WebSpaceShortcuts` / `SiteEntityQuery`
+/// (macOS 13+) surface the user's real sites, and opens `shortcuts://` when the
+/// user asks to add one. A run `OpenSiteIntent` stashes the chosen siteId in
+/// App Group UserDefaults; `getLaunchSiteId` drains it on the next Flutter ask.
 class ShortcutsPlugin: NSObject {
   private let channel: FlutterMethodChannel
   private static let channelName = "org.codeberg.theoden8.webspace/shortcuts"
-  private static let appGroupId = "group.org.codeberg.theoden8.webspace"
+  // Team-prefixed App Group id, required for sandboxed macOS UserDefaults.
+  // Must match AppDelegate.appGroupId and WebSpaceAppIntents.kShortcutAppGroupId.
+  private static let appGroupId = "7NGC2P87LM.group.org.codeberg.theoden8.webspace"
   private static let sitesKey = "shortcut_sites"
   private static let tombstonesKey = "shortcut_tombstones"
   private static let pendingKey = "pending_shortcut_site_id"
@@ -42,7 +38,7 @@ class ShortcutsPlugin: NSObject {
   private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "isAppIntentsSupported":
-      if #available(iOS 16, *) {
+      if #available(macOS 13, *) {
         result(true)
       } else {
         result(false)
@@ -58,10 +54,10 @@ class ShortcutsPlugin: NSObject {
     case "pinShortcut":
       openShortcutsApp(result: result)
     case "removeShortcut":
-      // No-op on iOS: we don't pin, we don't track.
+      // No-op on macOS: we don't pin, we don't track.
       result(nil)
     case "getPinnedSiteIds":
-      // iOS has no public API to enumerate home-screen tiles.
+      // macOS has no public API to enumerate Shortcuts.app tiles.
       result([])
     default:
       result(FlutterMethodNotImplemented)
@@ -70,12 +66,12 @@ class ShortcutsPlugin: NSObject {
 
   private func syncSites(_ rawSites: [[String: Any]], tombstones rawTombstones: [[String: Any]]) {
     guard let defaults = UserDefaults(suiteName: Self.appGroupId) else {
-      NSLog("[WebSpace] ShortcutsPlugin: App Group \(Self.appGroupId) unavailable")
+      NSLog("[WebSpace.macOS] ShortcutsPlugin: App Group \(Self.appGroupId) unavailable")
       return
     }
     let sites = Self.normalize(rawSites)
     let tombs = Self.normalize(rawTombstones)
-    NSLog("[WebSpace] ShortcutsPlugin.syncSites sites=\(sites.count) tombstones=\(tombs.count)")
+    NSLog("[WebSpace.macOS] ShortcutsPlugin.syncSites sites=\(sites.count) tombstones=\(tombs.count)")
     if let json = try? JSONSerialization.data(withJSONObject: sites) {
       defaults.set(json, forKey: Self.sitesKey)
     }
@@ -83,7 +79,7 @@ class ShortcutsPlugin: NSObject {
       defaults.set(json, forKey: Self.tombstonesKey)
     }
     #if canImport(AppIntents)
-    if #available(iOS 16, *) {
+    if #available(macOS 13, *) {
       WebSpaceShortcuts.updateAppShortcutParameters()
     }
     #endif
@@ -113,7 +109,7 @@ class ShortcutsPlugin: NSObject {
     defaults.removeObject(forKey: Self.pendingUrlKey)
     var payload = ["siteId": siteId]
     if let url = url, !url.isEmpty { payload["url"] = url }
-    NSLog("[WebSpace] drainPendingLaunch siteId=\(siteId) url=\(url ?? "nil")")
+    NSLog("[WebSpace.macOS] drainPendingLaunch siteId=\(siteId) url=\(url ?? "nil")")
     return payload
   }
 
@@ -122,10 +118,7 @@ class ShortcutsPlugin: NSObject {
       result(false)
       return
     }
-    DispatchQueue.main.async {
-      UIApplication.shared.open(url, options: [:]) { success in
-        result(success)
-      }
-    }
+    NSWorkspace.shared.open(url)
+    result(true)
   }
 }

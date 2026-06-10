@@ -23,6 +23,7 @@ import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFavic
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
+import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -950,10 +951,38 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   // "Home Shortcut" menu item can hide for sites that are already pinned.
   Set<String> _pinnedSiteIds = const <String>{};
 
-  // HS-006/007: iOS 16+ exposes home shortcuts via App Intents. Probed once
-  // at startup so the menu can render synchronously without a future on
-  // every overflow-menu open.
-  bool _iosAppIntentsSupported = false;
+  // HS-006/007: iOS 16+ / macOS 13+ expose home shortcuts via App Intents.
+  // Probed once at startup so the menu can render synchronously without a
+  // future on every overflow-menu open.
+  bool _appIntentsSupported = false;
+
+  // HS-011 (Android): a pinned shortcut's intent carries only the random
+  // siteId. Once the owning site is deleted (delete+recreate) that id is opaque,
+  // so we keep a `siteId -> url` ledger — recorded for pinned sites, pruned to
+  // the pinned/current set — to drive the domain fallback.
+  static const _kShortcutUrlLedgerKey = 'shortcutUrlLedger';
+  Map<String, String> _shortcutUrlLedger = {};
+
+  // HS-011 (iOS): iOS can't enumerate home-screen tiles, so the Android ledger
+  // approach can't GC. Instead we keep a bounded tombstone list of deleted
+  // `{siteId, label, url}` and sync it to the App Group: `entities(for:)`
+  // resolves a deleted-site Shortcut from live ∪ tombstones (so it still
+  // launches and routes by domain), while the picker stays live-only (HS-009).
+  static const _kShortcutTombstonesKey = 'shortcutTombstones';
+  List<Map<String, String>> _shortcutTombstones = [];
+
+  // When the user confirms a rebind, the choice is remembered here (stale
+  // siteId -> live siteId) and persisted so later taps of the same shortcut
+  // resolve silently. Machine state derived from shortcut activity, not a user
+  // setting: excluded from settings backups.
+  static const _kShortcutRemapKey = 'shortcutSiteRemap';
+  Map<String, String> _shortcutSiteRemap = {};
+
+  // A cold-launch shortcut that needs a confirm/create prompt can't show a
+  // dialog mid-restore (no UI yet); it's parked here and handled on the first
+  // post-frame. Guards re-entry while a prompt is on screen.
+  LaunchResolution? _pendingShortcutResolution;
+  bool _handlingShortcutPrompt = false;
 
   StreamSubscription<TrustedHostEntry>? _untrustSub;
 
@@ -963,7 +992,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     _restoreAppState();
     _refreshPinnedSiteIds();
-    _probeIosAppIntents();
+    _probeAppIntents();
     // When a pin is revoked while the site is still rendered, the
     // existing webview keeps showing the cached DOM and the live
     // reload may serve from WebView HTTP cache without doing a fresh
@@ -1100,28 +1129,34 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (changed && mounted) setState(() {});
   }
 
-  Future<void> _probeIosAppIntents() async {
+  Future<void> _probeAppIntents() async {
     final supported = await ShortcutService.isAppIntentsSupported();
-    if (!mounted || supported == _iosAppIntentsSupported) return;
+    if (!mounted || supported == _appIntentsSupported) return;
     setState(() {
-      _iosAppIntentsSupported = supported;
+      _appIntentsSupported = supported;
     });
   }
 
   /// HS-004 / HS-005: gate the "Home Shortcut" menu item. On Android, hide
-  /// once the site already has a pinned shortcut (HS-005). On iOS 16+ the
-  /// item is always visible (iOS has no API to detect home-screen pinning).
-  /// Other platforms hide it.
+  /// once the site already has a pinned shortcut (HS-005). On iOS 16+ /
+  /// macOS 13+ the item is always visible (no API to detect home-screen /
+  /// Shortcuts.app pinning). Other platforms hide it.
   bool _isHomeShortcutMenuVisible(int index) {
     if (index >= _webViewModels.length) return false;
     // ARCH-006: archive-tier sites must not get OS-level pinned
     // shortcuts (visible in the launcher / Shortcuts.app indefinitely).
     if (_webViewModels[index].isArchiveTier) return false;
     if (Platform.isAndroid) {
-      return !_pinnedSiteIds.contains(_webViewModels[index].siteId);
+      // Treat a site an orphaned tile was rebound to (HS-011) as already
+      // pinned — it's reachable via that tile, so don't offer a second one.
+      final effective = ShortcutPinState.effectivePinnedSiteIds(
+        pinnedSiteIds: _pinnedSiteIds,
+        rememberedRemap: _shortcutSiteRemap,
+      );
+      return !effective.contains(_webViewModels[index].siteId);
     }
-    if (Platform.isIOS) {
-      return _iosAppIntentsSupported;
+    if (Platform.isIOS || Platform.isMacOS) {
+      return _appIntentsSupported;
     }
     return false;
   }
@@ -1131,23 +1166,41 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _handleAddToHome(WebViewModel model) async {
     if (Platform.isAndroid) {
       final faviconUrl = FaviconUrlCache.get(model.initUrl);
-      final isSvg = faviconUrl != null && faviconUrl.toLowerCase().endsWith('.svg');
+      // Rasterize the favicon to PNG here (HS-003): Android's BitmapFactory
+      // can't decode SVG, so an SVG favicon would otherwise fall back to the
+      // WebSpace app icon. exportIconAsPng also normalizes ICO/PNG and applies
+      // the site's proxy. iconUrl stays as a native-side fallback if it fails.
+      final iconBytes = await exportIconAsPng(
+        model.initUrl,
+        resolvedIconUrl: faviconUrl,
+        proxy: model.proxySettings,
+      );
+      if (!mounted) return;
       await ShortcutService.pinShortcut(
         siteId: model.siteId,
         label: model.name,
-        iconUrl: isSvg ? null : faviconUrl,
+        iconBytes: iconBytes,
+        iconUrl: iconBytes == null ? faviconUrl : null,
       );
+      // HS-011: remember this id's url now so a later delete+recreate can be
+      // routed by domain. _refreshPinnedSiteIds also reconciles on resume.
+      await _recordShortcutLedger(model.siteId, model.initUrl);
       return;
     }
-    if (Platform.isIOS && _iosAppIntentsSupported) {
+    if ((Platform.isIOS || Platform.isMacOS) && _appIntentsSupported) {
+      final addStep = Platform.isMacOS
+          ? 'then add it to the Dock or run it from the menu bar.'
+          : 'then tap "Add to Home Screen" from the share menu.';
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Add to Home Screen'),
+          title: Text(
+              Platform.isMacOS ? 'Add a Shortcut' : 'Add to Home Screen'),
           content: Text(
-            'iOS adds WebSpace sites through the Shortcuts app.\n\n'
+            '${Platform.isMacOS ? "macOS" : "iOS"} adds WebSpace sites through '
+            'the Shortcuts app.\n\n'
             'In Shortcuts, find the "Open Site" action under WebSpace, pick '
-            '"${model.name}", then tap "Add to Home Screen" from the share menu.',
+            '"${model.name}", $addStep',
           ),
           actions: [
             TextButton(
@@ -1172,6 +1225,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   Future<void> _refreshPinnedSiteIds() async {
     final ids = await ShortcutService.getPinnedSiteIds();
+    if (!mounted) return;
+    // HS-011: keep the url ledger in step with the launcher — record urls for
+    // pinned sites that still exist, drop entries no longer reachable. Runs on
+    // initState and every resume, so it catches in-app pins and out-of-app
+    // removals. Android-only (iOS getPinnedSiteIds is always empty).
+    await _reconcileShortcutLedger(ids);
     if (!mounted) return;
     if (ids.length == _pinnedSiteIds.length &&
         ids.containsAll(_pinnedSiteIds)) {
@@ -1468,20 +1527,275 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _handleShortcutIntent() async {
-    final siteId = await ShortcutService.getLaunchSiteId();
-    if (!mounted) return;
-    if (siteId != null) {
-      final index = _webViewModels.indexWhere((m) => m.siteId == siteId);
-      if (index >= 0) {
-        _resetAlwaysOpenHomeOnShortcut(index);
-        if (index != _currentIndex) {
-          await _setCurrentIndex(index);
-          if (!mounted) return;
-        }
-        setState(() {});
-        await _saveWebViewModels();
-      }
+    final launch = await ShortcutService.getLaunch();
+    if (!mounted || launch == null) return;
+    final url = launch.url ??
+        _shortcutUrlLedger[launch.siteId] ??
+        _tombstoneUrlFor(launch.siteId);
+    LogService.instance.log(
+      'Shortcut',
+      'warm launch siteId=${launch.siteId} payloadUrl=${launch.url} '
+          'resolvedUrl=$url',
+      sensitivity: LogSensitivity.sensitive,
+    );
+    final resolution = StartupRestoreEngine.resolveLaunch(
+      shortcutSiteId: launch.siteId,
+      // iOS carries the url in the launch payload; Android pairs the id with
+      // its url ledger. Fall back to the iOS tombstone url in case iOS handed
+      // back a stale cached entity without a url.
+      shortcutUrl: url,
+      models: _webViewModels,
+      rememberedRemap: _shortcutSiteRemap,
+    );
+    if (resolution is LaunchOpenSite) {
+      await _openShortcutIndex(resolution.index);
+    } else if (resolution is! LaunchNone) {
+      await _applyInteractiveShortcut(resolution, coldLaunch: false);
     }
+  }
+
+  /// Look up a deleted site's url from the iOS tombstone list (HS-014), so a
+  /// stale launch payload without a url can still route by domain.
+  String? _tombstoneUrlFor(String siteId) {
+    for (final t in _shortcutTombstones) {
+      if (t['siteId'] == siteId) return t['url'];
+    }
+    return null;
+  }
+
+  /// Warm-tap switch to a resolved site: reset flagged siblings to home
+  /// (HS-007), switch if not already active, persist. Does NOT reset the
+  /// launched site's own currentUrl — a warm tap preserves the live session
+  /// (HS-006); cold launch handles the initUrl reset separately.
+  Future<void> _openShortcutIndex(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    _resetAlwaysOpenHomeOnShortcut(index);
+    if (index != _currentIndex) {
+      await _setCurrentIndex(index);
+      if (!mounted) return;
+    }
+    setState(() {});
+    await _saveWebViewModels();
+  }
+
+  /// HS-011: drive the confirm/create prompt for a shortcut whose siteId no
+  /// longer maps to a site. On confirm, remembers the rebind so future taps
+  /// resolve directly via [_shortcutSiteRemap].
+  Future<void> _applyInteractiveShortcut(
+    LaunchResolution resolution, {
+    required bool coldLaunch,
+  }) async {
+    if (_handlingShortcutPrompt) return;
+    _handlingShortcutPrompt = true;
+    try {
+      if (resolution is LaunchConfirmExisting) {
+        if (resolution.index < 0 ||
+            resolution.index >= _webViewModels.length) {
+          return;
+        }
+        final model = _webViewModels[resolution.index];
+        final ok = await _showShortcutConfirm(
+          title: 'Open site?',
+          message:
+              'This shortcut points to a site that no longer exists. Open '
+              '"${model.getDisplayName()}" instead? It matches the same address.',
+          confirmLabel: 'Open',
+        );
+        if (ok != true || !mounted) return;
+        await _rememberShortcutRemap(resolution.shortcutSiteId, model.siteId);
+        if (coldLaunch && model.currentUrl != model.initUrl) {
+          model.currentUrl = model.initUrl;
+        }
+        await _openShortcutIndex(resolution.index);
+      } else if (resolution is LaunchOfferCreate) {
+        // No live site and no domain match: let the user reroute this handle to
+        // any existing site or create a fresh one. Either choice is remembered
+        // as a remap so the next tap resolves directly (HS-011/HS-014).
+        final choice = await _showShortcutMissingChoice(resolution.url);
+        if (choice == null || !mounted) return;
+        if (choice == 'reroute') {
+          final targetSiteId = await _pickSiteForShortcut();
+          if (targetSiteId == null || !mounted) return;
+          await _rememberShortcutRemap(resolution.shortcutSiteId, targetSiteId);
+          final i =
+              _webViewModels.indexWhere((m) => m.siteId == targetSiteId);
+          if (i >= 0) await _openShortcutIndex(i);
+          return;
+        }
+        final model = WebViewModel(
+          initUrl: resolution.url,
+          stateSetterF: () {
+            if (mounted) setState(() {});
+          },
+        );
+        final title = await getPageTitle(resolution.url);
+        if (!mounted) return;
+        if (title != null && title.isNotEmpty) {
+          model.name = title;
+          model.pageTitle = title;
+        }
+        // _registerNewSite adds, activates, applies theme, and persists.
+        await _registerNewSite(model);
+        if (!mounted) return;
+        await _rememberShortcutRemap(resolution.shortcutSiteId, model.siteId);
+      } else if (resolution is LaunchOfferReroute) {
+        // Handle resolved to a placeholder (site removed, no url known). Let the
+        // user point it at an existing site; remembered so the next tap is direct.
+        final targetSiteId = await _pickSiteForShortcut();
+        if (targetSiteId == null || !mounted) return;
+        await _rememberShortcutRemap(resolution.shortcutSiteId, targetSiteId);
+        final i = _webViewModels.indexWhere((m) => m.siteId == targetSiteId);
+        if (i >= 0) await _openShortcutIndex(i);
+      }
+    } finally {
+      _handlingShortcutPrompt = false;
+    }
+  }
+
+  Future<bool?> _showShortcutConfirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Tap-time chooser for a handle whose site is gone and that has no domain
+  /// match (HS-011 step 3). Returns 'reroute' | 'create' | null (dismissed).
+  Future<String?> _showShortcutMissingChoice(String url) {
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Shortcut site missing'),
+        content: Text(
+          'This shortcut points to a site that no longer exists. Open another '
+          'site instead, or create a new one for $url?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('reroute'),
+            child: const Text('Open another'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('create'),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _rememberShortcutRemap(
+    String shortcutSiteId,
+    String resolvedSiteId,
+  ) async {
+    if (_shortcutSiteRemap[shortcutSiteId] == resolvedSiteId) return;
+    _shortcutSiteRemap[shortcutSiteId] = resolvedSiteId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
+  }
+
+  void _loadShortcutRemap(SharedPreferences prefs) {
+    _shortcutSiteRemap = _decodeStringMap(prefs.getString(_kShortcutRemapKey));
+    _shortcutUrlLedger = _decodeStringMap(prefs.getString(_kShortcutUrlLedgerKey));
+    _shortcutTombstones = _decodeTombstones(prefs.getString(_kShortcutTombstonesKey));
+  }
+
+  List<Map<String, String>> _decodeTombstones(String? raw) {
+    if (raw == null) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return [
+          for (final e in decoded)
+            if (e is Map)
+              {
+                for (final kv in e.entries) kv.key.toString(): kv.value.toString(),
+              },
+        ];
+      }
+    } catch (_) {
+      // Corrupt entry — start fresh.
+    }
+    return [];
+  }
+
+  /// HS-011 (iOS): tombstone a deleted site so a Shortcut tile bound to it
+  /// still resolves and routes by domain. Persists and re-syncs the App Group.
+  Future<void> _recordShortcutTombstone(
+    String siteId,
+    String label,
+    String url,
+  ) async {
+    _shortcutTombstones = ShortcutTombstones.add(
+      tombstones: _shortcutTombstones,
+      entry: {'siteId': siteId, 'label': label, 'url': url},
+    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        _kShortcutTombstonesKey, jsonEncode(_shortcutTombstones));
+    _syncShortcutSites();
+  }
+
+  Map<String, String> _decodeStringMap(String? raw) {
+    if (raw == null) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return {
+          for (final e in decoded.entries) e.key.toString(): e.value.toString(),
+        };
+      }
+    } catch (_) {
+      // Corrupt entry — start fresh; it'll be rewritten on the next update.
+    }
+    return {};
+  }
+
+  /// Record one `siteId -> url` ledger entry (HS-011) and persist if it changed.
+  Future<void> _recordShortcutLedger(String siteId, String url) async {
+    if (url.isEmpty || _shortcutUrlLedger[siteId] == url) return;
+    _shortcutUrlLedger[siteId] = url;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kShortcutUrlLedgerKey, jsonEncode(_shortcutUrlLedger));
+  }
+
+  /// Reconcile the ledger against the launcher's [pinnedSiteIds] (HS-011):
+  /// record urls for pinned sites that still exist, prune unreachable entries.
+  Future<void> _reconcileShortcutLedger(Set<String> pinnedSiteIds) async {
+    final currentSiteUrls = {
+      for (final m in _webViewModels)
+        if (!m.isArchiveTier) m.siteId: m.initUrl,
+    };
+    final next = ShortcutUrlLedger.reconcile(
+      ledger: _shortcutUrlLedger,
+      currentSiteUrls: currentSiteUrls,
+      pinnedSiteIds: pinnedSiteIds,
+    );
+    if (mapEquals(next, _shortcutUrlLedger)) return;
+    _shortcutUrlLedger = next;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kShortcutUrlLedgerKey, jsonEncode(_shortcutUrlLedger));
   }
 
   bool _handlingShareIntent = false;
@@ -2434,17 +2748,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// renames / additions / deletions show up in Shortcuts.app the next time
   /// the user touches it. No-op on non-iOS platforms.
   void _syncShortcutSites() {
-    if (!Platform.isIOS) return;
+    if (!Platform.isIOS && !Platform.isMacOS) return;
     final sites = [
       for (final m in _webViewModels)
         if (!m.isArchiveTier)
           ShortcutSite(
             siteId: m.siteId,
             label: m.name,
+            url: m.initUrl,
             iconUrl: FaviconUrlCache.get(m.initUrl),
           ),
     ];
-    unawaited(ShortcutService.syncSites(sites));
+    // HS-011: a deleted-site Shortcut still resolves via these tombstones, so
+    // it launches and routes by domain instead of failing "no longer available".
+    final tombstones = [
+      for (final t in _shortcutTombstones)
+        ShortcutSite(
+          siteId: t['siteId'] ?? '',
+          label: t['label'] ?? '',
+          url: t['url'],
+        ),
+    ];
+    unawaited(ShortcutService.syncSites(sites, tombstones: tombstones));
   }
 
   Future<void> _saveCurrentIndex() async {
@@ -3383,6 +3708,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _tabStripInFullscreen = prefs.getBool('tabStripInFullscreen') ?? false;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
+      _loadShortcutRemap(prefs);
       widget.onThemeSettingsChanged(_themeSettings);
     });
     await _loadWebspaces();
@@ -3417,6 +3743,29 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // activated site. `_restoreCookiesForSite` re-nukes on every switch; this
     // extra pass covers launch before any site is activated.
     final activeSiteIdsAtStartup = _webViewModels.map((m) => m.siteId).toSet();
+    // HS-011: drop remap entries whose resolved target was since deleted —
+    // they'd never resolve, and a fresh tap re-prompts (and re-remembers).
+    if (_shortcutSiteRemap.isNotEmpty) {
+      final before = _shortcutSiteRemap.length;
+      _shortcutSiteRemap.removeWhere(
+        (_, resolved) => !activeSiteIdsAtStartup.contains(resolved),
+      );
+      if (_shortcutSiteRemap.length != before) {
+        await prefs.setString(
+            _kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
+      }
+    }
+    // HS-014: drop tombstones whose siteId is live again (defensive — ids are
+    // unique per create, so this only fires if a backup reintroduced one).
+    if (_shortcutTombstones.isNotEmpty) {
+      final before = _shortcutTombstones.length;
+      _shortcutTombstones =
+          ShortcutTombstones.pruneLive(_shortcutTombstones, activeSiteIdsAtStartup);
+      if (_shortcutTombstones.length != before) {
+        await prefs.setString(
+            _kShortcutTombstonesKey, jsonEncode(_shortcutTombstones));
+      }
+    }
     // Incognito sites are treated as orphans for any session-scoped GC
     // (cookies, html cache, navigation state, container) so on-disk
     // remnants don't outlive the process — see issue #298. Their config
@@ -3447,11 +3796,37 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     // Always start at home screen on launch - only restore index if launched via shortcut
-    final shortcutSiteId = await ShortcutService.getLaunchSiteId();
-    final indexToRestore = StartupRestoreEngine.resolveLaunchTarget(
-      shortcutSiteId: shortcutSiteId,
+    final launch = await ShortcutService.getLaunch();
+    final launchUrl = launch == null
+        ? null
+        : (launch.url ??
+            _shortcutUrlLedger[launch.siteId] ??
+            _tombstoneUrlFor(launch.siteId));
+    if (launch != null) {
+      LogService.instance.log(
+        'Shortcut',
+        'cold launch siteId=${launch.siteId} payloadUrl=${launch.url} '
+            'resolvedUrl=$launchUrl',
+        sensitivity: LogSensitivity.sensitive,
+      );
+    }
+    final resolution = StartupRestoreEngine.resolveLaunch(
+      shortcutSiteId: launch?.siteId,
+      // iOS carries the url in the launch payload; Android pairs the id with
+      // its url ledger; the iOS tombstone url is the last fallback if iOS
+      // handed back a stale cached entity without a url.
+      shortcutUrl: launchUrl,
       models: _webViewModels,
+      rememberedRemap: _shortcutSiteRemap,
     );
+    // A direct hit activates inline below; a confirm/create outcome can't show
+    // a dialog mid-restore (no UI yet), so park it and prompt post-frame.
+    int? indexToRestore;
+    if (resolution is LaunchOpenSite) {
+      indexToRestore = resolution.index;
+    } else if (resolution is! LaunchNone) {
+      _pendingShortcutResolution = resolution;
+    }
     // A Home Shortcut represents the user's stated entry point for that
     // site — they pinned it expecting "open google maps", not "resume
     // wherever I last drifted to". Reset the launched site's currentUrl
@@ -3494,6 +3869,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _setCurrentIndex(indexToRestore);
     if (!mounted) return;
     setState(() {}); // Trigger UI update after async operation
+
+    // HS-011: a shortcut whose siteId is gone but that carried a url needs a
+    // confirm/create prompt. The UI is up now, so fire it on the next frame.
+    if (_pendingShortcutResolution != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final pending = _pendingShortcutResolution;
+        _pendingShortcutResolution = null;
+        if (pending != null) {
+          unawaited(_applyInteractiveShortcut(pending, coldLaunch: true));
+        }
+      });
+    }
 
     // Refresh the iOS App Intents picker on every launch, not just on save.
     // iOS queries `suggestedEntities()` (and may re-materialize the per-site
@@ -5612,6 +6000,29 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     final wasCurrentIndex = _currentIndex == index;
     final deletedModel = _webViewModels[index];
+    // Capture before mutation: HS-013 delete-time shortcut prompt (Android).
+    // Query the launcher fresh rather than trusting the cached _pinnedSiteIds,
+    // which only refreshes on init/resume. Find every pinned tile that REACHES
+    // this site — directly (tile id == siteId) or via an HS-011 rebind
+    // (remap[tile] == siteId) — so deleting a site an orphaned tile was
+    // rebound to still prompts about that tile.
+    Set<String> reachingTiles = const {};
+    if (Platform.isAndroid) {
+      final pinnedNow = await ShortcutService.getPinnedSiteIds();
+      if (!mounted) return;
+      reachingTiles = ShortcutPinState.tilesReaching(
+        siteId: deletedModel.siteId,
+        pinnedSiteIds: pinnedNow,
+        rememberedRemap: _shortcutSiteRemap,
+      );
+      LogService.instance.log(
+        'Shortcut',
+        'delete siteId=${deletedModel.siteId} pinned=$pinnedNow '
+            'reachingTiles=$reachingTiles',
+        sensitivity: LogSensitivity.sensitive,
+      );
+    }
+    final hadPinnedShortcut = reachingTiles.isNotEmpty;
     deletedModel.disposeWebView();
     _loadedIndices.remove(index);
 
@@ -5688,8 +6099,142 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // platforms.
     unawaited(_updateBackgroundRefreshSchedule());
 
+    if (hadPinnedShortcut) {
+      await _handleDeletedSiteShortcut(reachingTiles);
+    }
+    // iOS/macOS can't detect whether a Shortcut tile exists, so prompting on
+    // delete would fire blindly on every deletion. Instead, tombstone silently:
+    // if a tile was bound here it stays resolvable and routes (or offers to
+    // reroute) when actually tapped (HS-011/HS-014). The list is capped.
+    if ((Platform.isIOS || Platform.isMacOS) && !deletedModel.isArchiveTier) {
+      await _recordShortcutTombstone(
+          deletedSiteId, deletedModel.name, deletedModel.initUrl);
+    }
+
     if (!mounted) return;
     Navigator.pop(context);
+  }
+
+  /// Shared Keep/Reassign/Disable chooser for the delete-time shortcut prompt
+  /// (HS-013). Returns 'keep' | 'reassign' | 'disable' | null (dismissed).
+  Future<String?> _showShortcutFateChoice(String message) {
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Home screen shortcut'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'keep'),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'reassign'),
+            child: const Text('Reassign'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'disable'),
+            child: const Text('Disable'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// HS-013: the deleted site was reachable by one or more pinned tiles
+  /// ([tileIds] — directly or via an HS-011 rebind). Ask what to do with those
+  /// now-orphaned launcher tiles (Android can't remove them for the user):
+  /// keep them (a tap re-routes — open a domain match or offer to create),
+  /// point them at another site, or disable them.
+  Future<void> _handleDeletedSiteShortcut(Set<String> tileIds) async {
+    if (!mounted || tileIds.isEmpty) return;
+    final choice = await _showShortcutFateChoice(
+      'This site had a home screen shortcut. By default, tapping it lets '
+      'you reopen a matching site or create a new one.\n\n'
+      'You can instead point it at another site, or disable it. (Android '
+      "can't delete a pinned shortcut for you — disabling greys it out "
+      'until you remove it from the home screen.)',
+    );
+    if (!mounted || choice == null || choice == 'keep') return;
+
+    if (choice == 'disable') {
+      for (final tile in tileIds) {
+        await ShortcutService.disableShortcut(tile);
+        _shortcutSiteRemap.remove(tile);
+        _shortcutUrlLedger.remove(tile);
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kShortcutRemapKey, jsonEncode(_shortcutSiteRemap));
+      await prefs.setString(
+          _kShortcutUrlLedgerKey, jsonEncode(_shortcutUrlLedger));
+      if (!mounted) return;
+      setState(() {
+        _pinnedSiteIds = {..._pinnedSiteIds}..removeAll(tileIds);
+      });
+      return;
+    }
+
+    // 'reassign': point every reaching tile at an existing site via the remap.
+    final targetSiteId = await _pickSiteForShortcut();
+    if (targetSiteId == null || !mounted) return;
+    for (final tile in tileIds) {
+      await _rememberShortcutRemap(tile, targetSiteId);
+    }
+  }
+
+  /// Pick an existing (non-archive) site to reassign an orphaned shortcut to.
+  /// Returns the chosen siteId, or null if dismissed / nothing to pick.
+  Future<String?> _pickSiteForShortcut() async {
+    final candidates = [
+      for (final m in _webViewModels)
+        if (!m.isArchiveTier) m,
+    ];
+    if (candidates.isEmpty || !mounted) return null;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Point shortcut at'),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: candidates.length,
+            itemBuilder: (context, i) {
+              final m = candidates[i];
+              return ListTile(
+                leading: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: UnifiedFaviconImage(
+                    url: m.initUrl,
+                    size: 32,
+                    proxy: m.proxySettings,
+                  ),
+                ),
+                title: Text(
+                  m.getDisplayName(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  m.initUrl,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => Navigator.of(ctx).pop(m.siteId),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSiteGridTile(BuildContext context, int index, int listIndex) {

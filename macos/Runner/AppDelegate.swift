@@ -5,6 +5,7 @@ import UserNotifications
 @main
 class AppDelegate: FlutterAppDelegate {
   private var pendingShareUrl: String?
+  private var shortcutsPlugin: ShortcutsPlugin?
   private let shareChannelName = "org.codeberg.theoden8.webspace/share_intent"
 
   /// Mirrors `macos/ShareExtension/ShareViewController.swift`. macOS
@@ -54,6 +55,7 @@ class AppDelegate: FlutterAppDelegate {
       let window = NSApplication.shared.windows.first,
       let controller = window.contentViewController as? FlutterViewController
     else { return }
+    shortcutsPlugin = ShortcutsPlugin(messenger: controller.engine.binaryMessenger)
     let channel = FlutterMethodChannel(
       name: shareChannelName,
       binaryMessenger: controller.engine.binaryMessenger
