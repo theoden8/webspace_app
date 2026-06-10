@@ -88,20 +88,35 @@ void main() {
       expect(svc.windowsDesktopUserAgent, firefoxWindowsDesktopUserAgent);
     });
 
-    test('randomUserAgent substitutes the current version for every platform',
-        () {
+    test('randomUserAgent renders the current version on every platform', () {
       // Walk every index deterministically via a stub RNG.
-      for (var i = 0;
-          i < FirefoxUserAgentService.randomPlatformTokens.length;
-          i++) {
+      for (var i = 0; i < svc.randomUserAgents.length; i++) {
         final ua = svc.randomUserAgent(_StubRandom(i));
-        expect(ua, contains('rv:${svc.versionString}'));
-        expect(ua, contains('Firefox/${svc.versionString}'));
-        expect(
-          ua,
-          contains(FirefoxUserAgentService.randomPlatformTokens[i]),
-        );
+        expect(ua, svc.randomUserAgents[i]);
+        // Every shape carries the version (desktop/Android as Firefox/rv,
+        // iOS as FxiOS).
+        expect(ua, contains(svc.versionString));
       }
+    });
+
+    test('mobile UAs are realistic Firefox shapes and classify as mobile', () {
+      final android = buildFirefoxAndroidUserAgent(svc.versionString);
+      // Frozen OS token, version-matched Gecko trail (not desktop 20100101).
+      expect(android, contains('Android 10; Mobile'));
+      expect(android, contains('Gecko/${svc.versionString}'));
+      expect(android, contains('Firefox/${svc.versionString}'));
+      expect(isDesktopUserAgent(android), isFalse);
+
+      final ios = buildFirefoxIosUserAgent(svc.versionString);
+      // iOS forces WebKit: Safari-shaped with an FxiOS marker, no Gecko.
+      expect(ios, contains('AppleWebKit/605.1.15'));
+      expect(ios, contains('FxiOS/${svc.versionString}'));
+      expect(ios, isNot(contains('Gecko/${svc.versionString}')));
+      expect(isDesktopUserAgent(ios), isFalse);
+    });
+
+    test('random pool covers all five platforms', () {
+      expect(svc.randomUserAgents, hasLength(5));
     });
   });
 

@@ -249,6 +249,13 @@ Sources, tried in order:
 Only the major version is used; Firefox freezes the UA minor at `.0`
 regardless of point release.
 
+The randomize set the version feeds renders realistic per-platform Firefox
+shapes: desktop (`X11; Linux x86_64` / `Macintosh; Intel Mac OS X 10_15_7` /
+`Windows NT 10.0; Win64; x64`, Gecko trail frozen at `20100101`),
+Firefox-for-Android (frozen `Android 10; Mobile`, Gecko trail equal to the
+version), and Firefox-for-iOS (WebKit/Safari-shaped with an `FxiOS/<version>`
+marker, since iOS mandates WebKit).
+
 #### Scenario: Newer version scraped → adopted and persisted
 
 **Given** the bundled default major version is `N`
@@ -277,7 +284,7 @@ floor, or return a non-numeric / out-of-range body
 
 | File | Role |
 |------|------|
-| `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, `buildFirefoxUserAgent`, canonical Firefox desktop UA constants + `kDefaultFirefoxMajorVersion` |
+| `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, `buildFirefoxUserAgent` / `buildFirefoxAndroidUserAgent` / `buildFirefoxIosUserAgent`, canonical Firefox desktop UA constants + `kDefaultFirefoxMajorVersion` |
 | `lib/services/firefox_user_agent_service.dart` | Scrapes + caches the current Firefox release version; renders generated UAs at that version |
 | `test/firefox_user_agent_service_test.dart` | Coverage for version parsing, UA rendering, and the scrape/cache/floor behavior |
 | `lib/services/desktop_mode_shim.dart` | `buildDesktopModeShim(userAgent)` — JS source for AT_DOCUMENT_START injection |

@@ -92,13 +92,40 @@ const String kFirefoxWindowsPlatformToken = 'Windows NT 10.0; Win64; x64';
 /// Firefox freezes the minor at `.0` in the UA regardless of point release.
 String firefoxVersionString(int major) => '$major.0';
 
-/// Build a Firefox UA string for an OS [platformToken] (the parenthetical
-/// system descriptor, e.g. `"X11; Linux x86_64"`) at the given [version]
-/// (e.g. `"151.0"`). Single source of truth for the rendered UA shape, used
-/// both for the canonical constants below and by [FirefoxUserAgentService]
-/// to render UAs at the scraped current version.
+/// Build a Firefox **desktop** UA string for an OS [platformToken] (the
+/// parenthetical system descriptor, e.g. `"X11; Linux x86_64"`) at the given
+/// [version] (e.g. `"151.0"`). Single source of truth for the desktop UA
+/// shape, used both for the canonical constants below and by
+/// [FirefoxUserAgentService] to render UAs at the scraped current version.
 String buildFirefoxUserAgent(String platformToken, String version) =>
     'Mozilla/5.0 ($platformToken; rv:$version) Gecko/20100101 Firefox/$version';
+
+/// OS version Firefox for Android emits in its UA. Mozilla freezes it (like
+/// the desktop macOS 10.15 freeze) to cut fingerprinting entropy, so the real
+/// device version never appears regardless of the handset's actual Android.
+const String kFirefoxAndroidOsToken = 'Android 10';
+
+/// Firefox-for-Android UA. Differs from desktop in two ways that matter to
+/// servers sniffing the string: the Gecko trail equals the version (desktop
+/// freezes it at `20100101`), and the OS token is frozen
+/// ([kFirefoxAndroidOsToken]).
+String buildFirefoxAndroidUserAgent(String version) =>
+    'Mozilla/5.0 ($kFirefoxAndroidOsToken; Mobile; rv:$version) '
+    'Gecko/$version Firefox/$version';
+
+/// Fixed tokens for the Firefox-for-iOS (FxiOS) UA. iOS mandates WebKit, so
+/// Firefox there is a Safari-shaped UA carrying an `FxiOS/<version>` marker
+/// rather than a Gecko build. WebKit/Safari/build numbers track the OS, not
+/// the Firefox version, so they stay fixed at a recent plausible value.
+const String _kFxiosOsToken = 'iPhone; CPU iPhone OS 18_5 like Mac OS X';
+const String _kFxiosWebKit = 'AppleWebKit/605.1.15 (KHTML, like Gecko)';
+const String _kFxiosMobileBuild = 'Mobile/15E148';
+const String _kFxiosSafari = 'Safari/605.1.15';
+
+/// Firefox-for-iOS (FxiOS) UA at the given [version] (e.g. `"151.0"`).
+String buildFirefoxIosUserAgent(String version) =>
+    'Mozilla/5.0 ($_kFxiosOsToken) $_kFxiosWebKit '
+    'FxiOS/$version $_kFxiosMobileBuild $_kFxiosSafari';
 
 /// Canonical Firefox desktop UA strings at [kDefaultFirefoxMajorVersion],
 /// exposed as named constants so tests have stable fixtures and so any

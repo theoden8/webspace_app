@@ -12,9 +12,10 @@ void main() {
     });
 
     test('Android Firefox UA is mobile', () {
-      // The mobile end of generateRandomUserAgent's platform list.
-      const ua = 'Mozilla/5.0 (Android 16; Mobile; rv:151.0) '
-          'Gecko/20100101 Firefox/151.0';
+      // The realistic Firefox-for-Android shape the randomize set emits:
+      // frozen OS token, version-matched Gecko trail.
+      const ua = 'Mozilla/5.0 (Android 10; Mobile; rv:151.0) '
+          'Gecko/151.0 Firefox/151.0';
       expect(isDesktopUserAgent(ua), isFalse);
     });
 

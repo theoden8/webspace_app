@@ -88,22 +88,23 @@ class FirefoxUserAgentService {
   String get windowsDesktopUserAgent =>
       buildFirefoxUserAgent(kFirefoxWindowsPlatformToken, versionString);
 
-  /// OS descriptor tokens the randomize button cycles through (desktop +
-  /// mobile), matching the historical `generateRandomUserAgent` set.
-  static const List<String> randomPlatformTokens = [
-    kFirefoxWindowsPlatformToken,
-    kFirefoxMacosPlatformToken,
-    'Linux x86_64',
-    'iPhone; CPU iPhone OS 15_7_3 like Mac OS X',
-    'Android 16; Mobile',
-  ];
+  /// The full set of Firefox UAs the randomize button cycles through —
+  /// desktop (Linux/macOS/Windows) plus realistic Firefox-for-Android and
+  /// Firefox-for-iOS shapes — all rendered at the current version. Exposed so
+  /// a future "pick platform" UI can offer the same set.
+  List<String> get randomUserAgents => [
+        linuxDesktopUserAgent,
+        macosDesktopUserAgent,
+        windowsDesktopUserAgent,
+        buildFirefoxAndroidUserAgent(versionString),
+        buildFirefoxIosUserAgent(versionString),
+      ];
 
-  /// A Firefox UA for a randomly chosen platform at the current version.
+  /// A randomly chosen UA from [randomUserAgents] at the current version.
   /// Inject [rng] to make the choice deterministic in tests.
   String randomUserAgent([Random? rng]) {
-    final r = rng ?? Random();
-    final token = randomPlatformTokens[r.nextInt(randomPlatformTokens.length)];
-    return buildFirefoxUserAgent(token, versionString);
+    final pool = randomUserAgents;
+    return pool[(rng ?? Random()).nextInt(pool.length)];
   }
 
   /// Load the cached version from disk (no network). Call at app startup.
