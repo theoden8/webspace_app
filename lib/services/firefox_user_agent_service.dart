@@ -42,19 +42,28 @@ int? parseFirefoxProductDetails(String body) {
   return null;
 }
 
+/// Outcome of a user-initiated [FirefoxUserAgentService.refresh].
+enum FirefoxVersionRefreshResult {
+  /// A newer version was scraped and adopted.
+  updated,
+
+  /// The scrape succeeded but the version was already current.
+  unchanged,
+
+  /// The scrape failed (offline, both sources unreachable, or garbage body).
+  failed,
+}
+
 /// Tracks the current Firefox release version by scraping it from Firefox
-/// source at runtime, so generated per-site User-Agents stay current without
-/// an app release. Falls back to [kDefaultFirefoxMajorVersion] baked into the
-/// build when offline or the scrape fails. The scraped version only ever
-/// moves forward (never below the bundled floor).
+/// source. The scrape is **only** performed on explicit user action (a button
+/// in app settings) — never automatically — so the app makes no network
+/// request the user did not ask for (an F-Droid inclusion requirement).
+/// Until the user updates, generated per-site User-Agents render at
+/// [kDefaultFirefoxMajorVersion] baked into the build. The cached version only
+/// ever moves forward (never below the bundled floor).
 class FirefoxUserAgentService {
   static const String _versionKey = 'firefox_ua_major_version';
   static const String _lastCheckedKey = 'firefox_ua_last_checked';
-
-  /// How long a successful or failed check is trusted before re-scraping.
-  /// Firefox ships ~monthly; a weekly check keeps us current without
-  /// hammering the network on every cold start.
-  static const Duration _refreshTtl = Duration(days: 7);
 
   /// Canonical "source code" location: the release branch's user-facing
   /// version file in mozilla-release.
@@ -73,10 +82,14 @@ class FirefoxUserAgentService {
 
   int _major = kDefaultFirefoxMajorVersion;
   DateTime? _lastChecked;
-  Future<bool>? _inFlight;
+  Future<FirefoxVersionRefreshResult>? _inFlight;
 
   /// Current Firefox major version (scraped, or the bundled floor).
   int get majorVersion => _major;
+
+  /// When the version was last successfully checked against Firefox source,
+  /// or null if the user has never run an update on this device.
+  DateTime? get lastChecked => _lastChecked;
 
   /// Current Firefox version rendered for a UA string, e.g. `"151.0"`.
   String get versionString => firefoxVersionString(_major);
@@ -121,44 +134,36 @@ class FirefoxUserAgentService {
     }
   }
 
-  /// Scrape only if the last check is older than [_refreshTtl]. Safe to
-  /// fire-and-forget from startup.
-  Future<bool> refreshIfStale() async {
-    final last = _lastChecked;
-    if (last != null && DateTime.now().difference(last) < _refreshTtl) {
-      return false;
-    }
-    return refresh();
-  }
-
-  /// Scrape the current Firefox version now and persist it. Concurrent calls
-  /// share one in-flight request. Returns true when a newer version was
-  /// adopted.
-  Future<bool> refresh() => _inFlight ??= _refresh().whenComplete(() {
+  /// Scrape the current Firefox version now and persist it. MUST be called
+  /// only from an explicit user gesture — this is the single network seam of
+  /// this service. Concurrent calls share one in-flight request.
+  Future<FirefoxVersionRefreshResult> refresh() =>
+      _inFlight ??= _refresh().whenComplete(() {
         _inFlight = null;
       });
 
-  Future<bool> _refresh() async {
+  Future<FirefoxVersionRefreshResult> _refresh() async {
     final scraped = await _scrapeMajorVersion();
-    // Record the check time even on failure so we honor the TTL when offline
-    // rather than re-scraping on every navigation/startup.
+    if (scraped == null) return FirefoxVersionRefreshResult.failed;
+
+    final isNewer = scraped > _major;
+    if (isNewer) _major = scraped;
     _lastChecked = DateTime.now();
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (isNewer) await prefs.setInt(_versionKey, _major);
       await prefs.setString(_lastCheckedKey, _lastChecked!.toIso8601String());
-      if (scraped != null && scraped > _major) {
-        _major = scraped;
-        await prefs.setInt(_versionKey, _major);
-        LogService.instance.log(
-            'FirefoxUA', 'Firefox version updated to $_major',
-            level: LogLevel.info);
-        return true;
-      }
     } catch (e) {
       LogService.instance
           .log('FirefoxUA', 'persist error: $e', level: LogLevel.error);
     }
-    return false;
+    if (isNewer) {
+      LogService.instance.log(
+          'FirefoxUA', 'Firefox version updated to $_major',
+          level: LogLevel.info);
+      return FirefoxVersionRefreshResult.updated;
+    }
+    return FirefoxVersionRefreshResult.unchanged;
   }
 
   Future<int?> _scrapeMajorVersion() async {

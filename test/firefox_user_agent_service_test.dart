@@ -22,6 +22,14 @@ class _FakeFactory implements OutboundHttpFactory {
       OutboundClientReady(MockClient((req) async => responder(req.url)));
 }
 
+/// Models a misconfigured proxy: every request blocks rather than leaking a
+/// direct connection.
+class _BlockedFactory implements OutboundHttpFactory {
+  @override
+  OutboundClient clientFor(UserProxySettings settings) =>
+      const OutboundClientBlocked('blocked by test fake');
+}
+
 const _sourceUrl = 'hg.mozilla.org';
 const _detailsUrl = 'product-details.mozilla.org';
 
@@ -126,10 +134,10 @@ void main() {
         if (url.host.contains(_sourceUrl)) return http.Response('160.0\n', 200);
         return http.Response('', 404);
       });
-      final changed = await svc.refresh();
-      expect(changed, isTrue);
+      expect(await svc.refresh(), FirefoxVersionRefreshResult.updated);
       expect(svc.majorVersion, 160);
       expect(svc.linuxDesktopUserAgent, contains('rv:160.0'));
+      expect(svc.lastChecked, isNotNull);
       // Persisted for next launch.
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getInt('firefox_ua_major_version'), 160);
@@ -142,43 +150,33 @@ void main() {
         }
         return http.Response('', 404);
       });
-      expect(await svc.refresh(), isTrue);
+      expect(await svc.refresh(), FirefoxVersionRefreshResult.updated);
       expect(svc.majorVersion, 162);
     });
 
-    test('keeps the bundled floor when scrape is older', () async {
-      outboundHttp =
-          _FakeFactory((_) => http.Response('120.0', 200));
-      expect(await svc.refresh(), isFalse);
+    test('reports unchanged when scrape is not newer', () async {
+      outboundHttp = _FakeFactory((_) => http.Response('120.0', 200));
+      expect(await svc.refresh(), FirefoxVersionRefreshResult.unchanged);
       expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
     });
 
-    test('keeps the floor when both sources fail', () async {
+    test('reports failed when both sources fail', () async {
       outboundHttp = _FakeFactory((_) => http.Response('', 500));
-      expect(await svc.refresh(), isFalse);
+      expect(await svc.refresh(), FirefoxVersionRefreshResult.failed);
       expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
     });
 
-    test('rejects garbage that parses out of range', () async {
+    test('fails on garbage that parses out of range', () async {
       outboundHttp =
           _FakeFactory((_) => http.Response('<!doctype html>500000', 200));
-      expect(await svc.refresh(), isFalse);
+      expect(await svc.refresh(), FirefoxVersionRefreshResult.failed);
       expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
     });
 
-    test('refreshIfStale skips when checked within the TTL', () async {
-      var hits = 0;
-      outboundHttp = _FakeFactory((_) {
-        hits++;
-        return http.Response('170.0', 200);
-      });
-      // First call scrapes.
-      await svc.refreshIfStale();
-      expect(hits, 1);
-      expect(svc.majorVersion, 170);
-      // Second call within TTL must not hit the network again.
-      await svc.refreshIfStale();
-      expect(hits, 1);
+    test('blocked outbound proxy fails without leaking direct', () async {
+      outboundHttp = _BlockedFactory();
+      expect(await svc.refresh(), FirefoxVersionRefreshResult.failed);
+      expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
     });
   });
 }

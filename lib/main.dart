@@ -792,10 +792,6 @@ void main() async {
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
   await _runTimed('proxyInit', GlobalOutboundProxy.initialize);
-  // Refresh the Firefox version by scraping Firefox source, off the startup
-  // path and through the now-initialized outbound proxy. Throttled to once a
-  // week; failures keep the cached/bundled version.
-  unawaited(FirefoxUserAgentService.instance.refreshIfStale());
   // Hydrate user-approved TLS exceptions so a self-signed site the user
   // already trusted in a previous session loads without a prompt — and
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon

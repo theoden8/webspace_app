@@ -225,20 +225,21 @@ manufacture a fake brand list when the user has not chosen a UA.
 
 ### Requirement: DM-004 — Generated UAs track the current Firefox version
 
-The system SHALL obtain the Firefox version rendered into generated
-User-Agents (the randomize button and the canonical desktop UA getters) by
-scraping the current release version from Firefox source at runtime, rather
-than fixing it at app-release time. The scrape result is cached and
-persisted; when the network is unreachable or the scrape fails, the bundled
-`kDefaultFirefoxMajorVersion` is used. The cached version only moves
-forward — a scraped value below the bundled floor is ignored, so an app
-upgrade never regresses the UA.
+The system SHALL render generated User-Agents (the randomize button and the
+canonical desktop UA getters) at the Firefox version baked into the build
+(`kDefaultFirefoxMajorVersion`), and SHALL allow the user to refresh that
+version on demand by scraping the current release version from Firefox
+source. The scrape is performed **only** in response to an explicit user
+gesture (an "Update Firefox version" control in app settings) — never
+automatically, on startup or otherwise — so the app issues no network
+request the user did not initiate (an F-Droid inclusion requirement). The
+result is cached and persisted; the cached version only moves forward — a
+scraped value below the bundled floor is ignored, so an app upgrade never
+regresses the UA.
 
-The scrape is off the startup critical path (cached version loads
-synchronously at launch; the network fetch runs fire-and-forget after the
-outbound proxy is initialized) and is throttled to at most once per week.
-It routes through the app-global outbound proxy and fails closed (no direct
-fallback) when the proxy cannot be honored.
+The scrape routes through the app-global outbound proxy and fails closed
+(no direct fallback) when the proxy cannot be honored. Loading the cached
+version at startup performs no network I/O.
 
 Sources, tried in order:
 1. `hg.mozilla.org/releases/mozilla-release/.../browser/config/version_display.txt`
@@ -256,9 +257,18 @@ Firefox-for-Android (frozen `Android 10; Mobile`, Gecko trail equal to the
 version), and Firefox-for-iOS (WebKit/Safari-shaped with an `FxiOS/<version>`
 marker, since iOS mandates WebKit).
 
+#### Scenario: No network request without an explicit user gesture
+
+**Given** the app starts up
+**When** initialization runs
+**Then** the cached Firefox version loads from disk with no network I/O
+**And** no scrape of Firefox source is performed until the user taps the
+"Update Firefox version" control in app settings
+
 #### Scenario: Newer version scraped → adopted and persisted
 
 **Given** the bundled default major version is `N`
+**And** the user taps "Update Firefox version"
 **And** the source file reports `M.0` with `M > N`
 **When** the version is refreshed
 **Then** generated UAs render `Firefox/M.0` and `rv:M.0`
@@ -285,7 +295,8 @@ floor, or return a non-numeric / out-of-range body
 | File | Role |
 |------|------|
 | `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, `buildFirefoxUserAgent` / `buildFirefoxAndroidUserAgent` / `buildFirefoxIosUserAgent`, canonical Firefox desktop UA constants + `kDefaultFirefoxMajorVersion` |
-| `lib/services/firefox_user_agent_service.dart` | Scrapes + caches the current Firefox release version; renders generated UAs at that version |
+| `lib/services/firefox_user_agent_service.dart` | Scrapes (user-initiated only) + caches the current Firefox release version; renders generated UAs at that version |
+| `lib/screens/app_settings.dart` | "Update Firefox version" control — the sole, explicit trigger for the scrape, with a hint explaining it is the only network access |
 | `test/firefox_user_agent_service_test.dart` | Coverage for version parsing, UA rendering, and the scrape/cache/floor behavior |
 | `lib/services/desktop_mode_shim.dart` | `buildDesktopModeShim(userAgent)` — JS source for AT_DOCUMENT_START injection |
 | `lib/services/user_agent_metadata_builder.dart` | `buildUserAgentMetadata(userAgent)` — UA-CH override mapped 1:1 with the spoofed UA. Wired through to `WebSettingsCompat.setUserAgentMetadata` on Android via the fork's `InAppWebViewSettings.userAgentMetadata`. |
