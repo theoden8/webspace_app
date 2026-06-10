@@ -26,6 +26,7 @@ import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
+import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -131,6 +132,8 @@ Map<String, String> buildAllFixtures() {
   )!;
 
   fixtures['do_not_track/shim.js'] = buildDoNotTrackShim();
+
+  fixtures['target_blank_rewrite/shim.js'] = targetBlankRewriteScript;
 
   // Two pinned seeds — one stable string for shape/behaviour tests, one
   // variant to confirm the seed actually flows through (different seeds
