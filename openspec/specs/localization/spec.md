@@ -7,9 +7,10 @@
 
 Make every user-facing string in the app translatable, with English as the
 authored source of truth, and guarantee no screen ever shows text that is not
-backed by a translation key. Translations are produced by an LLM "fill"
-runner rather than a hosted translation platform (issue #406): no closed-source
-dependency, no human-coordination overhead.
+backed by a translation key. Translations are produced by handing the
+described English strings to a general-purpose model (or a human) rather than a
+hosted translation platform (issue #406): no closed-source dependency, no
+committed translation tooling, no human-coordination overhead.
 
 ## Problem Statement
 
@@ -20,7 +21,7 @@ localization infrastructure (`generate: true` in pubspec belonged to
 `Accept-Language` spoofing, not UI translation). A localization effort needs:
 
 - a single English source of truth that survives review,
-- machine translation that does not require organizing translators,
+- per-string descriptions so anyone (a general model or a person) can translate without organizing translators,
 - a coverage signal so a half-translated locale cannot ship blank strings,
 - enforcement that new code does not reintroduce hardcoded strings.
 
@@ -29,10 +30,11 @@ localization infrastructure (`generate: true` in pubspec belonged to
 Standard Flutter `gen_l10n`: ARB files under `lib/l10n/`, with `app_en.arb` as
 the template and code generated into `lib/l10n/gen/` (gitignored; regenerated
 by `generate: true`). The `MaterialApp` wires `AppLocalizations` delegates and
-`supportedLocales`. Locale ARBs are filled by `tool/translate_arb.dart` against
-an OpenAI-compatible endpoint. Coverage is enforced in CI by Dart tests, not by
-the translation tool. Migration is phased behind a guard whose enforced scope
-only grows.
+`supportedLocales`. Every key carries a `description` so a translator (human or
+a general-purpose model) has the context to translate it; there is no committed
+translation script, API key, or vendored prompt. Coverage and placeholder
+parity are enforced in CI by Dart tests. Migration is phased behind a guard
+whose enforced scope only grows.
 
 ---
 
@@ -98,23 +100,24 @@ matching placeholder tokens and no empty values.
 - **When** the report exists after generation
 - **Then** it is `{}` (no untranslated messages) or the coverage test fails
 
-### Requirement: LOC-004 - LLM fill runner
+### Requirement: LOC-004 - Description-driven translation
 
-Locale ARBs SHALL be fillable by `tool/translate_arb.dart` from the English
-template, additively and without overwriting existing values.
+Every template message SHALL carry a `description` so the strings can be
+translated by handing the English ARB to any general-purpose model (or a human),
+with no committed translation script, API key, or prompt in the repo.
 
-#### Scenario: Fill only missing keys
+#### Scenario: Each key is translatable from context alone
 
-- **Given** `app_de.arb` missing some template keys
-- **When** `dart run tool/translate_arb.dart de` runs with `WEBSPACE_TRANSLATE_API_KEY` set
-- **Then** only missing/empty keys are translated and merged
-- **And** existing (human-corrected) values are preserved
-- **And** placeholder tokens are instructed to be preserved verbatim
+- **Given** a message key in `app_en.arb`
+- **Then** its `@key.description` explains where/what the string is, written for someone who cannot see the screen
+- **And** the coverage test fails if any description is missing or empty
 
-#### Scenario: Provider is configurable
+#### Scenario: Adding a locale
 
-- **Given** `WEBSPACE_TRANSLATE_BASE_URL` / `WEBSPACE_TRANSLATE_MODEL`
-- **Then** any OpenAI-compatible chat-completions endpoint can be used, with no closed-source platform dependency
+- **Given** `app_en.arb` (values plus descriptions)
+- **When** a translator or general model translates the values into locale `<x>`, keeping `{placeholder}` tokens verbatim, saved as `app_<x>.arb`
+- **Then** the coverage test passes (key + placeholder parity, no empties)
+- **And** no script, endpoint, or credential is required
 
 ### Requirement: LOC-005 - Phased migration
 
@@ -146,7 +149,7 @@ locales.
 
 - Config: [l10n.yaml](../../../l10n.yaml), template [lib/l10n/app_en.arb](../../../lib/l10n/app_en.arb).
 - Wiring: `MaterialApp` in [lib/main.dart](../../../lib/main.dart).
-- Runner: [tool/translate_arb.dart](../../../tool/translate_arb.dart).
+- Translations: hand `app_en.arb` (values + descriptions) to any general model, keep `{placeholder}` tokens, save as `app_<locale>.arb`. No script or credential.
 - Guards: [test/l10n_no_hardcoded_text_test.dart](../../../test/l10n_no_hardcoded_text_test.dart), [test/l10n_coverage_test.dart](../../../test/l10n_coverage_test.dart).
 - First migrated screen: [lib/screens/trusted_certificates.dart](../../../lib/screens/trusted_certificates.dart).
 - The guard's display-sink list is the contract; custom widgets taking a raw

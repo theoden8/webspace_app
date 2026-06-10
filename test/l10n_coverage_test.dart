@@ -59,8 +59,8 @@ void main() {
       expect(
         templateKeys.difference(keys),
         isEmpty,
-        reason: '$name is missing keys. Run the fill script '
-            '(tool/translate_arb.dart) to populate them.',
+        reason: '$name is missing keys. Translate them from app_en.arb and '
+            'add them.',
       );
       for (final k in keys) {
         expect(
