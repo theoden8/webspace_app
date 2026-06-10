@@ -164,6 +164,7 @@ Spec: [openspec/specs/localization/spec.md](openspec/specs/localization/spec.md)
 - Migration is phased: when you finish routing a file's strings, move it from `pending` to `migrated` in [test/l10n_no_hardcoded_text_test.dart](test/l10n_no_hardcoded_text_test.dart). A new UI file under `lib/{main.dart,screens,widgets}` must be classified in that test or it fails.
 - Translations are filled by [tool/translate_arb.dart](tool/translate_arb.dart) (LLM runner, additive). Coverage (key + placeholder parity, no empties) is enforced by [test/l10n_coverage_test.dart](test/l10n_coverage_test.dart).
 - Nested-webview rule applies to copy too: localized strings in `launchUrl`/`InAppWebViewScreen` flow through `BuildContext`, so resolve them at the call site.
+- Widget tests that `pumpWidget(MaterialApp(...))` a migrated screen/widget MUST set `localizationsDelegates: AppLocalizations.localizationsDelegates` + `supportedLocales: AppLocalizations.supportedLocales`, or `AppLocalizations.of(context)` null-crashes.
 
 ## Touching the webspace archive
 

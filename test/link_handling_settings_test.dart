@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/web_view_model.dart';
@@ -9,6 +10,8 @@ void main() {
     testWidgets('master switch flips and notifies', (tester) async {
       bool? lastValue;
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: LinkHandlingSettingsScreen(
           enabled: true,
           onEnabledChanged: (v) => lastValue = v,
@@ -31,6 +34,8 @@ void main() {
           DomainClaim.wildcardSubdomain('mastodon.social'),
         ];
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: LinkHandlingSettingsScreen(
           enabled: true,
           onEnabledChanged: (_) {},
@@ -53,6 +58,8 @@ void main() {
       a.name = 'Twitter';
       WebViewModel? tappedSite;
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: LinkHandlingSettingsScreen(
           enabled: true,
           onEnabledChanged: (_) {},
@@ -71,6 +78,8 @@ void main() {
       final a = WebViewModel(initUrl: 'https://twitter.com/');
       a.name = 'Twitter';
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: LinkHandlingSettingsScreen(
           enabled: false,
           onEnabledChanged: (_) {},
@@ -88,6 +97,8 @@ void main() {
       final m = WebViewModel(initUrl: 'https://example.org/');
       List<DomainClaim>? lastChange;
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: DomainClaimsEditor(
             model: m,
@@ -112,6 +123,8 @@ void main() {
         ];
       List<DomainClaim>? lastChange;
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: DomainClaimsEditor(
             model: m,
@@ -134,6 +147,8 @@ void main() {
       final attacker = WebViewModel(initUrl: 'https://example.org/')
         ..domainClaims = [DomainClaim.exactHost('github.com')];
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: DomainClaimsEditor(
             model: attacker,
