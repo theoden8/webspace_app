@@ -50,6 +50,15 @@ The system SHALL allow the user to exit full screen by tapping the top edge of t
 **When** the user taps the top edge of the screen (status bar / notch safe area + 20px)
 **Then** full screen mode is exited
 
+#### Scenario: Exit via tab strip menu
+
+**Given** "Keep Tab Strip in Full Screen" is enabled
+**And** the user is in full screen mode with the tab strip visible
+**When** the user opens the tab strip overflow menu and taps "Exit Full Screen"
+**Then** full screen mode is exited
+
+**Rationale:** With the tab strip kept in full screen, its overflow menu is the only chrome reachable while immersed. The "Full Screen" menu item reflects the current state ("Exit Full Screen" when already full screen) and toggles rather than re-entering.
+
 #### Scenario: Back gesture in full screen
 
 **Given** the user is in full screen mode
