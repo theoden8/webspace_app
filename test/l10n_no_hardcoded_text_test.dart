@@ -17,6 +17,7 @@ void main() {
   // are migrated. This list only grows.
   const migrated = <String>{
     'lib/screens/trusted_certificates.dart',
+    'lib/widgets/root_messenger.dart',
   };
 
   // Known not-yet-migrated. Allowed to contain hardcoded strings for now.
@@ -39,7 +40,6 @@ void main() {
     'lib/widgets/external_url_prompt.dart',
     'lib/widgets/find_toolbar.dart',
     'lib/widgets/hint_button.dart',
-    'lib/widgets/root_messenger.dart',
     'lib/widgets/stats_banner.dart',
     'lib/widgets/untrusted_cert_prompt.dart',
     'lib/widgets/url_bar.dart',
@@ -126,17 +126,16 @@ final _sinkPatterns = <RegExp>[
 
 List<String> _findHardcodedDisplayText(String rel, String source) {
   final stripped = _stripComments(source);
-  final lines = stripped.split('\n');
   final hits = <String>[];
-  for (var i = 0; i < lines.length; i++) {
-    final line = lines[i];
-    for (final p in _sinkPatterns) {
-      if (p.hasMatch(line)) {
-        hits.add('  $rel:${i + 1}: ${line.trim()}');
-        break;
-      }
+  for (final p in _sinkPatterns) {
+    for (final m in p.allMatches(stripped)) {
+      final line = '\n'.allMatches(stripped.substring(0, m.start)).length + 1;
+      final end = m.start + 60 < stripped.length ? m.start + 60 : stripped.length;
+      final snippet = stripped.substring(m.start, end).split('\n').first.trim();
+      hits.add('  $rel:$line: $snippet');
     }
   }
+  hits.sort();
   return hits;
 }
 
