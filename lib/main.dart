@@ -4798,9 +4798,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   value: "fullscreen",
                   child: Row(
                     children: [
-                      Icon(Icons.fullscreen),
+                      Icon(_isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
                       SizedBox(width: 8),
-                      Text("Full Screen"),
+                      Text(_isFullscreen ? "Exit Full Screen" : "Full Screen"),
                     ],
                   ),
                 ),
@@ -4843,7 +4843,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   _toggleFind();
                 break;
                 case 'fullscreen':
-                  _enterFullscreen();
+                  _toggleFullscreen();
                 break;
                 case 'settings':
                   await Navigator.push(
@@ -5188,9 +5188,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             value: "fullscreen",
             child: Row(
               children: [
-                Icon(Icons.fullscreen),
+                Icon(_isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
                 SizedBox(width: 8),
-                Text("Full Screen"),
+                Text(_isFullscreen ? "Exit Full Screen" : "Full Screen"),
               ],
             ),
           ),
@@ -5233,7 +5233,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             _toggleFind();
           break;
           case 'fullscreen':
-            _enterFullscreen();
+            _toggleFullscreen();
           break;
           case 'settings':
             await Navigator.push(
