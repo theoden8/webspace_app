@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_settings_qr_scanner.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/widgets/root_messenger.dart';
@@ -29,8 +30,10 @@ Future<void> showSiteSettingsQrShareDialog(
 
   await showDialog<void>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Share site settings'),
+    builder: (ctx) {
+      final loc = AppLocalizations.of(ctx);
+      return AlertDialog(
+      title: Text(loc.qrShareDialogTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -56,7 +59,7 @@ Future<void> showSiteSettingsQrShareDialog(
             ),
             const SizedBox(height: 12),
             Text(
-              'Cookies, user scripts, and proxy passwords are not included.',
+              loc.qrShareExclusionNote,
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(ctx).textTheme.bodySmall?.color,
@@ -69,19 +72,19 @@ Future<void> showSiteSettingsQrShareDialog(
       actions: [
         TextButton.icon(
           icon: const Icon(Icons.copy),
-          label: const Text('Copy'),
+          label: Text(loc.commonCopy),
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: encoded));
             if (!ctx.mounted) return;
             Navigator.of(ctx).pop();
             rootScaffoldMessengerKey.currentState?.showSnackBar(
-              const SnackBar(content: Text('Copied to clipboard')),
+              SnackBar(content: Text(loc.qrShareCopiedToClipboard)),
             );
           },
         ),
         TextButton.icon(
           icon: const Icon(Icons.share),
-          label: const Text('Share'),
+          label: Text(loc.commonShare),
           onPressed: () {
             SharePlus.instance.share(ShareParams(text: encoded));
             Navigator.of(ctx).pop();
@@ -89,10 +92,11 @@ Future<void> showSiteSettingsQrShareDialog(
         ),
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Close'),
+          child: Text(loc.commonClose),
         ),
       ],
-    ),
+    );
+    },
   );
 }
 
@@ -152,17 +156,18 @@ class _PasteDialogState extends State<_PasteDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    const hintUrl = 'webspace://qr/site/v1/...';
     return AlertDialog(
-      title: const Text('Apply settings from QR'),
+      title: Text(loc.qrApplyDialogTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Scan the QR with your camera and paste the resulting '
-              'webspace://qr/site/... URL here.',
-              style: TextStyle(fontSize: 13),
+            Text(
+              loc.qrApplyPasteInstructions,
+              style: const TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -171,7 +176,7 @@ class _PasteDialogState extends State<_PasteDialog> {
               maxLines: 6,
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'webspace://qr/site/v1/...',
+                hintText: hintUrl,
                 border: const OutlineInputBorder(),
                 errorText: _errorText,
               ),
@@ -181,7 +186,7 @@ class _PasteDialogState extends State<_PasteDialog> {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 icon: const Icon(Icons.paste),
-                label: const Text('Paste from clipboard'),
+                label: Text(loc.qrApplyPasteFromClipboard),
                 onPressed: () async {
                   final data = await Clipboard.getData('text/plain');
                   if (!mounted) return;
@@ -198,19 +203,18 @@ class _PasteDialogState extends State<_PasteDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(loc.commonCancel),
         ),
         TextButton(
           onPressed: () {
             final decoded = _tryDecode();
             if (decoded == null) {
-              setState(() => _errorText =
-                  'Not a valid WebSpace site-settings QR.');
+              setState(() => _errorText = loc.qrApplyInvalidError);
               return;
             }
             Navigator.of(context).pop(decoded);
           },
-          child: const Text('Apply'),
+          child: Text(loc.qrApplyConfirm),
         ),
       ],
     );

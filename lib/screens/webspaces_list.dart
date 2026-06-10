@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/main.dart' show AccentColor, AccentLogo;
 
@@ -28,6 +29,7 @@ class WebspacesListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Center(
       child: Container(
         constraints: BoxConstraints(maxWidth: 600),
@@ -44,7 +46,7 @@ class WebspacesListScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 24),
                   Text(
-                    'Select Webspace',
+                    loc.webspacesListSelectTitle,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   SizedBox(height: 8),
@@ -52,9 +54,10 @@ class WebspacesListScreen extends StatelessWidget {
                     selectedWebspaceId != null
                         ? webspaces.firstWhere(
                             (ws) => ws.id == selectedWebspaceId,
-                            orElse: () => Webspace(name: 'Unknown'),
+                            orElse: () =>
+                                Webspace(name: loc.webspacesListUnknownName),
                           ).name
-                        : 'No webspace selected',
+                        : loc.webspacesListNoneSelected,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey,
                     ),
@@ -64,7 +67,7 @@ class WebspacesListScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32.0),
                       child: Text(
-                        'No webspaces yet. Create one to organize your sites.',
+                        loc.webspacesListEmpty,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
@@ -105,7 +108,7 @@ class WebspacesListScreen extends StatelessWidget {
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
-                        subtitle: Text('$siteCount sites'),
+                        subtitle: Text(loc.webspacesListSiteCount(siteCount)),
                         onTap: () => onSelectWebspace(webspace),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -178,13 +181,13 @@ class WebspacesListScreen extends StatelessWidget {
                 children: [
                   SizedBox(height: 16),
                   Semantics(
-                    label: 'Create Webspace',
+                    label: loc.webspacesListCreateButton,
                     button: true,
                     enabled: true,
                     child: ElevatedButton.icon(
                       onPressed: onAddWebspace,
                       icon: Icon(Icons.add),
-                      label: Text('Create Webspace'),
+                      label: Text(loc.webspacesListCreateButton),
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                       ),

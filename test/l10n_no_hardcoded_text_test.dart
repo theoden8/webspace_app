@@ -16,7 +16,14 @@ void main() {
   // Enforced: zero hardcoded user-facing literals. Move files here as they
   // are migrated. This list only grows.
   const migrated = <String>{
+    'lib/screens/inappbrowser.dart',
+    'lib/screens/link_handling_settings.dart',
+    'lib/screens/location_picker.dart',
+    'lib/screens/site_settings_qr.dart',
+    'lib/screens/site_settings_qr_scanner.dart',
     'lib/screens/trusted_certificates.dart',
+    'lib/screens/webspace_detail.dart',
+    'lib/screens/webspaces_list.dart',
     'lib/widgets/download_button.dart',
     'lib/widgets/external_url_prompt.dart',
     'lib/widgets/find_toolbar.dart',
@@ -34,15 +41,8 @@ void main() {
     'lib/screens/add_site.dart',
     'lib/screens/app_settings.dart',
     'lib/screens/dev_tools.dart',
-    'lib/screens/inappbrowser.dart',
-    'lib/screens/link_handling_settings.dart',
-    'lib/screens/location_picker.dart',
     'lib/screens/settings.dart',
-    'lib/screens/site_settings_qr.dart',
-    'lib/screens/site_settings_qr_scanner.dart',
     'lib/screens/user_scripts.dart',
-    'lib/screens/webspace_detail.dart',
-    'lib/screens/webspaces_list.dart',
   };
 
   // Roots scanned for user-facing widgets. Service/model files render no UI.

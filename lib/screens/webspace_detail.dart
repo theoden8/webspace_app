@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
@@ -49,13 +50,14 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
   }
 
   void _save() {
+    final loc = AppLocalizations.of(context);
     final trimmedName = _nameController.text.trim();
 
     // Validate that name is not empty
     if (trimmedName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Webspace name cannot be empty'),
+          content: Text(loc.webspaceDetailNameEmptyError),
           backgroundColor: Colors.red,
         ),
       );
@@ -72,13 +74,19 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final selectedCount = _selectedIndices.length;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isReadOnly ? 'View Webspace' : 'Edit Webspace'),
+        title: Text(
+          widget.isReadOnly
+              ? loc.webspaceDetailViewTitle
+              : loc.webspaceDetailEditTitle,
+        ),
         actions: [
           if (!widget.isReadOnly)
             Semantics(
-              label: 'Save',
+              label: loc.commonSave,
               button: true,
               enabled: true,
               child: IconButton(
@@ -96,8 +104,8 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
               controller: _nameController,
               enabled: !widget.isReadOnly,
               decoration: InputDecoration(
-                labelText: 'Webspace Name',
-                hintText: 'New webspace',
+                labelText: loc.webspaceDetailNameLabel,
+                hintText: loc.webspaceDetailNameHint,
                 border: OutlineInputBorder(),
               ),
             ),
@@ -107,12 +115,12 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
             child: Row(
               children: [
                 Text(
-                  'Select Sites',
+                  loc.webspaceDetailSelectSites,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 Spacer(),
                 Text(
-                  '${_selectedIndices.length} selected',
+                  loc.webspaceDetailSelectedCount(selectedCount),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -122,7 +130,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
           Expanded(
             child: widget.allSites.isEmpty
                 ? Center(
-                    child: Text('No sites available. Add sites first.'),
+                    child: Text(loc.webspaceDetailNoSites),
                   )
                 : ListView.builder(
                     itemCount: widget.allSites.length,
