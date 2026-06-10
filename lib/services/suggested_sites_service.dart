@@ -36,9 +36,11 @@ bool get isFdroidFlavor {
   return flavor == 'fdroid';
 }
 
-/// Returns the flavor-appropriate default suggestions.
-List<SiteSuggestion> get flavorDefaultSuggestions =>
-    isFdroidFlavor ? const [] : kDefaultSuggestions;
+/// Default suggestions, identical across flavors. The suggested-sites list
+/// renders icons offline (bundled asset or monogram, see
+/// `bundled_icons.dart`), so shipping the curated list on fdroid no longer
+/// causes third-party network contact when the list is viewed.
+List<SiteSuggestion> get flavorDefaultSuggestions => kDefaultSuggestions;
 
 /// Load user-customized suggested sites from SharedPreferences.
 /// Returns null if user has not customized (use defaults).
