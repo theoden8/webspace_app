@@ -1192,28 +1192,27 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       return;
     }
     if ((Platform.isIOS || Platform.isMacOS) && _appIntentsSupported) {
-      final addStep = Platform.isMacOS
-          ? 'then add it to the Dock or run it from the menu bar.'
-          : 'then tap "Add to Home Screen" from the share menu.';
+      final loc = AppLocalizations.of(context);
+      final isMac = Platform.isMacOS;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(
-              Platform.isMacOS ? 'Add a Shortcut' : 'Add to Home Screen'),
+          title: Text(isMac
+              ? loc.homeAddShortcutTitleMacos
+              : loc.homeAddToHomeScreenTitle),
           content: Text(
-            '${Platform.isMacOS ? "macOS" : "iOS"} adds WebSpace sites through '
-            'the Shortcuts app.\n\n'
-            'In Shortcuts, find the "Open Site" action under WebSpace, pick '
-            '"${model.name}", $addStep',
+            isMac
+                ? loc.homeAddShortcutMacosBody(model.name)
+                : loc.homeAddToHomeScreenIosBody(model.name),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
+              child: Text(loc.commonCancel),
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Open Shortcuts'),
+              child: Text(loc.homeOpenShortcuts),
             ),
           ],
         ),
@@ -1878,7 +1877,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           sensitivity: LogSensitivity.sensitive,
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unsupported URL')),
+          SnackBar(content: Text(AppLocalizations.of(context).homeUnsupportedUrl)),
         );
         return;
       }
@@ -1947,7 +1946,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       case DispatchUnsupported(:final reason):
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Unsupported share: $reason')),
+            SnackBar(content: Text(AppLocalizations.of(context).homeUnsupportedShare(reason))),
           );
         }
       case DispatchOpenInMain():
@@ -2196,7 +2195,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Switched to All to open in ${model.getDisplayName()}',
+            AppLocalizations.of(context).homeSwitchedToAllToOpen(model.getDisplayName()),
           ),
         ),
       );
@@ -2479,10 +2478,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final model = _webViewModels[index];
     if (model.isArchiveTier) return;
 
+    final loc = AppLocalizations.of(context);
     final passphrase = await _showPassphraseDialog(
-      title: 'Move site to archive',
-      hint: 'Archive passphrase',
-      submitLabel: 'Move',
+      title: loc.homeMoveSiteToArchiveTitle,
+      hint: loc.homeArchivePassphraseHint,
+      submitLabel: loc.homeMoveAction,
     );
     if (passphrase == null || passphrase.isEmpty) return;
     if (!mounted) return;
@@ -2493,7 +2493,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     } on StateError catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open archive: ${e.message}')),
+        SnackBar(content: Text(AppLocalizations.of(context).homeCouldNotOpenArchive(e.message))),
       );
       return;
     }
@@ -2502,19 +2502,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       final shouldCreate = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('No matching archive'),
-          content: const Text(
-            'No archive exists for this passphrase. '
-            'Create a new archive with it and move this site into it?',
-          ),
+          title: Text(loc.homeNoMatchingArchiveTitle),
+          content: Text(loc.homeNoMatchingArchiveMoveBody),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(loc.commonCancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Create'),
+              child: Text(loc.homeCreateAction),
             ),
           ],
         ),
@@ -2525,7 +2522,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       } on StateError catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not create archive: ${e.message}')),
+          SnackBar(content: Text(AppLocalizations.of(context).homeCouldNotCreateArchive(e.message))),
         );
         return;
       }
@@ -2578,12 +2575,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Site moved to archive. You may need to re-set per-site '
-            'preferences (theme, language) the first time it loads.',
-          ),
-          duration: Duration(seconds: 6),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).homeSiteMovedToArchive),
+          duration: const Duration(seconds: 6),
         ),
       );
     }
@@ -2630,7 +2624,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (mounted) {
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Site moved out of archive')),
+        SnackBar(content: Text(AppLocalizations.of(context).homeSiteMovedOutOfArchive)),
       );
     }
   }
@@ -2660,10 +2654,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// to create a new archive with that passphrase. Snackbars report the
   /// result without revealing existence of other archives.
   Future<void> _promptRestoreArchive() async {
+    final loc = AppLocalizations.of(context);
     final passphrase = await _showPassphraseDialog(
-      title: 'Restore archive',
-      hint: 'Passphrase',
-      submitLabel: 'Open',
+      title: loc.homeRestoreArchiveTitle,
+      hint: loc.homePassphraseHint,
+      submitLabel: loc.commonOpen,
     );
     if (passphrase == null || passphrase.isEmpty) return;
     if (!mounted) return;
@@ -2673,8 +2668,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Archive opened (${handle.state.sites.length} sites, '
-              '${handle.state.webspaces.length} webspaces)',
+              AppLocalizations.of(context).homeArchiveOpened(
+                handle.state.sites.length,
+                handle.state.webspaces.length,
+              ),
             ),
           ),
         );
@@ -2684,19 +2681,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       final shouldCreate = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('No matching archive'),
-          content: const Text(
-            'No archive exists for this passphrase. '
-            'Create a new archive with it?',
-          ),
+          title: Text(loc.homeNoMatchingArchiveTitle),
+          content: Text(loc.homeNoMatchingArchiveCreateBody),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(loc.commonCancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Create'),
+              child: Text(loc.homeCreateAction),
             ),
           ],
         ),
@@ -2705,12 +2699,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       await _createArchive(passphrase);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New archive created')),
+        SnackBar(content: Text(AppLocalizations.of(context).homeNewArchiveCreated)),
       );
     } on StateError catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open: ${e.message}')),
+        SnackBar(content: Text(AppLocalizations.of(context).homeCouldNotOpen(e.message))),
       );
     }
   }
@@ -2721,6 +2715,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     required String submitLabel,
   }) async {
     final controller = TextEditingController();
+    final loc = AppLocalizations.of(context);
     return showDialog<String>(
       context: context,
       builder: (ctx) {
@@ -2736,7 +2731,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancel'),
+              child: Text(loc.commonCancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, controller.text),
@@ -3397,6 +3392,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       sensitivity: LogSensitivity.sensitive,
     );
 
+    final loc = AppLocalizations.of(context);
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -3413,7 +3409,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Verification', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(loc.homeVerificationTitle, style: TextStyle(fontWeight: FontWeight.bold)),
                       IconButton(
                         icon: Icon(Icons.close),
                         onPressed: () => Navigator.of(dialogContext).pop(),
@@ -4131,22 +4127,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// the same way regardless of where the webview was opened.
   Future<bool> _confirmScriptFetch(String url) async {
     if (!mounted) return false;
+    final loc = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Load external script?'),
-        content: Text(
-          'A user script wants to load:\n\n$url\n\n'
-          'This URL is not on the trusted CDN list. Allow?',
-        ),
+        title: Text(loc.homeLoadExternalScriptTitle),
+        content: Text(loc.homeLoadExternalScriptBody(url)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Deny'),
+            child: Text(loc.homeDenyAction),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Allow'),
+            child: Text(loc.homeAllowAction),
           ),
         ],
       ),
@@ -4161,23 +4155,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// webviews remember it in-memory), so this only collects user intent.
   Future<bool> _promptProtectedMedia(String origin) async {
     if (!mounted) return false;
+    final loc = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Play protected content?'),
-        content: Text(
-          '$origin wants to play protected (DRM) content.\n\n'
-          'Allowing this lets the site provision a device identifier to '
-          'decrypt the media. Your choice is remembered for this site.',
-        ),
+        title: Text(loc.homePlayProtectedContentTitle),
+        content: Text(loc.homePlayProtectedContentBody(origin)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Block'),
+            child: Text(loc.homeBlockAction),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Allow'),
+            child: Text(loc.homeAllowAction),
           ),
         ],
       ),
@@ -4198,9 +4189,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tap the top of the screen to exit full screen'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).homeExitFullscreenHint),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -4297,9 +4288,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   void _deleteWebspace(Webspace webspace) async {
     // Prevent deletion of "All" webspace
+    final loc = AppLocalizations.of(context);
     if (webspace.id == kAllWebspaceId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot delete the "All" webspace')),
+        SnackBar(content: Text(loc.homeCannotDeleteAllWebspace)),
       );
       return;
     }
@@ -4307,16 +4299,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete Webspace'),
-        content: Text('Are you sure you want to delete "${webspace.name}"?'),
+        title: Text(loc.homeDeleteWebspaceTitle),
+        content: Text(loc.homeDeleteWebspaceConfirm(webspace.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete'),
+            child: Text(loc.commonDelete),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
@@ -4474,23 +4466,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     List<String>? extraSections;
     final open = _archive.openArchives;
     if (open.isNotEmpty) {
+      final loc = AppLocalizations.of(context);
       final include = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Include open archives?'),
-          content: Text(
-            'You have ${open.length} archive(s) open. Include them in this '
-            'backup? They stay encrypted, but the file will reveal that '
-            'archived data exists.',
-          ),
+          title: Text(loc.homeIncludeOpenArchivesTitle),
+          content: Text(loc.homeIncludeOpenArchivesBody(open.length)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Exclude'),
+              child: Text(loc.homeExcludeAction),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Include'),
+              child: Text(loc.homeIncludeAction),
             ),
           ],
         ),
@@ -4539,24 +4528,25 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final webspacesCount = backup.webspaces.length;
     final exportDate = backup.exportedAt.toLocal().toString().split('.')[0];
 
+    final loc = AppLocalizations.of(context);
+    final exportedLabel = loc.homeImportExportedLabel(exportDate);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Import Settings'),
+        title: Text(loc.homeImportSettingsTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Import $sitesCount site(s) and $webspacesCount webspace(s)?'),
+            Text(loc.homeImportSettingsConfirm(sitesCount, webspacesCount)),
             SizedBox(height: 12),
             Text(
-              'Exported: $exportDate',
+              exportedLabel,
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             SizedBox(height: 16),
             Text(
-              'Your login sessions will be preserved for matching domains. '
-              'Logins for removed sites will be cleared.',
+              loc.homeImportSettingsSessionsNote,
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
@@ -4564,11 +4554,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Import'),
+            child: Text(loc.homeImportAction),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.primary,
             ),
@@ -4717,6 +4707,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     if (mounted) {
+      final loc = AppLocalizations.of(context);
       // Surface the strip-from-export contract (PWD-005) when the source
       // device had a proxy username configured — a strong proxy for "had
       // a proxy password too" (since the username is meaningless without
@@ -4747,18 +4738,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       ?.any((e) => e['enabled'] == true) ??
                   false);
       final hints = <String>[
-        if (stripped)
-          'Proxy passwords aren\'t included in backups — re-enter them in '
-              'site / app settings.',
-        if (needsBlocklistRedownload)
-          'Re-download DNS / content blocker lists in App Settings to '
-              'activate blocking.',
+        if (stripped) loc.homeImportProxyPasswordsHint,
+        if (needsBlocklistRedownload) loc.homeImportBlocklistRedownloadHint,
       ];
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(hints.isEmpty
-              ? 'Settings imported successfully'
-              : 'Settings imported. ${hints.join(' ')}'),
+              ? loc.homeSettingsImportedSuccess
+              : loc.homeSettingsImportedWithHints(hints.join(' '))),
           duration: Duration(seconds: hints.isEmpty ? 4 : 6),
         ),
       );
@@ -4777,10 +4764,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _restoreBackupSections(List<String> sections) async {
     var remaining = List<String>.from(sections);
     while (remaining.isNotEmpty && mounted) {
+      final loc = AppLocalizations.of(context);
       final passphrase = await _showPassphraseDialog(
-        title: 'Restore archived data',
-        hint: 'Passphrase (cancel to skip)',
-        submitLabel: 'Restore',
+        title: loc.homeRestoreArchivedDataTitle,
+        hint: loc.homePassphraseCancelToSkipHint,
+        submitLabel: loc.homeRestoreAction,
       );
       if (passphrase == null || passphrase.isEmpty) break;
       final before = remaining.length;
@@ -4791,8 +4779,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(restored > 0
-              ? 'Restored $restored archived section(s)'
-              : 'No section matched that passphrase'),
+              ? AppLocalizations.of(context).homeRestoredArchivedSections(restored)
+              : AppLocalizations.of(context).homeNoSectionMatchedPassphrase),
         ),
       );
     }
@@ -4954,14 +4942,16 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
-  String _getThemeTooltip() {
+  String _getThemeTooltip(AppLocalizations loc) {
     final modeName = _themeSettings.themeMode == ThemeMode.system
-        ? 'System'
+        ? loc.homeThemeModeSystem
         : _themeSettings.themeMode == ThemeMode.light
-            ? 'Light'
-            : 'Dark';
-    final colorName = _themeSettings.accentColor == AccentColor.blue ? 'Blue' : 'Green';
-    return '$modeName $colorName theme';
+            ? loc.homeThemeModeLight
+            : loc.homeThemeModeDark;
+    final colorName = _themeSettings.accentColor == AccentColor.blue
+        ? loc.homeThemeColorBlue
+        : loc.homeThemeColorGreen;
+    return loc.homeThemeTooltip(modeName, colorName);
   }
 
   String _getThemeName() {
@@ -4975,6 +4965,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   AppBar _buildAppBar() {
+    final loc = AppLocalizations.of(context);
     return AppBar(
       title: _currentIndex != null && _currentIndex! < _webViewModels.length
           ? GestureDetector(
@@ -4998,12 +4989,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   (ws) => ws.id == _selectedWebspaceId,
                   orElse: () => Webspace(name: 'Unknown'),
                 ).name
-              : 'No Webspace Selected'),
+              : loc.homeNoWebspaceSelected),
       actions: [
         const DownloadButton(),
         IconButton(
           icon: Icon(_getThemeIcon()),
-          tooltip: _getThemeTooltip(),
+          tooltip: _getThemeTooltip(loc),
           onPressed: () async {
             setState(() {
               final newMode = _themeSettings.themeMode == ThemeMode.light
@@ -5027,7 +5018,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (_currentIndex == null || _currentIndex! >= _webViewModels.length)
           IconButton(
             icon: Icon(Icons.settings),
-            tooltip: 'App Settings',
+            tooltip: loc.homeAppSettingsTooltip,
             onPressed: () async {
               await Navigator.push(
                 context,
@@ -5055,8 +5046,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       await _closeAllArchives();
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Archives closed'),
+                        SnackBar(
+                          content: Text(loc.homeArchivesClosed),
                         ),
                       );
                     },
@@ -5110,7 +5101,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     children: [
                       IconButton(
                         icon: Icon(Icons.arrow_back),
-                        tooltip: 'Go Back',
+                        tooltip: loc.homeGoBackTooltip,
                         onPressed: () {
                           Navigator.pop(context);
                           () async {
@@ -5126,7 +5117,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       ),
                       IconButton(
                         icon: Icon(Icons.home),
-                        tooltip: 'Go to Home',
+                        tooltip: loc.homeGoToHomeTooltip,
                         onPressed: () {
                           Navigator.pop(context);
                           _goHome();
@@ -5134,7 +5125,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       ),
                       IconButton(
                         icon: Icon(Icons.share),
-                        tooltip: 'Share',
+                        tooltip: loc.commonShare,
                         onPressed: () {
                           Navigator.pop(context);
                           if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
@@ -5151,7 +5142,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         final loading = model?.isLoading ?? false;
                         return IconButton(
                           icon: Icon(loading ? Icons.close : Icons.refresh),
-                          tooltip: loading ? 'Stop' : 'Refresh',
+                          tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
                           onPressed: () {
                             Navigator.pop(context);
                             if (loading) {
@@ -5172,7 +5163,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     children: [
                       Icon(Icons.search),
                       SizedBox(width: 8),
-                      Text("Find"),
+                      Text(loc.homeFindMenu),
                     ],
                   ),
                 ),
@@ -5182,7 +5173,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     children: [
                       Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
                       SizedBox(width: 8),
-                      Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                      Text(_showUrlBar ? loc.homeHideUrlBarMenu : loc.homeShowUrlBarMenu),
                     ],
                   ),
                 ),
@@ -5192,7 +5183,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     children: [
                       Icon(_isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
                       SizedBox(width: 8),
-                      Text(_isFullscreen ? "Exit Full Screen" : "Full Screen"),
+                      Text(_isFullscreen
+                          ? loc.homeExitFullScreenMenu
+                          : loc.homeFullScreenMenu),
                     ],
                   ),
                 ),
@@ -5202,7 +5195,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     children: [
                       Icon(Icons.settings),
                       SizedBox(width: 8),
-                      Text("Settings"),
+                      Text(loc.homeSettingsMenu),
                     ],
                   ),
                 ),
@@ -5212,7 +5205,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     children: [
                       Icon(Icons.code),
                       SizedBox(width: 8),
-                      Text("Developer Tools"),
+                      Text(loc.homeDeveloperToolsMenu),
                     ],
                   ),
                 ),
@@ -5223,7 +5216,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       children: [
                         Icon(Icons.add_to_home_screen),
                         SizedBox(width: 8),
-                        Text("Home Shortcut"),
+                        Text(loc.homeHomeShortcutMenu),
                       ],
                     ),
                   ),
@@ -5487,10 +5480,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
   /// Popup menu button for use in the bottom bar when tab strip is enabled.
   Widget _buildBottomPopupMenu() {
+    final loc = AppLocalizations.of(context);
     return PopupMenuButton<String>(
       icon: Icon(Icons.more_vert, size: 20),
       padding: EdgeInsets.zero,
-      tooltip: 'Menu',
+      tooltip: loc.homeMenuTooltip,
       itemBuilder: (BuildContext context) {
         return [
           PopupMenuItem<String>(
@@ -5500,7 +5494,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               children: [
                 IconButton(
                   icon: Icon(Icons.arrow_back),
-                  tooltip: 'Go Back',
+                  tooltip: loc.homeGoBackTooltip,
                   onPressed: () {
                     Navigator.pop(context);
                     () async {
@@ -5516,7 +5510,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 ),
                 IconButton(
                   icon: Icon(Icons.home),
-                  tooltip: 'Go to Home',
+                  tooltip: loc.homeGoToHomeTooltip,
                   onPressed: () {
                     Navigator.pop(context);
                     _goHome();
@@ -5524,7 +5518,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 ),
                 IconButton(
                   icon: Icon(Icons.share),
-                  tooltip: 'Share',
+                  tooltip: loc.commonShare,
                   onPressed: () {
                     Navigator.pop(context);
                     if (_currentIndex != null && _currentIndex! < _webViewModels.length) {
@@ -5541,7 +5535,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   final loading = model?.isLoading ?? false;
                   return IconButton(
                     icon: Icon(loading ? Icons.close : Icons.refresh),
-                    tooltip: loading ? 'Stop' : 'Refresh',
+                    tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
                     onPressed: () {
                       Navigator.pop(context);
                       if (loading) {
@@ -5562,7 +5556,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               children: [
                 Icon(Icons.search),
                 SizedBox(width: 8),
-                Text("Find"),
+                Text(loc.homeFindMenu),
               ],
             ),
           ),
@@ -5572,7 +5566,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               children: [
                 Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
                 SizedBox(width: 8),
-                Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                Text(_showUrlBar ? loc.homeHideUrlBarMenu : loc.homeShowUrlBarMenu),
               ],
             ),
           ),
@@ -5582,7 +5576,9 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               children: [
                 Icon(_isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen),
                 SizedBox(width: 8),
-                Text(_isFullscreen ? "Exit Full Screen" : "Full Screen"),
+                Text(_isFullscreen
+                    ? loc.homeExitFullScreenMenu
+                    : loc.homeFullScreenMenu),
               ],
             ),
           ),
@@ -5592,7 +5588,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               children: [
                 Icon(Icons.settings),
                 SizedBox(width: 8),
-                Text("Settings"),
+                Text(loc.homeSettingsMenu),
               ],
             ),
           ),
@@ -5602,7 +5598,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               children: [
                 Icon(Icons.code),
                 SizedBox(width: 8),
-                Text("Developer Tools"),
+                Text(loc.homeDeveloperToolsMenu),
               ],
             ),
           ),
@@ -5613,7 +5609,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                 children: [
                   Icon(Icons.add_to_home_screen),
                   SizedBox(width: 8),
-                  Text("Home Shortcut"),
+                  Text(loc.homeHomeShortcutMenu),
                 ],
               ),
             ),
@@ -5781,10 +5777,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final nameController = TextEditingController(text: _webViewModels[index].name);
     final urlController = TextEditingController(text: _webViewModels[index].initUrl);
 
+    final loc = AppLocalizations.of(context);
+    final urlHint = 'http://example.com:8080';
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Edit Site'),
+        title: Text(loc.homeEditSiteTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -5794,8 +5792,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               autocorrect: false,
               enableSuggestions: false,
               decoration: InputDecoration(
-                labelText: 'Site Name',
-                hintText: 'Enter a custom name',
+                labelText: loc.homeSiteNameLabel,
+                hintText: loc.homeSiteNameHint,
               ),
             ),
             SizedBox(height: 16),
@@ -5805,13 +5803,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
               enableSuggestions: false,
               keyboardType: TextInputType.url,
               decoration: InputDecoration(
-                labelText: 'URL',
-                hintText: 'http://example.com:8080',
+                labelText: loc.homeUrlLabel,
+                hintText: urlHint,
               ),
             ),
             SizedBox(height: 8),
             Text(
-              'Tip: Include http:// for HTTP sites, or leave it out for HTTPS',
+              loc.homeUrlSchemeTip,
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ],
@@ -5819,7 +5817,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () {
@@ -5831,7 +5829,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
               Navigator.pop(context, {'name': name, 'url': url});
             },
-            child: Text('Save'),
+            child: Text(loc.commonSave),
           ),
         ],
       ),
@@ -5880,23 +5878,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // archive is currently open or whether any exist on disk.
     final canMoveToArchive = !isArchiveSite;
 
+    final loc = AppLocalizations.of(context);
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
       items: [
-        PopupMenuItem(value: 'refresh', child: ListTile(leading: Icon(Icons.refresh), title: Text('Refresh Title & Icon'), dense: true, visualDensity: VisualDensity.compact)),
-        PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text('Edit'), dense: true, visualDensity: VisualDensity.compact)),
-        PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text('Delete', style: TextStyle(color: Colors.red)), dense: true, visualDensity: VisualDensity.compact)),
+        PopupMenuItem(value: 'refresh', child: ListTile(leading: Icon(Icons.refresh), title: Text(loc.homeRefreshTitleAndIcon), dense: true, visualDensity: VisualDensity.compact)),
+        PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text(loc.commonEdit), dense: true, visualDensity: VisualDensity.compact)),
+        PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text(loc.commonDelete, style: TextStyle(color: Colors.red)), dense: true, visualDensity: VisualDensity.compact)),
         if (isCustomWebspace && listIndex > 0)
-          PopupMenuItem(value: 'move_up', child: ListTile(leading: Icon(Icons.arrow_upward), title: Text('Move Up'), dense: true, visualDensity: VisualDensity.compact)),
+          PopupMenuItem(value: 'move_up', child: ListTile(leading: Icon(Icons.arrow_upward), title: Text(loc.homeMoveUp), dense: true, visualDensity: VisualDensity.compact)),
         if (isCustomWebspace && listIndex >= 0 && listIndex < filteredIndices.length - 1)
-          PopupMenuItem(value: 'move_down', child: ListTile(leading: Icon(Icons.arrow_downward), title: Text('Move Down'), dense: true, visualDensity: VisualDensity.compact)),
+          PopupMenuItem(value: 'move_down', child: ListTile(leading: Icon(Icons.arrow_downward), title: Text(loc.homeMoveDown), dense: true, visualDensity: VisualDensity.compact)),
         if (canMoveToArchive)
-          PopupMenuItem(value: 'move_to_archive', child: ListTile(leading: Icon(Icons.archive_outlined), title: Text('Move to archive'), dense: true, visualDensity: VisualDensity.compact)),
+          PopupMenuItem(value: 'move_to_archive', child: ListTile(leading: Icon(Icons.archive_outlined), title: Text(loc.homeMoveToArchive), dense: true, visualDensity: VisualDensity.compact)),
         if (isArchiveSite)
-          PopupMenuItem(value: 'move_out_of_archive', child: ListTile(leading: Icon(Icons.unarchive_outlined), title: Text('Move out of archive'), dense: true, visualDensity: VisualDensity.compact)),
+          PopupMenuItem(value: 'move_out_of_archive', child: ListTile(leading: Icon(Icons.unarchive_outlined), title: Text(loc.homeMoveOutOfArchive), dense: true, visualDensity: VisualDensity.compact)),
         if (isArchiveSite)
-          PopupMenuItem(value: 'close_archive', child: ListTile(leading: Icon(Icons.lock_outline), title: Text('Close archive'), dense: true, visualDensity: VisualDensity.compact)),
+          PopupMenuItem(value: 'close_archive', child: ListTile(leading: Icon(Icons.lock_outline), title: Text(loc.homeCloseArchive), dense: true, visualDensity: VisualDensity.compact)),
       ],
     ).then((value) async {
       if (value == null) return;
@@ -5920,7 +5919,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           await _closeArchive(handle);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Archive closed')),
+            SnackBar(content: Text(loc.homeArchiveClosed)),
           );
           break;
         case 'refresh':
@@ -5938,7 +5937,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             await _saveWebViewModels();
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Title updated to: $title')),
+              SnackBar(content: Text(loc.homeTitleUpdatedTo(title))),
             );
           } else {
             setState(() {});
@@ -5977,20 +5976,21 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _deleteSite(BuildContext context, int index) async {
+    final loc = AppLocalizations.of(context);
     final siteName = _webViewModels[index].getDisplayName();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete Site'),
-        content: Text('Are you sure you want to delete "$siteName"?'),
+        title: Text(loc.homeDeleteSiteTitle),
+        content: Text(loc.homeDeleteSiteConfirm(siteName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete'),
+            child: Text(loc.commonDelete),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
@@ -6807,6 +6807,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Widget _buildMainTree(BuildContext context, bool webviewIsVisible) {
+    final loc = AppLocalizations.of(context);
     return PopScope(
       // On Android, always intercept back so the gesture only ever navigates
       // webview history (never exits the app). On other platforms, allow pop
@@ -6910,7 +6911,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                             Text(
                               _selectedWebspaceId != null
                                   ? _webspaces.firstWhere((ws) => ws.id == _selectedWebspaceId, orElse: () => Webspace(name: 'Unknown')).name
-                                  : 'No webspace',
+                                  : loc.homeNoWebspace,
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                             ),
                           ],
@@ -6918,7 +6919,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                       ),
                     ),
                     Semantics(
-                      label: 'Back to Webspaces',
+                      label: loc.homeBackToWebspaces,
                       button: true,
                       enabled: true,
                       child: TextButton.icon(
@@ -6937,7 +6938,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           Navigator.pop(context);
                         },
                         icon: Icon(Icons.arrow_back, size: 16),
-                        label: Text('Back to Webspaces', style: TextStyle(fontSize: 12)),
+                        label: Text(loc.homeBackToWebspaces, style: TextStyle(fontSize: 12)),
                       ),
                     ),
                   ],
@@ -6947,13 +6948,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
             Expanded(
               child: _selectedWebspaceId == null
                   ? Center(
-                      child: Text('Select a webspace to view sites'),
+                      child: Text(loc.homeSelectWebspaceToViewSites),
                     )
                   : () {
                       final filteredIndices = _getFilteredSiteIndices();
                       if (filteredIndices.isEmpty) {
                         return Center(
-                          child: Text('No sites in this webspace'),
+                          child: Text(loc.homeNoSitesInWebspace),
                         );
                       }
 
@@ -6996,7 +6997,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                     _addSite();
                   },
                   icon: Icon(Icons.add),
-                  label: Text('Add Site'),
+                  label: Text(loc.homeAddSite),
                 ),
               ),
             ),
@@ -7087,7 +7088,9 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final host = widget.url.host;
+    final urlText = widget.url.toString();
     final allSites = [...widget.winners, ...widget.otherSites];
     final rows = _bindMode ? _buildBindRows(allSites) : _buildPrimaryRows();
     return SafeArea(
@@ -7104,12 +7107,12 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  _bindMode ? 'Send $host to which site?' : 'Open $host',
+                  _bindMode ? loc.homeDispatchSendToWhichSite(host) : loc.homeDispatchOpenHost(host),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               Text(
-                widget.url.toString(),
+                urlText,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,
@@ -7125,12 +7128,12 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
               if (_bindMode)
                 TextButton(
                   onPressed: () => setState(() => _bindMode = false),
-                  child: const Text('Back'),
+                  child: Text(loc.homeBackAction),
                 )
               else
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(loc.commonCancel),
                 ),
             ],
           ),
@@ -7150,11 +7153,13 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
       );
 
   List<Widget> _buildPrimaryRows() {
+    final loc = AppLocalizations.of(context);
     final rows = <Widget>[];
     for (final site in widget.winners) {
+      final displayName = site.getDisplayName();
       rows.add(ListTile(
         leading: _siteFavicon(site),
-        title: Text('Open in ${site.getDisplayName()}'),
+        title: Text(loc.homeDispatchOpenInSite(displayName)),
         subtitle: Text(site.initUrl,
             maxLines: 1, overflow: TextOverflow.ellipsis),
         onTap: () =>
@@ -7165,13 +7170,13 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
       rows.add(ListTile(
         leading: const SizedBox(
             width: 32, height: 32, child: Icon(Icons.link)),
-        title: Text(
-            'Send ${widget.url.host} (and subdomains) to a site'),
-        subtitle: const Text('Pick an existing site to handle this domain'),
+        title: Text(loc.homeDispatchSendToSite(widget.url.host)),
+        subtitle: Text(loc.homeDispatchPickExistingSite),
         onTap: () => setState(() => _bindMode = true),
       ));
     }
     if (widget.canCreate) {
+      final strippedHome = LinkRoutingService.strippedHomeUrl(widget.url) ?? '';
       rows.add(ListTile(
         leading: SizedBox(
           width: 32,
@@ -7182,9 +7187,9 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
             size: 32,
           ),
         ),
-        title: Text('Create new site for ${widget.url.host}'),
+        title: Text(loc.homeDispatchCreateNewSite(widget.url.host)),
         subtitle: Text(
-          LinkRoutingService.strippedHomeUrl(widget.url) ?? '',
+          strippedHome,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -7196,11 +7201,12 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
   }
 
   List<Widget> _buildBindRows(List<WebViewModel> sites) {
+    final loc = AppLocalizations.of(context);
     if (sites.isEmpty) {
       return [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
-          child: Text('No existing sites.'),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(loc.homeDispatchNoExistingSites),
         ),
       ];
     }

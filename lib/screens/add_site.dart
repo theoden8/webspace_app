@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import '../main.dart' show extractDomain;
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate;
 import '../settings/proxy.dart';
@@ -429,8 +430,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
         htmlContent = await File(file.path!).readAsString();
       } else {
         if (mounted) {
+          final loc = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not read the selected file')),
+            SnackBar(content: Text(loc.addSiteFileReadError)),
           );
         }
         return;
@@ -453,8 +455,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       });
     } catch (e) {
       if (mounted) {
+        final loc = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Import failed: $e')),
+          SnackBar(content: Text(loc.addSiteImportFailed(e.toString()))),
         );
       }
     }
@@ -474,15 +477,17 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context);
+        final urlHint = 'https://example.com';
         return AlertDialog(
-          title: Text('Add Suggested Site'),
+          title: Text(loc.addSiteAddSuggestedTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(
-                  labelText: 'Name',
+                  labelText: loc.addSiteNameLabel,
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -493,9 +498,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                 enableSuggestions: false,
                 keyboardType: TextInputType.url,
                 decoration: InputDecoration(
-                  labelText: 'URL',
+                  labelText: loc.addSiteUrlLabel,
                   border: OutlineInputBorder(),
-                  hintText: 'https://example.com',
+                  hintText: urlHint,
                 ),
               ),
             ],
@@ -503,7 +508,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
+              child: Text(loc.commonCancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -524,7 +529,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                 });
                 widget.onSuggestionsChanged(_suggestions);
               },
-              child: Text('Add'),
+              child: Text(loc.commonAdd),
             ),
           ],
         );
@@ -541,8 +546,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final loc = AppLocalizations.of(context);
             return AlertDialog(
-              title: Text('Add ${suggestion.name}'),
+              title: Text(loc.addSiteAddNamedTitle(suggestion.name)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -552,14 +558,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                     enableSuggestions: false,
                     keyboardType: TextInputType.url,
                     decoration: InputDecoration(
-                      labelText: 'Site URL',
+                      labelText: loc.addSiteSiteUrlLabel,
                       border: OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: Icon(
                           incognito ? MdiIcons.incognito : MdiIcons.incognitoOff,
                           color: incognito ? Theme.of(context).colorScheme.primary : null,
                         ),
-                        tooltip: incognito ? 'Incognito mode on' : 'Incognito mode off',
+                        tooltip: incognito ? loc.addSiteIncognitoOn : loc.addSiteIncognitoOff,
                         onPressed: () {
                           setDialogState(() {
                             incognito = !incognito;
@@ -575,7 +581,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
-                  child: Text('Cancel'),
+                  child: Text(loc.commonCancel),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -585,7 +591,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                     Navigator.of(context).pop();
                     Navigator.of(context).pop({'url': url, 'name': '', 'incognito': incognito});
                   },
-                  child: Text('Add'),
+                  child: Text(loc.commonAdd),
                 ),
               ],
             );
@@ -606,14 +612,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     }
   }
 
-  String _getThemeTooltip() {
+  String _getThemeTooltip(AppLocalizations loc) {
     switch (widget.themeMode) {
       case ThemeMode.light:
-        return 'Light theme';
+        return loc.addSiteThemeLight;
       case ThemeMode.dark:
-        return 'Dark theme';
+        return loc.addSiteThemeDark;
       case ThemeMode.system:
-        return 'System theme';
+        return loc.addSiteThemeSystem;
     }
   }
 
@@ -635,13 +641,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add new site'),
+        title: Text(loc.addSiteScreenTitle),
         actions: [
           IconButton(
             icon: Icon(_getThemeIcon()),
-            tooltip: _getThemeTooltip(),
+            tooltip: _getThemeTooltip(loc),
             onPressed: _toggleTheme,
           ),
         ],
@@ -666,7 +673,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         enableSuggestions: false,
                         keyboardType: TextInputType.url,
                         decoration: InputDecoration(
-                          labelText: 'Enter website URL',
+                          labelText: loc.addSiteEnterUrlLabel,
                           prefixIcon: _previewUrl != null
                               ? Padding(
                                   padding: const EdgeInsets.all(12.0),
@@ -682,7 +689,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                               : null,
                           suffixIcon: IconButton(
                             icon: const Icon(Icons.qr_code_scanner),
-                            tooltip: 'Add from QR code',
+                            tooltip: loc.addSiteAddFromQr,
                             onPressed: _addByQr,
                           ),
                         ),
@@ -698,7 +705,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                 url = ensureUrlScheme(url);
                                 Navigator.pop(context, {'url': url, 'name': ''});
                               },
-                              child: Text('Add Site'),
+                              child: Text(loc.addSiteAddSiteButton),
                             ),
                           ),
                           SizedBox(width: 8),
@@ -706,14 +713,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                             child: OutlinedButton.icon(
                               onPressed: _importHtmlFile,
                               icon: Icon(Icons.file_open),
-                              label: Text('Import file'),
+                              label: Text(loc.addSiteImportFileButton),
                             ),
                           ),
                         ],
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Tip: Type http:// for HTTP sites, or just the domain for HTTPS',
+                        loc.addSiteSchemeTip,
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                         textAlign: TextAlign.center,
                       ),
@@ -722,13 +729,13 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Suggested Sites',
+                              loc.addSiteSuggestedSitesHeader,
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                           ),
                           IconButton(
                             icon: Icon(Icons.add, size: 20),
-                            tooltip: 'Add suggested site',
+                            tooltip: loc.addSiteAddSuggestedTooltip,
                             onPressed: _showAddSuggestionDialog,
                             visualDensity: VisualDensity.compact,
                           ),
@@ -755,19 +762,19 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: Text('Remove ${suggestion.name}?'),
-                                content: Text('Remove this site from suggestions?'),
+                                title: Text(loc.addSiteRemoveSuggestionTitle(suggestion.name)),
+                                content: Text(loc.addSiteRemoveSuggestionBody),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.of(context).pop(),
-                                    child: Text('Cancel'),
+                                    child: Text(loc.commonCancel),
                                   ),
                                   TextButton(
                                     onPressed: () {
                                       Navigator.of(context).pop();
                                       _removeSuggestion(index);
                                     },
-                                    child: Text('Remove'),
+                                    child: Text(loc.commonRemove),
                                   ),
                                 ],
                               ),
@@ -818,7 +825,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 24.0),
                       child: Center(
                         child: Text(
-                          'No suggested sites. Tap + to add some.',
+                          loc.addSiteNoSuggestions,
                           style: TextStyle(color: Colors.grey),
                         ),
                       ),

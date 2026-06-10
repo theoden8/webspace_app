@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
@@ -213,15 +214,16 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       _isDownloadingTimezones = false;
       _timezoneZoneCount = TimezoneLocationService.instance.zoneCount;
     });
+    final loc = AppLocalizations.of(context);
     if (success) {
       _timezonesLastUpdated =
           await TimezoneLocationService.instance.getLastUpdated();
       if (mounted) setState(() {});
       rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
-          content: Text('Loaded $_timezoneZoneCount timezones')));
+          content: Text(loc.appSettingsTimezonesLoaded(_timezoneZoneCount))));
     } else {
-      rootScaffoldMessengerKey.currentState?.showSnackBar(const SnackBar(
-          content: Text('Timezone dataset download failed (check log)')));
+      rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
+          content: Text(loc.appSettingsTimezonesDownloadFailed)));
     }
   }
 
@@ -245,16 +247,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   }
 
   String? _validateOutboundProxyAddress(String value) {
+    final loc = AppLocalizations.of(context);
     if (_outboundProxy.type == ProxyType.DEFAULT) return null;
     final trimmed = value.trim();
-    if (trimmed.isEmpty) return 'Proxy address is required';
+    if (trimmed.isEmpty) return loc.appSettingsProxyAddressRequired;
     final parts = trimmed.split(':');
     if (parts.length != 2 || parts[0].isEmpty || parts[1].isEmpty) {
-      return 'Format: host:port';
+      return loc.appSettingsProxyFormatHostPort;
     }
     final port = int.tryParse(parts[1]);
     if (port == null || port < 1 || port > 65535) {
-      return 'Invalid port number';
+      return loc.appSettingsProxyInvalidPort;
     }
     return null;
   }
@@ -314,8 +317,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       );
     }
     if (mounted && changed) {
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Outbound proxy updated')),
+        SnackBar(content: Text(loc.appSettingsOutboundProxyUpdated)),
       );
     }
   }
@@ -341,24 +345,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   }
 
   Future<bool> _confirmDiscardProxy() async {
+    final loc = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Discard changes?'),
-        content: const Text(
-          'You have unsaved changes to the outbound proxy. '
-          'Leaving now will discard them.',
-        ),
+        title: Text(loc.appSettingsDiscardChangesTitle),
+        content: Text(loc.appSettingsDiscardProxyBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep editing'),
+            child: Text(loc.appSettingsKeepEditing),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Discard',
-              style: TextStyle(color: Colors.red),
+            child: Text(
+              loc.appSettingsDiscard,
+              style: const TextStyle(color: Colors.red),
             ),
           ),
         ],
@@ -395,6 +397,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         _isDownloadingBlocklist = false;
       });
 
+      final loc = AppLocalizations.of(context);
       if (success) {
         await _loadBlocklistState();
         // DnsBlockService fires a change listener that re-pushes domains
@@ -402,14 +405,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         await WebInterceptNative.attachToWebViews();
         final domainCount = DnsBlockService.instance.domainCount;
         final message = level == 0
-            ? 'DNS blocklist disabled'
-            : 'DNS blocklist updated (${_formatNumber(domainCount)} domains)';
+            ? loc.appSettingsDnsBlocklistDisabled
+            : loc.appSettingsDnsBlocklistUpdated(_formatNumber(domainCount));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to download DNS blocklist')),
+          SnackBar(content: Text(loc.appSettingsDnsBlocklistDownloadFailed)),
         );
       }
     }
@@ -427,17 +430,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         _downloadingListId = null;
       });
 
+      final loc = AppLocalizations.of(context);
       if (success) {
         final list = ContentBlockerService.instance.lists
             .firstWhere((l) => l.id == id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text('${list.name}: ${_formatNumber(list.ruleCount)} rules')),
+              content: Text(loc.appSettingsFilterListRules(
+                  list.name, _formatNumber(list.ruleCount)))),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to download filter list')),
+          SnackBar(content: Text(loc.appSettingsFilterListDownloadFailed)),
         );
       }
     }
@@ -455,8 +459,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         _downloadingListId = null;
       });
 
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Updated $count filter lists')),
+        SnackBar(content: Text(loc.appSettingsFilterListsUpdated(count))),
       );
     }
   }
@@ -475,39 +480,43 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     final nameController = TextEditingController();
     final urlController = TextEditingController();
 
+    final loc = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Custom List'),
+        title: Text(loc.appSettingsAddCustomListTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'e.g., My Custom List',
+              decoration: InputDecoration(
+                labelText: loc.appSettingsCustomListNameLabel,
+                hintText: loc.appSettingsCustomListNameHint,
               ),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: urlController,
-              decoration: const InputDecoration(
-                labelText: 'URL',
-                hintText: 'https://example.com/filters.txt',
-              ),
-              keyboardType: TextInputType.url,
-            ),
+            Builder(builder: (context) {
+              const urlHint = 'https://example.com/filters.txt';
+              return TextField(
+                controller: urlController,
+                decoration: InputDecoration(
+                  labelText: loc.appSettingsCustomListUrlLabel,
+                  hintText: urlHint,
+                ),
+                keyboardType: TextInputType.url,
+              );
+            }),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Add'),
+            child: Text(loc.commonAdd),
           ),
         ],
       ),
@@ -571,14 +580,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         _isDownloadingRules = false;
       });
 
+      final loc = AppLocalizations.of(context);
       if (success) {
         await _loadRulesLastUpdated();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ClearURLs rules updated')),
+          SnackBar(content: Text(loc.appSettingsClearUrlsUpdated)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to download ClearURLs rules')),
+          SnackBar(content: Text(loc.appSettingsClearUrlsDownloadFailed)),
         );
       }
     }
@@ -619,8 +629,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         _localCdnProgress = '';
       });
       await _loadLocalCdnState();
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Downloaded $downloaded resources')),
+        SnackBar(content: Text(loc.appSettingsLocalCdnDownloaded(downloaded))),
       );
     }
   }
@@ -637,8 +648,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         _isClearingLocalCdn = false;
       });
       await _loadLocalCdnState();
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('LocalCDN cache cleared')),
+        SnackBar(content: Text(loc.appSettingsLocalCdnCacheCleared)),
       );
     }
   }
@@ -652,6 +664,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return PopScope(
       canPop: !_isOutboundProxyDirty(),
       onPopInvokedWithResult: (didPop, _) async {
@@ -668,7 +681,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       },
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('App Settings'),
+        title: Text(loc.appSettingsTitle),
       ),
       body: ListView(
         children: [
@@ -676,7 +689,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Theme',
+              loc.appSettingsTheme,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -693,7 +706,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Accent Color',
+              loc.appSettingsAccentColor,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -711,15 +724,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Interface',
+              loc.appSettingsInterface,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
           SwitchListTile(
-            title: const Text('Site Tab Strip'),
-            subtitle: const Text('Show a tab bar at the bottom to quickly switch between sites'),
+            title: Text(loc.appSettingsSiteTabStrip),
+            subtitle: Text(loc.appSettingsSiteTabStripSubtitle),
             value: _showTabStrip,
             onChanged: (value) {
               setState(() {
@@ -729,8 +742,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             },
           ),
           SwitchListTile(
-            title: const Text('Keep Tab Strip in Full Screen'),
-            subtitle: const Text('Keep the tab bar visible in full screen while the top bar stays hidden'),
+            title: Text(loc.appSettingsKeepTabStripFullscreen),
+            subtitle: Text(loc.appSettingsKeepTabStripFullscreenSubtitle),
             value: _tabStripInFullscreen,
             onChanged: _showTabStrip
                 ? (value) {
@@ -742,8 +755,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 : null,
           ),
           SwitchListTile(
-            title: const Text('Stats Bar'),
-            subtitle: const Text('Show live request stats at the top of each site'),
+            title: Text(loc.appSettingsStatsBar),
+            subtitle: Text(loc.appSettingsStatsBarSubtitle),
             value: _showStatsBanner,
             onChanged: (value) {
               setState(() {
@@ -754,10 +767,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           ListTile(
             leading: const Icon(Icons.share_outlined),
-            title: const Text('Link handling'),
+            title: Text(loc.appSettingsLinkHandling),
             subtitle: Text(widget.linkHandlingEnabled
-                ? 'Handle shared links and webspace:// URLs'
-                : 'Off — share intents and webspace:// URLs are dropped'),
+                ? loc.appSettingsLinkHandlingOn
+                : loc.appSettingsLinkHandlingOff),
             trailing: const Icon(Icons.chevron_right),
             onTap: widget.onOpenLinkHandlingSettings,
           ),
@@ -768,7 +781,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             child: Row(
               children: [
                 Text(
-                  'Outbound proxy',
+                  loc.appSettingsOutboundProxy,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -794,7 +807,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             ),
           ),
           ListTile(
-            title: const Text('Proxy Type'),
+            title: Text(loc.appSettingsProxyType),
             trailing: DropdownButton<ProxyType>(
               value: _outboundProxy.type,
               onChanged: (newValue) {
@@ -818,18 +831,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   horizontal: 16.0, vertical: 8.0),
               child: TextFormField(
                 controller: _outboundProxyAddressController,
-                decoration: const InputDecoration(
-                  labelText: 'Proxy Address',
-                  hintText: 'host:port (e.g., 127.0.0.1:8080)',
-                  helperText: 'Format: host:port',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: loc.appSettingsProxyAddress,
+                  hintText: loc.appSettingsProxyAddressHint,
+                  helperText: loc.appSettingsProxyAddressHelper,
+                  border: const OutlineInputBorder(),
                 ),
                 onFieldSubmitted: (_) => _saveOutboundProxy(),
                 onEditingComplete: _saveOutboundProxy,
               ),
             ),
             CheckboxListTile(
-              title: const Text('Proxy requires authentication'),
+              title: Text(loc.appSettingsProxyRequiresAuth),
               value: _outboundProxyShowCredentials,
               onChanged: (v) {
                 setState(() {
@@ -845,9 +858,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                     horizontal: 16.0, vertical: 8.0),
                 child: TextFormField(
                   controller: _outboundProxyUsernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Proxy Username',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: loc.appSettingsProxyUsername,
+                    border: const OutlineInputBorder(),
                   ),
                   onFieldSubmitted: (_) => _saveOutboundProxy(),
                   onEditingComplete: _saveOutboundProxy,
@@ -860,7 +873,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   controller: _outboundProxyPasswordController,
                   obscureText: _outboundProxyObscurePassword,
                   decoration: InputDecoration(
-                    labelText: 'Proxy Password',
+                    labelText: loc.appSettingsProxyPassword,
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(_outboundProxyObscurePassword
@@ -886,7 +899,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             child: Row(
               children: [
                 Text(
-                  'Location picker',
+                  loc.appSettingsLocationPicker,
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 const HintButton(
@@ -906,16 +919,20 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: TextFormField(
-              controller: _osmTileUrlController,
-              decoration: const InputDecoration(
-                labelText: 'Tile URL',
-                hintText: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: _saveOsmTileUrl,
-            ),
+            child: Builder(builder: (context) {
+              const tileUrlHint =
+                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+              return TextFormField(
+                controller: _osmTileUrlController,
+                decoration: InputDecoration(
+                  labelText: loc.appSettingsTileUrl,
+                  hintText: tileUrlHint,
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                onChanged: _saveOsmTileUrl,
+              );
+            }),
           ),
 
           // Timezone polygon dataset — opt-in download enabling the
@@ -924,10 +941,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // button, plus a clear button when data is present.
           ListTile(
             leading: const Icon(Icons.public),
-            title: const Row(
+            title: Row(
               children: [
-                Text('Timezone polygons'),
-                HintButton(
+                Text(loc.appSettingsTimezonePolygons),
+                const HintButton(
                   title: 'Timezone polygon dataset',
                   description:
                       'Downloads a GeoJSON dataset of IANA timezone '
@@ -945,13 +962,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(_timezoneZoneCount > 0
-                    ? '${_formatNumber(_timezoneZoneCount)} zones'
-                    : 'Not downloaded'),
+                    ? loc.appSettingsZonesCount(_formatNumber(_timezoneZoneCount))
+                    : loc.appSettingsNotDownloaded),
                 if (_timezonesLastUpdated != null)
-                  Text(
-                    'Updated: ${_timezonesLastUpdated!.toLocal().toString().split('.')[0]}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  Builder(builder: (context) {
+                    final updated = _timezonesLastUpdated!
+                        .toLocal()
+                        .toString()
+                        .split('.')[0];
+                    return Text(
+                      loc.appSettingsUpdatedAt(updated),
+                      style: const TextStyle(fontSize: 12),
+                    );
+                  }),
               ],
             ),
             trailing: _isDownloadingTimezones
@@ -965,7 +988,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                       if (_timezoneZoneCount > 0)
                         IconButton(
                           icon: const Icon(Icons.delete_outline),
-                          tooltip: 'Clear dataset',
+                          tooltip: loc.appSettingsClearDataset,
                           onPressed: _clearTimezones,
                         ),
                       IconButton(
@@ -973,8 +996,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                             ? Icons.sync
                             : Icons.download),
                         tooltip: _timezoneZoneCount > 0
-                            ? 'Refresh dataset'
-                            : 'Download dataset',
+                            ? loc.appSettingsRefreshDataset
+                            : loc.appSettingsDownloadDataset,
                         onPressed: _downloadTimezones,
                       ),
                     ],
@@ -987,7 +1010,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'User Scripts',
+              loc.appSettingsUserScripts,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -995,11 +1018,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           ListTile(
             leading: const Icon(Icons.code),
-            title: const Text('Manage Scripts'),
+            title: Text(loc.appSettingsManageScripts),
             subtitle: Text(
               widget.globalUserScripts.isEmpty
-                  ? 'No global scripts'
-                  : '${widget.globalUserScripts.length} defined — opt in per site',
+                  ? loc.appSettingsNoGlobalScripts
+                  : loc.appSettingsScriptsDefined(widget.globalUserScripts.length),
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
@@ -1025,7 +1048,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Data',
+              loc.appSettingsData,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -1033,8 +1056,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           ListTile(
             leading: const Icon(Icons.upload),
-            title: const Text('Export Settings'),
-            subtitle: const Text('Save sites and webspaces to a file'),
+            title: Text(loc.appSettingsExportSettings),
+            subtitle: Text(loc.appSettingsExportSettingsSubtitle),
             onTap: () {
               Navigator.pop(context);
               widget.onExportSettings();
@@ -1042,8 +1065,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           ListTile(
             leading: const Icon(Icons.download),
-            title: const Text('Import Settings'),
-            subtitle: const Text('Restore from a backup file'),
+            title: Text(loc.appSettingsImportSettings),
+            subtitle: Text(loc.appSettingsImportSettingsSubtitle),
             onTap: () {
               Navigator.pop(context);
               widget.onImportSettings();
@@ -1052,10 +1075,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           if (widget.onRestoreArchive != null)
             ListTile(
               leading: const Icon(Icons.archive_outlined),
-              title: const Text('Restore archive'),
-              subtitle: const Text(
-                'Restore a previously archived webspace by passphrase',
-              ),
+              title: Text(loc.appSettingsRestoreArchive),
+              subtitle: Text(loc.appSettingsRestoreArchiveSubtitle),
               onTap: () {
                 Navigator.pop(context);
                 widget.onRestoreArchive!();
@@ -1064,10 +1085,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           if (widget.hasOpenArchives && widget.onCloseAllArchives != null)
             ListTile(
               leading: const Icon(Icons.lock_outline),
-              title: const Text('Close all archives'),
-              subtitle: const Text(
-                'Flush archive cookies and clear in-memory keys',
-              ),
+              title: Text(loc.appSettingsCloseAllArchives),
+              subtitle: Text(loc.appSettingsCloseAllArchivesSubtitle),
               onTap: () {
                 Navigator.pop(context);
                 widget.onCloseAllArchives!();
@@ -1080,7 +1099,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Privacy',
+              loc.appSettingsPrivacy,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -1097,10 +1116,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           if (Platform.isAndroid || Platform.isLinux)
             ListTile(
               leading: const Icon(Icons.lock_outline),
-              title: const Row(
+              title: Row(
                 children: [
-                  Text('Trusted certificates'),
-                  HintButton(
+                  Text(loc.appSettingsTrustedCertificates),
+                  const HintButton(
                     title: 'Trusted certificates',
                     description:
                         'When a site presents a self-signed or otherwise-untrusted TLS certificate and you tap "Trust this site" in the prompt, '
@@ -1109,7 +1128,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   ),
                 ],
               ),
-              subtitle: const Text('User-approved self-signed certificates'),
+              subtitle: Text(loc.appSettingsTrustedCertificatesSubtitle),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.push(
@@ -1122,10 +1141,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             ),
           ListTile(
             leading: const Icon(Icons.cleaning_services),
-            title: const Row(
+            title: Row(
               children: [
-                Text('ClearURLs Rules'),
-                HintButton(
+                Text(loc.appSettingsClearUrlsRules),
+                const HintButton(
                   title: 'ClearURLs',
                   description:
                       'Downloads a list of known tracking parameters used by websites (like utm_source, fbclid, etc.). '
@@ -1133,11 +1152,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 ),
               ],
             ),
-            subtitle: Text(
-              _rulesLastUpdated != null
-                  ? 'Updated: ${_rulesLastUpdated!.toLocal().toString().split('.')[0]}'
-                  : 'Not downloaded',
-            ),
+            subtitle: Builder(builder: (context) {
+              final updated = _rulesLastUpdated
+                  ?.toLocal()
+                  .toString()
+                  .split('.')[0];
+              return Text(
+                updated != null
+                    ? loc.appSettingsUpdatedAt(updated)
+                    : loc.appSettingsNotDownloaded,
+              );
+            }),
             trailing: _isDownloadingRules
                 ? const SizedBox(
                     width: 24,
@@ -1151,8 +1176,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                           : Icons.download,
                     ),
                     tooltip: _rulesLastUpdated != null
-                        ? 'Update rules'
-                        : 'Download rules',
+                        ? loc.appSettingsUpdateRules
+                        : loc.appSettingsDownloadRules,
                     onPressed: _downloadRules,
                   ),
           ),
@@ -1160,10 +1185,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // DNS Blocklist
           ListTile(
             leading: const Icon(Icons.shield),
-            title: const Row(
+            title: Row(
               children: [
-                Text('DNS Blocklist'),
-                HintButton(
+                Text(loc.appSettingsDnsBlocklist),
+                const HintButton(
                   title: 'DNS Blocklist',
                   description:
                       'Downloads the Hagezi blocklist to block known advertising, tracking, and malware domains. '
@@ -1177,14 +1202,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               children: [
                 Text(
                   _dnsBlockLevel > 0
-                      ? '${dnsBlockLevelNames[_dnsBlockLevel]} - ${_formatNumber(DnsBlockService.instance.domainCount)} domains'
-                      : 'Not configured',
+                      ? loc.appSettingsDnsBlockLevelDomains(
+                          dnsBlockLevelNames[_dnsBlockLevel],
+                          _formatNumber(DnsBlockService.instance.domainCount))
+                      : loc.appSettingsNotConfigured,
                 ),
                 if (_blocklistLastUpdated != null)
-                  Text(
-                    'Updated: ${_blocklistLastUpdated!.toLocal().toString().split('.')[0]}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  Builder(builder: (context) {
+                    final updated = _blocklistLastUpdated!
+                        .toLocal()
+                        .toString()
+                        .split('.')[0];
+                    return Text(
+                      loc.appSettingsUpdatedAt(updated),
+                      style: const TextStyle(fontSize: 12),
+                    );
+                  }),
               ],
             ),
             trailing: _isDownloadingBlocklist
@@ -1199,8 +1232,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                           : Icons.sync,
                     ),
                     tooltip: _dnsBlockSliderValue.round() != _dnsBlockLevel
-                        ? 'Download blocklist'
-                        : 'Refresh blocklist',
+                        ? loc.appSettingsDownloadBlocklist
+                        : loc.appSettingsRefreshBlocklist,
                     onPressed: _downloadBlocklist,
                   ),
           ),
@@ -1248,10 +1281,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           if (Platform.isAndroid)
             ListTile(
               leading: const Icon(Icons.storage),
-              title: const Row(
+              title: Row(
                 children: [
-                  Text('LocalCDN'),
-                  HintButton(
+                  Text(loc.appSettingsLocalCdn),
+                  const HintButton(
                     title: 'LocalCDN',
                     description:
                         'Downloads common JavaScript libraries, fonts, and CSS frameworks to serve locally '
@@ -1265,17 +1298,24 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 children: [
                   Text(
                     _localCdnCount > 0
-                        ? '$_localCdnCount resources ($_localCdnSize)'
-                        : 'Not downloaded',
+                        ? loc.appSettingsLocalCdnResources(
+                            _localCdnCount, _localCdnSize)
+                        : loc.appSettingsNotDownloaded,
                   ),
                   if (_localCdnLastUpdated != null)
-                    Text(
-                      'Updated: ${_localCdnLastUpdated!.toLocal().toString().split('.')[0]}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    Builder(builder: (context) {
+                      final updated = _localCdnLastUpdated!
+                          .toLocal()
+                          .toString()
+                          .split('.')[0];
+                      return Text(
+                        loc.appSettingsUpdatedAt(updated),
+                        style: const TextStyle(fontSize: 12),
+                      );
+                    }),
                   if (_isDownloadingLocalCdn && _localCdnProgress.isNotEmpty)
                     Text(
-                      'Downloading $_localCdnProgress...',
+                      loc.appSettingsDownloadingProgress(_localCdnProgress),
                       style: const TextStyle(fontSize: 12),
                     ),
                 ],
@@ -1295,14 +1335,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                         _localCdnCount > 0 ? Icons.sync : Icons.download,
                       ),
                       tooltip: _localCdnCount > 0
-                          ? 'Update resources'
-                          : 'Download resources',
+                          ? loc.appSettingsUpdateResources
+                          : loc.appSettingsDownloadResources,
                       onPressed: _downloadLocalCdnResources,
                     ),
                     if (_localCdnCount > 0)
                       IconButton(
                         icon: const Icon(Icons.delete_outline),
-                        tooltip: 'Clear cache',
+                        tooltip: loc.appSettingsClearCache,
                         onPressed: _clearLocalCdnCache,
                       ),
                   ],
@@ -1320,7 +1360,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   child: Row(
                     children: [
                       Text(
-                        'Content Blocker',
+                        loc.appSettingsContentBlocker,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -1347,7 +1387,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                         )
                       : IconButton(
                           icon: const Icon(Icons.sync),
-                          tooltip: 'Update all lists',
+                          tooltip: loc.appSettingsUpdateAllLists,
                           onPressed: _downloadingListId != null
                               ? null
                               : _downloadAllContentLists,
@@ -1370,8 +1410,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               title: Text(list.name),
               subtitle: Text(
                 list.lastUpdated != null
-                    ? '${_formatNumber(list.ruleCount)} rules'
-                    : 'Not downloaded',
+                    ? loc.appSettingsRulesCount(_formatNumber(list.ruleCount))
+                    : loc.appSettingsNotDownloaded,
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1390,8 +1430,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                             : Icons.download,
                       ),
                       tooltip: list.lastUpdated != null
-                          ? 'Refresh'
-                          : 'Download',
+                          ? loc.appSettingsRefresh
+                          : loc.appSettingsDownload,
                       onPressed: _downloadingListId != null
                           ? null
                           : () => _downloadContentList(list.id),
@@ -1399,7 +1439,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   if (!isDefault)
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      tooltip: 'Remove',
+                      tooltip: loc.commonRemove,
                       onPressed: _downloadingListId != null
                           ? null
                           : () => _removeContentList(list.id),
@@ -1415,7 +1455,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               onPressed:
                   _downloadingListId != null ? null : _showAddCustomListDialog,
               icon: const Icon(Icons.add),
-              label: const Text('Add Custom List'),
+              label: Text(loc.appSettingsAddCustomList),
             ),
           ),
           // uBO resources toggle. When off, $redirect= rules become
@@ -1424,11 +1464,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // and break (white page, infinite spinner), so default on.
           // Greyed out on platforms that don't ship the engine library.
           SwitchListTile(
-            title: const Text('Serve uBO redirect stubs'),
+            title: Text(loc.appSettingsUboRedirectStubs),
             subtitle: Text(
               !ContentBlockerService.instance.rustEngineSupportedOnPlatform
-                  ? 'Native adblock library not available on this platform.'
-                  : 'Return stub bodies for \$redirect= rules instead of dropping the request',
+                  ? loc.appSettingsUboRedirectStubsUnavailable
+                  : loc.appSettingsUboRedirectStubsSubtitle,
             ),
             value: ContentBlockerService.instance.useUboResources,
             onChanged: ContentBlockerService.instance
@@ -1447,7 +1487,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Developer',
+              loc.appSettingsDeveloper,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -1455,8 +1495,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           ListTile(
             leading: const Icon(Icons.article_outlined),
-            title: const Text('App Logs'),
-            subtitle: const Text('View app-level debug logs'),
+            title: Text(loc.appSettingsAppLogs),
+            subtitle: Text(loc.appSettingsAppLogsSubtitle),
             onTap: () {
               Navigator.push(
                 context,
@@ -1475,7 +1515,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'About',
+              loc.appSettingsAbout,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -1483,8 +1523,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           ListTile(
             leading: const Icon(Icons.info_outline),
-            title: const Text('Licenses'),
-            subtitle: const Text('Open source licenses'),
+            title: Text(loc.appSettingsLicenses),
+            subtitle: Text(loc.appSettingsLicensesSubtitle),
             onTap: () async {
               final packageInfo = await PackageInfo.fromPlatform();
               if (!context.mounted) return;
@@ -1503,12 +1543,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   }
 
   Widget _buildThemeModeRow() {
+    final loc = AppLocalizations.of(context);
     return Row(
       children: [
         Expanded(
           child: _buildThemeModeChip(
             ThemeMode.light,
-            'Light',
+            loc.appSettingsThemeLight,
             Icons.wb_sunny,
           ),
         ),
@@ -1516,7 +1557,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         Expanded(
           child: _buildThemeModeChip(
             ThemeMode.dark,
-            'Dark',
+            loc.appSettingsThemeDark,
             Icons.nights_stay,
           ),
         ),
@@ -1524,7 +1565,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         Expanded(
           child: _buildThemeModeChip(
             ThemeMode.system,
-            'System',
+            loc.appSettingsThemeSystem,
             Icons.brightness_auto,
           ),
         ),

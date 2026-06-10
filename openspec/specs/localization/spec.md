@@ -1,7 +1,7 @@
 # UI Localization
 
 ## Status
-**Partially implemented** (infrastructure + guard + first migrated screen; remaining screens tracked as migration tasks)
+**Implemented** (all `lib/main.dart`, `lib/screens/`, `lib/widgets/` strings routed through ARB; guard's `pending` set is empty)
 
 ## Purpose
 

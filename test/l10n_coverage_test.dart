@@ -98,8 +98,12 @@ Map<String, dynamic> _loadArb(String path) {
 Set<String> _messageKeys(Map<String, dynamic> arb) =>
     arb.keys.where((k) => !k.startsWith('@')).toSet();
 
-/// Variable names referenced by an ICU message string: the leading
-/// identifier of every `{...}` group (covers simple `{host}` and the control
-/// variable of `{count, plural, ...}` / `{sel, select, ...}`).
-Set<String> _placeholderTokens(String value) =>
-    RegExp(r'\{(\w+)').allMatches(value).map((m) => m.group(1)!).toSet();
+/// Variable names referenced by an ICU message string: the identifier of every
+/// `{name}` interpolation and the control variable of `{count, plural, ...}` /
+/// `{sel, select, ...}`. The trailing `[,}]` guard skips literal text inside
+/// plural/select branches (e.g. `{Copied ...}`), so translated branches whose
+/// wording differs do not register as placeholder drift.
+Set<String> _placeholderTokens(String value) => RegExp(r'\{(\w+)\s*[,}]')
+    .allMatches(value)
+    .map((m) => m.group(1)!)
+    .toSet();

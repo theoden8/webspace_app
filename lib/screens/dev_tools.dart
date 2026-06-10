@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:share_plus/share_plus.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -289,17 +290,20 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (mounted) setState(() {});
   }
 
-  List<Tab> get _tabs => [
-        if (_hasHost)
-          const Tab(icon: Icon(Icons.terminal, size: 18), text: 'Console'),
-        if (_hasSiteState)
-          const Tab(icon: Icon(Icons.cookie_outlined, size: 18), text: 'Cookies'),
-        if (_hasSiteState && _hasDnsBlocklist)
-          const Tab(icon: Icon(Icons.shield_outlined, size: 18), text: 'DNS'),
-        if (ContentBlockerService.instance.usingRustEngine)
-          const Tab(icon: Icon(Icons.speed, size: 18), text: 'ABP'),
-        const Tab(icon: Icon(Icons.list_alt, size: 18), text: 'Logs'),
-      ];
+  List<Tab> get _tabs {
+    final loc = AppLocalizations.of(context);
+    return [
+      if (_hasHost)
+        Tab(icon: const Icon(Icons.terminal, size: 18), text: loc.devToolsTabConsole),
+      if (_hasSiteState)
+        Tab(icon: const Icon(Icons.cookie_outlined, size: 18), text: loc.devToolsTabCookies),
+      if (_hasSiteState && _hasDnsBlocklist)
+        Tab(icon: const Icon(Icons.shield_outlined, size: 18), text: loc.devToolsTabDns),
+      if (ContentBlockerService.instance.usingRustEngine)
+        Tab(icon: const Icon(Icons.speed, size: 18), text: loc.devToolsTabAbp),
+      Tab(icon: const Icon(Icons.list_alt, size: 18), text: loc.devToolsTabLogs),
+    ];
+  }
 
   void _toggleSearch() {
     setState(() {
@@ -320,27 +324,28 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return DefaultTabController(
       length: _tabCount,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Developer Tools'),
+          title: Text(loc.devToolsTitle),
           actions: [
             if (_hasSiteState)
               IconButton(
                 icon: const Icon(Icons.code, size: 20),
-                tooltip: 'Scripts',
+                tooltip: loc.devToolsScriptsTooltip,
                 onPressed: _showScriptsSheet,
               ),
             if (_hasHost)
               IconButton(
                 icon: const Icon(Icons.share, size: 20),
-                tooltip: 'Export',
+                tooltip: loc.devToolsExportTooltip,
                 onPressed: _showShareSheet,
               ),
             IconButton(
               icon: Icon(_isSearchVisible ? Icons.search_off : Icons.search),
-              tooltip: 'Search',
+              tooltip: loc.devToolsSearchTooltip,
               onPressed: _toggleSearch,
             ),
           ],
@@ -363,7 +368,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   autocorrect: false,
                   enableSuggestions: false,
                   decoration: InputDecoration(
-                    hintText: 'Filter...',
+                    hintText: loc.devToolsSearchHint,
                     prefixIcon: const Icon(Icons.search, size: 20),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
@@ -403,6 +408,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Console Tab ──
 
   Widget _buildConsoleTab() {
+    final loc = AppLocalizations.of(context);
     final allLogs = widget.host!.consoleLogs;
     final logs = _searchQuery.isEmpty
         ? allLogs
@@ -412,7 +418,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         _buildConsoleActions(logs),
         Expanded(
           child: logs.isEmpty
-              ? Center(child: Text(_searchQuery.isEmpty ? 'No console messages' : 'No matches'))
+              ? Center(child: Text(_searchQuery.isEmpty ? loc.devToolsConsoleEmpty : loc.devToolsNoMatches))
               : ListView.builder(
                   controller: _consoleScrollController,
                   reverse: _searchQuery.isEmpty,
@@ -428,6 +434,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildConsoleActions(List<ConsoleLogEntry> logs) {
+    final loc = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       child: Row(
@@ -439,7 +446,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               });
             },
             icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('Clear'),
+            label: Text(loc.devToolsClear),
           ),
           TextButton.icon(
             onPressed: logs.isEmpty
@@ -450,11 +457,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                         .join('\n');
                     Clipboard.setData(ClipboardData(text: text));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Copied ${logs.length} console log${logs.length == 1 ? '' : 's'}')),
+                      SnackBar(content: Text(loc.devToolsConsoleCopied(logs.length))),
                     );
                   },
             icon: const Icon(Icons.copy, size: 18),
-            label: const Text('Copy'),
+            label: Text(loc.devToolsCopy),
           ),
         ],
       ),
@@ -496,7 +503,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   // ── Console Eval ──
 
+  static const _kEvalPromptGlyph = '>';
+
   Widget _buildEvalInput() {
+    final loc = AppLocalizations.of(context);
     final hasController = widget.host?.controller != null;
     return Container(
       decoration: BoxDecoration(
@@ -507,7 +517,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         top: false,
         child: Row(
           children: [
-            Text('>', style: TextStyle(
+            Text(_kEvalPromptGlyph, style: TextStyle(
               fontFamily: 'monospace',
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -524,10 +534,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 autocorrect: false,
                 enableSuggestions: false,
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                decoration: const InputDecoration(
-                  hintText: 'Evaluate JavaScript...',
+                decoration: InputDecoration(
+                  hintText: loc.devToolsEvalHint,
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
                   border: InputBorder.none,
                 ),
                 onSubmitted: hasController ? (_) => _evaluateJs() : null,
@@ -541,7 +551,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 child: IconButton(
                   icon: const Icon(Icons.keyboard_arrow_up, size: 18),
                   padding: EdgeInsets.zero,
-                  tooltip: 'Previous command',
+                  tooltip: loc.devToolsEvalPrevCommand,
                   onPressed: hasController ? _historyUp : null,
                 ),
               ),
@@ -551,7 +561,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 child: IconButton(
                   icon: const Icon(Icons.keyboard_arrow_down, size: 18),
                   padding: EdgeInsets.zero,
-                  tooltip: 'Next command',
+                  tooltip: loc.devToolsEvalNextCommand,
                   onPressed: hasController ? _historyDown : null,
                 ),
               ),
@@ -567,7 +577,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.play_arrow, size: 20),
-                tooltip: 'Run',
+                tooltip: loc.devToolsEvalRun,
                 onPressed: hasController && !_isEvaluating ? _evaluateJs : null,
               ),
             ),
@@ -654,6 +664,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Cookies Tab ──
 
   Widget _buildCookiesTab() {
+    final loc = AppLocalizations.of(context);
     final allCookies = widget.host!.cookies;
     final blocked = widget.host!.blockedCookies!;
     final cookies = _searchQuery.isEmpty
@@ -674,14 +685,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           child: _loadingCookies
               ? const Center(child: CircularProgressIndicator())
               : (cookies.isEmpty && filteredBlocked.isEmpty)
-                  ? Center(child: Text(_searchQuery.isEmpty ? 'No cookies' : 'No matches'))
+                  ? Center(child: Text(_searchQuery.isEmpty ? loc.devToolsCookiesEmpty : loc.devToolsNoMatches))
                   : ListView(
                       children: [
                         if (filteredBlocked.isNotEmpty) ...[
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                             child: Text(
-                              'Blocked (${filteredBlocked.length})',
+                              loc.devToolsCookiesBlockedHeader(filteredBlocked.length),
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
@@ -701,6 +712,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildCookieActions(List<Cookie> cookies) {
+    final loc = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       child: Row(
@@ -708,7 +720,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           TextButton.icon(
             onPressed: _refreshCookies,
             icon: const Icon(Icons.refresh, size: 18),
-            label: const Text('Refresh'),
+            label: Text(loc.devToolsRefresh),
           ),
           if (cookies.isNotEmpty)
             TextButton.icon(
@@ -717,11 +729,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 Clipboard.setData(
                     ClipboardData(text: const JsonEncoder.withIndent('  ').convert(json)));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Copied ${cookies.length} cookie${cookies.length == 1 ? '' : 's'} as JSON')),
+                  SnackBar(content: Text(loc.devToolsCookiesCopiedJson(cookies.length))),
                 );
               },
               icon: const Icon(Icons.copy, size: 18),
-              label: const Text('Copy as JSON'),
+              label: Text(loc.devToolsCopyAsJson),
             ),
         ],
       ),
@@ -794,7 +806,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Deleted cookie "${cookie.name}"')),
+        SnackBar(content: Text(AppLocalizations.of(context).devToolsCookieDeleted(cookie.name))),
       );
       _refreshCookies();
     }
@@ -818,16 +830,20 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     await widget.onSave?.call();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unblocked cookie "${rule.name}"')),
+        SnackBar(content: Text(AppLocalizations.of(context).devToolsCookieUnblocked(rule.name))),
       );
     }
   }
 
   Widget _buildCookieTile(Cookie cookie) {
+    final loc = AppLocalizations.of(context);
+    final truncatedValue = cookie.value.length > 60
+        ? '${cookie.value.substring(0, 60)}...'
+        : cookie.value;
     return ExpansionTile(
       title: Text(cookie.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
       subtitle: Text(
-        cookie.value.length > 60 ? '${cookie.value.substring(0, 60)}...' : cookie.value,
+        truncatedValue,
         style: const TextStyle(fontSize: 11),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -839,12 +855,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (cookie.domain != null)
-                Text('Domain: ${cookie.domain}', style: const TextStyle(fontSize: 12)),
+                Text(loc.devToolsCookieDomain(cookie.domain!), style: const TextStyle(fontSize: 12)),
               if (cookie.path != null)
-                Text('Path: ${cookie.path}', style: const TextStyle(fontSize: 12)),
+                Text(loc.devToolsCookiePath(cookie.path!), style: const TextStyle(fontSize: 12)),
               if (cookie.expiresDate != null)
                 Text(
-                  'Expires: ${DateTime.fromMillisecondsSinceEpoch(cookie.expiresDate!)}',
+                  loc.devToolsCookieExpires(
+                      DateTime.fromMillisecondsSinceEpoch(cookie.expiresDate!).toString()),
                   style: const TextStyle(fontSize: 12),
                 ),
               const SizedBox(height: 6),
@@ -853,7 +870,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 runSpacing: 4,
                 children: [
                   _buildSecurityChip(
-                    cookie.isSecure == true ? 'Secure' : 'Not Secure',
+                    cookie.isSecure == true ? loc.devToolsCookieSecure : loc.devToolsCookieNotSecure,
                     cookie.isSecure == true ? Colors.green : Colors.red,
                   ),
                   if (cookie.isHttpOnly == true)
@@ -868,13 +885,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   TextButton.icon(
                     onPressed: () => _deleteCookie(cookie),
                     icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                    label: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12)),
+                    label: Text(loc.commonDelete, style: const TextStyle(color: Colors.red, fontSize: 12)),
                   ),
                   const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: () => _blockCookie(cookie),
                     icon: const Icon(Icons.block, size: 16, color: Colors.orange),
-                    label: const Text('Block', style: TextStyle(color: Colors.orange, fontSize: 12)),
+                    label: Text(loc.devToolsCookieBlock, style: const TextStyle(color: Colors.orange, fontSize: 12)),
                   ),
                 ],
               ),
@@ -886,6 +903,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildBlockedCookieTile(BlockedCookie rule) {
+    final loc = AppLocalizations.of(context);
     return ListTile(
       leading: Icon(Icons.block, color: Colors.red.shade300, size: 20),
       title: Text(rule.name, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
@@ -893,7 +911,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       trailing: TextButton.icon(
         onPressed: () => _unblockCookie(rule),
         icon: const Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
-        label: const Text('Unblock', style: TextStyle(color: Colors.green, fontSize: 12)),
+        label: Text(loc.devToolsCookieUnblock, style: const TextStyle(color: Colors.green, fontSize: 12)),
       ),
     );
   }
@@ -927,6 +945,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Scripts Bottom Sheet ──
 
   void _showScriptsSheet() {
+    final loc = AppLocalizations.of(context);
     final siteScripts = widget.host!.siteUserScripts ?? const <UserScriptConfig>[];
     final enabledIds = widget.host!.enabledGlobalScriptIds;
     final activeGlobals = widget.globalUserScripts
@@ -951,7 +970,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   _buildSheetHandle(),
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Text('No user scripts configured',
+                    child: Text(loc.devToolsNoUserScripts,
                         style: Theme.of(context).textTheme.bodyLarge),
                   ),
                 ],
@@ -964,9 +983,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
                   child: Row(
                     children: [
-                      Text('Scripts', style: Theme.of(context).textTheme.titleMedium),
+                      Text(loc.devToolsScriptsHeader, style: Theme.of(context).textTheme.titleMedium),
                       const Spacer(),
-                      Text('${scripts.length}',
+                      Text(scripts.length.toString(),
                           style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ),
@@ -1001,7 +1020,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  'global',
+                                  loc.devToolsScriptGlobalBadge,
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: Theme.of(context).colorScheme.onSecondaryContainer,
@@ -1013,8 +1032,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                         ),
                         subtitle: Text(
                           script.injectionTime == UserScriptInjectionTime.atDocumentStart
-                              ? 'document start'
-                              : 'document end',
+                              ? loc.devToolsScriptDocumentStart
+                              : loc.devToolsScriptDocumentEnd,
                           style: const TextStyle(fontSize: 11),
                         ),
                         children: [
@@ -1029,7 +1048,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                             child: Stack(
                               children: [
                                 SelectableText(
-                                  script.source.isEmpty ? '// (empty script)' : script.source,
+                                  script.source.isEmpty ? loc.devToolsScriptEmptySource : script.source,
                                   style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
                                 ),
                                 Positioned(
@@ -1037,11 +1056,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                                   right: 0,
                                   child: IconButton(
                                     icon: const Icon(Icons.copy, size: 16),
-                                    tooltip: 'Copy source',
+                                    tooltip: loc.devToolsScriptCopySource,
                                     onPressed: () {
                                       Clipboard.setData(ClipboardData(text: script.source));
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Copied "${script.name}"')),
+                                        SnackBar(content: Text(loc.devToolsScriptCopied(script.name))),
                                       );
                                     },
                                     visualDensity: VisualDensity.compact,
@@ -1067,6 +1086,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── Share HTML Bottom Sheet ──
 
   void _showShareSheet() {
+    final loc = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       builder: (sheetContext) {
@@ -1077,7 +1097,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               _buildSheetHandle(),
               ListTile(
                 leading: const Icon(Icons.share),
-                title: const Text('Share HTML'),
+                title: Text(loc.devToolsShareHtml),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _shareHtml();
@@ -1085,7 +1105,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.save),
-                title: const Text('Save to file'),
+                title: Text(loc.devToolsSaveToFile),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _saveHtmlToFile();
@@ -1093,7 +1113,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.copy),
-                title: const Text('Copy to clipboard'),
+                title: Text(loc.devToolsCopyToClipboard),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _copyHtml();
@@ -1101,7 +1121,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.image_outlined),
-                title: const Text('Save icon'),
+                title: Text(loc.devToolsSaveIcon),
                 enabled: !_isSavingIcon,
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -1140,7 +1160,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       if (html == null || html.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No HTML content available')),
+            SnackBar(content: Text(AppLocalizations.of(context).devToolsNoHtmlContent)),
           );
         }
         return null;
@@ -1150,7 +1170,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to get HTML: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).devToolsHtmlFetchFailed(e.toString()))),
         );
       }
       return null;
@@ -1183,7 +1203,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
       final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
       final outputPath = await FilePicker.saveFile(
-        dialogTitle: 'Save HTML',
+        dialogTitle: AppLocalizations.of(context).devToolsSaveHtmlDialogTitle,
         fileName: fileName,
         bytes: isMobile ? bytes : null,
       );
@@ -1195,13 +1215,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
       if (mounted && outputPath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('HTML saved')),
+          SnackBar(content: Text(AppLocalizations.of(context).devToolsHtmlSaved)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).devToolsSaveFailed(e.toString()))),
         );
       }
     }
@@ -1213,7 +1233,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     Clipboard.setData(ClipboardData(text: html));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('HTML copied to clipboard')),
+        SnackBar(content: Text(AppLocalizations.of(context).devToolsHtmlCopied)),
       );
     }
   }
@@ -1224,9 +1244,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (_isSavingIcon) return;
     setState(() => _isSavingIcon = true);
     final host = widget.host!;
+    final loc = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
-      const SnackBar(content: Text('Preparing icon...')),
+      SnackBar(content: Text(loc.devToolsPreparingIcon)),
     );
     try {
       final png = await exportIconAsPng(
@@ -1237,7 +1258,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       if (!mounted) return;
       if (png == null) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('No icon available to save')),
+          SnackBar(content: Text(loc.devToolsNoIconToSave)),
         );
         return;
       }
@@ -1246,7 +1267,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       final fileName = '${domain}_icon.png';
       final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
       final outputPath = await FilePicker.saveFile(
-        dialogTitle: 'Save icon',
+        dialogTitle: loc.devToolsSaveIconDialogTitle,
         fileName: fileName,
         bytes: isMobile ? png : null,
       );
@@ -1258,13 +1279,13 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
       if (mounted && outputPath != null) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Icon saved')),
+          SnackBar(content: Text(loc.devToolsIconSaved)),
         );
       }
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
+          SnackBar(content: Text(loc.devToolsSaveFailed(e.toString()))),
         );
       }
     } finally {
@@ -1275,6 +1296,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── DNS Tab ──
 
   Widget _buildDnsTab() {
+    final loc = AppLocalizations.of(context);
     final stats = DnsBlockService.instance.statsForSite(widget.host!.siteId!);
     final allEntries = stats.log;
     List<DnsLogEntry> entries = _dnsFilter == null
@@ -1291,7 +1313,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         _buildDnsActions(stats),
         Expanded(
           child: entries.isEmpty
-              ? Center(child: Text(_searchQuery.isEmpty ? 'No DNS queries recorded' : 'No matches'))
+              ? Center(child: Text(_searchQuery.isEmpty ? loc.devToolsDnsEmpty : loc.devToolsNoMatches))
               : ListView.builder(
                   controller: _dnsScrollController,
                   reverse: _searchQuery.isEmpty,
@@ -1307,17 +1329,19 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildDnsStats(DnsStats stats) {
+    final loc = AppLocalizations.of(context);
+    final blockRate = '${stats.blockRate.toStringAsFixed(1)}%';
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: Row(
         children: [
-          _buildDnsStatCard('Total', stats.total.toString(), Colors.blue),
+          _buildDnsStatCard(loc.devToolsDnsTotal, stats.total.toString(), Colors.blue),
           const SizedBox(width: 8),
-          _buildDnsStatCard('Allowed', stats.allowed.toString(), Colors.green),
+          _buildDnsStatCard(loc.devToolsDnsAllowed, stats.allowed.toString(), Colors.green),
           const SizedBox(width: 8),
-          _buildDnsStatCard('Blocked', stats.blocked.toString(), Colors.red),
+          _buildDnsStatCard(loc.devToolsDnsBlocked, stats.blocked.toString(), Colors.red),
           const SizedBox(width: 8),
-          _buildDnsStatCard('Block %', '${stats.blockRate.toStringAsFixed(1)}%',
+          _buildDnsStatCard(loc.devToolsDnsBlockRate, blockRate,
               stats.blockRate > 0 ? Colors.orange : Colors.grey),
         ],
       ),
@@ -1348,19 +1372,20 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildDnsFilters(DnsStats stats) {
+    final loc = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
           FilterChip(
-            label: const Text('All', style: TextStyle(fontSize: 12)),
+            label: Text(loc.devToolsDnsFilterAll, style: const TextStyle(fontSize: 12)),
             selected: _dnsFilter == null,
             onSelected: (_) => setState(() => _dnsFilter = null),
             visualDensity: VisualDensity.compact,
           ),
           const SizedBox(width: 6),
           FilterChip(
-            label: Text('Allowed (${stats.allowed})',
+            label: Text(loc.devToolsDnsFilterAllowed(stats.allowed),
                 style: const TextStyle(fontSize: 12)),
             selected: _dnsFilter == false,
             onSelected: (_) =>
@@ -1369,7 +1394,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           ),
           const SizedBox(width: 6),
           FilterChip(
-            label: Text('Blocked (${stats.blocked})',
+            label: Text(loc.devToolsDnsFilterBlocked(stats.blocked),
                 style: const TextStyle(fontSize: 12)),
             selected: _dnsFilter == true,
             onSelected: (_) =>
@@ -1382,6 +1407,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildDnsActions(DnsStats stats) {
+    final loc = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
@@ -1391,7 +1417,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               DnsBlockService.instance.clearStatsForSite(widget.host!.siteId!);
             },
             icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('Clear'),
+            label: Text(loc.devToolsClear),
           ),
           TextButton.icon(
             onPressed: stats.log.isEmpty
@@ -1403,11 +1429,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                         .join('\n');
                     Clipboard.setData(ClipboardData(text: text));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('DNS log copied')),
+                      SnackBar(content: Text(loc.devToolsDnsLogCopied)),
                     );
                   },
             icon: const Icon(Icons.copy, size: 18),
-            label: const Text('Copy'),
+            label: Text(loc.devToolsCopy),
           ),
         ],
       ),
@@ -1415,6 +1441,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildDnsEntry(DnsLogEntry entry) {
+    final line = '[${_formatTimeMs(entry.timestamp)}] ${entry.domain}';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
       child: Row(
@@ -1427,7 +1454,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: SelectableText(
-              '[${_formatTimeMs(entry.timestamp)}] ${entry.domain}',
+              line,
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 11,
@@ -1466,6 +1493,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
     final timingOn = svc.engineTimingEnabled;
     final consulted = svc.engineConsultedSinceTimingOn;
+    final loc = AppLocalizations.of(context);
+    final avgValue = '$avgMicros µs';
+    final maxValue = '$maxMicros µs';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1475,19 +1505,19 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             spacing: 8,
             runSpacing: 4,
             children: [
-              _abpStatChip('engine', svc.usingRustEngine ? 'active' : 'off',
+              _abpStatChip(loc.devToolsAbpEngine, svc.usingRustEngine ? loc.devToolsAbpActive : loc.devToolsAbpOff,
                   svc.usingRustEngine ? Colors.green : Colors.grey),
-              _abpStatChip('recording',
-                  timingOn ? 'on' : 'off',
+              _abpStatChip(loc.devToolsAbpRecording,
+                  timingOn ? loc.devToolsAbpOn : loc.devToolsAbpOff,
                   timingOn ? Colors.green : Colors.orange),
-              _abpStatChip('consulted', '$consulted', Colors.blueGrey),
+              _abpStatChip(loc.devToolsAbpConsulted, consulted.toString(), Colors.blueGrey),
               _abpStatChip(
-                  'avg', '$avgMicros µs', Colors.blueGrey),
-              _abpStatChip('max', '$maxMicros µs',
+                  loc.devToolsAbpAvg, avgValue, Colors.blueGrey),
+              _abpStatChip(loc.devToolsAbpMax, maxValue,
                   maxMicros > 1000 ? Colors.orange : Colors.blueGrey),
-              _abpStatChip('blocked', '$blockedCount', Colors.red),
-              _abpStatChip('allowed', '$allowedCount', Colors.green),
-              _abpStatChip('uBO', svc.useUboResources ? 'on' : 'off',
+              _abpStatChip(loc.devToolsAbpBlocked, blockedCount.toString(), Colors.red),
+              _abpStatChip(loc.devToolsAbpAllowed, allowedCount.toString(), Colors.green),
+              _abpStatChip('uBO', svc.useUboResources ? loc.devToolsAbpOn : loc.devToolsAbpOff,
                   svc.useUboResources ? Colors.green : Colors.grey),
             ],
           ),
@@ -1498,12 +1528,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             children: [
               TextButton.icon(
                 icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Refresh'),
+                label: Text(loc.devToolsRefreshButton),
                 onPressed: () => setState(() {}),
               ),
               const Spacer(),
               if (samples.isNotEmpty)
-                Text('${samples.length} sample(s)',
+                Text(loc.devToolsAbpSampleCount(samples.length),
                     style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
@@ -1516,18 +1546,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Text(
                       consulted == 0
-                          ? 'Engine has not been consulted since DevTools '
-                              'opened.\n\n'
-                              'Sub-resource checks fire from the JS-bridge '
-                              '`blockCheck` handler — they only run on '
-                              'cross-origin requests that hit the bloom '
-                              'prefilter.\n\n'
-                              'Try: reload an ad-heavy page with DevTools '
-                              'already open.'
-                          : 'Engine consulted $consulted time(s) but the '
-                              'recent decisions ring buffer is empty.\n'
-                              'This usually means the buffer rolled over — '
-                              'tap Refresh to capture the latest entries.',
+                          ? loc.devToolsAbpEmptyNotConsulted
+                          : loc.devToolsAbpEmptyBufferRolled(consulted),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -1575,6 +1595,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   Widget _buildAbpRow(EngineDecisionSample s) {
     final color = s.blocked ? Colors.red.shade400 : Colors.green.shade600;
+    final subtitle = '${s.requestType} · ${s.micros} µs';
     return ListTile(
       dense: true,
       leading: Icon(
@@ -1589,7 +1610,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
       ),
       subtitle: Text(
-        '${s.requestType} · ${s.micros} µs',
+        subtitle,
         style: Theme.of(context).textTheme.bodySmall,
       ),
     );
@@ -1598,6 +1619,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   // ── App Logs Tab ──
 
   Widget _buildAppLogsTab() {
+    final loc = AppLocalizations.of(context);
     final allEntries = _showSensitive
         ? LogService.instance.allEntriesMerged
         : LogService.instance.entries;
@@ -1617,7 +1639,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         _buildSensitiveToggle(),
         Expanded(
           child: filtered.isEmpty
-              ? Center(child: Text(_searchQuery.isEmpty ? 'No log entries' : 'No matches'))
+              ? Center(child: Text(_searchQuery.isEmpty ? loc.devToolsLogsEmpty : loc.devToolsNoMatches))
               : ListView.builder(
                   controller: _logScrollController,
                   reverse: _searchQuery.isEmpty,
@@ -1632,6 +1654,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildSensitiveToggle() {
+    final loc = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0),
       child: Row(
@@ -1644,8 +1667,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           Expanded(
             child: Text(
               _showSensitive
-                  ? 'Showing sensitive entries (siteId, URLs, hostnames). Resets on app restart.'
-                  : 'Show sensitive entries (siteId, URLs, hostnames)',
+                  ? loc.devToolsSensitiveShowing
+                  : loc.devToolsSensitiveShow,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -1655,6 +1678,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   }
 
   Widget _buildLogActions(List<LogEntry> filtered) {
+    final loc = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
       child: Row(
@@ -1662,7 +1686,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           TextButton.icon(
             onPressed: _exportLogs,
             icon: const Icon(Icons.save, size: 18),
-            label: const Text('Export'),
+            label: Text(loc.devToolsExport),
           ),
           TextButton.icon(
             onPressed: filtered.isEmpty
@@ -1673,11 +1697,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                         .join('\n');
                     Clipboard.setData(ClipboardData(text: text));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Copied ${filtered.length} log entr${filtered.length == 1 ? 'y' : 'ies'}')),
+                      SnackBar(content: Text(loc.devToolsLogsCopied(filtered.length))),
                     );
                   },
             icon: const Icon(Icons.copy, size: 18),
-            label: const Text('Copy'),
+            label: Text(loc.devToolsCopy),
           ),
           TextButton.icon(
             onPressed: () {
@@ -1685,7 +1709,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
               setState(() {});
             },
             icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('Clear'),
+            label: Text(loc.devToolsClear),
           ),
         ],
       ),
@@ -1735,6 +1759,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     final isSensitive = entry.sensitivity == LogSensitivity.sensitive;
     final prefix = isSensitive ? '[SENSITIVE] ' : '';
+    final line =
+        '[${_formatTime(entry.timestamp)}] $prefix[${entry.tag}] ${entry.message}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 1.0),
       decoration: isSensitive
@@ -1745,7 +1771,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             )
           : null,
       child: SelectableText(
-        '[${_formatTime(entry.timestamp)}] $prefix[${entry.tag}] ${entry.message}',
+        line,
         style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: color),
       ),
     );
@@ -1760,8 +1786,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final fileName = 'webspace_logs_$timestamp.txt';
 
     final bool isMobile = !kIsWeb && (Platform.isIOS || Platform.isAndroid);
+    if (!mounted) return;
     final outputPath = await FilePicker.saveFile(
-      dialogTitle: 'Export Logs',
+      dialogTitle: AppLocalizations.of(context).devToolsExportLogsDialogTitle,
       fileName: fileName,
       bytes: isMobile ? bytes : null,
     );
@@ -1773,7 +1800,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
     if (mounted && outputPath != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Logs exported')),
+        SnackBar(content: Text(AppLocalizations.of(context).devToolsLogsExported)),
       );
     }
   }

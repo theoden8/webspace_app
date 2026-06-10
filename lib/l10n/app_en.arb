@@ -1,131 +1,151 @@
 {
   "@@locale": "en",
-
   "appTitle": "WebSpace",
   "@appTitle": {
     "description": "Application name shown as the OS window / task-switcher title. Brand name; normally left untranslated."
   },
-
   "commonCancel": "Cancel",
   "@commonCancel": {
     "description": "Generic dialog button that dismisses the dialog without applying any change."
   },
-
   "trustedCertScreenTitle": "Trusted certificates",
   "@trustedCertScreenTitle": {
     "description": "AppBar title for the screen listing TLS certificates the user has manually approved (pinned)."
   },
-
   "trustedCertRevokeAllTooltip": "Revoke all",
   "@trustedCertRevokeAllTooltip": {
     "description": "Tooltip on the AppBar action that removes every pinned certificate at once."
   },
-
   "trustedCertRevokeAllDialogTitle": "Revoke all trust?",
   "@trustedCertRevokeAllDialogTitle": {
     "description": "Title of the confirmation dialog shown before removing every pinned certificate."
   },
-
   "trustedCertRevokeAllDialogBody": "Every pinned certificate is removed. Self-signed sites you use will re-prompt on next visit.",
   "@trustedCertRevokeAllDialogBody": {
     "description": "Body of the confirmation dialog for removing every pinned certificate."
   },
-
   "trustedCertRevokeAllConfirm": "Revoke all",
   "@trustedCertRevokeAllConfirm": {
     "description": "Confirm button in the revoke-all dialog that removes every pinned certificate."
   },
-
   "trustedCertRevokeDialogTitle": "Revoke trust?",
   "@trustedCertRevokeDialogTitle": {
     "description": "Title of the confirmation dialog shown before removing one pinned certificate."
   },
-
   "trustedCertRevokeDialogBody": "The next visit to {host}:{port} will prompt again before loading. Network requests outside the webview (favicons, downloads) for this host will also fail until re-approved.",
   "@trustedCertRevokeDialogBody": {
     "description": "Body of the confirmation dialog for removing one pinned certificate; names the affected host and port.",
     "placeholders": {
-      "host": { "type": "String", "example": "example.com" },
-      "port": { "type": "int", "example": "443" }
+      "host": {
+        "type": "String",
+        "example": "example.com"
+      },
+      "port": {
+        "type": "int",
+        "example": "443"
+      }
     }
   },
-
   "trustedCertRevokeConfirm": "Revoke",
   "@trustedCertRevokeConfirm": {
     "description": "Confirm button that removes a single pinned certificate."
   },
-
   "trustedCertEmptyTitle": "No trusted certificates yet.",
   "@trustedCertEmptyTitle": {
     "description": "Heading shown when the user has not approved any self-signed / untrusted certificates."
   },
-
   "trustedCertEmptyBody": "When you visit a site with a self-signed or otherwise-untrusted certificate, you can choose \"Trust this site\". The decision is stored here and the prompt does not re-appear unless the certificate changes.",
   "@trustedCertEmptyBody": {
     "description": "Explanatory body shown when no certificates have been approved yet."
   },
-
   "trustedCertFingerprintLabel": "SHA-256",
   "@trustedCertFingerprintLabel": {
     "description": "Label above the SHA-256 certificate fingerprint of a pinned entry."
   },
-
   "trustedCertCopyTooltip": "Copy fingerprint",
   "@trustedCertCopyTooltip": {
     "description": "Tooltip on the button that copies a certificate fingerprint to the clipboard."
   },
-
   "trustedCertCopied": "Fingerprint copied",
   "@trustedCertCopied": {
     "description": "Snackbar confirmation shown after copying a certificate fingerprint."
   },
-
   "trustedCertRevokeTooltip": "Revoke",
   "@trustedCertRevokeTooltip": {
     "description": "Tooltip on the per-entry button that removes one pinned certificate."
   },
-
   "commonOk": "OK",
-  "@commonOk": { "description": "Generic dialog button that confirms / acknowledges." },
+  "@commonOk": {
+    "description": "Generic dialog button that confirms / acknowledges."
+  },
   "commonClose": "Close",
-  "@commonClose": { "description": "Generic button that closes a dialog or sheet." },
+  "@commonClose": {
+    "description": "Generic button that closes a dialog or sheet."
+  },
   "commonSave": "Save",
-  "@commonSave": { "description": "Generic button that saves / commits changes." },
+  "@commonSave": {
+    "description": "Generic button that saves / commits changes."
+  },
   "commonDelete": "Delete",
-  "@commonDelete": { "description": "Generic button that deletes an item." },
+  "@commonDelete": {
+    "description": "Generic button that deletes an item."
+  },
   "commonRemove": "Remove",
-  "@commonRemove": { "description": "Generic button that removes an item from a list." },
+  "@commonRemove": {
+    "description": "Generic button that removes an item from a list."
+  },
   "commonAdd": "Add",
-  "@commonAdd": { "description": "Generic button that adds an item." },
+  "@commonAdd": {
+    "description": "Generic button that adds an item."
+  },
   "commonEdit": "Edit",
-  "@commonEdit": { "description": "Generic button that edits an item." },
+  "@commonEdit": {
+    "description": "Generic button that edits an item."
+  },
   "commonCopy": "Copy",
-  "@commonCopy": { "description": "Generic button that copies a value to the clipboard." },
+  "@commonCopy": {
+    "description": "Generic button that copies a value to the clipboard."
+  },
   "commonDone": "Done",
-  "@commonDone": { "description": "Generic button that confirms completion." },
+  "@commonDone": {
+    "description": "Generic button that confirms completion."
+  },
   "commonRetry": "Retry",
-  "@commonRetry": { "description": "Generic button that retries a failed action." },
+  "@commonRetry": {
+    "description": "Generic button that retries a failed action."
+  },
   "commonShare": "Share",
-  "@commonShare": { "description": "Generic button that shares a value." },
+  "@commonShare": {
+    "description": "Generic button that shares a value."
+  },
   "commonOpen": "Open",
-  "@commonOpen": { "description": "Generic button that opens a target." },
-
+  "@commonOpen": {
+    "description": "Generic button that opens a target."
+  },
   "statsBannerBlocked": "{count} blocked",
   "@statsBannerBlocked": {
     "description": "Stats banner label: how many requests were blocked for the site.",
-    "placeholders": { "count": { "type": "int", "example": "42" } }
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "42"
+      }
+    }
   },
   "statsBannerAllowed": "{count} allowed",
   "@statsBannerAllowed": {
     "description": "Stats banner label: how many requests were allowed for the site.",
-    "placeholders": { "count": { "type": "int", "example": "17" } }
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "17"
+      }
+    }
   },
-
   "findToolbarSearchHint": "Search on page",
   "@findToolbarSearchHint": {
     "description": "Hint text in the find-in-page toolbar search field."
   },
-
   "urlBarHint": "Enter URL",
   "@urlBarHint": {
     "description": "Placeholder text in the address bar where the user types or pastes a URL."
@@ -134,7 +154,6 @@
   "@urlBarGoTooltip": {
     "description": "Tooltip for the button that submits the typed URL and navigates to it."
   },
-
   "untrustedCertTitle": "Untrusted certificate",
   "@untrustedCertTitle": {
     "description": "Title of the dialog shown when a site's TLS certificate cannot be verified."
@@ -143,8 +162,14 @@
   "@untrustedCertBody": {
     "description": "Body line of the untrusted certificate dialog naming the affected host and port.",
     "placeholders": {
-      "host": { "type": "String", "example": "example.com" },
-      "port": { "type": "int", "example": "443" }
+      "host": {
+        "type": "String",
+        "example": "example.com"
+      },
+      "port": {
+        "type": "int",
+        "example": "443"
+      }
     }
   },
   "untrustedCertWarning": "This is normal for self-signed sites you control. It can also indicate that someone is intercepting the connection — only proceed if you recognize this site.",
@@ -171,31 +196,52 @@
   "@untrustedCertTrustConfirm": {
     "description": "Confirm button that approves proceeding with an untrusted certificate and pins it as trusted."
   },
-
   "downloadButtonRecentTooltip": "{count} recent downloads",
   "@downloadButtonRecentTooltip": {
     "description": "Tooltip on the downloads app-bar button when idle, showing the number of recent finished downloads.",
-    "placeholders": { "count": { "type": "int", "example": "3" } }
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      }
+    }
   },
   "downloadButtonActiveProgressTooltip": "{count} downloading — {percent}% ({done})",
   "@downloadButtonActiveProgressTooltip": {
     "description": "Tooltip on the downloads button while downloads are active and total size is known.",
     "placeholders": {
-      "count": { "type": "int", "example": "2" },
-      "percent": { "type": "String", "example": "57" },
-      "done": { "type": "String", "example": "1.2 MB" }
+      "count": {
+        "type": "int",
+        "example": "2"
+      },
+      "percent": {
+        "type": "String",
+        "example": "57"
+      },
+      "done": {
+        "type": "String",
+        "example": "1.2 MB"
+      }
     }
   },
   "downloadButtonActiveReceivedTooltip": "{count} downloading — {done} received",
   "@downloadButtonActiveReceivedTooltip": {
     "description": "Tooltip on the downloads button while downloads are active and total size is unknown.",
     "placeholders": {
-      "count": { "type": "int", "example": "2" },
-      "done": { "type": "String", "example": "1.2 MB" }
+      "count": {
+        "type": "int",
+        "example": "2"
+      },
+      "done": {
+        "type": "String",
+        "example": "1.2 MB"
+      }
     }
   },
   "downloadButtonSheetTitle": "Downloads",
-  "@downloadButtonSheetTitle": { "description": "Title of the downloads bottom sheet." },
+  "@downloadButtonSheetTitle": {
+    "description": "Title of the downloads bottom sheet."
+  },
   "downloadButtonClearFinished": "Clear finished",
   "@downloadButtonClearFinished": {
     "description": "Button in the downloads sheet that removes all finished download entries."
@@ -211,7 +257,12 @@
   "downloadButtonSavedToPath": "Saved • {path}",
   "@downloadButtonSavedToPath": {
     "description": "Subtitle for a completed download showing the path it was saved to.",
-    "placeholders": { "path": { "type": "String", "example": "/storage/emulated/0/Download/file.pdf" } }
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/storage/emulated/0/Download/file.pdf"
+      }
+    }
   },
   "downloadButtonFailed": "Failed",
   "@downloadButtonFailed": {
@@ -228,9 +279,13 @@
   "downloadButtonBytesReceived": "{done} received",
   "@downloadButtonBytesReceived": {
     "description": "Subtitle for an in-progress download whose total size is unknown.",
-    "placeholders": { "done": { "type": "String", "example": "1.2 MB" } }
+    "placeholders": {
+      "done": {
+        "type": "String",
+        "example": "1.2 MB"
+      }
+    }
   },
-
   "externalUrlPromptTitle": "Open external app?",
   "@externalUrlPromptTitle": {
     "description": "Title of the dialog asking whether to hand a non-http URL to another app."
@@ -242,12 +297,22 @@
   "externalUrlPromptPackage": "Package: {name}",
   "@externalUrlPromptPackage": {
     "description": "Shows the Android package name of the app the external URL targets.",
-    "placeholders": { "name": { "type": "String", "example": "com.example.maps" } }
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "com.example.maps"
+      }
+    }
   },
   "externalUrlPromptFallback": "Fallback URL: {url}",
   "@externalUrlPromptFallback": {
     "description": "Shows the http(s) fallback URL that opens in-browser instead of the external app.",
-    "placeholders": { "url": { "type": "String", "example": "https://example.com/page" } }
+    "placeholders": {
+      "url": {
+        "type": "String",
+        "example": "https://example.com/page"
+      }
+    }
   },
   "externalUrlPromptOpenInBrowser": "Open in browser",
   "@externalUrlPromptOpenInBrowser": {
@@ -260,14 +325,23 @@
   "externalUrlPromptNoAppAvailable": "No app available to open: {url}",
   "@externalUrlPromptNoAppAvailable": {
     "description": "Snackbar shown when no installed app can handle the external URL.",
-    "placeholders": { "url": { "type": "String", "example": "tel:+15551234" } }
+    "placeholders": {
+      "url": {
+        "type": "String",
+        "example": "tel:+15551234"
+      }
+    }
   },
   "externalUrlPromptCouldNotOpen": "Could not open: {url}",
   "@externalUrlPromptCouldNotOpen": {
     "description": "Snackbar shown when launching the external URL threw an error.",
-    "placeholders": { "url": { "type": "String", "example": "intent://maps/" } }
+    "placeholders": {
+      "url": {
+        "type": "String",
+        "example": "intent://maps/"
+      }
+    }
   },
-
   "qrScannerScreenTitle": "Scan site-settings QR",
   "@qrScannerScreenTitle": {
     "description": "AppBar title for the full-screen camera scanner that reads a site-settings QR code."
@@ -276,179 +350,2597 @@
   "@qrScannerInvalidCode": {
     "description": "Error shown over the camera preview when the scanned QR is not a valid WebSpace site-settings payload."
   },
-
   "webspacesListSelectTitle": "Select Webspace",
-  "@webspacesListSelectTitle": { "description": "Header prompting the user to pick a webspace." },
+  "@webspacesListSelectTitle": {
+    "description": "Header prompting the user to pick a webspace."
+  },
   "webspacesListUnknownName": "Unknown",
-  "@webspacesListUnknownName": { "description": "Fallback name when the selected webspace can no longer be found." },
+  "@webspacesListUnknownName": {
+    "description": "Fallback name when the selected webspace can no longer be found."
+  },
   "webspacesListNoneSelected": "No webspace selected",
-  "@webspacesListNoneSelected": { "description": "Subtitle shown when no webspace is currently selected." },
+  "@webspacesListNoneSelected": {
+    "description": "Subtitle shown when no webspace is currently selected."
+  },
   "webspacesListEmpty": "No webspaces yet. Create one to organize your sites.",
-  "@webspacesListEmpty": { "description": "Empty-state message when the user has no webspaces." },
+  "@webspacesListEmpty": {
+    "description": "Empty-state message when the user has no webspaces."
+  },
   "webspacesListSiteCount": "{count} sites",
   "@webspacesListSiteCount": {
     "description": "Subtitle showing how many sites a webspace contains.",
-    "placeholders": { "count": { "type": "int", "example": "5" } }
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "5"
+      }
+    }
   },
   "webspacesListCreateButton": "Create Webspace",
-  "@webspacesListCreateButton": { "description": "Button that creates a new webspace." },
-
+  "@webspacesListCreateButton": {
+    "description": "Button that creates a new webspace."
+  },
   "webspaceDetailNameEmptyError": "Webspace name cannot be empty",
-  "@webspaceDetailNameEmptyError": { "description": "Error when saving a webspace with a blank name." },
+  "@webspaceDetailNameEmptyError": {
+    "description": "Error when saving a webspace with a blank name."
+  },
   "webspaceDetailViewTitle": "View Webspace",
-  "@webspaceDetailViewTitle": { "description": "App bar title when viewing a read-only webspace." },
+  "@webspaceDetailViewTitle": {
+    "description": "App bar title when viewing a read-only webspace."
+  },
   "webspaceDetailEditTitle": "Edit Webspace",
-  "@webspaceDetailEditTitle": { "description": "App bar title when editing a webspace." },
+  "@webspaceDetailEditTitle": {
+    "description": "App bar title when editing a webspace."
+  },
   "webspaceDetailNameLabel": "Webspace Name",
-  "@webspaceDetailNameLabel": { "description": "Label for the webspace name text field." },
+  "@webspaceDetailNameLabel": {
+    "description": "Label for the webspace name text field."
+  },
   "webspaceDetailNameHint": "New webspace",
-  "@webspaceDetailNameHint": { "description": "Placeholder hint for the webspace name text field." },
+  "@webspaceDetailNameHint": {
+    "description": "Placeholder hint for the webspace name text field."
+  },
   "webspaceDetailSelectSites": "Select Sites",
-  "@webspaceDetailSelectSites": { "description": "Heading above the list of sites to include in the webspace." },
+  "@webspaceDetailSelectSites": {
+    "description": "Heading above the list of sites to include in the webspace."
+  },
   "webspaceDetailSelectedCount": "{count} selected",
   "@webspaceDetailSelectedCount": {
     "description": "Count of how many sites are currently selected for the webspace.",
-    "placeholders": { "count": { "type": "int", "example": "3" } }
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      }
+    }
   },
   "webspaceDetailNoSites": "No sites available. Add sites first.",
-  "@webspaceDetailNoSites": { "description": "Empty-state when there are no sites to add to the webspace." },
-
+  "@webspaceDetailNoSites": {
+    "description": "Empty-state when there are no sites to add to the webspace."
+  },
   "qrShareDialogTitle": "Share site settings",
-  "@qrShareDialogTitle": { "description": "Title of the dialog displaying a QR code of a site's shareable settings." },
+  "@qrShareDialogTitle": {
+    "description": "Title of the dialog displaying a QR code of a site's shareable settings."
+  },
   "qrShareExclusionNote": "Cookies, user scripts, and proxy passwords are not included.",
-  "@qrShareExclusionNote": { "description": "Note explaining which sensitive fields are stripped before encoding." },
+  "@qrShareExclusionNote": {
+    "description": "Note explaining which sensitive fields are stripped before encoding."
+  },
   "qrShareCopiedToClipboard": "Copied to clipboard",
-  "@qrShareCopiedToClipboard": { "description": "Snackbar after the encoded site-settings string is copied." },
+  "@qrShareCopiedToClipboard": {
+    "description": "Snackbar after the encoded site-settings string is copied."
+  },
   "qrApplyDialogTitle": "Apply settings from QR",
-  "@qrApplyDialogTitle": { "description": "Title of the dialog where the user pastes a scanned QR payload." },
+  "@qrApplyDialogTitle": {
+    "description": "Title of the dialog where the user pastes a scanned QR payload."
+  },
   "qrApplyPasteInstructions": "Scan the QR with your camera and paste the resulting webspace://qr/site/... URL here.",
-  "@qrApplyPasteInstructions": { "description": "Instructions in the apply-from-QR paste dialog." },
+  "@qrApplyPasteInstructions": {
+    "description": "Instructions in the apply-from-QR paste dialog."
+  },
   "qrApplyPasteFromClipboard": "Paste from clipboard",
-  "@qrApplyPasteFromClipboard": { "description": "Button that pastes clipboard contents into the QR apply field." },
+  "@qrApplyPasteFromClipboard": {
+    "description": "Button that pastes clipboard contents into the QR apply field."
+  },
   "qrApplyInvalidError": "Not a valid WebSpace site-settings QR.",
-  "@qrApplyInvalidError": { "description": "Error when the pasted text is not a valid site-settings payload." },
+  "@qrApplyInvalidError": {
+    "description": "Error when the pasted text is not a valid site-settings payload."
+  },
   "qrApplyConfirm": "Apply",
-  "@qrApplyConfirm": { "description": "Button that applies the decoded site settings." },
-
+  "@qrApplyConfirm": {
+    "description": "Button that applies the decoded site settings."
+  },
   "locationPickerTitle": "Pick location",
-  "@locationPickerTitle": { "description": "App bar title for the location picker screen." },
+  "@locationPickerTitle": {
+    "description": "App bar title for the location picker screen."
+  },
   "locationPickerEnterValidCoords": "Enter valid coordinates first",
-  "@locationPickerEnterValidCoords": { "description": "Snackbar when tapping Done without valid coordinates." },
+  "@locationPickerEnterValidCoords": {
+    "description": "Snackbar when tapping Done without valid coordinates."
+  },
   "locationPickerLatitudeLabel": "Latitude",
-  "@locationPickerLatitudeLabel": { "description": "Label for the latitude input field." },
+  "@locationPickerLatitudeLabel": {
+    "description": "Label for the latitude input field."
+  },
   "locationPickerLongitudeLabel": "Longitude",
-  "@locationPickerLongitudeLabel": { "description": "Label for the longitude input field." },
+  "@locationPickerLongitudeLabel": {
+    "description": "Label for the longitude input field."
+  },
   "locationPickerAccuracyLabel": "Accuracy (meters)",
-  "@locationPickerAccuracyLabel": { "description": "Label for the location accuracy input field, in meters." },
+  "@locationPickerAccuracyLabel": {
+    "description": "Label for the location accuracy input field, in meters."
+  },
   "locationPickerGettingLocation": "Getting current location…",
-  "@locationPickerGettingLocation": { "description": "Button label while a device location fix is acquired." },
+  "@locationPickerGettingLocation": {
+    "description": "Button label while a device location fix is acquired."
+  },
   "locationPickerUseCurrentLocation": "Use current location",
-  "@locationPickerUseCurrentLocation": { "description": "Button to fetch the device's current GPS location." },
+  "@locationPickerUseCurrentLocation": {
+    "description": "Button to fetch the device's current GPS location."
+  },
   "locationPickerPermissionDenied": "Location permission was not granted.",
-  "@locationPickerPermissionDenied": { "description": "Snackbar when location permission was denied." },
+  "@locationPickerPermissionDenied": {
+    "description": "Snackbar when location permission was denied."
+  },
   "locationPickerPermissionDeniedForever": "Location permission is denied. Enable it in system Settings.",
-  "@locationPickerPermissionDeniedForever": { "description": "Snackbar when location permission is permanently denied." },
+  "@locationPickerPermissionDeniedForever": {
+    "description": "Snackbar when location permission is permanently denied."
+  },
   "locationPickerServiceDisabled": "Location services are disabled on this device.",
-  "@locationPickerServiceDisabled": { "description": "Snackbar when device location services are off." },
+  "@locationPickerServiceDisabled": {
+    "description": "Snackbar when device location services are off."
+  },
   "locationPickerTimeout": "Could not get a location fix in time. Try again outdoors.",
-  "@locationPickerTimeout": { "description": "Snackbar when acquiring a location fix times out." },
+  "@locationPickerTimeout": {
+    "description": "Snackbar when acquiring a location fix times out."
+  },
   "locationPickerUnsupported": "Current location is not available on this platform.",
-  "@locationPickerUnsupported": { "description": "Snackbar when current location is unsupported on the platform." },
+  "@locationPickerUnsupported": {
+    "description": "Snackbar when current location is unsupported on the platform."
+  },
   "locationPickerError": "Failed to get current location.",
-  "@locationPickerError": { "description": "Fallback snackbar when acquiring the current location fails." },
+  "@locationPickerError": {
+    "description": "Fallback snackbar when acquiring the current location fails."
+  },
   "locationPickerMapNotLoaded": "Map is not loaded.",
-  "@locationPickerMapNotLoaded": { "description": "Heading in the placeholder before the user opts to load the map." },
+  "@locationPickerMapNotLoaded": {
+    "description": "Heading in the placeholder before the user opts to load the map."
+  },
   "locationPickerPrivacyNotice": "Loading the map will fetch tiles from {host}, revealing the area you view to the tile server. You can also just type coordinates above and tap Done.",
   "@locationPickerPrivacyNotice": {
     "description": "Privacy explanation in the map placeholder, naming the tile server host.",
-    "placeholders": { "host": { "type": "String", "example": "tile.openstreetmap.org" } }
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "tile.openstreetmap.org"
+      }
+    }
   },
   "locationPickerLoadMap": "Load map",
-  "@locationPickerLoadMap": { "description": "Button to mount the interactive map and start fetching tiles." },
+  "@locationPickerLoadMap": {
+    "description": "Button to mount the interactive map and start fetching tiles."
+  },
   "locationPickerTilesBlocked": "Tile fetches are blocked by your proxy settings.",
-  "@locationPickerTilesBlocked": { "description": "Snackbar when map tile requests are blocked by the proxy." },
+  "@locationPickerTilesBlocked": {
+    "description": "Snackbar when map tile requests are blocked by the proxy."
+  },
   "locationPickerChangeProviderHint": "Change provider in App Settings → Location picker",
-  "@locationPickerChangeProviderHint": { "description": "Hint telling the user where to change the tile provider." },
+  "@locationPickerChangeProviderHint": {
+    "description": "Hint telling the user where to change the tile provider."
+  },
   "locationPickerOsmContributors": " contributors · ",
-  "@locationPickerOsmContributors": { "description": "OpenStreetMap attribution connective text between the OSM link and the report-issue link." },
+  "@locationPickerOsmContributors": {
+    "description": "OpenStreetMap attribution connective text between the OSM link and the report-issue link."
+  },
   "locationPickerReportMapIssue": "Report a map issue",
-  "@locationPickerReportMapIssue": { "description": "Link to report a map problem to OpenStreetMap." },
-
+  "@locationPickerReportMapIssue": {
+    "description": "Link to report a map problem to OpenStreetMap."
+  },
   "inappBrowserCouldNotLaunch": "Could not launch {url}",
   "@inappBrowserCouldNotLaunch": {
     "description": "Snackbar when an external URL cannot be opened in the in-app browser.",
-    "placeholders": { "url": { "type": "String", "example": "https://example.com" } }
+    "placeholders": {
+      "url": {
+        "type": "String",
+        "example": "https://example.com"
+      }
+    }
   },
   "inappBrowserVerificationTitle": "Verification",
-  "@inappBrowserVerificationTitle": { "description": "Title of a window.open() popup dialog in the in-app browser." },
+  "@inappBrowserVerificationTitle": {
+    "description": "Title of a window.open() popup dialog in the in-app browser."
+  },
   "inappBrowserDefaultTitle": "In-App WebView",
-  "@inappBrowserDefaultTitle": { "description": "Default app bar title for the nested browser when no page title is available." },
+  "@inappBrowserDefaultTitle": {
+    "description": "Default app bar title for the nested browser when no page title is available."
+  },
   "inappBrowserMenuOpenInBrowser": "Open in Browser",
-  "@inappBrowserMenuOpenInBrowser": { "description": "Overflow menu item to open the current page in an external browser." },
+  "@inappBrowserMenuOpenInBrowser": {
+    "description": "Overflow menu item to open the current page in an external browser."
+  },
   "inappBrowserMenuRefresh": "Refresh",
-  "@inappBrowserMenuRefresh": { "description": "Overflow menu item to reload the current page." },
+  "@inappBrowserMenuRefresh": {
+    "description": "Overflow menu item to reload the current page."
+  },
   "inappBrowserMenuFind": "Find",
-  "@inappBrowserMenuFind": { "description": "Overflow menu item to open the find-in-page toolbar." },
+  "@inappBrowserMenuFind": {
+    "description": "Overflow menu item to open the find-in-page toolbar."
+  },
   "inappBrowserMenuHideUrlBar": "Hide URL Bar",
-  "@inappBrowserMenuHideUrlBar": { "description": "Overflow menu item to hide the URL bar." },
+  "@inappBrowserMenuHideUrlBar": {
+    "description": "Overflow menu item to hide the URL bar."
+  },
   "inappBrowserMenuShowUrlBar": "Show URL Bar",
-  "@inappBrowserMenuShowUrlBar": { "description": "Overflow menu item to show the URL bar." },
+  "@inappBrowserMenuShowUrlBar": {
+    "description": "Overflow menu item to show the URL bar."
+  },
   "inappBrowserMenuDeveloperTools": "Developer Tools",
-  "@inappBrowserMenuDeveloperTools": { "description": "Overflow menu item to open developer tools." },
-
+  "@inappBrowserMenuDeveloperTools": {
+    "description": "Overflow menu item to open developer tools."
+  },
   "linkHandlingScreenTitle": "Link handling",
-  "@linkHandlingScreenTitle": { "description": "App bar title for the global link handling settings screen." },
+  "@linkHandlingScreenTitle": {
+    "description": "App bar title for the global link handling settings screen."
+  },
   "linkHandlingMasterToggleTitle": "Handle shared links",
-  "@linkHandlingMasterToggleTitle": { "description": "Title of the master switch enabling routing of shared links." },
+  "@linkHandlingMasterToggleTitle": {
+    "description": "Title of the master switch enabling routing of shared links."
+  },
   "linkHandlingMasterToggleSubtitle": "When off, share intents and webspace:// URLs are dropped silently. Use to keep the app installed without making it the default for other apps.",
-  "@linkHandlingMasterToggleSubtitle": { "description": "Subtitle explaining the 'Handle shared links' switch." },
+  "@linkHandlingMasterToggleSubtitle": {
+    "description": "Subtitle explaining the 'Handle shared links' switch."
+  },
   "linkHandlingTestRoutingTitle": "Test routing",
-  "@linkHandlingTestRoutingTitle": { "description": "Section header above the manual URL test field." },
+  "@linkHandlingTestRoutingTitle": {
+    "description": "Section header above the manual URL test field."
+  },
   "linkHandlingTestUrlHint": "https://example.org/foo",
-  "@linkHandlingTestUrlHint": { "description": "Placeholder example URL in the manual routing test field." },
+  "@linkHandlingTestUrlHint": {
+    "description": "Placeholder example URL in the manual routing test field."
+  },
   "linkHandlingDispatchTooltip": "Dispatch through routing engine",
-  "@linkHandlingDispatchTooltip": { "description": "Tooltip for the button that runs the typed URL through the routing engine." },
+  "@linkHandlingDispatchTooltip": {
+    "description": "Tooltip for the button that runs the typed URL through the routing engine."
+  },
   "linkHandlingTestRoutingHint": "Re-runs the picker for an arbitrary URL — useful when the resolver auto-routes to a site you wanted to override.",
-  "@linkHandlingTestRoutingHint": { "description": "Helper text under the manual routing test field." },
+  "@linkHandlingTestRoutingHint": {
+    "description": "Helper text under the manual routing test field."
+  },
   "linkHandlingRoutingOverviewTitle": "Routing overview",
-  "@linkHandlingRoutingOverviewTitle": { "description": "Section header above the per-site routing overview list." },
+  "@linkHandlingRoutingOverviewTitle": {
+    "description": "Section header above the per-site routing overview list."
+  },
   "linkHandlingNoSites": "No sites yet.",
-  "@linkHandlingNoSites": { "description": "Empty-state when there are no sites in the routing overview." },
+  "@linkHandlingNoSites": {
+    "description": "Empty-state when there are no sites in the routing overview."
+  },
   "linkHandlingParseError": "Could not parse URL",
-  "@linkHandlingParseError": { "description": "Snackbar when the test field text is not a valid URL." },
+  "@linkHandlingParseError": {
+    "description": "Snackbar when the test field text is not a valid URL."
+  },
   "linkHandlingClaimBaseLabel": "{host} (base)",
   "@linkHandlingClaimBaseLabel": {
     "description": "Label for a base-domain claim chip; appends a '(base)' marker to the host.",
-    "placeholders": { "host": { "type": "String", "example": "google.com" } }
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "google.com"
+      }
+    }
   },
   "linkHandlingConflictHijacks": "Hijacks {site} via {claim}",
   "@linkHandlingConflictHijacks": {
     "description": "Conflict line: this site hijacks another site's links via a domain claim.",
-    "placeholders": { "site": { "type": "String", "example": "Site B" }, "claim": { "type": "String", "example": "mastodon.social" } }
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "Site B"
+      },
+      "claim": {
+        "type": "String",
+        "example": "mastodon.social"
+      }
+    }
   },
   "linkHandlingConflictOverlaps": "Overlaps with {site} via {claim}",
   "@linkHandlingConflictOverlaps": {
     "description": "Conflict line: this site's claim overlaps another site via a domain claim.",
-    "placeholders": { "site": { "type": "String", "example": "Site B" }, "claim": { "type": "String", "example": "mastodon.social" } }
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "Site B"
+      },
+      "claim": {
+        "type": "String",
+        "example": "mastodon.social"
+      }
+    }
   },
   "linkHandlingDomainClaimsTitle": "Domain claims",
-  "@linkHandlingDomainClaimsTitle": { "description": "Title for the per-site domain-claims editor section and its hint dialog." },
+  "@linkHandlingDomainClaimsTitle": {
+    "description": "Title for the per-site domain-claims editor section and its hint dialog."
+  },
   "linkHandlingDomainClaimsHint": "Which hostnames route to this site when shared from another app. Existing sites synthesize one base-domain claim from their URL.",
-  "@linkHandlingDomainClaimsHint": { "description": "Hint dialog body explaining what domain claims control." },
+  "@linkHandlingDomainClaimsHint": {
+    "description": "Hint dialog body explaining what domain claims control."
+  },
   "linkHandlingAddClaimTooltip": "Add claim",
-  "@linkHandlingAddClaimTooltip": { "description": "Tooltip for the button that adds a new domain claim." },
+  "@linkHandlingAddClaimTooltip": {
+    "description": "Tooltip for the button that adds a new domain claim."
+  },
   "linkHandlingClaimHijackConflict": "Conflict: another site already owns this base domain.",
-  "@linkHandlingClaimHijackConflict": { "description": "Subtitle under a claim row that conflicts (hijack) with another site's base domain." },
+  "@linkHandlingClaimHijackConflict": {
+    "description": "Subtitle under a claim row that conflicts (hijack) with another site's base domain."
+  },
   "linkHandlingClaimOverlapConflict": "Overlaps with another site (non-blocking).",
-  "@linkHandlingClaimOverlapConflict": { "description": "Subtitle under a claim row that non-blockingly overlaps another site." },
+  "@linkHandlingClaimOverlapConflict": {
+    "description": "Subtitle under a claim row that non-blockingly overlaps another site."
+  },
   "linkHandlingAddClaimDialogTitle": "Add domain claim",
-  "@linkHandlingAddClaimDialogTitle": { "description": "Title of the dialog for adding a new domain claim." },
+  "@linkHandlingAddClaimDialogTitle": {
+    "description": "Title of the dialog for adding a new domain claim."
+  },
   "linkHandlingClaimKindExactHost": "Exact host (e.g. mail.google.com)",
-  "@linkHandlingClaimKindExactHost": { "description": "Dropdown option for an exact-host domain claim." },
+  "@linkHandlingClaimKindExactHost": {
+    "description": "Dropdown option for an exact-host domain claim."
+  },
   "linkHandlingClaimKindWildcard": "Wildcard subdomain (*.google.com)",
-  "@linkHandlingClaimKindWildcard": { "description": "Dropdown option for a wildcard-subdomain domain claim." },
+  "@linkHandlingClaimKindWildcard": {
+    "description": "Dropdown option for a wildcard-subdomain domain claim."
+  },
   "linkHandlingHostnameLabel": "Hostname",
-  "@linkHandlingHostnameLabel": { "description": "Field label for the hostname input in the add-claim dialog." },
+  "@linkHandlingHostnameLabel": {
+    "description": "Field label for the hostname input in the add-claim dialog."
+  },
   "linkHandlingHostnameHint": "example.com",
-  "@linkHandlingHostnameHint": { "description": "Placeholder example hostname in the add-claim dialog input." }
+  "@linkHandlingHostnameHint": {
+    "description": "Placeholder example hostname in the add-claim dialog input."
+  },
+  "addSiteFileReadError": "Failed to read file",
+  "@addSiteFileReadError": {
+    "description": "Snackbar error when an imported HTML file cannot be read"
+  },
+  "addSiteImportFailed": "Failed to import file: {error}",
+  "@addSiteImportFailed": {
+    "description": "Snackbar error when importing an HTML file fails, with the error detail",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "addSiteAddSuggestedTitle": "Add Suggested Site",
+  "@addSiteAddSuggestedTitle": {
+    "description": "Title of the dialog for adding a new suggested site shortcut"
+  },
+  "addSiteNameLabel": "Name",
+  "@addSiteNameLabel": {
+    "description": "Label for the name field when adding a suggested site"
+  },
+  "addSiteUrlLabel": "URL",
+  "@addSiteUrlLabel": {
+    "description": "Label for the URL field when adding a suggested site"
+  },
+  "addSiteAddNamedTitle": "Add {name}",
+  "@addSiteAddNamedTitle": {
+    "description": "Title of the dialog for adding a specific suggested site, with the site name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addSiteSiteUrlLabel": "Site URL",
+  "@addSiteSiteUrlLabel": {
+    "description": "Label for the URL field in the add-suggested-site dialog"
+  },
+  "addSiteIncognitoOn": "Incognito mode on",
+  "@addSiteIncognitoOn": {
+    "description": "Tooltip when the incognito toggle in the add-site dialog is enabled"
+  },
+  "addSiteIncognitoOff": "Incognito mode off",
+  "@addSiteIncognitoOff": {
+    "description": "Tooltip when the incognito toggle in the add-site dialog is disabled"
+  },
+  "addSiteThemeLight": "Light theme",
+  "@addSiteThemeLight": {
+    "description": "Tooltip for the theme toggle button when light theme is active"
+  },
+  "addSiteThemeDark": "Dark theme",
+  "@addSiteThemeDark": {
+    "description": "Tooltip for the theme toggle button when dark theme is active"
+  },
+  "addSiteThemeSystem": "System theme",
+  "@addSiteThemeSystem": {
+    "description": "Tooltip for the theme toggle button when system theme is active"
+  },
+  "addSiteScreenTitle": "Add Site",
+  "@addSiteScreenTitle": {
+    "description": "App bar title of the add-site screen"
+  },
+  "addSiteEnterUrlLabel": "Enter URL",
+  "@addSiteEnterUrlLabel": {
+    "description": "Label for the main URL input field on the add-site screen"
+  },
+  "addSiteAddFromQr": "Add from QR code",
+  "@addSiteAddFromQr": {
+    "description": "Tooltip for the button that adds a site by scanning a QR code"
+  },
+  "addSiteAddSiteButton": "Add Site",
+  "@addSiteAddSiteButton": {
+    "description": "Button that adds the entered URL as a new site"
+  },
+  "addSiteImportFileButton": "Import File",
+  "@addSiteImportFileButton": {
+    "description": "Button that imports a local HTML file as a site"
+  },
+  "addSiteSchemeTip": "Tip: enter a full URL with scheme (e.g. https://) or just a domain",
+  "@addSiteSchemeTip": {
+    "description": "Hint text below the add-site input explaining URL entry"
+  },
+  "addSiteSuggestedSitesHeader": "Suggested Sites",
+  "@addSiteSuggestedSitesHeader": {
+    "description": "Header above the grid of suggested site shortcuts"
+  },
+  "addSiteAddSuggestedTooltip": "Add suggested site",
+  "@addSiteAddSuggestedTooltip": {
+    "description": "Tooltip for the button that opens the add-suggested-site dialog"
+  },
+  "addSiteRemoveSuggestionTitle": "Remove {name}?",
+  "@addSiteRemoveSuggestionTitle": {
+    "description": "Title of the confirmation dialog for removing a suggested site",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addSiteRemoveSuggestionBody": "Remove this site from suggestions?",
+  "@addSiteRemoveSuggestionBody": {
+    "description": "Body of the confirmation dialog for removing a suggested site"
+  },
+  "addSiteNoSuggestions": "No suggested sites",
+  "@addSiteNoSuggestions": {
+    "description": "Placeholder shown when the suggested sites grid is empty"
+  },
+  "appSettingsTitle": "App Settings",
+  "@appSettingsTitle": {
+    "description": "App settings screen title"
+  },
+  "appSettingsTheme": "Theme",
+  "@appSettingsTheme": {
+    "description": "Theme section header in app settings"
+  },
+  "appSettingsThemeLight": "Light",
+  "@appSettingsThemeLight": {
+    "description": "Light theme mode label"
+  },
+  "appSettingsThemeDark": "Dark",
+  "@appSettingsThemeDark": {
+    "description": "Dark theme mode label"
+  },
+  "appSettingsThemeSystem": "System",
+  "@appSettingsThemeSystem": {
+    "description": "System theme mode label"
+  },
+  "appSettingsAccentColor": "Accent Color",
+  "@appSettingsAccentColor": {
+    "description": "Accent color section header in app settings"
+  },
+  "appSettingsInterface": "Interface",
+  "@appSettingsInterface": {
+    "description": "Interface/UI section header in app settings"
+  },
+  "appSettingsSiteTabStrip": "Site Tab Strip",
+  "@appSettingsSiteTabStrip": {
+    "description": "Toggle title for showing the site tab strip"
+  },
+  "appSettingsSiteTabStripSubtitle": "Show a tab bar with all sites at the top",
+  "@appSettingsSiteTabStripSubtitle": {
+    "description": "Subtitle for the site tab strip toggle"
+  },
+  "appSettingsKeepTabStripFullscreen": "Keep Tab Strip in Full Screen",
+  "@appSettingsKeepTabStripFullscreen": {
+    "description": "Toggle title for keeping the tab strip visible in full screen"
+  },
+  "appSettingsKeepTabStripFullscreenSubtitle": "Keep the tab bar visible in full screen while the top bar stays hidden",
+  "@appSettingsKeepTabStripFullscreenSubtitle": {
+    "description": "Subtitle for the keep-tab-strip-in-fullscreen toggle"
+  },
+  "appSettingsStatsBar": "Stats Bar",
+  "@appSettingsStatsBar": {
+    "description": "Toggle title for the live request stats bar"
+  },
+  "appSettingsStatsBarSubtitle": "Show live request stats at the top of each site",
+  "@appSettingsStatsBarSubtitle": {
+    "description": "Subtitle for the stats bar toggle"
+  },
+  "appSettingsLinkHandling": "Link handling",
+  "@appSettingsLinkHandling": {
+    "description": "Title for the link handling settings entry"
+  },
+  "appSettingsLinkHandlingOn": "Handle shared links and webspace:// URLs",
+  "@appSettingsLinkHandlingOn": {
+    "description": "Subtitle shown when link handling is enabled"
+  },
+  "appSettingsLinkHandlingOff": "Off — share intents and webspace:// URLs are dropped",
+  "@appSettingsLinkHandlingOff": {
+    "description": "Subtitle shown when link handling is disabled"
+  },
+  "appSettingsOutboundProxy": "Outbound proxy",
+  "@appSettingsOutboundProxy": {
+    "description": "Outbound proxy section header in app settings"
+  },
+  "appSettingsProxyType": "Proxy Type",
+  "@appSettingsProxyType": {
+    "description": "Label for the outbound proxy type dropdown"
+  },
+  "appSettingsProxyAddress": "Proxy Address",
+  "@appSettingsProxyAddress": {
+    "description": "Label for the outbound proxy address field"
+  },
+  "appSettingsProxyAddressHint": "host:port (e.g., 127.0.0.1:8080)",
+  "@appSettingsProxyAddressHint": {
+    "description": "Hint text for the proxy address field"
+  },
+  "appSettingsProxyAddressHelper": "Format: host:port",
+  "@appSettingsProxyAddressHelper": {
+    "description": "Helper text for the proxy address field"
+  },
+  "appSettingsProxyRequiresAuth": "Proxy requires authentication",
+  "@appSettingsProxyRequiresAuth": {
+    "description": "Checkbox label to enable proxy credentials"
+  },
+  "appSettingsProxyUsername": "Proxy Username",
+  "@appSettingsProxyUsername": {
+    "description": "Label for the proxy username field"
+  },
+  "appSettingsProxyPassword": "Proxy Password",
+  "@appSettingsProxyPassword": {
+    "description": "Label for the proxy password field"
+  },
+  "appSettingsProxyAddressRequired": "Address is required",
+  "@appSettingsProxyAddressRequired": {
+    "description": "Validation error when the proxy address is empty"
+  },
+  "appSettingsProxyFormatHostPort": "Format must be host:port",
+  "@appSettingsProxyFormatHostPort": {
+    "description": "Validation error when the proxy address is not host:port"
+  },
+  "appSettingsProxyInvalidPort": "Invalid port number",
+  "@appSettingsProxyInvalidPort": {
+    "description": "Validation error when the proxy port is out of range"
+  },
+  "appSettingsOutboundProxyUpdated": "Outbound proxy updated",
+  "@appSettingsOutboundProxyUpdated": {
+    "description": "Snackbar shown after the outbound proxy is saved"
+  },
+  "appSettingsDiscardChangesTitle": "Discard changes?",
+  "@appSettingsDiscardChangesTitle": {
+    "description": "Title of the discard-proxy-changes confirmation dialog"
+  },
+  "appSettingsDiscardProxyBody": "You have unsaved proxy changes. Discard them?",
+  "@appSettingsDiscardProxyBody": {
+    "description": "Body of the discard-proxy-changes confirmation dialog"
+  },
+  "appSettingsKeepEditing": "Keep editing",
+  "@appSettingsKeepEditing": {
+    "description": "Button to dismiss the discard dialog and continue editing"
+  },
+  "appSettingsDiscard": "Discard",
+  "@appSettingsDiscard": {
+    "description": "Button to discard unsaved proxy changes"
+  },
+  "appSettingsLocationPicker": "Location picker",
+  "@appSettingsLocationPicker": {
+    "description": "Subsection label for the location picker tile provider"
+  },
+  "appSettingsTileUrl": "Tile URL",
+  "@appSettingsTileUrl": {
+    "description": "Label for the map tile URL field"
+  },
+  "appSettingsTimezonePolygons": "Timezone polygons",
+  "@appSettingsTimezonePolygons": {
+    "description": "Title for the timezone polygon dataset entry"
+  },
+  "appSettingsZonesCount": "{count} zones",
+  "@appSettingsZonesCount": {
+    "description": "Number of timezone zones downloaded",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsNotDownloaded": "Not downloaded",
+  "@appSettingsNotDownloaded": {
+    "description": "Status shown when a dataset has not been downloaded"
+  },
+  "appSettingsUpdatedAt": "Updated: {date}",
+  "@appSettingsUpdatedAt": {
+    "description": "Last-updated timestamp label",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsClearDataset": "Clear dataset",
+  "@appSettingsClearDataset": {
+    "description": "Tooltip to delete the downloaded timezone dataset"
+  },
+  "appSettingsRefreshDataset": "Refresh dataset",
+  "@appSettingsRefreshDataset": {
+    "description": "Tooltip to re-download the timezone dataset"
+  },
+  "appSettingsDownloadDataset": "Download dataset",
+  "@appSettingsDownloadDataset": {
+    "description": "Tooltip to download the timezone dataset"
+  },
+  "appSettingsTimezonesLoaded": "Loaded {count} timezone zones",
+  "@appSettingsTimezonesLoaded": {
+    "description": "Snackbar after timezone dataset download succeeds",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsTimezonesDownloadFailed": "Failed to download timezone dataset",
+  "@appSettingsTimezonesDownloadFailed": {
+    "description": "Snackbar after timezone dataset download fails"
+  },
+  "appSettingsUserScripts": "User Scripts",
+  "@appSettingsUserScripts": {
+    "description": "User scripts section header in app settings"
+  },
+  "appSettingsManageScripts": "Manage Scripts",
+  "@appSettingsManageScripts": {
+    "description": "Title for the global user scripts entry"
+  },
+  "appSettingsNoGlobalScripts": "No global scripts",
+  "@appSettingsNoGlobalScripts": {
+    "description": "Subtitle when no global user scripts are defined"
+  },
+  "appSettingsScriptsDefined": "{count} defined — opt in per site",
+  "@appSettingsScriptsDefined": {
+    "description": "Subtitle showing the number of global user scripts defined",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsData": "Data",
+  "@appSettingsData": {
+    "description": "Data section header in app settings"
+  },
+  "appSettingsExportSettings": "Export Settings",
+  "@appSettingsExportSettings": {
+    "description": "Title for the export settings entry"
+  },
+  "appSettingsExportSettingsSubtitle": "Save sites and webspaces to a file",
+  "@appSettingsExportSettingsSubtitle": {
+    "description": "Subtitle for the export settings entry"
+  },
+  "appSettingsImportSettings": "Import Settings",
+  "@appSettingsImportSettings": {
+    "description": "Title for the import settings entry"
+  },
+  "appSettingsImportSettingsSubtitle": "Restore from a backup file",
+  "@appSettingsImportSettingsSubtitle": {
+    "description": "Subtitle for the import settings entry"
+  },
+  "appSettingsRestoreArchive": "Restore archive",
+  "@appSettingsRestoreArchive": {
+    "description": "Title for the restore archive entry"
+  },
+  "appSettingsRestoreArchiveSubtitle": "Restore a previously archived webspace by passphrase",
+  "@appSettingsRestoreArchiveSubtitle": {
+    "description": "Subtitle for the restore archive entry"
+  },
+  "appSettingsCloseAllArchives": "Close all archives",
+  "@appSettingsCloseAllArchives": {
+    "description": "Title for the close all archives entry"
+  },
+  "appSettingsCloseAllArchivesSubtitle": "Flush archive cookies and clear in-memory keys",
+  "@appSettingsCloseAllArchivesSubtitle": {
+    "description": "Subtitle for the close all archives entry"
+  },
+  "appSettingsPrivacy": "Privacy",
+  "@appSettingsPrivacy": {
+    "description": "Privacy section header in app settings"
+  },
+  "appSettingsTrustedCertificates": "Trusted certificates",
+  "@appSettingsTrustedCertificates": {
+    "description": "Title for the trusted certificates entry"
+  },
+  "appSettingsTrustedCertificatesSubtitle": "User-approved self-signed certificates",
+  "@appSettingsTrustedCertificatesSubtitle": {
+    "description": "Subtitle for the trusted certificates entry"
+  },
+  "appSettingsClearUrlsRules": "ClearURLs Rules",
+  "@appSettingsClearUrlsRules": {
+    "description": "Title for the ClearURLs rules entry"
+  },
+  "appSettingsUpdateRules": "Update rules",
+  "@appSettingsUpdateRules": {
+    "description": "Tooltip to re-download the ClearURLs rules"
+  },
+  "appSettingsDownloadRules": "Download rules",
+  "@appSettingsDownloadRules": {
+    "description": "Tooltip to download the ClearURLs rules"
+  },
+  "appSettingsClearUrlsUpdated": "ClearURLs rules updated",
+  "@appSettingsClearUrlsUpdated": {
+    "description": "Snackbar after ClearURLs rules download succeeds"
+  },
+  "appSettingsClearUrlsDownloadFailed": "Failed to download ClearURLs rules",
+  "@appSettingsClearUrlsDownloadFailed": {
+    "description": "Snackbar after ClearURLs rules download fails"
+  },
+  "appSettingsDnsBlocklist": "DNS Blocklist",
+  "@appSettingsDnsBlocklist": {
+    "description": "Title for the DNS blocklist entry"
+  },
+  "appSettingsNotConfigured": "Not configured",
+  "@appSettingsNotConfigured": {
+    "description": "Status shown when the DNS blocklist is not configured"
+  },
+  "appSettingsDnsBlockLevelDomains": "{level} - {domains} domains",
+  "@appSettingsDnsBlockLevelDomains": {
+    "description": "DNS blocklist level name and number of blocked domains",
+    "placeholders": {
+      "level": {
+        "type": "String"
+      },
+      "domains": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsDownloadBlocklist": "Download blocklist",
+  "@appSettingsDownloadBlocklist": {
+    "description": "Tooltip to download the DNS blocklist"
+  },
+  "appSettingsRefreshBlocklist": "Refresh blocklist",
+  "@appSettingsRefreshBlocklist": {
+    "description": "Tooltip to refresh the DNS blocklist"
+  },
+  "appSettingsDnsBlocklistDisabled": "DNS blocklist disabled",
+  "@appSettingsDnsBlocklistDisabled": {
+    "description": "Snackbar when the DNS blocklist level is set to off"
+  },
+  "appSettingsDnsBlocklistUpdated": "DNS blocklist updated: {domains} domains",
+  "@appSettingsDnsBlocklistUpdated": {
+    "description": "Snackbar after DNS blocklist download succeeds",
+    "placeholders": {
+      "domains": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsDnsBlocklistDownloadFailed": "Failed to download DNS blocklist",
+  "@appSettingsDnsBlocklistDownloadFailed": {
+    "description": "Snackbar after DNS blocklist download fails"
+  },
+  "appSettingsLocalCdn": "LocalCDN",
+  "@appSettingsLocalCdn": {
+    "description": "Title for the LocalCDN entry"
+  },
+  "appSettingsLocalCdnResources": "{count} resources ({size})",
+  "@appSettingsLocalCdnResources": {
+    "description": "Number of cached LocalCDN resources and total cache size",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsDownloadingProgress": "Downloading {progress}...",
+  "@appSettingsDownloadingProgress": {
+    "description": "Progress text shown while downloading LocalCDN resources",
+    "placeholders": {
+      "progress": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsUpdateResources": "Update resources",
+  "@appSettingsUpdateResources": {
+    "description": "Tooltip to update LocalCDN resources"
+  },
+  "appSettingsDownloadResources": "Download resources",
+  "@appSettingsDownloadResources": {
+    "description": "Tooltip to download LocalCDN resources"
+  },
+  "appSettingsClearCache": "Clear cache",
+  "@appSettingsClearCache": {
+    "description": "Tooltip to clear the LocalCDN cache"
+  },
+  "appSettingsLocalCdnDownloaded": "Downloaded {count} resources",
+  "@appSettingsLocalCdnDownloaded": {
+    "description": "Snackbar after LocalCDN resources are downloaded",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsLocalCdnCacheCleared": "LocalCDN cache cleared",
+  "@appSettingsLocalCdnCacheCleared": {
+    "description": "Snackbar after the LocalCDN cache is cleared"
+  },
+  "appSettingsContentBlocker": "Content Blocker",
+  "@appSettingsContentBlocker": {
+    "description": "Content blocker section header in app settings"
+  },
+  "appSettingsUpdateAllLists": "Update all lists",
+  "@appSettingsUpdateAllLists": {
+    "description": "Tooltip to update all enabled content blocker filter lists"
+  },
+  "appSettingsRulesCount": "{count} rules",
+  "@appSettingsRulesCount": {
+    "description": "Number of rules in a content blocker filter list",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsRefresh": "Refresh",
+  "@appSettingsRefresh": {
+    "description": "Tooltip to refresh a content blocker filter list"
+  },
+  "appSettingsDownload": "Download",
+  "@appSettingsDownload": {
+    "description": "Tooltip to download a content blocker filter list"
+  },
+  "appSettingsFilterListRules": "{name}: {rules} rules",
+  "@appSettingsFilterListRules": {
+    "description": "Snackbar after a content blocker filter list is downloaded",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "rules": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsFilterListDownloadFailed": "Failed to download filter list",
+  "@appSettingsFilterListDownloadFailed": {
+    "description": "Snackbar after a content blocker filter list download fails"
+  },
+  "appSettingsFilterListsUpdated": "Updated {count} filter lists",
+  "@appSettingsFilterListsUpdated": {
+    "description": "Snackbar after all content blocker filter lists are updated",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsAddCustomListTitle": "Add Custom List",
+  "@appSettingsAddCustomListTitle": {
+    "description": "Title of the add custom filter list dialog"
+  },
+  "appSettingsCustomListNameLabel": "Name",
+  "@appSettingsCustomListNameLabel": {
+    "description": "Label for the custom filter list name field"
+  },
+  "appSettingsCustomListNameHint": "My Filter List",
+  "@appSettingsCustomListNameHint": {
+    "description": "Hint for the custom filter list name field"
+  },
+  "appSettingsCustomListUrlLabel": "URL",
+  "@appSettingsCustomListUrlLabel": {
+    "description": "Label for the custom filter list URL field"
+  },
+  "appSettingsAddCustomList": "Add Custom List",
+  "@appSettingsAddCustomList": {
+    "description": "Button label to add a custom filter list"
+  },
+  "appSettingsUboRedirectStubs": "Serve uBO redirect stubs",
+  "@appSettingsUboRedirectStubs": {
+    "description": "Toggle title for serving uBO redirect stub bodies"
+  },
+  "appSettingsUboRedirectStubsUnavailable": "Native adblock library not available on this platform.",
+  "@appSettingsUboRedirectStubsUnavailable": {
+    "description": "Subtitle when the native adblock engine is unavailable"
+  },
+  "appSettingsUboRedirectStubsSubtitle": "Return stub bodies for $redirect= rules instead of dropping the request",
+  "@appSettingsUboRedirectStubsSubtitle": {
+    "description": "Subtitle explaining the uBO redirect stubs toggle"
+  },
+  "appSettingsDeveloper": "Developer",
+  "@appSettingsDeveloper": {
+    "description": "Developer section header in app settings"
+  },
+  "appSettingsAppLogs": "App Logs",
+  "@appSettingsAppLogs": {
+    "description": "Title for the app logs entry"
+  },
+  "appSettingsAppLogsSubtitle": "View app-level debug logs",
+  "@appSettingsAppLogsSubtitle": {
+    "description": "Subtitle for the app logs entry"
+  },
+  "appSettingsAbout": "About",
+  "@appSettingsAbout": {
+    "description": "About section header in app settings"
+  },
+  "appSettingsLicenses": "Licenses",
+  "@appSettingsLicenses": {
+    "description": "Title for the open source licenses entry"
+  },
+  "appSettingsLicensesSubtitle": "Open source licenses",
+  "@appSettingsLicensesSubtitle": {
+    "description": "Subtitle for the licenses entry"
+  },
+  "devToolsCookieSecure": "Secure",
+  "@devToolsCookieSecure": {
+    "description": "Chip label indicating a cookie has the Secure attribute set."
+  },
+  "devToolsCookieNotSecure": "Not Secure",
+  "@devToolsCookieNotSecure": {
+    "description": "Chip label indicating a cookie does not have the Secure attribute set."
+  },
+  "devToolsCookieBlock": "Block",
+  "@devToolsCookieBlock": {
+    "description": "Button label to block a cookie in the developer tools cookie inspector."
+  },
+  "devToolsCookieUnblock": "Unblock",
+  "@devToolsCookieUnblock": {
+    "description": "Button label to unblock a previously blocked cookie."
+  },
+  "devToolsCookieDomain": "Domain: {domain}",
+  "@devToolsCookieDomain": {
+    "description": "Label showing a cookie's domain in the cookie inspector.",
+    "placeholders": {
+      "domain": {
+        "type": "String"
+      }
+    }
+  },
+  "devToolsCookiePath": "Path: {path}",
+  "@devToolsCookiePath": {
+    "description": "Label showing a cookie's path in the cookie inspector.",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "devToolsCookieExpires": "Expires: {date}",
+  "@devToolsCookieExpires": {
+    "description": "Label showing a cookie's expiry date in the cookie inspector.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "devToolsNoUserScripts": "No user scripts configured",
+  "@devToolsNoUserScripts": {
+    "description": "Empty-state text shown in the scripts bottom sheet when no user scripts exist."
+  },
+  "devToolsScriptsHeader": "Scripts",
+  "@devToolsScriptsHeader": {
+    "description": "Header title of the user scripts bottom sheet."
+  },
+  "devToolsScriptGlobalBadge": "global",
+  "@devToolsScriptGlobalBadge": {
+    "description": "Badge label marking a user script as a global (app-wide) script."
+  },
+  "devToolsScriptDocumentStart": "document start",
+  "@devToolsScriptDocumentStart": {
+    "description": "Subtitle indicating a user script injects at document start."
+  },
+  "devToolsScriptDocumentEnd": "document end",
+  "@devToolsScriptDocumentEnd": {
+    "description": "Subtitle indicating a user script injects at document end."
+  },
+  "devToolsScriptEmptySource": "// (empty script)",
+  "@devToolsScriptEmptySource": {
+    "description": "Placeholder shown in the script source viewer when the script has no source code."
+  },
+  "devToolsScriptCopySource": "Copy source",
+  "@devToolsScriptCopySource": {
+    "description": "Tooltip for the button that copies a user script's source code."
+  },
+  "devToolsScriptCopied": "Copied \"{name}\"",
+  "@devToolsScriptCopied": {
+    "description": "Snackbar shown after copying a user script's source to the clipboard.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "devToolsShareHtml": "Share HTML",
+  "@devToolsShareHtml": {
+    "description": "Bottom-sheet action that shares the current page's HTML."
+  },
+  "devToolsSaveToFile": "Save to file",
+  "@devToolsSaveToFile": {
+    "description": "Bottom-sheet action that saves the current page's HTML to a file."
+  },
+  "devToolsCopyToClipboard": "Copy to clipboard",
+  "@devToolsCopyToClipboard": {
+    "description": "Bottom-sheet action that copies the current page's HTML to the clipboard."
+  },
+  "devToolsSaveIcon": "Save icon",
+  "@devToolsSaveIcon": {
+    "description": "Bottom-sheet action that saves the site's icon as a PNG file."
+  },
+  "devToolsNoHtmlContent": "No HTML content available",
+  "@devToolsNoHtmlContent": {
+    "description": "Snackbar shown when the page has no HTML content to export."
+  },
+  "devToolsHtmlFetchFailed": "Failed to get HTML: {error}",
+  "@devToolsHtmlFetchFailed": {
+    "description": "Snackbar shown when fetching the page HTML fails.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "devToolsSaveHtmlDialogTitle": "Save HTML",
+  "@devToolsSaveHtmlDialogTitle": {
+    "description": "Title of the file-save dialog when saving page HTML."
+  },
+  "devToolsHtmlSaved": "HTML saved",
+  "@devToolsHtmlSaved": {
+    "description": "Snackbar confirming the page HTML was saved to a file."
+  },
+  "devToolsSaveFailed": "Save failed: {error}",
+  "@devToolsSaveFailed": {
+    "description": "Snackbar shown when saving a file fails.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "devToolsHtmlCopied": "HTML copied to clipboard",
+  "@devToolsHtmlCopied": {
+    "description": "Snackbar confirming the page HTML was copied to the clipboard."
+  },
+  "devToolsPreparingIcon": "Preparing icon...",
+  "@devToolsPreparingIcon": {
+    "description": "Snackbar shown while the site icon is being prepared for export."
+  },
+  "devToolsNoIconToSave": "No icon available to save",
+  "@devToolsNoIconToSave": {
+    "description": "Snackbar shown when there is no site icon available to save."
+  },
+  "devToolsSaveIconDialogTitle": "Save icon",
+  "@devToolsSaveIconDialogTitle": {
+    "description": "Title of the file-save dialog when saving the site icon."
+  },
+  "devToolsIconSaved": "Icon saved",
+  "@devToolsIconSaved": {
+    "description": "Snackbar confirming the site icon was saved to a file."
+  },
+  "devToolsDnsEmpty": "No DNS queries recorded",
+  "@devToolsDnsEmpty": {
+    "description": "Empty-state text shown in the DNS tab when no DNS queries have been recorded."
+  },
+  "devToolsDnsTotal": "Total",
+  "@devToolsDnsTotal": {
+    "description": "Stat-card label for the total number of DNS queries."
+  },
+  "devToolsDnsAllowed": "Allowed",
+  "@devToolsDnsAllowed": {
+    "description": "Stat-card label for the number of allowed DNS queries."
+  },
+  "devToolsDnsBlocked": "Blocked",
+  "@devToolsDnsBlocked": {
+    "description": "Stat-card label for the number of blocked DNS queries."
+  },
+  "devToolsDnsBlockRate": "Block %",
+  "@devToolsDnsBlockRate": {
+    "description": "Stat-card label for the percentage of blocked DNS queries."
+  },
+  "devToolsDnsFilterAll": "All",
+  "@devToolsDnsFilterAll": {
+    "description": "Filter chip showing all DNS log entries."
+  },
+  "devToolsDnsFilterAllowed": "Allowed ({count})",
+  "@devToolsDnsFilterAllowed": {
+    "description": "Filter chip showing only allowed DNS log entries, with the allowed count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devToolsDnsFilterBlocked": "Blocked ({count})",
+  "@devToolsDnsFilterBlocked": {
+    "description": "Filter chip showing only blocked DNS log entries, with the blocked count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devToolsDnsLogCopied": "DNS log copied",
+  "@devToolsDnsLogCopied": {
+    "description": "Snackbar confirming the DNS log was copied to the clipboard."
+  },
+  "devToolsAbpEngine": "engine",
+  "@devToolsAbpEngine": {
+    "description": "Stat-chip label for the content-blocker engine status in the ABP developer tab."
+  },
+  "devToolsAbpActive": "active",
+  "@devToolsAbpActive": {
+    "description": "Stat-chip value indicating the content-blocker engine is active."
+  },
+  "devToolsAbpOff": "off",
+  "@devToolsAbpOff": {
+    "description": "Stat-chip value indicating a content-blocker feature is off."
+  },
+  "devToolsAbpOn": "on",
+  "@devToolsAbpOn": {
+    "description": "Stat-chip value indicating a content-blocker feature is on."
+  },
+  "devToolsAbpRecording": "recording",
+  "@devToolsAbpRecording": {
+    "description": "Stat-chip label for whether ABP engine timing recording is on."
+  },
+  "devToolsAbpConsulted": "consulted",
+  "@devToolsAbpConsulted": {
+    "description": "Stat-chip label for how many times the ABP engine was consulted."
+  },
+  "devToolsAbpAvg": "avg",
+  "@devToolsAbpAvg": {
+    "description": "Stat-chip label for the average ABP engine decision time."
+  },
+  "devToolsAbpMax": "max",
+  "@devToolsAbpMax": {
+    "description": "Stat-chip label for the maximum ABP engine decision time."
+  },
+  "devToolsAbpBlocked": "blocked",
+  "@devToolsAbpBlocked": {
+    "description": "Stat-chip label for the number of blocked ABP engine decisions."
+  },
+  "devToolsAbpAllowed": "allowed",
+  "@devToolsAbpAllowed": {
+    "description": "Stat-chip label for the number of allowed ABP engine decisions."
+  },
+  "devToolsRefreshButton": "Refresh",
+  "@devToolsRefreshButton": {
+    "description": "Button label to refresh the ABP engine decisions sample list."
+  },
+  "devToolsAbpSampleCount": "{count} sample(s)",
+  "@devToolsAbpSampleCount": {
+    "description": "Label showing how many ABP engine decision samples are displayed.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devToolsAbpEmptyNotConsulted": "Engine has not been consulted since DevTools opened.\n\nSub-resource checks fire from the JS-bridge `blockCheck` handler — they only run on cross-origin requests that hit the bloom prefilter.\n\nTry: reload an ad-heavy page with DevTools already open.",
+  "@devToolsAbpEmptyNotConsulted": {
+    "description": "Empty-state explanation shown in the ABP tab when the engine has not been consulted yet."
+  },
+  "devToolsAbpEmptyBufferRolled": "Engine consulted {count} time(s) but the recent decisions ring buffer is empty.\nThis usually means the buffer rolled over — tap Refresh to capture the latest entries.",
+  "@devToolsAbpEmptyBufferRolled": {
+    "description": "Empty-state explanation shown in the ABP tab when the engine was consulted but the decisions buffer is empty.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devToolsLogsEmpty": "No log entries",
+  "@devToolsLogsEmpty": {
+    "description": "Empty-state text shown in the App Logs tab when there are no log entries."
+  },
+  "devToolsSensitiveShowing": "Showing sensitive entries (siteId, URLs, hostnames). Resets on app restart.",
+  "@devToolsSensitiveShowing": {
+    "description": "Subtitle shown when sensitive log entries are being displayed."
+  },
+  "devToolsSensitiveShow": "Show sensitive entries (siteId, URLs, hostnames)",
+  "@devToolsSensitiveShow": {
+    "description": "Subtitle for the toggle that shows sensitive log entries."
+  },
+  "devToolsExport": "Export",
+  "@devToolsExport": {
+    "description": "Button label to export the app logs to a file."
+  },
+  "devToolsLogsCopied": "Copied {count} log entries",
+  "@devToolsLogsCopied": {
+    "description": "Snackbar confirming the number of log entries copied to the clipboard.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devToolsExportLogsDialogTitle": "Export Logs",
+  "@devToolsExportLogsDialogTitle": {
+    "description": "Title of the file-save dialog when exporting app logs."
+  },
+  "devToolsLogsExported": "Logs exported",
+  "@devToolsLogsExported": {
+    "description": "Snackbar confirming the app logs were exported to a file."
+  },
+  "siteSettingsTitle": "Settings",
+  "@siteSettingsTitle": {
+    "description": "App bar title for the per-site settings screen."
+  },
+  "siteSettingsProxyShared": "Proxy settings are shared across all sites.",
+  "@siteSettingsProxyShared": {
+    "description": "Note above the proxy section explaining proxy scope."
+  },
+  "siteSettingsProxyType": "Proxy Type",
+  "@siteSettingsProxyType": {
+    "description": "Label for the proxy type dropdown."
+  },
+  "siteSettingsProxyAddress": "Proxy Address",
+  "@siteSettingsProxyAddress": {
+    "description": "Label for the proxy address text field."
+  },
+  "siteSettingsProxyAddressHint": "host:port (e.g., proxy.example.com:1080)",
+  "@siteSettingsProxyAddressHint": {
+    "description": "Hint text for the proxy address field showing the expected format."
+  },
+  "siteSettingsProxyAddressHelper": "Format: host:port",
+  "@siteSettingsProxyAddressHelper": {
+    "description": "Helper text under the proxy address field."
+  },
+  "siteSettingsProxyRequiresAuth": "Proxy requires authentication",
+  "@siteSettingsProxyRequiresAuth": {
+    "description": "Checkbox label to reveal proxy credential fields."
+  },
+  "siteSettingsProxyUsername": "Proxy Username",
+  "@siteSettingsProxyUsername": {
+    "description": "Label for the proxy username field."
+  },
+  "siteSettingsProxyPassword": "Proxy Password",
+  "@siteSettingsProxyPassword": {
+    "description": "Label for the proxy password field."
+  },
+  "siteSettingsJavascriptEnabled": "JavaScript Enabled",
+  "@siteSettingsJavascriptEnabled": {
+    "description": "Switch label toggling JavaScript for the site."
+  },
+  "siteSettingsUserAgent": "User-Agent",
+  "@siteSettingsUserAgent": {
+    "description": "Label for the user-agent text field."
+  },
+  "siteSettingsLanguage": "Language",
+  "@siteSettingsLanguage": {
+    "description": "Label for the per-site language dropdown."
+  },
+  "siteSettingsLanguageHelper": "Sets Accept-Language header for HTTP requests",
+  "@siteSettingsLanguageHelper": {
+    "description": "Helper text under the language dropdown."
+  },
+  "siteSettingsLanguageSystemDefault": "System default",
+  "@siteSettingsLanguageSystemDefault": {
+    "description": "Language dropdown entry meaning no explicit language override (use the system default)."
+  },
+  "siteSettingsPageZoom": "Page zoom",
+  "@siteSettingsPageZoom": {
+    "description": "Label for the page zoom row."
+  },
+  "siteSettingsZoomOut": "Zoom out",
+  "@siteSettingsZoomOut": {
+    "description": "Tooltip for the zoom-out button."
+  },
+  "siteSettingsZoomIn": "Zoom in",
+  "@siteSettingsZoomIn": {
+    "description": "Tooltip for the zoom-in button."
+  },
+  "siteSettingsThirdPartyCookies": "Third-party cookies",
+  "@siteSettingsThirdPartyCookies": {
+    "description": "Switch label toggling third-party cookies."
+  },
+  "siteSettingsIncognito": "Incognito mode",
+  "@siteSettingsIncognito": {
+    "description": "Switch label for incognito mode."
+  },
+  "siteSettingsIncognitoSubtitle": "No cookies or cache persist",
+  "@siteSettingsIncognitoSubtitle": {
+    "description": "Subtitle explaining incognito mode."
+  },
+  "siteSettingsAlwaysOpenHome": "Always open Home",
+  "@siteSettingsAlwaysOpenHome": {
+    "description": "Switch label for always opening the home URL."
+  },
+  "siteSettingsAlwaysOpenHomeForced": "Forced on by Incognito",
+  "@siteSettingsAlwaysOpenHomeForced": {
+    "description": "Subtitle shown when Always open Home is forced on because Incognito is enabled."
+  },
+  "siteSettingsAlwaysOpenHomeSubtitle": "Reset URL on app restart and home-screen shortcut (cookies persist)",
+  "@siteSettingsAlwaysOpenHomeSubtitle": {
+    "description": "Subtitle explaining Always open Home behavior."
+  },
+  "siteSettingsTrackingProtection": "Tracking Protection",
+  "@siteSettingsTrackingProtection": {
+    "description": "Switch label and hint title for the umbrella Tracking Protection setting."
+  },
+  "siteSettingsTrackingProtectionHint": "Umbrella per-site Enhanced Tracking Protection. When on, forces ClearURLs, DNS Blocklist, and Content Blocker to be active for this site, AND injects an anti-fingerprinting shim that randomizes Canvas, audio, font metrics, screen dimensions, hardware concurrency, plugins, battery, speech voices, high-resolution timers, and bounding-box measurements. The fingerprint stays stable per site across launches but differs between sites and between users. When Incognito is also enabled for this site, the fingerprint is rerolled on every app launch so the site cannot re-identify you across cold restarts. WebGL is disabled entirely while this is on; turn it off for sites that need WebGL (maps, 3D viewers).",
+  "@siteSettingsTrackingProtectionHint": {
+    "description": "Hint body describing Tracking Protection."
+  },
+  "siteSettingsTrackingProtectionSubtitle": "Anti-fingerprinting + force tracker blocking",
+  "@siteSettingsTrackingProtectionSubtitle": {
+    "description": "Subtitle for the Tracking Protection switch."
+  },
+  "siteSettingsForcedByTrackingProtection": "Forced on by Tracking Protection",
+  "@siteSettingsForcedByTrackingProtection": {
+    "description": "Subtitle shown for a per-site toggle that is forced on because Tracking Protection is enabled."
+  },
+  "siteSettingsClearUrls": "ClearURLs",
+  "@siteSettingsClearUrls": {
+    "description": "Switch label and hint title for the ClearURLs feature."
+  },
+  "siteSettingsClearUrlsHint": "Removes tracking parameters (like utm_source, fbclid) from URLs before loading them. This helps protect your privacy by preventing sites from tracking where you came from.",
+  "@siteSettingsClearUrlsHint": {
+    "description": "Hint body describing ClearURLs."
+  },
+  "siteSettingsClearUrlsSubtitle": "Strip tracking parameters from URLs",
+  "@siteSettingsClearUrlsSubtitle": {
+    "description": "Subtitle for the ClearURLs switch."
+  },
+  "siteSettingsDnsBlocklist": "DNS Blocklist",
+  "@siteSettingsDnsBlocklist": {
+    "description": "Switch label and hint title for the DNS Blocklist feature."
+  },
+  "siteSettingsDnsBlocklistHint": "Blocks known advertising, tracking, and malware domains at the DNS level before they can load. Uses the Hagezi blocklist with configurable severity levels. Configure the blocklist level in App Settings.",
+  "@siteSettingsDnsBlocklistHint": {
+    "description": "Hint body describing the DNS Blocklist."
+  },
+  "siteSettingsNotConfigured": "Not configured",
+  "@siteSettingsNotConfigured": {
+    "description": "Subtitle shown when a downloaded-data feature (DNS blocklist, content blocker) has no data yet."
+  },
+  "siteSettingsContentBlocker": "Content Blocker",
+  "@siteSettingsContentBlocker": {
+    "description": "Switch label and hint title for the Content Blocker feature."
+  },
+  "siteSettingsContentBlockerHint": "Blocks ads, trackers, and unwanted content using filter lists (like EasyList). Supports domain blocking, CSS cosmetic filters, and text-based hiding rules. Manage filter lists in App Settings.",
+  "@siteSettingsContentBlockerHint": {
+    "description": "Hint body describing the Content Blocker."
+  },
+  "siteSettingsContentBlockerRuleCount": "{count} rules",
+  "@siteSettingsContentBlockerRuleCount": {
+    "description": "Subtitle showing how many content-blocker rules are loaded.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "siteSettingsLocalCdn": "LocalCDN",
+  "@siteSettingsLocalCdn": {
+    "description": "Switch label and hint title for the LocalCDN feature."
+  },
+  "siteSettingsLocalCdnHint": "Serves common CDN resources (JavaScript libraries, fonts, CSS frameworks) from a local cache instead of fetching them from third-party CDN servers. This prevents CDN providers from tracking your browsing activity across sites.",
+  "@siteSettingsLocalCdnHint": {
+    "description": "Hint body describing LocalCDN."
+  },
+  "siteSettingsLocalCdnResourceCount": "{count} cached resources",
+  "@siteSettingsLocalCdnResourceCount": {
+    "description": "Subtitle showing how many resources are cached for LocalCDN.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "siteSettingsLocalCdnNeedsCache": "Download the cache in app settings first",
+  "@siteSettingsLocalCdnNeedsCache": {
+    "description": "Subtitle shown when the LocalCDN cache has not been downloaded yet."
+  },
+  "siteSettingsUserScripts": "User Scripts",
+  "@siteSettingsUserScripts": {
+    "description": "List tile label opening the per-site user scripts screen."
+  },
+  "siteSettingsUserScriptsSiteCount": "{count} site",
+  "@siteSettingsUserScriptsSiteCount": {
+    "description": "Fragment counting enabled site-specific user scripts.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "siteSettingsUserScriptsGlobalCount": "{count} global",
+  "@siteSettingsUserScriptsGlobalCount": {
+    "description": "Fragment counting enabled global user scripts.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "siteSettingsUserScriptsNone": "None enabled",
+  "@siteSettingsUserScriptsNone": {
+    "description": "User scripts subtitle when no scripts are enabled."
+  },
+  "siteSettingsUserScriptsActive": "{summary} active",
+  "@siteSettingsUserScriptsActive": {
+    "description": "User scripts subtitle summarizing enabled script counts.",
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
+  },
+  "siteSettingsBlockAutoRedirects": "Block auto-redirects",
+  "@siteSettingsBlockAutoRedirects": {
+    "description": "Switch label for blocking script-initiated cross-domain redirects."
+  },
+  "siteSettingsBlockAutoRedirectsHintTitle": "Block Auto-Redirects",
+  "@siteSettingsBlockAutoRedirectsHintTitle": {
+    "description": "Hint title for the Block Auto-Redirects feature."
+  },
+  "siteSettingsBlockAutoRedirectsHint": "Prevents scripts from automatically navigating you to a different domain. This helps avoid being silently redirected to tracking or advertising pages.",
+  "@siteSettingsBlockAutoRedirectsHint": {
+    "description": "Hint body describing Block Auto-Redirects."
+  },
+  "siteSettingsBlockAutoRedirectsSubtitle": "Block script-initiated cross-domain navigations",
+  "@siteSettingsBlockAutoRedirectsSubtitle": {
+    "description": "Subtitle for the Block Auto-Redirects switch."
+  },
+  "siteSettingsFullscreen": "Full screen mode",
+  "@siteSettingsFullscreen": {
+    "description": "Switch label for full screen mode."
+  },
+  "siteSettingsFullscreenHintTitle": "Full Screen Mode",
+  "@siteSettingsFullscreenHintTitle": {
+    "description": "Hint title for full screen mode."
+  },
+  "siteSettingsFullscreenHint": "Automatically enters full screen when this site is selected. Hides the app bar, tab strip, and system UI for an immersive experience. Tap the edge of the screen or use the back gesture to exit full screen.",
+  "@siteSettingsFullscreenHint": {
+    "description": "Hint body describing full screen mode."
+  },
+  "siteSettingsFullscreenSubtitle": "Auto-enter full screen for this site",
+  "@siteSettingsFullscreenSubtitle": {
+    "description": "Subtitle for the full screen mode switch."
+  },
+  "siteSettingsHtmlCaching": "HTML caching",
+  "@siteSettingsHtmlCaching": {
+    "description": "Switch label for HTML caching."
+  },
+  "siteSettingsHtmlCachingHintTitle": "HTML Caching",
+  "@siteSettingsHtmlCachingHintTitle": {
+    "description": "Hint title for HTML caching."
+  },
+  "siteSettingsHtmlCachingHint": "Render this site from a cached HTML snapshot for instant first paint on cold start, then swap to the live page once the cached parse settles.\n\nOff (default): the cache is only consulted when the device is offline, so an online cold start always goes straight to live and never shows stale content. Snapshots are still saved in the background so the offline fallback works on the next launch.\n\nOn: trades a momentary glimpse of stale content for a faster first paint on every cold start.",
+  "@siteSettingsHtmlCachingHint": {
+    "description": "Hint body describing HTML caching."
+  },
+  "siteSettingsHtmlCachingSubtitle": "Show cached page on cold start (offline fallback always on)",
+  "@siteSettingsHtmlCachingSubtitle": {
+    "description": "Subtitle for the HTML caching switch."
+  },
+  "siteSettingsNotifications": "Notifications",
+  "@siteSettingsNotifications": {
+    "description": "Switch label and hint title for per-site web notifications."
+  },
+  "siteSettingsNotificationsHint": "Allow this site to show system notifications. Keeps the site polling in the background so notifications fire even when you are on a different tab.",
+  "@siteSettingsNotificationsHint": {
+    "description": "Hint body describing per-site notifications."
+  },
+  "siteSettingsNotificationsBlockedByProxy": "Cannot enable: \"{site}\" is already polling in background with a different proxy. Android allows only one proxy at a time.",
+  "@siteSettingsNotificationsBlockedByProxy": {
+    "description": "Subtitle shown when notifications cannot be enabled due to a conflicting proxy on another site.",
+    "placeholders": {
+      "site": {
+        "type": "String"
+      }
+    }
+  },
+  "siteSettingsNotificationsDenied": "Notifications denied. Enable in Settings → {path}.",
+  "@siteSettingsNotificationsDenied": {
+    "description": "Subtitle shown when OS notification permission was denied, telling the user where to enable it.",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "siteSettingsProtectedContent": "Protected content (DRM)",
+  "@siteSettingsProtectedContent": {
+    "description": "List tile label and hint title for the DRM protected-content setting."
+  },
+  "siteSettingsProtectedContentHint": "Controls whether this site may play DRM-protected media (Widevine/EME), e.g. the Spotify web player.\n\nAsk (default): a popup asks the first time the site requests it, then remembers your choice.\nAlways allow / Always block: skip the popup.\n\nAllowing lets the site provision a device identifier to decrypt media. Android only — other platforms cannot play Widevine content.",
+  "@siteSettingsProtectedContentHint": {
+    "description": "Hint body describing protected content (DRM)."
+  },
+  "siteSettingsProtectedContentAsk": "Ask",
+  "@siteSettingsProtectedContentAsk": {
+    "description": "Protected content dropdown option: ask each time."
+  },
+  "siteSettingsProtectedContentAllow": "Always allow",
+  "@siteSettingsProtectedContentAllow": {
+    "description": "Protected content dropdown option: always allow."
+  },
+  "siteSettingsProtectedContentBlock": "Always block",
+  "@siteSettingsProtectedContentBlock": {
+    "description": "Protected content dropdown option: always block."
+  },
+  "siteSettingsGeolocation": "Geolocation",
+  "@siteSettingsGeolocation": {
+    "description": "Title and hint title for the geolocation section."
+  },
+  "siteSettingsGeolocationHint": "Geolocation",
+  "@siteSettingsGeolocationHint": {
+    "description": "Hint description for the geolocation section."
+  },
+  "siteSettingsLocationOff": "Off",
+  "@siteSettingsLocationOff": {
+    "description": "Geolocation mode segment: no location override."
+  },
+  "siteSettingsLocationStatic": "Static",
+  "@siteSettingsLocationStatic": {
+    "description": "Geolocation mode segment: static custom coordinates."
+  },
+  "siteSettingsLocationLive": "Live",
+  "@siteSettingsLocationLive": {
+    "description": "Geolocation mode segment: live device GPS."
+  },
+  "siteSettingsLocationOffDetail": "Pages get your real location (or are blocked by the OS).",
+  "@siteSettingsLocationOffDetail": {
+    "description": "Detail text shown when geolocation override is off."
+  },
+  "siteSettingsLocationLiveDetail": "Forwarding live device location to pages.",
+  "@siteSettingsLocationLiveDetail": {
+    "description": "Detail text shown when live geolocation is active."
+  },
+  "siteSettingsLocationProviderGps": "GPS",
+  "@siteSettingsLocationProviderGps": {
+    "description": "Live location provider segment: GPS."
+  },
+  "siteSettingsLocationProviderGsm": "GSM",
+  "@siteSettingsLocationProviderGsm": {
+    "description": "Live location provider segment: GSM/network."
+  },
+  "siteSettingsLocationApproximate": "Approximate",
+  "@siteSettingsLocationApproximate": {
+    "description": "Switch label to coarsen the live GPS fix."
+  },
+  "siteSettingsLocationApproximateSubtitle": "Snap to a coarser grid before sharing with pages",
+  "@siteSettingsLocationApproximateSubtitle": {
+    "description": "Subtitle for the Approximate live-location switch."
+  },
+  "siteSettingsLocationGranularityGps": "Precise GPS coordinates shared with pages.",
+  "@siteSettingsLocationGranularityGps": {
+    "description": "Detail line shown when live granularity is precise GPS."
+  },
+  "siteSettingsLocationGranularityApproximate": "Coarse, approximate location shared with pages.",
+  "@siteSettingsLocationGranularityApproximate": {
+    "description": "Detail line shown when live granularity is approximate."
+  },
+  "siteSettingsLocationGranularityGsm": "Network-level (GSM) location shared with pages.",
+  "@siteSettingsLocationGranularityGsm": {
+    "description": "Detail line shown when live granularity is GSM/network."
+  },
+  "siteSettingsLocationEditTooltip": "Edit location",
+  "@siteSettingsLocationEditTooltip": {
+    "description": "Tooltip for editing the static custom location."
+  },
+  "siteSettingsLocationClearTooltip": "Clear custom location",
+  "@siteSettingsLocationClearTooltip": {
+    "description": "Tooltip for clearing the static custom location."
+  },
+  "siteSettingsLocationNoneSet": "No custom location set",
+  "@siteSettingsLocationNoneSet": {
+    "description": "Shown in the static segment when no custom coordinates are set."
+  },
+  "siteSettingsLocationPick": "Pick",
+  "@siteSettingsLocationPick": {
+    "description": "Button to open the location picker."
+  },
+  "siteSettingsLocationSectionTitle": "Location & timezone",
+  "@siteSettingsLocationSectionTitle": {
+    "description": "Section header for the location and timezone settings."
+  },
+  "siteSettingsTimezoneLabel": "Timezone",
+  "@siteSettingsTimezoneLabel": {
+    "description": "Label for the timezone dropdown."
+  },
+  "siteSettingsTimezoneHelper": "Overrides Intl.DateTimeFormat and Date getters",
+  "@siteSettingsTimezoneHelper": {
+    "description": "Helper text under the timezone dropdown."
+  },
+  "siteSettingsTimezoneForcedHelper": "Forced to \"From picked location\" by Tracking Protection",
+  "@siteSettingsTimezoneForcedHelper": {
+    "description": "Helper text under the timezone dropdown when it is forced by Tracking Protection."
+  },
+  "siteSettingsTimezoneFromLocation": "From picked location ({preview})",
+  "@siteSettingsTimezoneFromLocation": {
+    "description": "Timezone dropdown entry that derives the timezone from the picked location, with a preview of the resolved value.",
+    "placeholders": {
+      "preview": {
+        "type": "String"
+      }
+    }
+  },
+  "siteSettingsTimezonePreviewNoMatch": "no match — fall through to system default",
+  "@siteSettingsTimezonePreviewNoMatch": {
+    "description": "Timezone preview shown when the picked coordinates resolve to no timezone."
+  },
+  "siteSettingsTimezonePreviewNeedsDataset": "Download polygon dataset in App Settings",
+  "@siteSettingsTimezonePreviewNeedsDataset": {
+    "description": "Timezone preview shown when the timezone polygon dataset is not downloaded."
+  },
+  "siteSettingsTimezonePreviewNeedsLocation": "Pick a location first",
+  "@siteSettingsTimezonePreviewNeedsLocation": {
+    "description": "Timezone preview shown when no location has been picked."
+  },
+  "siteSettingsWebRtcPolicy": "WebRTC policy",
+  "@siteSettingsWebRtcPolicy": {
+    "description": "Label for the WebRTC policy dropdown row."
+  },
+  "siteSettingsWebRtcHintTitle": "WebRTC leak protection",
+  "@siteSettingsWebRtcHintTitle": {
+    "description": "Hint title for WebRTC leak protection."
+  },
+  "siteSettingsWebRtcHintBody": "HTTP(S) and SOCKS5 proxies only carry TCP. WebRTC uses UDP and leaks your real IP around the proxy. \"Relay only\" forces iceTransportPolicy=relay and strips non-relay ICE candidates; video calls that rely on direct peer-to-peer connections will break. \"Disabled\" blocks RTCPeerConnection entirely.",
+  "@siteSettingsWebRtcHintBody": {
+    "description": "Hint body describing WebRTC leak protection."
+  },
+  "siteSettingsWebRtcDefault": "Default",
+  "@siteSettingsWebRtcDefault": {
+    "description": "WebRTC policy dropdown option: default browser behavior."
+  },
+  "siteSettingsWebRtcRelayOnly": "Relay only",
+  "@siteSettingsWebRtcRelayOnly": {
+    "description": "WebRTC policy dropdown option: relay only."
+  },
+  "siteSettingsWebRtcDisabled": "Disabled",
+  "@siteSettingsWebRtcDisabled": {
+    "description": "WebRTC policy dropdown option: disabled."
+  },
+  "siteSettingsDnsStatTotal": "Total",
+  "@siteSettingsDnsStatTotal": {
+    "description": "Label for the total DNS lookups stat chip."
+  },
+  "siteSettingsDnsStatAllowed": "Allowed",
+  "@siteSettingsDnsStatAllowed": {
+    "description": "Label for the allowed DNS lookups stat chip."
+  },
+  "siteSettingsDnsStatBlocked": "Blocked",
+  "@siteSettingsDnsStatBlocked": {
+    "description": "Label for the blocked DNS lookups stat chip."
+  },
+  "siteSettingsClearSiteData": "Clear Site Data",
+  "@siteSettingsClearSiteData": {
+    "description": "Button and dialog title for clearing all container site data."
+  },
+  "siteSettingsClearCookies": "Clear Cookies",
+  "@siteSettingsClearCookies": {
+    "description": "Button and dialog title for clearing cookies (legacy engine)."
+  },
+  "siteSettingsClearSiteDataBody": "This wipes cookies, localStorage, IndexedDB, ServiceWorkers, and the HTTP cache for this site. The site will reload with a fresh empty container.",
+  "@siteSettingsClearSiteDataBody": {
+    "description": "Confirmation body for clearing all container site data."
+  },
+  "siteSettingsClearCookiesBody": "Are you sure you want to clear all cookies for this site?",
+  "@siteSettingsClearCookiesBody": {
+    "description": "Confirmation body for clearing cookies (legacy engine)."
+  },
+  "siteSettingsClearSiteDataDone": "Site data cleared",
+  "@siteSettingsClearSiteDataDone": {
+    "description": "Snackbar shown after site data is cleared."
+  },
+  "siteSettingsClearCookiesDone": "Cookies cleared",
+  "@siteSettingsClearCookiesDone": {
+    "description": "Snackbar shown after cookies are cleared."
+  },
+  "siteSettingsClearConfirm": "Clear",
+  "@siteSettingsClearConfirm": {
+    "description": "Confirm button for the clear-data dialog."
+  },
+  "siteSettingsShareQr": "Share QR",
+  "@siteSettingsShareQr": {
+    "description": "Button to share the site settings as a QR code."
+  },
+  "siteSettingsSaveButton": "Save Settings",
+  "@siteSettingsSaveButton": {
+    "description": "Button to save the per-site settings."
+  },
+  "siteSettingsBgNotifTitleIos": "Background notifications on iOS",
+  "@siteSettingsBgNotifTitleIos": {
+    "description": "Title of the one-time iOS background notification limits dialog."
+  },
+  "siteSettingsBgNotifTitleAndroid": "Background notifications on Android",
+  "@siteSettingsBgNotifTitleAndroid": {
+    "description": "Title of the one-time Android background notification limits dialog."
+  },
+  "siteSettingsBgNotifBodyIos": "iOS limits background execution. Notifications arrive while WebSpace is open or in the recent-tasks list. After WebSpace is fully suspended, iOS schedules background refreshes opportunistically — typically every 15-30 minutes — at which point your sites are reloaded and any pending notifications fire.",
+  "@siteSettingsBgNotifBodyIos": {
+    "description": "Body of the iOS background notification limits dialog."
+  },
+  "siteSettingsBgNotifBodyAndroid": "Android limits background execution. Notifications arrive while WebSpace is open or in recent tasks. While backgrounded, the app reloads notification sites every ~15 minutes when the system permits. If Android kills WebSpace under memory pressure, notifications stop until the next launch.",
+  "@siteSettingsBgNotifBodyAndroid": {
+    "description": "Body of the Android background notification limits dialog."
+  },
+  "siteSettingsDiscardDialogTitle": "Discard changes?",
+  "@siteSettingsDiscardDialogTitle": {
+    "description": "Title of the discard-unsaved-changes confirmation dialog."
+  },
+  "siteSettingsDiscardDialogBody": "You have unsaved changes. Discard them?",
+  "@siteSettingsDiscardDialogBody": {
+    "description": "Body of the discard-unsaved-changes confirmation dialog."
+  },
+  "siteSettingsDiscardKeepEditing": "Keep editing",
+  "@siteSettingsDiscardKeepEditing": {
+    "description": "Button to dismiss the discard dialog and continue editing."
+  },
+  "siteSettingsDiscardConfirm": "Discard",
+  "@siteSettingsDiscardConfirm": {
+    "description": "Button to confirm discarding unsaved changes."
+  },
+  "siteSettingsProxyAddressRequired": "Proxy address is required",
+  "@siteSettingsProxyAddressRequired": {
+    "description": "Validation error when the proxy address is empty."
+  },
+  "siteSettingsProxyAddressFormatError": "Format should be host:port",
+  "@siteSettingsProxyAddressFormatError": {
+    "description": "Validation error when the proxy address is not host:port."
+  },
+  "siteSettingsProxyInvalidPort": "Invalid port number",
+  "@siteSettingsProxyInvalidPort": {
+    "description": "Validation error for an out-of-range proxy port."
+  },
+  "siteSettingsProxyError": "Proxy error: {error}",
+  "@siteSettingsProxyError": {
+    "description": "Snackbar shown when saving fails proxy validation.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "siteSettingsSavedSnack": "Settings saved",
+  "@siteSettingsSavedSnack": {
+    "description": "Snackbar shown after settings are saved."
+  },
+  "siteSettingsSaveError": "Error saving settings: {error}",
+  "@siteSettingsSaveError": {
+    "description": "Snackbar shown when saving settings throws.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptsDeleteDialogTitle": "Delete Script?",
+  "@userScriptsDeleteDialogTitle": {
+    "description": "Title of the dialog confirming deletion of a user script"
+  },
+  "userScriptsDeleteBody": "Delete \"{name}\"?",
+  "@userScriptsDeleteBody": {
+    "description": "Body of the confirmation dialog when deleting a per-site user script",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptsDeleteGlobalBody": "Delete \"{name}\" from all sites?",
+  "@userScriptsDeleteGlobalBody": {
+    "description": "Body of the confirmation dialog when deleting a global user script",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptsMakeGlobal": "Make Global",
+  "@userScriptsMakeGlobal": {
+    "description": "Action label to promote a per-site user script to the global library"
+  },
+  "userScriptsMakeGlobalSubtitle": "Available to all sites",
+  "@userScriptsMakeGlobalSubtitle": {
+    "description": "Subtitle for the Make Global action explaining that the script becomes available to all sites"
+  },
+  "userScriptsMakeGlobalBody": "Make \"{name}\" available to all sites? It will stay enabled on this site.",
+  "@userScriptsMakeGlobalBody": {
+    "description": "Body of the confirmation dialog when promoting a per-site user script to global",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptsMovedToGlobal": "\"{name}\" moved to global scripts",
+  "@userScriptsMovedToGlobal": {
+    "description": "Snackbar shown after a user script is promoted to the global library",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptsRemoveFromAllSites": "Removes from all sites",
+  "@userScriptsRemoveFromAllSites": {
+    "description": "Subtitle for the delete action of a global user script, warning it is removed everywhere"
+  },
+  "userScriptsEmpty": "No user scripts yet. Tap + to add one.",
+  "@userScriptsEmpty": {
+    "description": "Empty-state message shown when there are no user scripts"
+  },
+  "userScriptsGlobalBadge": "Global",
+  "@userScriptsGlobalBadge": {
+    "description": "Badge label marking a user script as part of the global library"
+  },
+  "userScriptsRunsAtDocumentStart": "Runs at document start",
+  "@userScriptsRunsAtDocumentStart": {
+    "description": "Subtitle indicating a user script is injected at document start"
+  },
+  "userScriptsRunsAtDocumentEnd": "Runs at document end",
+  "@userScriptsRunsAtDocumentEnd": {
+    "description": "Subtitle indicating a user script is injected at document end"
+  },
+  "userScriptsNameRequired": "Name is required",
+  "@userScriptsNameRequired": {
+    "description": "Validation snackbar shown when saving a user script with an empty name"
+  },
+  "userScriptsUrlDownloadFailed": "Download failed: {detail}",
+  "@userScriptsUrlDownloadFailed": {
+    "description": "Snackbar shown when downloading a user script from a URL fails",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptsRunning": "Running...",
+  "@userScriptsRunning": {
+    "description": "Placeholder output text shown while a user script is being executed"
+  },
+  "userScriptsRunError": "Error: {detail}",
+  "@userScriptsRunError": {
+    "description": "Output text shown when running a user script throws an error",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "userScriptsEditTitle": "Edit Script",
+  "@userScriptsEditTitle": {
+    "description": "App bar title when editing an existing user script"
+  },
+  "userScriptsNewTitle": "New Script",
+  "@userScriptsNewTitle": {
+    "description": "App bar title when creating a new user script"
+  },
+  "userScriptsRunTooltip": "Run",
+  "@userScriptsRunTooltip": {
+    "description": "Tooltip for the button that executes the user script on the current page"
+  },
+  "userScriptsNameLabel": "Name",
+  "@userScriptsNameLabel": {
+    "description": "Label for the user script name input field"
+  },
+  "userScriptsUrlLabel": "URL (optional)",
+  "@userScriptsUrlLabel": {
+    "description": "Label for the optional user script source URL input field"
+  },
+  "userScriptsCachedBytes": "Cached: {bytes} bytes",
+  "@userScriptsCachedBytes": {
+    "description": "Status text showing how many bytes of script source are cached from the URL",
+    "placeholders": {
+      "bytes": {
+        "type": "int"
+      }
+    }
+  },
+  "userScriptsCachedBytesWillRedownload": "Cached: {bytes} bytes (will re-download on save)",
+  "@userScriptsCachedBytesWillRedownload": {
+    "description": "Status text shown when the URL changed and the cached source will be re-downloaded on save",
+    "placeholders": {
+      "bytes": {
+        "type": "int"
+      }
+    }
+  },
+  "userScriptsInjectionTimeLabel": "Injection time",
+  "@userScriptsInjectionTimeLabel": {
+    "description": "Label for the dropdown selecting when a user script is injected"
+  },
+  "userScriptsAtDocumentStart": "Document start",
+  "@userScriptsAtDocumentStart": {
+    "description": "Dropdown option for injecting a user script at document start"
+  },
+  "userScriptsAtDocumentEnd": "Document end",
+  "@userScriptsAtDocumentEnd": {
+    "description": "Dropdown option for injecting a user script at document end"
+  },
+  "userScriptsSourceLabel": "JavaScript source",
+  "@userScriptsSourceLabel": {
+    "description": "Label for the user script JavaScript source code input field"
+  },
+  "userScriptsSourceLabelAfterUrl": "Additional JavaScript source (runs after URL source)",
+  "@userScriptsSourceLabelAfterUrl": {
+    "description": "Label for the source field when a URL source is also present, indicating this runs after it"
+  },
+  "devToolsTitle": "Developer Tools",
+  "@devToolsTitle": {
+    "description": "App bar title of the developer tools screen."
+  },
+  "devToolsTabConsole": "Console",
+  "@devToolsTabConsole": {
+    "description": "Tab label for the JavaScript console in developer tools."
+  },
+  "devToolsTabCookies": "Cookies",
+  "@devToolsTabCookies": {
+    "description": "Tab label for the cookie inspector in developer tools."
+  },
+  "devToolsTabDns": "DNS",
+  "@devToolsTabDns": {
+    "description": "Tab label for the DNS query log in developer tools."
+  },
+  "devToolsTabAbp": "ABP",
+  "@devToolsTabAbp": {
+    "description": "Tab label for the ABP content-blocker diagnostics in developer tools."
+  },
+  "devToolsTabLogs": "Logs",
+  "@devToolsTabLogs": {
+    "description": "Tab label for the app logs in developer tools."
+  },
+  "devToolsScriptsTooltip": "Scripts",
+  "@devToolsScriptsTooltip": {
+    "description": "Tooltip for the button that opens the user scripts bottom sheet."
+  },
+  "devToolsExportTooltip": "Export",
+  "@devToolsExportTooltip": {
+    "description": "Tooltip for the button that exports the current page HTML."
+  },
+  "devToolsSearchTooltip": "Search",
+  "@devToolsSearchTooltip": {
+    "description": "Tooltip for the button that toggles the search field."
+  },
+  "devToolsSearchHint": "Filter...",
+  "@devToolsSearchHint": {
+    "description": "Hint text in the developer tools search/filter field."
+  },
+  "devToolsConsoleEmpty": "No console messages",
+  "@devToolsConsoleEmpty": {
+    "description": "Empty-state text shown in the console tab when there are no messages."
+  },
+  "devToolsNoMatches": "No matches",
+  "@devToolsNoMatches": {
+    "description": "Empty-state text shown when a search/filter matches nothing."
+  },
+  "devToolsClear": "Clear",
+  "@devToolsClear": {
+    "description": "Button label that clears the current tab's entries (console, DNS log, app logs)."
+  },
+  "devToolsCopy": "Copy",
+  "@devToolsCopy": {
+    "description": "Button label that copies the current tab's entries to the clipboard."
+  },
+  "devToolsEvalHint": "Evaluate JavaScript...",
+  "@devToolsEvalHint": {
+    "description": "Hint text in the console JavaScript evaluation input."
+  },
+  "devToolsEvalPrevCommand": "Previous command",
+  "@devToolsEvalPrevCommand": {
+    "description": "Tooltip for the button recalling the previous evaluated command."
+  },
+  "devToolsEvalNextCommand": "Next command",
+  "@devToolsEvalNextCommand": {
+    "description": "Tooltip for the button recalling the next evaluated command."
+  },
+  "devToolsEvalRun": "Run",
+  "@devToolsEvalRun": {
+    "description": "Tooltip for the button that runs the entered JavaScript."
+  },
+  "devToolsCookiesEmpty": "No cookies",
+  "@devToolsCookiesEmpty": {
+    "description": "Empty-state text shown in the cookies tab when there are no cookies."
+  },
+  "devToolsRefresh": "Refresh",
+  "@devToolsRefresh": {
+    "description": "Button label that refreshes the cookie list."
+  },
+  "devToolsCopyAsJson": "Copy as JSON",
+  "@devToolsCopyAsJson": {
+    "description": "Button label that copies the cookie list as JSON."
+  },
+  "homeAddToHomeScreenTitle": "Add to Home Screen",
+  "@homeAddToHomeScreenTitle": {
+    "description": "Title of the dialog explaining how to add a site to the home screen on iOS"
+  },
+  "homeAddToHomeScreenIosBody": "iOS adds WebSpace sites through the Shortcuts app.\n\nIn Shortcuts, find the \"Open Site\" action under WebSpace, pick \"{name}\", then tap \"Add to Home Screen\" from the share menu.",
+  "@homeAddToHomeScreenIosBody": {
+    "description": "Body of the iOS add-to-home-screen instructional dialog",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeAddShortcutTitleMacos": "Add a Shortcut",
+  "@homeAddShortcutTitleMacos": {
+    "description": "Title of the dialog explaining how to add a site shortcut on macOS"
+  },
+  "homeAddShortcutMacosBody": "macOS adds WebSpace sites through the Shortcuts app.\n\nIn Shortcuts, find the \"Open Site\" action under WebSpace, pick \"{name}\", then add it to the Dock or run it from the menu bar.",
+  "@homeAddShortcutMacosBody": {
+    "description": "Body of the macOS add-shortcut instructional dialog",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeOpenShortcuts": "Open Shortcuts",
+  "@homeOpenShortcuts": {
+    "description": "Button that opens the iOS Shortcuts app"
+  },
+  "homeUnsupportedUrl": "Unsupported URL",
+  "@homeUnsupportedUrl": {
+    "description": "Snackbar shown when a shared URL cannot be parsed"
+  },
+  "homeUnsupportedShare": "Unsupported share: {reason}",
+  "@homeUnsupportedShare": {
+    "description": "Snackbar shown when a shared payload is unsupported",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSwitchedToAllToOpen": "Switched to All to open in {name}",
+  "@homeSwitchedToAllToOpen": {
+    "description": "Snackbar shown when the app switches to the All webspace to open a site",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeMoveSiteToArchiveTitle": "Move site to archive",
+  "@homeMoveSiteToArchiveTitle": {
+    "description": "Title of the passphrase dialog when moving a site into an archive"
+  },
+  "homeArchivePassphraseHint": "Archive passphrase",
+  "@homeArchivePassphraseHint": {
+    "description": "Hint text for the archive passphrase input field"
+  },
+  "homeMoveAction": "Move",
+  "@homeMoveAction": {
+    "description": "Button label confirming a move-to-archive action"
+  },
+  "homeCouldNotOpenArchive": "Could not open archive: {message}",
+  "@homeCouldNotOpenArchive": {
+    "description": "Snackbar shown when opening an archive fails",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "homeNoMatchingArchiveTitle": "No matching archive",
+  "@homeNoMatchingArchiveTitle": {
+    "description": "Title of the dialog shown when no archive matches the entered passphrase"
+  },
+  "homeNoMatchingArchiveMoveBody": "No archive exists for this passphrase. Create a new archive with it and move this site into it?",
+  "@homeNoMatchingArchiveMoveBody": {
+    "description": "Body of the dialog offering to create a new archive and move a site into it"
+  },
+  "homeCreateAction": "Create",
+  "@homeCreateAction": {
+    "description": "Button label that creates a new archive"
+  },
+  "homeCouldNotCreateArchive": "Could not create archive: {message}",
+  "@homeCouldNotCreateArchive": {
+    "description": "Snackbar shown when creating an archive fails",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSiteMovedToArchive": "Site moved to archive. You may need to re-set per-site preferences (theme, language) the first time it loads.",
+  "@homeSiteMovedToArchive": {
+    "description": "Snackbar confirming a site was moved into an archive"
+  },
+  "homeSiteMovedOutOfArchive": "Site moved out of archive",
+  "@homeSiteMovedOutOfArchive": {
+    "description": "Snackbar confirming a site was moved out of an archive"
+  },
+  "homeRestoreArchiveTitle": "Restore archive",
+  "@homeRestoreArchiveTitle": {
+    "description": "Title of the passphrase dialog when restoring an archive"
+  },
+  "homePassphraseHint": "Passphrase",
+  "@homePassphraseHint": {
+    "description": "Hint text for a passphrase input field"
+  },
+  "homeArchiveOpened": "Archive opened ({sites} sites, {webspaces} webspaces)",
+  "@homeArchiveOpened": {
+    "description": "Snackbar confirming an archive was opened, with counts",
+    "placeholders": {
+      "sites": {
+        "type": "int"
+      },
+      "webspaces": {
+        "type": "int"
+      }
+    }
+  },
+  "homeNoMatchingArchiveCreateBody": "No archive exists for this passphrase. Create a new archive with it?",
+  "@homeNoMatchingArchiveCreateBody": {
+    "description": "Body of the dialog offering to create a new archive"
+  },
+  "homeNewArchiveCreated": "New archive created",
+  "@homeNewArchiveCreated": {
+    "description": "Snackbar confirming a new archive was created"
+  },
+  "homeCouldNotOpen": "Could not open: {message}",
+  "@homeCouldNotOpen": {
+    "description": "Snackbar shown when opening an archive fails during restore",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "homeVerificationTitle": "Verification",
+  "@homeVerificationTitle": {
+    "description": "Title of the popup window shown for captcha/verification challenges"
+  },
+  "homeLoadExternalScriptTitle": "Load external script?",
+  "@homeLoadExternalScriptTitle": {
+    "description": "Title of the dialog confirming whether to load an external user script"
+  },
+  "homeLoadExternalScriptBody": "A user script wants to load:\n\n{url}\n\nThis URL is not on the trusted CDN list. Allow?",
+  "@homeLoadExternalScriptBody": {
+    "description": "Body of the external script load confirmation dialog",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "homeDenyAction": "Deny",
+  "@homeDenyAction": {
+    "description": "Button label to deny an external script load"
+  },
+  "homeAllowAction": "Allow",
+  "@homeAllowAction": {
+    "description": "Button label to allow an action"
+  },
+  "homePlayProtectedContentTitle": "Play protected content?",
+  "@homePlayProtectedContentTitle": {
+    "description": "Title of the DRM/protected content permission dialog"
+  },
+  "homePlayProtectedContentBody": "{origin} wants to play protected (DRM) content.\n\nAllowing this lets the site provision a device identifier to decrypt the media. Your choice is remembered for this site.",
+  "@homePlayProtectedContentBody": {
+    "description": "Body of the protected content permission dialog",
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
+  },
+  "homeBlockAction": "Block",
+  "@homeBlockAction": {
+    "description": "Button label to block protected content playback"
+  },
+  "homeExitFullscreenHint": "Tap the top of the screen to exit full screen",
+  "@homeExitFullscreenHint": {
+    "description": "Snackbar hint shown when entering fullscreen mode"
+  },
+  "homeCannotDeleteAllWebspace": "Cannot delete the \"All\" webspace",
+  "@homeCannotDeleteAllWebspace": {
+    "description": "Snackbar shown when the user tries to delete the All webspace"
+  },
+  "homeDeleteWebspaceTitle": "Delete Webspace",
+  "@homeDeleteWebspaceTitle": {
+    "description": "Title of the delete-webspace confirmation dialog"
+  },
+  "homeDeleteWebspaceConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@homeDeleteWebspaceConfirm": {
+    "description": "Body of the delete-webspace confirmation dialog",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeIncludeOpenArchivesTitle": "Include open archives?",
+  "@homeIncludeOpenArchivesTitle": {
+    "description": "Title of the dialog asking whether to include open archives in a backup"
+  },
+  "homeIncludeOpenArchivesBody": "You have {count} archive(s) open. Include them in this backup? They stay encrypted, but the file will reveal that archived data exists.",
+  "@homeIncludeOpenArchivesBody": {
+    "description": "Body of the include-open-archives dialog",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeExcludeAction": "Exclude",
+  "@homeExcludeAction": {
+    "description": "Button label to exclude archives from a backup"
+  },
+  "homeIncludeAction": "Include",
+  "@homeIncludeAction": {
+    "description": "Button label to include archives in a backup"
+  },
+  "homeImportSettingsTitle": "Import Settings",
+  "@homeImportSettingsTitle": {
+    "description": "Title of the import-settings confirmation dialog"
+  },
+  "homeImportSettingsConfirm": "Import {sites} site(s) and {webspaces} webspace(s)?",
+  "@homeImportSettingsConfirm": {
+    "description": "Body asking the user to confirm importing a backup, with counts",
+    "placeholders": {
+      "sites": {
+        "type": "int"
+      },
+      "webspaces": {
+        "type": "int"
+      }
+    }
+  },
+  "homeImportExportedLabel": "Exported: {date}",
+  "@homeImportExportedLabel": {
+    "description": "Label showing when a backup file was exported",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "homeImportSettingsSessionsNote": "Your login sessions will be preserved for matching domains. Logins for removed sites will be cleared.",
+  "@homeImportSettingsSessionsNote": {
+    "description": "Note in the import dialog explaining how login sessions are handled"
+  },
+  "homeImportAction": "Import",
+  "@homeImportAction": {
+    "description": "Button label confirming a settings import"
+  },
+  "homeImportProxyPasswordsHint": "Proxy passwords aren't included in backups — re-enter them in site / app settings.",
+  "@homeImportProxyPasswordsHint": {
+    "description": "Hint appended to the import-success snackbar when proxy passwords were stripped"
+  },
+  "homeImportBlocklistRedownloadHint": "Re-download DNS / content blocker lists in App Settings to activate blocking.",
+  "@homeImportBlocklistRedownloadHint": {
+    "description": "Hint appended to the import-success snackbar when blocklists need re-downloading"
+  },
+  "homeSettingsImportedSuccess": "Settings imported successfully",
+  "@homeSettingsImportedSuccess": {
+    "description": "Snackbar shown after a successful settings import with no follow-up hints"
+  },
+  "homeSettingsImportedWithHints": "Settings imported. {hints}",
+  "@homeSettingsImportedWithHints": {
+    "description": "Snackbar shown after settings import with follow-up hints appended",
+    "placeholders": {
+      "hints": {
+        "type": "String"
+      }
+    }
+  },
+  "homeRestoreArchivedDataTitle": "Restore archived data",
+  "@homeRestoreArchivedDataTitle": {
+    "description": "Title of the passphrase dialog when restoring archived data sections from a backup"
+  },
+  "homePassphraseCancelToSkipHint": "Passphrase (cancel to skip)",
+  "@homePassphraseCancelToSkipHint": {
+    "description": "Hint text for the passphrase field when restoring archived backup sections"
+  },
+  "homeRestoreAction": "Restore",
+  "@homeRestoreAction": {
+    "description": "Button label confirming restore of archived data"
+  },
+  "homeRestoredArchivedSections": "Restored {count} archived section(s)",
+  "@homeRestoredArchivedSections": {
+    "description": "Snackbar confirming how many archived sections were restored",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeNoSectionMatchedPassphrase": "No section matched that passphrase",
+  "@homeNoSectionMatchedPassphrase": {
+    "description": "Snackbar shown when no archived section matched the entered passphrase"
+  },
+  "homeNoWebspaceSelected": "No Webspace Selected",
+  "@homeNoWebspaceSelected": {
+    "description": "App bar title shown when no webspace is selected"
+  },
+  "homeAppSettingsTooltip": "App Settings",
+  "@homeAppSettingsTooltip": {
+    "description": "Tooltip for the app settings button"
+  },
+  "homeArchivesClosed": "Archives closed",
+  "@homeArchivesClosed": {
+    "description": "Snackbar confirming all archives were closed"
+  },
+  "homeGoBackTooltip": "Go Back",
+  "@homeGoBackTooltip": {
+    "description": "Tooltip for the back navigation button"
+  },
+  "homeGoToHomeTooltip": "Go to Home",
+  "@homeGoToHomeTooltip": {
+    "description": "Tooltip for the home navigation button"
+  },
+  "homeStopTooltip": "Stop",
+  "@homeStopTooltip": {
+    "description": "Tooltip for the stop-loading button"
+  },
+  "homeRefreshTooltip": "Refresh",
+  "@homeRefreshTooltip": {
+    "description": "Tooltip for the refresh button"
+  },
+  "homeFindMenu": "Find",
+  "@homeFindMenu": {
+    "description": "Menu item to open the find-in-page toolbar"
+  },
+  "homeHideUrlBarMenu": "Hide URL Bar",
+  "@homeHideUrlBarMenu": {
+    "description": "Menu item to hide the URL bar"
+  },
+  "homeShowUrlBarMenu": "Show URL Bar",
+  "@homeShowUrlBarMenu": {
+    "description": "Menu item to show the URL bar"
+  },
+  "homeFullScreenMenu": "Full Screen",
+  "@homeFullScreenMenu": {
+    "description": "Menu item to enter fullscreen mode"
+  },
+  "homeExitFullScreenMenu": "Exit Full Screen",
+  "@homeExitFullScreenMenu": {
+    "description": "Menu item to exit fullscreen mode (shown when already fullscreen)"
+  },
+  "homeSettingsMenu": "Settings",
+  "@homeSettingsMenu": {
+    "description": "Menu item to open per-site settings"
+  },
+  "homeDeveloperToolsMenu": "Developer Tools",
+  "@homeDeveloperToolsMenu": {
+    "description": "Menu item to open developer tools"
+  },
+  "homeHomeShortcutMenu": "Home Shortcut",
+  "@homeHomeShortcutMenu": {
+    "description": "Menu item to add a home screen shortcut"
+  },
+  "homeMenuTooltip": "Menu",
+  "@homeMenuTooltip": {
+    "description": "Tooltip for the overflow menu button"
+  },
+  "homeThemeModeSystem": "System",
+  "@homeThemeModeSystem": {
+    "description": "Name of the system theme mode, used in the theme toggle tooltip"
+  },
+  "homeThemeModeLight": "Light",
+  "@homeThemeModeLight": {
+    "description": "Name of the light theme mode, used in the theme toggle tooltip"
+  },
+  "homeThemeModeDark": "Dark",
+  "@homeThemeModeDark": {
+    "description": "Name of the dark theme mode, used in the theme toggle tooltip"
+  },
+  "homeThemeColorBlue": "Blue",
+  "@homeThemeColorBlue": {
+    "description": "Name of the blue accent color, used in the theme toggle tooltip"
+  },
+  "homeThemeColorGreen": "Green",
+  "@homeThemeColorGreen": {
+    "description": "Name of the green accent color, used in the theme toggle tooltip"
+  },
+  "homeThemeTooltip": "{mode} {color} theme",
+  "@homeThemeTooltip": {
+    "description": "Tooltip for the theme toggle button combining mode and accent color names",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      },
+      "color": {
+        "type": "String"
+      }
+    }
+  },
+  "homeEditSiteTitle": "Edit Site",
+  "@homeEditSiteTitle": {
+    "description": "Title of the edit-site dialog"
+  },
+  "homeSiteNameLabel": "Site Name",
+  "@homeSiteNameLabel": {
+    "description": "Label for the site name input field"
+  },
+  "homeSiteNameHint": "Enter a custom name",
+  "@homeSiteNameHint": {
+    "description": "Hint text for the site name input field"
+  },
+  "homeUrlLabel": "URL",
+  "@homeUrlLabel": {
+    "description": "Label for the site URL input field"
+  },
+  "homeUrlSchemeTip": "Tip: Include http:// for HTTP sites, or leave it out for HTTPS",
+  "@homeUrlSchemeTip": {
+    "description": "Tip below the URL field explaining scheme inference"
+  },
+  "homeRefreshTitleAndIcon": "Refresh Title & Icon",
+  "@homeRefreshTitleAndIcon": {
+    "description": "Context menu item to refresh a site's title and favicon"
+  },
+  "homeMoveUp": "Move Up",
+  "@homeMoveUp": {
+    "description": "Context menu item to move a site up in the list"
+  },
+  "homeMoveDown": "Move Down",
+  "@homeMoveDown": {
+    "description": "Context menu item to move a site down in the list"
+  },
+  "homeMoveToArchive": "Move to archive",
+  "@homeMoveToArchive": {
+    "description": "Context menu item to move a site into an archive"
+  },
+  "homeMoveOutOfArchive": "Move out of archive",
+  "@homeMoveOutOfArchive": {
+    "description": "Context menu item to move a site out of an archive"
+  },
+  "homeCloseArchive": "Close archive",
+  "@homeCloseArchive": {
+    "description": "Context menu item to close the archive owning a site"
+  },
+  "homeArchiveClosed": "Archive closed",
+  "@homeArchiveClosed": {
+    "description": "Snackbar confirming an archive was closed"
+  },
+  "homeTitleUpdatedTo": "Title updated to: {title}",
+  "@homeTitleUpdatedTo": {
+    "description": "Snackbar confirming a site's title was refreshed",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "homeDeleteSiteTitle": "Delete Site",
+  "@homeDeleteSiteTitle": {
+    "description": "Title of the delete-site confirmation dialog"
+  },
+  "homeDeleteSiteConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@homeDeleteSiteConfirm": {
+    "description": "Body of the delete-site confirmation dialog",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeNoWebspace": "No webspace",
+  "@homeNoWebspace": {
+    "description": "Drawer header label shown when no webspace is selected"
+  },
+  "homeBackToWebspaces": "Back to Webspaces",
+  "@homeBackToWebspaces": {
+    "description": "Label and accessibility hint for the button returning to the webspaces list"
+  },
+  "homeSelectWebspaceToViewSites": "Select a webspace to view sites",
+  "@homeSelectWebspaceToViewSites": {
+    "description": "Empty state shown in the drawer when no webspace is selected"
+  },
+  "homeNoSitesInWebspace": "No sites in this webspace",
+  "@homeNoSitesInWebspace": {
+    "description": "Empty state shown when the selected webspace contains no sites"
+  },
+  "homeAddSite": "Add Site",
+  "@homeAddSite": {
+    "description": "Label for the button that adds a new site"
+  },
+  "homeDispatchSendToWhichSite": "Send {host} to which site?",
+  "@homeDispatchSendToWhichSite": {
+    "description": "Title of the link dispatch picker in bind mode",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "homeDispatchOpenHost": "Open {host}",
+  "@homeDispatchOpenHost": {
+    "description": "Title of the link dispatch picker when choosing how to open a host",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "homeBackAction": "Back",
+  "@homeBackAction": {
+    "description": "Button label returning to the previous step of the dispatch picker"
+  },
+  "homeDispatchOpenInSite": "Open in {name}",
+  "@homeDispatchOpenInSite": {
+    "description": "List item that opens a link in an existing site",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeDispatchSendToSite": "Send {host} (and subdomains) to a site",
+  "@homeDispatchSendToSite": {
+    "description": "List item to bind a host and its subdomains to a site",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "homeDispatchPickExistingSite": "Pick an existing site to handle this domain",
+  "@homeDispatchPickExistingSite": {
+    "description": "Subtitle explaining the bind-to-site option"
+  },
+  "homeDispatchCreateNewSite": "Create new site for {host}",
+  "@homeDispatchCreateNewSite": {
+    "description": "List item to create a new site for a host",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "homeDispatchNoExistingSites": "No existing sites.",
+  "@homeDispatchNoExistingSites": {
+    "description": "Empty state shown in the dispatch bind picker when there are no sites"
+  },
+  "devToolsConsoleCopied": "{count, plural, =1{Copied 1 console log} other{Copied {count} console logs}}",
+  "@devToolsConsoleCopied": {
+    "description": "Snackbar after copying console log entries to the clipboard.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devToolsCookiesBlockedHeader": "Blocked ({count})",
+  "@devToolsCookiesBlockedHeader": {
+    "description": "Header for the blocked-cookies section in the cookie inspector, with a count.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devToolsCookiesCopiedJson": "{count, plural, =1{Copied 1 cookie as JSON} other{Copied {count} cookies as JSON}}",
+  "@devToolsCookiesCopiedJson": {
+    "description": "Snackbar after copying cookies as JSON to the clipboard.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "devToolsCookieDeleted": "Deleted cookie \"{name}\"",
+  "@devToolsCookieDeleted": {
+    "description": "Snackbar after deleting a cookie.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "devToolsCookieUnblocked": "Unblocked cookie \"{name}\"",
+  "@devToolsCookieUnblocked": {
+    "description": "Snackbar after unblocking a previously blocked cookie.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }
