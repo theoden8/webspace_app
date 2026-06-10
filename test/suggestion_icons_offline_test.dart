@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -47,6 +48,27 @@ void main() {
       expect(monogramLetter(label: 'Claude', host: 'claude.ai'), 'C');
       expect(monogramLetter(label: '  ', host: 'github.com'), 'G');
       expect(monogramLetter(label: null, host: '123.example'), '1');
+    });
+
+    test('every bundled host belongs to a curated suggestion', () {
+      final curated = kDefaultSuggestions
+          .map((s) => normalizeIconHost(Uri.parse(s.url).host))
+          .toSet();
+      for (final host in kBundledIconHosts) {
+        expect(curated, contains(host),
+            reason: '$host is bundled but not a curated suggestion');
+      }
+    });
+
+    testWidgets('every bundled host has a loadable committed asset',
+        (tester) async {
+      for (final host in kBundledIconHosts) {
+        final path = bundledIconAssetFor(host);
+        expect(path, isNotNull, reason: '$host has no asset path');
+        final data = await rootBundle.load(path!);
+        expect(data.lengthInBytes, greaterThan(0),
+            reason: '$path is empty or unregistered');
+      }
     });
   });
 

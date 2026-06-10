@@ -11,9 +11,9 @@
 
 - [x] 1.1 Deterministic host-based asset key (`normalizeIconHost`) + unit test asserting `kDefaultSuggestions` keys are unique
 - [x] 1.2 `scripts/regen_suggested_icons.sh` developer-run runner; documented as never called by the build
-- [ ] 1.3 Run the regenerator and commit assets under `assets/suggested_icons/` (DEFERRED — pending decision on bundling real logos vs monogram-only; trademark/licensing consideration)
-- [ ] 1.4 Register `assets/suggested_icons/` in `pubspec.yaml` (DEFERRED — only valid once 1.3 produces assets; empty asset dir breaks the build)
-- [x] 1.5 Coverage via monogram fallback: every suggestion renders offline with no network whether or not a bundled asset exists (zero-network test below). A "committed asset per suggestion" assertion is deferred with 1.3.
+- [x] 1.3 Committed real favicons for the FOSS/community subset under `assets/suggested_icons/` (bsky, codeberg, gitea, gitlab, huggingface, mastodon). Big corporate brands stay monogram (trademark). Mattermost stays monogram (no PNG source without a converter).
+- [x] 1.4 Registered `assets/suggested_icons/` in `pubspec.yaml`
+- [x] 1.5 Tests: every suggestion renders offline (asset or monogram) with no network; every bundled host is a curated suggestion with a loadable committed asset
 
 ## 2. Offline read path
 

@@ -20,7 +20,14 @@ import 'package:flutter/material.dart';
 /// Populated by `scripts/regen_suggested_icons.sh`. Empty means every
 /// suggestion renders as a monogram. Keep entries lowercase and `www.`-stripped
 /// to match [normalizeIconHost].
-const Set<String> kBundledIconHosts = {};
+const Set<String> kBundledIconHosts = {
+  'bsky.app',
+  'codeberg.org',
+  'gitea.com',
+  'gitlab.com',
+  'huggingface.co',
+  'mastodon.social',
+};
 
 const String _assetDir = 'assets/suggested_icons';
 

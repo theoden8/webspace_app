@@ -20,7 +20,7 @@ The default suggested sites list SHALL be identical across all build flavors. Be
 
 ### Requirement: SUGGEST-007 - Suggestions List Makes No Network Requests
 
-Rendering the suggested sites list SHALL make zero outbound icon requests. Tiles SHALL resolve icons through the offline read path (ICON-009), which consults bundled assets and caches only and never contacts the outbound HTTP factory. Network fetching SHALL occur only when a suggestion or custom site is added (ICON-010), not while viewing the list.
+Rendering the suggested sites list SHALL make zero outbound icon requests. Each tile SHALL resolve its icon from local sources only: a committed bundled asset when one exists for the host, otherwise a locally-rendered monogram. The list SHALL never contact the outbound HTTP factory. Network fetching SHALL occur only when a suggestion or custom site is added (ICON-010), via the normal online icon widget on the main grid, not while viewing the suggestions list.
 
 #### Scenario: Opening the suggestions list contacts no third party
 
@@ -29,12 +29,19 @@ Rendering the suggested sites list SHALL make zero outbound icon requests. Tiles
 **Then** the factory is never asked for a client
 **And** no request reaches DuckDuckGo, Google, or any site favicon endpoint
 
-#### Scenario: Every curated suggestion has a bundled icon asset
+#### Scenario: Suggestion without a bundled asset renders a monogram
 
-**Given** the curated default suggestions (`kDefaultSuggestions`)
-**When** the bundled asset set under `assets/suggested_icons/` is enumerated
-**Then** every curated suggestion maps to a committed asset
-**And** no curated suggestion falls through to a placeholder for lack of an asset
+**Given** a curated suggestion whose host is not in `kBundledIconHosts`
+**When** the suggestions list renders its tile
+**Then** a host-colored monogram is shown
+**And** no network request is issued
+
+#### Scenario: Bundled hosts are a subset of the curated suggestions
+
+**Given** the bundled hosts (`kBundledIconHosts`)
+**When** each is matched against the curated suggestion hosts
+**Then** every bundled host corresponds to a curated suggestion
+**And** every bundled host has a committed, loadable asset under `assets/suggested_icons/`
 
 ### Requirement: SUGGEST-008 - Bundled Suggestion Icons Are Committed, Not Built
 
