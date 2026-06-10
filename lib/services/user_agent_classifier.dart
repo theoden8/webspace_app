@@ -75,17 +75,42 @@ String navigatorPlatformFor(DesktopUaPlatform p) {
   }
 }
 
-/// Canonical Firefox desktop UA strings, exposed as named constants so
-/// tests have stable fixtures and so the same shape is reachable from
-/// any future caller that wants to seed the per-site UA field with a
-/// known-good desktop UA. Versioned to stay reasonably close to current
-/// Firefox; the rendered shape matches the project's existing
-/// `generateRandomUserAgent()` output.
+/// Major Firefox version baked into the build as the offline fallback.
+/// [FirefoxUserAgentService] overrides it at runtime once it scrapes the
+/// current release version from Firefox source; until then — and whenever
+/// the scrape fails or the network is unreachable — UA strings render with
+/// this version. It also acts as a floor: a scraped version older than this
+/// is ignored, so app upgrades never regress the UA.
+const int kDefaultFirefoxMajorVersion = 151;
+
+/// The OS descriptor (parenthetical token) for each Firefox desktop UA.
+const String kFirefoxLinuxPlatformToken = 'X11; Linux x86_64';
+const String kFirefoxMacosPlatformToken = 'Macintosh; Intel Mac OS X 10_15_7';
+const String kFirefoxWindowsPlatformToken = 'Windows NT 10.0; Win64; x64';
+
+/// Render a Firefox version number (e.g. `"151.0"`) from a [major] version.
+/// Firefox freezes the minor at `.0` in the UA regardless of point release.
+String firefoxVersionString(int major) => '$major.0';
+
+/// Build a Firefox UA string for an OS [platformToken] (the parenthetical
+/// system descriptor, e.g. `"X11; Linux x86_64"`) at the given [version]
+/// (e.g. `"151.0"`). Single source of truth for the rendered UA shape, used
+/// both for the canonical constants below and by [FirefoxUserAgentService]
+/// to render UAs at the scraped current version.
+String buildFirefoxUserAgent(String platformToken, String version) =>
+    'Mozilla/5.0 ($platformToken; rv:$version) Gecko/20100101 Firefox/$version';
+
+/// Canonical Firefox desktop UA strings at [kDefaultFirefoxMajorVersion],
+/// exposed as named constants so tests have stable fixtures and so any
+/// caller wanting a known-good desktop UA without the runtime service can
+/// reach one. Built from the same shape [buildFirefoxUserAgent] renders.
+const String _kDefaultFirefoxVersion = '$kDefaultFirefoxMajorVersion.0';
 const String firefoxLinuxDesktopUserAgent =
-    'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0';
+    'Mozilla/5.0 ($kFirefoxLinuxPlatformToken; rv:$_kDefaultFirefoxVersion) '
+    'Gecko/20100101 Firefox/$_kDefaultFirefoxVersion';
 const String firefoxMacosDesktopUserAgent =
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:151.0) '
-    'Gecko/20100101 Firefox/151.0';
+    'Mozilla/5.0 ($kFirefoxMacosPlatformToken; rv:$_kDefaultFirefoxVersion) '
+    'Gecko/20100101 Firefox/$_kDefaultFirefoxVersion';
 const String firefoxWindowsDesktopUserAgent =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) '
-    'Gecko/20100101 Firefox/151.0';
+    'Mozilla/5.0 ($kFirefoxWindowsPlatformToken; rv:$_kDefaultFirefoxVersion) '
+    'Gecko/20100101 Firefox/$_kDefaultFirefoxVersion';

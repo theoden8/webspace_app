@@ -223,11 +223,63 @@ manufacture a fake brand list when the user has not chosen a UA.
 
 ---
 
+### Requirement: DM-004 — Generated UAs track the current Firefox version
+
+The Firefox version rendered into generated User-Agents (the randomize
+button and the canonical desktop UA getters) SHALL be obtained by scraping
+the current release version from Firefox source at runtime, rather than
+fixed at app-release time. The scrape result is cached and persisted; when
+the network is unreachable or the scrape fails, the bundled
+`kDefaultFirefoxMajorVersion` is used. The cached version only moves
+forward — a scraped value below the bundled floor is ignored, so an app
+upgrade never regresses the UA.
+
+The scrape is off the startup critical path (cached version loads
+synchronously at launch; the network fetch runs fire-and-forget after the
+outbound proxy is initialized) and is throttled to at most once per week.
+It routes through the app-global outbound proxy and fails closed (no direct
+fallback) when the proxy cannot be honored.
+
+Sources, tried in order:
+1. `hg.mozilla.org/releases/mozilla-release/.../browser/config/version_display.txt`
+   — the canonical source file (user-facing release version).
+2. `product-details.mozilla.org/1.0/firefox_versions.json`
+   (`LATEST_FIREFOX_VERSION`) — Mozilla's machine-readable fallback.
+
+Only the major version is used; Firefox freezes the UA minor at `.0`
+regardless of point release.
+
+#### Scenario: Newer version scraped → adopted and persisted
+
+**Given** the bundled default major version is `N`
+**And** the source file reports `M.0` with `M > N`
+**When** the version is refreshed
+**Then** generated UAs render `Firefox/M.0` and `rv:M.0`
+**And** the value is persisted for the next launch
+
+#### Scenario: Source file unreachable → product-details fallback
+
+**Given** the source file request fails (non-200 or network error)
+**And** product-details reports `LATEST_FIREFOX_VERSION`
+**When** the version is refreshed
+**Then** the product-details version is adopted
+
+#### Scenario: Offline / older / garbage → bundled floor holds
+
+**Given** both sources fail, or report a version older than the bundled
+floor, or return a non-numeric / out-of-range body
+**When** the version is refreshed
+**Then** generated UAs keep rendering the bundled `kDefaultFirefoxMajorVersion`
+
+---
+
 ## Files
 
 | File | Role |
 |------|------|
-| `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, canonical Firefox desktop UA constants |
+| `lib/services/user_agent_classifier.dart` | `isDesktopUserAgent`, `inferDesktopUaPlatform`, `navigatorPlatformFor`, `buildFirefoxUserAgent`, canonical Firefox desktop UA constants + `kDefaultFirefoxMajorVersion` |
+| `lib/services/firefox_user_agent_service.dart` | Scrapes + caches the current Firefox release version; renders generated UAs at that version |
+| `test/firefox_user_agent_service_test.dart` | Coverage for version parsing, UA rendering, and the scrape/cache/floor behavior |
 | `lib/services/desktop_mode_shim.dart` | `buildDesktopModeShim(userAgent)` — JS source for AT_DOCUMENT_START injection |
 | `lib/services/user_agent_metadata_builder.dart` | `buildUserAgentMetadata(userAgent)` — UA-CH override mapped 1:1 with the spoofed UA. Wired through to `WebSettingsCompat.setUserAgentMetadata` on Android via the fork's `InAppWebViewSettings.userAgentMetadata`. |
 | `lib/services/webview.dart` | `createWebView`: injects shim, sets `preferredContentMode`, and assigns `userAgentMetadata` from the per-site UA |

@@ -65,6 +65,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
@@ -633,6 +634,7 @@ void main() async {
       () => _runTimed('html', htmlInit),
       () => _runTimed('clearUrl', ClearUrlService.instance.initialize),
       () => _runTimed('dns', DnsBlockService.instance.initialize),
+      () => _runTimed('firefoxUa', FirefoxUserAgentService.instance.initialize),
       () => _runTimed('adblock', ContentBlockerService.instance.initialize),
       () => _runTimed('localCdn', LocalCdnService.instance.initialize),
       if (Platform.isAndroid)
@@ -790,6 +792,10 @@ void main() async {
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
   await _runTimed('proxyInit', GlobalOutboundProxy.initialize);
+  // Refresh the Firefox version by scraping Firefox source, off the startup
+  // path and through the now-initialized outbound proxy. Throttled to once a
+  // week; failures keep the cached/bundled version.
+  unawaited(FirefoxUserAgentService.instance.refreshIfStale());
   // Hydrate user-approved TLS exceptions so a self-signed site the user
   // already trusted in a previous session loads without a prompt — and
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon
