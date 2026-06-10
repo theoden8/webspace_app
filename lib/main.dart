@@ -8,6 +8,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show InAppWebViewController, ServiceWorkerController, SslCertificate;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -782,7 +784,9 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
   Widget build(BuildContext context) {
     final Color accentColor = _accentColorToColor(_themeSettings.accentColor);
     return MaterialApp(
-      title: 'WebSpace',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: ThemeData(
         colorScheme: _buildAccentColorScheme(accentColor, Brightness.light),

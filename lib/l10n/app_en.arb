@@ -1,0 +1,87 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "WebSpace",
+  "@appTitle": {
+    "description": "Application name shown as the OS window / task-switcher title. Brand name; normally left untranslated."
+  },
+
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Generic dialog button that dismisses the dialog without applying any change."
+  },
+
+  "trustedCertScreenTitle": "Trusted certificates",
+  "@trustedCertScreenTitle": {
+    "description": "AppBar title for the screen listing TLS certificates the user has manually approved (pinned)."
+  },
+
+  "trustedCertRevokeAllTooltip": "Revoke all",
+  "@trustedCertRevokeAllTooltip": {
+    "description": "Tooltip on the AppBar action that removes every pinned certificate at once."
+  },
+
+  "trustedCertRevokeAllDialogTitle": "Revoke all trust?",
+  "@trustedCertRevokeAllDialogTitle": {
+    "description": "Title of the confirmation dialog shown before removing every pinned certificate."
+  },
+
+  "trustedCertRevokeAllDialogBody": "Every pinned certificate is removed. Self-signed sites you use will re-prompt on next visit.",
+  "@trustedCertRevokeAllDialogBody": {
+    "description": "Body of the confirmation dialog for removing every pinned certificate."
+  },
+
+  "trustedCertRevokeAllConfirm": "Revoke all",
+  "@trustedCertRevokeAllConfirm": {
+    "description": "Confirm button in the revoke-all dialog that removes every pinned certificate."
+  },
+
+  "trustedCertRevokeDialogTitle": "Revoke trust?",
+  "@trustedCertRevokeDialogTitle": {
+    "description": "Title of the confirmation dialog shown before removing one pinned certificate."
+  },
+
+  "trustedCertRevokeDialogBody": "The next visit to {host}:{port} will prompt again before loading. Network requests outside the webview (favicons, downloads) for this host will also fail until re-approved.",
+  "@trustedCertRevokeDialogBody": {
+    "description": "Body of the confirmation dialog for removing one pinned certificate; names the affected host and port.",
+    "placeholders": {
+      "host": { "type": "String", "example": "example.com" },
+      "port": { "type": "int", "example": "443" }
+    }
+  },
+
+  "trustedCertRevokeConfirm": "Revoke",
+  "@trustedCertRevokeConfirm": {
+    "description": "Confirm button that removes a single pinned certificate."
+  },
+
+  "trustedCertEmptyTitle": "No trusted certificates yet.",
+  "@trustedCertEmptyTitle": {
+    "description": "Heading shown when the user has not approved any self-signed / untrusted certificates."
+  },
+
+  "trustedCertEmptyBody": "When you visit a site with a self-signed or otherwise-untrusted certificate, you can choose \"Trust this site\". The decision is stored here and the prompt does not re-appear unless the certificate changes.",
+  "@trustedCertEmptyBody": {
+    "description": "Explanatory body shown when no certificates have been approved yet."
+  },
+
+  "trustedCertFingerprintLabel": "SHA-256",
+  "@trustedCertFingerprintLabel": {
+    "description": "Label above the SHA-256 certificate fingerprint of a pinned entry."
+  },
+
+  "trustedCertCopyTooltip": "Copy fingerprint",
+  "@trustedCertCopyTooltip": {
+    "description": "Tooltip on the button that copies a certificate fingerprint to the clipboard."
+  },
+
+  "trustedCertCopied": "Fingerprint copied",
+  "@trustedCertCopied": {
+    "description": "Snackbar confirmation shown after copying a certificate fingerprint."
+  },
+
+  "trustedCertRevokeTooltip": "Revoke",
+  "@trustedCertRevokeTooltip": {
+    "description": "Tooltip on the per-entry button that removes one pinned certificate."
+  }
+}

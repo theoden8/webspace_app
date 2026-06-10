@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 
 /// Lists every (host, port, sha256) the user has approved via the
@@ -37,24 +38,22 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
   }
 
   Future<void> _untrust(TrustedHostEntry entry) async {
+    final loc = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Revoke trust?'),
+        title: Text(loc.trustedCertRevokeDialogTitle),
         content: Text(
-          'The next visit to ${entry.host}:${entry.port} will prompt '
-          'again before loading. Network requests outside the webview '
-          '(favicons, downloads) for this host will also fail until '
-          're-approved.',
+          loc.trustedCertRevokeDialogBody(entry.host, entry.port),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Revoke'),
+            child: Text(loc.trustedCertRevokeConfirm),
           ),
         ],
       ),
@@ -71,22 +70,20 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
   }
 
   Future<void> _confirmClearAll() async {
+    final loc = AppLocalizations.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Revoke all trust?'),
-        content: const Text(
-          'Every pinned certificate is removed. Self-signed sites you '
-          'use will re-prompt on next visit.',
-        ),
+        title: Text(loc.trustedCertRevokeAllDialogTitle),
+        content: Text(loc.trustedCertRevokeAllDialogBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Revoke all'),
+            child: Text(loc.trustedCertRevokeAllConfirm),
           ),
         ],
       ),
@@ -111,13 +108,14 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trusted certificates'),
+        title: Text(loc.trustedCertScreenTitle),
         actions: [
           if (_entries.isNotEmpty)
             IconButton(
-              tooltip: 'Revoke all',
+              tooltip: loc.trustedCertRevokeAllTooltip,
               icon: const Icon(Icons.delete_sweep),
               onPressed: _confirmClearAll,
             ),
@@ -136,17 +134,13 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
                       color: Theme.of(context).colorScheme.outline,
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'No trusted certificates yet.',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    Text(
+                      loc.trustedCertEmptyTitle,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'When you visit a site with a self-signed or '
-                      'otherwise-untrusted certificate, you can choose '
-                      '"Trust this site". The decision is stored here '
-                      'and the prompt does not re-appear unless the '
-                      'certificate changes.',
+                      loc.trustedCertEmptyBody,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.outline,
@@ -163,17 +157,18 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
               itemBuilder: (context, index) {
                 final entry = _entries[index];
                 final formatted = _formatFingerprint(entry.sha256Hex);
+                final hostPort = '${entry.host}:${entry.port}';
                 return ListTile(
                   leading: const Icon(Icons.lock_outline),
-                  title: Text('${entry.host}:${entry.port}'),
+                  title: Text(hostPort),
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'SHA-256',
-                          style: TextStyle(
+                        Text(
+                          loc.trustedCertFingerprintLabel,
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -192,20 +187,20 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        tooltip: 'Copy fingerprint',
+                        tooltip: loc.trustedCertCopyTooltip,
                         icon: const Icon(Icons.copy, size: 18),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: formatted));
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Fingerprint copied'),
-                              duration: Duration(seconds: 2),
+                            SnackBar(
+                              content: Text(loc.trustedCertCopied),
+                              duration: const Duration(seconds: 2),
                             ),
                           );
                         },
                       ),
                       IconButton(
-                        tooltip: 'Revoke',
+                        tooltip: loc.trustedCertRevokeTooltip,
                         icon: const Icon(Icons.delete_outline),
                         onPressed: () => _untrust(entry),
                       ),
