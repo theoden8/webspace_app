@@ -83,5 +83,166 @@
   "trustedCertRevokeTooltip": "Revoke",
   "@trustedCertRevokeTooltip": {
     "description": "Tooltip on the per-entry button that removes one pinned certificate."
+  },
+
+  "commonOk": "OK",
+  "@commonOk": { "description": "Generic dialog button that confirms / acknowledges." },
+
+  "statsBannerBlocked": "{count} blocked",
+  "@statsBannerBlocked": {
+    "description": "Stats banner label: how many requests were blocked for the site.",
+    "placeholders": { "count": { "type": "int", "example": "42" } }
+  },
+  "statsBannerAllowed": "{count} allowed",
+  "@statsBannerAllowed": {
+    "description": "Stats banner label: how many requests were allowed for the site.",
+    "placeholders": { "count": { "type": "int", "example": "17" } }
+  },
+
+  "findToolbarSearchHint": "Search on page",
+  "@findToolbarSearchHint": {
+    "description": "Hint text in the find-in-page toolbar search field."
+  },
+
+  "urlBarHint": "Enter URL",
+  "@urlBarHint": {
+    "description": "Placeholder text in the address bar where the user types or pastes a URL."
+  },
+  "urlBarGoTooltip": "Go",
+  "@urlBarGoTooltip": {
+    "description": "Tooltip for the button that submits the typed URL and navigates to it."
+  },
+
+  "untrustedCertTitle": "Untrusted certificate",
+  "@untrustedCertTitle": {
+    "description": "Title of the dialog shown when a site's TLS certificate cannot be verified."
+  },
+  "untrustedCertBody": "The certificate for {host}:{port} could not be verified.",
+  "@untrustedCertBody": {
+    "description": "Body line of the untrusted certificate dialog naming the affected host and port.",
+    "placeholders": {
+      "host": { "type": "String", "example": "example.com" },
+      "port": { "type": "int", "example": "443" }
+    }
+  },
+  "untrustedCertWarning": "This is normal for self-signed sites you control. It can also indicate that someone is intercepting the connection — only proceed if you recognize this site.",
+  "@untrustedCertWarning": {
+    "description": "Security warning explaining why an untrusted certificate may appear and cautioning before proceeding."
+  },
+  "untrustedCertIssuedTo": "Issued to",
+  "@untrustedCertIssuedTo": {
+    "description": "Label for the certificate subject common name in the untrusted certificate dialog."
+  },
+  "untrustedCertIssuedBy": "Issued by",
+  "@untrustedCertIssuedBy": {
+    "description": "Label for the certificate issuer common name in the untrusted certificate dialog."
+  },
+  "untrustedCertExpires": "Expires",
+  "@untrustedCertExpires": {
+    "description": "Label for the certificate expiry date in the untrusted certificate dialog."
+  },
+  "untrustedCertSha256": "SHA-256",
+  "@untrustedCertSha256": {
+    "description": "Label for the certificate's SHA-256 fingerprint in the untrusted certificate dialog."
+  },
+  "untrustedCertTrustConfirm": "Trust this site",
+  "@untrustedCertTrustConfirm": {
+    "description": "Confirm button that approves proceeding with an untrusted certificate and pins it as trusted."
+  },
+
+  "downloadButtonRecentTooltip": "{count} recent downloads",
+  "@downloadButtonRecentTooltip": {
+    "description": "Tooltip on the downloads app-bar button when idle, showing the number of recent finished downloads.",
+    "placeholders": { "count": { "type": "int", "example": "3" } }
+  },
+  "downloadButtonActiveProgressTooltip": "{count} downloading — {percent}% ({done})",
+  "@downloadButtonActiveProgressTooltip": {
+    "description": "Tooltip on the downloads button while downloads are active and total size is known.",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" },
+      "percent": { "type": "String", "example": "57" },
+      "done": { "type": "String", "example": "1.2 MB" }
+    }
+  },
+  "downloadButtonActiveReceivedTooltip": "{count} downloading — {done} received",
+  "@downloadButtonActiveReceivedTooltip": {
+    "description": "Tooltip on the downloads button while downloads are active and total size is unknown.",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" },
+      "done": { "type": "String", "example": "1.2 MB" }
+    }
+  },
+  "downloadButtonSheetTitle": "Downloads",
+  "@downloadButtonSheetTitle": { "description": "Title of the downloads bottom sheet." },
+  "downloadButtonClearFinished": "Clear finished",
+  "@downloadButtonClearFinished": {
+    "description": "Button in the downloads sheet that removes all finished download entries."
+  },
+  "downloadButtonEmpty": "No downloads",
+  "@downloadButtonEmpty": {
+    "description": "Empty-state text shown in the downloads sheet when there are no downloads."
+  },
+  "downloadButtonSaved": "Saved",
+  "@downloadButtonSaved": {
+    "description": "Subtitle for a completed download whose saved file path is unknown."
+  },
+  "downloadButtonSavedToPath": "Saved • {path}",
+  "@downloadButtonSavedToPath": {
+    "description": "Subtitle for a completed download showing the path it was saved to.",
+    "placeholders": { "path": { "type": "String", "example": "/storage/emulated/0/Download/file.pdf" } }
+  },
+  "downloadButtonFailed": "Failed",
+  "@downloadButtonFailed": {
+    "description": "Subtitle for a download that failed with no specific error message."
+  },
+  "downloadButtonCancelled": "Cancelled",
+  "@downloadButtonCancelled": {
+    "description": "Subtitle for a download that was cancelled by the user."
+  },
+  "downloadButtonDismiss": "Dismiss",
+  "@downloadButtonDismiss": {
+    "description": "Tooltip on the button that dismisses a finished download entry from the list."
+  },
+  "downloadButtonBytesReceived": "{done} received",
+  "@downloadButtonBytesReceived": {
+    "description": "Subtitle for an in-progress download whose total size is unknown.",
+    "placeholders": { "done": { "type": "String", "example": "1.2 MB" } }
+  },
+
+  "externalUrlPromptTitle": "Open external app?",
+  "@externalUrlPromptTitle": {
+    "description": "Title of the dialog asking whether to hand a non-http URL to another app."
+  },
+  "externalUrlPromptBody": "This site wants to open:",
+  "@externalUrlPromptBody": {
+    "description": "Body line shown above the external URL the site is trying to open."
+  },
+  "externalUrlPromptPackage": "Package: {name}",
+  "@externalUrlPromptPackage": {
+    "description": "Shows the Android package name of the app the external URL targets.",
+    "placeholders": { "name": { "type": "String", "example": "com.example.maps" } }
+  },
+  "externalUrlPromptFallback": "Fallback URL: {url}",
+  "@externalUrlPromptFallback": {
+    "description": "Shows the http(s) fallback URL that opens in-browser instead of the external app.",
+    "placeholders": { "url": { "type": "String", "example": "https://example.com/page" } }
+  },
+  "externalUrlPromptOpenInBrowser": "Open in browser",
+  "@externalUrlPromptOpenInBrowser": {
+    "description": "Button to open the fallback URL inside the app's own webview instead of an external app."
+  },
+  "externalUrlPromptOpenInApp": "Open in app",
+  "@externalUrlPromptOpenInApp": {
+    "description": "Button to hand the external URL to the OS so another installed app opens it."
+  },
+  "externalUrlPromptNoAppAvailable": "No app available to open: {url}",
+  "@externalUrlPromptNoAppAvailable": {
+    "description": "Snackbar shown when no installed app can handle the external URL.",
+    "placeholders": { "url": { "type": "String", "example": "tel:+15551234" } }
+  },
+  "externalUrlPromptCouldNotOpen": "Could not open: {url}",
+  "@externalUrlPromptCouldNotOpen": {
+    "description": "Snackbar shown when launching the external URL threw an error.",
+    "placeholders": { "url": { "type": "String", "example": "intent://maps/" } }
   }
 }

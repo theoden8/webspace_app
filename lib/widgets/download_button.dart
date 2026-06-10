@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/download_manager.dart';
 
 /// AppBar action that surfaces active downloads. Renders nothing when the
@@ -13,6 +14,7 @@ class DownloadButton extends StatelessWidget {
     return ListenableBuilder(
       listenable: DownloadsService.instance,
       builder: (context, _) {
+        final loc = AppLocalizations.of(context);
         final tasks = DownloadsService.instance.tasks;
         if (tasks.isEmpty) return const SizedBox.shrink();
 
@@ -24,14 +26,14 @@ class DownloadButton extends StatelessWidget {
         // indeterminate so the user can tell progress is happening when
         // the server didn't send Content-Length.
         final tooltip = () {
-          if (active.isEmpty) return '${tasks.length} recent downloads';
+          if (active.isEmpty) return loc.downloadButtonRecentTooltip(tasks.length);
           final doneBytes = active.fold<int>(0, (a, t) => a + t.bytesDone);
           final doneStr = _DownloadTile._formatBytes(doneBytes);
           if (aggregate.value != null) {
             final pct = (aggregate.value! * 100).toStringAsFixed(0);
-            return '${active.length} downloading — $pct% ($doneStr)';
+            return loc.downloadButtonActiveProgressTooltip(active.length, pct, doneStr);
           }
-          return '${active.length} downloading — $doneStr received';
+          return loc.downloadButtonActiveReceivedTooltip(active.length, doneStr);
         }();
         return Tooltip(
           message: tooltip,
@@ -75,7 +77,7 @@ class DownloadButton extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${active.length}',
+                            active.length.toString(),
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onPrimary,
                               fontSize: 9,
@@ -111,6 +113,7 @@ class _DownloadsSheet extends StatelessWidget {
     return ListenableBuilder(
       listenable: DownloadsService.instance,
       builder: (context, _) {
+        final loc = AppLocalizations.of(context);
         final tasks = DownloadsService.instance.tasks;
         return SafeArea(
           child: Column(
@@ -121,21 +124,21 @@ class _DownloadsSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
                 child: Row(
                   children: [
-                    Text('Downloads',
+                    Text(loc.downloadButtonSheetTitle,
                         style: Theme.of(context).textTheme.titleLarge),
                     const Spacer(),
                     if (tasks.any((t) => !t.isActive))
                       TextButton(
                         onPressed: DownloadsService.instance.clearCompleted,
-                        child: const Text('Clear finished'),
+                        child: Text(loc.downloadButtonClearFinished),
                       ),
                   ],
                 ),
               ),
               if (tasks.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No downloads'),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(loc.downloadButtonEmpty),
                 )
               else
                 Flexible(
@@ -160,11 +163,15 @@ class _DownloadTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final savedPath = task.savedPath;
     final subtitle = switch (task.state) {
-      DownloadState.downloading => _progressSubtitle(task),
-      DownloadState.completed => 'Saved${task.savedPath == null ? '' : ' • ${task.savedPath}'}',
-      DownloadState.failed => task.errorMessage ?? 'Failed',
-      DownloadState.cancelled => 'Cancelled',
+      DownloadState.downloading => _progressSubtitle(loc, task),
+      DownloadState.completed => savedPath == null
+          ? loc.downloadButtonSaved
+          : loc.downloadButtonSavedToPath(savedPath),
+      DownloadState.failed => task.errorMessage ?? loc.downloadButtonFailed,
+      DownloadState.cancelled => loc.downloadButtonCancelled,
     };
     final color = switch (task.state) {
       DownloadState.downloading => null,
@@ -191,7 +198,7 @@ class _DownloadTile extends StatelessWidget {
           ? null
           : IconButton(
               icon: const Icon(Icons.close, size: 18),
-              tooltip: 'Dismiss',
+              tooltip: loc.downloadButtonDismiss,
               onPressed: () => DownloadsService.instance.dismiss(task.id),
             ),
     );
@@ -204,11 +211,12 @@ class _DownloadTile extends StatelessWidget {
         DownloadState.cancelled => Icons.cancel_outlined,
       };
 
-  static String _progressSubtitle(DownloadTask t) {
+  static String _progressSubtitle(AppLocalizations loc, DownloadTask t) {
     final done = _formatBytes(t.bytesDone);
     final total = t.bytesTotal;
-    if (total == null || total <= 0) return '$done received';
-    return '$done / ${_formatBytes(total)}';
+    if (total == null || total <= 0) return loc.downloadButtonBytesReceived(done);
+    final totalStr = _formatBytes(total);
+    return '$done / $totalStr';
   }
 
   static String _formatBytes(int bytes) {

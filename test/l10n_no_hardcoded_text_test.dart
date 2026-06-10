@@ -17,7 +17,14 @@ void main() {
   // are migrated. This list only grows.
   const migrated = <String>{
     'lib/screens/trusted_certificates.dart',
+    'lib/widgets/download_button.dart',
+    'lib/widgets/external_url_prompt.dart',
+    'lib/widgets/find_toolbar.dart',
+    'lib/widgets/hint_button.dart',
     'lib/widgets/root_messenger.dart',
+    'lib/widgets/stats_banner.dart',
+    'lib/widgets/untrusted_cert_prompt.dart',
+    'lib/widgets/url_bar.dart',
   };
 
   // Known not-yet-migrated. Allowed to contain hardcoded strings for now.
@@ -36,13 +43,6 @@ void main() {
     'lib/screens/user_scripts.dart',
     'lib/screens/webspace_detail.dart',
     'lib/screens/webspaces_list.dart',
-    'lib/widgets/download_button.dart',
-    'lib/widgets/external_url_prompt.dart',
-    'lib/widgets/find_toolbar.dart',
-    'lib/widgets/hint_button.dart',
-    'lib/widgets/stats_banner.dart',
-    'lib/widgets/untrusted_cert_prompt.dart',
-    'lib/widgets/url_bar.dart',
   };
 
   // Roots scanned for user-facing widgets. Service/model files render no UI.

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
+
 /// A small info icon button that shows a descriptive tooltip dialog.
 class HintButton extends StatelessWidget {
   final String title;
@@ -25,7 +27,9 @@ class HintButton extends StatelessWidget {
       onPressed: () {
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
+          builder: (context) {
+            final loc = AppLocalizations.of(context);
+            return AlertDialog(
             title: Text(title),
             content: ConstrainedBox(
               constraints: BoxConstraints(
@@ -38,10 +42,11 @@ class HintButton extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(loc.commonOk),
               ),
             ],
-          ),
+            );
+          },
         );
       },
     );
