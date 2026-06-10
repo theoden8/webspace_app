@@ -1597,12 +1597,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           return;
         }
         final model = _webViewModels[resolution.index];
+        final loc = AppLocalizations.of(context);
         final ok = await _showShortcutConfirm(
-          title: 'Open site?',
-          message:
-              'This shortcut points to a site that no longer exists. Open '
-              '"${model.getDisplayName()}" instead? It matches the same address.',
-          confirmLabel: 'Open',
+          title: loc.homeShortcutConfirmOpenTitle,
+          message: loc.homeShortcutConfirmOpenBody(model.getDisplayName()),
+          confirmLabel: loc.commonOpen,
         );
         if (ok != true || !mounted) return;
         await _rememberShortcutRemap(resolution.shortcutSiteId, model.siteId);
@@ -1668,7 +1667,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(ctx).commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -1682,26 +1681,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// Tap-time chooser for a handle whose site is gone and that has no domain
   /// match (HS-011 step 3). Returns 'reroute' | 'create' | null (dismissed).
   Future<String?> _showShortcutMissingChoice(String url) {
+    final loc = AppLocalizations.of(context);
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Shortcut site missing'),
-        content: Text(
-          'This shortcut points to a site that no longer exists. Open another '
-          'site instead, or create a new one for $url?',
-        ),
+        title: Text(loc.homeShortcutMissingTitle),
+        content: Text(loc.homeShortcutMissingBody(url)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(null),
-            child: const Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('reroute'),
-            child: const Text('Open another'),
+            child: Text(loc.homeShortcutOpenAnother),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop('create'),
-            child: const Text('Create'),
+            child: Text(loc.homeCreateAction),
           ),
         ],
       ),
@@ -6122,23 +6119,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// Shared Keep/Reassign/Disable chooser for the delete-time shortcut prompt
   /// (HS-013). Returns 'keep' | 'reassign' | 'disable' | null (dismissed).
   Future<String?> _showShortcutFateChoice(String message) {
+    final loc = AppLocalizations.of(context);
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Home screen shortcut'),
+        title: Text(loc.homeShortcutFateTitle),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'keep'),
-            child: const Text('Keep'),
+            child: Text(loc.homeShortcutKeep),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'reassign'),
-            child: const Text('Reassign'),
+            child: Text(loc.homeShortcutReassign),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'disable'),
-            child: const Text('Disable'),
+            child: Text(loc.homeShortcutDisable),
           ),
         ],
       ),
@@ -6153,11 +6151,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   Future<void> _handleDeletedSiteShortcut(Set<String> tileIds) async {
     if (!mounted || tileIds.isEmpty) return;
     final choice = await _showShortcutFateChoice(
-      'This site had a home screen shortcut. By default, tapping it lets '
-      'you reopen a matching site or create a new one.\n\n'
-      'You can instead point it at another site, or disable it. (Android '
-      "can't delete a pinned shortcut for you — disabling greys it out "
-      'until you remove it from the home screen.)',
+      AppLocalizations.of(context).homeShortcutFateBody,
     );
     if (!mounted || choice == null || choice == 'keep') return;
 
@@ -6194,10 +6188,11 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         if (!m.isArchiveTier) m,
     ];
     if (candidates.isEmpty || !mounted) return null;
+    final loc = AppLocalizations.of(context);
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Point shortcut at'),
+        title: Text(loc.homeShortcutPickTitle),
         contentPadding: const EdgeInsets.symmetric(vertical: 8),
         content: SizedBox(
           width: double.maxFinite,
@@ -6234,7 +6229,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
         ],
       ),

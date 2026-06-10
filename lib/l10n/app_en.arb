@@ -2942,5 +2942,59 @@
         "type": "String"
       }
     }
+  },
+  "homeShortcutConfirmOpenTitle": "Open site?",
+  "@homeShortcutConfirmOpenTitle": {
+    "description": "Title of the warm-launch dialog asking whether to open a domain-matching site for an orphaned shortcut."
+  },
+  "homeShortcutConfirmOpenBody": "This shortcut points to a site that no longer exists. Open \"{name}\" instead? It matches the same address.",
+  "@homeShortcutConfirmOpenBody": {
+    "description": "Body of the orphaned-shortcut confirm dialog naming the matching site.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeShortcutMissingTitle": "Shortcut site missing",
+  "@homeShortcutMissingTitle": {
+    "description": "Title of the dialog shown when a tapped shortcut's site is gone and no domain matches."
+  },
+  "homeShortcutMissingBody": "This shortcut points to a site that no longer exists. Open another site instead, or create a new one for {url}?",
+  "@homeShortcutMissingBody": {
+    "description": "Body of the missing-shortcut chooser, naming the shortcut URL.",
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "homeShortcutOpenAnother": "Open another",
+  "@homeShortcutOpenAnother": {
+    "description": "Button to point an orphaned shortcut at a different existing site."
+  },
+  "homeShortcutFateTitle": "Home screen shortcut",
+  "@homeShortcutFateTitle": {
+    "description": "Title of the delete-time dialog asking what to do with a deleted site's pinned shortcut."
+  },
+  "homeShortcutFateBody": "This site had a home screen shortcut. By default, tapping it lets you reopen a matching site or create a new one.\n\nYou can instead point it at another site, or disable it. (Android can't delete a pinned shortcut for you — disabling greys it out until you remove it from the home screen.)",
+  "@homeShortcutFateBody": {
+    "description": "Body of the delete-time shortcut-fate dialog."
+  },
+  "homeShortcutKeep": "Keep",
+  "@homeShortcutKeep": {
+    "description": "Button to keep a deleted site's pinned shortcut (a tap re-routes)."
+  },
+  "homeShortcutReassign": "Reassign",
+  "@homeShortcutReassign": {
+    "description": "Button to point a deleted site's pinned shortcut at another site."
+  },
+  "homeShortcutDisable": "Disable",
+  "@homeShortcutDisable": {
+    "description": "Button to disable (grey out) a deleted site's pinned shortcut."
+  },
+  "homeShortcutPickTitle": "Point shortcut at",
+  "@homeShortcutPickTitle": {
+    "description": "Title of the dialog listing existing sites to reassign an orphaned shortcut to."
   }
 }
