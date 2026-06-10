@@ -973,38 +973,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: _buildTimezoneDropdown(),
       ),
-      ListTile(
-        title: Row(
-          children: const [
-            Flexible(child: Text('WebRTC policy')),
-            HintButton(
-              title: 'WebRTC leak protection',
-              description:
-                  'HTTP(S) and SOCKS5 proxies only carry TCP. WebRTC uses UDP '
-                  'and leaks your real IP around the proxy. '
-                  '"Relay only" forces iceTransportPolicy=relay and strips '
-                  'non-relay ICE candidates; video calls that rely on direct '
-                  'peer-to-peer connections will break. '
-                  '"Disabled" blocks RTCPeerConnection entirely.',
-            ),
-          ],
-        ),
-        trailing: DropdownButton<WebRtcPolicy>(
-          value: _webRtcPolicy,
-          onChanged: (v) {
-            if (v != null) setState(() => _webRtcPolicy = v);
-          },
-          items: const [
-            DropdownMenuItem(
-                value: WebRtcPolicy.defaultPolicy, child: Text('Default')),
-            DropdownMenuItem(
-                value: WebRtcPolicy.relayOnly, child: Text('Relay only')),
-            DropdownMenuItem(
-                value: WebRtcPolicy.disabled, child: Text('Disabled')),
-          ],
-        ),
-      ),
     ];
+  }
+
+  Widget _buildWebRtcTile() {
+    return ListTile(
+      title: Row(
+        children: const [
+          Flexible(child: Text('WebRTC policy')),
+          HintButton(
+            title: 'WebRTC leak protection',
+            description:
+                'HTTP(S) and SOCKS5 proxies only carry TCP. WebRTC uses UDP '
+                'and leaks your real IP around the proxy. '
+                '"Relay only" forces iceTransportPolicy=relay and strips '
+                'non-relay ICE candidates; video calls that rely on direct '
+                'peer-to-peer connections will break. '
+                '"Disabled" blocks RTCPeerConnection entirely.',
+          ),
+        ],
+      ),
+      trailing: DropdownButton<WebRtcPolicy>(
+        value: _webRtcPolicy,
+        onChanged: (v) {
+          if (v != null) setState(() => _webRtcPolicy = v);
+        },
+        items: const [
+          DropdownMenuItem(
+              value: WebRtcPolicy.defaultPolicy, child: Text('Default')),
+          DropdownMenuItem(
+              value: WebRtcPolicy.relayOnly, child: Text('Relay only')),
+          DropdownMenuItem(
+              value: WebRtcPolicy.disabled, child: Text('Disabled')),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1116,6 +1119,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ],
           ],
+          _buildWebRtcTile(),
           SwitchListTile(
             title: Text('JavaScript Enabled'),
             value: _javascriptEnabled,
