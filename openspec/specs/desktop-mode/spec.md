@@ -225,11 +225,11 @@ manufacture a fake brand list when the user has not chosen a UA.
 
 ### Requirement: DM-004 — Generated UAs track the current Firefox version
 
-The Firefox version rendered into generated User-Agents (the randomize
-button and the canonical desktop UA getters) SHALL be obtained by scraping
-the current release version from Firefox source at runtime, rather than
-fixed at app-release time. The scrape result is cached and persisted; when
-the network is unreachable or the scrape fails, the bundled
+The system SHALL obtain the Firefox version rendered into generated
+User-Agents (the randomize button and the canonical desktop UA getters) by
+scraping the current release version from Firefox source at runtime, rather
+than fixing it at app-release time. The scrape result is cached and
+persisted; when the network is unreachable or the scrape fails, the bundled
 `kDefaultFirefoxMajorVersion` is used. The cached version only moves
 forward — a scraped value below the bundled floor is ignored, so an app
 upgrade never regresses the UA.
