@@ -512,7 +512,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
       ),
-      padding: const EdgeInsets.only(left: 8.0, right: 4.0, top: 4.0, bottom: 4.0),
+      padding: const EdgeInsetsDirectional.only(start: 8.0, end: 4.0, top: 4.0, bottom: 4.0),
       child: SafeArea(
         top: false,
         child: Row(

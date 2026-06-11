@@ -154,7 +154,7 @@ class WebspacesListScreen extends StatelessWidget {
                               ),
                             if (isSelected)
                               Padding(
-                                padding: EdgeInsets.only(left: 4, right: 8),
+                                padding: EdgeInsetsDirectional.only(start: 4, end: 8),
                                 child: Icon(
                                   Icons.check_circle,
                                   color: Theme.of(context).colorScheme.secondary,

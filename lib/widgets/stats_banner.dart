@@ -129,7 +129,7 @@ class _StatsBannerState extends State<StatsBanner> {
               if (_expanded) ...[
                 const SizedBox(height: 4),
                 ...recentBlocked.map((domain) => Padding(
-                      padding: const EdgeInsets.only(left: 20, top: 1),
+                      padding: const EdgeInsetsDirectional.only(start: 20, top: 1),
                       child: Row(
                         children: [
                           Icon(Icons.block, size: 11, color: subtleColor),

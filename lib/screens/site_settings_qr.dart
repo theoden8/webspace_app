@@ -183,7 +183,7 @@ class _PasteDialogState extends State<_PasteDialog> {
             ),
             const SizedBox(height: 8),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: TextButton.icon(
                 icon: const Icon(Icons.paste),
                 label: Text(loc.qrApplyPasteFromClipboard),

@@ -319,7 +319,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           if (CurrentLocationService.isSupported) ...[
             const SizedBox(height: 8),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(
                 icon: _fetchingLocation
                     ? const SizedBox(
