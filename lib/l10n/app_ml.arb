@@ -36,8 +36,8 @@
   "untrustedCertTitle": "വിശ്വസിക്കാത്ത സർട്ടിഫിക്കറ്റ്",
   "untrustedCertBody": "{host}:{port} എന്നതിന്റെ സർട്ടിഫിക്കറ്റ് പരിശോധിക്കാൻ കഴിഞ്ഞില്ല.",
   "untrustedCertWarning": "നിങ്ങൾ നിയന്ത്രിക്കുന്ന സ്വയം-സൈൻ ചെയ്ത സൈറ്റുകൾക്ക് ഇത് സാധാരണമാണ്. ആരെങ്കിലും കണക്ഷൻ തടസ്സപ്പെടുത്തുന്നുവെന്നും ഇത് സൂചിപ്പിക്കാം — ഈ സൈറ്റ് നിങ്ങൾ തിരിച്ചറിയുന്നുവെങ്കിൽ മാത്രം തുടരുക.",
-  "untrustedCertIssuedTo": "ഇതിന് നൽകി",
-  "untrustedCertIssuedBy": "ഇതാണ് നൽകിയത്",
+  "untrustedCertIssuedTo": "നൽകപ്പെട്ടത്",
+  "untrustedCertIssuedBy": "നൽകിയത്",
   "untrustedCertExpires": "കാലഹരണപ്പെടുന്നു",
   "untrustedCertSha256": "SHA-256",
   "untrustedCertTrustConfirm": "ഈ സൈറ്റിനെ വിശ്വസിക്കുക",
@@ -259,7 +259,7 @@
   "appSettingsDeveloper": "ഡെവലപ്പർ",
   "appSettingsAppLogs": "ആപ്പ് ലോഗുകൾ",
   "appSettingsAppLogsSubtitle": "ആപ്പ്-ലെവൽ ഡീബഗ് ലോഗുകൾ കാണുക",
-  "appSettingsAbout": "കുറിച്ച്",
+  "appSettingsAbout": "ആപ്പിനെക്കുറിച്ച്",
   "appSettingsLicenses": "ലൈസൻസുകൾ",
   "appSettingsLicensesSubtitle": "ഓപ്പൺ സോഴ്സ് ലൈസൻസുകൾ",
   "devToolsCookieSecure": "സുരക്ഷിതം",
@@ -594,7 +594,7 @@
   "homeDispatchOpenHost": "{host} തുറക്കുക",
   "homeBackAction": "തിരികെ",
   "homeDispatchOpenInSite": "{name}-ൽ തുറക്കുക",
-  "homeDispatchSendToSite": "{host} (ഉം സബ്‌ഡൊമെയ്നുകളും) ഒരു സൈറ്റിലേക്ക് അയയ്ക്കുക",
+  "homeDispatchSendToSite": "{host}-ഉം സബ്‌ഡൊമെയ്നുകളും ഒരു സൈറ്റിലേക്ക് അയയ്ക്കുക",
   "homeDispatchPickExistingSite": "ഈ ഡൊമെയ്ൻ കൈകാര്യം ചെയ്യാൻ നിലവിലുള്ള ഒരു സൈറ്റ് തിരഞ്ഞെടുക്കുക",
   "homeDispatchCreateNewSite": "{host}-നായി പുതിയ സൈറ്റ് സൃഷ്ടിക്കുക",
   "homeDispatchNoExistingSites": "നിലവിലുള്ള സൈറ്റുകളൊന്നുമില്ല.",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "വീണ്ടും അസൈൻ ചെയ്യുക",
   "homeShortcutDisable": "പ്രവർത്തനരഹിതമാക്കുക",
   "homeShortcutPickTitle": "കുറുക്കുവഴി ഇതിലേക്ക് ചൂണ്ടുക",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "ആപ്പ് ഭാഷ",
+  "appSettingsLanguageSystem": "സിസ്റ്റം സ്ഥിരസ്ഥിതി"
 }

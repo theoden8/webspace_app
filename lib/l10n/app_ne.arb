@@ -567,7 +567,7 @@
   "homeThemeModeSystem": "सिस्टम",
   "homeThemeModeLight": "उज्यालो",
   "homeThemeModeDark": "अँध्यारो",
-  "homeThemeColorBlue": "निलो",
+  "homeThemeColorBlue": "नीलो",
   "homeThemeColorGreen": "हरियो",
   "homeThemeTooltip": "{mode} {color} थिम",
   "homeEditSiteTitle": "साइट सम्पादन गर्नुहोस्",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "पुनः-असाइन गर्नुहोस्",
   "homeShortcutDisable": "असक्षम गर्नुहोस्",
   "homeShortcutPickTitle": "सर्टकट यसमा संकेत गर्नुहोस्",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "एप भाषा",
+  "appSettingsLanguageSystem": "सिस्टम पूर्वनिर्धारित"
 }

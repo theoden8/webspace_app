@@ -8,7 +8,7 @@
   "trustedCertRevokeAllDialogBody": "සෑම සවි කළ සහතිකයක්ම ඉවත් කෙරේ. ඔබ භාවිතා කරන ස්වයං-අත්සන් කළ අඩවි ඊළඟ පිවිසුමේදී යළි විමසනු ඇත.",
   "trustedCertRevokeAllConfirm": "සියල්ල අවලංගු කරන්න",
   "trustedCertRevokeDialogTitle": "විශ්වාසය අවලංගු කරන්නද?",
-  "trustedCertRevokeDialogBody": "{host}:{port} වෙත ඊළඟ පිවිසුම පූරණයට පෙර යළිත් විමසනු ඇත. මෙම සත්කාරකය සඳහා වෙබ්දසුන් (favicons, බාගැනීම්) පිටත ජාල ඉල්ලීම් ද යළි අනුමත වන තෙක් අසාර්ථක වේ.",
+  "trustedCertRevokeDialogBody": "{host}:{port} වෙත ඊළඟ පිවිසුම පූරණයට පෙර යළිත් විමසනු ඇත. මෙම සත්කාරකය සඳහා වෙබ්දසුන වෙතින් පිටත ජාල ඉල්ලීම් (favicons, බාගැනීම්) ද යළි අනුමත වන තෙක් අසාර්ථක වේ.",
   "trustedCertRevokeConfirm": "අවලංගු කරන්න",
   "trustedCertEmptyTitle": "තවම විශ්වාසනීය සහතික නැත.",
   "trustedCertEmptyBody": "ඔබ ස්වයං-අත්සන් කළ හෝ වෙනත් අවිශ්වාසනීය සහතිකයක් සහිත අඩවියකට පිවිසෙන විට, ඔබට \"මෙම අඩවිය විශ්වාස කරන්න\" තෝරාගත හැක. තීරණය මෙහි ගබඩා වන අතර සහතිකය වෙනස් වුවහොත් මිස විමසුම යළි දිස් නොවේ.",
@@ -28,8 +28,8 @@
   "commonRetry": "නැවත උත්සාහ කරන්න",
   "commonShare": "බෙදාගන්න",
   "commonOpen": "විවෘත කරන්න",
-  "statsBannerBlocked": "{count} අවහිර කළා",
-  "statsBannerAllowed": "{count} අවසර දුන්නා",
+  "statsBannerBlocked": "{count} අවහිර කළ",
+  "statsBannerAllowed": "{count} අවසර දුන්",
   "findToolbarSearchHint": "පිටුවේ සොයන්න",
   "urlBarHint": "URL ඇතුළත් කරන්න",
   "urlBarGoTooltip": "යන්න",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "යළි පවරන්න",
   "homeShortcutDisable": "අක්‍රීය කරන්න",
   "homeShortcutPickTitle": "කෙටිමඟ යොමු කරන්න",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "යෙදුම් භාෂාව",
+  "appSettingsLanguageSystem": "පද්ධති පෙරනිමිය"
 }

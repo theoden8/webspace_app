@@ -614,6 +614,6 @@
   "homeShortcutReassign": "மறுஒதுக்கீடு செய்",
   "homeShortcutDisable": "முடக்கு",
   "homeShortcutPickTitle": "குறுக்குவழியை இதற்குச் சுட்டிக்காட்டு",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "செயலி மொழி",
+  "appSettingsLanguageSystem": "கணினி இயல்புநிலை"
 }
