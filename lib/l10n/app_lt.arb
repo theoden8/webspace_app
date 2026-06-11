@@ -233,7 +233,7 @@
   "appSettingsDnsBlocklistUpdated": "DNS blokavimo sąrašas atnaujintas: {domains} domenų",
   "appSettingsDnsBlocklistDownloadFailed": "Nepavyko atsisiųsti DNS blokavimo sąrašo",
   "appSettingsLocalCdn": "LocalCDN",
-  "appSettingsLocalCdnResources": "{count} ištekliai ({size})",
+  "appSettingsLocalCdnResources": "Ištekliai: {count} ({size})",
   "appSettingsDownloadingProgress": "Atsisiunčiama {progress}...",
   "appSettingsUpdateResources": "Atnaujinti išteklius",
   "appSettingsDownloadResources": "Atsisiųsti išteklius",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Priskirti iš naujo",
   "homeShortcutDisable": "Išjungti",
   "homeShortcutPickTitle": "Nukreipti nuorodą į",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Programos kalba",
+  "appSettingsLanguageSystem": "Sistemos numatytoji"
 }

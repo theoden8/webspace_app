@@ -614,6 +614,6 @@
   "homeShortcutReassign": "পুনরায় বরাদ্দ করুন",
   "homeShortcutDisable": "নিষ্ক্রিয় করুন",
   "homeShortcutPickTitle": "শর্টকাট নির্দেশ করুন",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "অ্যাপের ভাষা",
+  "appSettingsLanguageSystem": "সিস্টেম ডিফল্ট"
 }

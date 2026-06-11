@@ -11,7 +11,7 @@
   "trustedCertRevokeDialogBody": "Naslednji obisk strani {host}:{port} bo pred nalaganjem znova zahteval potrditev. Tudi omrežne zahteve zunaj spletnega pogleda (favikone, prenosi) za tega gostitelja ne bodo uspele, dokler znova ne potrdite.",
   "trustedCertRevokeConfirm": "Prekliči",
   "trustedCertEmptyTitle": "Še ni zaupanja vrednih potrdil.",
-  "trustedCertEmptyBody": "Ko obiščete stran s samopodpisanim ali drugače nezaupljivim potrdilom, lahko izberete »Zaupaj tej strani«. Odločitev se shrani tukaj in poziv se ne prikaže več, razen če se potrdilo spremeni.",
+  "trustedCertEmptyBody": "Ko obiščete stran s samopodpisanim ali drugače nezaupanja vrednim potrdilom, lahko izberete »Zaupaj tej strani«. Odločitev se shrani tukaj in poziv se ne prikaže več, razen če se potrdilo spremeni.",
   "trustedCertFingerprintLabel": "SHA-256",
   "trustedCertCopyTooltip": "Kopiraj prstni odtis",
   "trustedCertCopied": "Prstni odtis kopiran",
@@ -33,7 +33,7 @@
   "findToolbarSearchHint": "Išči na strani",
   "urlBarHint": "Vnesite URL",
   "urlBarGoTooltip": "Pojdi",
-  "untrustedCertTitle": "Nezaupljivo potrdilo",
+  "untrustedCertTitle": "Nezaupanja vredno potrdilo",
   "untrustedCertBody": "Potrdila za {host}:{port} ni bilo mogoče preveriti.",
   "untrustedCertWarning": "To je normalno za samopodpisane strani, ki jih nadzorujete. Lahko pa nakazuje tudi, da nekdo prestreza povezavo — nadaljujte samo, če to stran prepoznate.",
   "untrustedCertIssuedTo": "Izdano za",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Dodeli znova",
   "homeShortcutDisable": "Onemogoči",
   "homeShortcutPickTitle": "Usmeri bližnjico na",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Jezik aplikacije",
+  "appSettingsLanguageSystem": "Sistemsko privzeto"
 }
