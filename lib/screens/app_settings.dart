@@ -638,14 +638,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       setState(() {
         _isUpdatingFirefoxVersion = false;
       });
+      final loc = AppLocalizations.of(context);
       final version = FirefoxUserAgentService.instance.majorVersion;
       final message = switch (result) {
         FirefoxVersionRefreshResult.updated =>
-          'Updated to Firefox $version',
+          loc.appSettingsFirefoxVersionUpdated(version),
         FirefoxVersionRefreshResult.unchanged =>
-          'Already current (Firefox $version)',
+          loc.appSettingsFirefoxVersionUnchanged(version),
         FirefoxVersionRefreshResult.failed =>
-          'Could not reach Firefox source',
+          loc.appSettingsFirefoxVersionFailed,
       };
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -1383,10 +1384,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
           ListTile(
             leading: const Icon(Icons.travel_explore),
-            title: const Row(
+            title: Row(
               children: [
-                Text('Firefox version'),
-                HintButton(
+                Text(loc.appSettingsFirefoxVersion),
+                const HintButton(
                   title: 'Firefox version',
                   description:
                       'The "randomize" button in a site\'s User-Agent field '
@@ -1403,10 +1404,16 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Firefox ${FirefoxUserAgentService.instance.majorVersion}'),
+                Text(loc.appSettingsFirefoxVersionCurrent(
+                    FirefoxUserAgentService.instance.majorVersion)),
                 if (FirefoxUserAgentService.instance.lastChecked != null)
                   Text(
-                    'Checked: ${FirefoxUserAgentService.instance.lastChecked!.toLocal().toString().split('.')[0]}',
+                    loc.appSettingsFirefoxVersionChecked(
+                      FirefoxUserAgentService.instance.lastChecked!
+                          .toLocal()
+                          .toString()
+                          .split('.')[0],
+                    ),
                     style: const TextStyle(fontSize: 12),
                   ),
               ],
@@ -1419,7 +1426,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   )
                 : IconButton(
                     icon: const Icon(Icons.sync),
-                    tooltip: 'Update Firefox version',
+                    tooltip: loc.appSettingsUpdateFirefoxVersion,
                     onPressed: _updateFirefoxVersion,
                   ),
           ),

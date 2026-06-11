@@ -1123,6 +1123,54 @@
   "@appSettingsClearUrlsDownloadFailed": {
     "description": "Snackbar after ClearURLs rules download fails"
   },
+  "appSettingsFirefoxVersion": "Firefox version",
+  "@appSettingsFirefoxVersion": {
+    "description": "Title for the Firefox version entry that controls which Firefox version generated User-Agents use"
+  },
+  "appSettingsFirefoxVersionCurrent": "Firefox {version}",
+  "@appSettingsFirefoxVersionCurrent": {
+    "description": "Subtitle showing the current Firefox major version used for generated User-Agents",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsFirefoxVersionChecked": "Checked: {date}",
+  "@appSettingsFirefoxVersionChecked": {
+    "description": "Label showing when the Firefox version was last checked against Firefox source",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsUpdateFirefoxVersion": "Update Firefox version",
+  "@appSettingsUpdateFirefoxVersion": {
+    "description": "Tooltip on the button that fetches the latest Firefox version over the network"
+  },
+  "appSettingsFirefoxVersionUpdated": "Updated to Firefox {version}",
+  "@appSettingsFirefoxVersionUpdated": {
+    "description": "Snackbar after the Firefox version is updated to a newer release",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsFirefoxVersionUnchanged": "Already current (Firefox {version})",
+  "@appSettingsFirefoxVersionUnchanged": {
+    "description": "Snackbar when the Firefox version is checked but already the latest",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsFirefoxVersionFailed": "Could not reach Firefox source",
+  "@appSettingsFirefoxVersionFailed": {
+    "description": "Snackbar when fetching the latest Firefox version over the network fails"
+  },
   "appSettingsDnsBlocklist": "DNS Blocklist",
   "@appSettingsDnsBlocklist": {
     "description": "Title for the DNS blocklist entry"
