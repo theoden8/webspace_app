@@ -103,3 +103,37 @@ Locale? localeFromTag(String tag) {
 
 /// Display label for a locale tag in the picker.
 String languageLabelForTag(String tag) => kLanguageNativeNames[tag] ?? tag;
+
+/// Resolve the device's preferred locales against the [supported] set, falling
+/// back to English when nothing matches. gen_l10n's default resolution returns
+/// `supported.first` (alphabetically 'af') for unmatched device locales, which
+/// would show a random language; English is the authored source and the right
+/// universal fallback. Matching is tried most- to least-specific:
+/// exact (language+script+country) -> language+script -> language.
+Locale resolveSupportedLocale(
+    List<Locale>? preferred, Iterable<Locale> supported) {
+  if (preferred != null) {
+    for (final pref in preferred) {
+      for (final s in supported) {
+        if (s.languageCode == pref.languageCode &&
+            s.scriptCode == pref.scriptCode &&
+            s.countryCode == pref.countryCode) {
+          return s;
+        }
+      }
+      for (final s in supported) {
+        if (s.languageCode == pref.languageCode &&
+            s.scriptCode == pref.scriptCode) {
+          return s;
+        }
+      }
+      for (final s in supported) {
+        if (s.languageCode == pref.languageCode) {
+          return s;
+        }
+      }
+    }
+  }
+  return const Locale('en');
+}
+

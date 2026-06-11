@@ -796,6 +796,9 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: _localeOverride,
+      // Fall back to English for any device locale we don't ship, instead of
+      // gen_l10n's default of supportedLocales.first (alphabetically 'af').
+      localeListResolutionCallback: resolveSupportedLocale,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: ThemeData(
         colorScheme: _buildAccentColorScheme(accentColor, Brightness.light),
