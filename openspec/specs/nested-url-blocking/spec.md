@@ -133,6 +133,52 @@ The system SHALL provide a per-site setting to disable auto-redirect blocking.
 
 ---
 
+### Requirement: NESTED-008 - Route target="_blank" Through the Main-Frame Gesture Path
+
+The system SHALL rewrite new-window anchor targets (`target="_blank"` /
+`target="_new"`) on http(s) links to `_self` at capture phase, so a tapped
+link is dispatched as a top-level navigation through
+`shouldOverrideUrlLoading` instead of `onCreateWindow`.
+
+**Rationale:** `supportMultipleWindows` is enabled for captcha popups
+(see captcha-support). A side effect is that on Android a `target="_blank"`
+tap is routed to `onCreateWindow`, where the user-gesture flag is
+unreliable (frequently `false` for a genuine tap) and the request URL is
+sometimes empty. The gesture-based cross-domain block (NESTED-004) then
+silently cancels the navigation, so the link does nothing (issue #405).
+iOS has the same divergence: `target="_blank"` taps often only fire
+`onCreateWindow`. The top-level navigation path carries a reliable
+per-request gesture signal on every platform.
+
+**Scope:** only http(s) anchors are rewritten. `blob:` / `data:` /
+external-scheme and `download` links are untouched (the blob-download
+intercept and external-scheme handling own those). Script-driven
+`window.open()` is not an anchor target and is unaffected — it still flows
+through `onCreateWindow` with its existing captcha/gesture filtering.
+Same-domain `target="_blank"` links already loaded in-place via the
+`onCreateWindow` allow path, so the rewrite preserves their behavior.
+
+Implementation: `lib/services/target_blank_rewrite.dart`
+(`targetBlankRewriteScript`), injected always-on at `AT_DOCUMENT_START`,
+`forMainFrameOnly: false`.
+
+#### Scenario: Cross-domain target="_blank" link opens a nested webview
+
+**Given** the user is on a page with an `<a target="_blank" href="https://other.example">` link
+**When** the user taps the link
+**Then** the anchor's target is rewritten to `_self` before the default action
+**And** the navigation is dispatched through `shouldOverrideUrlLoading` with a user gesture
+**And** the cross-domain destination opens in a nested webview (NESTED-004 "Direct link click allowed")
+
+#### Scenario: Captcha popup still uses onCreateWindow
+
+**Given** a site invokes `window.open()` for a Cloudflare/hCaptcha challenge
+**When** the popup is requested
+**Then** the rewrite does not apply (no anchor target involved)
+**And** the challenge is handled by the existing `onCreateWindow` captcha path
+
+---
+
 ### Requirement: NESTED-007 - Preserve Same-Domain Navigation
 
 The system SHALL allow normal website navigation within the same domain regardless of gesture.
@@ -220,6 +266,14 @@ CLAUDE.md now forbids. Direct engine tests live in
 - `isCaptchaChallenge()` — detects captcha domains and paths; passed to `decideOnUrlChanged` as a callback
 - `shouldOverrideUrlLoading` callback passes `hasGesture` from `NavigationAction`
 - `onCreateWindow` — dismisses all `window.open()` except captcha challenges
+- Registers `targetBlankRewriteScript` always-on at `AT_DOCUMENT_START`
+
+#### `lib/services/target_blank_rewrite.dart`
+- `targetBlankRewriteScript` — capture-phase click shim that rewrites
+  http(s) `target="_blank"` / `_new` anchors to `_self`, routing taps
+  through the reliable main-frame gesture path (NESTED-008). Behaviour
+  proven in `test/js/target_blank_rewrite.test.js`; string shape +
+  registration guarded by `test/target_blank_rewrite_test.dart`.
 
 #### `lib/web_view_model.dart`
 - `blockAutoRedirects` field (default: `true`)

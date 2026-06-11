@@ -13,6 +13,7 @@ import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/proxy_relay.dart';
+import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
@@ -1471,6 +1472,18 @@ class WebViewFactory {
     userScripts.add(inapp.UserScript(
       groupName: 'do_not_track',
       source: '${buildDoNotTrackShim()}\n;null;',
+      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+      forMainFrameOnly: false,
+    ));
+
+    // Always-on: rewrite `target="_blank"` anchors to `_self` so cross-domain
+    // link taps route through shouldOverrideUrlLoading (reliable gesture)
+    // instead of onCreateWindow (unreliable gesture / empty URL on Android),
+    // where the nested-url-blocking engine would otherwise silently drop the
+    // navigation. See target_blank_rewrite.dart and issue #405.
+    userScripts.add(inapp.UserScript(
+      groupName: 'target_blank_rewrite',
+      source: '$targetBlankRewriteScript\n;null;',
       injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       forMainFrameOnly: false,
     ));
