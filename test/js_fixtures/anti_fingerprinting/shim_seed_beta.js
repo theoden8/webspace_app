@@ -4,6 +4,7 @@
   window.__ws_anti_fp_shim__ = true;
 
   var SEED = "beta-fixture-seed";
+  var LETTERBOX = false;
 
   // Shared Function.prototype.toString stubs — same WeakMap as
   // desktop_mode_shim.dart and location_spoof_service.dart so all three
@@ -63,26 +64,6 @@
   // deviceMemory ∈ {4, 8}
   var DEVICE_MEMORY = (_baseRng() < 0.5) ? 4 : 8;
 
-  // Window dimensions. screen.* is pinned to a desktop 1920x1080 below, so
-  // the window must read as a desktop browser too — a phone-sized
-  // innerWidth against a 1920 screen is both a tell and inconsistent.
-  // MANUAL_WIN (ETP-021), when set, is the user-chosen content size;
-  // otherwise pick a plausible browser window from a seeded bucket so the
-  // size is stable per site (ETP-004) and varies across sites (ETP-020).
-  // 79 = a typical desktop chrome height (tab strip + toolbar) subtracted
-  // from the outer height to get the content height.
-  var MANUAL_WIN = null;
-  var WIN_SIZES = [[1280,720],[1366,768],[1440,810],[1536,864],[1600,900],[1920,1040]];
-  var INNER_W, INNER_H, OUTER_W, OUTER_H;
-  if (MANUAL_WIN) {
-    INNER_W = MANUAL_WIN[0]; INNER_H = MANUAL_WIN[1];
-    OUTER_W = INNER_W; OUTER_H = INNER_H + 79;
-  } else {
-    var WIN = WIN_SIZES[Math.floor(_baseRng() * WIN_SIZES.length) | 0];
-    OUTER_W = WIN[0]; OUTER_H = WIN[1];
-    INNER_W = WIN[0]; INNER_H = WIN[1] - 79;
-  }
-
   function defineGetterOnProto(proto, name, value) {
     if (!proto) return;
     try {
@@ -94,47 +75,41 @@
     } catch (e) {}
   }
 
+  function defineGetterFnOnProto(proto, name, fn) {
+    if (!proto) return;
+    try {
+      Object.defineProperty(proto, name, {
+        configurable: true,
+        enumerable: true,
+        get: asNative(fn, name),
+      });
+    } catch (e) {}
+  }
+
   // --- screen.* ---
+  // In letterbox mode the WebView has been physically sized to a bucketed
+  // box, so window.inner* is already truthful — mirror screen.* to it so the
+  // two agree (Tor-style). Otherwise pin the fixed desktop dimensions.
   try {
     if (typeof Screen !== 'undefined' && Screen.prototype) {
-      defineGetterOnProto(Screen.prototype, 'width', SCREEN_W);
-      defineGetterOnProto(Screen.prototype, 'height', SCREEN_H);
-      defineGetterOnProto(Screen.prototype, 'availWidth', SCREEN_W);
-      defineGetterOnProto(Screen.prototype, 'availHeight', SCREEN_H - 40);
+      if (LETTERBOX) {
+        defineGetterFnOnProto(Screen.prototype, 'width',
+            function() { return window.innerWidth; });
+        defineGetterFnOnProto(Screen.prototype, 'height',
+            function() { return window.innerHeight; });
+        defineGetterFnOnProto(Screen.prototype, 'availWidth',
+            function() { return window.innerWidth; });
+        defineGetterFnOnProto(Screen.prototype, 'availHeight',
+            function() { return window.innerHeight; });
+      } else {
+        defineGetterOnProto(Screen.prototype, 'width', SCREEN_W);
+        defineGetterOnProto(Screen.prototype, 'height', SCREEN_H);
+        defineGetterOnProto(Screen.prototype, 'availWidth', SCREEN_W);
+        defineGetterOnProto(Screen.prototype, 'availHeight', SCREEN_H - 40);
+      }
       defineGetterOnProto(Screen.prototype, 'colorDepth', COLOR_DEPTH);
       defineGetterOnProto(Screen.prototype, 'pixelDepth', COLOR_DEPTH);
     }
-  } catch (e) {}
-
-  // --- window.inner/outer dimensions + devicePixelRatio ---
-  // Real engines expose these as accessors on Window.prototype, so define
-  // there to avoid an own-property tell on `window`. jsdom (and some
-  // engines) carry them as own data properties on the instance instead;
-  // fall back to the instance when the prototype doesn't own the accessor.
-  try {
-    function pinWindowDim(name, value) {
-      try {
-        var proto = (typeof Window !== 'undefined') ? Window.prototype : null;
-        var target;
-        if (proto && Object.getOwnPropertyDescriptor(proto, name)) {
-          target = proto;
-        } else if (Object.getOwnPropertyDescriptor(window, name)) {
-          target = window;
-        } else {
-          target = proto || window;
-        }
-        Object.defineProperty(target, name, {
-          configurable: true,
-          enumerable: true,
-          get: asNative(function() { return value; }, name),
-        });
-      } catch (e) {}
-    }
-    pinWindowDim('innerWidth', INNER_W);
-    pinWindowDim('innerHeight', INNER_H);
-    pinWindowDim('outerWidth', OUTER_W);
-    pinWindowDim('outerHeight', OUTER_H);
-    pinWindowDim('devicePixelRatio', 1);
   } catch (e) {}
 
   // --- navigator.hardwareConcurrency / deviceMemory ---

@@ -304,6 +304,21 @@ void main() {
       expect(restored.trackingProtectionEnabled, isFalse);
     });
 
+    test('letterboxEnabled defaults to false; omitted from JSON; round-trips',
+        () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      expect(m.letterboxEnabled, isFalse);
+      expect(m.toJson().containsKey('letterboxEnabled'), isFalse);
+
+      final on = WebViewModel(
+        initUrl: 'https://example.com',
+        letterboxEnabled: true,
+      );
+      expect(on.toJson()['letterboxEnabled'], isTrue);
+      final back = WebViewModel.fromJson(on.toJson(), null);
+      expect(back.letterboxEnabled, isTrue);
+    });
+
     test('spoofWindowWidth/Height null by default; toJson omits them', () {
       final m = WebViewModel(initUrl: 'https://example.com');
       expect(m.spoofWindowWidth, isNull);

@@ -345,78 +345,84 @@ of `hardwareConcurrency`, `deviceMemory`, `plugins`, `mimeTypes`,
 
 ---
 
-### Requirement: ETP-020 - Window / viewport dimension overrides
+### Requirement: ETP-020 - Letterbox window sizing
 
-The shim SHALL pin `window.innerWidth`, `window.innerHeight`,
-`window.outerWidth`, `window.outerHeight`, and `window.devicePixelRatio`
-so a fingerprinter cannot read the real device viewport (which on mobile
-contradicts the desktop `screen.*` of ETP-010 and is itself a high-entropy
-axis). With no user-set size (ETP-021) the window dimensions SHALL be
-derived from the per-site seed: a plausible desktop browser window picked
-from a fixed bucket, each entry no larger than the pinned `screen` size,
-with `devicePixelRatio` fixed at `1`. The getters SHALL be installed on
-`Window.prototype` when it owns the accessor (no own-property tell),
-falling back to the `window` instance otherwise.
+Sites with `letterboxEnabled` SHALL render the WebView in a centered box
+sized to the available area snapped DOWN to a 200x100 logical-pixel grid
+(Tor-style letterboxing), with the leftover area drawn as a margin, so the
+real viewport (`window.inner*`) is bucketed and many device sizes collapse
+onto the same value. The sizing is pure Flutter (`computeLetterboxTarget` +
+a `LayoutBuilder`/`SizedBox` wrapper around the cached `InAppWebView`); a
+layout change (rotation) re-snaps the box without rebuilding the WebView
+(no page reload). Because the box is real, the shim SHALL NOT fake
+`window.inner*`; instead, in letterbox mode it SHALL make `screen.width`,
+`screen.height`, `screen.availWidth`, and `screen.availHeight` mirror the
+live `window.inner*` so screen and window agree (rather than the fixed
+1920x1080 of ETP-010). Letterboxing is gated on `trackingProtectionEnabled`
+(the shim is) and propagates to nested webviews via `launchUrl`.
 
-#### Scenario: Window dimensions pinned and consistent with the screen
+#### Scenario: Available area snaps down to the grid
 
-**Given** the shim is loaded with no manual size
-**Then** `window.innerWidth` is in `(0, 1920]` and `window.innerHeight`
-is in `(0, 1080]`
-**And** `window.outerWidth >= window.innerWidth`
-**And** `window.outerHeight >= window.innerHeight`
-**And** `window.devicePixelRatio === 1`
+**Given** an available area of 1366 x 768
+**When** `computeLetterboxTarget` runs with the default 200x100 grid
+**Then** the box is 1200 x 700
+**And** two nearby sizes (e.g. 1300x740 and 1399x799) collapse onto the
+same box
 
-#### Scenario: Window size stable per site, distinct across sites
+#### Scenario: screen.* mirrors the letterboxed viewport
 
-**Given** `buildAntiFingerprintingShim('seed-A')` is loaded twice
-**Then** both report the same `window.innerWidth` / `innerHeight`
-**And** a load of `buildAntiFingerprintingShim('seed-B')` reports a size
-that may differ from `seed-A`
+**Given** the shim is loaded with `letterbox: true`
+**Then** `screen.width === window.innerWidth` and
+`screen.height === window.innerHeight`
+**And** changing `window.innerWidth` (a re-snap) is reflected by
+`screen.width`
+
+#### Scenario: Non-letterbox keeps the fixed screen and real window
+
+**Given** the shim is loaded with `letterbox: false`
+**Then** `screen.width === 1920` / `screen.height === 1080` (ETP-010)
+**And** `window.inner*` is left at its real value
 
 ---
 
-### Requirement: ETP-021 - User-set window size override
+### Requirement: ETP-021 - User-set letterbox box size
 
-`WebViewModel` SHALL carry per-site `spoofWindowWidth` and
-`spoofWindowHeight` integers (default null, omitted from `toJson` when
-null). When both are set and positive, the shim SHALL report exactly that
-content size as `window.innerWidth` / `innerHeight` (with
-`outerWidth = innerWidth`, `outerHeight = innerHeight + chrome`), bypassing
-the seeded bucket of ETP-020. When either is null or non-positive the
-seeded size SHALL stand. The fields SHALL flow into `WebViewConfig` and
-propagate to nested webviews opened via `launchUrl`. Because the shim is
-gated on `trackingProtectionEnabled`, a custom size only applies when the
-umbrella is on.
+`WebViewModel` SHALL carry per-site `letterboxEnabled` (default false,
+omitted from `toJson` when false) and `spoofWindowWidth` /
+`spoofWindowHeight` integers (default null, omitted when null). When
+letterboxing is on and both dimensions are set and positive, the box SHALL
+be exactly that size, capped to the available area so it never overflows
+the screen; otherwise it snaps to the grid (ETP-020). All three fields
+SHALL flow into `WebViewConfig` and propagate to nested webviews opened via
+`launchUrl`.
 
-#### Scenario: Manual size pins exact dimensions
+#### Scenario: Fixed box size used when it fits
 
-**Given** a site with `spoofWindowWidth: 1024`, `spoofWindowHeight: 768`,
-and `trackingProtectionEnabled: true`
-**When** the shim is loaded
-**Then** `window.innerWidth === 1024` and `window.innerHeight === 768`
-**And** `window.outerWidth === 1024`
+**Given** available 1920x1080 with `spoofWindowWidth: 1024`,
+`spoofWindowHeight: 768`
+**Then** `computeLetterboxTarget` returns 1024 x 768
 
-#### Scenario: Partial size falls back to the seeded bucket
+#### Scenario: Fixed box capped to the available area
 
-**Given** `buildAntiFingerprintingShim('s', windowWidth: 1024)` (height
-omitted)
-**Then** the generated shim uses the seeded bucket (`MANUAL_WIN` is null)
+**Given** available 400x800 with `spoofWindowWidth: 1920`,
+`spoofWindowHeight: 1080`
+**Then** the box is 400 x 800
 
-#### Scenario: Fields round-trip and omit when null
+#### Scenario: Fields round-trip and omit at default
 
-**Given** a site with `spoofWindowWidth` and `spoofWindowHeight` null
-**Then** `toJson` omits both keys
-**And** a `WebViewModel` with both set survives a `toJson` / `fromJson`
-round-trip with the values intact
+**Given** a site with `letterboxEnabled: false` and null box dimensions
+**Then** `toJson` omits `letterboxEnabled`, `spoofWindowWidth`, and
+`spoofWindowHeight`
+**And** a site with the fields set survives a `toJson` / `fromJson`
+round-trip
 
-#### Scenario: Settings UI exposes the size and gates on the umbrella
+#### Scenario: Settings UI gates the box size on letterboxing
 
 **Given** the per-site Settings screen
-**Then** width and height text fields are shown under Tracking Protection
-**And** they are enabled only when `trackingProtectionEnabled` is on
-**And** leaving either blank clears the custom size back to the seeded
-default
+**Then** a "Letterbox window" switch is shown under Tracking Protection,
+enabled only when `trackingProtectionEnabled` is on
+**And** the box width/height fields are enabled only when both Tracking
+Protection and Letterbox are on
 
 ---
 
@@ -748,18 +754,22 @@ in `kExportedAppPrefs` is needed.
 ### Modified
 - `lib/web_view_model.dart` — Added `trackingProtectionEnabled` field,
   serialisation, getWebView forcing, propagation through `launchUrlFunc`
-  typedef and both nested-launch sites. Added `spoofWindowWidth` /
-  `spoofWindowHeight` (ETP-021) with the same serialisation +
-  propagation.
+  typedef and both nested-launch sites. Added `letterboxEnabled` +
+  `spoofWindowWidth` / `spoofWindowHeight` (ETP-020/021) and
+  `fingerprintResetNonce` (ETP-022) with the same serialisation +
+  propagation, plus `rerollFingerprint`.
 - `lib/services/webview.dart` — Added `trackingProtectionEnabled` to
-  `WebViewConfig`, shim injection. Added `spoofWindowWidth` /
-  `spoofWindowHeight` to `WebViewConfig`, threaded into
-  `buildAntiFingerprintingScriptSource`.
-- `lib/services/anti_fingerprinting_shim.dart` — Window/viewport
-  dimension + devicePixelRatio overrides (ETP-020) and the optional
-  manual-size builder params (ETP-021).
-- `lib/screens/settings.dart` — Window width/height fields under the
-  Tracking Protection switch, gated on the umbrella.
+  `WebViewConfig`, shim injection. Added `letterboxEnabled` /
+  `spoofWindowWidth` / `spoofWindowHeight` / `fingerprintResetNonce` to
+  `WebViewConfig`; `_applyLetterbox` wraps the WebView; `letterbox` +
+  `resetNonce` threaded into `buildAntiFingerprintingScriptSource`.
+- `lib/services/letterbox.dart` — Pure `computeLetterboxTarget` grid-snap
+  logic (ETP-020/021).
+- `lib/services/anti_fingerprinting_shim.dart` — Letterbox-mode
+  `screen.*`-mirrors-`window.inner*` (ETP-020); `resetNonce` folded into
+  the seed (ETP-022).
+- `lib/screens/settings.dart` — "Letterbox window" switch + box
+  width/height fields under Tracking Protection, gated on the umbrella.
 - `lib/main.dart` — Added `trackingProtectionEnabled` to `launchUrl`
   signature and the `InAppWebViewScreen` construction.
 - `lib/screens/inappbrowser.dart` — Added `trackingProtectionEnabled`

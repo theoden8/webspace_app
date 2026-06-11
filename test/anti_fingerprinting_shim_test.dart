@@ -134,41 +134,23 @@ void main() {
       expect(js, contains('getBoundingClientRect'));
     });
 
-    test('overrides window dimensions and devicePixelRatio', () {
-      // ETP-020: window.inner/outer width+height and devicePixelRatio are
-      // pinned so a fingerprinter can't read a phone-sized viewport against
-      // the desktop 1920x1080 screen the shim already reports.
-      expect(js, contains('pinWindowDim'));
-      expect(js, contains("'innerWidth'"));
-      expect(js, contains("'innerHeight'"));
-      expect(js, contains("'outerWidth'"));
-      expect(js, contains("'outerHeight'"));
-      expect(js, contains("'devicePixelRatio'"));
+    test('default (non-letterbox) pins fixed screen dimensions', () {
+      // ETP-010: with letterboxing off, screen.* reports a fixed desktop
+      // 1920x1080 and the window is left untouched.
+      expect(js, contains('var LETTERBOX = false'));
+      expect(js, contains('1920'));
+      expect(js, contains('1080'));
     });
 
-    test('defaults to a seeded window size when no manual dims given', () {
-      expect(js, contains('var MANUAL_WIN = null'));
-      expect(js, contains('WIN_SIZES'));
-    });
-
-    test('manual window dims bake literal values and bypass the bucket', () {
-      // ETP-021: an explicit user-set size produces a different shim that
-      // pins exactly those dimensions.
-      final manual = buildAntiFingerprintingShim('alpha-fixture-seed',
-          windowWidth: 1024, windowHeight: 768);
-      expect(manual, contains('var MANUAL_WIN = [1024, 768]'));
-      expect(manual, isNot(equals(js)));
-    });
-
-    test('partial or non-positive manual dims fall back to seeded', () {
-      // Both must be present and positive; otherwise the seeded bucket
-      // stands so a half-filled UI never produces a degenerate size.
-      expect(buildAntiFingerprintingShim('s', windowWidth: 1024),
-          contains('var MANUAL_WIN = null'));
-      expect(buildAntiFingerprintingShim('s', windowWidth: 0, windowHeight: 0),
-          contains('var MANUAL_WIN = null'));
-      expect(buildAntiFingerprintingShim('s', windowWidth: -5, windowHeight: 768),
-          contains('var MANUAL_WIN = null'));
+    test('letterbox mode mirrors screen.* to the real window.inner* (ETP-020)',
+        () {
+      // The WebView is physically letterboxed by Flutter, so window.inner* is
+      // already truthful; screen.* mirrors it rather than faking 1920x1080.
+      final lb = buildAntiFingerprintingShim('alpha-fixture-seed', letterbox: true);
+      expect(lb, contains('var LETTERBOX = true'));
+      expect(lb, contains('window.innerWidth'));
+      expect(lb, contains('window.innerHeight'));
+      expect(lb, isNot(equals(js)));
     });
 
     test('wraps the body in try/catch so a missing API never breaks boot', () {
@@ -478,17 +460,23 @@ void main() {
               'per-site identity — the fingerprint must change');
     });
 
-    test('manual window dims thread through the script source (ETP-021)', () {
-      final src = buildAntiFingerprintingScriptSource(
+    test('letterbox flag threads through the script source (ETP-020)', () {
+      final lb = buildAntiFingerprintingScriptSource(
         siteId: 'site-A',
         trackingProtectionEnabled: true,
         incognito: false,
         launchNonce: LaunchNonce.value,
-        windowWidth: 800,
-        windowHeight: 600,
+        letterbox: true,
       );
-      expect(src, isNotNull);
-      expect(src, contains('var MANUAL_WIN = [800, 600]'));
+      final normal = buildAntiFingerprintingScriptSource(
+        siteId: 'site-A',
+        trackingProtectionEnabled: true,
+        incognito: false,
+        launchNonce: LaunchNonce.value,
+        letterbox: false,
+      );
+      expect(lb, contains('var LETTERBOX = true'));
+      expect(normal, contains('var LETTERBOX = false'));
     });
 
     test('script source carries the InAppWebView return-value sentinel', () {

@@ -31,6 +31,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool contentBlockEnabled;
   final bool localCdnEnabled;
   final bool trackingProtectionEnabled;
+  final bool letterboxEnabled;
   final int? spoofWindowWidth;
   final int? spoofWindowHeight;
   final String? fingerprintResetNonce;
@@ -77,6 +78,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.contentBlockEnabled,
     required this.localCdnEnabled,
     required this.trackingProtectionEnabled,
+    this.letterboxEnabled = false,
     this.spoofWindowWidth,
     this.spoofWindowHeight,
     this.fingerprintResetNonce,
@@ -186,6 +188,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         contentBlockEnabled: widget.contentBlockEnabled || widget.trackingProtectionEnabled,
         localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
         trackingProtectionEnabled: widget.trackingProtectionEnabled,
+        letterboxEnabled: widget.letterboxEnabled,
         spoofWindowWidth: widget.spoofWindowWidth,
         spoofWindowHeight: widget.spoofWindowHeight,
         fingerprintResetNonce: widget.fingerprintResetNonce,

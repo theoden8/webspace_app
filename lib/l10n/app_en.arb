@@ -3005,20 +3005,28 @@
   "@homeShortcutPickTitle": {
     "description": "Title of the dialog listing existing sites to reassign an orphaned shortcut to."
   },
-  "siteSettingsWindowWidth": "Window width",
+  "siteSettingsWindowWidth": "Box width",
   "@siteSettingsWindowWidth": {
-    "description": "Label for the per-site spoofed window width input under Tracking Protection."
+    "description": "Label for the per-site letterbox content-box width input."
   },
-  "siteSettingsWindowHeight": "Window height",
+  "siteSettingsWindowHeight": "Box height",
   "@siteSettingsWindowHeight": {
-    "description": "Label for the per-site spoofed window height input under Tracking Protection."
+    "description": "Label for the per-site letterbox content-box height input."
   },
-  "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
+  "siteSettingsWindowSizeHelper": "Optional exact box size in pixels. Leave blank to snap to a 200x100 grid of the screen.",
   "@siteSettingsWindowSizeHelper": {
-    "description": "Helper text under the per-site window width and height inputs."
+    "description": "Helper text under the per-site letterbox box width and height inputs."
   },
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Turn on Letterbox window to set a custom box size.",
   "@siteSettingsWindowSizeRequiresProtection": {
-    "description": "Helper text shown when Tracking Protection is off; the window-size fields are inactive."
+    "description": "Helper text shown when letterboxing is off; the box-size fields are inactive."
+  },
+  "siteSettingsLetterboxTitle": "Letterbox window",
+  "@siteSettingsLetterboxTitle": {
+    "description": "Title of the per-site Letterbox window switch under Tracking Protection."
+  },
+  "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) so the screen size cannot fingerprint you",
+  "@siteSettingsLetterboxSubtitle": {
+    "description": "Subtitle explaining the Letterbox window switch."
   }
 }

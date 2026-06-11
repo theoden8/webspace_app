@@ -166,7 +166,7 @@ function loadShim(rel, options) {
 
 const ALPHA = 'anti_fingerprinting/shim_seed_alpha.js';
 const BETA = 'anti_fingerprinting/shim_seed_beta.js';
-const ALPHA_WIN_1024 = 'anti_fingerprinting/shim_seed_alpha_window_1024x768.js';
+const ALPHA_LETTERBOX = 'anti_fingerprinting/shim_seed_alpha_letterbox.js';
 
 // --- screen.* ---
 
@@ -195,46 +195,33 @@ test('screen overrides land on Screen.prototype, not the instance', () => {
   }
 });
 
-// --- window dimensions (ETP-020 / ETP-021) ---
+// --- letterbox mode (ETP-020) ---
 
-test('window inner/outer dimensions are pinned and consistent with the screen', () => {
-  const dom = loadShim(ALPHA);
+test('letterbox mode mirrors screen.* to the real window.inner*', () => {
+  // Flutter has physically sized the WebView, so window.inner* is truthful;
+  // screen.* must report the same values (not the fixed 1920x1080).
+  const dom = loadShim(ALPHA_LETTERBOX);
   const w = dom.window;
-  // Seeded bucket: all entries are <= the pinned 1920x1080 screen, so a
-  // fingerprinter never reads a window larger than the screen.
-  assert.ok(w.innerWidth > 0 && w.innerWidth <= 1920, `innerWidth=${w.innerWidth}`);
-  assert.ok(w.innerHeight > 0 && w.innerHeight <= 1080, `innerHeight=${w.innerHeight}`);
-  assert.ok(w.outerWidth >= w.innerWidth, 'outerWidth should be >= innerWidth');
-  assert.ok(w.outerHeight >= w.innerHeight, 'outerHeight should be >= innerHeight');
+  assert.equal(w.screen.width, w.innerWidth);
+  assert.equal(w.screen.height, w.innerHeight);
+  assert.equal(w.screen.availWidth, w.innerWidth);
+  assert.equal(w.screen.availHeight, w.innerHeight);
 });
 
-test('devicePixelRatio is pinned to 1', () => {
-  assert.equal(loadShim(ALPHA).window.devicePixelRatio, 1);
+test('letterbox screen.* tracks a changed viewport (mirrors, not a snapshot)', () => {
+  const dom = loadShim(ALPHA_LETTERBOX);
+  // A rotation re-sizes the box; screen.* should follow window.inner*.
+  Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 800 });
+  Object.defineProperty(dom.window, 'innerHeight', { configurable: true, value: 600 });
+  assert.equal(dom.window.screen.width, 800);
+  assert.equal(dom.window.screen.height, 600);
 });
 
-test('window size is stable per seed across runs', () => {
-  const a = loadShim(ALPHA).window;
-  const b = loadShim(ALPHA).window;
-  assert.equal(a.innerWidth, b.innerWidth);
-  assert.equal(a.innerHeight, b.innerHeight);
-});
-
-test('window size differs across seeds (cross-site uniqueness)', () => {
-  const a = loadShim(ALPHA).window;
-  const b = loadShim(BETA).window;
-  // The two pinned fixture seeds were chosen to land on different buckets.
-  assert.ok(a.innerWidth !== b.innerWidth || a.innerHeight !== b.innerHeight,
-    `alpha=${a.innerWidth}x${a.innerHeight} beta=${b.innerWidth}x${b.innerHeight}`);
-});
-
-test('manual window size pins exactly the requested content dimensions', () => {
-  const w = loadShim(ALPHA_WIN_1024).window;
-  assert.equal(w.innerWidth, 1024);
-  assert.equal(w.innerHeight, 768);
-  assert.equal(w.outerWidth, 1024);
-  // Outer height adds the desktop chrome (79px) to the content height.
-  assert.equal(w.outerHeight, 768 + 79);
-  assert.equal(w.devicePixelRatio, 1);
+test('non-letterbox leaves window.inner* untouched (real values)', () => {
+  // Without letterboxing the shim does not fake the window — only screen.*
+  // is pinned (asserted above), and the real viewport stands.
+  const dom = loadShim(ALPHA);
+  assert.equal(dom.window.innerWidth, 1024); // jsdom default, unmodified
 });
 
 // --- navigator.* ---
