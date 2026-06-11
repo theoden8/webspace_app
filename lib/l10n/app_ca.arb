@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Reassigna",
   "homeShortcutDisable": "Desactiva",
   "homeShortcutPickTitle": "Apunta la drecera a",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Idioma de l'app",
+  "appSettingsLanguageSystem": "Predeterminat del sistema"
 }

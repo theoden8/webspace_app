@@ -32,7 +32,7 @@
   "statsBannerAllowed": "{count} permise",
   "findToolbarSearchHint": "Caută în pagină",
   "urlBarHint": "Introdu URL",
-  "urlBarGoTooltip": "Mergi",
+  "urlBarGoTooltip": "Accesează",
   "untrustedCertTitle": "Certificat neverificat",
   "untrustedCertBody": "Certificatul pentru {host}:{port} nu a putut fi verificat.",
   "untrustedCertWarning": "Acest lucru este normal pentru site-urile auto-semnate pe care le controlezi. Poate indica și că cineva interceptează conexiunea — continuă doar dacă recunoști acest site.",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Reatribuie",
   "homeShortcutDisable": "Dezactivează",
   "homeShortcutPickTitle": "Îndreaptă scurtătura către",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Limba aplicației",
+  "appSettingsLanguageSystem": "Implicit de sistem"
 }

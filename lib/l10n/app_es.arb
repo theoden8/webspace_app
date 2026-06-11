@@ -8,7 +8,7 @@
   "trustedCertRevokeAllDialogBody": "Se eliminan todos los certificados fijados. Los sitios autofirmados que usas volverán a preguntar en la próxima visita.",
   "trustedCertRevokeAllConfirm": "Revocar todos",
   "trustedCertRevokeDialogTitle": "¿Revocar la confianza?",
-  "trustedCertRevokeDialogBody": "La próxima visita a {host}:{port} volverá a preguntar antes de cargar. Las solicitudes de red fuera del webview (favicones, descargas) para este host también fallarán hasta que se vuelvan a aprobar.",
+  "trustedCertRevokeDialogBody": "La próxima visita a {host}:{port} volverá a preguntar antes de cargar. Las solicitudes de red fuera del webview (favicons, descargas) para este host también fallarán hasta que se vuelvan a aprobar.",
   "trustedCertRevokeConfirm": "Revocar",
   "trustedCertEmptyTitle": "Aún no hay certificados de confianza.",
   "trustedCertEmptyBody": "Cuando visites un sitio con un certificado autofirmado o no confiable, puedes elegir \"Confiar en este sitio\". La decisión se guarda aquí y el aviso no vuelve a aparecer salvo que cambie el certificado.",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Reasignar",
   "homeShortcutDisable": "Desactivar",
   "homeShortcutPickTitle": "Apuntar el acceso directo a",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Idioma de la app",
+  "appSettingsLanguageSystem": "Predeterminado del sistema"
 }

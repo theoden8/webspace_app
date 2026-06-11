@@ -234,7 +234,7 @@
   "appSettingsDnsBlocklistDownloadFailed": "Impossibile scaricare la blocklist DNS",
   "appSettingsLocalCdn": "LocalCDN",
   "appSettingsLocalCdnResources": "{count} risorse ({size})",
-  "appSettingsDownloadingProgress": "Download {progress}...",
+  "appSettingsDownloadingProgress": "Scaricamento {progress}...",
   "appSettingsUpdateResources": "Aggiorna risorse",
   "appSettingsDownloadResources": "Scarica risorse",
   "appSettingsClearCache": "Svuota cache",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Riassegna",
   "homeShortcutDisable": "Disabilita",
   "homeShortcutPickTitle": "Fai puntare la scorciatoia a",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Lingua dell'app",
+  "appSettingsLanguageSystem": "Predefinita di sistema"
 }

@@ -116,7 +116,7 @@
   "inappBrowserMenuDeveloperTools": "Utviklerverktøy",
   "linkHandlingScreenTitle": "Håndtering av lenker",
   "linkHandlingMasterToggleTitle": "Håndter delte lenker",
-  "linkHandlingMasterToggleSubtitle": "Når avslått, forkastes delingsintensjoner og webspace://-URL-er stille. Bruk for å beholde appen installert uten å gjøre den til standard for andre apper.",
+  "linkHandlingMasterToggleSubtitle": "Når den er av, forkastes delingsintenter og webspace://-URL-er stille. Bruk dette for å beholde appen installert uten å gjøre den til standard for andre apper.",
   "linkHandlingTestRoutingTitle": "Test ruting",
   "linkHandlingTestUrlHint": "https://example.org/foo",
   "linkHandlingDispatchTooltip": "Send gjennom rutemotoren",
@@ -175,7 +175,7 @@
   "appSettingsStatsBarSubtitle": "Vis sanntidsstatistikk for forespørsler øverst på hvert nettsted",
   "appSettingsLinkHandling": "Håndtering av lenker",
   "appSettingsLinkHandlingOn": "Håndter delte lenker og webspace://-URL-er",
-  "appSettingsLinkHandlingOff": "Av — delingsintensjoner og webspace://-URL-er forkastes",
+  "appSettingsLinkHandlingOff": "Av — delingsintenter og webspace://-URL-er forkastes",
   "appSettingsOutboundProxy": "Utgående proxy",
   "appSettingsProxyType": "Proxy-type",
   "appSettingsProxyAddress": "Proxy-adresse",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Tildel på nytt",
   "homeShortcutDisable": "Deaktiver",
   "homeShortcutPickTitle": "Pek snarvei mot",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Appspråk",
+  "appSettingsLanguageSystem": "Systemstandard"
 }
