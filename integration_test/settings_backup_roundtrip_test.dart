@@ -151,14 +151,17 @@ void main() {
         reason: 'password should hydrate from secure storage on startup');
 
     // Reach App Settings, scroll to the Export/Import row pair.
-    Future<void> openSettingsAndScrollToBackup() async {
+    Future<void> openSettingsAndScrollTo(Finder target) async {
       final settingsButton = find.byTooltip('App Settings');
       expect(settingsButton, findsOneWidget,
           reason: 'App Settings icon should be visible on the webspaces list');
       await tester.tap(settingsButton);
       await tester.pumpAndSettle(const Duration(seconds: 5));
+      // Scroll to the specific tile being tapped: the ListView culls
+      // offscreen children, so scrolling only to Export would leave the
+      // adjacent Import tile out of the element tree.
       await tester.scrollUntilVisible(
-        find.text('Export Settings'),
+        target,
         300.0,
         scrollable: find.byType(Scrollable).first,
       );
@@ -170,7 +173,7 @@ void main() {
     // webspaces-list screen while the export's file write + snackbar
     // run on the parent's context.
     stub.saveReturn = exportPath;
-    await openSettingsAndScrollToBackup();
+    await openSettingsAndScrollTo(find.text('Export Settings'));
     await tester.tap(find.text('Export Settings'));
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
@@ -189,7 +192,7 @@ void main() {
     // shows its confirmation dialog and the post-import snackbar
     // attached to the parent (webspaces-list) ScaffoldMessenger.
     stub.pickReturn = exportPath;
-    await openSettingsAndScrollToBackup();
+    await openSettingsAndScrollTo(find.text('Import Settings'));
     await tester.tap(find.text('Import Settings'));
     await tester.pumpAndSettle(const Duration(seconds: 5));
 

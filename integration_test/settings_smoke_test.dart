@@ -111,6 +111,15 @@ void main() {
     );
     expect(find.text('Export Settings'), findsOneWidget,
       reason: 'Export Settings list tile should render after scroll');
+    // Import Settings is the next tile below Export; the ListView culls it
+    // until scrolled into view, so bring it into the viewport explicitly
+    // rather than assuming both tiles share the fold (adding any tile above
+    // shifts where Export lands).
+    await tester.scrollUntilVisible(
+      find.text('Import Settings'),
+      100.0,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Import Settings'), findsOneWidget,
       reason: 'Import Settings list tile should render after scroll');
 
