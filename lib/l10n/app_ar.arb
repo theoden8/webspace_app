@@ -95,7 +95,7 @@
   "locationPickerPermissionDenied": "لم يُمنح إذن الموقع.",
   "locationPickerPermissionDeniedForever": "تم رفض إذن الموقع. فعّله من إعدادات النظام.",
   "locationPickerServiceDisabled": "خدمات الموقع معطّلة على هذا الجهاز.",
-  "locationPickerTimeout": "تعذّر الحصول على تحديد للموقع في الوقت المناسب. حاول مجددًا في الخارج.",
+  "locationPickerTimeout": "تعذّر الحصول على تحديد للموقع في الوقت المناسب. حاول مجددًا في مكان مفتوح.",
   "locationPickerUnsupported": "الموقع الحالي غير متاح على هذه المنصة.",
   "locationPickerError": "فشل الحصول على الموقع الحالي.",
   "locationPickerMapNotLoaded": "الخريطة غير محمّلة.",
@@ -195,7 +195,7 @@
   "appSettingsLocationPicker": "منتقي الموقع",
   "appSettingsTileUrl": "عنوان URL للبلاطات",
   "appSettingsTimezonePolygons": "مضلّعات المناطق الزمنية",
-  "appSettingsZonesCount": "{count} منطقة",
+  "appSettingsZonesCount": "{count} منطقة زمنية",
   "appSettingsNotDownloaded": "غير منزّلة",
   "appSettingsUpdatedAt": "آخر تحديث: {date}",
   "appSettingsClearDataset": "مسح مجموعة البيانات",
@@ -253,7 +253,7 @@
   "appSettingsCustomListNameHint": "قائمة التصفية الخاصة بي",
   "appSettingsCustomListUrlLabel": "عنوان URL",
   "appSettingsAddCustomList": "إضافة قائمة مخصّصة",
-  "appSettingsUboRedirectStubs": "تقديم بدائل إعادة التوجيه من uBO",
+  "appSettingsUboRedirectStubs": "تقديم نسخ بديلة لإعادة التوجيه من uBO",
   "appSettingsUboRedirectStubsUnavailable": "مكتبة حجب الإعلانات الأصلية غير متاحة على هذه المنصة.",
   "appSettingsUboRedirectStubsSubtitle": "إرجاع أجسام بديلة لقواعد ‎$redirect=‎ بدلًا من إسقاط الطلب",
   "appSettingsDeveloper": "المطوّر",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "إعادة التعيين",
   "homeShortcutDisable": "تعطيل",
   "homeShortcutPickTitle": "توجيه الاختصار إلى",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "لغة التطبيق",
+  "appSettingsLanguageSystem": "افتراضي النظام"
 }
