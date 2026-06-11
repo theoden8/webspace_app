@@ -452,7 +452,7 @@
   "userScriptsMakeGlobalSubtitle": "Disponible pour tous les sites",
   "userScriptsMakeGlobalBody": "Rendre « {name} » disponible pour tous les sites ? Il restera activé sur ce site.",
   "userScriptsMovedToGlobal": "« {name} » déplacé vers les scripts globaux",
-  "userScriptsRemoveFromAllSites": "Retire de tous les sites",
+  "userScriptsRemoveFromAllSites": "Le retire de tous les sites",
   "userScriptsEmpty": "Aucun script utilisateur pour l'instant. Appuyez sur + pour en ajouter un.",
   "userScriptsGlobalBadge": "Global",
   "userScriptsRunsAtDocumentStart": "S'exécute au début du document",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Réaffecter",
   "homeShortcutDisable": "Désactiver",
   "homeShortcutPickTitle": "Faire pointer le raccourci vers",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Langue de l'application",
+  "appSettingsLanguageSystem": "Valeur par défaut du système"
 }

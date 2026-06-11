@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Reatribuir",
   "homeShortcutDisable": "Desativar",
   "homeShortcutPickTitle": "Apontar atalho para",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Idioma do app",
+  "appSettingsLanguageSystem": "Padrão do sistema"
 }

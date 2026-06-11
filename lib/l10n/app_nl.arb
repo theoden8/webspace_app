@@ -101,7 +101,7 @@
   "locationPickerMapNotLoaded": "Kaart is niet geladen.",
   "locationPickerPrivacyNotice": "Het laden van de kaart haalt tegels op van {host}, waardoor het gebied dat je bekijkt aan de tegelserver wordt onthuld. Je kunt ook gewoon coördinaten hierboven typen en op Klaar tikken.",
   "locationPickerLoadMap": "Kaart laden",
-  "locationPickerTilesBlocked": "Tegel-ophalingen worden geblokkeerd door je proxy-instellingen.",
+  "locationPickerTilesBlocked": "Het ophalen van tegels wordt geblokkeerd door je proxy-instellingen.",
   "locationPickerChangeProviderHint": "Wijzig de provider bij App-instellingen → Locatiekiezer",
   "locationPickerOsmContributors": " bijdragers · ",
   "locationPickerReportMapIssue": "Een kaartprobleem melden",
@@ -206,7 +206,7 @@
   "appSettingsUserScripts": "Gebruikersscripts",
   "appSettingsManageScripts": "Scripts beheren",
   "appSettingsNoGlobalScripts": "Geen globale scripts",
-  "appSettingsScriptsDefined": "{count} gedefinieerd — per site aanmelden",
+  "appSettingsScriptsDefined": "{count} gedefinieerd — per site inschakelen",
   "appSettingsData": "Gegevens",
   "appSettingsExportSettings": "Instellingen exporteren",
   "appSettingsExportSettingsSubtitle": "Sites en webspaces naar een bestand opslaan",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Opnieuw toewijzen",
   "homeShortcutDisable": "Uitschakelen",
   "homeShortcutPickTitle": "Snelkoppeling laten verwijzen naar",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "App-taal",
+  "appSettingsLanguageSystem": "Systeemstandaard"
 }
