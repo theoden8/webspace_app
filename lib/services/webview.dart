@@ -555,6 +555,10 @@ class WebViewConfig {
   /// [trackingProtectionEnabled] is true (the shim is gated on it).
   final int? spoofWindowWidth;
   final int? spoofWindowHeight;
+  /// Per-site nonce regenerated when the user clears the site's data; folded
+  /// into the anti-fingerprinting seed so a data wipe rerolls the fingerprint
+  /// (ETP-022). Null/empty leaves the seed as the bare siteId.
+  final String? fingerprintResetNonce;
   /// Whether to serve CDN resources from local cache (Android only).
   final bool localCdnEnabled;
   /// Callback for JS console messages.
@@ -651,6 +655,7 @@ class WebViewConfig {
     this.trackingProtectionEnabled = true,
     this.spoofWindowWidth,
     this.spoofWindowHeight,
+    this.fingerprintResetNonce,
     this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onLoadingChanged,
@@ -1512,6 +1517,7 @@ class WebViewFactory {
       trackingProtectionEnabled: config.trackingProtectionEnabled,
       incognito: config.incognito,
       launchNonce: LaunchNonce.value,
+      resetNonce: config.fingerprintResetNonce,
       windowWidth: config.spoofWindowWidth,
       windowHeight: config.spoofWindowHeight,
     );

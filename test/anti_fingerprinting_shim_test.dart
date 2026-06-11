@@ -275,6 +275,77 @@ void main() {
       expect(ephemeral, isNot(equals(stable)));
     });
 
+    test('resetNonce folds into the seed (non-incognito) — ETP-022', () {
+      final seed = computeAntiFingerprintingSeed(
+        siteId: 'site-A',
+        incognito: false,
+        launchNonce: 'nonce-1',
+        resetNonce: 'reset-xyz',
+      );
+      expect(seed, equals('site-A:reset-xyz'));
+    });
+
+    test('resetNonce folds in alongside the launch nonce (incognito)', () {
+      final seed = computeAntiFingerprintingSeed(
+        siteId: 'site-A',
+        incognito: true,
+        launchNonce: 'nonce-1',
+        resetNonce: 'reset-xyz',
+      );
+      expect(seed, equals('site-A:reset-xyz:nonce-1'));
+    });
+
+    test('null/empty resetNonce leaves the seed unchanged (backward compat)',
+        () {
+      final bare = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'n',
+      );
+      expect(bare, equals('site-A'));
+      expect(
+        computeAntiFingerprintingSeed(
+          siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: null,
+        ),
+        equals('site-A'),
+      );
+      expect(
+        computeAntiFingerprintingSeed(
+          siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: '',
+        ),
+        equals('site-A'),
+      );
+    });
+
+    test('a new resetNonce rerolls the seed (data-clear reroll)', () {
+      final before = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: 'r1',
+      );
+      final after = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: 'r2',
+      );
+      expect(after, isNot(equals(before)));
+    });
+
+    test('resetNonce threads through the script source and rerolls the shim',
+        () {
+      final r1 = buildAntiFingerprintingScriptSource(
+        siteId: 'site-A',
+        trackingProtectionEnabled: true,
+        incognito: false,
+        launchNonce: LaunchNonce.value,
+        resetNonce: 'r1',
+      );
+      final r2 = buildAntiFingerprintingScriptSource(
+        siteId: 'site-A',
+        trackingProtectionEnabled: true,
+        incognito: false,
+        launchNonce: LaunchNonce.value,
+        resetNonce: 'r2',
+      );
+      expect(r1, isNotNull);
+      expect(r2, isNot(equals(r1)));
+      expect(r1, contains('"site-A:r1"'));
+    });
+
     test('seed flows through buildAntiFingerprintingShim end-to-end', () {
       // Sanity: the seed string we compute appears in the generated
       // shim source, so the JS-side PRNG is keyed off the right value.

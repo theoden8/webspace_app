@@ -33,6 +33,7 @@ class InAppWebViewScreen extends StatefulWidget {
   final bool trackingProtectionEnabled;
   final int? spoofWindowWidth;
   final int? spoofWindowHeight;
+  final String? fingerprintResetNonce;
   final String? language;
   final int zoomPercent;
   final bool showUrlBar;
@@ -78,6 +79,7 @@ class InAppWebViewScreen extends StatefulWidget {
     required this.trackingProtectionEnabled,
     this.spoofWindowWidth,
     this.spoofWindowHeight,
+    this.fingerprintResetNonce,
     required this.language,
     this.zoomPercent = 100,
     this.showUrlBar = false,
@@ -186,6 +188,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         trackingProtectionEnabled: widget.trackingProtectionEnabled,
         spoofWindowWidth: widget.spoofWindowWidth,
         spoofWindowHeight: widget.spoofWindowHeight,
+        fingerprintResetNonce: widget.fingerprintResetNonce,
         language: widget.language,
         zoomPercent: widget.zoomPercent,
         // Geolocation mode is independent of the umbrella. Static

@@ -420,6 +420,44 @@ default
 
 ---
 
+### Requirement: ETP-022 - Fingerprint reroll on data clear
+
+`WebViewModel` SHALL carry a per-site `fingerprintResetNonce` (default
+null, omitted from `toJson` when null) that is mixed into the
+anti-fingerprinting seed. `computeAntiFingerprintingSeed` SHALL fold a
+non-empty nonce in as `siteId:resetNonce` (and
+`siteId:resetNonce:launchNonce` for incognito), leaving the seed equal to
+the bare `siteId` when the nonce is null/empty so sites stored before this
+field existed keep their fingerprint until reset. Clearing a site's data
+SHALL regenerate the nonce (`WebViewModel.rerollFingerprint`) so the
+rebuilt webview's entire fingerprint — canvas, WebGL, audio, window size
+(ETP-020/021), hardware, etc. — rerolls and the site cannot re-identify
+the user across the wipe. The nonce SHALL propagate to nested webviews via
+`launchUrl`.
+
+#### Scenario: Seed unchanged when no reset has happened
+
+**Given** a site with `fingerprintResetNonce` null
+**Then** `computeAntiFingerprintingSeed` returns the bare `siteId`
+(non-incognito) or `siteId:launchNonce` (incognito)
+
+#### Scenario: Reset nonce folds into the seed
+
+**Given** `resetNonce` is `"r1"`
+**Then** the non-incognito seed is `siteId:r1`
+**And** the incognito seed is `siteId:r1:launchNonce`
+
+#### Scenario: Clearing site data rerolls the fingerprint
+
+**Given** a site whose data is cleared
+**When** `rerollFingerprint` runs
+**Then** `fingerprintResetNonce` becomes a fresh non-empty value
+**And** the regenerated anti-fingerprinting seed differs from the
+pre-clear seed
+**And** the new value round-trips through `toJson` / `fromJson`
+
+---
+
 ### Requirement: ETP-011 - Battery and speech-synthesis
 
 The shim SHALL define `navigator.getBattery()` to resolve a Promise of

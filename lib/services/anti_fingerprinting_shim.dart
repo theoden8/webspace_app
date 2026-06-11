@@ -60,12 +60,23 @@ import 'dart:convert';
 /// the user wants a fresh-visitor posture each launch; reusing the same
 /// fingerprint across launches would itself be a stable cross-session
 /// identifier (issue #327, ETP-019).
+///
+/// [resetNonce], when non-empty, is a per-site value regenerated whenever the
+/// user clears the site's data (ETP-022). Folding it into the seed rerolls
+/// the entire fingerprint (canvas/WebGL/audio/window size/…) so a site can't
+/// re-identify the user across a data wipe via a stable fingerprint. When
+/// null/empty the seed is unchanged, so sites stored before this field
+/// existed keep their fingerprint until the user resets them.
 String computeAntiFingerprintingSeed({
   required String siteId,
   required bool incognito,
   required String launchNonce,
+  String? resetNonce,
 }) {
-  return incognito ? '$siteId:$launchNonce' : siteId;
+  final base = (resetNonce != null && resetNonce.isNotEmpty)
+      ? '$siteId:$resetNonce'
+      : siteId;
+  return incognito ? '$base:$launchNonce' : base;
 }
 
 /// Compose the full anti-fingerprinting `UserScript.source` (shim body
@@ -80,6 +91,7 @@ String? buildAntiFingerprintingScriptSource({
   required bool trackingProtectionEnabled,
   required bool incognito,
   required String launchNonce,
+  String? resetNonce,
   int? windowWidth,
   int? windowHeight,
 }) {
@@ -88,6 +100,7 @@ String? buildAntiFingerprintingScriptSource({
     siteId: siteId,
     incognito: incognito,
     launchNonce: launchNonce,
+    resetNonce: resetNonce,
   );
   return '${buildAntiFingerprintingShim(seed, windowWidth: windowWidth, windowHeight: windowHeight)}\n;null;';
 }

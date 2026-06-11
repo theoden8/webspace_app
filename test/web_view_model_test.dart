@@ -330,6 +330,27 @@ void main() {
       expect(back.spoofWindowHeight, equals(720));
     });
 
+    test('fingerprintResetNonce null by default; toJson omits it', () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      expect(m.fingerprintResetNonce, isNull);
+      expect(m.toJson().containsKey('fingerprintResetNonce'), isFalse);
+    });
+
+    test('rerollFingerprint sets a fresh nonce that round-trips and changes',
+        () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      m.rerollFingerprint();
+      final first = m.fingerprintResetNonce;
+      expect(first, isNotNull);
+      expect(first, isNotEmpty);
+
+      final back = WebViewModel.fromJson(m.toJson(), null);
+      expect(back.fingerprintResetNonce, equals(first));
+
+      m.rerollFingerprint();
+      expect(m.fingerprintResetNonce, isNot(equals(first)));
+    });
+
     test('localCdnEnabled defaults to true when missing from JSON', () {
       final json = {
         'initUrl': 'https://example.com',
