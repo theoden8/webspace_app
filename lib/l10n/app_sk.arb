@@ -51,7 +51,7 @@
   "downloadButtonSavedToPath": "Uložené • {path}",
   "downloadButtonFailed": "Zlyhalo",
   "downloadButtonCancelled": "Zrušené",
-  "downloadButtonDismiss": "Zrušiť",
+  "downloadButtonDismiss": "Zavrieť",
   "downloadButtonBytesReceived": "prijatých {done}",
   "externalUrlPromptTitle": "Otvoriť externú aplikáciu?",
   "externalUrlPromptBody": "Táto stránka chce otvoriť:",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Priradiť znova",
   "homeShortcutDisable": "Vypnúť",
   "homeShortcutPickTitle": "Nasmerovať skratku na",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Jazyk aplikácie",
+  "appSettingsLanguageSystem": "Predvolené systémom"
 }

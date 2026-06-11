@@ -369,7 +369,7 @@
   "siteSettingsBlockAutoRedirects": "Automatikus átirányítások blokkolása",
   "siteSettingsBlockAutoRedirectsHintTitle": "Automatikus átirányítások blokkolása",
   "siteSettingsBlockAutoRedirectsHint": "Megakadályozza, hogy a szkriptek automatikusan másik domainre navigálják Önt. Ez segít elkerülni, hogy csendben nyomkövető vagy reklámoldalakra irányítsák.",
-  "siteSettingsBlockAutoRedirectsSubtitle": "Szkriptek által kezdeményezett eredményközi navigációk blokkolása",
+  "siteSettingsBlockAutoRedirectsSubtitle": "Szkriptek által kezdeményezett tartományközi navigációk blokkolása",
   "siteSettingsFullscreen": "Teljes képernyős mód",
   "siteSettingsFullscreenHintTitle": "Teljes képernyős mód",
   "siteSettingsFullscreenHint": "Automatikusan teljes képernyőre vált, amikor ezt a webhelyet kiválasztják. Elrejti az alkalmazássávot, a fülsávot és a rendszerfelületet a magával ragadó élményért. Koppintson a képernyő szélére, vagy használja a vissza gesztust a teljes képernyőből való kilépéshez.",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Újrahozzárendelés",
   "homeShortcutDisable": "Letiltás",
   "homeShortcutPickTitle": "Parancsikon ráirányítása erre",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Alkalmazás nyelve",
+  "appSettingsLanguageSystem": "Rendszer alapértelmezett"
 }

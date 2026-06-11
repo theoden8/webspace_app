@@ -253,9 +253,9 @@
   "appSettingsCustomListNameHint": "A miña lista de filtros",
   "appSettingsCustomListUrlLabel": "URL",
   "appSettingsAddCustomList": "Engadir lista personalizada",
-  "appSettingsUboRedirectStubs": "Servir cabos de redirección de uBO",
+  "appSettingsUboRedirectStubs": "Servir stubs de redirección de uBO",
   "appSettingsUboRedirectStubsUnavailable": "A biblioteca nativa de bloqueo de anuncios non está dispoñible nesta plataforma.",
-  "appSettingsUboRedirectStubsSubtitle": "Devolver corpos cabo para as regras $redirect= en vez de descartar a solicitude",
+  "appSettingsUboRedirectStubsSubtitle": "Devolver corpos stub para as regras $redirect= en vez de descartar a solicitude",
   "appSettingsDeveloper": "Desenvolvedor",
   "appSettingsAppLogs": "Rexistros da aplicación",
   "appSettingsAppLogsSubtitle": "Ver rexistros de depuración da aplicación",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Reasignar",
   "homeShortcutDisable": "Desactivar",
   "homeShortcutPickTitle": "Apuntar o atallo a",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Idioma da aplicación",
+  "appSettingsLanguageSystem": "Predeterminado do sistema"
 }

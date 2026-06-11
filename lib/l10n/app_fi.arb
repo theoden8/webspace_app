@@ -35,7 +35,7 @@
   "urlBarGoTooltip": "Siirry",
   "untrustedCertTitle": "Ei-luotettu varmenne",
   "untrustedCertBody": "Osoitteen {host}:{port} varmennetta ei voitu vahvistaa.",
-  "untrustedCertWarning": "Tämä on normaalia hallinnoimillesi itse allekirjoitetuille sivustoille. Se voi myös tarkoittaa, että joku sieppaa yhteyttä — jatka vain, jos tunnistat tämän sivuston.",
+  "untrustedCertWarning": "Tämä on normaalia hallinnoimillesi itse allekirjoitetuille sivustoille. Se voi myös tarkoittaa, että joku sieppaa yhteytesi — jatka vain, jos tunnistat tämän sivuston.",
   "untrustedCertIssuedTo": "Myönnetty",
   "untrustedCertIssuedBy": "Myöntäjä",
   "untrustedCertExpires": "Vanhenee",
@@ -254,7 +254,7 @@
   "appSettingsCustomListUrlLabel": "URL",
   "appSettingsAddCustomList": "Lisää mukautettu lista",
   "appSettingsUboRedirectStubs": "Tarjoa uBO-uudelleenohjaustyngät",
-  "appSettingsUboRedirectStubsUnavailable": "Natiivi mainoseston kirjasto ei ole saatavilla tällä alustalla.",
+  "appSettingsUboRedirectStubsUnavailable": "Natiivia mainoseston kirjastoa ei ole saatavilla tällä alustalla.",
   "appSettingsUboRedirectStubsSubtitle": "Palauta tynkärungot $redirect=-säännöille pyynnön pudottamisen sijaan",
   "appSettingsDeveloper": "Kehittäjä",
   "appSettingsAppLogs": "Sovelluslokit",
@@ -499,8 +499,8 @@
   "homeAddShortcutTitleMacos": "Lisää pikakuvake",
   "homeAddShortcutMacosBody": "macOS lisää WebSpace-sivustot Shortcuts-sovelluksen kautta.\n\nEtsi Shortcuts-sovelluksesta \"Open Site\" -toiminto WebSpacen alta, valitse \"{name}\" ja lisää se sitten Dockiin tai suorita se valikkopalkista.",
   "homeOpenShortcuts": "Avaa Shortcuts",
-  "homeUnsupportedUrl": "Ei tuettu URL",
-  "homeUnsupportedShare": "Ei tuettu jako: {reason}",
+  "homeUnsupportedUrl": "URL-osoitetta ei tueta",
+  "homeUnsupportedShare": "Jakoa ei tueta: {reason}",
   "homeSwitchedToAllToOpen": "Vaihdettiin Kaikki-tilaan avataksesi kohteessa {name}",
   "homeMoveSiteToArchiveTitle": "Siirrä sivusto arkistoon",
   "homeArchivePassphraseHint": "Arkiston tunnuslause",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Määritä uudelleen",
   "homeShortcutDisable": "Poista käytöstä",
   "homeShortcutPickTitle": "Osoita pikakuvake kohteeseen",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Sovelluksen kieli",
+  "appSettingsLanguageSystem": "Järjestelmän oletus"
 }

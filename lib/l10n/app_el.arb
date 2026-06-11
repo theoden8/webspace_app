@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Επανεκχώρηση",
   "homeShortcutDisable": "Απενεργοποίηση",
   "homeShortcutPickTitle": "Κατεύθυνση συντόμευσης σε",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Γλώσσα εφαρμογής",
+  "appSettingsLanguageSystem": "Προεπιλογή συστήματος"
 }

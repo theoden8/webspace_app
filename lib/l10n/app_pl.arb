@@ -32,7 +32,7 @@
   "statsBannerAllowed": "{count} dozwolonych",
   "findToolbarSearchHint": "Szukaj na stronie",
   "urlBarHint": "Wpisz adres URL",
-  "urlBarGoTooltip": "Idź",
+  "urlBarGoTooltip": "Przejdź",
   "untrustedCertTitle": "Niezaufany certyfikat",
   "untrustedCertBody": "Nie udało się zweryfikować certyfikatu dla {host}:{port}.",
   "untrustedCertWarning": "Jest to normalne dla kontrolowanych przez Ciebie stron z certyfikatami samopodpisanymi. Może to również oznaczać, że ktoś przechwytuje połączenie — kontynuuj tylko, jeśli rozpoznajesz tę stronę.",
@@ -262,8 +262,8 @@
   "appSettingsAbout": "Informacje",
   "appSettingsLicenses": "Licencje",
   "appSettingsLicensesSubtitle": "Licencje open source",
-  "devToolsCookieSecure": "Bezpieczny",
-  "devToolsCookieNotSecure": "Niebezpieczny",
+  "devToolsCookieSecure": "Zabezpieczony",
+  "devToolsCookieNotSecure": "Niezabezpieczony",
   "devToolsCookieBlock": "Zablokuj",
   "devToolsCookieUnblock": "Odblokuj",
   "devToolsCookieDomain": "Domena: {domain}",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Przypisz ponownie",
   "homeShortcutDisable": "Wyłącz",
   "homeShortcutPickTitle": "Skieruj skrót na",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Język aplikacji",
+  "appSettingsLanguageSystem": "Domyślny systemowy"
 }
