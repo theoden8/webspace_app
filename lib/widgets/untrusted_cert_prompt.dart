@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 
 /// Re-entrancy guard: a single TLS challenge can fire repeatedly while
@@ -30,6 +31,7 @@ Future<bool> promptUntrustedCertificate(
   _pendingPrompts.add(key);
   try {
     if (!context.mounted) return false;
+    final loc = AppLocalizations.of(context);
     final fingerprint =
         TrustedHostsService.fingerprintFromInappCertificate(certificate);
     final issuedTo = certificate?.issuedTo?.CName?.trim();
@@ -38,34 +40,32 @@ Future<bool> promptUntrustedCertificate(
     final approved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Untrusted certificate'),
+        title: Text(loc.untrustedCertTitle),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'The certificate for $host:$port could not be verified.',
+                loc.untrustedCertBody(host, port),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'This is normal for self-signed sites you control. '
-                'It can also indicate that someone is intercepting the '
-                'connection — only proceed if you recognize this site.',
+              Text(
+                loc.untrustedCertWarning,
               ),
               const SizedBox(height: 12),
               if (issuedTo != null && issuedTo.isNotEmpty)
-                _CertField(label: 'Issued to', value: issuedTo),
+                _CertField(label: loc.untrustedCertIssuedTo, value: issuedTo),
               if (issuedBy != null && issuedBy.isNotEmpty)
-                _CertField(label: 'Issued by', value: issuedBy),
+                _CertField(label: loc.untrustedCertIssuedBy, value: issuedBy),
               if (notAfter != null)
                 _CertField(
-                  label: 'Expires',
+                  label: loc.untrustedCertExpires,
                   value: notAfter.toIso8601String().split('T').first,
                 ),
               if (fingerprint != null)
                 _CertField(
-                  label: 'SHA-256',
+                  label: loc.untrustedCertSha256,
                   value: _formatFingerprint(fingerprint),
                 ),
             ],
@@ -74,11 +74,11 @@ Future<bool> promptUntrustedCertificate(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Trust this site'),
+            child: Text(loc.untrustedCertTrustConfirm),
           ),
         ],
       ),

@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
@@ -304,13 +305,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   }
 
   Future<void> launchExternalUrl(String url) async {
+    final loc = AppLocalizations.of(context);
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not launch $url')),
+          SnackBar(content: Text(loc.inappBrowserCouldNotLaunch(url))),
         );
       }
     }
@@ -338,6 +340,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// Shows a popup window for handling window.open() requests from webviews.
   Future<void> _showPopupWindow(int windowId, String url) async {
     if (!mounted) return;
+    final loc = AppLocalizations.of(context);
 
     LogService.instance.log(
       'PopupWindow',
@@ -361,7 +364,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Verification', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(loc.inappBrowserVerificationTitle, style: TextStyle(fontWeight: FontWeight.bold)),
                       IconButton(
                         icon: Icon(Icons.close),
                         onPressed: () => Navigator.of(dialogContext).pop(),
@@ -391,6 +394,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return PopScope(
       // Always intercept so we can try goBack() in the nested webview's own
       // history before letting the route pop. Mirrors NAV-002 (main app):
@@ -460,7 +464,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(title ?? 'In-App WebView'),
+        title: Text(title ?? loc.inappBrowserDefaultTitle),
         actions: [
           const DownloadButton(),
           PopupMenuButton<String>(
@@ -472,7 +476,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                     children: [
                       Icon(Icons.link),
                       SizedBox(width: 8),
-                      Text("Open in Browser"),
+                      Text(loc.inappBrowserMenuOpenInBrowser),
                     ],
                   ),
                 ),
@@ -482,7 +486,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                     children: [
                       Icon(Icons.refresh),
                       SizedBox(width: 8),
-                      Text("Refresh"),
+                      Text(loc.inappBrowserMenuRefresh),
                     ],
                   ),
                 ),
@@ -492,7 +496,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                     children: [
                       Icon(Icons.search),
                       SizedBox(width: 8),
-                      Text("Find"),
+                      Text(loc.inappBrowserMenuFind),
                     ],
                   ),
                 ),
@@ -502,7 +506,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                     children: [
                       Icon(Icons.share),
                       SizedBox(width: 8),
-                      Text("Share"),
+                      Text(loc.commonShare),
                     ],
                   ),
                 ),
@@ -512,7 +516,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                     children: [
                       Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
                       SizedBox(width: 8),
-                      Text(_showUrlBar ? "Hide URL Bar" : "Show URL Bar"),
+                      Text(_showUrlBar ? loc.inappBrowserMenuHideUrlBar : loc.inappBrowserMenuShowUrlBar),
                     ],
                   ),
                 ),
@@ -522,7 +526,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                     children: [
                       Icon(Icons.developer_mode),
                       SizedBox(width: 8),
-                      Text("Developer Tools"),
+                      Text(loc.inappBrowserMenuDeveloperTools),
                     ],
                   ),
                 ),

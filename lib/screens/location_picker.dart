@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/current_location_service.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
@@ -170,6 +171,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     setState(() => _fetchingLocation = true);
     final res = await CurrentLocationService.getCurrentLocation();
     if (!mounted) return;
+    final loc = AppLocalizations.of(context);
     setState(() => _fetchingLocation = false);
     switch (res.status) {
       case CurrentLocationStatus.ok:
@@ -188,22 +190,22 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         }
         break;
       case CurrentLocationStatus.permissionDenied:
-        _showSnack('Location permission was not granted.');
+        _showSnack(loc.locationPickerPermissionDenied);
         break;
       case CurrentLocationStatus.permissionDeniedForever:
-        _showSnack('Location permission is denied. Enable it in system Settings.');
+        _showSnack(loc.locationPickerPermissionDeniedForever);
         break;
       case CurrentLocationStatus.serviceDisabled:
-        _showSnack('Location services are disabled on this device.');
+        _showSnack(loc.locationPickerServiceDisabled);
         break;
       case CurrentLocationStatus.timeout:
-        _showSnack('Could not get a location fix in time. Try again outdoors.');
+        _showSnack(loc.locationPickerTimeout);
         break;
       case CurrentLocationStatus.unsupported:
-        _showSnack('Current location is not available on this platform.');
+        _showSnack(loc.locationPickerUnsupported);
         break;
       case CurrentLocationStatus.error:
-        _showSnack(res.message ?? 'Failed to get current location.');
+        _showSnack(res.message ?? loc.locationPickerError);
         break;
     }
   }
@@ -227,16 +229,17 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pick location'),
+        title: Text(loc.locationPickerTitle),
         actions: [
           TextButton(
             onPressed: () {
               final p = _currentLatLng();
               if (p == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Enter valid coordinates first')),
+                  SnackBar(content: Text(loc.locationPickerEnterValidCoords)),
                 );
                 return;
               }
@@ -250,7 +253,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 ),
               );
             },
-            child: const Text('Done'),
+            child: Text(loc.commonDone),
           ),
         ],
       ),
@@ -266,6 +269,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   Widget _buildCoordinateInputs() {
+    final loc = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -277,9 +281,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   controller: _latController,
                   keyboardType: const TextInputType.numberWithOptions(
                       signed: true, decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Latitude',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: loc.locationPickerLatitudeLabel,
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                   onChanged: _onCoordTyped,
@@ -291,9 +295,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   controller: _lngController,
                   keyboardType: const TextInputType.numberWithOptions(
                       signed: true, decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Longitude',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: loc.locationPickerLongitudeLabel,
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                   onChanged: _onCoordTyped,
@@ -306,16 +310,16 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             controller: _accController,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Accuracy (meters)',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: loc.locationPickerAccuracyLabel,
+              border: const OutlineInputBorder(),
               isDense: true,
             ),
           ),
           if (CurrentLocationService.isSupported) ...[
             const SizedBox(height: 8),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(
                 icon: _fetchingLocation
                     ? const SizedBox(
@@ -325,8 +329,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       )
                     : const Icon(Icons.my_location),
                 label: Text(_fetchingLocation
-                    ? 'Getting current location…'
-                    : 'Use current location'),
+                    ? loc.locationPickerGettingLocation
+                    : loc.locationPickerUseCurrentLocation),
                 onPressed: _fetchingLocation ? null : _useCurrentLocation,
               ),
             ),
@@ -337,6 +341,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   Widget _buildPlaceholder() {
+    final loc = AppLocalizations.of(context);
+    final tileHost = _hostOfTileUrl();
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Center(
@@ -347,16 +353,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 size: 64,
                 color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
-            const Text(
-              'Map is not loaded.',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            Text(
+              loc.locationPickerMapNotLoaded,
+              style: const TextStyle(fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Loading the map will fetch tiles from ${_hostOfTileUrl()}, '
-              'revealing the area you view to the tile server. '
-              'You can also just type coordinates above and tap Done.',
+              loc.locationPickerPrivacyNotice(tileHost),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -365,13 +369,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             const SizedBox(height: 20),
             FilledButton.icon(
               icon: const Icon(Icons.download_outlined),
-              label: const Text('Load map'),
+              label: Text(loc.locationPickerLoadMap),
               onPressed: () {
                 if (!_ensureTileClient()) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(_tileBlockedReason ??
-                          'Tile fetches are blocked by your proxy settings.'),
+                          loc.locationPickerTilesBlocked),
                     ),
                   );
                   return;
@@ -381,7 +385,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Change provider in App Settings → Location picker',
+              loc.locationPickerChangeProviderHint,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -391,6 +395,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   Widget _buildMap() {
+    final loc = AppLocalizations.of(context);
     final initial = _currentLatLng() ?? const LatLng(0, 0);
     final initialZoom = _currentLatLng() == null ? 2.0 : 10.0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -489,9 +494,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     ),
                     recognizer: _osmCopyrightRecognizer,
                   ),
-                  const TextSpan(text: ' contributors · '),
+                  TextSpan(text: loc.locationPickerOsmContributors),
                   TextSpan(
-                    text: 'Report a map issue',
+                    text: loc.locationPickerReportMapIssue,
                     style: TextStyle(
                       color: isDark
                           ? const Color(0xFF6CA0DC)

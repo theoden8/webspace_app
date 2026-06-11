@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
@@ -150,28 +151,30 @@ Future<void> confirmAndLaunchExternalUrl(
     }
 
     final hasFallback = cleanedFallback.isNotEmpty;
+    final loc = AppLocalizations.of(context);
+    final packageName = info.package;
     final choice = await showDialog<_ExternalUrlChoice>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Open external app?'),
+        title: Text(loc.externalUrlPromptTitle),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('This site wants to open:'),
+              Text(loc.externalUrlPromptBody),
               const SizedBox(height: 8),
               SelectableText(
                 cleanedLaunchUrl,
                 style: const TextStyle(fontFamily: 'monospace'),
               ),
-              if (info.package != null) ...[
+              if (packageName != null) ...[
                 const SizedBox(height: 8),
-                Text('Package: ${info.package}'),
+                Text(loc.externalUrlPromptPackage(packageName)),
               ],
               if (hasFallback) ...[
                 const SizedBox(height: 8),
-                Text('Fallback URL: $cleanedFallback'),
+                Text(loc.externalUrlPromptFallback(cleanedFallback)),
               ],
             ],
           ),
@@ -179,16 +182,16 @@ Future<void> confirmAndLaunchExternalUrl(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.cancel),
-            child: const Text('Cancel'),
+            child: Text(loc.commonCancel),
           ),
           if (hasFallback)
             TextButton(
               onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInBrowser),
-              child: const Text('Open in browser'),
+              child: Text(loc.externalUrlPromptOpenInBrowser),
             ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInApp),
-            child: const Text('Open in app'),
+            child: Text(loc.externalUrlPromptOpenInApp),
           ),
         ],
       ),
@@ -269,8 +272,12 @@ Future<bool> _launchExternally(String url, {required String label}) async {
       sensitivity: LogSensitivity.sensitive,
     );
     if (!launched) {
+      final messengerContext = rootScaffoldMessengerKey.currentContext;
+      final message = messengerContext != null
+          ? AppLocalizations.of(messengerContext).externalUrlPromptNoAppAvailable(url)
+          : 'No app available to open: $url';
       rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text('No app available to open: $url')),
+        SnackBar(content: Text(message)),
       );
     }
     return launched;
@@ -280,8 +287,12 @@ Future<bool> _launchExternally(String url, {required String label}) async {
       '$label: external launch threw — $e',
       sensitivity: LogSensitivity.sensitive,
     );
+    final messengerContext = rootScaffoldMessengerKey.currentContext;
+    final message = messengerContext != null
+        ? AppLocalizations.of(messengerContext).externalUrlPromptCouldNotOpen(url)
+        : 'Could not open: $url';
     rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text('Could not open: $url')),
+      SnackBar(content: Text(message)),
     );
     return false;
   }

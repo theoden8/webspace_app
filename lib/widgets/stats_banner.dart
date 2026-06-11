@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
@@ -67,6 +68,7 @@ class _StatsBannerState extends State<StatsBanner> {
       }
     }
 
+    final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final bgColor = isDark
@@ -102,7 +104,7 @@ class _StatsBannerState extends State<StatsBanner> {
                   Icon(Icons.shield, size: 14, color: textColor),
                   const SizedBox(width: 6),
                   Text(
-                    '${stats.blocked} blocked',
+                    loc.statsBannerBlocked(stats.blocked),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -111,7 +113,7 @@ class _StatsBannerState extends State<StatsBanner> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '${stats.allowed} allowed',
+                    loc.statsBannerAllowed(stats.allowed),
                     style: TextStyle(fontSize: 11, color: subtleColor),
                   ),
                   const Spacer(),
@@ -127,7 +129,7 @@ class _StatsBannerState extends State<StatsBanner> {
               if (_expanded) ...[
                 const SizedBox(height: 4),
                 ...recentBlocked.map((domain) => Padding(
-                      padding: const EdgeInsets.only(left: 20, top: 1),
+                      padding: const EdgeInsetsDirectional.only(start: 20, top: 1),
                       child: Row(
                         children: [
                           Icon(Icons.block, size: 11, color: subtleColor),

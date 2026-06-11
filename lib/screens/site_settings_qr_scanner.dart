@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 
 /// Full-screen camera scanner that returns the decoded shareable subset
@@ -31,8 +32,7 @@ class _SiteSettingsQrScannerScreenState
     final decoded = SiteSettingsQrCodec.decode(text);
     if (decoded == null) {
       setState(() {
-        _lastError =
-            'Scanned QR is not a WebSpace site-settings code.';
+        _lastError = AppLocalizations.of(context).qrScannerInvalidCode;
       });
       return;
     }
@@ -42,8 +42,9 @@ class _SiteSettingsQrScannerScreenState
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan site-settings QR')),
+      appBar: AppBar(title: Text(loc.qrScannerScreenTitle)),
       body: Stack(
         children: [
           ReaderWidget(

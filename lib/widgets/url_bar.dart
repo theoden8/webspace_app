@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import '../utils/url_utils.dart';
 
 class UrlBar extends StatefulWidget {
@@ -67,6 +68,7 @@ class _UrlBarState extends State<UrlBar> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -106,7 +108,7 @@ class _UrlBarState extends State<UrlBar> {
               },
               onSubmitted: (_) => _handleSubmit(),
               decoration: InputDecoration(
-                hintText: 'Enter URL',
+                hintText: loc.urlBarHint,
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
@@ -127,7 +129,7 @@ class _UrlBarState extends State<UrlBar> {
               onPressed: _handleSubmit,
               padding: EdgeInsets.all(4),
               constraints: BoxConstraints(),
-              tooltip: 'Go',
+              tooltip: loc.urlBarGoTooltip,
             ),
         ],
       ),

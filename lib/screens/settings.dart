@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -240,24 +241,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<bool> _confirmDiscard() async {
+    final loc = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Discard changes?'),
-        content: const Text(
-          'You have unsaved changes to this site\'s settings. '
-          'Leaving now will discard them.',
-        ),
+        title: Text(loc.siteSettingsDiscardDialogTitle),
+        content: Text(loc.siteSettingsDiscardDialogBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep editing'),
+            child: Text(loc.siteSettingsDiscardKeepEditing),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Discard',
-              style: TextStyle(color: Colors.red),
+            child: Text(
+              loc.siteSettingsDiscardConfirm,
+              style: const TextStyle(color: Colors.red),
             ),
           ),
         ],
@@ -331,55 +330,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String? _validateProxyAddress(String? value) {
+    final loc = AppLocalizations.of(context);
     if (_proxySettings.type == ProxyType.DEFAULT) {
       return null;
     }
-    
+
     if (value == null || value.isEmpty) {
-      return 'Proxy address is required';
+      return loc.siteSettingsProxyAddressRequired;
     }
-    
+
     final parts = value.split(':');
     if (parts.length != 2) {
-      return 'Format: host:port (e.g., proxy.example.com:1080)';
+      return loc.siteSettingsProxyAddressFormatError;
     }
-    
+
     final port = int.tryParse(parts[1]);
     if (port == null || port < 1 || port > 65535) {
-      return 'Invalid port number (1-65535)';
+      return loc.siteSettingsProxyInvalidPort;
     }
-    
+
     return null;
   }
 
   String _userScriptsSubtitle() {
+    final loc = AppLocalizations.of(context);
     final siteCount = widget.webViewModel.userScripts.where((s) => s.enabled).length;
     final enabledIds = widget.webViewModel.enabledGlobalScriptIds;
     final globalCount = widget.globalUserScripts
         .where((s) => enabledIds.contains(s.id))
         .length;
     final parts = <String>[];
-    if (siteCount > 0) parts.add('$siteCount site');
-    if (globalCount > 0) parts.add('$globalCount global');
-    return parts.isEmpty ? 'None' : '${parts.join(', ')} active';
+    if (siteCount > 0) parts.add(loc.siteSettingsUserScriptsSiteCount(siteCount));
+    if (globalCount > 0) parts.add(loc.siteSettingsUserScriptsGlobalCount(globalCount));
+    return parts.isEmpty
+        ? loc.siteSettingsUserScriptsNone
+        : loc.siteSettingsUserScriptsActive(parts.join(', '));
   }
 
   Widget _buildDnsStatsCard() {
+    final loc = AppLocalizations.of(context);
     final stats = DnsBlockService.instance.statsForSite(widget.webViewModel.siteId);
     if (stats.total == 0) {
       return const SizedBox.shrink();
     }
+    final totalValue = '${stats.total}';
+    final allowedValue = '${stats.allowed}';
+    final blockedValue = '${stats.blocked}';
+    final blockRateValue = '${stats.blockRate.toStringAsFixed(1)}%';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          _buildDnsStatChip('${stats.total}', 'total', Colors.blue),
+          _buildDnsStatChip(totalValue, loc.siteSettingsDnsStatTotal, Colors.blue),
           const SizedBox(width: 6),
-          _buildDnsStatChip('${stats.allowed}', 'allowed', Colors.green),
+          _buildDnsStatChip(allowedValue, loc.siteSettingsDnsStatAllowed, Colors.green),
           const SizedBox(width: 6),
-          _buildDnsStatChip('${stats.blocked}', 'blocked', Colors.red),
+          _buildDnsStatChip(blockedValue, loc.siteSettingsDnsStatBlocked, Colors.red),
           const SizedBox(width: 6),
-          _buildDnsStatChip('${stats.blockRate.toStringAsFixed(1)}%', 'blocked', Colors.orange),
+          _buildDnsStatChip(blockRateValue, loc.siteSettingsDnsStatBlocked, Colors.orange),
         ],
       ),
     );
@@ -405,13 +413,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _saveSettings() async {
+    final loc = AppLocalizations.of(context);
     // Only validate and update proxy settings on supported platforms
     if (PlatformInfo.isProxySupported) {
       // Validate proxy address if needed
       final proxyError = _validateProxyAddress(_proxyAddressController.text);
       if (proxyError != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Proxy Error: $proxyError')),
+          SnackBar(content: Text(loc.siteSettingsProxyError(proxyError))),
         );
         return;
       }
@@ -538,15 +547,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Navigator.pop(context);
 
       rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text('Settings saved and webview reloaded')),
+        SnackBar(content: Text(loc.siteSettingsSavedSnack)),
       );
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onSettingsSaved?.call();
       });
     } catch (e) {
+      final errorText = '$e';
       rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text('Error saving settings: $e')),
+        SnackBar(content: Text(loc.siteSettingsSaveError(errorText))),
       );
     }
   }
@@ -583,43 +593,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// `locationMode` is derived from this state at save time, not stored
   /// explicitly here. See [_saveSettings].
   Widget _buildLocationTile() {
+    final loc = AppLocalizations.of(context);
     final lat = double.tryParse(_latitudeController.text.trim());
     final lng = double.tryParse(_longitudeController.text.trim());
     final hasCoords = lat != null && lng != null;
     final acc = double.tryParse(_accuracyController.text.trim()) ?? 50.0;
 
-    const hint = HintButton(
-      title: 'Geolocation',
-      description:
-          'Off (default): navigator.geolocation is left untouched. Sites '
-          'get the platform default (typically denied unless the user '
-          'grants permission to the webview).\n\n'
-          'Static: navigator.geolocation returns the coordinates you '
-          'supply. Tap "Pick location" to open the picker, where you can '
-          'type coordinates, pick on a map, or use the "Use current '
-          'location" button to fill them with your real device GPS once. '
-          'The coordinates are then static.\n\n'
-          'Live: navigator.geolocation calls back into the app on every '
-          'getCurrentPosition / watchPosition to fetch a fresh fix from '
-          'the platform\'s native location service, so the reported '
-          'position tracks the device as it moves. The shim still '
-          'overrides Geolocation.prototype and hides the patch from '
-          'Function.prototype.toString — so timezone override and WebRTC '
-          'policy still apply, but the coordinates are real and current.\n\n'
-          'In Live mode, pick a provider:\n'
-          'GPS: real device coordinates via the GPS provider. Use when '
-          'the site needs metre-level positioning (turn-by-turn '
-          'navigation, AR, hyper-local search).\n'
-          'GSM: cell-tower / Wi-Fi positioning only — no GPS chip and '
-          'no fine-location permission. Result snapped to a ~1.1 km '
-          'grid. Most privacy-respectful but may return nothing on '
-          'devices without a Network Location Provider (some de-Googled '
-          'phones).\n\n'
-          'Under GPS, toggle "Approximate" to have the shim snap the '
-          'lat/lng to a ~110 m grid before the page sees it — same '
-          'provider speed, fuzzier result. Use when the site needs '
-          'your general area but not your exact position (weather, '
-          '"stores nearby", traffic).',
+    final hint = HintButton(
+      title: loc.siteSettingsGeolocation,
+      description: loc.siteSettingsGeolocationHint,
     );
 
     // Derive the active segment from current state. `Static` is selected
@@ -662,18 +644,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final selector = SegmentedButton<_LocationSegment>(
       segments: [
-        const ButtonSegment(
+        ButtonSegment(
             value: _LocationSegment.off,
-            icon: Icon(Icons.location_disabled),
-            label: Text('Off')),
-        const ButtonSegment(
+            icon: const Icon(Icons.location_disabled),
+            label: Text(loc.siteSettingsLocationOff)),
+        ButtonSegment(
             value: _LocationSegment.staticCoords,
-            icon: Icon(Icons.map_outlined),
-            label: Text('Static')),
-        const ButtonSegment(
+            icon: const Icon(Icons.map_outlined),
+            label: Text(loc.siteSettingsLocationStatic)),
+        ButtonSegment(
             value: _LocationSegment.live,
-            icon: Icon(Icons.my_location),
-            label: Text('Live')),
+            icon: const Icon(Icons.my_location),
+            label: Text(loc.siteSettingsLocationLive)),
       ],
       selected: {selected},
       onSelectionChanged: onSegmentChanged,
@@ -683,11 +665,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget detail;
     switch (selected) {
       case _LocationSegment.off:
-        detail = const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        detail = Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Text(
-            'Sites use the webview default (typically denied).',
-            style: TextStyle(fontSize: 12),
+            loc.siteSettingsLocationOffDetail,
+            style: const TextStyle(fontSize: 12),
           ),
         );
         break;
@@ -697,10 +679,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Tracks the device\'s real GPS via the platform location '
-                'service. Permission is requested on the first call.',
-                style: TextStyle(fontSize: 12),
+              Text(
+                loc.siteSettingsLocationLiveDetail,
+                style: const TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 8),
               // Two-tier picker: GPS vs GSM at the top (provider), with an
@@ -711,16 +692,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<_LiveProvider>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: _LiveProvider.gps,
-                      icon: Icon(Icons.gps_fixed),
-                      label: Text('GPS'),
+                      icon: const Icon(Icons.gps_fixed),
+                      label: Text(loc.siteSettingsLocationProviderGps),
                     ),
                     ButtonSegment(
                       value: _LiveProvider.gsm,
-                      icon: Icon(Icons.cell_tower),
-                      label: Text('GSM'),
+                      icon: const Icon(Icons.cell_tower),
+                      label: Text(loc.siteSettingsLocationProviderGsm),
                     ),
                   ],
                   selected: {
@@ -749,10 +730,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   dense: true,
-                  title: const Text('Approximate'),
-                  subtitle: const Text(
-                    'Snap lat/lng to a ~110 m grid before the page sees it.',
-                    style: TextStyle(fontSize: 11),
+                  title: Text(loc.siteSettingsLocationApproximate),
+                  subtitle: Text(
+                    loc.siteSettingsLocationApproximateSubtitle,
+                    style: const TextStyle(fontSize: 11),
                   ),
                   value: _liveGpsApproximate,
                   onChanged: (v) => setState(() {
@@ -765,16 +746,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Text(
                 switch (_liveLocationGranularity) {
                   LocationGranularity.gps =>
-                    'GPS: real device coordinates and accuracy. Use for '
-                        'turn-by-turn navigation or hyper-local search.',
+                    loc.siteSettingsLocationGranularityGps,
                   LocationGranularity.approximate =>
-                    'GPS provider, lat/lng snapped to a ~110 m grid '
-                        'before the page sees it. Fast and works on '
-                        'devices without a network-location backend.',
+                    loc.siteSettingsLocationGranularityApproximate,
                   LocationGranularity.gsm =>
-                    'GSM: network provider only (cell-tower / Wi-Fi), no '
-                        'GPS chip, result snapped to a ~1.1 km grid. May '
-                        'fail on devices without an NLP backend.',
+                    loc.siteSettingsLocationGranularityGsm,
                 },
                 style: const TextStyle(fontSize: 11),
               ),
@@ -784,23 +760,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         break;
       case _LocationSegment.staticCoords:
         if (hasCoords) {
+          final coordsText =
+              '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}  '
+              '±${acc.toStringAsFixed(0)}m';
           detail = ListTile(
             dense: true,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            title: Text(
-              '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}  '
-              '±${acc.toStringAsFixed(0)}m',
-            ),
+            title: Text(coordsText),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  tooltip: 'Edit location',
+                  tooltip: loc.siteSettingsLocationEditTooltip,
                   icon: const Icon(Icons.edit_location_alt_outlined),
                   onPressed: _openLocationPicker,
                 ),
                 IconButton(
-                  tooltip: 'Clear custom location',
+                  tooltip: loc.siteSettingsLocationClearTooltip,
                   icon: const Icon(Icons.close),
                   onPressed: () => setState(() {
                     _latitudeController.clear();
@@ -816,13 +792,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                const Expanded(child: Text(
-                  'No custom location set',
-                  style: TextStyle(fontSize: 12),
+                Expanded(child: Text(
+                  loc.siteSettingsLocationNoneSet,
+                  style: const TextStyle(fontSize: 12),
                 )),
                 OutlinedButton.icon(
                   icon: const Icon(Icons.map_outlined, size: 18),
-                  label: const Text('Pick'),
+                  label: Text(loc.siteSettingsLocationPick),
                   onPressed: _openLocationPicker,
                 ),
               ],
@@ -838,9 +814,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
-            children: const [
-              Text('Geolocation',
-                  style: TextStyle(fontWeight: FontWeight.w500)),
+            children: [
+              Text(loc.siteSettingsGeolocation,
+                  style: const TextStyle(fontWeight: FontWeight.w500)),
               hint,
             ],
           ),
@@ -865,6 +841,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const String _kFromLocationSentinel = '__from_location__';
 
   Widget _buildTimezoneDropdown() {
+    final loc = AppLocalizations.of(context);
     final tzReady = TimezoneLocationService.instance.isReady;
     final lat = double.tryParse(_latitudeController.text.trim());
     final lng = double.tryParse(_longitudeController.text.trim());
@@ -874,10 +851,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // back to a hint if either prerequisite is missing.
     final preview = (tzReady && hasCoords)
         ? (TimezoneLocationService.instance.lookup(lat, lng) ??
-            'no match — fall through to system default')
+            loc.siteSettingsTimezonePreviewNoMatch)
         : (!tzReady
-            ? 'Download polygon dataset in App Settings'
-            : 'Pick a location first');
+            ? loc.siteSettingsTimezonePreviewNeedsDataset
+            : loc.siteSettingsTimezonePreviewNeedsLocation);
 
     // Tracking Protection forces the timezone to "From picked location"
     // when coords are set so the spoofed Date/Intl values match the
@@ -906,7 +883,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!insertedFromLocation && e.key == null) {
         items.add(DropdownMenuItem<String?>(
           value: _kFromLocationSentinel,
-          child: Text('From picked location ($preview)'),
+          child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
         ));
         insertedFromLocation = true;
       }
@@ -916,17 +893,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!insertedFromLocation) {
       items.insert(0, DropdownMenuItem<String?>(
         value: _kFromLocationSentinel,
-        child: Text('From picked location ($preview)'),
+        child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
       ));
     }
 
     return DropdownButtonFormField<String?>(
       value: value,
       decoration: InputDecoration(
-        labelText: 'Timezone',
+        labelText: loc.siteSettingsTimezoneLabel,
         helperText: forceFromLocation
-            ? 'Forced to "From picked location" by Tracking Protection'
-            : 'Overrides Intl.DateTimeFormat and Date getters',
+            ? loc.siteSettingsTimezoneForcedHelper
+            : loc.siteSettingsTimezoneHelper,
         border: const OutlineInputBorder(),
       ),
       items: items,
@@ -962,11 +939,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   List<Widget> _buildLocationSection() {
+    final loc = AppLocalizations.of(context);
     return [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-        child: Text('Location & timezone',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: Text(loc.siteSettingsLocationSectionTitle,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
       ),
       _buildLocationTile(),
       Padding(
@@ -977,19 +955,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildWebRtcTile() {
+    final loc = AppLocalizations.of(context);
     return ListTile(
       title: Row(
-        children: const [
-          Flexible(child: Text('WebRTC policy')),
+        children: [
+          Flexible(child: Text(loc.siteSettingsWebRtcPolicy)),
           HintButton(
-            title: 'WebRTC leak protection',
-            description:
-                'HTTP(S) and SOCKS5 proxies only carry TCP. WebRTC uses UDP '
-                'and leaks your real IP around the proxy. '
-                '"Relay only" forces iceTransportPolicy=relay and strips '
-                'non-relay ICE candidates; video calls that rely on direct '
-                'peer-to-peer connections will break. '
-                '"Disabled" blocks RTCPeerConnection entirely.',
+            title: loc.siteSettingsWebRtcHintTitle,
+            description: loc.siteSettingsWebRtcHintBody,
           ),
         ],
       ),
@@ -998,13 +971,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onChanged: (v) {
           if (v != null) setState(() => _webRtcPolicy = v);
         },
-        items: const [
+        items: [
           DropdownMenuItem(
-              value: WebRtcPolicy.defaultPolicy, child: Text('Default')),
+              value: WebRtcPolicy.defaultPolicy,
+              child: Text(loc.siteSettingsWebRtcDefault)),
           DropdownMenuItem(
-              value: WebRtcPolicy.relayOnly, child: Text('Relay only')),
+              value: WebRtcPolicy.relayOnly,
+              child: Text(loc.siteSettingsWebRtcRelayOnly)),
           DropdownMenuItem(
-              value: WebRtcPolicy.disabled, child: Text('Disabled')),
+              value: WebRtcPolicy.disabled,
+              child: Text(loc.siteSettingsWebRtcDisabled)),
         ],
       ),
     );
@@ -1012,6 +988,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return PopScope(
       canPop: !_isDirty(),
       onPopInvokedWithResult: (didPop, _) async {
@@ -1027,7 +1004,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         navigator.pop();
       },
       child: Scaffold(
-      appBar: AppBar(title: Text('Settings')),
+      appBar: AppBar(title: Text(loc.siteSettingsTitle)),
       body: ListView(
         children: [
           // Only show proxy settings on supported platforms
@@ -1035,12 +1012,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Text(
-                'Proxy settings are shared across all sites.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                loc.siteSettingsProxyShared,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ),
             ListTile(
-              title: Text('Proxy Type'),
+              title: Text(loc.siteSettingsProxyType),
               trailing: DropdownButton<ProxyType>(
                 value: _proxySettings.type,
                 onChanged: (ProxyType? newValue) {
@@ -1066,16 +1043,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: TextFormField(
                   controller: _proxyAddressController,
                   decoration: InputDecoration(
-                    labelText: 'Proxy Address',
-                    hintText: 'host:port (e.g., proxy.example.com:1080)',
-                    helperText: 'Format: host:port',
-                    border: OutlineInputBorder(),
+                    labelText: loc.siteSettingsProxyAddress,
+                    hintText: loc.siteSettingsProxyAddressHint,
+                    helperText: loc.siteSettingsProxyAddressHelper,
+                    border: const OutlineInputBorder(),
                   ),
                   validator: _validateProxyAddress,
                 ),
               ),
               CheckboxListTile(
-                title: Text('Proxy requires authentication'),
+                title: Text(loc.siteSettingsProxyRequiresAuth),
                 value: _showProxyCredentials,
                 onChanged: (bool? value) {
                   setState(() {
@@ -1090,8 +1067,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: TextFormField(
                     controller: _proxyUsernameController,
                     decoration: InputDecoration(
-                      labelText: 'Proxy Username',
-                      border: OutlineInputBorder(),
+                      labelText: loc.siteSettingsProxyUsername,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
@@ -1101,8 +1078,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     controller: _proxyPasswordController,
                     obscureText: _obscureProxyPassword,
                     decoration: InputDecoration(
-                      labelText: 'Proxy Password',
-                      border: OutlineInputBorder(),
+                      labelText: loc.siteSettingsProxyPassword,
+                      border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscureProxyPassword ? Icons.visibility : Icons.visibility_off,
@@ -1121,7 +1098,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
           _buildWebRtcTile(),
           SwitchListTile(
-            title: Text('JavaScript Enabled'),
+            title: Text(loc.siteSettingsJavascriptEnabled),
             value: _javascriptEnabled,
             onChanged: (bool value) {
               setState(() {
@@ -1144,7 +1121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               Expanded(
                 child: TextFormField(
-                  decoration: InputDecoration(labelText: 'User-Agent'),
+                  decoration: InputDecoration(labelText: loc.siteSettingsUserAgent),
                   controller: _userAgentController,
                 ),
               ),
@@ -1167,14 +1144,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: DropdownButtonFormField<String?>(
               value: _selectedLanguage,
               decoration: InputDecoration(
-                labelText: 'Language',
-                helperText: 'Sets Accept-Language header for HTTP requests',
-                border: OutlineInputBorder(),
+                labelText: loc.siteSettingsLanguage,
+                helperText: loc.siteSettingsLanguageHelper,
+                border: const OutlineInputBorder(),
               ),
               items: _languages.map((entry) {
+                final label = entry.key == null
+                    ? loc.siteSettingsLanguageSystemDefault
+                    : entry.value;
                 return DropdownMenuItem<String?>(
                   value: entry.key,
-                  child: Text(entry.value),
+                  child: Text(label),
                 );
               }).toList(),
               onChanged: (String? value) {
@@ -1188,10 +1168,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0.0),
             child: Row(
               children: [
-                const Expanded(child: Text('Page zoom')),
+                Expanded(child: Text(loc.siteSettingsPageZoom)),
                 IconButton(
                   icon: const Icon(Icons.remove),
-                  tooltip: 'Zoom out',
+                  tooltip: loc.siteSettingsZoomOut,
                   onPressed: _zoomPercent > kMinZoomPercent
                       ? () => setState(() {
                             _zoomPercent =
@@ -1205,16 +1185,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   }),
                   child: SizedBox(
                     width: 56,
-                    child: Text(
-                      '$_zoomPercent%',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                    child: Builder(builder: (context) {
+                      final zoomLabel = '$_zoomPercent%';
+                      return Text(
+                        zoomLabel,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      );
+                    }),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.add),
-                  tooltip: 'Zoom in',
+                  tooltip: loc.siteSettingsZoomIn,
                   onPressed: _zoomPercent < kMaxZoomPercent
                       ? () => setState(() {
                             _zoomPercent =
@@ -1241,7 +1224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           SwitchListTile(
-            title: const Text('Third-party cookies'),
+            title: Text(loc.siteSettingsThirdPartyCookies),
             value: _thirdPartyCookiesEnabled,
             onChanged: (bool value) {
               setState(() {
@@ -1250,8 +1233,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           SwitchListTile(
-            title: const Text('Incognito mode'),
-            subtitle: const Text('No cookies or cache persist'),
+            title: Text(loc.siteSettingsIncognito),
+            subtitle: Text(loc.siteSettingsIncognitoSubtitle),
             value: _incognito,
             onChanged: (bool value) {
               setState(() {
@@ -1260,12 +1243,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           SwitchListTile(
-            title: const Text('Always open Home'),
+            title: Text(loc.siteSettingsAlwaysOpenHome),
             subtitle: Text(
               _incognito
-                  ? 'Forced on by Incognito'
-                  : 'Reset URL on app restart and home-screen shortcut '
-                      '(cookies persist)',
+                  ? loc.siteSettingsAlwaysOpenHomeForced
+                  : loc.siteSettingsAlwaysOpenHomeSubtitle,
             ),
             value: _incognito || _alwaysOpenHome,
             onChanged: _incognito
@@ -1279,29 +1261,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                const Flexible(child: Text('Tracking Protection')),
-                const HintButton(
-                  title: 'Tracking Protection',
-                  description:
-                      'Umbrella per-site Enhanced Tracking Protection. When on, '
-                      'forces ClearURLs, DNS Blocklist, and Content Blocker to be '
-                      'active for this site, AND injects an anti-fingerprinting '
-                      'shim that randomizes Canvas, audio, font metrics, '
-                      'screen dimensions, hardware concurrency, plugins, battery, '
-                      'speech voices, high-resolution timers, and bounding-box '
-                      'measurements. The fingerprint stays stable per site across '
-                      'launches but differs between sites and between users. '
-                      'When Incognito is also enabled for this site, the '
-                      'fingerprint is rerolled on every app launch so the '
-                      'site cannot re-identify you across cold restarts. '
-                      'WebGL is disabled entirely while this is on; turn it off '
-                      'for sites that need WebGL (maps, 3D viewers).',
+                Flexible(child: Text(loc.siteSettingsTrackingProtection)),
+                HintButton(
+                  title: loc.siteSettingsTrackingProtection,
+                  description: loc.siteSettingsTrackingProtectionHint,
                 ),
               ],
             ),
-            subtitle: const Text(
-              'Anti-fingerprinting + force tracker blocking',
-            ),
+            subtitle: Text(loc.siteSettingsTrackingProtectionSubtitle),
             value: _trackingProtectionEnabled,
             onChanged: (bool value) {
               setState(() {
@@ -1312,19 +1279,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                const Text('ClearURLs'),
-                const HintButton(
-                  title: 'ClearURLs',
-                  description:
-                      'Removes tracking parameters (like utm_source, fbclid) from URLs before loading them. '
-                      'This helps protect your privacy by preventing sites from tracking where you came from.',
+                Text(loc.siteSettingsClearUrls),
+                HintButton(
+                  title: loc.siteSettingsClearUrls,
+                  description: loc.siteSettingsClearUrlsHint,
                 ),
               ],
             ),
             subtitle: Text(
               _trackingProtectionEnabled
-                  ? 'Forced on by Tracking Protection'
-                  : 'Strip tracking parameters from URLs',
+                  ? loc.siteSettingsForcedByTrackingProtection
+                  : loc.siteSettingsClearUrlsSubtitle,
             ),
             value: _clearUrlEnabled || _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
@@ -1338,22 +1303,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                const Text('DNS Blocklist'),
-                const HintButton(
-                  title: 'DNS Blocklist',
-                  description:
-                      'Blocks known advertising, tracking, and malware domains at the DNS level before they can load. '
-                      'Uses the Hagezi blocklist with configurable severity levels. '
-                      'Configure the blocklist level in App Settings.',
+                Text(loc.siteSettingsDnsBlocklist),
+                HintButton(
+                  title: loc.siteSettingsDnsBlocklist,
+                  description: loc.siteSettingsDnsBlocklistHint,
                 ),
               ],
             ),
             subtitle: Text(
               _trackingProtectionEnabled
-                  ? 'Forced on by Tracking Protection'
+                  ? loc.siteSettingsForcedByTrackingProtection
                   : (DnsBlockService.instance.hasBlocklist
                       ? dnsBlockLevelNames[DnsBlockService.instance.level]
-                      : 'Not configured'),
+                      : loc.siteSettingsNotConfigured),
             ),
             value: _dnsBlockEnabled || _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
@@ -1370,22 +1332,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                const Flexible(child: Text('Content Blocker')),
-                const HintButton(
-                  title: 'Content Blocker',
-                  description:
-                      'Blocks ads, trackers, and unwanted content using filter lists (like EasyList). '
-                      'Supports domain blocking, CSS cosmetic filters, and text-based hiding rules. '
-                      'Manage filter lists in App Settings.',
+                Flexible(child: Text(loc.siteSettingsContentBlocker)),
+                HintButton(
+                  title: loc.siteSettingsContentBlocker,
+                  description: loc.siteSettingsContentBlockerHint,
                 ),
               ],
             ),
             subtitle: Text(
               _trackingProtectionEnabled
-                  ? 'Forced on by Tracking Protection'
+                  ? loc.siteSettingsForcedByTrackingProtection
                   : (ContentBlockerService.instance.hasRules
-                      ? '${ContentBlockerService.instance.totalRuleCount} rules'
-                      : 'Not configured'),
+                      ? loc.siteSettingsContentBlockerRuleCount(
+                          ContentBlockerService.instance.totalRuleCount)
+                      : loc.siteSettingsNotConfigured),
             ),
             value: _contentBlockEnabled || _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
@@ -1402,22 +1362,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SwitchListTile(
               title: Row(
                 children: [
-                  const Text('LocalCDN'),
-                  const HintButton(
-                    title: 'LocalCDN',
-                    description:
-                        'Serves common CDN resources (JavaScript libraries, fonts, CSS frameworks) from a local cache '
-                        'instead of fetching them from third-party CDN servers. '
-                        'This prevents CDN providers from tracking your browsing activity across sites.',
+                  Text(loc.siteSettingsLocalCdn),
+                  HintButton(
+                    title: loc.siteSettingsLocalCdn,
+                    description: loc.siteSettingsLocalCdnHint,
                   ),
                 ],
               ),
               subtitle: Text(
                 _trackingProtectionEnabled
-                    ? 'Forced on by Tracking Protection'
+                    ? loc.siteSettingsForcedByTrackingProtection
                     : (LocalCdnService.instance.hasCache
-                        ? '${LocalCdnService.instance.resourceCount} cached resources'
-                        : 'Download the cache in app settings first'),
+                        ? loc.siteSettingsLocalCdnResourceCount(
+                            LocalCdnService.instance.resourceCount)
+                        : loc.siteSettingsLocalCdnNeedsCache),
               ),
               value: (_localCdnEnabled || _trackingProtectionEnabled) &&
                   LocalCdnService.instance.hasCache,
@@ -1432,7 +1390,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : null),
             ),
           ListTile(
-            title: const Text('User Scripts'),
+            title: Text(loc.siteSettingsUserScripts),
             subtitle: Text(
               _userScriptsSubtitle(),
             ),
@@ -1478,16 +1436,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                const Flexible(child: Text('Block auto-redirects')),
-                const HintButton(
-                  title: 'Block Auto-Redirects',
-                  description:
-                      'Prevents scripts from automatically navigating you to a different domain. '
-                      'This helps avoid being silently redirected to tracking or advertising pages.',
+                Flexible(child: Text(loc.siteSettingsBlockAutoRedirects)),
+                HintButton(
+                  title: loc.siteSettingsBlockAutoRedirectsHintTitle,
+                  description: loc.siteSettingsBlockAutoRedirectsHint,
                 ),
               ],
             ),
-            subtitle: const Text('Block script-initiated cross-domain navigations'),
+            subtitle: Text(loc.siteSettingsBlockAutoRedirectsSubtitle),
             value: _blockAutoRedirects,
             onChanged: (bool value) {
               setState(() {
@@ -1498,17 +1454,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Row(
               children: [
-                const Flexible(child: Text('Full screen mode')),
-                const HintButton(
-                  title: 'Full Screen Mode',
-                  description:
-                      'Automatically enters full screen when this site is selected. '
-                      'Hides the app bar, tab strip, and system UI for an immersive experience. '
-                      'Tap the edge of the screen or use the back gesture to exit full screen.',
+                Flexible(child: Text(loc.siteSettingsFullscreen)),
+                HintButton(
+                  title: loc.siteSettingsFullscreenHintTitle,
+                  description: loc.siteSettingsFullscreenHint,
                 ),
               ],
             ),
-            subtitle: const Text('Auto-enter full screen for this site'),
+            subtitle: Text(loc.siteSettingsFullscreenSubtitle),
             value: _fullscreenMode,
             onChanged: (bool value) {
               setState(() {
@@ -1518,27 +1471,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           SwitchListTile(
             title: Row(
-              children: const [
-                Flexible(child: Text('HTML caching')),
+              children: [
+                Flexible(child: Text(loc.siteSettingsHtmlCaching)),
                 HintButton(
-                  title: 'HTML Caching',
-                  description:
-                      'Render this site from a cached HTML snapshot for '
-                      'instant first paint on cold start, then swap to the '
-                      'live page once the cached parse settles.\n\n'
-                      'Off (default): the cache is only consulted when the '
-                      'device is offline, so an online cold start always '
-                      'goes straight to live and never shows stale content. '
-                      'Snapshots are still saved in the background so the '
-                      'offline fallback works on the next launch.\n\n'
-                      'On: trades a momentary glimpse of stale content for '
-                      'a faster first paint on every cold start.',
+                  title: loc.siteSettingsHtmlCachingHintTitle,
+                  description: loc.siteSettingsHtmlCachingHint,
                 ),
               ],
             ),
-            subtitle: const Text(
-              'Show cached page on cold start (offline fallback always on)',
-            ),
+            subtitle: Text(loc.siteSettingsHtmlCachingSubtitle),
             value: _htmlCachingEnabled,
             onChanged: (bool value) {
               setState(() {
@@ -1559,29 +1500,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               final Widget? subtitle;
               if (blocked) {
                 subtitle = Text(
-                  'Cannot enable: "$blockedBy" is already polling in '
-                  'background with a different proxy. Android allows only '
-                  'one proxy at a time.',
+                  loc.siteSettingsNotificationsBlockedByProxy(blockedBy),
                 );
               } else if (permissionDenied) {
+                final settingsPath = Platform.isIOS
+                    ? 'Notifications → WebSpace'
+                    : 'WebSpace → Notifications';
                 subtitle = Text(
-                  'Notifications denied. Enable in Settings → '
-                  '${Platform.isIOS ? "Notifications → WebSpace" : "WebSpace → Notifications"}.',
+                  loc.siteSettingsNotificationsDenied(settingsPath),
                 );
               } else {
                 subtitle = null;
               }
               return SwitchListTile(
                 title: Row(
-                  children: const [
-                    Flexible(child: Text('Notifications')),
+                  children: [
+                    Flexible(child: Text(loc.siteSettingsNotifications)),
                     HintButton(
-                      title: 'Notifications',
-                      description:
-                          'Allow this site to show system notifications. '
-                          'Keeps the site polling in the background so '
-                          'notifications fire even when you are on a '
-                          'different tab.',
+                      title: loc.siteSettingsNotifications,
+                      description: loc.siteSettingsNotificationsHint,
                     ),
                   ],
                 ),
@@ -1610,19 +1547,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (Platform.isAndroid)
             ListTile(
               title: Row(
-                children: const [
-                  Flexible(child: Text('Protected content (DRM)')),
+                children: [
+                  Flexible(child: Text(loc.siteSettingsProtectedContent)),
                   HintButton(
-                    title: 'Protected content (DRM)',
-                    description:
-                        'Controls whether this site may play DRM-protected '
-                        'media (Widevine/EME), e.g. the Spotify web player.\n\n'
-                        'Ask (default): a popup asks the first time the site '
-                        'requests it, then remembers your choice.\n'
-                        'Always allow / Always block: skip the popup.\n\n'
-                        'Allowing lets the site provision a device identifier '
-                        'to decrypt media. Android only — other platforms '
-                        'cannot play Widevine content.',
+                    title: loc.siteSettingsProtectedContent,
+                    description: loc.siteSettingsProtectedContentHint,
                   ),
                 ],
               ),
@@ -1630,12 +1559,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: _protectedContentAllowed,
                 onChanged: (v) =>
                     setState(() => _protectedContentAllowed = v),
-                items: const <DropdownMenuItem<bool?>>[
-                  DropdownMenuItem<bool?>(value: null, child: Text('Ask')),
+                items: <DropdownMenuItem<bool?>>[
                   DropdownMenuItem<bool?>(
-                      value: true, child: Text('Always allow')),
+                      value: null, child: Text(loc.siteSettingsProtectedContentAsk)),
                   DropdownMenuItem<bool?>(
-                      value: false, child: Text('Always block')),
+                      value: true, child: Text(loc.siteSettingsProtectedContentAllow)),
+                  DropdownMenuItem<bool?>(
+                      value: false, child: Text(loc.siteSettingsProtectedContentBlock)),
                 ],
               ),
             ),
@@ -1652,13 +1582,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Builder(builder: (context) {
-                final label = widget.useContainers ? 'Clear Site Data' : 'Clear Cookies';
+                final label = widget.useContainers
+                    ? loc.siteSettingsClearSiteData
+                    : loc.siteSettingsClearCookies;
                 final dialogBody = widget.useContainers
-                    ? 'This wipes cookies, localStorage, IndexedDB, '
-                        'ServiceWorkers, and the HTTP cache for this site. '
-                        'The site will reload with a fresh empty container.'
-                    : 'Are you sure you want to clear all cookies for this site?';
-                final snack = widget.useContainers ? 'Site data cleared' : 'Cookies cleared';
+                    ? loc.siteSettingsClearSiteDataBody
+                    : loc.siteSettingsClearCookiesBody;
+                final snack = widget.useContainers
+                    ? loc.siteSettingsClearSiteDataDone
+                    : loc.siteSettingsClearCookiesDone;
                 return OutlinedButton.icon(
                   icon: Icon(Icons.cookie, color: Colors.red),
                   label: Text(label, style: TextStyle(color: Colors.red)),
@@ -1672,11 +1604,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
-                            child: Text('Cancel'),
+                            child: Text(loc.commonCancel),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: Text('Clear', style: TextStyle(color: Colors.red)),
+                            child: Text(loc.siteSettingsClearConfirm,
+                                style: const TextStyle(color: Colors.red)),
                           ),
                         ],
                       ),
@@ -1701,7 +1634,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.qr_code),
-                label: const Text('Share QR'),
+                label: Text(loc.siteSettingsShareQr),
                 onPressed: () => showSiteSettingsQrShareDialog(
                   context,
                   widget.webViewModel,
@@ -1712,7 +1645,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
               onPressed: _saveSettings,
-              child: Text('Save Settings'),
+              child: Text(loc.siteSettingsSaveButton),
             ),
           ),
         ],
@@ -1737,21 +1670,14 @@ Future<void> maybeShowBackgroundNotificationLimitsDialog(
   final prefs = await SharedPreferences.getInstance();
   if (prefs.getBool(_kBgNotifInfoShownPrefKey) == true) return;
   if (!context.mounted) return;
+  final loc = AppLocalizations.of(context);
   final isIOS = Platform.isIOS;
   final title = isIOS
-      ? 'Background notifications on iOS'
-      : 'Background notifications on Android';
+      ? loc.siteSettingsBgNotifTitleIos
+      : loc.siteSettingsBgNotifTitleAndroid;
   final body = isIOS
-      ? 'iOS limits background execution. Notifications arrive while '
-          'WebSpace is open or in the recent-tasks list. After WebSpace is '
-          'fully suspended, iOS schedules background refreshes opportunistically '
-          '— typically every 15-30 minutes — at which point your sites are '
-          'reloaded and any pending notifications fire.'
-      : 'Android limits background execution. Notifications arrive while '
-          'WebSpace is open or in recent tasks. While backgrounded, the app '
-          'reloads notification sites every ~15 minutes when the system '
-          'permits. If Android kills WebSpace under memory pressure, '
-          'notifications stop until the next launch.';
+      ? loc.siteSettingsBgNotifBodyIos
+      : loc.siteSettingsBgNotifBodyAndroid;
   await showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -1760,7 +1686,7 @@ Future<void> maybeShowBackgroundNotificationLimitsDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('OK'),
+          child: Text(loc.commonOk),
         ),
       ],
     ),

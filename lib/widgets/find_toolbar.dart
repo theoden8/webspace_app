@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/webview.dart';
 
 class FindToolbar extends StatefulWidget {
@@ -32,6 +33,9 @@ class _FindToolbarState extends State<FindToolbar> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final matchCounter =
+        '${widget.matches.activeMatchOrdinal}/${widget.matches.numberOfMatches}';
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.0),
       child: Row(
@@ -43,7 +47,7 @@ class _FindToolbarState extends State<FindToolbar> {
               autocorrect: false,
               enableSuggestions: false,
               decoration: InputDecoration(
-                hintText: 'Search on page',
+                hintText: loc.findToolbarSearchHint,
               ),
               onChanged: (value) async {
                 if (widget.webViewController != null) {
@@ -57,7 +61,7 @@ class _FindToolbarState extends State<FindToolbar> {
               },
             ),
           ),
-          Text('${widget.matches.activeMatchOrdinal}/${widget.matches.numberOfMatches}'),
+          Text(matchCounter),
           IconButton(
             icon: Icon(Icons.navigate_before),
             onPressed: () async {

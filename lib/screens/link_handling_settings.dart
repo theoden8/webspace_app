@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -51,17 +52,15 @@ class _LinkHandlingSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final rows = _buildRoutingOverview(widget.sites);
     return Scaffold(
-      appBar: AppBar(title: const Text('Link handling')),
+      appBar: AppBar(title: Text(loc.linkHandlingScreenTitle)),
       body: ListView(
         children: [
           SwitchListTile(
-            title: const Text('Handle shared links'),
-            subtitle: const Text(
-              'When off, share intents and webspace:// URLs are dropped silently. '
-              'Use to keep the app installed without making it the default for other apps.',
-            ),
+            title: Text(loc.linkHandlingMasterToggleTitle),
+            subtitle: Text(loc.linkHandlingMasterToggleSubtitle),
             value: widget.enabled,
             onChanged: widget.onEnabledChanged,
           ),
@@ -70,7 +69,7 @@ class _LinkHandlingSettingsScreenState
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
-                'Test routing',
+                loc.linkHandlingTestRoutingTitle,
                 style: Theme.of(context).textTheme.titleSmall,
               ),
             ),
@@ -79,11 +78,11 @@ class _LinkHandlingSettingsScreenState
               child: TextField(
                 controller: _testUrlController,
                 decoration: InputDecoration(
-                  hintText: 'https://example.org/foo',
+                  hintText: loc.linkHandlingTestUrlHint,
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.send),
-                    tooltip: 'Dispatch through routing engine',
+                    tooltip: loc.linkHandlingDispatchTooltip,
                     onPressed: widget.enabled ? _dispatch : null,
                   ),
                 ),
@@ -93,12 +92,11 @@ class _LinkHandlingSettingsScreenState
               ),
             ),
             const SizedBox(height: 8),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Re-runs the LIR-010 picker for an arbitrary URL — useful when '
-                'the resolver auto-routes to a site you wanted to override.',
-                style: TextStyle(fontSize: 12),
+                loc.linkHandlingTestRoutingHint,
+                style: const TextStyle(fontSize: 12),
               ),
             ),
             const SizedBox(height: 12),
@@ -107,14 +105,14 @@ class _LinkHandlingSettingsScreenState
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
-              'Routing overview',
+              loc.linkHandlingRoutingOverviewTitle,
               style: Theme.of(context).textTheme.titleSmall,
             ),
           ),
           if (rows.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('No sites yet.'),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(loc.linkHandlingNoSites),
             )
           else
             ...rows,
@@ -128,8 +126,9 @@ class _LinkHandlingSettingsScreenState
     if (raw.isEmpty) return;
     final parsed = Uri.tryParse(raw);
     if (parsed == null) {
+      final loc = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not parse URL')),
+        SnackBar(content: Text(loc.linkHandlingParseError)),
       );
       return;
     }
@@ -187,11 +186,7 @@ class _ClaimChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = switch (claim.kind) {
-      DomainClaimKind.exactHost => claim.value,
-      DomainClaimKind.wildcardSubdomain => '*.${claim.value}',
-      DomainClaimKind.baseDomain => '${claim.value} (base)',
-    };
+    final label = _claimLabel(AppLocalizations.of(context), claim);
     if (!isConflicting) return Chip(label: Text(label));
     final scheme = Theme.of(context).colorScheme;
     return Chip(
@@ -203,14 +198,14 @@ class _ClaimChip extends StatelessWidget {
   }
 }
 
-String _claimLabel(DomainClaim claim) {
+String _claimLabel(AppLocalizations loc, DomainClaim claim) {
   switch (claim.kind) {
     case DomainClaimKind.exactHost:
       return claim.value;
     case DomainClaimKind.wildcardSubdomain:
       return '*.${claim.value}';
     case DomainClaimKind.baseDomain:
-      return '${claim.value} (base)';
+      return loc.linkHandlingClaimBaseLabel(claim.value);
   }
 }
 
@@ -228,6 +223,7 @@ class _ConflictExplanation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final other = sites.firstWhere(
       (s) => s.siteId == conflict.otherSiteId,
@@ -235,7 +231,11 @@ class _ConflictExplanation extends StatelessWidget {
     );
     final isHijack = conflict.kind == ClaimConflictKind.hijack;
     final color = isHijack ? scheme.error : scheme.tertiary;
-    final verb = isHijack ? 'Hijacks' : 'Overlaps with';
+    final otherName = other.getDisplayName();
+    final claimLabel = _claimLabel(loc, conflict.claim);
+    final message = isHijack
+        ? loc.linkHandlingConflictHijacks(otherName, claimLabel)
+        : loc.linkHandlingConflictOverlaps(otherName, claimLabel);
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Row(
@@ -249,8 +249,7 @@ class _ConflictExplanation extends StatelessWidget {
           const SizedBox(width: 4),
           Expanded(
             child: Text(
-              '$verb ${other.getDisplayName()} '
-              'via ${_claimLabel(conflict.claim)}',
+              message,
               style: TextStyle(color: color, fontSize: 12),
             ),
           ),
@@ -347,6 +346,7 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
     for (final c in conflicts) {
       conflictsByClaim.putIfAbsent(c.claim, () => []).add(c);
     }
+    final loc = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -356,20 +356,17 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
             children: [
               Expanded(
                 child: Text(
-                  'Domain claims',
+                  loc.linkHandlingDomainClaimsTitle,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
-              const HintButton(
-                title: 'Domain claims',
-                description:
-                    'Which hostnames route to this site when shared from '
-                    'another app. Existing sites synthesize one base-domain '
-                    'claim from their URL.',
+              HintButton(
+                title: loc.linkHandlingDomainClaimsTitle,
+                description: loc.linkHandlingDomainClaimsHint,
               ),
               IconButton(
                 icon: const Icon(Icons.add),
-                tooltip: 'Add claim',
+                tooltip: loc.linkHandlingAddClaimTooltip,
                 onPressed: _addClaim,
               ),
             ],
@@ -402,22 +399,19 @@ class _ClaimRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = switch (claim.kind) {
-      DomainClaimKind.exactHost => claim.value,
-      DomainClaimKind.wildcardSubdomain => '*.${claim.value}',
-      DomainClaimKind.baseDomain => '${claim.value} (base)',
-    };
+    final loc = AppLocalizations.of(context);
+    final label = _claimLabel(loc, claim);
     final hasHijack =
         conflicts.any((c) => c.kind == ClaimConflictKind.hijack);
     return ListTile(
       title: Text(label),
       subtitle: hasHijack
-          ? const Text(
-              'Conflict: another site already owns this base domain.',
-              style: TextStyle(color: Colors.red),
+          ? Text(
+              loc.linkHandlingClaimHijackConflict,
+              style: const TextStyle(color: Colors.red),
             )
           : conflicts.isNotEmpty
-              ? const Text('Overlaps with another site (non-blocking).')
+              ? Text(loc.linkHandlingClaimOverlapConflict)
               : null,
       trailing: onRemove == null
           ? null
@@ -448,8 +442,9 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Add domain claim'),
+      title: Text(loc.linkHandlingAddClaimDialogTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,24 +455,24 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
             onChanged: (v) {
               if (v != null) setState(() => _kind = v);
             },
-            items: const [
+            items: [
               DropdownMenuItem(
                 value: DomainClaimKind.exactHost,
-                child: Text('Exact host (e.g. mail.google.com)'),
+                child: Text(loc.linkHandlingClaimKindExactHost),
               ),
               DropdownMenuItem(
                 value: DomainClaimKind.wildcardSubdomain,
-                child: Text('Wildcard subdomain (*.google.com)'),
+                child: Text(loc.linkHandlingClaimKindWildcard),
               ),
             ],
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _controller,
-            decoration: const InputDecoration(
-              labelText: 'Hostname',
-              border: OutlineInputBorder(),
-              hintText: 'example.com',
+            decoration: InputDecoration(
+              labelText: loc.linkHandlingHostnameLabel,
+              border: const OutlineInputBorder(),
+              hintText: loc.linkHandlingHostnameHint,
             ),
             keyboardType: TextInputType.url,
             autofocus: true,
@@ -487,7 +482,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(loc.commonCancel),
         ),
         ElevatedButton(
           onPressed: () {
@@ -495,7 +490,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
             if (v.isEmpty) return;
             Navigator.of(context).pop(DomainClaim(_kind, v));
           },
-          child: const Text('Add'),
+          child: Text(loc.commonAdd),
         ),
       ],
     );
