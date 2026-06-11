@@ -253,9 +253,9 @@
   "appSettingsCustomListNameHint": "Мојата филтер-листа",
   "appSettingsCustomListUrlLabel": "URL",
   "appSettingsAddCustomList": "Додај прилагодена листа",
-  "appSettingsUboRedirectStubs": "Сервирај uBO заглавки за пренасочување",
+  "appSettingsUboRedirectStubs": "Сервирај uBO стубови за пренасочување",
   "appSettingsUboRedirectStubsUnavailable": "Изворната библиотека за блокирање реклами не е достапна на оваа платформа.",
-  "appSettingsUboRedirectStubsSubtitle": "Враќај заглавни тела за $redirect= правилата наместо да се отфрла барањето",
+  "appSettingsUboRedirectStubsSubtitle": "Враќај тела на стубови за $redirect= правилата наместо да се отфрла барањето",
   "appSettingsDeveloper": "Програмер",
   "appSettingsAppLogs": "Дневници на апликацијата",
   "appSettingsAppLogsSubtitle": "Прегледај дневници за дебагирање на ниво на апликација",
@@ -330,7 +330,7 @@
   "siteSettingsProxyRequiresAuth": "Проксито бара автентикација",
   "siteSettingsProxyUsername": "Корисничко име за прокси",
   "siteSettingsProxyPassword": "Лозинка за прокси",
-  "siteSettingsJavascriptEnabled": "JavaScript овозможен",
+  "siteSettingsJavascriptEnabled": "Овозможен JavaScript",
   "siteSettingsUserAgent": "User-Agent",
   "siteSettingsLanguage": "Јазик",
   "siteSettingsLanguageHelper": "Поставува Accept-Language заглавие за HTTP барања",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Преназначи",
   "homeShortcutDisable": "Оневозможи",
   "homeShortcutPickTitle": "Насочи ја кратенката кон",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Јазик на апликацијата",
+  "appSettingsLanguageSystem": "Системски стандард"
 }

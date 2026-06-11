@@ -8,7 +8,7 @@
   "trustedCertRevokeAllDialogBody": "ہر پن کیا گیا سرٹیفکیٹ ہٹا دیا جائے گا۔ آپ کی استعمال شدہ خود دستخط شدہ سائٹس اگلی بار دوبارہ اجازت مانگیں گی۔",
   "trustedCertRevokeAllConfirm": "سب منسوخ کریں",
   "trustedCertRevokeDialogTitle": "اعتماد منسوخ کریں؟",
-  "trustedCertRevokeDialogBody": "{host}:{port} پر اگلی بار جانے سے پہلے لوڈ ہونے سے قبل دوبارہ اجازت مانگی جائے گی۔ اس ہوسٹ کے لیے ویب ویو سے باہر کی نیٹ ورک درخواستیں (فیوآئیکنز، ڈاؤن لوڈز) بھی دوبارہ منظوری تک ناکام رہیں گی۔",
+  "trustedCertRevokeDialogBody": "{host}:{port} پر اگلی بار جانے سے پہلے لوڈ ہونے سے قبل دوبارہ اجازت مانگی جائے گی۔ اس ہوسٹ کے لیے ویب ویو سے باہر کی نیٹ ورک درخواستیں (فیویکنز، ڈاؤن لوڈز) بھی دوبارہ منظوری تک ناکام رہیں گی۔",
   "trustedCertRevokeConfirm": "منسوخ کریں",
   "trustedCertEmptyTitle": "ابھی کوئی قابلِ اعتماد سرٹیفکیٹ نہیں۔",
   "trustedCertEmptyBody": "جب آپ کسی ایسی سائٹ پر جاتے ہیں جس کا سرٹیفکیٹ خود دستخط شدہ یا دیگر طور پر غیر معتبر ہو، تو آپ \"اس سائٹ پر اعتماد کریں\" منتخب کر سکتے ہیں۔ یہ فیصلہ یہاں محفوظ ہو جاتا ہے اور سرٹیفکیٹ تبدیل ہونے تک دوبارہ اجازت نہیں مانگی جاتی۔",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "دوبارہ تفویض کریں",
   "homeShortcutDisable": "غیر فعال کریں",
   "homeShortcutPickTitle": "شارٹ کٹ کو اشارہ کریں",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "ایپ کی زبان",
+  "appSettingsLanguageSystem": "سسٹم ڈیفالٹ"
 }

@@ -130,7 +130,7 @@
   "linkHandlingDomainClaimsTitle": "डोमेन दावे",
   "linkHandlingDomainClaimsHint": "दुसऱ्या अॅपवरून शेअर केल्यावर कोणती होस्टनावे या साइटवर राउट होतात. विद्यमान साइट त्यांच्या URL वरून एक बेस-डोमेन दावा तयार करतात.",
   "linkHandlingAddClaimTooltip": "दावा जोडा",
-  "linkHandlingClaimHijackConflict": "संघर्ष: दुसरी साइट आधीच हा बेस डोमेन मालकी ठेवते.",
+  "linkHandlingClaimHijackConflict": "संघर्ष: या बेस डोमेनची मालकी आधीच दुसऱ्या साइटकडे आहे.",
   "linkHandlingClaimOverlapConflict": "दुसऱ्या साइटशी आच्छादित होते (अवरोध न करणारे).",
   "linkHandlingAddClaimDialogTitle": "डोमेन दावा जोडा",
   "linkHandlingClaimKindExactHost": "अचूक होस्ट (उदा. mail.google.com)",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "पुन्हा नियुक्त करा",
   "homeShortcutDisable": "अक्षम करा",
   "homeShortcutPickTitle": "शॉर्टकट यावर निर्देशित करा",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "अॅप भाषा",
+  "appSettingsLanguageSystem": "सिस्टम डीफॉल्ट"
 }

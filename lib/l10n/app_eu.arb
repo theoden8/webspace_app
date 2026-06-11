@@ -604,16 +604,16 @@
   "devToolsCookieDeleted": "\"{name}\" cookiea ezabatuta",
   "devToolsCookieUnblocked": "\"{name}\" cookiea desblokeatuta",
   "homeShortcutConfirmOpenTitle": "Gunea ireki?",
-  "homeShortcutConfirmOpenBody": "Lasterbide hau jada existitzen ez den gune bati buruzkoa da. Ireki \"{name}\" ordez? Helbide berarekin bat dator.",
+  "homeShortcutConfirmOpenBody": "Lasterbide hau jada existitzen ez den gune bati lotuta dago. Ireki \"{name}\" horren ordez? Helbide berarekin bat dator.",
   "homeShortcutMissingTitle": "Lasterbidearen gunea falta da",
-  "homeShortcutMissingBody": "Lasterbide hau jada existitzen ez den gune bati buruzkoa da. Ireki beste gune bat ordez, edo sortu berri bat {url}-(e)rako?",
+  "homeShortcutMissingBody": "Lasterbide hau jada existitzen ez den gune bati lotuta dago. Ireki beste gune bat horren ordez, edo sortu berri bat {url}-(e)rako?",
   "homeShortcutOpenAnother": "Ireki beste bat",
   "homeShortcutFateTitle": "Hasiera-pantailako lasterbidea",
-  "homeShortcutFateBody": "Gune honek hasiera-pantailako lasterbide bat zuen. Lehenespenez, sakatzeak bat datorren gune bat berriz irekitzeko edo berri bat sortzeko aukera ematen dizu.\n\nHorren ordez beste gune bati buruzkoa egin dezakezu, edo desgaitu. (Android-ek ezin du ainguratutako lasterbide bat zure ordez ezabatu — desgaitzeak grisez jartzen du hasiera-pantailatik kendu arte.)",
+  "homeShortcutFateBody": "Gune honek hasiera-pantailako lasterbide bat zuen. Lehenespenez, sakatzean bat datorren gune bat berriz irekitzeko edo berri bat sortzeko aukera ematen dizu.\n\nHorren ordez beste gune bati esleitu diezaiokezu, edo desgaitu. (Android-ek ezin du ainguratutako lasterbide bat zure ordez ezabatu — desgaitzeak grisez jartzen du hasiera-pantailatik kendu arte.)",
   "homeShortcutKeep": "Mantendu",
   "homeShortcutReassign": "Berresleitu",
   "homeShortcutDisable": "Desgaitu",
-  "homeShortcutPickTitle": "Lasterbidea honi buruzkoa egin",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "homeShortcutPickTitle": "Lasterbidea honi esleitu",
+  "appSettingsLanguageTitle": "Aplikazioaren hizkuntza",
+  "appSettingsLanguageSystem": "Sistemaren lehenetsia"
 }

@@ -165,7 +165,7 @@
   "appSettingsThemeLight": "Svijetla",
   "appSettingsThemeDark": "Tamna",
   "appSettingsThemeSystem": "Sistemska",
-  "appSettingsAccentColor": "Naglasna boja",
+  "appSettingsAccentColor": "Boja naglaska",
   "appSettingsInterface": "Sučelje",
   "appSettingsSiteTabStrip": "Traka kartica stranica",
   "appSettingsSiteTabStripSubtitle": "Prikaži traku kartica sa svim stranicama na vrhu",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Preusmjeri",
   "homeShortcutDisable": "Onemogući",
   "homeShortcutPickTitle": "Usmjeri prečicu na",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Jezik aplikacije",
+  "appSettingsLanguageSystem": "Sistemski zadano"
 }
