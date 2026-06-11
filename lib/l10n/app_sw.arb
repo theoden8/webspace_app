@@ -165,7 +165,7 @@
   "appSettingsThemeLight": "Nyepesi",
   "appSettingsThemeDark": "Nyeusi",
   "appSettingsThemeSystem": "Mfumo",
-  "appSettingsAccentColor": "Rangi ya Lafudhi",
+  "appSettingsAccentColor": "Rangi ya Msisitizo",
   "appSettingsInterface": "Kiolesura",
   "appSettingsSiteTabStrip": "Ukanda wa Vichupo vya Tovuti",
   "appSettingsSiteTabStripSubtitle": "Onyesha upau wa vichupo wenye tovuti zote juu",
@@ -215,7 +215,7 @@
   "appSettingsRestoreArchive": "Rejesha kumbukumbu",
   "appSettingsRestoreArchiveSubtitle": "Rejesha webspace iliyohifadhiwa hapo awali kwa nenosiri",
   "appSettingsCloseAllArchives": "Funga kumbukumbu zote",
-  "appSettingsCloseAllArchivesSubtitle": "Toa vidakuzi vya kumbukumbu na futa funguo za kumbukumbu",
+  "appSettingsCloseAllArchivesSubtitle": "Safisha vidakuzi vya kumbukumbu na uondoe funguo zilizopo kwenye RAM",
   "appSettingsPrivacy": "Faragha",
   "appSettingsTrustedCertificates": "Vyeti vinavyoaminika",
   "appSettingsTrustedCertificatesSubtitle": "Vyeti vya kujitia saini vilivyoidhinishwa na mtumiaji",
@@ -338,7 +338,7 @@
   "siteSettingsPageZoom": "Ukuzaji wa ukurasa",
   "siteSettingsZoomOut": "Punguza ukuzaji",
   "siteSettingsZoomIn": "Ongeza ukuzaji",
-  "siteSettingsThirdPartyCookies": "Vidakuzi vya watu wengine",
+  "siteSettingsThirdPartyCookies": "Vidakuzi vya wahusika wengine",
   "siteSettingsIncognito": "Hali ya faragha",
   "siteSettingsIncognitoSubtitle": "Hakuna vidakuzi wala akiba zinazodumu",
   "siteSettingsAlwaysOpenHome": "Fungua Mwanzo kila wakati",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Kabidhi tena",
   "homeShortcutDisable": "Zima",
   "homeShortcutPickTitle": "Elekeza njia ya mkato kwa",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Lugha ya programu",
+  "appSettingsLanguageSystem": "Chaguomsingi la mfumo"
 }

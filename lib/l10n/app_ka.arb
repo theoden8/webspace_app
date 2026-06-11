@@ -73,7 +73,7 @@
   "webspaceDetailViewTitle": "Webspace-ის ნახვა",
   "webspaceDetailEditTitle": "Webspace-ის რედაქტირება",
   "webspaceDetailNameLabel": "Webspace-ის სახელი",
-  "webspaceDetailNameHint": "ახალი webspace",
+  "webspaceDetailNameHint": "ახალი Webspace",
   "webspaceDetailSelectSites": "აირჩიეთ საიტები",
   "webspaceDetailSelectedCount": "{count} არჩეული",
   "webspaceDetailNoSites": "საიტები მიუწვდომელია. ჯერ დაამატეთ საიტები.",
