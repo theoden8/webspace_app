@@ -253,9 +253,9 @@
   "appSettingsCustomListNameHint": "Իմ զտիչ ցուցակը",
   "appSettingsCustomListUrlLabel": "URL",
   "appSettingsAddCustomList": "Ավելացնել հատուկ ցուցակ",
-  "appSettingsUboRedirectStubs": "Մատուցել uBO վերահղման ստub-եր",
+  "appSettingsUboRedirectStubs": "Մատուցել uBO վերահղման ստաբեր",
   "appSettingsUboRedirectStubsUnavailable": "Բնիկ adblock գրադարանը հասանելի չէ այս հարթակում։",
-  "appSettingsUboRedirectStubsSubtitle": "Վերադարձնել ստub մարմիններ $redirect= կանոնների համար՝ հարցումը չեղարկելու փոխարեն",
+  "appSettingsUboRedirectStubsSubtitle": "Վերադարձնել ստաբ մարմիններ $redirect= կանոնների համար՝ հարցումը չեղարկելու փոխարեն",
   "appSettingsDeveloper": "Մշակող",
   "appSettingsAppLogs": "Հավելվածի մատյաններ",
   "appSettingsAppLogsSubtitle": "Դիտել հավելվածի մակարդակի վրիպազերծման մատյանները",
@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Վերանշանակել",
   "homeShortcutDisable": "Անջատել",
   "homeShortcutPickTitle": "Մատնանշել դյուրանցումը",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "Հավելվածի լեզու",
+  "appSettingsLanguageSystem": "Համակարգային լռելյայն"
 }
