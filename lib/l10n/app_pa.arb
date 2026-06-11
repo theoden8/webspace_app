@@ -613,5 +613,7 @@
   "homeShortcutKeep": "ਰੱਖੋ",
   "homeShortcutReassign": "ਮੁੜ-ਸੌਂਪੋ",
   "homeShortcutDisable": "ਅਯੋਗ ਕਰੋ",
-  "homeShortcutPickTitle": "ਸ਼ਾਰਟਕੱਟ ਨੂੰ ਇਸ ਵੱਲ ਇਸ਼ਾਰਾ ਕਰੋ"
+  "homeShortcutPickTitle": "ਸ਼ਾਰਟਕੱਟ ਨੂੰ ਇਸ ਵੱਲ ਇਸ਼ਾਰਾ ਕਰੋ",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

@@ -613,5 +613,7 @@
   "homeShortcutKeep": "राख्नुहोस्",
   "homeShortcutReassign": "पुनः-असाइन गर्नुहोस्",
   "homeShortcutDisable": "असक्षम गर्नुहोस्",
-  "homeShortcutPickTitle": "सर्टकट यसमा संकेत गर्नुहोस्"
+  "homeShortcutPickTitle": "सर्टकट यसमा संकेत गर्नुहोस्",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

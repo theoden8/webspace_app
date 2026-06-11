@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Ohrani",
   "homeShortcutReassign": "Dodeli znova",
   "homeShortcutDisable": "Onemogoči",
-  "homeShortcutPickTitle": "Usmeri bližnjico na"
+  "homeShortcutPickTitle": "Usmeri bližnjico na",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

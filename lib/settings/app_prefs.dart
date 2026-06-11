@@ -55,10 +55,14 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // Turn off to make $redirect= drop the request instead — see
   // openspec/specs/content-blocker/spec.md CB-013.
   'useUboResources': true,
+  // User-chosen UI language as a locale tag (e.g. 'de', 'pt_BR', 'zh_Hant').
+  // Empty string means follow the system locale. Applied to MaterialApp.locale.
+  'appLocaleOverride': '',
 };
 
 const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';
 const String kUseUboResourcesKey = 'useUboResources';
+const String kAppLocaleOverrideKey = 'appLocaleOverride';
 
 /// Read every registered pref from [prefs] into a map suitable for embedding
 /// in a `SettingsBackup`. Missing keys fall back to their registry default.

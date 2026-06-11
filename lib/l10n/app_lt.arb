@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Palikti",
   "homeShortcutReassign": "Priskirti iš naujo",
   "homeShortcutDisable": "Išjungti",
-  "homeShortcutPickTitle": "Nukreipti nuorodą į"
+  "homeShortcutPickTitle": "Nukreipti nuorodą į",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

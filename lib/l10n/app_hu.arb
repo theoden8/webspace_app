@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Megtartás",
   "homeShortcutReassign": "Újrahozzárendelés",
   "homeShortcutDisable": "Letiltás",
-  "homeShortcutPickTitle": "Parancsikon ráirányítása erre"
+  "homeShortcutPickTitle": "Parancsikon ráirányítása erre",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

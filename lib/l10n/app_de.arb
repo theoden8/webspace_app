@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Behalten",
   "homeShortcutReassign": "Neu zuweisen",
   "homeShortcutDisable": "Deaktivieren",
-  "homeShortcutPickTitle": "Verknüpfung verweisen auf"
+  "homeShortcutPickTitle": "Verknüpfung verweisen auf",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

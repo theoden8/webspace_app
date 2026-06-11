@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Хадгалах",
   "homeShortcutReassign": "Дахин оноох",
   "homeShortcutDisable": "Идэвхгүй болгох",
-  "homeShortcutPickTitle": "Товчлолыг руу заах"
+  "homeShortcutPickTitle": "Товчлолыг руу заах",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

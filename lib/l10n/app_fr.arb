@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Conserver",
   "homeShortcutReassign": "Réaffecter",
   "homeShortcutDisable": "Désactiver",
-  "homeShortcutPickTitle": "Faire pointer le raccourci vers"
+  "homeShortcutPickTitle": "Faire pointer le raccourci vers",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

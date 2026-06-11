@@ -613,5 +613,7 @@
   "homeShortcutKeep": "შენარჩუნება",
   "homeShortcutReassign": "ხელახლა მინიჭება",
   "homeShortcutDisable": "გათიშვა",
-  "homeShortcutPickTitle": "ბმული მიემართოს"
+  "homeShortcutPickTitle": "ბმული მიემართოს",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

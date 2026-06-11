@@ -613,5 +613,7 @@
   "homeShortcutKeep": "રાખો",
   "homeShortcutReassign": "ફરી સોંપો",
   "homeShortcutDisable": "અક્ષમ કરો",
-  "homeShortcutPickTitle": "શોર્ટકટ નિર્દેશ કરો"
+  "homeShortcutPickTitle": "શોર્ટકટ નિર્દેશ કરો",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

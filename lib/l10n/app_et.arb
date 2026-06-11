@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Säilita",
   "homeShortcutReassign": "Määra uuesti",
   "homeShortcutDisable": "Keela",
-  "homeShortcutPickTitle": "Suuna otsetee saidile"
+  "homeShortcutPickTitle": "Suuna otsetee saidile",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

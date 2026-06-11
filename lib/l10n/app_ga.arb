@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Coinnigh",
   "homeShortcutReassign": "Athshann",
   "homeShortcutDisable": "Díchumasaigh",
-  "homeShortcutPickTitle": "Dírigh an t-aicearra ar"
+  "homeShortcutPickTitle": "Dírigh an t-aicearra ar",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

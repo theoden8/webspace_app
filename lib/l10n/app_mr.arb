@@ -613,5 +613,7 @@
   "homeShortcutKeep": "ठेवा",
   "homeShortcutReassign": "पुन्हा नियुक्त करा",
   "homeShortcutDisable": "अक्षम करा",
-  "homeShortcutPickTitle": "शॉर्टकट यावर निर्देशित करा"
+  "homeShortcutPickTitle": "शॉर्टकट यावर निर्देशित करा",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

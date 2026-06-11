@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Manter",
   "homeShortcutReassign": "Reatribuir",
   "homeShortcutDisable": "Desativar",
-  "homeShortcutPickTitle": "Apontar atalho para"
+  "homeShortcutPickTitle": "Apontar atalho para",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

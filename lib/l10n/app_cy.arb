@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Cadw",
   "homeShortcutReassign": "Ailneilltuo",
   "homeShortcutDisable": "Analluogi",
-  "homeShortcutPickTitle": "Pwyntio'r llwybr byr at"
+  "homeShortcutPickTitle": "Pwyntio'r llwybr byr at",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Paturēt",
   "homeShortcutReassign": "Pārpiešķirt",
   "homeShortcutDisable": "Atspējot",
-  "homeShortcutPickTitle": "Norādīt saīsni uz"
+  "homeShortcutPickTitle": "Norādīt saīsni uz",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

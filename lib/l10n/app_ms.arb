@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Kekalkan",
   "homeShortcutReassign": "Tetapkan semula",
   "homeShortcutDisable": "Lumpuhkan",
-  "homeShortcutPickTitle": "Tunjukkan pintasan ke"
+  "homeShortcutPickTitle": "Tunjukkan pintasan ke",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

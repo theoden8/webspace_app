@@ -77,6 +77,7 @@ import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -773,10 +774,17 @@ class WebSpaceApp extends StatefulWidget {
 
 class _WebSpaceAppState extends State<WebSpaceApp> {
   AppThemeSettings _themeSettings = const AppThemeSettings();
+  Locale? _localeOverride;
 
   void _setThemeSettings(AppThemeSettings settings) {
     setState(() {
       _themeSettings = settings;
+    });
+  }
+
+  void _setLocaleOverride(Locale? locale) {
+    setState(() {
+      _localeOverride = locale;
     });
   }
 
@@ -787,6 +795,7 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      locale: _localeOverride,
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: ThemeData(
         colorScheme: _buildAccentColorScheme(accentColor, Brightness.light),
@@ -797,7 +806,10 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
       themeMode: _themeSettings.themeMode,
-      home: WebSpacePage(onThemeSettingsChanged: _setThemeSettings),
+      home: WebSpacePage(
+        onThemeSettingsChanged: _setThemeSettings,
+        onLocaleOverrideChanged: _setLocaleOverride,
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -805,8 +817,12 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
 
 class WebSpacePage extends StatefulWidget {
   final Function(AppThemeSettings) onThemeSettingsChanged;
+  final Function(Locale?) onLocaleOverrideChanged;
 
-  WebSpacePage({required this.onThemeSettingsChanged});
+  WebSpacePage({
+    required this.onThemeSettingsChanged,
+    required this.onLocaleOverrideChanged,
+  });
 
   @override
   _WebSpacePageState createState() => _WebSpacePageState();
@@ -897,6 +913,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   bool _tabStripInFullscreen = false;
   bool _linkHandlingEnabled = true;
   bool _showStatsBanner = true;
+  // UI language override as a locale tag ('' = follow system).
+  String _localeOverride = '';
 
   // Webspace-related state
   final List<Webspace> _webspaces = [];
@@ -3705,8 +3723,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _tabStripInFullscreen = prefs.getBool('tabStripInFullscreen') ?? false;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
+      _localeOverride = prefs.getString(kAppLocaleOverrideKey) ?? '';
       _loadShortcutRemap(prefs);
       widget.onThemeSettingsChanged(_themeSettings);
+      widget.onLocaleOverrideChanged(localeFromTag(_localeOverride));
     });
     await _loadWebspaces();
     await _loadGlobalUserScripts();
@@ -5068,6 +5088,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                         _showStatsBanner = value;
                       });
                       _saveShowStatsBanner();
+                    },
+                    localeOverride: _localeOverride,
+                    onLocaleOverrideChanged: (tag) async {
+                      setState(() => _localeOverride = tag);
+                      widget.onLocaleOverrideChanged(localeFromTag(tag));
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString(kAppLocaleOverrideKey, tag);
                     },
                     linkHandlingEnabled: _linkHandlingEnabled,
                     onLinkHandlingEnabledChanged: (value) {

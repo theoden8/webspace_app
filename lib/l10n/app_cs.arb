@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Ponechat",
   "homeShortcutReassign": "Přiřadit znovu",
   "homeShortcutDisable": "Zakázat",
-  "homeShortcutPickTitle": "Nasměrovat zástupce na"
+  "homeShortcutPickTitle": "Nasměrovat zástupce na",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

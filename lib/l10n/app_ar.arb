@@ -613,5 +613,7 @@
   "homeShortcutKeep": "إبقاء",
   "homeShortcutReassign": "إعادة التعيين",
   "homeShortcutDisable": "تعطيل",
-  "homeShortcutPickTitle": "توجيه الاختصار إلى"
+  "homeShortcutPickTitle": "توجيه الاختصار إلى",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

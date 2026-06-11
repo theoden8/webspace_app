@@ -613,5 +613,7 @@
   "homeShortcutKeep": "ఉంచు",
   "homeShortcutReassign": "మళ్లీ కేటాయించు",
   "homeShortcutDisable": "నిలిపివేయి",
-  "homeShortcutPickTitle": "షార్ట్‌కట్‌ను దీనికి సూచించు"
+  "homeShortcutPickTitle": "షార్ట్‌కట్‌ను దీనికి సూచించు",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

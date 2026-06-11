@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Säilytä",
   "homeShortcutReassign": "Määritä uudelleen",
   "homeShortcutDisable": "Poista käytöstä",
-  "homeShortcutPickTitle": "Osoita pikakuvake kohteeseen"
+  "homeShortcutPickTitle": "Osoita pikakuvake kohteeseen",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

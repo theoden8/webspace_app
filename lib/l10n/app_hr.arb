@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Zadrži",
   "homeShortcutReassign": "Ponovno dodijeli",
   "homeShortcutDisable": "Onemogući",
-  "homeShortcutPickTitle": "Usmjeri prečac na"
+  "homeShortcutPickTitle": "Usmjeri prečac na",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

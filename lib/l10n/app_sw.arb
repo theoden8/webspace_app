@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Weka",
   "homeShortcutReassign": "Kabidhi tena",
   "homeShortcutDisable": "Zima",
-  "homeShortcutPickTitle": "Elekeza njia ya mkato kwa"
+  "homeShortcutPickTitle": "Elekeza njia ya mkato kwa",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

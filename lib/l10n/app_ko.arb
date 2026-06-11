@@ -613,5 +613,7 @@
   "homeShortcutKeep": "유지",
   "homeShortcutReassign": "재지정",
   "homeShortcutDisable": "비활성화",
-  "homeShortcutPickTitle": "바로가기를 가리킬 대상"
+  "homeShortcutPickTitle": "바로가기를 가리킬 대상",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

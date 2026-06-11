@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
@@ -56,6 +57,9 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onTabStripInFullscreenChanged;
   final bool showStatsBanner;
   final ValueChanged<bool> onShowStatsBannerChanged;
+  /// Current UI language override as a locale tag ('' = follow system).
+  final String localeOverride;
+  final ValueChanged<String> onLocaleOverrideChanged;
   /// LIR-008: master "Handle shared links" switch + entry into the
   /// routing overview screen. The wrapping page handles persistence.
   final bool linkHandlingEnabled;
@@ -90,6 +94,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onTabStripInFullscreenChanged,
     required this.showStatsBanner,
     required this.onShowStatsBannerChanged,
+    required this.localeOverride,
+    required this.onLocaleOverrideChanged,
     required this.linkHandlingEnabled,
     required this.onLinkHandlingEnabledChanged,
     required this.onOpenLinkHandlingSettings,
@@ -662,6 +668,47 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     widget.onSettingsChanged(newSettings);
   }
 
+  Future<void> _pickAppLanguage() async {
+    final loc = AppLocalizations.of(context);
+    final tags = AppLocalizations.supportedLocales
+        .map(tagForLocale)
+        .toSet()
+        .toList()
+      ..sort((a, b) => languageLabelForTag(a)
+          .toLowerCase()
+          .compareTo(languageLabelForTag(b).toLowerCase()));
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.appSettingsLanguageTitle),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              RadioListTile<String>(
+                value: '',
+                groupValue: widget.localeOverride,
+                title: Text(loc.appSettingsLanguageSystem),
+                onChanged: (v) => Navigator.pop(ctx, v ?? ''),
+              ),
+              for (final tag in tags)
+                RadioListTile<String>(
+                  value: tag,
+                  groupValue: widget.localeOverride,
+                  title: Text(languageLabelForTag(tag)),
+                  onChanged: (v) => Navigator.pop(ctx, v),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected == null) return;
+    widget.onLocaleOverrideChanged(selected);
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -764,6 +811,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               });
               widget.onShowStatsBannerChanged(value);
             },
+          ),
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: Text(loc.appSettingsLanguageTitle),
+            subtitle: Text(widget.localeOverride.isEmpty
+                ? loc.appSettingsLanguageSystem
+                : languageLabelForTag(widget.localeOverride)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickAppLanguage,
           ),
           ListTile(
             leading: const Icon(Icons.share_outlined),

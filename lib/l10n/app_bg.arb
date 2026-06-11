@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Запази",
   "homeShortcutReassign": "Преназначи",
   "homeShortcutDisable": "Изключи",
-  "homeShortcutPickTitle": "Насочи прекия път към"
+  "homeShortcutPickTitle": "Насочи прекия път към",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

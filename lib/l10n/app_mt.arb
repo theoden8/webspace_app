@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Żomm",
   "homeShortcutReassign": "Erġa' assenja",
   "homeShortcutDisable": "Diżattiva",
-  "homeShortcutPickTitle": "Ipponta x-shortcut lejn"
+  "homeShortcutPickTitle": "Ipponta x-shortcut lejn",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

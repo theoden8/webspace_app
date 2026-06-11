@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Hou",
   "homeShortcutReassign": "Herwys",
   "homeShortcutDisable": "Deaktiveer",
-  "homeShortcutPickTitle": "Wys kortpad na"
+  "homeShortcutPickTitle": "Wys kortpad na",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

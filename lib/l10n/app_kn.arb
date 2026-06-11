@@ -613,5 +613,7 @@
   "homeShortcutKeep": "ಇರಿಸಿ",
   "homeShortcutReassign": "ಮರು-ನಿಯೋಜಿಸಿ",
   "homeShortcutDisable": "ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ",
-  "homeShortcutPickTitle": "ಶಾರ್ಟ್‌ಕಟ್ ಅನ್ನು ಇದಕ್ಕೆ ಸೂಚಿಸಿ"
+  "homeShortcutPickTitle": "ಶಾರ್ಟ್‌ಕಟ್ ಅನ್ನು ಇದಕ್ಕೆ ಸೂಚಿಸಿ",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

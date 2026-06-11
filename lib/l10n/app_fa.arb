@@ -613,5 +613,7 @@
   "homeShortcutKeep": "نگه‌داشتن",
   "homeShortcutReassign": "انتساب مجدد",
   "homeShortcutDisable": "غیرفعال کردن",
-  "homeShortcutPickTitle": "اشارهٔ میان‌بر به"
+  "homeShortcutPickTitle": "اشارهٔ میان‌بر به",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Behold",
   "homeShortcutReassign": "Tildel igen",
   "homeShortcutDisable": "Deaktiver",
-  "homeShortcutPickTitle": "Peg genvej på"
+  "homeShortcutPickTitle": "Peg genvej på",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

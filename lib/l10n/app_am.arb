@@ -613,5 +613,7 @@
   "homeShortcutKeep": "ጠብቅ",
   "homeShortcutReassign": "እንደገና መድብ",
   "homeShortcutDisable": "አሰናክል",
-  "homeShortcutPickTitle": "አቋራጭ ጠቁም ወደ"
+  "homeShortcutPickTitle": "አቋራጭ ጠቁም ወደ",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

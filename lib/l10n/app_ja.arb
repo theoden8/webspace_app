@@ -613,5 +613,7 @@
   "homeShortcutKeep": "保持",
   "homeShortcutReassign": "再割り当て",
   "homeShortcutDisable": "無効化",
-  "homeShortcutPickTitle": "ショートカットの割り当て先"
+  "homeShortcutPickTitle": "ショートカットの割り当て先",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

@@ -855,6 +855,14 @@
   "@appSettingsStatsBarSubtitle": {
     "description": "Subtitle for the stats bar toggle"
   },
+  "appSettingsLanguageTitle": "App language",
+  "@appSettingsLanguageTitle": {
+    "description": "Title of the setting that overrides the app's UI language"
+  },
+  "appSettingsLanguageSystem": "System default",
+  "@appSettingsLanguageSystem": {
+    "description": "Language picker option that follows the device's system locale instead of a fixed language"
+  },
   "appSettingsLinkHandling": "Link handling",
   "@appSettingsLinkHandling": {
     "description": "Title for the link handling settings entry"

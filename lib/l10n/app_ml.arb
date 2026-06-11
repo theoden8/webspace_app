@@ -613,5 +613,7 @@
   "homeShortcutKeep": "നിലനിർത്തുക",
   "homeShortcutReassign": "വീണ്ടും അസൈൻ ചെയ്യുക",
   "homeShortcutDisable": "പ്രവർത്തനരഹിതമാക്കുക",
-  "homeShortcutPickTitle": "കുറുക്കുവഴി ഇതിലേക്ക് ചൂണ്ടുക"
+  "homeShortcutPickTitle": "കുറുക്കുവഴി ഇതിലേക്ക് ചൂണ്ടുക",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Mantieni",
   "homeShortcutReassign": "Riassegna",
   "homeShortcutDisable": "Disabilita",
-  "homeShortcutPickTitle": "Fai puntare la scorciatoia a"
+  "homeShortcutPickTitle": "Fai puntare la scorciatoia a",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

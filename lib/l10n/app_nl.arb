@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Behouden",
   "homeShortcutReassign": "Opnieuw toewijzen",
   "homeShortcutDisable": "Uitschakelen",
-  "homeShortcutPickTitle": "Snelkoppeling laten verwijzen naar"
+  "homeShortcutPickTitle": "Snelkoppeling laten verwijzen naar",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

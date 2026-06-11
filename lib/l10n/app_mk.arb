@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Задржи",
   "homeShortcutReassign": "Преназначи",
   "homeShortcutDisable": "Оневозможи",
-  "homeShortcutPickTitle": "Насочи ја кратенката кон"
+  "homeShortcutPickTitle": "Насочи ја кратенката кон",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

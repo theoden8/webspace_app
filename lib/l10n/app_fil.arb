@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Panatilihin",
   "homeShortcutReassign": "Italaga muli",
   "homeShortcutDisable": "I-disable",
-  "homeShortcutPickTitle": "Ituro ang shortcut sa"
+  "homeShortcutPickTitle": "Ituro ang shortcut sa",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

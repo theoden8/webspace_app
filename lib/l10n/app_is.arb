@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Halda",
   "homeShortcutReassign": "Endurúthluta",
   "homeShortcutDisable": "Gera óvirka",
-  "homeShortcutPickTitle": "Benda flýtileið á"
+  "homeShortcutPickTitle": "Benda flýtileið á",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Zachowaj",
   "homeShortcutReassign": "Przypisz ponownie",
   "homeShortcutDisable": "Wyłącz",
-  "homeShortcutPickTitle": "Skieruj skrót na"
+  "homeShortcutPickTitle": "Skieruj skrót na",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

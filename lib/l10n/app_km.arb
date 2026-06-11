@@ -613,5 +613,7 @@
   "homeShortcutKeep": "រក្សា",
   "homeShortcutReassign": "Reassign",
   "homeShortcutDisable": "បិទ",
-  "homeShortcutPickTitle": "ចង្អុល shortcut ទៅ"
+  "homeShortcutPickTitle": "ចង្អុល shortcut ទៅ",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

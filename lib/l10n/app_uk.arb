@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Залишити",
   "homeShortcutReassign": "Перепризначити",
   "homeShortcutDisable": "Вимкнути",
-  "homeShortcutPickTitle": "Спрямувати ярлик на"
+  "homeShortcutPickTitle": "Спрямувати ярлик на",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

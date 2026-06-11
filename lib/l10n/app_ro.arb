@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Păstrează",
   "homeShortcutReassign": "Reatribuie",
   "homeShortcutDisable": "Dezactivează",
-  "homeShortcutPickTitle": "Îndreaptă scurtătura către"
+  "homeShortcutPickTitle": "Îndreaptă scurtătura către",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

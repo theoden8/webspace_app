@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Koru",
   "homeShortcutReassign": "Yeniden ata",
   "homeShortcutDisable": "Devre dışı bırak",
-  "homeShortcutPickTitle": "Kısayolu şuna yönlendir"
+  "homeShortcutPickTitle": "Kısayolu şuna yönlendir",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

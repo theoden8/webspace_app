@@ -613,5 +613,7 @@
   "homeShortcutKeep": "保留",
   "homeShortcutReassign": "重新指派",
   "homeShortcutDisable": "停用",
-  "homeShortcutPickTitle": "將捷徑指向"
+  "homeShortcutPickTitle": "將捷徑指向",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

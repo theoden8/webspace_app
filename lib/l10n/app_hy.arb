@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Պահել",
   "homeShortcutReassign": "Վերանշանակել",
   "homeShortcutDisable": "Անջատել",
-  "homeShortcutPickTitle": "Մատնանշել դյուրանցումը"
+  "homeShortcutPickTitle": "Մատնանշել դյուրանցումը",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

@@ -613,5 +613,7 @@
   "homeShortcutKeep": "שמור",
   "homeShortcutReassign": "הקצה מחדש",
   "homeShortcutDisable": "השבת",
-  "homeShortcutPickTitle": "הפנה את קיצור הדרך אל"
+  "homeShortcutPickTitle": "הפנה את קיצור הדרך אל",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

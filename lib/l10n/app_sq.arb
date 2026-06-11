@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Mbaj",
   "homeShortcutReassign": "Ricakto",
   "homeShortcutDisable": "Çaktivizo",
-  "homeShortcutPickTitle": "Trego shkurtoren te"
+  "homeShortcutPickTitle": "Trego shkurtoren te",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

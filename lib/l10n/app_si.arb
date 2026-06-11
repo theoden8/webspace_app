@@ -613,5 +613,7 @@
   "homeShortcutKeep": "තබා ගන්න",
   "homeShortcutReassign": "යළි පවරන්න",
   "homeShortcutDisable": "අක්‍රීය කරන්න",
-  "homeShortcutPickTitle": "කෙටිමඟ යොමු කරන්න"
+  "homeShortcutPickTitle": "කෙටිමඟ යොමු කරන්න",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

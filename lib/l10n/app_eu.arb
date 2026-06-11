@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Mantendu",
   "homeShortcutReassign": "Berresleitu",
   "homeShortcutDisable": "Desgaitu",
-  "homeShortcutPickTitle": "Lasterbidea honi buruzkoa egin"
+  "homeShortcutPickTitle": "Lasterbidea honi buruzkoa egin",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

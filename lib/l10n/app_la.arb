@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Servare",
   "homeShortcutReassign": "Reassignare",
   "homeShortcutDisable": "Impedire",
-  "homeShortcutPickTitle": "Compendium spectare ad"
+  "homeShortcutPickTitle": "Compendium spectare ad",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

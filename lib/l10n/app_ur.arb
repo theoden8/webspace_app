@@ -613,5 +613,7 @@
   "homeShortcutKeep": "رکھیں",
   "homeShortcutReassign": "دوبارہ تفویض کریں",
   "homeShortcutDisable": "غیر فعال کریں",
-  "homeShortcutPickTitle": "شارٹ کٹ کو اشارہ کریں"
+  "homeShortcutPickTitle": "شارٹ کٹ کو اشارہ کریں",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

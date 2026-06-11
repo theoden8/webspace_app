@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Behåll",
   "homeShortcutReassign": "Tilldela om",
   "homeShortcutDisable": "Inaktivera",
-  "homeShortcutPickTitle": "Peka genväg mot"
+  "homeShortcutPickTitle": "Peka genväg mot",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

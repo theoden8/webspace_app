@@ -613,5 +613,7 @@
   "homeShortcutKeep": "เก็บไว้",
   "homeShortcutReassign": "กำหนดใหม่",
   "homeShortcutDisable": "ปิดใช้งาน",
-  "homeShortcutPickTitle": "ชี้ทางลัดไปยัง"
+  "homeShortcutPickTitle": "ชี้ทางลัดไปยัง",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

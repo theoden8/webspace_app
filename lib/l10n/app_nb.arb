@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Behold",
   "homeShortcutReassign": "Tildel på nytt",
   "homeShortcutDisable": "Deaktiver",
-  "homeShortcutPickTitle": "Pek snarvei mot"
+  "homeShortcutPickTitle": "Pek snarvei mot",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

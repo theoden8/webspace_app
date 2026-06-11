@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Mantener",
   "homeShortcutReassign": "Reasignar",
   "homeShortcutDisable": "Desactivar",
-  "homeShortcutPickTitle": "Apuntar el acceso directo a"
+  "homeShortcutPickTitle": "Apuntar el acceso directo a",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }

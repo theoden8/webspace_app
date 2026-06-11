@@ -613,5 +613,7 @@
   "homeShortcutKeep": "Manter",
   "homeShortcutReassign": "Reasignar",
   "homeShortcutDisable": "Desactivar",
-  "homeShortcutPickTitle": "Apuntar o atallo a"
+  "homeShortcutPickTitle": "Apuntar o atallo a",
+  "appSettingsLanguageTitle": "App language",
+  "appSettingsLanguageSystem": "System default"
 }
