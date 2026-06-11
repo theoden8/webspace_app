@@ -614,6 +614,6 @@
   "homeShortcutReassign": "Neu zuweisen",
   "homeShortcutDisable": "Deaktivieren",
   "homeShortcutPickTitle": "Verknüpfung verweisen auf",
-  "appSettingsLanguageTitle": "App language",
-  "appSettingsLanguageSystem": "System default"
+  "appSettingsLanguageTitle": "App-Sprache",
+  "appSettingsLanguageSystem": "Systemstandard"
 }
