@@ -134,6 +134,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _contentBlockEnabled;
   late bool _trackingProtectionEnabled;
   late bool _letterboxEnabled;
+  // Auto (grid-snapped) box size of the current screen, as strings. Computed
+  // once after layout settles (post-frame), so the prefill and the field hint
+  // share one value instead of each recomputing MediaQuery at a different time.
+  String _autoBoxW = '';
+  String _autoBoxH = '';
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _fullscreenMode;
@@ -206,26 +211,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Needs MediaQuery, so defer to the first frame, then re-baseline the
     // dirty snapshot so opening the screen doesn't look like an unsaved edit.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_letterboxEnabled) return;
-      _fillBoxDefaultsIfEmpty();
-      setState(() {});
-      _initialSnapshot = _currentSnapshot();
+      if (!mounted) return;
+      _updateAutoBox();
+      if (_letterboxEnabled) {
+        _fillBoxDefaultsIfEmpty();
+        setState(() {});
+        _initialSnapshot = _currentSnapshot();
+      } else {
+        setState(() {});
+      }
     });
   }
 
-  /// Populate the box width/height fields with the auto grid-snapped size of
-  /// the current screen when they are empty, so "auto" shows concrete,
-  /// editable numbers. Clearing a field returns that axis to auto.
-  void _fillBoxDefaultsIfEmpty() {
-    final hasW = _windowWidthController.text.trim().isNotEmpty;
-    final hasH = _windowHeightController.text.trim().isNotEmpty;
-    if (hasW && hasH) return;
+  /// Recompute the auto (grid-snapped) box size from the current screen. Runs
+  /// after layout settles, where MediaQuery is reliable (during the route push
+  /// `build` can briefly see a transitional size).
+  void _updateAutoBox() {
     final auto = computeLetterboxTarget(
       availableWidth: MediaQuery.sizeOf(context).width,
       availableHeight: MediaQuery.sizeOf(context).height,
     );
-    if (!hasW) _windowWidthController.text = auto.width.toInt().toString();
-    if (!hasH) _windowHeightController.text = auto.height.toInt().toString();
+    _autoBoxW = auto.width.toInt().toString();
+    _autoBoxH = auto.height.toInt().toString();
+  }
+
+  /// Populate the box width/height fields with [_autoBoxW]/[_autoBoxH] when
+  /// they are empty, so "auto" shows concrete, editable numbers matching the
+  /// field hint. Clearing a field returns that axis to auto.
+  void _fillBoxDefaultsIfEmpty() {
+    if (_autoBoxW.isEmpty || _autoBoxH.isEmpty) _updateAutoBox();
+    if (_windowWidthController.text.trim().isEmpty) {
+      _windowWidthController.text = _autoBoxW;
+    }
+    if (_windowHeightController.text.trim().isEmpty) {
+      _windowHeightController.text = _autoBoxH;
+    }
   }
 
   void _onAnyFieldChanged() {
@@ -1042,15 +1062,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    // Approximate the box "auto" size from the screen so the box fields can
-    // hint what leaving them blank produces. The real box uses the webview's
-    // own (slightly smaller) area, so this is a ballpark.
-    final autoBox = computeLetterboxTarget(
-      availableWidth: MediaQuery.sizeOf(context).width,
-      availableHeight: MediaQuery.sizeOf(context).height,
-    );
-    final autoBoxW = autoBox.width.toInt().toString();
-    final autoBoxH = autoBox.height.toInt().toString();
     return PopScope(
       canPop: !_isDirty(),
       onPopInvokedWithResult: (didPop, _) async {
@@ -1346,7 +1357,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ? (bool value) {
                     setState(() {
                       _letterboxEnabled = value;
-                      if (value) _fillBoxDefaultsIfEmpty();
+                      if (value) {
+                        _updateAutoBox();
+                        _fillBoxDefaultsIfEmpty();
+                      }
                     });
                   }
                 : null,
@@ -1362,7 +1376,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: loc.siteSettingsWindowWidth,
-                      hintText: autoBoxW,
+                      hintText: _autoBoxW,
                       isDense: true,
                     ),
                   ),
@@ -1375,7 +1389,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: loc.siteSettingsWindowHeight,
-                      hintText: autoBoxH,
+                      hintText: _autoBoxH,
                       isDense: true,
                     ),
                   ),

@@ -621,5 +621,5 @@
   "siteSettingsWindowSizeHelper": "Window size (window.innerWidth/innerHeight) reported to pages. Leave blank for a stable per-site size; set both to pin a custom size.",
   "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
   "siteSettingsLetterboxTitle": "Letterbox window",
-  "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) so the screen size cannot fingerprint you"
+  "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting"
 }

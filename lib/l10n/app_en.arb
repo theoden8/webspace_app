@@ -3025,7 +3025,7 @@
   "@siteSettingsLetterboxTitle": {
     "description": "Title of the per-site Letterbox window switch under Tracking Protection."
   },
-  "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) so the screen size cannot fingerprint you",
+  "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
   "@siteSettingsLetterboxSubtitle": {
     "description": "Subtitle explaining the Letterbox window switch."
   }
