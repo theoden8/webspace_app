@@ -55,6 +55,14 @@ String _generateSiteId() {
   return '${now.toRadixString(36)}-${random.toRadixString(36)}';
 }
 
+/// Generates a fresh per-site fingerprint reset nonce. Uses [Random.secure]
+/// so a site can't predict the post-reset fingerprint.
+String generateFingerprintResetNonce() {
+  final rng = Random.secure();
+  final bytes = List<int>.generate(8, (_) => rng.nextInt(256));
+  return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+}
+
 String extractDomain(String url) {
   Uri uri = Uri.tryParse(url) ?? Uri();
   String? domain = uri.host;
@@ -374,6 +382,27 @@ class WebViewModel {
   /// [LocationMode.spoof].
   LocationGranularity liveLocationGranularity;
   WebRtcPolicy webRtcPolicy;
+  /// User-set window content size reported to the page by the
+  /// anti-fingerprinting shim (`window.innerWidth`/`innerHeight`). Both must
+  /// be set and positive to take effect; when either is null the shim picks
+  /// a stable, plausible desktop window size seeded by [siteId]. Only applied
+  /// when [trackingProtectionEnabled] is on, since the shim is gated on it.
+  /// When true, the site's WebView is rendered in a Tor-style letterbox: a
+  /// centered box snapped to a 200x100 grid of the available area (or exactly
+  /// [spoofWindowWidth] x [spoofWindowHeight] when both are set), with margin
+  /// bars. The reported viewport is bucketed and `screen.*` mirrors the real
+  /// `window.inner*`. Only active under [trackingProtectionEnabled].
+  bool letterboxEnabled;
+  /// Exact content-box size for letterbox mode. Both must be set and positive;
+  /// otherwise the box snaps to the grid of the available area.
+  int? spoofWindowWidth;
+  int? spoofWindowHeight;
+  /// Per-site nonce mixed into the anti-fingerprinting seed, regenerated when
+  /// the user clears this site's data so the fingerprint (canvas/WebGL/audio/
+  /// window size/…) rerolls and the site can't re-identify the user across a
+  /// reset. Null until the first reset, so existing sites keep their
+  /// fingerprint on upgrade. Regenerate via [rerollFingerprint].
+  String? fingerprintResetNonce;
 
   /// User-defined domain-claim list used by `LinkRoutingService` to route
   /// inbound share/open-intent URLs to a site (LIR-001..LIR-010). When
@@ -499,6 +528,10 @@ class WebViewModel {
     this.spoofTimezoneFromLocation = false,
     this.liveLocationGranularity = LocationGranularity.gps,
     this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
+    this.letterboxEnabled = false,
+    this.spoofWindowWidth,
+    this.spoofWindowHeight,
+    this.fingerprintResetNonce,
     this.domainClaims,
     this.stateSetterF,
     this.isArchiveTier = false,
@@ -509,6 +542,13 @@ class WebViewModel {
         currentUrl = currentUrl ?? initUrl,
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT);
+
+  /// Reroll the per-site anti-fingerprinting seed. Called when the user
+  /// clears this site's data so the post-wipe page sees a fresh fingerprint
+  /// (window size, canvas, WebGL, …) and can't re-identify the user (ETP-022).
+  void rerollFingerprint() {
+    fingerprintResetNonce = generateFingerprintResetNonce();
+  }
 
   /// Check if a cookie is blocked by name + domain for this site.
   bool isCookieBlocked(String name, String? domain) {
@@ -657,7 +697,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, bool letterboxEnabled, int? spoofWindowWidth, int? spoofWindowHeight, String? fingerprintResetNonce, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -740,6 +780,10 @@ class WebViewModel {
           contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
           localCdnEnabled: localCdnEnabled || trackingProtectionEnabled,
           trackingProtectionEnabled: trackingProtectionEnabled,
+          letterboxEnabled: letterboxEnabled,
+          spoofWindowWidth: spoofWindowWidth,
+          spoofWindowHeight: spoofWindowHeight,
+          fingerprintResetNonce: fingerprintResetNonce,
           // Geolocation mode is independent of the umbrella: legitimate
           // uses (maps, ride-share, weather) need real GPS even when
           // the user wants tracker-blocking + fingerprinting protection
@@ -850,7 +894,7 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                 return false;
             }
           },
@@ -932,7 +976,7 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
                   }
                   return;
                 case NavigationDecision.allow:
@@ -1097,7 +1141,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, bool letterboxEnabled, int? spoofWindowWidth, int? spoofWindowHeight, String? fingerprintResetNonce, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -1508,6 +1552,11 @@ class WebViewModel {
         if (liveLocationGranularity != LocationGranularity.gps)
           'liveLocationGranularity': liveLocationGranularity.name,
         'webRtcPolicy': webRtcPolicy.name,
+        if (letterboxEnabled) 'letterboxEnabled': true,
+        if (spoofWindowWidth != null) 'spoofWindowWidth': spoofWindowWidth,
+        if (spoofWindowHeight != null) 'spoofWindowHeight': spoofWindowHeight,
+        if (fingerprintResetNonce != null)
+          'fingerprintResetNonce': fingerprintResetNonce,
         if (domainClaims != null && domainClaims!.isNotEmpty)
           'domainClaims': domainClaims!.map((c) => c.toJson()).toList(),
       };
@@ -1584,6 +1633,10 @@ class WebViewModel {
         (p) => p.name == json['webRtcPolicy'],
         orElse: () => WebRtcPolicy.defaultPolicy,
       ),
+      letterboxEnabled: json['letterboxEnabled'] as bool? ?? false,
+      spoofWindowWidth: (json['spoofWindowWidth'] as num?)?.toInt(),
+      spoofWindowHeight: (json['spoofWindowHeight'] as num?)?.toInt(),
+      fingerprintResetNonce: json['fingerprintResetNonce'] as String?,
       domainClaims: (json['domainClaims'] as List<dynamic>?)
           ?.map((e) => DomainClaim.fromJson(e as Map<String, dynamic>))
           .toList(),

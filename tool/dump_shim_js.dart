@@ -145,6 +145,11 @@ Map<String, String> buildAllFixtures() {
   fixtures['anti_fingerprinting/shim_seed_beta.js'] =
       buildAntiFingerprintingShim('beta-fixture-seed');
 
+  // ETP-020: letterbox mode. The Node tier asserts screen.width/height mirror
+  // the (Flutter-sized) window.inner* instead of the fixed 1920x1080.
+  fixtures['anti_fingerprinting/shim_seed_alpha_letterbox.js'] =
+      buildAntiFingerprintingShim('alpha-fixture-seed', letterbox: true);
+
   // Issue #327 / ETP-019: two simulated incognito launches under the
   // SAME siteId but DIFFERENT process-lifetime nonces. The real-engine
   // tier asserts FingerprintJS sees distinct canvas/WebGL/audio

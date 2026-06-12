@@ -12,6 +12,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
+import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/target_blank_rewrite.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
@@ -549,6 +550,23 @@ class WebViewConfig {
   /// [clearUrlEnabled], [dnsBlockEnabled], and [contentBlockEnabled]
   /// effectively-on whenever this flag is true.
   final bool trackingProtectionEnabled;
+  /// Optional user-set window content size spoofed by the anti-fingerprinting
+  /// shim (ETP-021). Both must be set and positive to take effect; otherwise
+  /// the shim picks a stable per-site size. Only applied when
+  /// [trackingProtectionEnabled] is true (the shim is gated on it).
+  /// User-set exact content-box size (logical px) for letterbox mode. Both
+  /// must be positive to take effect; otherwise the box snaps to a grid of
+  /// the available area. Only meaningful when [letterboxEnabled] is true.
+  final int? spoofWindowWidth;
+  final int? spoofWindowHeight;
+  /// When true, the WebView is rendered in a centered, grid-snapped box with
+  /// margin bars (Tor-style letterboxing) so the reported viewport is
+  /// bucketed and `screen.*` mirrors the real `window.inner*` (ETP-020).
+  final bool letterboxEnabled;
+  /// Per-site nonce regenerated when the user clears the site's data; folded
+  /// into the anti-fingerprinting seed so a data wipe rerolls the fingerprint
+  /// (ETP-022). Null/empty leaves the seed as the bare siteId.
+  final String? fingerprintResetNonce;
   /// Whether to serve CDN resources from local cache (Android only).
   final bool localCdnEnabled;
   /// Callback for JS console messages.
@@ -643,6 +661,10 @@ class WebViewConfig {
     this.dnsBlockEnabled = true,
     this.contentBlockEnabled = true,
     this.trackingProtectionEnabled = true,
+    this.spoofWindowWidth,
+    this.spoofWindowHeight,
+    this.letterboxEnabled = false,
+    this.fingerprintResetNonce,
     this.localCdnEnabled = true,
     this.onUrlChanged,
     this.onLoadingChanged,
@@ -1504,6 +1526,8 @@ class WebViewFactory {
       trackingProtectionEnabled: config.trackingProtectionEnabled,
       incognito: config.incognito,
       launchNonce: LaunchNonce.value,
+      resetNonce: config.fingerprintResetNonce,
+      letterbox: config.letterboxEnabled,
     );
     if (antiFpSource != null) {
       userScripts.add(inapp.UserScript(
@@ -2207,7 +2231,7 @@ class WebViewFactory {
       // Enable DevTools inspection in debug mode (chrome://inspect on Android)
       ..isInspectable = kDebugMode;
 
-    return inapp.InAppWebView(
+    final inapp.InAppWebView webViewWidget = inapp.InAppWebView(
       key: config.key,
       initialUrlRequest: renderInitialData ? null : inapp.URLRequest(
         url: inapp.WebUri(config.initialUrl),
@@ -3339,6 +3363,38 @@ class WebViewFactory {
           level: LogLevel.warning,
         );
         config.onRendererGone?.call(true);
+      },
+    );
+    return _applyLetterbox(config, webViewWidget);
+  }
+
+  /// Wrap [webView] in a centered, grid-snapped box with margin bars when the
+  /// site has letterboxing on. The InAppWebView instance is reused across
+  /// layout changes (rotation re-snaps the box without rebuilding the view),
+  /// so the page is not reloaded. When letterboxing is off or the parent is
+  /// unbounded, the WebView is returned unwrapped.
+  static Widget _applyLetterbox(WebViewConfig config, Widget webView) {
+    if (!config.letterboxEnabled) return webView;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
+          return webView;
+        }
+        final target = computeLetterboxTarget(
+          availableWidth: constraints.maxWidth,
+          availableHeight: constraints.maxHeight,
+          fixedWidth: config.spoofWindowWidth,
+          fixedHeight: config.spoofWindowHeight,
+        );
+        return Container(
+          color: const Color(0xFF202124),
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: target.width,
+            height: target.height,
+            child: webView,
+          ),
+        );
       },
     );
   }

@@ -2103,6 +2103,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       contentBlockEnabled: model.contentBlockEnabled,
       localCdnEnabled: model.effectiveLocalCdnEnabled,
       trackingProtectionEnabled: model.trackingProtectionEnabled,
+      letterboxEnabled: model.letterboxEnabled,
+      spoofWindowWidth: model.spoofWindowWidth,
+      spoofWindowHeight: model.spoofWindowHeight,
+      fingerprintResetNonce: model.fingerprintResetNonce,
       language: model.language,
       zoomPercent: model.zoomPercent,
       locationMode: model.locationMode,
@@ -4066,6 +4070,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     required bool contentBlockEnabled,
     required bool localCdnEnabled,
     required bool trackingProtectionEnabled,
+    bool letterboxEnabled = false,
+    int? spoofWindowWidth,
+    int? spoofWindowHeight,
+    String? fingerprintResetNonce,
     required String? language,
     required int zoomPercent,
     LocationMode locationMode = LocationMode.off,
@@ -4094,6 +4102,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           contentBlockEnabled: contentBlockEnabled,
           localCdnEnabled: localCdnEnabled,
           trackingProtectionEnabled: trackingProtectionEnabled,
+          letterboxEnabled: letterboxEnabled,
+          spoofWindowWidth: spoofWindowWidth,
+          spoofWindowHeight: spoofWindowHeight,
+          fingerprintResetNonce: fingerprintResetNonce,
           language: language,
           zoomPercent: zoomPercent,
           showUrlBar: _showUrlBar,
@@ -4839,6 +4851,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final model = _webViewModels[index];
     final plan = SiteDataClearEngine.planClear(useContainers: _useContainers);
 
+    // Reroll the anti-fingerprinting seed so the post-wipe page can't be
+    // re-identified via a stable fingerprint (window size, canvas, …) after
+    // a data clear (ETP-022). The fresh nonce is baked into the shim when the
+    // webview is rebuilt against the cleared container.
+    model.rerollFingerprint();
+
     if (plan.disposeWebView) {
       _evictCacheIfOnline(model.siteId);
     }
@@ -5474,6 +5492,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                   contentBlockEnabled: model.contentBlockEnabled,
                   localCdnEnabled: model.localCdnEnabled,
                   trackingProtectionEnabled: model.trackingProtectionEnabled,
+                  letterboxEnabled: model.letterboxEnabled,
+                  spoofWindowWidth: model.spoofWindowWidth,
+                  spoofWindowHeight: model.spoofWindowHeight,
+                  fingerprintResetNonce: model.fingerprintResetNonce,
                   language: model.language,
                   zoomPercent: model.zoomPercent,
                   locationMode: model.locationMode,

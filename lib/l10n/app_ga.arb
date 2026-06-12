@@ -615,5 +615,12 @@
   "homeShortcutDisable": "Díchumasaigh",
   "homeShortcutPickTitle": "Dírigh an t-aicearra ar",
   "appSettingsLanguageTitle": "Teanga na hAipe",
-  "appSettingsLanguageSystem": "Réamhshocrú an chórais"
+  "appSettingsLanguageSystem": "Réamhshocrú an chórais",
+  "siteSettingsWindowWidth": "Box width",
+  "siteSettingsWindowHeight": "Box height",
+  "siteSettingsWindowSizeHelper": "Renders the page in a centered box, snapping the screen size down to a fixed grid (like Tor Browser) so many devices report the same size, which lowers screen-size fingerprinting.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsLetterboxTitle": "Letterbox window",
+  "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
+  "siteSettingsLetterboxAutoHint": "auto"
 }

@@ -4,6 +4,7 @@
   window.__ws_anti_fp_shim__ = true;
 
   var SEED = "alpha-fixture-seed:nonce-launch-one";
+  var LETTERBOX = false;
 
   // Shared Function.prototype.toString stubs — same WeakMap as
   // desktop_mode_shim.dart and location_spoof_service.dart so all three
@@ -74,13 +75,38 @@
     } catch (e) {}
   }
 
+  function defineGetterFnOnProto(proto, name, fn) {
+    if (!proto) return;
+    try {
+      Object.defineProperty(proto, name, {
+        configurable: true,
+        enumerable: true,
+        get: asNative(fn, name),
+      });
+    } catch (e) {}
+  }
+
   // --- screen.* ---
+  // In letterbox mode the WebView has been physically sized to a bucketed
+  // box, so window.inner* is already truthful — mirror screen.* to it so the
+  // two agree (Tor-style). Otherwise pin the fixed desktop dimensions.
   try {
     if (typeof Screen !== 'undefined' && Screen.prototype) {
-      defineGetterOnProto(Screen.prototype, 'width', SCREEN_W);
-      defineGetterOnProto(Screen.prototype, 'height', SCREEN_H);
-      defineGetterOnProto(Screen.prototype, 'availWidth', SCREEN_W);
-      defineGetterOnProto(Screen.prototype, 'availHeight', SCREEN_H - 40);
+      if (LETTERBOX) {
+        defineGetterFnOnProto(Screen.prototype, 'width',
+            function() { return window.innerWidth; });
+        defineGetterFnOnProto(Screen.prototype, 'height',
+            function() { return window.innerHeight; });
+        defineGetterFnOnProto(Screen.prototype, 'availWidth',
+            function() { return window.innerWidth; });
+        defineGetterFnOnProto(Screen.prototype, 'availHeight',
+            function() { return window.innerHeight; });
+      } else {
+        defineGetterOnProto(Screen.prototype, 'width', SCREEN_W);
+        defineGetterOnProto(Screen.prototype, 'height', SCREEN_H);
+        defineGetterOnProto(Screen.prototype, 'availWidth', SCREEN_W);
+        defineGetterOnProto(Screen.prototype, 'availHeight', SCREEN_H - 40);
+      }
       defineGetterOnProto(Screen.prototype, 'colorDepth', COLOR_DEPTH);
       defineGetterOnProto(Screen.prototype, 'pixelDepth', COLOR_DEPTH);
     }

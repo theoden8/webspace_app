@@ -166,6 +166,7 @@ function loadShim(rel, options) {
 
 const ALPHA = 'anti_fingerprinting/shim_seed_alpha.js';
 const BETA = 'anti_fingerprinting/shim_seed_beta.js';
+const ALPHA_LETTERBOX = 'anti_fingerprinting/shim_seed_alpha_letterbox.js';
 
 // --- screen.* ---
 
@@ -192,6 +193,35 @@ test('screen overrides land on Screen.prototype, not the instance', () => {
     assert.equal(own.includes(leaked), false,
       `${leaked} leaks as own-property: ${JSON.stringify(own)}`);
   }
+});
+
+// --- letterbox mode (ETP-020) ---
+
+test('letterbox mode mirrors screen.* to the real window.inner*', () => {
+  // Flutter has physically sized the WebView, so window.inner* is truthful;
+  // screen.* must report the same values (not the fixed 1920x1080).
+  const dom = loadShim(ALPHA_LETTERBOX);
+  const w = dom.window;
+  assert.equal(w.screen.width, w.innerWidth);
+  assert.equal(w.screen.height, w.innerHeight);
+  assert.equal(w.screen.availWidth, w.innerWidth);
+  assert.equal(w.screen.availHeight, w.innerHeight);
+});
+
+test('letterbox screen.* tracks a changed viewport (mirrors, not a snapshot)', () => {
+  const dom = loadShim(ALPHA_LETTERBOX);
+  // A rotation re-sizes the box; screen.* should follow window.inner*.
+  Object.defineProperty(dom.window, 'innerWidth', { configurable: true, value: 800 });
+  Object.defineProperty(dom.window, 'innerHeight', { configurable: true, value: 600 });
+  assert.equal(dom.window.screen.width, 800);
+  assert.equal(dom.window.screen.height, 600);
+});
+
+test('non-letterbox leaves window.inner* untouched (real values)', () => {
+  // Without letterboxing the shim does not fake the window — only screen.*
+  // is pinned (asserted above), and the real viewport stands.
+  const dom = loadShim(ALPHA);
+  assert.equal(dom.window.innerWidth, 1024); // jsdom default, unmodified
 });
 
 // --- navigator.* ---

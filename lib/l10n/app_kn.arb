@@ -615,5 +615,12 @@
   "homeShortcutDisable": "ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ",
   "homeShortcutPickTitle": "ಶಾರ್ಟ್‌ಕಟ್ ಅನ್ನು ಇದಕ್ಕೆ ಸೂಚಿಸಿ",
   "appSettingsLanguageTitle": "ಅಪ್ಲಿಕೇಶನ್ ಭಾಷೆ",
-  "appSettingsLanguageSystem": "ಸಿಸ್ಟಮ್ ಡೀಫಾಲ್ಟ್"
+  "appSettingsLanguageSystem": "ಸಿಸ್ಟಮ್ ಡೀಫಾಲ್ಟ್",
+  "siteSettingsWindowWidth": "Box width",
+  "siteSettingsWindowHeight": "Box height",
+  "siteSettingsWindowSizeHelper": "Renders the page in a centered box, snapping the screen size down to a fixed grid (like Tor Browser) so many devices report the same size, which lowers screen-size fingerprinting.",
+  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsLetterboxTitle": "Letterbox window",
+  "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
+  "siteSettingsLetterboxAutoHint": "auto"
 }

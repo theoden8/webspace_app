@@ -28,9 +28,10 @@ about separately:
 2. **Browser fingerprinting.** Tracker scripts that can't load network
    beacons can still re-identify a user across sessions via Canvas
    pixel hashes, WebGL vendor/renderer strings, audio synthesis output,
-   font enumeration, screen dimensions, hardware concurrency, plugin
-   lists, battery state, voice list, high-resolution timers, and
-   element bounding boxes. None of these were addressed.
+   font enumeration, screen dimensions, window/viewport dimensions,
+   hardware concurrency, plugin lists, battery state, voice list,
+   high-resolution timers, and element bounding boxes. None of these
+   were addressed.
 
 The umbrella addresses both: one switch, both behaviours.
 
@@ -344,6 +345,125 @@ of `hardwareConcurrency`, `deviceMemory`, `plugins`, `mimeTypes`,
 
 ---
 
+### Requirement: ETP-020 - Letterbox window sizing
+
+Sites with `letterboxEnabled` SHALL render the WebView in a centered box
+sized to the available area snapped DOWN to a 200x100 logical-pixel grid
+(Tor-style letterboxing), with the leftover area drawn as a margin, so the
+real viewport (`window.inner*`) is bucketed and many device sizes collapse
+onto the same value. The sizing is pure Flutter (`computeLetterboxTarget` +
+a `LayoutBuilder`/`SizedBox` wrapper around the cached `InAppWebView`); a
+layout change (rotation) re-snaps the box without rebuilding the WebView
+(no page reload). Because the box is real, the shim SHALL NOT fake
+`window.inner*`; instead, in letterbox mode it SHALL make `screen.width`,
+`screen.height`, `screen.availWidth`, and `screen.availHeight` mirror the
+live `window.inner*` so screen and window agree (rather than the fixed
+1920x1080 of ETP-010). Letterboxing is gated on `trackingProtectionEnabled`
+(the shim is) and propagates to nested webviews via `launchUrl`.
+
+#### Scenario: Available area snaps down to the grid
+
+**Given** an available area of 1366 x 768
+**When** `computeLetterboxTarget` runs with the default 200x100 grid
+**Then** the box is 1200 x 700
+**And** two nearby sizes (e.g. 1300x740 and 1399x799) collapse onto the
+same box
+
+#### Scenario: screen.* mirrors the letterboxed viewport
+
+**Given** the shim is loaded with `letterbox: true`
+**Then** `screen.width === window.innerWidth` and
+`screen.height === window.innerHeight`
+**And** changing `window.innerWidth` (a re-snap) is reflected by
+`screen.width`
+
+#### Scenario: Non-letterbox keeps the fixed screen and real window
+
+**Given** the shim is loaded with `letterbox: false`
+**Then** `screen.width === 1920` / `screen.height === 1080` (ETP-010)
+**And** `window.inner*` is left at its real value
+
+---
+
+### Requirement: ETP-021 - User-set letterbox box size
+
+`WebViewModel` SHALL carry per-site `letterboxEnabled` (default false,
+omitted from `toJson` when false) and `spoofWindowWidth` /
+`spoofWindowHeight` integers (default null, omitted when null). When
+letterboxing is on and both dimensions are set and positive, the box SHALL
+be exactly that size, capped to the available area so it never overflows
+the screen; otherwise it snaps to the grid (ETP-020). All three fields
+SHALL flow into `WebViewConfig` and propagate to nested webviews opened via
+`launchUrl`.
+
+#### Scenario: Fixed box size used when it fits
+
+**Given** available 1920x1080 with `spoofWindowWidth: 1024`,
+`spoofWindowHeight: 768`
+**Then** `computeLetterboxTarget` returns 1024 x 768
+
+#### Scenario: Fixed box capped to the available area
+
+**Given** available 400x800 with `spoofWindowWidth: 1920`,
+`spoofWindowHeight: 1080`
+**Then** the box is 400 x 800
+
+#### Scenario: Fields round-trip and omit at default
+
+**Given** a site with `letterboxEnabled: false` and null box dimensions
+**Then** `toJson` omits `letterboxEnabled`, `spoofWindowWidth`, and
+`spoofWindowHeight`
+**And** a site with the fields set survives a `toJson` / `fromJson`
+round-trip
+
+#### Scenario: Settings UI gates the box size on letterboxing
+
+**Given** the per-site Settings screen
+**Then** a "Letterbox window" switch is shown under Tracking Protection,
+enabled only when `trackingProtectionEnabled` is on
+**And** the box width/height fields are enabled only when both Tracking
+Protection and Letterbox are on
+
+---
+
+### Requirement: ETP-022 - Fingerprint reroll on data clear
+
+`WebViewModel` SHALL carry a per-site `fingerprintResetNonce` (default
+null, omitted from `toJson` when null) that is mixed into the
+anti-fingerprinting seed. `computeAntiFingerprintingSeed` SHALL fold a
+non-empty nonce in as `siteId:resetNonce` (and
+`siteId:resetNonce:launchNonce` for incognito), leaving the seed equal to
+the bare `siteId` when the nonce is null/empty so sites stored before this
+field existed keep their fingerprint until reset. Clearing a site's data
+SHALL regenerate the nonce (`WebViewModel.rerollFingerprint`) so the
+rebuilt webview's entire fingerprint — canvas, WebGL, audio, window size
+(ETP-020/021), hardware, etc. — rerolls and the site cannot re-identify
+the user across the wipe. The nonce SHALL propagate to nested webviews via
+`launchUrl`.
+
+#### Scenario: Seed unchanged when no reset has happened
+
+**Given** a site with `fingerprintResetNonce` null
+**Then** `computeAntiFingerprintingSeed` returns the bare `siteId`
+(non-incognito) or `siteId:launchNonce` (incognito)
+
+#### Scenario: Reset nonce folds into the seed
+
+**Given** `resetNonce` is `"r1"`
+**Then** the non-incognito seed is `siteId:r1`
+**And** the incognito seed is `siteId:r1:launchNonce`
+
+#### Scenario: Clearing site data rerolls the fingerprint
+
+**Given** a site whose data is cleared
+**When** `rerollFingerprint` runs
+**Then** `fingerprintResetNonce` becomes a fresh non-empty value
+**And** the regenerated anti-fingerprinting seed differs from the
+pre-clear seed
+**And** the new value round-trips through `toJson` / `fromJson`
+
+---
+
 ### Requirement: ETP-011 - Battery and speech-synthesis
 
 The shim SHALL define `navigator.getBattery()` to resolve a Promise of
@@ -634,9 +754,22 @@ in `kExportedAppPrefs` is needed.
 ### Modified
 - `lib/web_view_model.dart` — Added `trackingProtectionEnabled` field,
   serialisation, getWebView forcing, propagation through `launchUrlFunc`
-  typedef and both nested-launch sites.
+  typedef and both nested-launch sites. Added `letterboxEnabled` +
+  `spoofWindowWidth` / `spoofWindowHeight` (ETP-020/021) and
+  `fingerprintResetNonce` (ETP-022) with the same serialisation +
+  propagation, plus `rerollFingerprint`.
 - `lib/services/webview.dart` — Added `trackingProtectionEnabled` to
-  `WebViewConfig`, shim injection.
+  `WebViewConfig`, shim injection. Added `letterboxEnabled` /
+  `spoofWindowWidth` / `spoofWindowHeight` / `fingerprintResetNonce` to
+  `WebViewConfig`; `_applyLetterbox` wraps the WebView; `letterbox` +
+  `resetNonce` threaded into `buildAntiFingerprintingScriptSource`.
+- `lib/services/letterbox.dart` — Pure `computeLetterboxTarget` grid-snap
+  logic (ETP-020/021).
+- `lib/services/anti_fingerprinting_shim.dart` — Letterbox-mode
+  `screen.*`-mirrors-`window.inner*` (ETP-020); `resetNonce` folded into
+  the seed (ETP-022).
+- `lib/screens/settings.dart` — "Letterbox window" switch + box
+  width/height fields under Tracking Protection, gated on the umbrella.
 - `lib/main.dart` — Added `trackingProtectionEnabled` to `launchUrl`
   signature and the `InAppWebViewScreen` construction.
 - `lib/screens/inappbrowser.dart` — Added `trackingProtectionEnabled`

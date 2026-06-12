@@ -132,6 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _dnsBlockEnabled;
   late bool _contentBlockEnabled;
   late bool _trackingProtectionEnabled;
+  late bool _letterboxEnabled;
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _fullscreenMode;
@@ -214,6 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'dnsBlockEnabled': _dnsBlockEnabled,
         'contentBlockEnabled': _contentBlockEnabled,
         'trackingProtectionEnabled': _trackingProtectionEnabled,
+        'letterboxEnabled': _letterboxEnabled,
         'localCdnEnabled': _localCdnEnabled,
         'blockAutoRedirects': _blockAutoRedirects,
         'fullscreenMode': _fullscreenMode,
@@ -295,6 +297,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _dnsBlockEnabled = m.dnsBlockEnabled;
     _contentBlockEnabled = m.contentBlockEnabled;
     _trackingProtectionEnabled = m.trackingProtectionEnabled;
+    _letterboxEnabled = m.letterboxEnabled;
     _localCdnEnabled = m.localCdnEnabled;
     _blockAutoRedirects = m.blockAutoRedirects;
     _fullscreenMode = m.fullscreenMode;
@@ -481,6 +484,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.dnsBlockEnabled = _dnsBlockEnabled;
       widget.webViewModel.contentBlockEnabled = _contentBlockEnabled;
       widget.webViewModel.trackingProtectionEnabled = _trackingProtectionEnabled;
+      widget.webViewModel.letterboxEnabled = _letterboxEnabled;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
       widget.webViewModel.fullscreenMode = _fullscreenMode;
@@ -1275,6 +1279,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _trackingProtectionEnabled = value;
               });
             },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsLetterboxTitle)),
+                HintButton(
+                  title: loc.siteSettingsLetterboxTitle,
+                  description: loc.siteSettingsWindowSizeHelper,
+                ),
+              ],
+            ),
+            value: _letterboxEnabled && _trackingProtectionEnabled,
+            onChanged: _trackingProtectionEnabled
+                ? (bool value) {
+                    setState(() {
+                      _letterboxEnabled = value;
+                    });
+                  }
+                : null,
           ),
           SwitchListTile(
             title: Row(

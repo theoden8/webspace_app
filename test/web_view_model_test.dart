@@ -304,6 +304,68 @@ void main() {
       expect(restored.trackingProtectionEnabled, isFalse);
     });
 
+    test('letterboxEnabled defaults to false; omitted from JSON; round-trips',
+        () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      expect(m.letterboxEnabled, isFalse);
+      expect(m.toJson().containsKey('letterboxEnabled'), isFalse);
+
+      final on = WebViewModel(
+        initUrl: 'https://example.com',
+        letterboxEnabled: true,
+      );
+      expect(on.toJson()['letterboxEnabled'], isTrue);
+      final back = WebViewModel.fromJson(on.toJson(), null);
+      expect(back.letterboxEnabled, isTrue);
+    });
+
+    test('spoofWindowWidth/Height null by default; toJson omits them', () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      expect(m.spoofWindowWidth, isNull);
+      expect(m.spoofWindowHeight, isNull);
+      final json = m.toJson();
+      expect(json.containsKey('spoofWindowWidth'), isFalse);
+      expect(json.containsKey('spoofWindowHeight'), isFalse);
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.spoofWindowWidth, isNull);
+      expect(back.spoofWindowHeight, isNull);
+    });
+
+    test('explicit spoofWindowWidth/Height persist through JSON round-trip', () {
+      final m = WebViewModel(
+        initUrl: 'https://example.com',
+        spoofWindowWidth: 1280,
+        spoofWindowHeight: 720,
+      );
+      final json = m.toJson();
+      expect(json['spoofWindowWidth'], equals(1280));
+      expect(json['spoofWindowHeight'], equals(720));
+      final back = WebViewModel.fromJson(json, null);
+      expect(back.spoofWindowWidth, equals(1280));
+      expect(back.spoofWindowHeight, equals(720));
+    });
+
+    test('fingerprintResetNonce null by default; toJson omits it', () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      expect(m.fingerprintResetNonce, isNull);
+      expect(m.toJson().containsKey('fingerprintResetNonce'), isFalse);
+    });
+
+    test('rerollFingerprint sets a fresh nonce that round-trips and changes',
+        () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      m.rerollFingerprint();
+      final first = m.fingerprintResetNonce;
+      expect(first, isNotNull);
+      expect(first, isNotEmpty);
+
+      final back = WebViewModel.fromJson(m.toJson(), null);
+      expect(back.fingerprintResetNonce, equals(first));
+
+      m.rerollFingerprint();
+      expect(m.fingerprintResetNonce, isNot(equals(first)));
+    });
+
     test('localCdnEnabled defaults to true when missing from JSON', () {
       final json = {
         'initUrl': 'https://example.com',

@@ -134,6 +134,25 @@ void main() {
       expect(js, contains('getBoundingClientRect'));
     });
 
+    test('default (non-letterbox) pins fixed screen dimensions', () {
+      // ETP-010: with letterboxing off, screen.* reports a fixed desktop
+      // 1920x1080 and the window is left untouched.
+      expect(js, contains('var LETTERBOX = false'));
+      expect(js, contains('1920'));
+      expect(js, contains('1080'));
+    });
+
+    test('letterbox mode mirrors screen.* to the real window.inner* (ETP-020)',
+        () {
+      // The WebView is physically letterboxed by Flutter, so window.inner* is
+      // already truthful; screen.* mirrors it rather than faking 1920x1080.
+      final lb = buildAntiFingerprintingShim('alpha-fixture-seed', letterbox: true);
+      expect(lb, contains('var LETTERBOX = true'));
+      expect(lb, contains('window.innerWidth'));
+      expect(lb, contains('window.innerHeight'));
+      expect(lb, isNot(equals(js)));
+    });
+
     test('wraps the body in try/catch so a missing API never breaks boot', () {
       // Rough proxy: the shim should have many try/catch blocks so a
       // thrown exception in one surface (e.g. AudioBuffer absent) does
@@ -236,6 +255,77 @@ void main() {
         siteId: 'site-A', incognito: true, launchNonce: 'nonce-1',
       );
       expect(ephemeral, isNot(equals(stable)));
+    });
+
+    test('resetNonce folds into the seed (non-incognito) — ETP-022', () {
+      final seed = computeAntiFingerprintingSeed(
+        siteId: 'site-A',
+        incognito: false,
+        launchNonce: 'nonce-1',
+        resetNonce: 'reset-xyz',
+      );
+      expect(seed, equals('site-A:reset-xyz'));
+    });
+
+    test('resetNonce folds in alongside the launch nonce (incognito)', () {
+      final seed = computeAntiFingerprintingSeed(
+        siteId: 'site-A',
+        incognito: true,
+        launchNonce: 'nonce-1',
+        resetNonce: 'reset-xyz',
+      );
+      expect(seed, equals('site-A:reset-xyz:nonce-1'));
+    });
+
+    test('null/empty resetNonce leaves the seed unchanged (backward compat)',
+        () {
+      final bare = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'n',
+      );
+      expect(bare, equals('site-A'));
+      expect(
+        computeAntiFingerprintingSeed(
+          siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: null,
+        ),
+        equals('site-A'),
+      );
+      expect(
+        computeAntiFingerprintingSeed(
+          siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: '',
+        ),
+        equals('site-A'),
+      );
+    });
+
+    test('a new resetNonce rerolls the seed (data-clear reroll)', () {
+      final before = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: 'r1',
+      );
+      final after = computeAntiFingerprintingSeed(
+        siteId: 'site-A', incognito: false, launchNonce: 'n', resetNonce: 'r2',
+      );
+      expect(after, isNot(equals(before)));
+    });
+
+    test('resetNonce threads through the script source and rerolls the shim',
+        () {
+      final r1 = buildAntiFingerprintingScriptSource(
+        siteId: 'site-A',
+        trackingProtectionEnabled: true,
+        incognito: false,
+        launchNonce: LaunchNonce.value,
+        resetNonce: 'r1',
+      );
+      final r2 = buildAntiFingerprintingScriptSource(
+        siteId: 'site-A',
+        trackingProtectionEnabled: true,
+        incognito: false,
+        launchNonce: LaunchNonce.value,
+        resetNonce: 'r2',
+      );
+      expect(r1, isNotNull);
+      expect(r2, isNot(equals(r1)));
+      expect(r1, contains('"site-A:r1"'));
     });
 
     test('seed flows through buildAntiFingerprintingShim end-to-end', () {
@@ -368,6 +458,25 @@ void main() {
       expect(ephemeral, isNot(equals(stable)),
           reason: 'enabling incognito is the user opt-out from the stable '
               'per-site identity — the fingerprint must change');
+    });
+
+    test('letterbox flag threads through the script source (ETP-020)', () {
+      final lb = buildAntiFingerprintingScriptSource(
+        siteId: 'site-A',
+        trackingProtectionEnabled: true,
+        incognito: false,
+        launchNonce: LaunchNonce.value,
+        letterbox: true,
+      );
+      final normal = buildAntiFingerprintingScriptSource(
+        siteId: 'site-A',
+        trackingProtectionEnabled: true,
+        incognito: false,
+        launchNonce: LaunchNonce.value,
+        letterbox: false,
+      );
+      expect(lb, contains('var LETTERBOX = true'));
+      expect(normal, contains('var LETTERBOX = false'));
     });
 
     test('script source carries the InAppWebView return-value sentinel', () {

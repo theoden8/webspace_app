@@ -1,132 +1,10 @@
-// Per-site anti-fingerprinting JavaScript shim.
-//
-// Injected at DOCUMENT_START into every frame when a site's umbrella
-// `trackingProtectionEnabled` toggle is on. Surfaces covered:
-//
-//   * Canvas 2D     — toDataURL / toBlob / getImageData seeded noise
-//   * WebGL / WebGL2 — getParameter (vendor/renderer), getSupportedExtensions
-//                      list, readPixels seeded noise
-//   * Audio          — AudioBuffer.getChannelData / copyFromChannel,
-//                      AnalyserNode.getFloat{Frequency,TimeDomain}Data noise
-//   * Text metrics   — Canvas/Offscreen measureText jitter, document.fonts.check
-//                      restricted to a small common-fonts allowlist
-//   * Screen         — width/height/availWidth/availHeight/colorDepth/pixelDepth;
-//                      in letterbox mode screen.* mirrors the real window.inner*
-//   * Hardware       — navigator.hardwareConcurrency, navigator.deviceMemory
-//   * Plugins/MIME   — navigator.plugins / navigator.mimeTypes -> empty
-//   * Battery        — navigator.getBattery() -> fixed values
-//   * Speech         — speechSynthesis.getVoices() -> []
-//   * Timing         — performance.now() / Date.now() quantized to 100ms
-//   * Layout         — Element.getBoundingClientRect sub-pixel jitter
-//
-// All values that vary per site are derived from a Mulberry32 PRNG seeded
-// off [seed] (the per-site siteId), so the same site always reports the
-// same fingerprint across sessions, but two different sites — or two users
-// of the same site — see distinct fingerprints. Noise added to large
-// arrays (canvas pixels, audio buffers) uses sub-seeds salted with the
-// call's input range so a script can't average it away by reading the
-// same buffer twice.
-//
-// Patches go on Web*RenderingContext / Navigator / Screen / etc.
-// PROTOTYPES, never the instance, so a fingerprinter walking
-// `Object.getOwnPropertyNames(navigator)` doesn't see a tell. Every
-// wrapper goes through `asNative(...)` so `Function.prototype.toString`
-// reports `[native code]` — the WeakMap keyed there is the same one
-// `desktop_mode_shim.dart` and `location_spoof_service.dart` use.
-//
-// The shim is wrapped in a re-entrance guard (`__ws_anti_fp_shim__`)
-// because Android System WebView and WKWebView both re-run
-// initialUserScripts on every frame; without the guard the second run
-// would wrap the already-wrapped methods and amplify the noise.
-//
-// jsdom can exercise the shape (prototype methods replaced, getters
-// installed) but not the noise on real Canvas/WebGL/Audio data — those
-// engines are absent. End-to-end fingerprint proofing runs the dumped
-// fixture through Puppeteer + FingerprintJS in
-// test/browser/fingerprint_real_engine.test.js.
-
-import 'dart:convert';
-
-/// Compute the seed string passed to [buildAntiFingerprintingShim].
-///
-/// Non-incognito sites seed with `siteId` verbatim — the fingerprint stays
-/// stable across launches (ETP-004 baseline).
-///
-/// Incognito sites mix in a process-lifetime [launchNonce] (typically
-/// `LaunchNonce.value`) so the fingerprint is stable within a single app
-/// session — no flicker on iframe re-injection or nested webview opens —
-/// but randomizes across cold restarts. The `incognito` flag already implies
-/// the user wants a fresh-visitor posture each launch; reusing the same
-/// fingerprint across launches would itself be a stable cross-session
-/// identifier (issue #327, ETP-019).
-///
-/// [resetNonce], when non-empty, is a per-site value regenerated whenever the
-/// user clears the site's data (ETP-022). Folding it into the seed rerolls
-/// the entire fingerprint (canvas/WebGL/audio/window size/…) so a site can't
-/// re-identify the user across a data wipe via a stable fingerprint. When
-/// null/empty the seed is unchanged, so sites stored before this field
-/// existed keep their fingerprint until the user resets them.
-String computeAntiFingerprintingSeed({
-  required String siteId,
-  required bool incognito,
-  required String launchNonce,
-  String? resetNonce,
-}) {
-  final base = (resetNonce != null && resetNonce.isNotEmpty)
-      ? '$siteId:$resetNonce'
-      : siteId;
-  return incognito ? '$base:$launchNonce' : base;
-}
-
-/// Compose the full anti-fingerprinting `UserScript.source` (shim body
-/// plus the trailing `\n;null;` evaluator-return) for the given site
-/// configuration, or `null` if the umbrella is off / no siteId is set.
-///
-/// Lives alongside [computeAntiFingerprintingSeed] so the entire chain —
-/// gate → seed derivation → shim text — is exercisable from `flutter test`
-/// without standing up `WebViewFactory.createWebView`.
-String? buildAntiFingerprintingScriptSource({
-  required String? siteId,
-  required bool trackingProtectionEnabled,
-  required bool incognito,
-  required String launchNonce,
-  String? resetNonce,
-  bool letterbox = false,
-}) {
-  if (!trackingProtectionEnabled || siteId == null) return null;
-  final seed = computeAntiFingerprintingSeed(
-    siteId: siteId,
-    incognito: incognito,
-    launchNonce: launchNonce,
-    resetNonce: resetNonce,
-  );
-  return '${buildAntiFingerprintingShim(seed, letterbox: letterbox)}\n;null;';
-}
-
-/// Build the per-site anti-fingerprinting shim seeded by [seed]. The seed
-/// is computed via [computeAntiFingerprintingSeed] — siteId-only for
-/// non-incognito (stable per site) or `siteId:launchNonce` for incognito
-/// (stable per session, randomized per launch).
-///
-/// When [letterbox] is true the site's WebView has been physically sized to a
-/// bucketed box by Flutter, so `window.inner*` is already truthful; the shim
-/// then makes `screen.*` mirror `window.inner*` (instead of the fixed
-/// 1920x1080) so the two stay consistent. When false, `screen.*` keeps the
-/// fixed desktop dimensions (ETP-010) and window size is left untouched.
-String buildAntiFingerprintingShim(
-  String seed, {
-  bool letterbox = false,
-}) {
-  final encodedSeed = jsonEncode(seed);
-  final letterboxJs = letterbox ? 'true' : 'false';
-  return '''
 (function() {
   'use strict';
   if (window.__ws_anti_fp_shim__) return;
   window.__ws_anti_fp_shim__ = true;
 
-  var SEED = $encodedSeed;
-  var LETTERBOX = $letterboxJs;
+  var SEED = "alpha-fixture-seed";
+  var LETTERBOX = true;
 
   // Shared Function.prototype.toString stubs — same WeakMap as
   // desktop_mode_shim.dart and location_spoof_service.dart so all three
@@ -610,7 +488,7 @@ String buildAntiFingerprintingShim(
           var families = s.split(',');
           for (var i = 0; i < families.length; i++) {
             var f = families[i]
-              .replace(/^([0-9.]+(px|em|rem|pt|%)?\\s+|bold\\s+|italic\\s+|normal\\s+|oblique\\s+)+/i, '')
+              .replace(/^([0-9.]+(px|em|rem|pt|%)?\s+|bold\s+|italic\s+|normal\s+|oblique\s+)+/i, '')
               .replace(/['"]/g, '')
               .trim();
             if (COMMON_FONTS[f]) return true;
@@ -621,5 +499,3 @@ String buildAntiFingerprintingShim(
     }
   } catch (e) {}
 })();
-''';
-}
