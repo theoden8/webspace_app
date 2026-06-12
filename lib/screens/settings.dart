@@ -201,6 +201,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _windowWidthController.addListener(_onAnyFieldChanged);
     _windowHeightController.addListener(_onAnyFieldChanged);
     NotificationService.instance.addPermissionListener(_onPermissionChanged);
+    // Sites that already have letterboxing on but no explicit box size: fill
+    // the fields with the auto (grid-snapped) default so they aren't blank.
+    // Needs MediaQuery, so defer to the first frame, then re-baseline the
+    // dirty snapshot so opening the screen doesn't look like an unsaved edit.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_letterboxEnabled) return;
+      _fillBoxDefaultsIfEmpty();
+      setState(() {});
+      _initialSnapshot = _currentSnapshot();
+    });
+  }
+
+  /// Populate the box width/height fields with the auto grid-snapped size of
+  /// the current screen when they are empty, so "auto" shows concrete,
+  /// editable numbers. Clearing a field returns that axis to auto.
+  void _fillBoxDefaultsIfEmpty() {
+    final hasW = _windowWidthController.text.trim().isNotEmpty;
+    final hasH = _windowHeightController.text.trim().isNotEmpty;
+    if (hasW && hasH) return;
+    final auto = computeLetterboxTarget(
+      availableWidth: MediaQuery.sizeOf(context).width,
+      availableHeight: MediaQuery.sizeOf(context).height,
+    );
+    if (!hasW) _windowWidthController.text = auto.width.toInt().toString();
+    if (!hasH) _windowHeightController.text = auto.height.toInt().toString();
   }
 
   void _onAnyFieldChanged() {
@@ -1321,6 +1346,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ? (bool value) {
                     setState(() {
                       _letterboxEnabled = value;
+                      if (value) _fillBoxDefaultsIfEmpty();
                     });
                   }
                 : null,
