@@ -3013,9 +3013,9 @@
   "@siteSettingsWindowHeight": {
     "description": "Label for the per-site letterbox content-box height input."
   },
-  "siteSettingsWindowSizeHelper": "Optional exact box size in pixels. Leave blank to snap to a 200x100 grid of the screen.",
+  "siteSettingsWindowSizeHelper": "Renders the page in a centered box, snapping the screen down to a 200x100 px grid (like Tor Browser) so many devices report the same size. Leave the box width and height blank to auto-fit, or set both to pin an exact box.",
   "@siteSettingsWindowSizeHelper": {
-    "description": "Helper text under the per-site letterbox box width and height inputs."
+    "description": "Info-button (i) text for the Letterbox window setting, explaining the box mechanism."
   },
   "siteSettingsWindowSizeRequiresProtection": "Turn on Letterbox window to set a custom box size.",
   "@siteSettingsWindowSizeRequiresProtection": {
@@ -3028,5 +3028,9 @@
   "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
   "@siteSettingsLetterboxSubtitle": {
     "description": "Subtitle explaining the Letterbox window switch."
+  },
+  "siteSettingsLetterboxAutoHint": "auto",
+  "@siteSettingsLetterboxAutoHint": {
+    "description": "Placeholder shown in the empty letterbox box width/height fields, meaning the box auto-fits the screen."
   }
 }

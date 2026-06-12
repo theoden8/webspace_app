@@ -11,7 +11,6 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -134,11 +133,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _contentBlockEnabled;
   late bool _trackingProtectionEnabled;
   late bool _letterboxEnabled;
-  // Auto (grid-snapped) box size of the current screen, as strings. Computed
-  // once after layout settles (post-frame), so the prefill and the field hint
-  // share one value instead of each recomputing MediaQuery at a different time.
-  String _autoBoxW = '';
-  String _autoBoxH = '';
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
   late bool _fullscreenMode;
@@ -206,46 +200,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _windowWidthController.addListener(_onAnyFieldChanged);
     _windowHeightController.addListener(_onAnyFieldChanged);
     NotificationService.instance.addPermissionListener(_onPermissionChanged);
-    // Sites that already have letterboxing on but no explicit box size: fill
-    // the fields with the auto (grid-snapped) default so they aren't blank.
-    // Needs MediaQuery, so defer to the first frame, then re-baseline the
-    // dirty snapshot so opening the screen doesn't look like an unsaved edit.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _updateAutoBox();
-      if (_letterboxEnabled) {
-        _fillBoxDefaultsIfEmpty();
-        setState(() {});
-        _initialSnapshot = _currentSnapshot();
-      } else {
-        setState(() {});
-      }
-    });
-  }
-
-  /// Recompute the auto (grid-snapped) box size from the current screen. Runs
-  /// after layout settles, where MediaQuery is reliable (during the route push
-  /// `build` can briefly see a transitional size).
-  void _updateAutoBox() {
-    final auto = computeLetterboxTarget(
-      availableWidth: MediaQuery.sizeOf(context).width,
-      availableHeight: MediaQuery.sizeOf(context).height,
-    );
-    _autoBoxW = auto.width.toInt().toString();
-    _autoBoxH = auto.height.toInt().toString();
-  }
-
-  /// Populate the box width/height fields with [_autoBoxW]/[_autoBoxH] when
-  /// they are empty, so "auto" shows concrete, editable numbers matching the
-  /// field hint. Clearing a field returns that axis to auto.
-  void _fillBoxDefaultsIfEmpty() {
-    if (_autoBoxW.isEmpty || _autoBoxH.isEmpty) _updateAutoBox();
-    if (_windowWidthController.text.trim().isEmpty) {
-      _windowWidthController.text = _autoBoxW;
-    }
-    if (_windowHeightController.text.trim().isEmpty) {
-      _windowHeightController.text = _autoBoxH;
-    }
   }
 
   void _onAnyFieldChanged() {
@@ -1350,23 +1304,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           SwitchListTile(
-            title: Text(loc.siteSettingsLetterboxTitle),
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsLetterboxTitle)),
+                HintButton(
+                  title: loc.siteSettingsLetterboxTitle,
+                  description: loc.siteSettingsWindowSizeHelper,
+                ),
+              ],
+            ),
             subtitle: Text(loc.siteSettingsLetterboxSubtitle),
             value: _letterboxEnabled && _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
                 ? (bool value) {
                     setState(() {
                       _letterboxEnabled = value;
-                      if (value) {
-                        _updateAutoBox();
-                        _fillBoxDefaultsIfEmpty();
-                      }
                     });
                   }
                 : null,
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(
               children: [
                 Expanded(
@@ -1376,7 +1334,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: loc.siteSettingsWindowWidth,
-                      hintText: _autoBoxW,
+                      hintText: loc.siteSettingsLetterboxAutoHint,
                       isDense: true,
                     ),
                   ),
@@ -1389,21 +1347,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: loc.siteSettingsWindowHeight,
-                      hintText: _autoBoxH,
+                      hintText: loc.siteSettingsLetterboxAutoHint,
                       isDense: true,
                     ),
                   ),
                 ),
               ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text(
-              (_trackingProtectionEnabled && _letterboxEnabled)
-                  ? loc.siteSettingsWindowSizeHelper
-                  : loc.siteSettingsWindowSizeRequiresProtection,
-              style: const TextStyle(fontSize: 12),
             ),
           ),
           SwitchListTile(
