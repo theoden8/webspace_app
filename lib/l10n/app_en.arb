@@ -3013,7 +3013,7 @@
   "@siteSettingsWindowHeight": {
     "description": "Label for the per-site letterbox content-box height input."
   },
-  "siteSettingsWindowSizeHelper": "Renders the page in a centered box, snapping the screen down to a 200x100 px grid (like Tor Browser) so many devices report the same size. Leave the box width and height blank to auto-fit, or set both to pin an exact box.",
+  "siteSettingsWindowSizeHelper": "Renders the page in a centered box, snapping the screen size down to a fixed grid (like Tor Browser) so many devices report the same size, which lowers screen-size fingerprinting.",
   "@siteSettingsWindowSizeHelper": {
     "description": "Info-button (i) text for the Letterbox window setting, explaining the box mechanism."
   },
