@@ -1290,7 +1290,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
-            subtitle: Text(loc.siteSettingsLetterboxSubtitle),
             value: _letterboxEnabled && _trackingProtectionEnabled,
             onChanged: _trackingProtectionEnabled
                 ? (bool value) {
