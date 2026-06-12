@@ -11,6 +11,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -1016,6 +1017,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    // Approximate the box "auto" size from the screen so the box fields can
+    // hint what leaving them blank produces. The real box uses the webview's
+    // own (slightly smaller) area, so this is a ballpark.
+    final autoBox = computeLetterboxTarget(
+      availableWidth: MediaQuery.sizeOf(context).width,
+      availableHeight: MediaQuery.sizeOf(context).height,
+    );
+    final autoBoxW = autoBox.width.toInt().toString();
+    final autoBoxH = autoBox.height.toInt().toString();
     return PopScope(
       canPop: !_isDirty(),
       onPopInvokedWithResult: (didPop, _) async {
@@ -1326,6 +1336,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: loc.siteSettingsWindowWidth,
+                      hintText: autoBoxW,
                       isDense: true,
                     ),
                   ),
@@ -1338,6 +1349,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: loc.siteSettingsWindowHeight,
+                      hintText: autoBoxH,
                       isDense: true,
                     ),
                   ),
