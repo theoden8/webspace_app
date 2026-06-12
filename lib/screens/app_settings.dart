@@ -842,22 +842,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                         fontWeight: FontWeight.bold,
                       ),
                 ),
-                const HintButton(
-                  title: 'Outbound proxy',
-                  description:
-                      'Proxy applied to every Dart-side network call the '
-                      'app makes — DNS blocklist downloads, ClearURLs '
-                      'rules, content blocker rules, LocalCDN catalog, '
-                      'favicon lookups (DuckDuckGo / Google / site '
-                      'parsing) and OSM map tiles in the location picker. '
-                      '\n\nPer-site proxy precedence: a site whose Proxy '
-                      'Type is DEFAULT inherits this proxy; explicit '
-                      'per-site HTTP/HTTPS/SOCKS5 overrides win.\n\n'
-                      'SOCKS5 cannot be tunneled through Dart-side HTTP. '
-                      'When SOCKS5 is selected, app-level fetches '
-                      'fail-closed instead of leaking the device IP via a '
-                      'direct fallback. Webview navigation still uses '
-                      'SOCKS5 normally on Android/iOS.',
+                HintButton(
+                  title: loc.appSettingsOutboundProxy,
+                  description: loc.appSettingsOutboundProxyHint,
                 ),
               ],
             ),
@@ -958,17 +945,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   loc.appSettingsLocationPicker,
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
-                const HintButton(
-                  title: 'Location picker tile provider',
-                  description:
-                      'The tile URL used by the per-site location picker. '
-                      'No tiles are fetched unless the user taps "Load map" on '
-                      'the picker itself — the app never makes background '
-                      'requests to this provider. The {z}/{x}/{y} placeholders '
-                      'are substituted with OSM tile coordinates. '
-                      'Defaults to OpenStreetMap; swap for any '
-                      'OSM-compatible provider (MapTiler, CartoDB, a self-'
-                      'hosted server, etc.).',
+                HintButton(
+                  title: loc.appSettingsLocationPicker,
+                  description: loc.appSettingsLocationPickerHint,
                 ),
               ],
             ),
@@ -1000,17 +979,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             title: Row(
               children: [
                 Text(loc.appSettingsTimezonePolygons),
-                const HintButton(
-                  title: 'Timezone polygon dataset',
-                  description:
-                      'Downloads a GeoJSON dataset of IANA timezone '
-                      'boundaries (~10–60 MB) so the per-site settings can '
-                      'offer a "From picked location" timezone option that '
-                      'auto-resolves the IANA zone of your spoofed '
-                      'coordinates. Only fetched on demand (this button); '
-                      'kept in app private storage until you clear it. '
-                      'Default source: timezone-boundary-builder GitHub '
-                      'releases. Tap Clear to delete.',
+                HintButton(
+                  title: loc.appSettingsTimezonePolygons,
+                  description: loc.appSettingsTimezonePolygonsHint,
                 ),
               ],
             ),
@@ -1175,12 +1146,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               title: Row(
                 children: [
                   Text(loc.appSettingsTrustedCertificates),
-                  const HintButton(
-                    title: 'Trusted certificates',
-                    description:
-                        'When a site presents a self-signed or otherwise-untrusted TLS certificate and you tap "Trust this site" in the prompt, '
-                        'the fingerprint is pinned here. Future visits to that host load silently as long as the same certificate is served. '
-                        'Open this screen to inspect and revoke any pin.',
+                  HintButton(
+                    title: loc.appSettingsTrustedCertificates,
+                    description: loc.appSettingsTrustedCertificatesHint,
                   ),
                 ],
               ),
@@ -1200,11 +1168,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             title: Row(
               children: [
                 Text(loc.appSettingsClearUrlsRules),
-                const HintButton(
-                  title: 'ClearURLs',
-                  description:
-                      'Downloads a list of known tracking parameters used by websites (like utm_source, fbclid, etc.). '
-                      'When enabled per-site, these parameters are automatically stripped from URLs to protect your privacy.',
+                HintButton(
+                  title: loc.appSettingsClearUrlsRules,
+                  description: loc.appSettingsClearUrlsHint,
                 ),
               ],
             ),
@@ -1244,12 +1210,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             title: Row(
               children: [
                 Text(loc.appSettingsDnsBlocklist),
-                const HintButton(
-                  title: 'DNS Blocklist',
-                  description:
-                      'Downloads the Hagezi blocklist to block known advertising, tracking, and malware domains. '
-                      'Choose a severity level from Light to Ultimate. Higher levels block more domains but may break some sites. '
-                      'Once downloaded, enable or disable per-site in each site\'s settings.',
+                HintButton(
+                  title: loc.appSettingsDnsBlocklist,
+                  description: loc.appSettingsDnsBlocklistHint,
                 ),
               ],
             ),
@@ -1340,12 +1303,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               title: Row(
                 children: [
                   Text(loc.appSettingsLocalCdn),
-                  const HintButton(
-                    title: 'LocalCDN',
-                    description:
-                        'Downloads common JavaScript libraries, fonts, and CSS frameworks to serve locally '
-                        'instead of fetching them from third-party CDN servers (like Google, Cloudflare, jsDelivr). '
-                        'This prevents CDN providers from tracking your browsing across different websites.',
+                  HintButton(
+                    title: loc.appSettingsLocalCdn,
+                    description: loc.appSettingsLocalCdnHint,
                   ),
                 ],
               ),
@@ -1421,13 +1381,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                               fontWeight: FontWeight.bold,
                             ),
                       ),
-                      const HintButton(
-                        title: 'Content Blocker',
-                        description:
-                            'Blocks ads, trackers, and unwanted page elements using filter lists like EasyList. '
-                            'Supports domain-level blocking, CSS cosmetic filters to hide page elements, '
-                            'and text-based hiding rules. Enable or disable individual filter lists below, '
-                            'and toggle content blocking per-site in each site\'s settings.',
+                      HintButton(
+                        title: loc.appSettingsContentBlocker,
+                        description: loc.appSettingsContentBlockerHint,
                       ),
                     ],
                   ),

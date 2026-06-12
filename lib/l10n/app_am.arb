@@ -622,5 +622,13 @@
   "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
   "siteSettingsLetterboxTitle": "Letterbox window",
   "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
-  "siteSettingsLetterboxAutoHint": "auto"
+  "siteSettingsLetterboxAutoHint": "auto",
+  "appSettingsOutboundProxyHint": "Proxy በ Dart-ጎን የሚደረጉ ሁሉም የአውታረ መረብ ጥሪዎች ላይ ይተገበራል — የ DNS እገዳ ዝርዝር ማውረዶች፣ የ ClearURLs ህጎች፣ የይዘት ማገጃ ህጎች፣ የ LocalCDN ካታሎግ፣ የፋቪኮን ፍለጋዎች (DuckDuckGo / Google / ጣቢያ ትንተና) እና በቦታ መራጩ ውስጥ ያሉ OSM ካርታ ሰቆች።\n\nበጣቢያ-ደረጃ የ proxy ቅድሚያ: Proxy አይነቱ DEFAULT የሆነ ጣቢያ ይህን proxy ይወርሳል፤ ግልጽ በጣቢያ-ደረጃ HTTP/HTTPS/SOCKS5 ምርጫዎች ቅድሚያ ይወስዳሉ።\n\nSOCKS5 ከ Dart-ጎን HTTP ጋር ቱነል ሊሆን አይችልም። SOCKS5 ሲመረጥ፣ የመተግበሪያ-ደረጃ ማምጣቶች ቀጥተኛ ምትክ ሳይጠቀሙ መሣሪያው IP ሳይፈጭ ይዘጋሉ። Webview ፍሰት አሁንም SOCKS5ን በ Android/iOS ላይ በተለምዶ ይጠቀማል።",
+  "appSettingsLocationPickerHint": "በጣቢያ-ደረጃ ቦታ መራጭ ውስጥ ጥቅም ላይ የሚውለው ሰቅ URL። ተጠቃሚው ራሱ በመራጩ ላይ \"ካርታ ጫን\"ን ካልነካ ሰቆች አይምጡም — መተግበሪያው ለዚህ አቅራቢ ምንም የጀርባ ጥያቄ አያቀርብም። z፣ x እና y ምትኮች በ OSM ሰቅ መጋጠሚያዎች ይተካሉ። ነባሪው OpenStreetMap ነው፤ ማንኛውም OSM-ተኳሃኝ አቅራቢ (MapTiler፣ CartoDB፣ ራስ-አስተናጋጅ አገልጋይ፣ ወዘተ) ሊተካ ይችላል።",
+  "appSettingsTimezonePolygonsHint": "የ IANA የሰዓት ሰቅ ወሰኖችን (~10–60 MB) ያካተተ GeoJSON የውሂብ ስብስብ ያወርዳል፣ ስለዚህ በጣቢያ ቅንብሮች ውስጥ \"ከተመረጠው ቦታ\" የሰዓት ሰቅ አማራጭ ሊቀርብ ይችላል — ይህ አማራጭ ሲበሰበሱ ከተመረጡ መጋጠሚያዎች ጋር ተዛማጅ IANA ዞን ራስ-በራስ ይፈልጋል። ከዚህ ቁልፍ ጋር ብቻ ሲፈለግ ይወርዳል፤ ይህ መሸጎጫ ድርጊት ሲሰረዝ እስኪጸዳ ድረስ በፕሮግራሙ የግል ማከማቻ ይቀመጣል። ነባሪ ምንጭ: timezone-boundary-builder GitHub ምርቶች። ለማጽዳት \"አጽዳ\" ንካ።",
+  "appSettingsTrustedCertificatesHint": "አንድ ጣቢያ ራስ-በተፈረመ ወይም በሌላ መንገድ-ያልታመነ TLS ሰርተፍኬት ሲያቀርብ እና \"ይህን ጣቢያ እመን\"ን ሲነካ፣ ጣት አሻራው እዚህ ይሰካል። ቀጣዩ ጉብኝቶች ወደ ያ አስተናጋጅ ተመሳሳዩ ሰርተፍኬት እስካለ ድረስ ያለ ጥያቄ ይጫናሉ። ይህን ማያ ክፈት ማናቸውንም ሰካ ለመፈተሽ እና ለመሻር።",
+  "appSettingsClearUrlsHint": "ጣቢያዎች የሚጠቀሙባቸውን የታወቁ የክትትል መለኪያዎች ዝርዝር (እንደ utm_source፣ fbclid ወዘተ) ያወርዳል። በጣቢያ-ደረጃ ሲነቃ፣ እነዚህ መለኪያዎች ግላዊነትህን ለመጠበቅ ከ URLs ራስ-በራስ ይወገዳሉ።",
+  "appSettingsDnsBlocklistHint": "የታወቁ የማስታወቂያ፣ የክትትል እና የተንኮል አዘል ጎራዎችን ለማገድ የ Hagezi እገዳ ዝርዝርን ያወርዳል። ከቀለል እስከ ወሰን-አልባ ክብደት ደረጃ ምረጥ። ከፍ ያሉ ደረጃዎች ተጨማሪ ጎራዎችን ያግዳሉ ግን አንዳንድ ጣቢያዎችን ሊሰብሩ ይችላሉ። ከወረደ በኋላ፣ በእያንዳንዱ ጣቢያ ቅንብሮች ውስጥ ለያንዳንዱ ጣቢያ አንቃ ወይም አሰናክል።",
+  "appSettingsLocalCdnHint": "የተለመዱ JavaScript ቤተ-መጻሕፍት፣ ፊደላት እና CSS ማዕቀፎችን ከሶስተኛ ወገን CDN አገልጋዮች (እንደ Google፣ Cloudflare፣ jsDelivr) ከማምጣት ይልቅ ከሀገር ውስጥ ለማቅረብ ያወርዳል። ይህ የ CDN አቅራቢዎች በተለያዩ ጣቢያዎች ላይ የአሰሳ ልምዶችህን እንዳይከታተሉ ይከለክላል።",
+  "appSettingsContentBlockerHint": "EasyList ያሉ የማጣሪያ ዝርዝሮችን በመጠቀም ማስታወቂያዎችን፣ ተከታታዮችን እና ያልተፈለጉ የገጽ ክፍሎችን ያግዳል። የጎራ-ደረጃ እገዳ፣ ክፍሎችን ለመደበቅ የ CSS ውበት ማጣሪያዎችን እና ጽሑፍ-ላይ-የተመሰረቱ የመደበቂያ ህጎችን ይደግፋል። ከታች ያሉ የተናጠል ዝርዝሮችን አንቃ ወይም አሰናክል፣ እና ለያንዳንዱ ጣቢያ ቅንብሮች ውስጥ የይዘት ማገዱን ቀያይር።"
 }

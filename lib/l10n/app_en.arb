@@ -3032,5 +3032,37 @@
   "siteSettingsLetterboxAutoHint": "auto",
   "@siteSettingsLetterboxAutoHint": {
     "description": "Placeholder shown in the empty letterbox box width/height fields, meaning the box auto-fits the screen."
+  },
+  "appSettingsOutboundProxyHint": "Proxy applied to every Dart-side network call the app makes — DNS blocklist downloads, ClearURLs rules, content blocker rules, LocalCDN catalog, favicon lookups (DuckDuckGo / Google / site parsing) and OSM map tiles in the location picker.\n\nPer-site proxy precedence: a site whose Proxy Type is DEFAULT inherits this proxy; explicit per-site HTTP/HTTPS/SOCKS5 overrides win.\n\nSOCKS5 cannot be tunneled through Dart-side HTTP. When SOCKS5 is selected, app-level fetches fail-closed instead of leaking the device IP via a direct fallback. Webview navigation still uses SOCKS5 normally on Android/iOS.",
+  "@appSettingsOutboundProxyHint": {
+    "description": "Info dialog explaining the app-wide outbound proxy: which app-level network calls it covers, how per-site proxy settings take precedence, and why SOCKS5 app-level fetches fail closed rather than leaking the device IP."
+  },
+  "appSettingsLocationPickerHint": "The tile URL used by the per-site location picker. No tiles are fetched unless the user taps \"Load map\" on the picker itself — the app never makes background requests to this provider. The z, x, and y placeholders are substituted with OSM tile coordinates. Defaults to OpenStreetMap; swap for any OSM-compatible provider (MapTiler, CartoDB, a self-hosted server, etc.).",
+  "@appSettingsLocationPickerHint": {
+    "description": "Info dialog explaining the map tile URL used by the per-site location picker, that tiles are only fetched on demand, and that the z/x/y coordinate placeholders are filled in with OpenStreetMap tile coordinates."
+  },
+  "appSettingsTimezonePolygonsHint": "Downloads a GeoJSON dataset of IANA timezone boundaries (~10–60 MB) so the per-site settings can offer a \"From picked location\" timezone option that auto-resolves the IANA zone of your spoofed coordinates. Only fetched on demand (this button); kept in app private storage until you clear it. Default source: timezone-boundary-builder GitHub releases. Tap Clear to delete.",
+  "@appSettingsTimezonePolygonsHint": {
+    "description": "Info dialog explaining the optional timezone boundary dataset download: its size, that it powers a 'From picked location' timezone option in per-site settings, and that it is only fetched on demand and can be cleared."
+  },
+  "appSettingsTrustedCertificatesHint": "When a site presents a self-signed or otherwise-untrusted TLS certificate and you tap \"Trust this site\" in the prompt, the fingerprint is pinned here. Future visits to that host load silently as long as the same certificate is served. Open this screen to inspect and revoke any pin.",
+  "@appSettingsTrustedCertificatesHint": {
+    "description": "Info dialog explaining the trusted certificates list: certificate fingerprints get pinned when the user chooses to trust an untrusted TLS certificate, and the screen lets the user inspect and revoke those pins."
+  },
+  "appSettingsClearUrlsHint": "Downloads a list of known tracking parameters used by websites (like utm_source, fbclid, etc.). When enabled per-site, these parameters are automatically stripped from URLs to protect your privacy.",
+  "@appSettingsClearUrlsHint": {
+    "description": "Info dialog explaining the ClearURLs rules download: it fetches a list of known tracking query parameters that, when the feature is enabled per-site, are stripped from URLs for privacy."
+  },
+  "appSettingsDnsBlocklistHint": "Downloads the Hagezi blocklist to block known advertising, tracking, and malware domains. Choose a severity level from Light to Ultimate. Higher levels block more domains but may break some sites. Once downloaded, enable or disable per-site in each site's settings.",
+  "@appSettingsDnsBlocklistHint": {
+    "description": "Info dialog explaining the DNS blocklist download: it fetches the Hagezi blocklist to block advertising, tracking, and malware domains, with selectable severity levels, and is toggled on per-site."
+  },
+  "appSettingsLocalCdnHint": "Downloads common JavaScript libraries, fonts, and CSS frameworks to serve locally instead of fetching them from third-party CDN servers (like Google, Cloudflare, jsDelivr). This prevents CDN providers from tracking your browsing across different websites.",
+  "@appSettingsLocalCdnHint": {
+    "description": "Info dialog explaining the LocalCDN cache download: it stores common JavaScript libraries, fonts, and CSS frameworks locally so they are served from cache instead of third-party CDNs, preventing those CDNs from tracking browsing across sites."
+  },
+  "appSettingsContentBlockerHint": "Blocks ads, trackers, and unwanted page elements using filter lists like EasyList. Supports domain-level blocking, CSS cosmetic filters to hide page elements, and text-based hiding rules. Enable or disable individual filter lists below, and toggle content blocking per-site in each site's settings.",
+  "@appSettingsContentBlockerHint": {
+    "description": "Info dialog explaining the content blocker: it blocks ads, trackers, and unwanted page elements using filter lists like EasyList, supports domain, CSS cosmetic, and text-hiding rules, and is toggled on per-site."
   }
 }
