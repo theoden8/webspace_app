@@ -622,5 +622,13 @@
   "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
   "siteSettingsLetterboxTitle": "Letterbox window",
   "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
-  "siteSettingsLetterboxAutoHint": "auto"
+  "siteSettingsLetterboxAutoHint": "auto",
+  "appSettingsOutboundProxyHint": "앱이 Dart 측에서 수행하는 모든 네트워크 요청에 적용되는 프록시입니다 — DNS 차단 목록 다운로드, ClearURLs 규칙, 콘텐츠 차단기 규칙, LocalCDN 카탈로그, 파비콘 조회(DuckDuckGo / Google / 사이트 파싱), 위치 선택기의 OSM 지도 타일.\n\n사이트별 프록시 우선순위: 프록시 유형이 DEFAULT인 사이트는 이 프록시를 상속합니다. 사이트별로 명시적으로 지정한 HTTP/HTTPS/SOCKS5 설정이 우선합니다.\n\nSOCKS5는 Dart 측 HTTP를 통해 터널링할 수 없습니다. SOCKS5를 선택하면 앱 수준 요청이 직접 연결로 기기 IP를 누출하는 대신 실패(fail-closed)합니다. Android/iOS에서 웹뷰 탐색은 SOCKS5를 정상적으로 사용합니다.",
+  "appSettingsLocationPickerHint": "사이트별 위치 선택기에서 사용하는 타일 URL입니다. 선택기에서 \"지도 로드\"를 탭해야만 타일을 가져오며 — 앱이 이 제공자에 백그라운드 요청을 보내는 일은 없습니다. z, x, y 자리 표시자는 OSM 타일 좌표로 대체됩니다. 기본값은 OpenStreetMap이며, OSM 호환 제공자(MapTiler, CartoDB, 자체 호스팅 서버 등)로 교체할 수 있습니다.",
+  "appSettingsTimezonePolygonsHint": "IANA 시간대 경계의 GeoJSON 데이터셋(~10–60 MB)을 다운로드합니다. 이를 통해 사이트별 설정에서 \"선택한 위치 기준\" 시간대 옵션을 사용하여 스푸핑된 좌표의 IANA 시간대를 자동으로 확인할 수 있습니다. 이 버튼을 눌러야만 다운로드되며, 직접 삭제할 때까지 앱 전용 저장소에 보관됩니다. 기본 소스: timezone-boundary-builder GitHub 릴리스. \"지우기\"를 탭하면 삭제됩니다.",
+  "appSettingsTrustedCertificatesHint": "사이트가 자체 서명되었거나 신뢰할 수 없는 TLS 인증서를 제시할 때 프롬프트에서 \"이 사이트 신뢰\"를 탭하면 지문이 여기에 고정됩니다. 이후 해당 호스트 방문 시 동일한 인증서가 제공되는 한 자동으로 로드됩니다. 이 화면을 열어 고정된 인증서를 확인하고 취소할 수 있습니다.",
+  "appSettingsClearUrlsHint": "웹사이트에서 사용하는 알려진 추적 매개변수 목록(예: utm_source, fbclid 등)을 다운로드합니다. 사이트별로 활성화하면 이러한 매개변수가 URL에서 자동으로 제거되어 개인정보를 보호합니다.",
+  "appSettingsDnsBlocklistHint": "알려진 광고, 추적, 멀웨어 도메인을 차단하기 위해 Hagezi 차단 목록을 다운로드합니다. Light부터 Ultimate까지 심각도 수준을 선택할 수 있습니다. 수준이 높을수록 더 많은 도메인을 차단하지만 일부 사이트가 제대로 작동하지 않을 수 있습니다. 다운로드 후 각 사이트의 설정에서 사이트별로 활성화하거나 비활성화할 수 있습니다.",
+  "appSettingsLocalCdnHint": "일반적인 JavaScript 라이브러리, 글꼴, CSS 프레임워크를 서드파티 CDN 서버(Google, Cloudflare, jsDelivr 등)에서 가져오는 대신 로컬에서 제공할 수 있도록 다운로드합니다. 이를 통해 CDN 제공자가 여러 웹사이트에 걸친 사용자의 검색 활동을 추적하지 못하게 합니다.",
+  "appSettingsContentBlockerHint": "EasyList 등의 필터 목록을 사용하여 광고, 추적기, 원치 않는 페이지 요소를 차단합니다. 도메인 수준 차단, 페이지 요소를 숨기는 CSS 외형 필터, 텍스트 기반 숨김 규칙을 지원합니다. 아래에서 개별 필터 목록을 활성화하거나 비활성화하고, 각 사이트의 설정에서 사이트별로 콘텐츠 차단을 켜고 끌 수 있습니다."
 }

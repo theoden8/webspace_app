@@ -622,5 +622,13 @@
   "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
   "siteSettingsLetterboxTitle": "Letterbox window",
   "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
-  "siteSettingsLetterboxAutoHint": "auto"
+  "siteSettingsLetterboxAutoHint": "auto",
+  "appSettingsOutboundProxyHint": "アプリが行うすべての Dart 側ネットワーク呼び出し（DNS ブロックリストのダウンロード、ClearURLs ルール、コンテンツブロッカールール、LocalCDN カタログ、ファビコン取得（DuckDuckGo / Google / サイト解析）、位置ピッカーの OSM マップタイル）に適用されるプロキシです。\n\nサイトごとのプロキシ優先度: プロキシの種類が DEFAULT のサイトはこのプロキシを継承します。サイトごとに明示的に設定された HTTP/HTTPS/SOCKS5 が優先されます。\n\nSOCKS5 は Dart 側の HTTP 経由でトンネリングできません。SOCKS5 を選択した場合、アプリレベルのフェッチはデバイス IP を直接フォールバックで漏洩する代わりにフェイルクローズドします。Webview のナビゲーションは Android/iOS で引き続き通常どおり SOCKS5 を使用します。",
+  "appSettingsLocationPickerHint": "サイトごとの位置ピッカーで使用するタイルの URL です。ピッカー自体で「地図を読み込む」をタップしない限りタイルは取得されません — アプリはこのプロバイダへのバックグラウンドリクエストを一切行いません。z、x、y のプレースホルダーは OSM タイル座標に置き換えられます。デフォルトは OpenStreetMap です。OSM 互換の任意のプロバイダ（MapTiler、CartoDB、セルフホストサーバーなど）に変更できます。",
+  "appSettingsTimezonePolygonsHint": "サイトごとの設定で「選択した位置から」タイムゾーンオプションを利用できるよう、IANA タイムゾーン境界の GeoJSON データセット（~10〜60 MB）をダウンロードします。これにより、スプーフィングした座標の IANA ゾーンを自動解決できます。ダウンロードはオンデマンドのみ（このボタン）で、アプリのプライベートストレージに保存されます。クリアするまで削除されません。デフォルトのソース: timezone-boundary-builder GitHub リリース。「クリア」をタップして削除。",
+  "appSettingsTrustedCertificatesHint": "サイトが自己署名またはその他の信頼されていない TLS 証明書を提示し、プロンプトで「このサイトを信頼する」をタップすると、そのフィンガープリントがここに固定されます。以降、同じ証明書が提供される限り、そのホストへのアクセスは確認なしで読み込まれます。この画面を開いて任意の固定を確認・取り消すことができます。",
+  "appSettingsClearUrlsHint": "ウェブサイトが使用する既知のトラッキングパラメーター（utm_source、fbclid など）のリストをダウンロードします。サイトごとに有効にすると、これらのパラメーターが URL から自動的に除去され、プライバシーを保護します。",
+  "appSettingsDnsBlocklistHint": "既知の広告、トラッキング、マルウェアのドメインをブロックするために Hagezi ブロックリストをダウンロードします。「ライト」から「アルティメット」まで深刻度レベルを選択できます。レベルが高いほど多くのドメインをブロックしますが、一部のサイトが壊れる場合があります。ダウンロード後、各サイトの設定でサイトごとに有効・無効を切り替えられます。",
+  "appSettingsLocalCdnHint": "一般的な JavaScript ライブラリ、フォント、CSS フレームワークをダウンロードし、Google、Cloudflare、jsDelivr などのサードパーティ CDN サーバーから取得する代わりにローカルで提供します。これにより、CDN プロバイダが異なるウェブサイトをまたいであなたの閲覧活動を追跡するのを防ぎます。",
+  "appSettingsContentBlockerHint": "EasyList などのフィルターリストを使用して、広告、トラッカー、不要なページ要素をブロックします。ドメインレベルのブロック、ページ要素を隠す CSS コスメティックフィルター、テキストベースの非表示ルールに対応します。以下で個々のフィルターリストの有効・無効を切り替え、各サイトの設定でサイトごとにコンテンツブロックを切り替えられます。"
 }

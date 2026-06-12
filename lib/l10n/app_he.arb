@@ -622,5 +622,13 @@
   "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
   "siteSettingsLetterboxTitle": "Letterbox window",
   "siteSettingsLetterboxSubtitle": "Render the page in a centered, size-bucketed box (like Tor Browser) to reduce screen-size fingerprinting",
-  "siteSettingsLetterboxAutoHint": "auto"
+  "siteSettingsLetterboxAutoHint": "auto",
+  "appSettingsOutboundProxyHint": "פרוקסי המוחל על כל קריאת רשת בצד Dart שהאפליקציה מבצעת — הורדות רשימת חסימה של DNS, כללי ClearURLs, כללי חוסם תוכן, קטלוג LocalCDN, חיפושי סמלי אתר (DuckDuckGo / Google / ניתוח אתר) ואריחי מפה של OSM בבורר המיקום.\n\nעדיפות פרוקסי לכל אתר: אתר שסוג הפרוקסי שלו הוא DEFAULT יורש פרוקסי זה; עקיפות HTTP/HTTPS/SOCKS5 מפורשות לכל אתר גוברות.\n\nלא ניתן להעביר SOCKS5 דרך HTTP בצד Dart. כשנבחר SOCKS5, אחזורים ברמת האפליקציה נכשלים בצורה סגורה במקום לדלוף את ה-IP של המכשיר דרך חלופה ישירה. ניווט ה-webview עדיין משתמש ב-SOCKS5 כרגיל ב-Android/iOS.",
+  "appSettingsLocationPickerHint": "כתובת האריחים שבה משתמש בורר המיקום לכל אתר. לא מאוחזרים אריחים אלא אם המשתמש מקיש על \"טען מפה\" בבורר עצמו — האפליקציה לעולם לא שולחת בקשות ברקע לספק זה. המציינים z, x, ו-y מוחלפים בקואורדינטות אריחי OSM. ברירת המחדל היא OpenStreetMap; ניתן להחליף בכל ספק תואם OSM (MapTiler, CartoDB, שרת מארח עצמאי וכו').",
+  "appSettingsTimezonePolygonsHint": "מוריד מערך נתונים GeoJSON של גבולות אזורי זמן IANA (כ-10–60 MB) כדי שהגדרות האתר יוכלו להציע אפשרות אזור זמן \"מהמיקום שנבחר\" שמזהה אוטומטית את אזור ה-IANA של הקואורדינטות המזויפות שלך. מאוחזר רק לפי דרישה (כפתור זה); נשמר באחסון הפרטי של האפליקציה עד שתמחק אותו. מקור ברירת מחדל: שחרורי timezone-boundary-builder ב-GitHub. הקש על נקה כדי למחוק.",
+  "appSettingsTrustedCertificatesHint": "כשאתר מציג אישור TLS בחתימה עצמית או אישור שאינו מהימן אחרת ואתה מקיש על \"בטח באתר זה\" בחלון, טביעת האצבע מוצמדת כאן. ביקורים עתידיים למארח זה נטענים בשקט כל עוד מוגש אותו אישור. פתח מסך זה לבדיקה וביטול כל הצמדה.",
+  "appSettingsClearUrlsHint": "מוריד רשימה של פרמטרי מעקב ידועים שבהם משתמשים אתרים (כמו utm_source, fbclid וכד'). כשמופעל לכל אתר, פרמטרים אלה מוסרים אוטומטית מכתובות URL כדי להגן על פרטיותך.",
+  "appSettingsDnsBlocklistHint": "מוריד את רשימת החסימה של Hagezi לחסימת דומיינים ידועים של פרסום, מעקב ותוכנות זדוניות. בחר רמת חומרה מ-Light עד Ultimate. רמות גבוהות יותר חוסמות דומיינים רבים יותר אך עלולות לשבש חלק מהאתרים. לאחר ההורדה, הפעל או השבת לכל אתר בהגדרות האתר.",
+  "appSettingsLocalCdnHint": "מוריד ספריות JavaScript, גופנים ומסגרות CSS נפוצות כדי לגישם מקומית במקום לאחזר אותן משרתי CDN של צד שלישי (כמו Google, Cloudflare, jsDelivr). זה מונע מספקי CDN לעקוב אחר הגלישה שלך בין אתרים שונים.",
+  "appSettingsContentBlockerHint": "חוסם מודעות, עוקבים ורכיבי עמוד לא רצויים באמצעות רשימות סינון כמו EasyList. תומך בחסימה ברמת הדומיין, מסנני CSS קוסמטיים להסתרת רכיבי עמוד וכללי הסתרה מבוססי טקסט. הפעל או השבת רשימות סינון בודדות למטה, ושלוט בחסימת תוכן לכל אתר בהגדרות האתר."
 }
