@@ -55,8 +55,12 @@ else
 fi
 
 # Expected JNI methods = every `external fun <name>` in the bridge source.
-mapfile -t EXPECTED < <(grep -oE 'external fun [A-Za-z0-9_]+' "$KT" \
-  | awk '{print $3}' | sort -u)
+# Read loop instead of `mapfile` (bash 4+) so this runs on macOS's bash 3.2,
+# where devs invoke these checks locally too.
+EXPECTED=()
+while IFS= read -r _name; do
+  [[ -n "$_name" ]] && EXPECTED+=("$_name")
+done < <(grep -oE 'external fun [A-Za-z0-9_]+' "$KT" | awk '{print $3}' | sort -u)
 if [[ ${#EXPECTED[@]} -eq 0 ]]; then
   echo "ERROR: no 'external fun' declarations found in $KT" >&2
   echo "If the JNI bridge moved, update this check." >&2
