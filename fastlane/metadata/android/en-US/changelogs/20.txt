@@ -1,14 +1,9 @@
 ✨ New Features:
-• Per-site page zoom
-• Authenticated proxies on Android
-• DRM video playback
-• Translatable interface
+• Per-site page zoom and DRM video playback
 
 🔧 Improvements:
 • Stronger anti-fingerprinting
-• Richer settings backups
 
 🐛 Bug Fixes:
-• Steadier full screen
-• Fewer black screens and crashes
-• Reliable cross-domain links
+• Authenticated proxies, full screen, crashes, and cross-domain links
+• More reliable home shortcuts
