@@ -1,0 +1,17 @@
+✨ New Features:
+• Per-site page zoom
+• Authenticated proxies on Android
+• Protected-content (DRM) playback
+• Keep tab strip in full screen
+• Translatable interface
+
+🔧 Improvements:
+• Stronger anti-fingerprinting (window size, WebGL)
+• DNS level + ad-block list in backups
+• Skip cert prompts for blocked hosts
+
+🐛 Bug Fixes:
+• Cross-domain links no longer dropped
+• Recover from black screens, crashes
+• Steadier full screen, shortcuts
+• Back gesture stays in history
