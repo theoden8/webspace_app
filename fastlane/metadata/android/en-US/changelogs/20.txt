@@ -2,7 +2,7 @@
 • Per-site page zoom and DRM video playback
 
 🔧 Improvements:
-• Letterboxed window and screen size
+• Screen size protection
 
 🐛 Bug Fixes:
 • Full screen, crashes, and cross-domain links
