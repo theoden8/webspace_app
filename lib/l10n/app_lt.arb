@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Atsisiunčia sąrašą žinomų sekimo parametrų, naudojamų svetainių (pvz., utm_source, fbclid ir kt.). Kai įjungta kiekvienai svetainei atskirai, šie parametrai automatiškai pašalinami iš URL, kad apsaugotų jūsų privatumą.",
   "appSettingsDnsBlocklistHint": "Atsisiunčia Hagezi blokavimo sąrašą, kad blokuotų žinomus reklamos, sekimo ir kenkėjiškų programų domenus. Pasirinkite griežtumo lygį nuo Lengvo iki Visiško. Aukštesni lygiai blokuoja daugiau domenų, bet gali sutrikdyti kai kurių svetainių veikimą. Atsisiuntus, galima įjungti arba išjungti kiekvienai svetainei atskirai jos nustatymuose.",
   "appSettingsLocalCdnHint": "Atsisiunčia įprastas JavaScript bibliotekas, šriftus ir CSS karkasus, kad juos tektų tiekti vietiškai, užuot parsisiuntus iš trečiųjų šalių CDN serverių (pvz., Google, Cloudflare, jsDelivr). Tai neleidžia CDN tiekėjams sekti jūsų naršymo veiklos įvairiose svetainėse.",
-  "appSettingsContentBlockerHint": "Blokuoja reklamas, sekiklius ir nepageidaujamus puslapio elementus naudodamas filtrų sąrašus, pvz., EasyList. Palaiko domenų lygmens blokavimą, CSS kosmetinius filtrus, skirtus paslėpti puslapio elementus, ir tekstinius slėpimo taisyklių rinkinius. Žemiau įjunkite arba išjunkite atskirus filtrų sąrašus, o turinio blokavimą kiekvienai svetainei reguliuokite jos nustatymuose."
+  "appSettingsContentBlockerHint": "Blokuoja reklamas, sekiklius ir nepageidaujamus puslapio elementus naudodamas filtrų sąrašus, pvz., EasyList. Palaiko domenų lygmens blokavimą, CSS kosmetinius filtrus, skirtus paslėpti puslapio elementus, ir tekstinius slėpimo taisyklių rinkinius. Žemiau įjunkite arba išjunkite atskirus filtrų sąrašus, o turinio blokavimą kiekvienai svetainei reguliuokite jos nustatymuose.",
+  "appSettingsTabBarButton": "Kortelių juostos mygtukas",
+  "appSettingsTabBarButtonSubtitle": "Rodyti viso ekrano režime mažą mygtuką, kuris atveria kortelių juostą",
+  "appSettingsTabBarButtonCorner": "Mygtuko padėtis",
+  "appSettingsTabMaxWidth": "Kortelės pločio riba",
+  "appSettingsTabMaxWidthSubtitle": "Apribokite, kokio pločio gali būti kiekviena kortelė, kad ilgi pavadinimai liktų kompaktiški"
 }

@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Web sitelerinin kullandığı bilinen takip parametrelerinin (utm_source, fbclid vb.) bir listesini indirir. Site başına etkinleştirildiğinde, gizliliğinizi korumak için bu parametreler URL'lerden otomatik olarak temizlenir.",
   "appSettingsDnsBlocklistHint": "Bilinen reklam, takip ve kötü amaçlı yazılım alan adlarını engellemek için Hagezi engel listesini indirir. Hafif'ten Mutlak'a kadar bir önem düzeyi seçin. Daha yüksek düzeyler daha fazla alan adını engeller; ancak bazı sitelerin çalışmasını bozabilir. İndirildikten sonra her sitenin ayarlarından site başına etkinleştirin veya devre dışı bırakın.",
   "appSettingsLocalCdnHint": "Yaygın JavaScript kütüphanelerini, yazı tiplerini ve CSS çerçevelerini, üçüncü taraf CDN sunucularından (Google, Cloudflare, jsDelivr gibi) getirmek yerine yerel olarak sunmak için indirir. Bu sayede CDN sağlayıcıları, farklı web sitelerindeki tarama davranışınızı takip edemez.",
-  "appSettingsContentBlockerHint": "EasyList gibi filtre listeleri kullanarak reklamları, takipçileri ve istenmeyen sayfa öğelerini engeller. Alan adı düzeyinde engellemeyi, sayfa öğelerini gizlemek için CSS kozmetik filtrelerini ve metin tabanlı gizleme kurallarını destekler. Aşağıda bireysel filtre listelerini etkinleştirin veya devre dışı bırakın; her sitenin ayarlarından içerik engellemeyi site başına açıp kapatın."
+  "appSettingsContentBlockerHint": "EasyList gibi filtre listeleri kullanarak reklamları, takipçileri ve istenmeyen sayfa öğelerini engeller. Alan adı düzeyinde engellemeyi, sayfa öğelerini gizlemek için CSS kozmetik filtrelerini ve metin tabanlı gizleme kurallarını destekler. Aşağıda bireysel filtre listelerini etkinleştirin veya devre dışı bırakın; her sitenin ayarlarından içerik engellemeyi site başına açıp kapatın.",
+  "appSettingsTabBarButton": "Sekme Çubuğu Düğmesi",
+  "appSettingsTabBarButtonSubtitle": "Tam ekranda sekme çubuğunu açan küçük bir düğme göster",
+  "appSettingsTabBarButtonCorner": "Düğme konumu",
+  "appSettingsTabMaxWidth": "Sekme Genişliği Sınırı",
+  "appSettingsTabMaxWidthSubtitle": "Uzun adların derli toplu kalması için her sekmenin ne kadar genişleyebileceğini sınırlayın"
 }

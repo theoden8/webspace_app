@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Descarga una lista de parámetros de seguimiento conocidos utilizados por sitios web (como utm_source, fbclid, etc.). Cuando está activado por sitio, estos parámetros se eliminan automáticamente de las URL para proteger tu privacidad.",
   "appSettingsDnsBlocklistHint": "Descarga la lista de bloqueo de Hagezi para bloquear dominios conocidos de publicidad, rastreo y malware. Elige un nivel de severidad de Ligero a Extremo. Los niveles más altos bloquean más dominios, pero pueden romper algunos sitios. Una vez descargada, actívala o desactívala por sitio en los ajustes de cada sitio.",
   "appSettingsLocalCdnHint": "Descarga bibliotecas JavaScript, fuentes y frameworks CSS comunes para servirlos localmente en lugar de obtenerlos de servidores CDN de terceros (como Google, Cloudflare, jsDelivr). Esto evita que los proveedores de CDN rastreen tu navegación entre diferentes sitios web.",
-  "appSettingsContentBlockerHint": "Bloquea anuncios, rastreadores y elementos no deseados de la página usando listas de filtros como EasyList. Admite bloqueo a nivel de dominio, filtros cosméticos CSS para ocultar elementos de la página y reglas de ocultación basadas en texto. Activa o desactiva listas de filtros individuales a continuación, y activa o desactiva el bloqueador de contenido por sitio en los ajustes de cada sitio."
+  "appSettingsContentBlockerHint": "Bloquea anuncios, rastreadores y elementos no deseados de la página usando listas de filtros como EasyList. Admite bloqueo a nivel de dominio, filtros cosméticos CSS para ocultar elementos de la página y reglas de ocultación basadas en texto. Activa o desactiva listas de filtros individuales a continuación, y activa o desactiva el bloqueador de contenido por sitio en los ajustes de cada sitio.",
+  "appSettingsTabBarButton": "Botón de la barra de pestañas",
+  "appSettingsTabBarButtonSubtitle": "Mostrar un botón pequeño en pantalla completa que abre la barra de pestañas",
+  "appSettingsTabBarButtonCorner": "Posición del botón",
+  "appSettingsTabMaxWidth": "Límite de ancho de pestaña",
+  "appSettingsTabMaxWidthSubtitle": "Limita cuánto puede crecer cada pestaña para que los nombres largos se mantengan compactos"
 }

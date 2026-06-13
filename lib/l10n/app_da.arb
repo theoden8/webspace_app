@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Downloader en liste over kendte sporingsparametre brugt af websteder (som utm_source, fbclid osv.). Når det er aktiveret pr. side, fjernes disse parametre automatisk fra URL'er for at beskytte dit privatliv.",
   "appSettingsDnsBlocklistHint": "Downloader Hagezi-blokeringslisten for at blokere kendte reklame-, sporings- og malwaredomæner. Vælg et alvorlighedsniveau fra Let til Ultimativt. Højere niveauer blokerer flere domæner, men kan ødelægge nogle sider. Når det er downloadet, kan du aktivere eller deaktivere det pr. side i hver sides indstillinger.",
   "appSettingsLocalCdnHint": "Downloader almindelige JavaScript-biblioteker, skrifttyper og CSS-frameworks for at servere dem lokalt i stedet for at hente dem fra tredjeparts CDN-servere (som Google, Cloudflare, jsDelivr). Dette forhindrer CDN-udbydere i at spore din browsing på tværs af forskellige websteder.",
-  "appSettingsContentBlockerHint": "Blokerer reklamer, sporere og uønskede sideelementer ved hjælp af filterlister som EasyList. Understøtter blokering på domæneniveau, CSS-kosmetiske filtre til at skjule sideelementer og tekstbaserede skjuleregler. Aktivér eller deaktivér individuelle filterlister nedenfor, og slå indholdsblokeringen til eller fra pr. side i hver sides indstillinger."
+  "appSettingsContentBlockerHint": "Blokerer reklamer, sporere og uønskede sideelementer ved hjælp af filterlister som EasyList. Understøtter blokering på domæneniveau, CSS-kosmetiske filtre til at skjule sideelementer og tekstbaserede skjuleregler. Aktivér eller deaktivér individuelle filterlister nedenfor, og slå indholdsblokeringen til eller fra pr. side i hver sides indstillinger.",
+  "appSettingsTabBarButton": "Fanebjælkeknap",
+  "appSettingsTabBarButtonSubtitle": "Vis en lille knap i fuld skærm, der åbner fanebjælken",
+  "appSettingsTabBarButtonCorner": "Knapplacering",
+  "appSettingsTabMaxWidth": "Grænse for fanebredde",
+  "appSettingsTabMaxWidthSubtitle": "Begræns hvor bred hver fane kan blive, så lange navne forbliver kompakte"
 }

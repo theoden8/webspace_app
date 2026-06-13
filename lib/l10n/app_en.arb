@@ -847,6 +847,26 @@
   "@appSettingsKeepTabStripFullscreenSubtitle": {
     "description": "Subtitle for the keep-tab-strip-in-fullscreen toggle"
   },
+  "appSettingsTabBarButton": "Tab Bar Button",
+  "@appSettingsTabBarButton": {
+    "description": "Toggle title for showing a small floating button in full screen that opens the tab bar on demand"
+  },
+  "appSettingsTabBarButtonSubtitle": "Show a small button in full screen that opens the tab bar",
+  "@appSettingsTabBarButtonSubtitle": {
+    "description": "Subtitle for the tab-bar-button toggle"
+  },
+  "appSettingsTabBarButtonCorner": "Button position",
+  "@appSettingsTabBarButtonCorner": {
+    "description": "Label for the control choosing whether the full-screen tab-bar button sits in the bottom-left or bottom-right corner"
+  },
+  "appSettingsTabMaxWidth": "Tab Width Limit",
+  "@appSettingsTabMaxWidth": {
+    "description": "Title for the slider that caps the maximum width of each tab in the tab bar"
+  },
+  "appSettingsTabMaxWidthSubtitle": "Limit how wide each tab can grow so long names stay compact",
+  "@appSettingsTabMaxWidthSubtitle": {
+    "description": "Subtitle explaining the tab width limit slider"
+  },
   "appSettingsStatsBar": "Stats Bar",
   "@appSettingsStatsBar": {
     "description": "Toggle title for the live request stats bar"

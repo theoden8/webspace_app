@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Télécharge une liste de paramètres de pistage connus utilisés par les sites web (comme utm_source, fbclid, etc.). Lorsqu'il est activé par site, ces paramètres sont automatiquement supprimés des URL pour protéger votre vie privée.",
   "appSettingsDnsBlocklistHint": "Télécharge la liste de blocage Hagezi pour bloquer les domaines publicitaires, de pistage et malveillants connus. Choisissez un niveau de sévérité allant de Léger à Ultime. Les niveaux plus élevés bloquent davantage de domaines mais peuvent perturber certains sites. Une fois téléchargé, activez ou désactivez par site dans les paramètres de chaque site.",
   "appSettingsLocalCdnHint": "Télécharge les bibliothèques JavaScript courantes, les polices et les frameworks CSS pour les servir localement au lieu de les récupérer depuis des serveurs CDN tiers (comme Google, Cloudflare, jsDelivr). Cela empêche les fournisseurs de CDN de suivre votre navigation entre différents sites web.",
-  "appSettingsContentBlockerHint": "Bloque les publicités, les traceurs et les éléments indésirables des pages à l'aide de listes de filtres comme EasyList. Prend en charge le blocage au niveau des domaines, les filtres cosmétiques CSS pour masquer les éléments de page et les règles de masquage basées sur le texte. Activez ou désactivez les listes de filtres individuelles ci-dessous, et basculez le blocage de contenu par site dans les paramètres de chaque site."
+  "appSettingsContentBlockerHint": "Bloque les publicités, les traceurs et les éléments indésirables des pages à l'aide de listes de filtres comme EasyList. Prend en charge le blocage au niveau des domaines, les filtres cosmétiques CSS pour masquer les éléments de page et les règles de masquage basées sur le texte. Activez ou désactivez les listes de filtres individuelles ci-dessous, et basculez le blocage de contenu par site dans les paramètres de chaque site.",
+  "appSettingsTabBarButton": "Bouton de la barre d'onglets",
+  "appSettingsTabBarButtonSubtitle": "Afficher en plein écran un petit bouton qui ouvre la barre d'onglets",
+  "appSettingsTabBarButtonCorner": "Position du bouton",
+  "appSettingsTabMaxWidth": "Limite de largeur des onglets",
+  "appSettingsTabMaxWidthSubtitle": "Limiter la largeur de chaque onglet pour que les noms longs restent compacts"
 }

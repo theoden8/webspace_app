@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Baixa uma lista de parâmetros de rastreamento conhecidos usados por sites (como utm_source, fbclid, etc.). Quando ativado por site, esses parâmetros são automaticamente removidos das URLs para proteger sua privacidade.",
   "appSettingsDnsBlocklistHint": "Baixa a lista de bloqueio Hagezi para bloquear domínios conhecidos de publicidade, rastreamento e malware. Escolha um nível de severidade de Light a Ultimate. Níveis mais altos bloqueiam mais domínios, mas podem quebrar alguns sites. Após o download, ative ou desative por site nas configurações de cada site.",
   "appSettingsLocalCdnHint": "Baixa bibliotecas JavaScript comuns, fontes e frameworks CSS para servi-los localmente em vez de buscá-los em servidores CDN de terceiros (como Google, Cloudflare, jsDelivr). Isso impede que provedores de CDN rastreiem sua navegação entre diferentes sites.",
-  "appSettingsContentBlockerHint": "Bloqueia anúncios, rastreadores e elementos indesejados da página usando listas de filtros como EasyList. Suporta bloqueio no nível de domínio, filtros cosméticos CSS para ocultar elementos da página e regras de ocultação baseadas em texto. Ative ou desative listas de filtros individuais abaixo, e alterne o bloqueio de conteúdo por site nas configurações de cada site."
+  "appSettingsContentBlockerHint": "Bloqueia anúncios, rastreadores e elementos indesejados da página usando listas de filtros como EasyList. Suporta bloqueio no nível de domínio, filtros cosméticos CSS para ocultar elementos da página e regras de ocultação baseadas em texto. Ative ou desative listas de filtros individuais abaixo, e alterne o bloqueio de conteúdo por site nas configurações de cada site.",
+  "appSettingsTabBarButton": "Botão da barra de abas",
+  "appSettingsTabBarButtonSubtitle": "Mostrar um pequeno botão em tela cheia que abre a barra de abas",
+  "appSettingsTabBarButtonCorner": "Posição do botão",
+  "appSettingsTabMaxWidth": "Limite de largura da aba",
+  "appSettingsTabMaxWidthSubtitle": "Limite a largura de cada aba para que os nomes longos fiquem compactos"
 }

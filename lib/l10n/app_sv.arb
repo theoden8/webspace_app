@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Laddar ned en lista över kända spårningsparametrar som används av webbplatser (som utm_source, fbclid, osv.). När aktiverat per webbplats tas dessa parametrar automatiskt bort från URL:er för att skydda din integritet.",
   "appSettingsDnsBlocklistHint": "Laddar ned Hagezi-blocklistan för att blockera kända reklam-, spårnings- och skadliga domäner. Välj en allvarlighetsgrad från Lätt till Ultimat. Högre nivåer blockerar fler domäner men kan bryta vissa webbplatser. När nedladdad kan du aktivera eller inaktivera per webbplats i varje webbplats inställningar.",
   "appSettingsLocalCdnHint": "Laddar ned vanliga JavaScript-bibliotek, teckensnitt och CSS-ramverk för att serva dem lokalt istället för att hämta dem från tredjeparts CDN-servrar (som Google, Cloudflare, jsDelivr). Detta förhindrar CDN-leverantörer från att spåra din surfning över olika webbplatser.",
-  "appSettingsContentBlockerHint": "Blockerar annonser, spårare och oönskade sidelement med filterlistor som EasyList. Stöder blockering på domännivå, CSS-kosmetiska filter för att dölja sidelement och textbaserade döljandegler. Aktivera eller inaktivera enskilda filterlistor nedan och växla innehållsblockering per webbplats i varje webbplats inställningar."
+  "appSettingsContentBlockerHint": "Blockerar annonser, spårare och oönskade sidelement med filterlistor som EasyList. Stöder blockering på domännivå, CSS-kosmetiska filter för att dölja sidelement och textbaserade döljandegler. Aktivera eller inaktivera enskilda filterlistor nedan och växla innehållsblockering per webbplats i varje webbplats inställningar.",
+  "appSettingsTabBarButton": "Flikfältsknapp",
+  "appSettingsTabBarButtonSubtitle": "Visa en liten knapp i helskärm som öppnar flikfältet",
+  "appSettingsTabBarButtonCorner": "Knappens placering",
+  "appSettingsTabMaxWidth": "Gräns för flikbredd",
+  "appSettingsTabMaxWidthSubtitle": "Begränsa hur bred varje flik kan bli så att långa namn förblir kompakta"
 }

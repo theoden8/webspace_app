@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Letölt egy listát a webhelyek által használt ismert nyomkövető paraméterekről (például utm_source, fbclid stb.). Ha webhelyenként engedélyezve van, ezek a paraméterek automatikusan eltávolításra kerülnek az URL-ekből az adatvédelem védelme érdekében.",
   "appSettingsDnsBlocklistHint": "Letölti a Hagezi feketelistát az ismert reklám-, nyomkövető- és kártevődomainek blokkolásához. Válasszon súlyossági szintet a Könnyűtől az Ultimateig. A magasabb szintek több domaint blokkolnak, de egyes webhelyeket megzavarhatnak. A letöltés után webhelyenként engedélyezhető vagy letiltható az egyes webhelyek beállításaiban.",
   "appSettingsLocalCdnHint": "Letölti a gyakori JavaScript-könyvtárakat, betűtípusokat és CSS-keretrendszereket, hogy azokat helyi kiszolgálásból lehessen elérni a harmadik feles CDN-kiszolgálók (például Google, Cloudflare, jsDelivr) helyett. Ez megakadályozza, hogy a CDN-szolgáltatók nyomon kövessék a böngészési tevékenységét a különböző webhelyek között.",
-  "appSettingsContentBlockerHint": "Reklámokat, nyomkövetőket és nemkívánatos oldalelemeket blokkol szűrőlisták, például az EasyList segítségével. Támogatja a domainszintű blokkolást, CSS kozmetikai szűrőket az oldalelemek elrejtéséhez, és szövegalapú elrejtési szabályokat. Az egyedi szűrőlistákat alább engedélyezheti vagy tilthatja le, és a tartalomblokkolást webhelyenként kapcsolhatja be az egyes webhelyek beállításaiban."
+  "appSettingsContentBlockerHint": "Reklámokat, nyomkövetőket és nemkívánatos oldalelemeket blokkol szűrőlisták, például az EasyList segítségével. Támogatja a domainszintű blokkolást, CSS kozmetikai szűrőket az oldalelemek elrejtéséhez, és szövegalapú elrejtési szabályokat. Az egyedi szűrőlistákat alább engedélyezheti vagy tilthatja le, és a tartalomblokkolást webhelyenként kapcsolhatja be az egyes webhelyek beállításaiban.",
+  "appSettingsTabBarButton": "Lapsáv gomb",
+  "appSettingsTabBarButtonSubtitle": "Kis gomb megjelenítése teljes képernyőn, amely megnyitja a lapsávot",
+  "appSettingsTabBarButtonCorner": "Gomb helyzete",
+  "appSettingsTabMaxWidth": "Lapszélesség korlát",
+  "appSettingsTabMaxWidthSubtitle": "Korlátozza, milyen széles lehet az egyes lapok, hogy a hosszú nevek tömörek maradjanak"
 }

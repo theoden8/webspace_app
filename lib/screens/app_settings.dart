@@ -55,6 +55,12 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onShowTabStripChanged;
   final bool tabStripInFullscreen;
   final ValueChanged<bool> onTabStripInFullscreenChanged;
+  final bool tabBarButtonInFullscreen;
+  final ValueChanged<bool> onTabBarButtonInFullscreenChanged;
+  final bool tabBarButtonOnRight;
+  final ValueChanged<bool> onTabBarButtonOnRightChanged;
+  final int tabMaxWidth;
+  final ValueChanged<int> onTabMaxWidthChanged;
   final bool showStatsBanner;
   final ValueChanged<bool> onShowStatsBannerChanged;
   /// Current UI language override as a locale tag ('' = follow system).
@@ -92,6 +98,12 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onShowTabStripChanged,
     required this.tabStripInFullscreen,
     required this.onTabStripInFullscreenChanged,
+    required this.tabBarButtonInFullscreen,
+    required this.onTabBarButtonInFullscreenChanged,
+    required this.tabBarButtonOnRight,
+    required this.onTabBarButtonOnRightChanged,
+    required this.tabMaxWidth,
+    required this.onTabMaxWidthChanged,
     required this.showStatsBanner,
     required this.onShowStatsBannerChanged,
     required this.localeOverride,
@@ -113,6 +125,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late AppThemeSettings _settings;
   late bool _showTabStrip;
   late bool _tabStripInFullscreen;
+  late bool _tabBarButtonInFullscreen;
+  late bool _tabBarButtonOnRight;
+  late double _tabMaxWidth;
   late bool _showStatsBanner;
   late TextEditingController _osmTileUrlController;
   bool _isDownloadingRules = false;
@@ -167,6 +182,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _settings = widget.currentSettings;
     _showTabStrip = widget.showTabStrip;
     _tabStripInFullscreen = widget.tabStripInFullscreen;
+    _tabBarButtonInFullscreen = widget.tabBarButtonInFullscreen;
+    _tabBarButtonOnRight = widget.tabBarButtonOnRight;
+    _tabMaxWidth = widget.tabMaxWidth.toDouble();
     _showStatsBanner = widget.showStatsBanner;
     _osmTileUrlController = TextEditingController();
     _loadOsmTileUrl();
@@ -800,6 +818,93 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                     widget.onTabStripInFullscreenChanged(value);
                   }
                 : null,
+          ),
+          SwitchListTile(
+            title: Text(loc.appSettingsTabBarButton),
+            subtitle: Text(loc.appSettingsTabBarButtonSubtitle),
+            value: _tabBarButtonInFullscreen,
+            onChanged: _showTabStrip
+                ? (value) {
+                    setState(() {
+                      _tabBarButtonInFullscreen = value;
+                    });
+                    widget.onTabBarButtonInFullscreenChanged(value);
+                  }
+                : null,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Expanded(child: Text(loc.appSettingsTabBarButtonCorner)),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: false,
+                      icon: Icon(Icons.align_horizontal_left),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      icon: Icon(Icons.align_horizontal_right),
+                    ),
+                  ],
+                  selected: {_tabBarButtonOnRight},
+                  showSelectedIcon: false,
+                  onSelectionChanged:
+                      (_showTabStrip && _tabBarButtonInFullscreen)
+                          ? (selection) {
+                              final value = selection.first;
+                              setState(() {
+                                _tabBarButtonOnRight = value;
+                              });
+                              widget.onTabBarButtonOnRightChanged(value);
+                            }
+                          : null,
+                ),
+              ],
+            ),
+          ),
+          Builder(
+            builder: (context) {
+              final tabWidthLabel = '${_tabMaxWidth.round()} px';
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text(loc.appSettingsTabMaxWidth)),
+                        Text(tabWidthLabel),
+                      ],
+                    ),
+                    Text(
+                      loc.appSettingsTabMaxWidthSubtitle,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Slider(
+                      value: _tabMaxWidth,
+                      min: 80,
+                      max: 320,
+                      divisions: 24,
+                      label: tabWidthLabel,
+                      onChanged: _showTabStrip
+                          ? (value) {
+                              setState(() {
+                                _tabMaxWidth = value;
+                              });
+                            }
+                          : null,
+                      onChangeEnd: _showTabStrip
+                          ? (value) {
+                              widget.onTabMaxWidthChanged(value.round());
+                            }
+                          : null,
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           SwitchListTile(
             title: Text(loc.appSettingsStatsBar),

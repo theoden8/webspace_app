@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Stiahne zoznam známych sledovacích parametrov používaných webovými stránkami (napríklad utm_source, fbclid atď.). Keď je povolené na úrovni stránky, tieto parametre sa automaticky odstraňujú z URL adries na ochranu vášho súkromia.",
   "appSettingsDnsBlocklistHint": "Stiahne zoznam blokovaných Hagezi na blokovanie známych reklamných, sledovacích a škodlivých domén. Vyberte úroveň závažnosti od Svetlej po Ultimátnu. Vyššie úrovne blokujú viac domén, ale môžu narušiť niektoré stránky. Po stiahnutí zapnite alebo vypnite pre každú stránku zvlášť v nastaveniach danej stránky.",
   "appSettingsLocalCdnHint": "Stiahne bežné knižnice JavaScript, písma a CSS frameworky, aby ich podával lokálne namiesto sťahovania z CDN serverov tretích strán (ako Google, Cloudflare, jsDelivr). Tým sa zabráni poskytovateľom CDN sledovať vaše prehliadanie naprieč rôznymi webovými stránkami.",
-  "appSettingsContentBlockerHint": "Blokuje reklamy, sledovače a nežiaduce prvky stránky pomocou filtrovacích zoznamov ako EasyList. Podporuje blokovanie na úrovni domény, CSS kozmetické filtre na skrývanie prvkov stránky a textové pravidlá skrývania. Zapnite alebo vypnite jednotlivé filtrovacie zoznamy nižšie a prepínajte blokovanie obsahu pre každú stránku zvlášť v nastaveniach danej stránky."
+  "appSettingsContentBlockerHint": "Blokuje reklamy, sledovače a nežiaduce prvky stránky pomocou filtrovacích zoznamov ako EasyList. Podporuje blokovanie na úrovni domény, CSS kozmetické filtre na skrývanie prvkov stránky a textové pravidlá skrývania. Zapnite alebo vypnite jednotlivé filtrovacie zoznamy nižšie a prepínajte blokovanie obsahu pre každú stránku zvlášť v nastaveniach danej stránky.",
+  "appSettingsTabBarButton": "Tlačidlo panela kariet",
+  "appSettingsTabBarButtonSubtitle": "Zobraziť na celej obrazovke malé tlačidlo, ktoré otvorí panel kariet",
+  "appSettingsTabBarButtonCorner": "Poloha tlačidla",
+  "appSettingsTabMaxWidth": "Obmedzenie šírky karty",
+  "appSettingsTabMaxWidthSubtitle": "Obmedzte, aká široká môže byť každá karta, aby dlhé názvy zostali kompaktné"
 }

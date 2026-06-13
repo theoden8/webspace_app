@@ -630,5 +630,10 @@
   "appSettingsClearUrlsHint": "Pobiera listę znanych parametrów śledzących używanych przez strony internetowe (takich jak utm_source, fbclid itp.). Gdy włączone per-strona, parametry te są automatycznie usuwane z adresów URL w celu ochrony prywatności.",
   "appSettingsDnsBlocklistHint": "Pobiera listę blokowania Hagezi w celu blokowania znanych domen reklamowych, śledzących i złośliwego oprogramowania. Wybierz poziom surowości od Light do Ultimate. Wyższe poziomy blokują więcej domen, ale mogą powodować problemy z niektórymi stronami. Po pobraniu włączaj lub wyłączaj per-strona w ustawieniach każdej strony.",
   "appSettingsLocalCdnHint": "Pobiera popularne biblioteki JavaScript, czcionki i frameworki CSS, aby serwować je lokalnie zamiast pobierać z serwerów CDN stron trzecich (takich jak Google, Cloudflare, jsDelivr). Zapobiega to śledzeniu Twojego przeglądania na różnych stronach przez dostawców CDN.",
-  "appSettingsContentBlockerHint": "Blokuje reklamy, trackery i niechciane elementy stron przy użyciu list filtrów takich jak EasyList. Obsługuje blokowanie na poziomie domeny, kosmetyczne filtry CSS ukrywające elementy strony oraz reguły ukrywania oparte na tekście. Włączaj lub wyłączaj poszczególne listy filtrów poniżej i przełączaj blokowanie treści per-strona w ustawieniach każdej strony."
+  "appSettingsContentBlockerHint": "Blokuje reklamy, trackery i niechciane elementy stron przy użyciu list filtrów takich jak EasyList. Obsługuje blokowanie na poziomie domeny, kosmetyczne filtry CSS ukrywające elementy strony oraz reguły ukrywania oparte na tekście. Włączaj lub wyłączaj poszczególne listy filtrów poniżej i przełączaj blokowanie treści per-strona w ustawieniach każdej strony.",
+  "appSettingsTabBarButton": "Przycisk paska kart",
+  "appSettingsTabBarButtonSubtitle": "Pokaż na pełnym ekranie mały przycisk otwierający pasek kart",
+  "appSettingsTabBarButtonCorner": "Położenie przycisku",
+  "appSettingsTabMaxWidth": "Limit szerokości karty",
+  "appSettingsTabMaxWidthSubtitle": "Ogranicz szerokość każdej karty, aby długie nazwy pozostały zwarte"
 }
