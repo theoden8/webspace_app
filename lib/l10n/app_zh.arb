@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs 規則已更新",
   "appSettingsClearUrlsDownloadFailed": "下載 ClearURLs 規則失敗",
   "appSettingsFirefoxVersion": "Firefox 版本",
+  "appSettingsFirefoxVersionHint": "网站 User-Agent 字段中的“随机”按钮会以此处显示的版本生成 Firefox User-Agent。此构建内置了一个 Firefox 版本。点按更新可通过网络从 Mozilla 发布的源获取当前的 Firefox 发布版本，并刷新生成的 User-Agent。应用绝不会自动检查此项；只有当你点按更新时它才会联网。",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "检查时间：{date}",
   "appSettingsUpdateFirefoxVersion": "更新 Firefox 版本",

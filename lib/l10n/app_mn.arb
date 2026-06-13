@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs дүрэм шинэчлэгдлээ",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs дүрмийг татаж чадсангүй",
   "appSettingsFirefoxVersion": "Firefox-ийн хувилбар",
+  "appSettingsFirefoxVersionHint": "Сайтын User-Agent талбар дахь “санамсаргүй” товч нь энд харуулсан хувилбараар Firefox-ийн User-Agent үүсгэдэг. Энэ хувилбар нь суулгасан Firefox хувилбартай ирдэг. Сүлжээгээр Mozilla-ийн нийтэлсэн эх сурвалжаас Firefox-ийн одоогийн хувилбарыг татаж, үүсгэсэн User-Agent-уудыг шинэчлэхийн тулд шинэчлэх дээр товшино уу. Апп үүнийг хэзээ ч автоматаар шалгадаггүй; та шинэчлэх дээр товшсон үед л сүлжээнд холбогдоно.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Шалгасан: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox-ийн хувилбарыг шинэчлэх",

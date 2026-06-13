@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "የ ClearURLs ህጎች ተዘምነዋል",
   "appSettingsClearUrlsDownloadFailed": "የ ClearURLs ህጎችን ማውረድ አልተሳካም",
   "appSettingsFirefoxVersion": "የFirefox ስሪት",
+  "appSettingsFirefoxVersionHint": "በድረ-ገጽ የUser-Agent መስክ ውስጥ ያለው “በዘፈቀደ” አዝራር እዚህ የሚታየውን ስሪት የሚጠቀሙ የFirefox User-Agentዎችን ይፈጥራል። ይህ ግንባታ የተሰናዳ የFirefox ስሪት ይዟል። የአሁኑን የFirefox ስሪት ከMozilla ምንጭ በኔትወርክ ለማምጣት እና የተፈጠሩትን User-Agentዎች ለማደስ አዘምን የሚለውን ይንኩ። መተግበሪያው ይህን በራስ-ሰር አያረጋግጥም፤ አዘምን ሲነኩ ብቻ ኔትወርኩን ያገናኛል።",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "ተረጋግጧል፦ {date}",
   "appSettingsUpdateFirefoxVersion": "የFirefox ስሪትን አዘምን",

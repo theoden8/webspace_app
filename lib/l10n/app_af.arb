@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs-reëls bygewerk",
   "appSettingsClearUrlsDownloadFailed": "Kon nie ClearURLs-reëls aflaai nie",
   "appSettingsFirefoxVersion": "Firefox-weergawe",
+  "appSettingsFirefoxVersionHint": "Die “lukraak”-knoppie in 'n webwerf se User-Agent-veld skep Firefox-User-Agents teen die weergawe wat hier gewys word. Hierdie weergawe word met 'n ingeboude Firefox-weergawe gelewer. Tik op werk by om die huidige Firefox-vrystellingsweergawe vanaf Mozilla se gepubliseerde bron oor die netwerk te haal en die gegenereerde User-Agents te verfris. Die toepassing kontroleer dit nooit outomaties nie; dit kontak die netwerk slegs wanneer jy op werk by tik.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Nagegaan: {date}",
   "appSettingsUpdateFirefoxVersion": "Werk Firefox-weergawe by",

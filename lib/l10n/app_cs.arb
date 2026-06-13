@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Pravidla ClearURLs aktualizována",
   "appSettingsClearUrlsDownloadFailed": "Nepodařilo se stáhnout pravidla ClearURLs",
   "appSettingsFirefoxVersion": "Verze Firefoxu",
+  "appSettingsFirefoxVersionHint": "Tlačítko „náhodně“ v poli User-Agent webu vytváří User-Agenty Firefoxu ve verzi zobrazené zde. Toto sestavení obsahuje vestavěnou verzi Firefoxu. Klepnutím na aktualizovat stáhnete aktuální verzi Firefoxu z publikovaného zdroje Mozilly přes síť a obnovíte vygenerované User-Agenty. Aplikace to nikdy nekontroluje automaticky; k síti se připojí pouze když klepnete na aktualizovat.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Zkontrolováno: {date}",
   "appSettingsUpdateFirefoxVersion": "Aktualizovat verzi Firefoxu",

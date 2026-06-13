@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "قواعد ClearURLs به‌روزرسانی شد",
   "appSettingsClearUrlsDownloadFailed": "دانلود قواعد ClearURLs ناموفق بود",
   "appSettingsFirefoxVersion": "نسخهٔ Firefox",
+  "appSettingsFirefoxVersionHint": "دکمهٔ «تصادفی» در فیلد User-Agent یک سایت، User-Agentهای Firefox را با نسخهٔ نمایش‌داده‌شده در اینجا تولید می‌کند. این نسخه با یک نسخهٔ Firefox تعبیه‌شده عرضه می‌شود. برای دریافت نسخهٔ کنونی Firefox از منبع منتشرشدهٔ Mozilla از طریق شبکه و تازه‌سازی User-Agentهای تولیدشده، روی به‌روزرسانی ضربه بزنید. برنامه هرگز این کار را به‌صورت خودکار انجام نمی‌دهد؛ فقط هنگامی که روی به‌روزرسانی ضربه بزنید به شبکه متصل می‌شود.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "بررسی شد: {date}",
   "appSettingsUpdateFirefoxVersion": "به‌روزرسانی نسخهٔ Firefox",

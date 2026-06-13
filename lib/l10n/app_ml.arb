@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs നിയമങ്ങൾ അപ്ഡേറ്റ് ചെയ്തു",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs നിയമങ്ങൾ ഡൗൺലോഡ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു",
   "appSettingsFirefoxVersion": "Firefox പതിപ്പ്",
+  "appSettingsFirefoxVersionHint": "സൈറ്റിന്റെ User-Agent ഫീൽഡിലെ “ക്രമരഹിതം” ബട്ടൺ ഇവിടെ കാണിച്ചിരിക്കുന്ന പതിപ്പിൽ Firefox User-Agent-കൾ സൃഷ്ടിക്കുന്നു. ഈ ബിൽഡിൽ ഒരു അന്തർനിർമിത Firefox പതിപ്പ് ഉൾപ്പെടുന്നു. നെറ്റ്‌വർക്ക് വഴി Mozilla പ്രസിദ്ധീകരിച്ച ഉറവിടത്തിൽ നിന്ന് നിലവിലെ Firefox പതിപ്പ് നേടാനും സൃഷ്ടിച്ച User-Agent-കൾ പുതുക്കാനും അപ്‌ഡേറ്റ് ടാപ്പ് ചെയ്യുക. ആപ്പ് ഇത് ഒരിക്കലും സ്വയമേവ പരിശോധിക്കില്ല; നിങ്ങൾ അപ്‌ഡേറ്റ് ടാപ്പ് ചെയ്യുമ്പോൾ മാത്രമേ അത് നെറ്റ്‌വർക്കിനെ ബന്ധപ്പെടൂ.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "പരിശോധിച്ചു: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox പതിപ്പ് പുതുക്കുക",

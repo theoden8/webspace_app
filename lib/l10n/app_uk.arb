@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Правила ClearURLs оновлено",
   "appSettingsClearUrlsDownloadFailed": "Не вдалося завантажити правила ClearURLs",
   "appSettingsFirefoxVersion": "Версія Firefox",
+  "appSettingsFirefoxVersionHint": "Кнопка «випадково» в полі User-Agent сайту створює User-Agent Firefox у версії, показаній тут. Ця збірка постачається з вбудованою версією Firefox. Торкніться оновити, щоб через мережу отримати поточну версію Firefox з опублікованого джерела Mozilla та оновити згенеровані User-Agent. Програма ніколи не перевіряє це автоматично; вона звертається до мережі лише коли ви торкаєтеся оновити.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Перевірено: {date}",
   "appSettingsUpdateFirefoxVersion": "Оновити версію Firefox",

@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs-regler opdateret",
   "appSettingsClearUrlsDownloadFailed": "Kunne ikke downloade ClearURLs-regler",
   "appSettingsFirefoxVersion": "Firefox-version",
+  "appSettingsFirefoxVersionHint": "Knappen “tilfældig” i et websteds User-Agent-felt opretter Firefox-User-Agents i den version, der vises her. Denne build leveres med en indbygget Firefox-version. Tryk på opdater for at hente den aktuelle Firefox-version fra Mozillas offentliggjorte kilde over netværket og opdatere de genererede User-Agents. Appen tjekker aldrig dette automatisk; den kontakter kun netværket, når du trykker på opdater.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Kontrolleret: {date}",
   "appSettingsUpdateFirefoxVersion": "Opdater Firefox-version",

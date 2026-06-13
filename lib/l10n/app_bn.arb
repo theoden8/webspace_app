@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs নিয়ম আপডেট হয়েছে",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs নিয়ম ডাউনলোড করা যায়নি",
   "appSettingsFirefoxVersion": "Firefox সংস্করণ",
+  "appSettingsFirefoxVersionHint": "কোনো সাইটের User-Agent ক্ষেত্রে “এলোমেলো” বোতামটি এখানে দেখানো সংস্করণে Firefox User-Agent তৈরি করে। এই বিল্ডে একটি অন্তর্নির্মিত Firefox সংস্করণ রয়েছে। নেটওয়ার্কের মাধ্যমে Mozilla-র প্রকাশিত উৎস থেকে বর্তমান Firefox সংস্করণ আনতে এবং তৈরি করা User-Agent রিফ্রেশ করতে আপডেট ট্যাপ করুন। অ্যাপটি কখনও স্বয়ংক্রিয়ভাবে এটি পরীক্ষা করে না; আপনি আপডেট ট্যাপ করলেই কেবল এটি নেটওয়ার্কে সংযোগ করে।",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "যাচাই করা হয়েছে: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox সংস্করণ আপডেট করুন",

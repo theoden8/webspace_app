@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Peraturan ClearURLs dikemas kini",
   "appSettingsClearUrlsDownloadFailed": "Gagal memuat turun peraturan ClearURLs",
   "appSettingsFirefoxVersion": "Versi Firefox",
+  "appSettingsFirefoxVersionHint": "Butang “rawak” dalam medan User-Agent sesuatu tapak menghasilkan User-Agent Firefox pada versi yang ditunjukkan di sini. Binaan ini disertakan dengan versi Firefox terbina dalam. Ketik kemas kini untuk mengambil versi keluaran Firefox semasa daripada sumber terbitan Mozilla melalui rangkaian dan menyegar semula User-Agent yang dijana. Apl tidak pernah memeriksa ini secara automatik; ia hanya menghubungi rangkaian apabila anda mengetik kemas kini.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Disemak: {date}",
   "appSettingsUpdateFirefoxVersion": "Kemas kini versi Firefox",

@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs-säännöt päivitetty",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs-sääntöjen lataus epäonnistui",
   "appSettingsFirefoxVersion": "Firefox-versio",
+  "appSettingsFirefoxVersionHint": "Sivuston User-Agent-kentän “satunnaista”-painike luo Firefox-User-Agentteja tässä näkyvällä versiolla. Tämä koontiversio sisältää sisäänrakennetun Firefox-version. Napauta päivitä noutaaksesi nykyisen Firefox-version Mozillan julkaisemasta lähteestä verkon kautta ja päivittääksesi luodut User-Agentit. Sovellus ei koskaan tarkista tätä automaattisesti; se ottaa yhteyden verkkoon vain, kun napautat päivitä.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Tarkistettu: {date}",
   "appSettingsUpdateFirefoxVersion": "Päivitä Firefox-versio",

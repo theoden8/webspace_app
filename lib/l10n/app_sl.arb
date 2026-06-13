@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Pravila ClearURLs posodobljena",
   "appSettingsClearUrlsDownloadFailed": "Prenos pravil ClearURLs ni uspel",
   "appSettingsFirefoxVersion": "Različica Firefoxa",
+  "appSettingsFirefoxVersionHint": "Gumb »naključno« v polju User-Agent spletnega mesta ustvari Firefoxove User-Agente v različici, prikazani tukaj. Ta gradnja vključuje vgrajeno različico Firefoxa. Tapnite posodobi, da prek omrežja pridobite trenutno različico Firefoxa iz objavljenega vira Mozille in osvežite ustvarjene User-Agente. Aplikacija tega nikoli ne preverja samodejno; z omrežjem se poveže le, ko tapnete posodobi.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Preverjeno: {date}",
   "appSettingsUpdateFirefoxVersion": "Posodobi različico Firefoxa",

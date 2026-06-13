@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs noteikumi atjaunināti",
   "appSettingsClearUrlsDownloadFailed": "Neizdevās lejupielādēt ClearURLs noteikumus",
   "appSettingsFirefoxVersion": "Firefox versija",
+  "appSettingsFirefoxVersionHint": "Vietnes User-Agent laukā esošā poga “nejauši” izveido Firefox User-Agent ar šeit redzamo versiju. Šis būvējums tiek piegādāts ar iebūvētu Firefox versiju. Pieskarieties atjaunināt, lai tīklā no Mozilla publicētā avota iegūtu pašreizējo Firefox versiju un atsvaidzinātu ģenerētos User-Agent. Lietotne to nekad nepārbauda automātiski; tā sazinās ar tīklu tikai tad, kad pieskaraties atjaunināt.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Pārbaudīts: {date}",
   "appSettingsUpdateFirefoxVersion": "Atjaunināt Firefox versiju",

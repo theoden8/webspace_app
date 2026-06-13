@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs नियम अपडेट किए गए",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs नियम डाउनलोड करने में विफल",
   "appSettingsFirefoxVersion": "Firefox संस्करण",
+  "appSettingsFirefoxVersionHint": "किसी साइट के User-Agent फ़ील्ड में “यादृच्छिक” बटन यहाँ दिखाए गए संस्करण पर Firefox User-Agent बनाता है। यह बिल्ड एक अंतर्निहित Firefox संस्करण के साथ आता है। नेटवर्क पर Mozilla के प्रकाशित स्रोत से वर्तमान Firefox संस्करण लाने और बनाए गए User-Agent को ताज़ा करने के लिए अपडेट टैप करें। ऐप कभी भी इसे स्वचालित रूप से जाँचता नहीं है; यह केवल तभी नेटवर्क से संपर्क करता है जब आप अपडेट टैप करते हैं।",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "जाँचा गया: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox संस्करण अपडेट करें",

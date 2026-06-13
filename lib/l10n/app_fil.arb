@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Na-update ang mga panuntunan ng ClearURLs",
   "appSettingsClearUrlsDownloadFailed": "Nabigong i-download ang mga panuntunan ng ClearURLs",
   "appSettingsFirefoxVersion": "Bersyon ng Firefox",
+  "appSettingsFirefoxVersionHint": "Ang button na “random” sa User-Agent field ng isang site ay gumagawa ng mga Firefox User-Agent sa bersyong ipinapakita rito. Ang build na ito ay may nakapaloob na bersyon ng Firefox. I-tap ang update upang kunin ang kasalukuyang bersyon ng Firefox mula sa inilathalang pinagmulan ng Mozilla sa pamamagitan ng network at i-refresh ang mga nabuong User-Agent. Hindi kailanman ito sinusuri ng app nang awtomatiko; kumokonekta lang ito sa network kapag tininap mo ang update.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Nasuri: {date}",
   "appSettingsUpdateFirefoxVersion": "I-update ang bersyon ng Firefox",

@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Diweddarwyd rheolau ClearURLs",
   "appSettingsClearUrlsDownloadFailed": "Methwyd lawrlwytho rheolau ClearURLs",
   "appSettingsFirefoxVersion": "Fersiwn Firefox",
+  "appSettingsFirefoxVersionHint": "Mae'r botwm “ar hap” ym maes User-Agent gwefan yn cynhyrchu User-Agents Firefox ar y fersiwn a ddangosir yma. Mae'r adeiladwaith hwn yn dod â fersiwn Firefox wedi'i hadeiladu i mewn. Tapiwch diweddaru i nôl fersiwn gyfredol Firefox o ffynhonnell gyhoeddedig Mozilla dros y rhwydwaith ac adnewyddu'r User-Agents a gynhyrchwyd. Nid yw'r ap byth yn gwirio hyn yn awtomatig; dim ond pan dapiwch diweddaru y mae'n cysylltu â'r rhwydwaith.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Gwiriwyd: {date}",
   "appSettingsUpdateFirefoxVersion": "Diweddaru fersiwn Firefox",

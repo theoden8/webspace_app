@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Kanuni za ClearURLs zimesasishwa",
   "appSettingsClearUrlsDownloadFailed": "Imeshindwa kupakua kanuni za ClearURLs",
   "appSettingsFirefoxVersion": "Toleo la Firefox",
+  "appSettingsFirefoxVersionHint": "Kitufe cha “nasibu” katika sehemu ya User-Agent ya tovuti huzalisha User-Agent za Firefox kwa toleo linaloonyeshwa hapa. Toleo hili huja na toleo la Firefox lililojengwa ndani. Gusa sasisha ili kupata toleo la sasa la Firefox kutoka chanzo kilichochapishwa na Mozilla kupitia mtandao na kuonyesha upya User-Agent zilizozalishwa. Programu haikagui hili kiotomatiki kamwe; huwasiliana na mtandao tu unapogusa sasisha.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Imekaguliwa: {date}",
   "appSettingsUpdateFirefoxVersion": "Sasisha toleo la Firefox",

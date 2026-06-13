@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs ನಿಯಮಗಳನ್ನು ನವೀಕರಿಸಲಾಗಿದೆ",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs ನಿಯಮಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು ವಿಫಲವಾಗಿದೆ",
   "appSettingsFirefoxVersion": "Firefox ಆವೃತ್ತಿ",
+  "appSettingsFirefoxVersionHint": "ಸೈಟ್‌ನ User-Agent ಕ್ಷೇತ್ರದಲ್ಲಿನ “ಯಾದೃಚ್ಛಿಕ” ಬಟನ್ ಇಲ್ಲಿ ತೋರಿಸಿರುವ ಆವೃತ್ತಿಯಲ್ಲಿ Firefox User-Agent ಗಳನ್ನು ರಚಿಸುತ್ತದೆ. ಈ ಬಿಲ್ಡ್ ಒಂದು ಅಂತರ್ನಿರ್ಮಿತ Firefox ಆವೃತ್ತಿಯೊಂದಿಗೆ ಬರುತ್ತದೆ. ನೆಟ್‌ವರ್ಕ್ ಮೂಲಕ Mozilla ಪ್ರಕಟಿಸಿದ ಮೂಲದಿಂದ ಪ್ರಸ್ತುತ Firefox ಆವೃತ್ತಿಯನ್ನು ತರಲು ಮತ್ತು ರಚಿಸಿದ User-Agent ಗಳನ್ನು ರಿಫ್ರೆಶ್ ಮಾಡಲು ನವೀಕರಿಸಿ ಟ್ಯಾಪ್ ಮಾಡಿ. ಅಪ್ಲಿಕೇಶನ್ ಇದನ್ನು ಎಂದಿಗೂ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಪರಿಶೀಲಿಸುವುದಿಲ್ಲ; ನೀವು ನವೀಕರಿಸಿ ಟ್ಯಾಪ್ ಮಾಡಿದಾಗ ಮಾತ್ರ ಅದು ನೆಟ್‌ವರ್ಕ್ ಅನ್ನು ಸಂಪರ್ಕಿಸುತ್ತದೆ.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "ಪರಿಶೀಲಿಸಲಾಗಿದೆ: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox ಆವೃತ್ತಿಯನ್ನು ನವೀಕರಿಸಿ",

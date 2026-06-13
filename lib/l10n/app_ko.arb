@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs 규칙이 업데이트되었습니다",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs 규칙을 다운로드하지 못했습니다",
   "appSettingsFirefoxVersion": "Firefox 버전",
+  "appSettingsFirefoxVersionHint": "사이트의 User-Agent 필드에 있는 “무작위” 버튼은 여기에 표시된 버전으로 Firefox User-Agent를 생성합니다. 이 빌드에는 Firefox 버전이 내장되어 있습니다. 업데이트를 누르면 네트워크를 통해 Mozilla가 게시한 소스에서 현재 Firefox 릴리스 버전을 가져와 생성된 User-Agent를 새로 고칩니다. 앱은 이를 자동으로 확인하지 않습니다. 업데이트를 누를 때만 네트워크에 연결합니다.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "확인됨: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox 버전 업데이트",

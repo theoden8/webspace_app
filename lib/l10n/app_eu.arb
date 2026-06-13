@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs arauak eguneratuta",
   "appSettingsClearUrlsDownloadFailed": "Ezin izan dira ClearURLs arauak deskargatu",
   "appSettingsFirefoxVersion": "Firefox bertsioa",
+  "appSettingsFirefoxVersionHint": "Gune baten User-Agent eremuko “ausaz” botoiak hemen agertzen den bertsioko Firefox User-Agentak sortzen ditu. Konpilazio honek Firefox bertsio bat dakar txertatuta. Sakatu eguneratu Mozillaren iturri argitaratutik sareko bidez uneko Firefox bertsioa eskuratu eta sortutako User-Agentak freskatzeko. Aplikazioak ez du hau inoiz automatikoki egiaztatzen; sarera eguneratu sakatzean baino ez da konektatzen.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Egiaztatua: {date}",
   "appSettingsUpdateFirefoxVersion": "Eguneratu Firefox bertsioa",

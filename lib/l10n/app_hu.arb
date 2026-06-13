@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs szabályok frissítve",
   "appSettingsClearUrlsDownloadFailed": "Nem sikerült letölteni a ClearURLs szabályokat",
   "appSettingsFirefoxVersion": "Firefox verzió",
+  "appSettingsFirefoxVersionHint": "Egy webhely User-Agent mezőjében a „véletlenszerű” gomb az itt látható verzióval hoz létre Firefox-User-Agenteket. Ez a build beépített Firefox-verziót tartalmaz. Koppintson a frissítésre az aktuális Firefox-verzió hálózaton keresztüli letöltéséhez a Mozilla közzétett forrásából, és a létrehozott User-Agentek frissítéséhez. Az alkalmazás ezt soha nem ellenőrzi automatikusan; csak akkor lép kapcsolatba a hálózattal, amikor a frissítésre koppint.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Ellenőrizve: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox verzió frissítése",

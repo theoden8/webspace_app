@@ -1127,6 +1127,10 @@
   "@appSettingsFirefoxVersion": {
     "description": "Title for the Firefox version entry that controls which Firefox version generated User-Agents use"
   },
+  "appSettingsFirefoxVersionHint": "The \"randomize\" button in a site's User-Agent field produces Firefox User-Agents at the version shown here. This build ships with a Firefox version baked in. Tap update to fetch the current Firefox release version from Mozilla's published source over the network and refresh the generated User-Agents. The app never checks this automatically; it only contacts the network when you tap update.",
+  "@appSettingsFirefoxVersionHint": {
+    "description": "Hint dialog explaining the Firefox version control and that the update button is the only time the app accesses the network for this"
+  },
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "@appSettingsFirefoxVersionCurrent": {
     "description": "Subtitle showing the current Firefox major version used for generated User-Agents",

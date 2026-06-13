@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs правила ажурирана",
   "appSettingsClearUrlsDownloadFailed": "Неуспешно преузимање ClearURLs правила",
   "appSettingsFirefoxVersion": "Верзија Firefox-а",
+  "appSettingsFirefoxVersionHint": "Дугме „насумично“ у пољу User-Agent сајта ствара Firefox User-Agent у верзији приказаној овде. Ова верзија долази са уграђеном верзијом Firefox-а. Додирните ажурирај да преузмете тренутну верзију Firefox-а из Mozilla-иног објављеног извора преко мреже и освежите генерисане User-Agent. Апликација ово никада не проверава аутоматски; мрежи приступа само када додирнете ажурирај.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Проверено: {date}",
   "appSettingsUpdateFirefoxVersion": "Ажурирај верзију Firefox-а",

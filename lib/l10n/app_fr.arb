@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Règles ClearURLs mises à jour",
   "appSettingsClearUrlsDownloadFailed": "Échec du téléchargement des règles ClearURLs",
   "appSettingsFirefoxVersion": "Version de Firefox",
+  "appSettingsFirefoxVersionHint": "Le bouton « aléatoire » dans le champ User-Agent d'un site produit des User-Agents Firefox à la version affichée ici. Cette version de l'application intègre une version de Firefox. Appuyez sur mettre à jour pour récupérer la version actuelle de Firefox depuis la source publiée de Mozilla via le réseau et actualiser les User-Agents générés. L'application ne vérifie jamais cela automatiquement ; elle ne contacte le réseau que lorsque vous appuyez sur mettre à jour.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Vérifié : {date}",
   "appSettingsUpdateFirefoxVersion": "Mettre à jour la version de Firefox",

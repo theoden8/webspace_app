@@ -1387,17 +1387,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             title: Row(
               children: [
                 Text(loc.appSettingsFirefoxVersion),
-                const HintButton(
-                  title: 'Firefox version',
-                  description:
-                      'The "randomize" button in a site\'s User-Agent field '
-                      'produces Firefox User-Agents at the version shown here. '
-                      'This build ships with a Firefox version baked in. Tap '
-                      'update to fetch the current Firefox release version from '
-                      'Mozilla\'s published source over the network and refresh '
-                      'the generated User-Agents. The app never checks this '
-                      'automatically — it only contacts the network when you '
-                      'tap update.',
+                HintButton(
+                  title: loc.appSettingsFirefoxVersion,
+                  description: loc.appSettingsFirefoxVersionHint,
                 ),
               ],
             ),

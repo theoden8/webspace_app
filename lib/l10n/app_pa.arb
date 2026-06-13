@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs ਨਿਯਮ ਅੱਪਡੇਟ ਹੋਏ",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs ਨਿਯਮ ਡਾਊਨਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਫ਼ਲ",
   "appSettingsFirefoxVersion": "Firefox ਵਰਜਨ",
+  "appSettingsFirefoxVersionHint": "ਕਿਸੇ ਸਾਈਟ ਦੇ User-Agent ਖੇਤਰ ਵਿੱਚ “ਬੇਤਰਤੀਬ” ਬਟਨ ਇੱਥੇ ਦਿਖਾਏ ਸੰਸਕਰਣ 'ਤੇ Firefox User-Agent ਬਣਾਉਂਦਾ ਹੈ। ਇਹ ਬਿਲਡ ਇੱਕ ਅੰਦਰੂਨੀ Firefox ਸੰਸਕਰਣ ਨਾਲ ਆਉਂਦਾ ਹੈ। ਨੈੱਟਵਰਕ ਰਾਹੀਂ Mozilla ਦੇ ਪ੍ਰਕਾਸ਼ਿਤ ਸਰੋਤ ਤੋਂ ਮੌਜੂਦਾ Firefox ਸੰਸਕਰਣ ਲਿਆਉਣ ਅਤੇ ਬਣਾਏ User-Agent ਤਾਜ਼ਾ ਕਰਨ ਲਈ ਅੱਪਡੇਟ ਟੈਪ ਕਰੋ। ਐਪ ਇਸਨੂੰ ਕਦੇ ਵੀ ਆਪੇ ਜਾਂਚ ਨਹੀਂ ਕਰਦੀ; ਇਹ ਸਿਰਫ਼ ਤਦ ਨੈੱਟਵਰਕ ਨਾਲ ਸੰਪਰਕ ਕਰਦੀ ਹੈ ਜਦੋਂ ਤੁਸੀਂ ਅੱਪਡੇਟ ਟੈਪ ਕਰਦੇ ਹੋ।",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "ਜਾਂਚਿਆ: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox ਵਰਜਨ ਅੱਪਡੇਟ ਕਰੋ",

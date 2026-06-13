@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs reeglid uuendatud",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs reeglite allalaadimine ebaõnnestus",
   "appSettingsFirefoxVersion": "Firefoxi versioon",
+  "appSettingsFirefoxVersionHint": "Saidi User-Agent välja nupp “juhuslik” loob siin kuvatud versiooniga Firefoxi User-Agente. See järk sisaldab sisseehitatud Firefoxi versiooni. Puudutage värskenda, et tuua võrgu kaudu Mozilla avaldatud allikast praegune Firefoxi versioon ja värskendada loodud User-Agente. Rakendus ei kontrolli seda kunagi automaatselt; see võtab võrguga ühendust ainult siis, kui puudutate värskenda.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Kontrollitud: {date}",
   "appSettingsUpdateFirefoxVersion": "Uuenda Firefoxi versiooni",

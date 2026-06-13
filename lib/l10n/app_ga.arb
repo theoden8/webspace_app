@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Nuashonraíodh rialacha ClearURLs",
   "appSettingsClearUrlsDownloadFailed": "Theip ar rialacha ClearURLs a íoslódáil",
   "appSettingsFirefoxVersion": "Leagan Firefox",
+  "appSettingsFirefoxVersionHint": "Cruthaíonn an cnaipe “randamach” i réimse User-Agent suímh User-Agents Firefox sa leagan a thaispeántar anseo. Tagann an tógáil seo le leagan Firefox ionsuite. Tapáil nuashonraigh chun an leagan reatha Firefox a fháil ó fhoinse fhoilsithe Mozilla thar an líonra agus na User-Agents a gineadh a athnuachan. Ní sheiceálann an feidhmchlár é seo go huathoibríoch riamh; ní dhéanann sé teagmháil leis an líonra ach amháin nuair a thapálann tú nuashonraigh.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Seiceáilte: {date}",
   "appSettingsUpdateFirefoxVersion": "Nuashonraigh leagan Firefox",

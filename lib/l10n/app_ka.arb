@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs წესები განახლდა",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs წესების ჩამოტვირთვა ვერ მოხერხდა",
   "appSettingsFirefoxVersion": "Firefox-ის ვერსია",
+  "appSettingsFirefoxVersionHint": "საიტის User-Agent ველში არსებული ღილაკი „შემთხვევითი“ ქმნის Firefox-ის User-Agent-ებს აქ ნაჩვენები ვერსიით. ეს ანაწყობი მოყვება ჩაშენებულ Firefox-ის ვერსიას. შეეხეთ განახლებას, რათა ქსელით ჩამოტვირთოთ Firefox-ის მიმდინარე ვერსია Mozilla-ს გამოქვეყნებული წყაროდან და განაახლოთ შექმნილი User-Agent-ები. აპლიკაცია ამას არასოდეს ამოწმებს ავტომატურად; ის ქსელს უკავშირდება მხოლოდ მაშინ, როცა შეეხებით განახლებას.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "შემოწმდა: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox-ის ვერსიის განახლება",

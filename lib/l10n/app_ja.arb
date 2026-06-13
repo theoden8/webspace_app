@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "ClearURLs ルールを更新しました",
   "appSettingsClearUrlsDownloadFailed": "ClearURLs ルールのダウンロードに失敗しました",
   "appSettingsFirefoxVersion": "Firefox のバージョン",
+  "appSettingsFirefoxVersionHint": "サイトの User-Agent 欄にある「ランダム」ボタンは、ここに表示されているバージョンで Firefox の User-Agent を生成します。このビルドには Firefox のバージョンが組み込まれています。更新をタップすると、Mozilla が公開しているソースから現在の Firefox リリースバージョンをネットワーク経由で取得し、生成される User-Agent を更新します。アプリがこれを自動的に確認することはありません。ネットワークに接続するのは更新をタップしたときだけです。",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "確認日時: {date}",
   "appSettingsUpdateFirefoxVersion": "Firefox のバージョンを更新",

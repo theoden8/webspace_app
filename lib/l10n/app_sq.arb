@@ -229,6 +229,7 @@
   "appSettingsClearUrlsUpdated": "Rregullat e ClearURLs u përditësuan",
   "appSettingsClearUrlsDownloadFailed": "Shkarkimi i rregullave të ClearURLs dështoi",
   "appSettingsFirefoxVersion": "Versioni i Firefox-it",
+  "appSettingsFirefoxVersionHint": "Butoni “rastësisht” në fushën User-Agent të një faqeje krijon User-Agent të Firefox-it në versionin e shfaqur këtu. Ky ndërtim vjen me një version Firefox të integruar. Trokitni përditëso për të marrë versionin aktual të Firefox-it nga burimi i publikuar i Mozilla-s përmes rrjetit dhe për të rifreskuar User-Agent-et e krijuar. Aplikacioni nuk e kontrollon kurrë këtë automatikisht; lidhet me rrjetin vetëm kur trokitni përditëso.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Kontrolluar: {date}",
   "appSettingsUpdateFirefoxVersion": "Përditëso versionin e Firefox-it",

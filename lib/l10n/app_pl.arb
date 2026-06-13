@@ -227,6 +227,7 @@
   "appSettingsClearUrlsUpdated": "Zaktualizowano reguły ClearURLs",
   "appSettingsClearUrlsDownloadFailed": "Nie udało się pobrać reguł ClearURLs",
   "appSettingsFirefoxVersion": "Wersja Firefoksa",
+  "appSettingsFirefoxVersionHint": "Przycisk „losowo” w polu User-Agent witryny tworzy User-Agenty Firefoksa w wersji pokazanej tutaj. Ta kompilacja zawiera wbudowaną wersję Firefoksa. Dotknij aktualizuj, aby pobrać przez sieć bieżącą wersję Firefoksa z opublikowanego źródła Mozilli i odświeżyć wygenerowane User-Agenty. Aplikacja nigdy nie sprawdza tego automatycznie; łączy się z siecią tylko wtedy, gdy dotkniesz aktualizuj.",
   "appSettingsFirefoxVersionCurrent": "Firefox {version}",
   "appSettingsFirefoxVersionChecked": "Sprawdzono: {date}",
   "appSettingsUpdateFirefoxVersion": "Zaktualizuj wersję Firefoksa",
