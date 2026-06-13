@@ -33,6 +33,7 @@ const IDENTICAL_EVERYWHERE_ALLOWLIST = new Set([
   'linkHandlingHostnameHint', // example.com (example host)
   'linkHandlingTestUrlHint', // https://example.org/foo (example URL)
   'siteSettingsLetterboxAutoHint', // "auto" (universal token)
+  'appSettingsFirefoxVersionCurrent', // "Firefox {version}" (brand + number)
 ]);
 
 const loadArb = (name) => JSON.parse(fs.readFileSync(path.join(arbDir, name), 'utf8'));
