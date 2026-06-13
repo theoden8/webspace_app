@@ -1,0 +1,10 @@
+✨ New Features:
+• Per-site page zoom and DRM video playback
+
+🔧 Improvements:
+• Screen size protection
+
+🐛 Bug Fixes:
+• Full screen, crashes, and cross-domain links
+• Authenticated proxies on Android
+• More reliable home shortcuts
