@@ -5709,16 +5709,20 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// Whether the bottom tab strip should currently occupy the
-  /// bottomNavigationBar slot. In fullscreen it shows only when kept there
-  /// by the global pref, or temporarily revealed by the tab-bar button.
+  /// bottomNavigationBar slot. Out of fullscreen it follows the "Site Tab
+  /// Strip" pref. In fullscreen it shows when kept there by the global pref,
+  /// or temporarily revealed by the tab-bar button (which works on its own,
+  /// independent of the always-on strip).
   bool get _tabStripShown {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       return false;
     }
-    if (!_showTabStrip || _getFilteredSiteIndices().isEmpty) return false;
-    if (!_isFullscreen) return true;
-    return _tabStripInFullscreen ||
-        (_tabBarButtonInFullscreen && _tabBarOverlayVisible);
+    if (_getFilteredSiteIndices().isEmpty) return false;
+    if (_isFullscreen) {
+      if (_showTabStrip && _tabStripInFullscreen) return true;
+      return _tabBarButtonInFullscreen && _tabBarOverlayVisible;
+    }
+    return _showTabStrip;
   }
 
   /// Build the tab strip shown in bottomNavigationBar.
@@ -5750,6 +5754,18 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
         child: Row(
           children: [
+            // When the strip was revealed by the fullscreen tab-bar button,
+            // its dismiss control lives inside the bar (not as a separate
+            // floating cross above it).
+            if (_tabBarOverlayVisible)
+              IconButton(
+                icon: const Icon(Icons.close),
+                iconSize: 20,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() {
+                  _tabBarOverlayVisible = false;
+                }),
+              ),
             Expanded(
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
@@ -7195,12 +7211,13 @@ class _WebSpacePageState extends State<WebSpacePage>
                   }),
                 // Fullscreen tab-bar button: a small floating control that
                 // reveals the tab strip on demand while the rest of the chrome
-                // stays hidden. Only shown when the tab strip is enabled but
-                // not permanently kept in fullscreen.
+                // stays hidden. Works on its own (no always-on strip needed).
+                // Hidden once the strip is showing — its dismiss control then
+                // lives inside the bar instead.
                 if (_isFullscreen &&
                     _tabBarButtonInFullscreen &&
-                    !_tabStripInFullscreen &&
-                    _showTabStrip)
+                    !(_showTabStrip && _tabStripInFullscreen) &&
+                    !_tabBarOverlayVisible)
                   Positioned(
                     bottom: 16,
                     left: _tabBarButtonOnRight ? null : 16,
@@ -7215,14 +7232,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                       child: InkWell(
                         customBorder: const CircleBorder(),
                         onTap: () => setState(() {
-                          _tabBarOverlayVisible = !_tabBarOverlayVisible;
+                          _tabBarOverlayVisible = true;
                         }),
                         child: Padding(
                           padding: const EdgeInsets.all(10),
                           child: Icon(
-                            _tabBarOverlayVisible
-                                ? Icons.close
-                                : Icons.tab,
+                            Icons.tab,
                             size: 22,
                             color: Theme.of(context).colorScheme.onPrimary,
                           ),

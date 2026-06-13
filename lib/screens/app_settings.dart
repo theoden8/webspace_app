@@ -823,14 +823,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             title: Text(loc.appSettingsTabBarButton),
             subtitle: Text(loc.appSettingsTabBarButtonSubtitle),
             value: _tabBarButtonInFullscreen,
-            onChanged: _showTabStrip
-                ? (value) {
-                    setState(() {
-                      _tabBarButtonInFullscreen = value;
-                    });
-                    widget.onTabBarButtonInFullscreenChanged(value);
-                  }
-                : null,
+            onChanged: (value) {
+              setState(() {
+                _tabBarButtonInFullscreen = value;
+              });
+              widget.onTabBarButtonInFullscreenChanged(value);
+            },
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -851,7 +849,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   selected: {_tabBarButtonOnRight},
                   showSelectedIcon: false,
                   onSelectionChanged:
-                      (_showTabStrip && _tabBarButtonInFullscreen)
+                      _tabBarButtonInFullscreen
                           ? (selection) {
                               final value = selection.first;
                               setState(() {
@@ -888,14 +886,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                       max: 320,
                       divisions: 24,
                       label: tabWidthLabel,
-                      onChanged: _showTabStrip
+                      onChanged: (_showTabStrip || _tabBarButtonInFullscreen)
                           ? (value) {
                               setState(() {
                                 _tabMaxWidth = value;
                               });
                             }
                           : null,
-                      onChangeEnd: _showTabStrip
+                      onChangeEnd: (_showTabStrip || _tabBarButtonInFullscreen)
                           ? (value) {
                               widget.onTabMaxWidthChanged(value.round());
                             }
