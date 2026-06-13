@@ -78,6 +78,61 @@ void main() {
     });
   }
 
+  test('no key is left as the English source across every locale', () {
+    // Key/placeholder parity (above) cannot tell a real translation from an
+    // English value copied verbatim into every locale to satisfy parity. A
+    // string identical to the template in ALL locales was almost certainly
+    // never translated. Coincidental matches in only SOME locales (a genuine
+    // translation that happens to equal English, e.g. "OK", "URL") are fine
+    // and stay below this threshold, so they are not flagged.
+    //
+    // The allowlist (_identicalEverywhereAllowlist) holds strings that are
+    // legitimately identical in every locale: brand/product names, acronyms,
+    // example hosts, and universal tokens. Add to it only when a value is
+    // genuinely untranslatable.
+    final locales = [
+      for (final f in localeFiles) _loadArb(f.path),
+    ];
+    final offenders = <String>[];
+    for (final k in templateKeys) {
+      if (_identicalEverywhereAllowlist.contains(k)) continue;
+      final tv = template[k] as String;
+      final identicalEverywhere = locales.every((arb) => arb[k] == tv);
+      if (identicalEverywhere) offenders.add(k);
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'These keys are the English source in every locale (never '
+          'translated): $offenders. Translate them in each app_<x>.arb, or '
+          'if a value is genuinely universal (brand, acronym, example) add '
+          'its key to the allowlist in this test.',
+    );
+  });
+
+  test('every allowlisted key is actually identical across all locales', () {
+    // Keeps the allowlist honest: once a key is translated everywhere it no
+    // longer needs an exemption, so a stale entry should be removed.
+    final locales = [
+      for (final f in localeFiles) _loadArb(f.path),
+    ];
+    final stale = <String>[];
+    for (final k in _identicalEverywhereAllowlist) {
+      if (!templateKeys.contains(k)) {
+        stale.add('$k (absent from template)');
+        continue;
+      }
+      final tv = template[k] as String;
+      if (!locales.every((arb) => arb[k] == tv)) stale.add(k);
+    }
+    expect(
+      stale,
+      isEmpty,
+      reason: 'Allowlisted keys that are no longer English-in-every-locale '
+          '(remove them from the allowlist): $stale',
+    );
+  });
+
   test('gen-l10n reported zero untranslated messages', () {
     final report = File('l10n_untranslated.json');
     if (!report.existsSync()) return; // regenerated on build; absent in isolation
@@ -89,6 +144,26 @@ void main() {
     );
   });
 }
+
+/// Keys whose value is legitimately identical in every locale (brand/product
+/// names, acronyms, example hosts, universal tokens), so they are exempt from
+/// the "never translated across every locale" guard.
+const _identicalEverywhereAllowlist = <String>{
+  'appTitle', // WebSpace (product name)
+  'appSettingsLocalCdn', // LocalCDN (product name)
+  'siteSettingsLocalCdn', // LocalCDN
+  'siteSettingsClearUrls', // ClearURLs (product name)
+  'devToolsTabAbp', // ABP (acronym)
+  'devToolsTabDns', // DNS (acronym)
+  'siteSettingsLocationProviderGps', // GPS (acronym)
+  'siteSettingsLocationProviderGsm', // GSM (acronym)
+  'siteSettingsUserAgent', // User-Agent (HTTP header name)
+  'trustedCertFingerprintLabel', // SHA-256 (acronym)
+  'untrustedCertSha256', // SHA-256
+  'linkHandlingHostnameHint', // example.com (example host)
+  'linkHandlingTestUrlHint', // https://example.org/foo (example URL)
+  'siteSettingsLetterboxAutoHint', // "auto" (universal token)
+};
 
 Map<String, dynamic> _loadArb(String path) {
   final decoded = jsonDecode(File(path).readAsStringSync());
