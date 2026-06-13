@@ -100,6 +100,21 @@ matching placeholder tokens and no empty values.
 - **When** the report exists after generation
 - **Then** it is `{}` (no untranslated messages) or the coverage test fails
 
+#### Scenario: English-verbatim values are flagged as never-translated
+
+- **Given** a template key back-filled into every locale ARB as a copy of the
+  English value (key parity passes, but no actual translation happened)
+- **When** the key's value equals the template value in **all** non-template
+  locales and the key is not on the universal-token allowlist
+- **Then** `test/l10n_coverage_test.dart` fails, telling the maintainer to
+  translate the key or add it to the allowlist
+- **And** a value identical in only *some* locales (a real translation that
+  coincides, e.g. `OK`, `URL`) does NOT fail, since the signal is "identical
+  across the entire locale set," not a per-locale coincidence
+- **And** the allowlist holds genuinely universal strings (brand/product
+  names like `WebSpace`, `LocalCDN`, `ClearURLs`; acronyms like `DNS`, `GPS`,
+  `SHA-256`; example hosts/URLs; and `auto`) so they never trip the guard
+
 ### Requirement: LOC-004 - Description-driven translation
 
 Every template message SHALL carry a `description` so the strings can be
