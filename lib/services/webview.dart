@@ -1326,8 +1326,25 @@ class WebViewFactory {
   /// no native textZoom split. Injected at DOCUMENT_START via a re-applied
   /// style element so it survives same-document navigations and reaches
   /// iframes.
-  static String _pageZoomCss(int zoomPercent) =>
-      'html{zoom:$zoomPercent% !important;}';
+  ///
+  /// `zoom` alone scales the root box but leaves the layout viewport at
+  /// device-width, so a <100% zoom renders the page small with empty
+  /// gutters instead of reflowing to fill the screen like a desktop
+  /// browser does. Widening the root by the inverse zoom factor expands
+  /// the layout viewport first; `zoom` then scales it back to fill the
+  /// viewport, so content reflows and no gutter is left.
+  static String _pageZoomCss(int zoomPercent) {
+    final widthPercent = _trimZoomNum(100 * 100 / zoomPercent);
+    return 'html{zoom:$zoomPercent% !important;width:$widthPercent% !important;}';
+  }
+
+  static String _trimZoomNum(double v) {
+    var s = v.toStringAsFixed(4);
+    if (s.contains('.')) {
+      s = s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+    }
+    return s;
+  }
 
   static String _pageZoomScript(int zoomPercent) => '''
 (function(){
@@ -1342,8 +1359,19 @@ class WebViewFactory {
     }
     el.textContent=css;
   }
+  function relayout(){
+    apply();
+    // Root `zoom` applied at document start can leave Blink showing a
+    // blank frame until a layout invalidation lands (it needs a manual
+    // reload to recover otherwise); force a reflow and resize to nudge
+    // the compositor into painting the zoomed page.
+    try{void document.documentElement.offsetHeight;}catch(e){}
+    try{window.dispatchEvent(new Event('resize'));}catch(e){}
+  }
   if(document.documentElement){apply();}
   else{document.addEventListener('DOMContentLoaded',apply);}
+  window.addEventListener('DOMContentLoaded',relayout);
+  window.addEventListener('load',relayout);
 })();''';
 
   /// Determine if a navigation was triggered by a user gesture.
