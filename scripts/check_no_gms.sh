@@ -49,18 +49,40 @@ fi
 
 FORBIDDEN_REGEX='^(com\.google\.android\.gms|com\.google\.firebase|com\.google\.android\.play)'
 
-# `apkanalyzer dex packages --defined-only` lists every package defined in
-# the APK's DEX files (one column = "P" / "C" / "M" + name). We drop to
-# the package column with awk and grep against the forbidden namespaces.
-HITS="$("$APKANALYZER" dex packages --defined-only "$APK" 2>/dev/null \
-  | awk '$1 == "P" {print $NF}' \
-  | grep -E "$FORBIDDEN_REGEX" || true)"
+# `apkanalyzer dex packages` lists every package (P), class (C) and method
+# (M) node in the APK's DEX files, each tagged defined ("d") or referenced
+# ("r"). We deliberately do NOT pass --defined-only: F-Droid's scanner
+# rejects an APK that merely *references* a forbidden class, and Flutter's
+# embedding references com.google.android.play.core.* from its
+# deferred-components code path (PlayStoreDeferredComponentManager). With
+# R8 shrinking disabled (-dontshrink in proguard-rules.pro) those
+# references survive into the dex even though the app never instantiates
+# that manager — so a defined-only scan reports a clean APK that F-Droid
+# then bounces. Scan references too, matching F-Droid's contract.
+#
+# Match P and C rows (their name is the last field); M rows carry a method
+# signature with embedded spaces, but every forbidden class already shows
+# up as a C row, so they add nothing.
+err_file="$(mktemp)"
+trap 'rm -f "$err_file"' EXIT
+
+if ! DEX_TREE="$("$APKANALYZER" dex packages "$APK" 2>"$err_file")"; then
+  echo "ERROR: apkanalyzer failed to read $APK" >&2
+  cat "$err_file" >&2
+  exit 2
+fi
+
+HITS="$(printf '%s\n' "$DEX_TREE" \
+  | awk '$1 == "P" || $1 == "C" { print $NF }' \
+  | grep -E "$FORBIDDEN_REGEX" \
+  | sort -u || true)"
 
 if [[ -n "$HITS" ]]; then
   echo "GMS contamination detected in $APK:" >&2
   echo "$HITS" >&2
   echo "" >&2
   echo "WebSpace must run on devices without Google Mobile Services." >&2
+  echo "These classes are defined or referenced in the shipped DEX." >&2
   echo "Investigate which dependency pulled these in and remove or strip it." >&2
   exit 1
 fi

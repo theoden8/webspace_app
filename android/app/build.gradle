@@ -108,10 +108,13 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
-            // R8 in optimize-only mode (shrink + obfuscate disabled in
-            // proguard-rules.pro). The sole effect is dropping
-            // android.util.Log.d/.v calls so debug-level log lines don't
-            // reach release logcat. shrinkResources stays off.
+            // R8 in shrink + optimize mode (obfuscation disabled in
+            // proguard-rules.pro to keep reflection/JNI names intact).
+            // Shrinking prunes Flutter's dead Play deferred-components path
+            // (and its com.google.android.play.core.* refs that F-Droid
+            // rejects); the optimize pass drops android.util.Log.d/.v so
+            // debug-level log lines don't reach release logcat.
+            // shrinkResources stays off.
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }

@@ -244,6 +244,24 @@ jobs:
             bash scripts/check_no_gms.sh "$apk"
           done
 
+      - name: Verify JNI bridge survived shrinking
+        # Release R8 shrinks (to strip Flutter's dead Play Core path); a
+        # regression that flips obfuscation on or drops the native-methods
+        # keep would rename/remove the Rust adblock JNI entry points, failing
+        # only at runtime (UnsatisfiedLinkError). Assert they're still in the
+        # DEX. .so-independent: the Kotlin bridge compiles regardless.
+        run: |
+          set -e
+          shopt -s nullglob
+          apks=( build/app/outputs/flutter-apk/*-fdroid-release.apk )
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "ERROR: no fdroid APK found to scan" >&2
+            exit 1
+          fi
+          for apk in "${apks[@]}"; do
+            bash scripts/check_jni_intact.sh "$apk"
+          done
+
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
