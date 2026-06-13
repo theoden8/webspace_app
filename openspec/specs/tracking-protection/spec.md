@@ -348,10 +348,16 @@ of `hardwareConcurrency`, `deviceMemory`, `plugins`, `mimeTypes`,
 ### Requirement: ETP-020 - Letterbox window sizing
 
 Sites with `letterboxEnabled` SHALL render the WebView in a centered box
-sized to the available area snapped DOWN to a 200x100 logical-pixel grid
-(Tor-style letterboxing), with the leftover area drawn as a margin, so the
-real viewport (`window.inner*`) is bucketed and many device sizes collapse
-onto the same value. The sizing is pure Flutter (`computeLetterboxTarget` +
+sized to the available area snapped DOWN to a grid (Tor-style
+letterboxing), with the leftover area drawn as a margin, so the real
+viewport (`window.inner*`) is bucketed and many device sizes collapse onto
+the same value. The grid starts at 200x100 logical pixels and is refined
+per axis (halving the step) until the trimmed margin is at most
+`kLetterboxMaxMarginFraction` (1/8) of that axis, so a phone-width viewport
+keeps a thin margin instead of collapsing to a 200px sliver (a flat
+200-grid floors 390 -> 200, trimming ~half). A maximised desktop window
+still snaps to the 200x100 grid (1366 -> 1200, 768 -> 700). The sizing is
+pure Flutter (`computeLetterboxTarget` +
 a `LayoutBuilder`/`SizedBox` wrapper around the cached `InAppWebView`); a
 layout change (rotation) re-snaps the box without rebuilding the WebView
 (no page reload). Because the box is real, the shim SHALL NOT fake
@@ -366,8 +372,17 @@ live `window.inner*` so screen and window agree (rather than the fixed
 **Given** an available area of 1366 x 768
 **When** `computeLetterboxTarget` runs with the default 200x100 grid
 **Then** the box is 1200 x 700
-**And** two nearby sizes (e.g. 1300x740 and 1399x799) collapse onto the
-same box
+**And** two nearby phone widths (e.g. 405 and 414) collapse onto the same
+400px box
+
+#### Scenario: Margin stays a thin strip on every screen size
+
+**Given** any available area across the phone-to-desktop range (e.g. 320,
+375, 390, 414, 768, 1366, 1920 wide)
+**When** `computeLetterboxTarget` runs with the default grid
+**Then** the box never exceeds the available area
+**And** the trimmed margin on each axis is at most 1/8 of that axis (a
+390-wide phone yields a ~350px box, not 200)
 
 #### Scenario: screen.* mirrors the letterboxed viewport
 
