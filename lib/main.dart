@@ -5997,6 +5997,16 @@ class _WebSpacePageState extends State<WebSpacePage>
           ),
           PopupMenuDivider(),
           PopupMenuItem<String>(
+            value: "backToWebspaces",
+            child: Row(
+              children: [
+                Icon(Icons.arrow_back),
+                SizedBox(width: 8),
+                Text(loc.homeBackToWebspaces),
+              ],
+            ),
+          ),
+          PopupMenuItem<String>(
             value: "search",
             child: Row(
               children: [
@@ -6063,6 +6073,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       },
       onSelected: (String value) async {
         switch(value) {
+          case 'backToWebspaces':
+            await _setCurrentIndex(null);
+            if (!mounted) return;
+            setState(() {});
+            await _saveSelectedWebspaceId();
+            await _saveCurrentIndex();
+          break;
           case 'search':
             _toggleFind();
           break;
