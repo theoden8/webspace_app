@@ -26,6 +26,7 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/icon_png_export.dart';
+import 'package:webspace/services/startup_init_engine.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -544,26 +545,18 @@ void main() async {
   // console). Compiled out of release builds via kDebugMode.
   final swMain = kDebugMode ? (Stopwatch()..start()) : null;
 
-  // Native interceptor bridge for sub-resource DNS + ABP blocking and
-  // LocalCDN serving (Android). The Dart shouldInterceptRequest callback only
-  // fires for main-document navigations on modern Chromium WebView, so
-  // everything per-subresource goes through the native path. Set up
-  // synchronously first: ContentBlockerService.initialize feeds the engine
-  // from inside, so the bridge must exist before the parallel group runs.
-  WebInterceptNative.initialize();
-
   // Imported HTML files are the only copy of user-supplied content, so they
   // live in their own persistent store and survive upgrades. The HTML cache
   // (re-fetchable fetched-page snapshots, safe to drop on upgrade) must
   // initialize after the import store: its pre-wipe hook copies imports left
   // in the legacy cache (from versions before the import store existed) into
   // HtmlImportStorage before they're nuked.
-  final htmlInit = () async {
+  Future<void> htmlInit() async {
     await HtmlImportStorage.instance.initialize();
     await HtmlCacheService.instance.initialize(
       beforeUpgradeWipe: _migrateFileImportsToStorage,
     );
-  }();
+  }
 
   // Disable network loads from any service worker registered by a visited
   // site. Service workers stay alive across page navigations (tied to the
@@ -586,29 +579,39 @@ void main() async {
     }
   }
 
-  // These initializers touch disjoint storage (each upgrade check keys off its
-  // own version pref) and feed independent subsystems, so they overlap rather
-  // than run serially. The adblock-rust engine spin-up (ContentBlockerService)
-  // and the DNS/timezone dataset loads dominate cold-launch latency; running
-  // them concurrently keeps them off the serial critical path while still
-  // completing before runApp, so the fail-closed blocking posture is
-  // unchanged. Timezone-polygon lookups are synchronous, so the per-site shim
-  // builder needs that data ready before it runs (missing/empty cache is
+  // Native interceptor bridge for sub-resource DNS + ABP blocking and LocalCDN
+  // serving (Android). The Dart shouldInterceptRequest callback only fires for
+  // main-document navigations on modern Chromium WebView, so everything
+  // per-subresource goes through the native path. It's the bridgeSetup step:
+  // ContentBlockerService.initialize feeds the engine from inside, so the
+  // bridge must exist before the parallel group runs.
+  //
+  // The independent inits touch disjoint storage (each upgrade check keys off
+  // its own version pref) and feed independent subsystems, so they overlap
+  // rather than run serially. The adblock-rust engine spin-up
+  // (ContentBlockerService) and the DNS/timezone dataset loads dominate
+  // cold-launch latency; concurrency keeps them off the serial critical path
+  // while still completing before runApp, so the fail-closed blocking posture
+  // is unchanged. Timezone-polygon lookups are synchronous, so the per-site
+  // shim builder needs that data ready before it runs (missing/empty cache is
   // fine — the "From picked location" option just stays disabled).
   final swServices = kDebugMode ? (Stopwatch()..start()) : null;
-  await Future.wait(<Future<void>>[
-    ImageCacheService.clearCacheOnUpgrade(),
-    htmlInit,
-    FaviconUrlCache.initialize(),
-    ClearUrlService.instance.initialize(),
-    DnsBlockService.instance.initialize(),
-    () async {
-      await TimezoneLocationService.instance.loadFromCacheIfPresent();
-    }(),
-    ContentBlockerService.instance.initialize(),
-    LocalCdnService.instance.initialize(),
-    if (Platform.isAndroid) blockServiceWorkerNetwork(),
-  ]);
+  await StartupInitEngine.runIndependentInits(
+    <AsyncStep>[
+      ImageCacheService.clearCacheOnUpgrade,
+      htmlInit,
+      FaviconUrlCache.initialize,
+      ClearUrlService.instance.initialize,
+      DnsBlockService.instance.initialize,
+      () async {
+        await TimezoneLocationService.instance.loadFromCacheIfPresent();
+      },
+      ContentBlockerService.instance.initialize,
+      LocalCdnService.instance.initialize,
+      if (Platform.isAndroid) blockServiceWorkerNetwork,
+    ],
+    bridgeSetup: WebInterceptNative.initialize,
+  );
   if (swServices != null) {
     LogService.instance.log(
         'Startup', 'parallel service init: ${swServices.elapsedMilliseconds}ms');
