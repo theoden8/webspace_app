@@ -995,13 +995,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   // it to the freshly-built controller.
   final WebViewStateStorage _stateStorage = SecureWebViewStateStorage();
 
-  // Per-site debounce for the navigation-state capture triggered by
-  // `WebViewModel.onNavStateDirty` on every committed navigation. Coalesces
-  // the saveState() IPC + encrypt + disk write to one per settle window so
-  // an SPA's pushState storm doesn't write on every pseudo-nav.
-  final Map<String, Timer> _navStateCaptureTimers = {};
-  static const Duration _kNavStateCaptureDebounce = Duration(seconds: 2);
-
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
   final Set<int> _loadedIndices = {};
@@ -1316,10 +1309,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   void dispose() {
     _foregroundPollTimer?.cancel();
     _untrustSub?.cancel();
-    for (final t in _navStateCaptureTimers.values) {
-      t.cancel();
-    }
-    _navStateCaptureTimers.clear();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -3464,25 +3453,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       sensitivity: LogSensitivity.sensitive,
     );
     return true;
-  }
-
-  /// Queue a debounced navigation-state capture for [model]. Fired from
-  /// `WebViewModel.onNavStateDirty` on every committed navigation; the
-  /// timer coalesces bursts (SPA pushState) into one capture per settle
-  /// window. Disposal-path captures stay synchronous (they must complete
-  /// before the webview is torn down) and bypass this. Archive-tier and
-  /// incognito sites never capture (ARCH-006 / ephemerality), so skip
-  /// scheduling for them.
-  void _scheduleNavStateCapture(WebViewModel model) {
-    if (!model.persistsNavState) return;
-    _navStateCaptureTimers[model.siteId]?.cancel();
-    _navStateCaptureTimers[model.siteId] = Timer(
-      _kNavStateCaptureDebounce,
-      () {
-        _navStateCaptureTimers.remove(model.siteId);
-        unawaited(_captureStateBytes(model));
-      },
-    );
   }
 
   /// Capture state and flip the lifecycle to [SiteLifecycleState.savedForRestore].
@@ -7015,14 +6985,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                           isArchiveTier: webViewModel.isArchiveTier,
                           initUrl: webViewModel.initUrl,
                         );
-                        // Wire the debounced nav-state capture once per
-                        // loaded model. Only loaded models reach here (and
-                        // thus build a webview that can navigate), so this
-                        // covers exactly the set whose back/forward stack
-                        // is worth persisting.
-                        webViewModel.onNavStateDirty ??=
-                            () => _scheduleNavStateCapture(webViewModel);
-
                         return SizedBox.expand(
                           key: ValueKey(webViewModel.siteId),
                           child: Column(
