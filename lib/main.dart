@@ -3165,12 +3165,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     // still sit on disk — that's the cross-restart back/forward restore.
     //
     // Skipped when the webview is already loaded (rebuild won't recreate
-    // the controller, so a queued restore would be stale), for incognito
-    // sites (capture never runs for them), and for archive-tier sites
-    // (ARCH-006: navigation state is never persisted for them).
-    if (!_loadedIndices.contains(index) &&
-        !target.incognito &&
-        !target.isArchiveTier) {
+    // the controller, so a queued restore would be stale) and for sites
+    // that never persist nav state — incognito (ephemeral) and
+    // archive-tier (ARCH-006: state lives only in the slot ciphertext).
+    if (!_loadedIndices.contains(index) && target.persistsNavState) {
       final bytes = await _stateStorage.loadState(target.siteId);
       if (version != _setCurrentIndexVersion) return;
       if (bytes != null) {
@@ -3455,12 +3453,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// app-background) should leave the state at [SiteLifecycleState.resident]
   /// since the webview is still in memory.
   Future<bool> _captureStateBytes(WebViewModel model) async {
-    if (model.incognito) return false;
-    // ARCH-006: webview navigation state is disabled for archive-tier
-    // sites. The bytes would land in a per-`siteId` file whose existence
-    // correlates to a specific archive site on disk inspection; archive
-    // state lives only in the slot-pool ciphertext, never in files.
-    if (model.isArchiveTier) return false;
+    // Archive-tier (ARCH-006) and incognito sites never persist nav state.
+    if (!model.persistsNavState) return false;
     final bytes = await model.captureNavigationState();
     if (bytes == null) return false;
     await _stateStorage.saveState(model.siteId, bytes);
@@ -3480,7 +3474,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// incognito sites never capture (ARCH-006 / ephemerality), so skip
   /// scheduling for them.
   void _scheduleNavStateCapture(WebViewModel model) {
-    if (model.incognito || model.isArchiveTier) return;
+    if (!model.persistsNavState) return;
     _navStateCaptureTimers[model.siteId]?.cancel();
     _navStateCaptureTimers[model.siteId] = Timer(
       _kNavStateCaptureDebounce,

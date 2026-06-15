@@ -466,6 +466,16 @@ class WebViewModel {
   bool get effectiveHtmlCachingEnabled =>
       isArchiveTier ? false : htmlCachingEnabled;
 
+  /// Whether this site may persist/restore webview navigation state
+  /// (`controller.saveState()` bytes) to the device-key on-disk store.
+  /// Single source of truth for the capture, debounce, and cold-start
+  /// restore gates. False for:
+  /// - **archive-tier** (ARCH-006): the bytes would land in a per-`siteId`
+  ///   file whose existence correlates to a specific archive site on disk;
+  ///   archive state lives only in the slot-pool ciphertext, never a file.
+  /// - **incognito**: navigation state is meant to be ephemeral.
+  bool get persistsNavState => !isArchiveTier && !incognito;
+
   /// Effective protected-content (Widevine/EME) decision. Archive-tier
   /// sites never grant DRM regardless of stored value: a grant provisions
   /// a per-container Widevine device identifier on disk and the prompt is

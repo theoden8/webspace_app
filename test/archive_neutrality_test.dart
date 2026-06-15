@@ -76,6 +76,36 @@ void main() {
       expect(m.effectiveNotificationsEnabled, isTrue);
       expect(m.effectiveLocalCdnEnabled, isFalse);
     });
+
+    // persistsNavState is the single gate all three production call sites
+    // consult (capture, debounce, cold-start restore in main.dart). An
+    // archive-tier site returning true here is exactly the regression that
+    // would write `controller.saveState()` bytes to a per-`siteId` file —
+    // an ARCH-006 violation — so pin every combination.
+    test('persistsNavState is false for archive-tier sites', () {
+      final m = WebViewModel(initUrl: 'https://a.test', isArchiveTier: true);
+      expect(m.persistsNavState, isFalse);
+    });
+
+    test('persistsNavState is false for incognito sites', () {
+      final m = WebViewModel(initUrl: 'https://a.test', incognito: true);
+      expect(m.persistsNavState, isFalse);
+    });
+
+    test('persistsNavState is false for archive-tier even when not incognito',
+        () {
+      final m = WebViewModel(
+        initUrl: 'https://a.test',
+        isArchiveTier: true,
+        incognito: false,
+      );
+      expect(m.persistsNavState, isFalse);
+    });
+
+    test('persistsNavState is true for a plain app-tier site', () {
+      final m = WebViewModel(initUrl: 'https://a.test');
+      expect(m.persistsNavState, isTrue);
+    });
   });
 
   group('Archive does not touch SharedPreferences', () {
