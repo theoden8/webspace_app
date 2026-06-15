@@ -540,6 +540,10 @@ Future<void> _migrateFileImportsToStorage() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Debug-only startup phase timing (see 'Startup' tag in the log screen /
+  // console). Compiled out of release builds via kDebugMode.
+  final swMain = kDebugMode ? (Stopwatch()..start()) : null;
+
   // Native interceptor bridge for sub-resource DNS + ABP blocking and
   // LocalCDN serving (Android). The Dart shouldInterceptRequest callback only
   // fires for main-document navigations on modern Chromium WebView, so
@@ -591,6 +595,7 @@ void main() async {
   // unchanged. Timezone-polygon lookups are synchronous, so the per-site shim
   // builder needs that data ready before it runs (missing/empty cache is
   // fine — the "From picked location" option just stays disabled).
+  final swServices = kDebugMode ? (Stopwatch()..start()) : null;
   await Future.wait(<Future<void>>[
     ImageCacheService.clearCacheOnUpgrade(),
     htmlInit,
@@ -604,6 +609,10 @@ void main() async {
     LocalCdnService.instance.initialize(),
     if (Platform.isAndroid) blockServiceWorkerNetwork(),
   ]);
+  if (swServices != null) {
+    LogService.instance.log(
+        'Startup', 'parallel service init: ${swServices.elapsedMilliseconds}ms');
+  }
 
   if (DnsBlockService.instance.hasBlocklist) {
     await WebInterceptNative.sendDnsDomains(
@@ -763,6 +772,10 @@ void main() async {
       await TrustedHostsService.instance.clear();
       await prefs.setBool(resetKey, true);
     }
+  }
+  if (swMain != null) {
+    LogService.instance.log(
+        'Startup', 'main() pre-runApp init: ${swMain.elapsedMilliseconds}ms');
   }
   runApp(WebSpaceApp());
 }
@@ -3706,6 +3719,8 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _restoreAppState() async {
+    // Debug-only startup phase timing (compiled out of release via kDebugMode).
+    final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       // Load theme settings, with migration from old formats
@@ -3751,6 +3766,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _loadWebspaces();
     await _loadGlobalUserScripts();
     await _loadWebViewModels();
+    if (swRestore != null) {
+      LogService.instance.log('Startup',
+          'load ${_webViewModels.length} site(s) + cookies: ${swRestore.elapsedMilliseconds}ms');
+    }
     // Webspace membership is keyed by siteId; `_loadWebViewModels` had
     // to finish before we can promote any legacy `siteIndices`-shaped
     // JSON to siteIds and seed the runtime projection.
@@ -3901,7 +3920,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
     final preThemeIndices = <int>{
       ..._loadedIndices,
-      if (indexToRestore != null) indexToRestore,
+      ?indexToRestore,
     };
     for (final i in preThemeIndices) {
       if (i >= 0 && i < _webViewModels.length) {
@@ -3910,9 +3929,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
 
     // Set current index (async for cookie restoration)
+    final swActivate = kDebugMode ? (Stopwatch()..start()) : null;
     await _setCurrentIndex(indexToRestore);
+    if (swActivate != null) {
+      LogService.instance.log('Startup',
+          'activate target site (_setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');
+    }
     if (!mounted) return;
     setState(() {}); // Trigger UI update after async operation
+    if (swRestore != null) {
+      LogService.instance.log('Startup',
+          'restore to first setState (total): ${swRestore.elapsedMilliseconds}ms');
+    }
 
     // Off the first-paint path: theme the remaining (not-yet-built) models and
     // run the deferred storage GC. The launched site waits on neither.
