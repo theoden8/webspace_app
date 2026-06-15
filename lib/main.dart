@@ -995,6 +995,13 @@ class _WebSpacePageState extends State<WebSpacePage>
   // it to the freshly-built controller.
   final WebViewStateStorage _stateStorage = SecureWebViewStateStorage();
 
+  // Per-site debounce for the navigation-state capture triggered by
+  // `WebViewModel.onNavStateDirty` on every committed navigation. Coalesces
+  // the saveState() IPC + encrypt + disk write to one per settle window so
+  // an SPA's pushState storm doesn't write on every pseudo-nav.
+  final Map<String, Timer> _navStateCaptureTimers = {};
+  static const Duration _kNavStateCaptureDebounce = Duration(seconds: 2);
+
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
   final Set<int> _loadedIndices = {};
@@ -1309,6 +1316,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   void dispose() {
     _foregroundPollTimer?.cancel();
     _untrustSub?.cancel();
+    for (final t in _navStateCaptureTimers.values) {
+      t.cancel();
+    }
+    _navStateCaptureTimers.clear();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -3144,17 +3155,21 @@ class _WebSpacePageState extends State<WebSpacePage>
     _activationInFlightIndex = index;
     try {
 
-    // If the target was disposed under memory pressure (lifecycleState
-    // == savedForRestore), fetch its captured navigation state and
-    // hand it to the model so the soon-to-be-built controller's
-    // onControllerCreated handler can apply restoreState. Resets the
-    // tier to live regardless — the about-to-be-resumed webview
-    // is back at the lowest tier.
-    // ARCH-006: archive-tier sites never persist webview state to
-    // disk (`_captureStateBytes` early-returns for them), so there's
-    // nothing on disk to restore. Skip the load to avoid a per-site
-    // disk hit that would correlate to the archive siteId.
-    if (target.lifecycleState == SiteLifecycleState.savedForRestore &&
+    // Whenever the target is about to be built fresh (not already in
+    // `_loadedIndices`), fetch any saved navigation state and hand it to
+    // the model so the soon-to-be-built controller's onControllerCreated
+    // handler can apply restoreState. This covers both in-session
+    // re-activation of a `savedForRestore` site AND a cold start, where
+    // every site loads from JSON at the default `resident` tier yet the
+    // bytes persisted on the previous run (on navigation / backgrounding)
+    // still sit on disk — that's the cross-restart back/forward restore.
+    //
+    // Skipped when the webview is already loaded (rebuild won't recreate
+    // the controller, so a queued restore would be stale), for incognito
+    // sites (capture never runs for them), and for archive-tier sites
+    // (ARCH-006: navigation state is never persisted for them).
+    if (!_loadedIndices.contains(index) &&
+        !target.incognito &&
         !target.isArchiveTier) {
       final bytes = await _stateStorage.loadState(target.siteId);
       if (version != _setCurrentIndexVersion) return;
@@ -3167,11 +3182,11 @@ class _WebSpacePageState extends State<WebSpacePage>
           sensitivity: LogSensitivity.sensitive,
         );
       }
-      target.lifecycleState = SiteLifecycleState.resident;
-    } else if (target.lifecycleState != SiteLifecycleState.resident) {
-      // cacheCleared promoted back to live on activation — the user
-      // is interacting with it again, so any subsequent memory
-      // pressure starts the cascade fresh from the live tier.
+    }
+    // The about-to-be-resumed webview is back at the lowest tier; reset
+    // regardless of how it got here (savedForRestore dispose, cacheCleared
+    // promotion, or a fresh cold-start load).
+    if (target.lifecycleState != SiteLifecycleState.resident) {
       target.lifecycleState = SiteLifecycleState.resident;
     }
 
@@ -3441,10 +3456,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// since the webview is still in memory.
   Future<bool> _captureStateBytes(WebViewModel model) async {
     if (model.incognito) return false;
-    // ARCH-006: per-site webview state is keyed by siteId on disk
-    // (encrypted, but the file's existence + path leaks archive site
-    // identity to forensic inspection, and the bytes encode the
-    // back/forward URL stack). Archive-tier sites never capture.
+    // ARCH-006: webview navigation state is disabled for archive-tier
+    // sites. The bytes would land in a per-`siteId` file whose existence
+    // correlates to a specific archive site on disk inspection; archive
+    // state lives only in the slot-pool ciphertext, never in files.
     if (model.isArchiveTier) return false;
     final bytes = await model.captureNavigationState();
     if (bytes == null) return false;
@@ -3455,6 +3470,25 @@ class _WebSpacePageState extends State<WebSpacePage>
       sensitivity: LogSensitivity.sensitive,
     );
     return true;
+  }
+
+  /// Queue a debounced navigation-state capture for [model]. Fired from
+  /// `WebViewModel.onNavStateDirty` on every committed navigation; the
+  /// timer coalesces bursts (SPA pushState) into one capture per settle
+  /// window. Disposal-path captures stay synchronous (they must complete
+  /// before the webview is torn down) and bypass this. Archive-tier and
+  /// incognito sites never capture (ARCH-006 / ephemerality), so skip
+  /// scheduling for them.
+  void _scheduleNavStateCapture(WebViewModel model) {
+    if (model.incognito || model.isArchiveTier) return;
+    _navStateCaptureTimers[model.siteId]?.cancel();
+    _navStateCaptureTimers[model.siteId] = Timer(
+      _kNavStateCaptureDebounce,
+      () {
+        _navStateCaptureTimers.remove(model.siteId);
+        unawaited(_captureStateBytes(model));
+      },
+    );
   }
 
   /// Capture state and flip the lifecycle to [SiteLifecycleState.savedForRestore].
@@ -6987,6 +7021,13 @@ class _WebSpacePageState extends State<WebSpacePage>
                           isArchiveTier: webViewModel.isArchiveTier,
                           initUrl: webViewModel.initUrl,
                         );
+                        // Wire the debounced nav-state capture once per
+                        // loaded model. Only loaded models reach here (and
+                        // thus build a webview that can navigate), so this
+                        // covers exactly the set whose back/forward stack
+                        // is worth persisting.
+                        webViewModel.onNavStateDirty ??=
+                            () => _scheduleNavStateCapture(webViewModel);
 
                         return SizedBox.expand(
                           key: ValueKey(webViewModel.siteId),

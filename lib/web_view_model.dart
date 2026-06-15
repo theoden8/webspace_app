@@ -989,6 +989,9 @@ class WebViewModel {
             }
             // State committed; sync currentUrl to the state's view of it.
             currentUrl = urlChangedState.currentUrl;
+            // The back/forward stack just advanced — let the host queue a
+            // debounced saveState() capture so a cold start can restore it.
+            onNavStateDirty?.call();
             // Trigger UI rebuild so URL bar updates
             if (stateSetterF != null) {
               stateSetterF!();
@@ -1432,6 +1435,15 @@ class WebViewModel {
   /// webview rebuild, so the IndexedStack repaint and the
   /// `restoreState` call land in the same render cycle.
   Uint8List? _pendingRestoreState;
+
+  /// Fired by [getWebView]'s `onUrlChanged` handler on every committed
+  /// navigation (initial load, link follow, back/forward, SPA pushState)
+  /// so the host can opportunistically persist `controller.saveState()`
+  /// to disk — the source of truth for cross-restart back/forward
+  /// restore. The host debounces; this only signals "the nav stack
+  /// advanced". Null in tests / engine contexts. Reads the field at call
+  /// time so the host can wire it after construction.
+  void Function()? onNavStateDirty;
 
   /// Opaque per-site container identifier for archive-tier sites
   /// (ARCH-007). Format mirrors [siteId] (radix-36-dash-radix-36) so a
