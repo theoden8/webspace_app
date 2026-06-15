@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "عرض کادر",
   "siteSettingsWindowHeight": "ارتفاع کادر",
   "siteSettingsWindowSizeHelper": "صفحه را در یک کادر مرکزی نمایش می‌دهد و اندازه صفحه را به یک شبکه ثابت رو به پایین گرد می‌کند (مانند Tor Browser) تا دستگاه‌های زیادی اندازه یکسانی گزارش دهند، که اثرانگشت مبتنی بر اندازه صفحه را کاهش می‌دهد.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "برای تنظیم اندازهٔ سفارشی کادر، پنجره لتربکس را روشن کنید.",
   "siteSettingsLetterboxTitle": "پنجره لتربکس",
   "siteSettingsLetterboxSubtitle": "صفحه را در یک کادر مرکزی و دسته‌بندی‌شده بر اساس اندازه نمایش بده (مانند Tor Browser) تا اثرانگشت مبتنی بر اندازه صفحه کاهش یابد",
   "siteSettingsLetterboxAutoHint": "auto",

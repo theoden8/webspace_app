@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Vakbreedte",
   "siteSettingsWindowHeight": "Vakhoogte",
   "siteSettingsWindowSizeHelper": "Toont de pagina in een gecentreerd vak en rondt de schermgrootte naar beneden af op een vast raster (zoals Tor Browser) zodat veel apparaten dezelfde grootte rapporteren, wat fingerprinting op basis van schermgrootte vermindert.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Schakel het Letterbox-venster in om een aangepaste vakgrootte in te stellen.",
   "siteSettingsLetterboxTitle": "Letterbox-venster",
   "siteSettingsLetterboxSubtitle": "Toon de pagina in een gecentreerd vak met gegroepeerde formaten (zoals Tor Browser) om fingerprinting op basis van schermgrootte te verminderen",
   "siteSettingsLetterboxAutoHint": "auto",

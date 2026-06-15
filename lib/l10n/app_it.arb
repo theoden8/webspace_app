@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Larghezza del riquadro",
   "siteSettingsWindowHeight": "Altezza del riquadro",
   "siteSettingsWindowSizeHelper": "Mostra la pagina in un riquadro centrato arrotondando per difetto le dimensioni dello schermo a una griglia fissa (come Tor Browser) in modo che molti dispositivi segnalino le stesse dimensioni, riducendo il fingerprinting basato sulle dimensioni dello schermo.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Attiva la finestra letterbox per impostare una dimensione del riquadro personalizzata.",
   "siteSettingsLetterboxTitle": "Finestra letterbox",
   "siteSettingsLetterboxSubtitle": "Mostra la pagina in un riquadro centrato con dimensioni raggruppate (come Tor Browser) per ridurre il fingerprinting basato sulle dimensioni dello schermo",
   "siteSettingsLetterboxAutoHint": "auto",

@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Šírka rámčeka",
   "siteSettingsWindowHeight": "Výška rámčeka",
   "siteSettingsWindowSizeHelper": "Zobrazí stránku vo vycentrovanom rámčeku a zaokrúhli veľkosť obrazovky nadol na pevnú mriežku (ako Tor Browser), takže mnohé zariadenia hlásia rovnakú veľkosť, čo znižuje odtlačok podľa veľkosti obrazovky.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Zapnite okno letterbox na nastavenie vlastnej veľkosti rámčeka.",
   "siteSettingsLetterboxTitle": "Okno letterbox",
   "siteSettingsLetterboxSubtitle": "Zobraziť stránku vo vycentrovanom rámčeku so zoskupenými veľkosťami (ako Tor Browser) na zníženie odtlačku podľa veľkosti obrazovky",
   "siteSettingsLetterboxAutoHint": "auto",

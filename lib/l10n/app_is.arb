@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Breidd kassa",
   "siteSettingsWindowHeight": "Hæð kassa",
   "siteSettingsWindowSizeHelper": "Sýnir síðuna í miðjuðum kassa og námundar skjástærðina niður að föstu hnitaneti (eins og Tor Browser) svo að mörg tæki tilkynni sömu stærð, sem dregur úr fingrafari eftir skjástærð.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Kveiktu á Letterbox-glugga til að stilla sérsniðna kassastærð.",
   "siteSettingsLetterboxTitle": "Letterbox-gluggi",
   "siteSettingsLetterboxSubtitle": "Sýna síðuna í miðjuðum kassa með flokkuðum stærðum (eins og Tor Browser) til að draga úr fingrafari eftir skjástærð",
   "siteSettingsLetterboxAutoHint": "auto",

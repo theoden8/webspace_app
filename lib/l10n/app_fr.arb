@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Largeur du cadre",
   "siteSettingsWindowHeight": "Hauteur du cadre",
   "siteSettingsWindowSizeHelper": "Affiche la page dans un cadre centré en arrondissant la taille de l'écran vers le bas sur une grille fixe (comme Tor Browser) afin que de nombreux appareils signalent la même taille, ce qui réduit l'identification par la taille de l'écran.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Activez la fenêtre letterbox pour définir une taille de boîte personnalisée.",
   "siteSettingsLetterboxTitle": "Fenêtre letterbox",
   "siteSettingsLetterboxSubtitle": "Afficher la page dans un cadre centré aux tailles regroupées (comme Tor Browser) pour réduire l'identification par la taille de l'écran",
   "siteSettingsLetterboxAutoHint": "auto",

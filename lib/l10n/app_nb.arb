@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Boksbredde",
   "siteSettingsWindowHeight": "Bokshøyde",
   "siteSettingsWindowSizeHelper": "Viser siden i en sentrert boks og runder skjermstørrelsen ned til et fast rutenett (som Tor Browser) slik at mange enheter rapporterer samme størrelse, noe som reduserer fingeravtrykk basert på skjermstørrelse.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Slå på Letterbox-vindu for å angi en egendefinert boksstørrelse.",
   "siteSettingsLetterboxTitle": "Letterbox-vindu",
   "siteSettingsLetterboxSubtitle": "Vis siden i en sentrert boks med samlede størrelser (som Tor Browser) for å redusere fingeravtrykk basert på skjermstørrelse",
   "siteSettingsLetterboxAutoHint": "auto",

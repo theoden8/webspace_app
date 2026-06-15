@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Ширина блоку",
   "siteSettingsWindowHeight": "Висота блоку",
   "siteSettingsWindowSizeHelper": "Показує сторінку в центрованому блоці й округлює розмір екрана вниз до фіксованої сітки (як Tor Browser), щоб багато пристроїв повідомляли однаковий розмір, що зменшує відбиток за розміром екрана.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Увімкніть вікно letterbox, щоб задати власний розмір рамки.",
   "siteSettingsLetterboxTitle": "Вікно letterbox",
   "siteSettingsLetterboxSubtitle": "Показувати сторінку в центрованому блоці зі згрупованими розмірами (як Tor Browser), щоб зменшити відбиток за розміром екрана",
   "siteSettingsLetterboxAutoHint": "auto",

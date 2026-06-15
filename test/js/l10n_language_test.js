@@ -16,6 +16,7 @@ const {
   acceptedCodes,
   loadDetector,
   verifyLocale,
+  suspectStrings,
 } = require('./helpers/l10n_language');
 
 test('locale files are written in their claimed language', async () => {
@@ -27,6 +28,24 @@ test('locale files are written in their claimed language', async () => {
       `${file}: detected ${lang} (p=${prob.toFixed(2)}, reliable=${reliable}), expected ${accept.join('/')}. Likely untranslated or wrong language.`,
     );
   }
+});
+
+// Per-string gate: no individual value may be left untranslated (in
+// English) when its neighbours were translated. Whole-file detection above
+// cannot see a single English leftover among 1,400 translated strings.
+// See helpers/l10n_language.js for the heuristics.
+test('no locale has untranslated (English) leftover strings', () => {
+  const offenders = [];
+  for (const file of localeFiles()) {
+    for (const { key, value, reason } of suspectStrings(file)) {
+      offenders.push(`${file} [${reason}] ${key}: ${JSON.stringify(value)}`);
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `Untranslated strings found (translate them in each app_<locale>.arb):\n${offenders.join('\n')}`,
+  );
 });
 
 // Negative control: the English source detects as English, which is not in

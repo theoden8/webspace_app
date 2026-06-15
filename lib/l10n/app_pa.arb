@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "ਬਾਕਸ ਦੀ ਚੌੜਾਈ",
   "siteSettingsWindowHeight": "ਬਾਕਸ ਦੀ ਉਚਾਈ",
   "siteSettingsWindowSizeHelper": "ਪੰਨੇ ਨੂੰ ਕੇਂਦਰਿਤ ਬਾਕਸ ਵਿੱਚ ਦਿਖਾਉਂਦਾ ਹੈ ਅਤੇ ਸਕਰੀਨ ਦੇ ਆਕਾਰ ਨੂੰ ਇੱਕ ਨਿਸ਼ਚਿਤ ਗਰਿੱਡ ਤੱਕ ਹੇਠਾਂ ਪੂਰਨ ਅੰਕ ਕਰਦਾ ਹੈ (Tor Browser ਵਾਂਗ) ਤਾਂ ਜੋ ਬਹੁਤ ਸਾਰੇ ਡਿਵਾਈਸ ਇੱਕੋ ਆਕਾਰ ਦੱਸਣ, ਜਿਸ ਨਾਲ ਸਕਰੀਨ-ਆਕਾਰ ਆਧਾਰਿਤ ਫਿੰਗਰਪ੍ਰਿੰਟਿੰਗ ਘਟਦੀ ਹੈ।",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "ਕਸਟਮ ਬਾਕਸ ਆਕਾਰ ਸੈੱਟ ਕਰਨ ਲਈ ਲੈਟਰਬਾਕਸ ਵਿੰਡੋ ਚਾਲੂ ਕਰੋ।",
   "siteSettingsLetterboxTitle": "ਲੈਟਰਬਾਕਸ ਵਿੰਡੋ",
   "siteSettingsLetterboxSubtitle": "ਸਕਰੀਨ-ਆਕਾਰ ਆਧਾਰਿਤ ਫਿੰਗਰਪ੍ਰਿੰਟਿੰਗ ਘਟਾਉਣ ਲਈ ਪੰਨੇ ਨੂੰ ਕੇਂਦਰਿਤ, ਆਕਾਰ-ਸਮੂਹਬੱਧ ਬਾਕਸ ਵਿੱਚ ਦਿਖਾਓ (Tor Browser ਵਾਂਗ)",
   "siteSettingsLetterboxAutoHint": "auto",

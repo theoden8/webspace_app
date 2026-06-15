@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Kutxaren zabalera",
   "siteSettingsWindowHeight": "Kutxaren altuera",
   "siteSettingsWindowSizeHelper": "Orria erdiratutako kutxa batean erakusten du, pantailaren tamaina sareta finko batera beheratuz (Tor Browser bezala), gailu askok tamaina bera jakinaraz dezaten, eta horrek pantaila-tamainaren bidezko hatz-marka murrizten du.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Aktibatu Letterbox leihoa kutxa-tamaina pertsonalizatua ezartzeko.",
   "siteSettingsLetterboxTitle": "Letterbox leihoa",
   "siteSettingsLetterboxSubtitle": "Erakutsi orria erdiratutako kutxa batean, tamaina-multzokatuan (Tor Browser bezala), pantaila-tamainaren bidezko hatz-marka murrizteko",
   "siteSettingsLetterboxAutoHint": "auto",

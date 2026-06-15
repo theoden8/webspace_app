@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Amplada de la caixa",
   "siteSettingsWindowHeight": "Alçada de la caixa",
   "siteSettingsWindowSizeHelper": "Mostra la pàgina en una caixa centrada i ajusta la mida de la pantalla cap avall a una graella fixa (com Tor Browser) perquè molts dispositius informin de la mateixa mida, cosa que redueix la identificació per mida de pantalla.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Activa la finestra letterbox per definir una mida de caixa personalitzada.",
   "siteSettingsLetterboxTitle": "Finestra letterbox",
   "siteSettingsLetterboxSubtitle": "Mostra la pàgina en una caixa centrada amb mides agrupades (com Tor Browser) per reduir la identificació per mida de pantalla",
   "siteSettingsLetterboxAutoHint": "auto",

@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Latitudo arcae",
   "siteSettingsWindowHeight": "Altitudo arcae",
   "siteSettingsWindowSizeHelper": "Paginam in arca media monstrat, magnitudinem scrinii ad craticulam fixam deorsum rotundans (sicut Tor Browser) ut multa instrumenta eandem magnitudinem nuntient, quod vestigium ex magnitudine scrinii minuit.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Fenestram letterbox activa ut magnitudinem arcae propriam constituas.",
   "siteSettingsLetterboxTitle": "Fenestra letterbox",
   "siteSettingsLetterboxSubtitle": "Paginam in arca media et secundum magnitudinem aggregata monstra (sicut Tor Browser) ut vestigium ex magnitudine scrinii minuatur",
   "siteSettingsLetterboxAutoHint": "auto",

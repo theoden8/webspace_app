@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "ಪೆಟ್ಟಿಗೆಯ ಅಗಲ",
   "siteSettingsWindowHeight": "ಪೆಟ್ಟಿಗೆಯ ಎತ್ತರ",
   "siteSettingsWindowSizeHelper": "ಪುಟವನ್ನು ಕೇಂದ್ರೀಕೃತ ಪೆಟ್ಟಿಗೆಯಲ್ಲಿ ತೋರಿಸುತ್ತದೆ ಮತ್ತು ಪರದೆಯ ಗಾತ್ರವನ್ನು ಸ್ಥಿರ ಗ್ರಿಡ್‌ಗೆ ಕೆಳಕ್ಕೆ ಸುತ್ತುತ್ತದೆ (Tor Browser ನಂತೆ) ಇದರಿಂದ ಹಲವು ಸಾಧನಗಳು ಒಂದೇ ಗಾತ್ರವನ್ನು ವರದಿ ಮಾಡುತ್ತವೆ, ಇದು ಪರದೆ-ಗಾತ್ರದ ಫಿಂಗರ್‌ಪ್ರಿಂಟಿಂಗ್ ಅನ್ನು ಕಡಿಮೆ ಮಾಡುತ್ತದೆ.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "ಕಸ್ಟಮ್ ಬಾಕ್ಸ್ ಗಾತ್ರವನ್ನು ಹೊಂದಿಸಲು ಲೆಟರ್‌ಬಾಕ್ಸ್ ವಿಂಡೋ ಆನ್ ಮಾಡಿ.",
   "siteSettingsLetterboxTitle": "ಲೆಟರ್‌ಬಾಕ್ಸ್ ವಿಂಡೋ",
   "siteSettingsLetterboxSubtitle": "ಪರದೆ-ಗಾತ್ರದ ಫಿಂಗರ್‌ಪ್ರಿಂಟಿಂಗ್ ಕಡಿಮೆ ಮಾಡಲು ಪುಟವನ್ನು ಕೇಂದ್ರೀಕೃತ, ಗಾತ್ರ-ಗುಂಪುಗೊಳಿಸಿದ ಪೆಟ್ಟಿಗೆಯಲ್ಲಿ ತೋರಿಸಿ (Tor Browser ನಂತೆ)",
   "siteSettingsLetterboxAutoHint": "auto",

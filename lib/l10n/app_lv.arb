@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Lodziņa platums",
   "siteSettingsWindowHeight": "Lodziņa augstums",
   "siteSettingsWindowSizeHelper": "Rāda lapu centrētā lodziņā un noapaļo ekrāna izmēru uz leju līdz fiksētam režģim (kā Tor Browser), lai daudzas ierīces ziņotu vienu un to pašu izmēru, kas samazina pirkstu nospiedumu pēc ekrāna izmēra.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Ieslēdziet Letterbox logu, lai iestatītu pielāgotu lodziņa izmēru.",
   "siteSettingsLetterboxTitle": "Letterbox logs",
   "siteSettingsLetterboxSubtitle": "Rādīt lapu centrētā, pēc izmēra grupētā lodziņā (kā Tor Browser), lai samazinātu pirkstu nospiedumu pēc ekrāna izmēra",
   "siteSettingsLetterboxAutoHint": "auto",

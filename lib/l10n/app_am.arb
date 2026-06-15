@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "የሳጥን ስፋት",
   "siteSettingsWindowHeight": "የሳጥን ቁመት",
   "siteSettingsWindowSizeHelper": "ገጹን በመሃል ላይ ባለ ሳጥን ውስጥ ያሳያል፣ የስክሪኑን መጠን ወደ ቋሚ ፍርግርግ ዝቅ በማድረግ (እንደ Tor Browser) ብዙ መሣሪያዎች ተመሳሳይ መጠን እንዲሪፖርት ያደርጋል፣ ይህም የስክሪን-መጠን ጣት አሻራን ይቀንሳል።",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "ብጁ የሳጥን መጠን ለማዘጋጀት የሌተርቦክስ መስኮትን አብራ።",
   "siteSettingsLetterboxTitle": "የሌተርቦክስ መስኮት",
   "siteSettingsLetterboxSubtitle": "የስክሪን-መጠን ጣት አሻራን ለመቀነስ ገጹን በመሃል ላይ ባለ በመጠን-በተከፋፈለ ሳጥን ውስጥ አሳይ (እንደ Tor Browser)",
   "siteSettingsLetterboxAutoHint": "auto",

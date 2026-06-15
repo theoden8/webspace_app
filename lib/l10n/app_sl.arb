@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Širina okvira",
   "siteSettingsWindowHeight": "Višina okvira",
   "siteSettingsWindowSizeHelper": "Prikaže stran v sredinsko poravnanem okviru in zaokroži velikost zaslona navzdol na fiksno mrežo (kot Tor Browser), tako da mnoge naprave sporočijo enako velikost, kar zmanjša prstni odtis glede na velikost zaslona.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Vklopite okno letterbox za nastavitev velikosti okvirja po meri.",
   "siteSettingsLetterboxTitle": "Okno letterbox",
   "siteSettingsLetterboxSubtitle": "Prikaži stran v sredinsko poravnanem okviru z združenimi velikostmi (kot Tor Browser) za zmanjšanje prstnega odtisa glede na velikost zaslona",
   "siteSettingsLetterboxAutoHint": "auto",

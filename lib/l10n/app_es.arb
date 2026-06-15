@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Ancho de la caja",
   "siteSettingsWindowHeight": "Alto de la caja",
   "siteSettingsWindowSizeHelper": "Muestra la página en una caja centrada y ajusta el tamaño de la pantalla hacia abajo a una cuadrícula fija (como Tor Browser) para que muchos dispositivos informen del mismo tamaño, lo que reduce la identificación por tamaño de pantalla.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Activa la ventana letterbox para definir un tamaño de caja personalizado.",
   "siteSettingsLetterboxTitle": "Ventana letterbox",
   "siteSettingsLetterboxSubtitle": "Muestra la página en una caja centrada con tamaños agrupados (como Tor Browser) para reducir la identificación por tamaño de pantalla",
   "siteSettingsLetterboxAutoHint": "auto",

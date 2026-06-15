@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "කොටුවේ පළල",
   "siteSettingsWindowHeight": "කොටුවේ උස",
   "siteSettingsWindowSizeHelper": "පිටුව මධ්‍යගත කොටුවක පෙන්වා, තිරයේ ප්‍රමාණය ස්ථාවර ජාලයකට පහළට වට කරයි (Tor Browser මෙන්), එමඟින් බොහෝ උපාංග එකම ප්‍රමාණය වාර්තා කරයි, එය තිර-ප්‍රමාණය මත පදනම් වූ ඇඟිලි සලකුණු අඩු කරයි.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "අභිරුචි කොටු ප්‍රමාණයක් සැකසීමට Letterbox කවුළුව සක්‍රිය කරන්න.",
   "siteSettingsLetterboxTitle": "Letterbox කවුළුව",
   "siteSettingsLetterboxSubtitle": "තිර-ප්‍රමාණය මත පදනම් වූ ඇඟිලි සලකුණු අඩු කිරීමට පිටුව මධ්‍යගත, ප්‍රමාණය අනුව කාණ්ඩගත කළ කොටුවක පෙන්වන්න (Tor Browser මෙන්)",
   "siteSettingsLetterboxAutoHint": "auto",

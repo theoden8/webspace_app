@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "רוחב התיבה",
   "siteSettingsWindowHeight": "גובה התיבה",
   "siteSettingsWindowSizeHelper": "מציג את הדף בתיבה ממורכזת ומעגל את גודל המסך כלפי מטה לרשת קבועה (כמו Tor Browser) כך שמכשירים רבים מדווחים על אותו גודל, מה שמצמצם טביעת אצבע לפי גודל המסך.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "הפעל את חלון letterbox כדי להגדיר גודל תיבה מותאם אישית.",
   "siteSettingsLetterboxTitle": "חלון letterbox",
   "siteSettingsLetterboxSubtitle": "הצג את הדף בתיבה ממורכזת עם גדלים מקובצים (כמו Tor Browser) כדי לצמצם טביעת אצבע לפי גודל המסך",
   "siteSettingsLetterboxAutoHint": "auto",

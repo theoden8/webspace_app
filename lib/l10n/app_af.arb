@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Blokwydte",
   "siteSettingsWindowHeight": "Blokhoogte",
   "siteSettingsWindowSizeHelper": "Wys die bladsy in 'n gesentreerde blok en rond die skermgrootte af na 'n vaste rooster (soos Tor Browser) sodat baie toestelle dieselfde grootte rapporteer, wat skermgrootte-vingerafdrukke verminder.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Skakel Letterbox-venster aan om 'n pasgemaakte boksgrootte te stel.",
   "siteSettingsLetterboxTitle": "Letterbox-venster",
   "siteSettingsLetterboxSubtitle": "Wys die bladsy in 'n gesentreerde blok met geblokte groottes (soos Tor Browser) om skermgrootte-vingerafdrukke te verminder",
   "siteSettingsLetterboxAutoHint": "auto",

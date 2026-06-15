@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Doboz szélessége",
   "siteSettingsWindowHeight": "Doboz magassága",
   "siteSettingsWindowSizeHelper": "Az oldalt középre igazított dobozban jeleníti meg, és a képernyő méretét lefelé kerekíti egy rögzített rácsra (mint a Tor Browser), így sok eszköz azonos méretet jelez, ami csökkenti a képernyőméret alapú ujjlenyomatot.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Kapcsolja be a Letterbox ablakot egyéni dobozméret beállításához.",
   "siteSettingsLetterboxTitle": "Letterbox ablak",
   "siteSettingsLetterboxSubtitle": "Az oldal megjelenítése középre igazított, méret szerint csoportosított dobozban (mint a Tor Browser) a képernyőméret alapú ujjlenyomat csökkentésére",
   "siteSettingsLetterboxAutoHint": "auto",

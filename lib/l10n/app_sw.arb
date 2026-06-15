@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Upana wa kisanduku",
   "siteSettingsWindowHeight": "Urefu wa kisanduku",
   "siteSettingsWindowSizeHelper": "Huonyesha ukurasa katika kisanduku kilichowekwa katikati na kushusha saizi ya skrini hadi gridi isiyobadilika (kama Tor Browser) ili vifaa vingi viripoti saizi sawa, jambo linalopunguza utambuzi wa alama za vidole kulingana na saizi ya skrini.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Washa dirisha la letterbox ili kuweka saizi maalum ya kisanduku.",
   "siteSettingsLetterboxTitle": "Dirisha la letterbox",
   "siteSettingsLetterboxSubtitle": "Onyesha ukurasa katika kisanduku kilichowekwa katikati chenye saizi zilizopangwa (kama Tor Browser) ili kupunguza utambuzi wa alama za vidole kulingana na saizi ya skrini",
   "siteSettingsLetterboxAutoHint": "auto",

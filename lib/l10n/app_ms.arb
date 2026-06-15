@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Lebar kotak",
   "siteSettingsWindowHeight": "Tinggi kotak",
   "siteSettingsWindowSizeHelper": "Memaparkan halaman dalam kotak terpusat dan membundarkan saiz skrin ke bawah kepada grid tetap (seperti Tor Browser) supaya banyak peranti melaporkan saiz yang sama, yang mengurangkan cap jari berdasarkan saiz skrin.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Hidupkan tetingkap letterbox untuk menetapkan saiz kotak tersuai.",
   "siteSettingsLetterboxTitle": "Tetingkap letterbox",
   "siteSettingsLetterboxSubtitle": "Paparkan halaman dalam kotak terpusat dengan saiz dikumpulkan (seperti Tor Browser) untuk mengurangkan cap jari berdasarkan saiz skrin",
   "siteSettingsLetterboxAutoHint": "auto",

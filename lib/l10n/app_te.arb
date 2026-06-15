@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "పెట్టె వెడల్పు",
   "siteSettingsWindowHeight": "పెట్టె ఎత్తు",
   "siteSettingsWindowSizeHelper": "పేజీని కేంద్రీకృత పెట్టెలో చూపిస్తుంది మరియు స్క్రీన్ పరిమాణాన్ని స్థిర గ్రిడ్‌కు కిందికి గుండ్రం చేస్తుంది (Tor Browser లాగా), తద్వారా చాలా పరికరాలు ఒకే పరిమాణాన్ని నివేదిస్తాయి, ఇది స్క్రీన్-పరిమాణం ఆధారిత ఫింగర్‌ప్రింటింగ్‌ను తగ్గిస్తుంది.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "అనుకూల బాక్స్ పరిమాణాన్ని సెట్ చేయడానికి లెటర్‌బాక్స్ విండోను ఆన్ చేయండి.",
   "siteSettingsLetterboxTitle": "లెటర్‌బాక్స్ విండో",
   "siteSettingsLetterboxSubtitle": "స్క్రీన్-పరిమాణం ఆధారిత ఫింగర్‌ప్రింటింగ్‌ను తగ్గించడానికి పేజీని కేంద్రీకృత, పరిమాణం వారీగా సమూహపరచిన పెట్టెలో చూపించు (Tor Browser లాగా)",
   "siteSettingsLetterboxAutoHint": "auto",

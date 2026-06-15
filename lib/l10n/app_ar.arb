@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "عرض الصندوق",
   "siteSettingsWindowHeight": "ارتفاع الصندوق",
   "siteSettingsWindowSizeHelper": "يعرض الصفحة في صندوق متمركز، مع تقريب حجم الشاشة إلى شبكة ثابتة (مثل Tor Browser) بحيث تُبلِّغ أجهزة كثيرة عن الحجم نفسه، مما يقلل البصمة المعتمدة على حجم الشاشة.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "فعّل نافذة الصندوق البريدي لتعيين حجم صندوق مخصص.",
   "siteSettingsLetterboxTitle": "نافذة الصندوق البريدي",
   "siteSettingsLetterboxSubtitle": "اعرض الصفحة في صندوق متمركز ومُجمَّع الأحجام (مثل Tor Browser) لتقليل البصمة المعتمدة على حجم الشاشة",
   "siteSettingsLetterboxAutoHint": "auto",

@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "상자 너비",
   "siteSettingsWindowHeight": "상자 높이",
   "siteSettingsWindowSizeHelper": "페이지를 가운데 정렬된 상자에 표시하고 화면 크기를 고정 격자로 내림하여 (Tor Browser처럼) 많은 기기가 같은 크기를 보고하도록 함으로써 화면 크기 기반 핑거프린팅을 줄입니다.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "사용자 지정 상자 크기를 설정하려면 레터박스 창을 켜세요.",
   "siteSettingsLetterboxTitle": "레터박스 창",
   "siteSettingsLetterboxSubtitle": "화면 크기 기반 핑거프린팅을 줄이기 위해 페이지를 가운데 정렬된 크기 묶음 상자에 표시합니다 (Tor Browser처럼)",
   "siteSettingsLetterboxAutoHint": "auto",
