@@ -6,57 +6,52 @@
 // correct file).
 //
 // Usage:
-//   node tool/check_l10n_language.js                 # aggregate summary, all locales
+//   node tool/check_l10n_language.js                 # aggregate (whole-file) check, all locales
 //   node tool/check_l10n_language.js fr de pt        # only these locales
-//   node tool/check_l10n_language.js --per-string fr # flag suspect strings in fr
+//   node tool/check_l10n_language.js --per-string    # flag individual untranslated strings
+//   node tool/check_l10n_language.js --per-string fr # ... in one locale
 //
-// Per-string detection on short UI strings is unreliable by nature: "OK",
-// "URL", brand names, and one-word labels carry too little signal. CLD3's
-// is_reliable flag filters most of that out, but treat the output as a
-// review queue, not pass/fail.
+// Aggregate mode uses CLD3 (whole-file language id). Per-string mode uses
+// the untranslated-leftover heuristics in the helper (script-absence for
+// non-Latin locales, English-vocabulary match for Latin ones).
 
 const {
   stemOf,
-  acceptedCodes,
   localeFiles,
-  localeValues,
   loadDetector,
   verifyLocale,
+  suspectStrings,
 } = require('../test/js/helpers/l10n_language');
 
 const args = process.argv.slice(2);
 const perString = args.includes('--per-string');
 const wanted = new Set(args.filter((a) => !a.startsWith('--')));
 
-function perStringReport(factory, file) {
-  const accept = acceptedCodes(stemOf(file));
-  let flagged = 0;
-  for (const [key, value] of localeValues(file)) {
-    const text = value.replace(/\{[^}]*\}/g, ' ').trim();
-    if (text.length < 12) continue; // too short to detect reliably
-    const detector = factory.create();
-    const r = detector.findLanguage(text);
-    detector.dispose && detector.dispose();
-    if (r.is_reliable && !accept.includes(r.language)) {
-      flagged++;
-      console.log(`  [${r.language} ${r.probability.toFixed(2)}] ${key}: ${JSON.stringify(value)}`);
-    }
-  }
-  if (flagged === 0) console.log('  no suspect strings');
-}
-
 (async () => {
-  const factory = await loadDetector();
   const files = localeFiles().filter((f) => wanted.size === 0 || wanted.has(stemOf(f)));
+
+  if (perString) {
+    let total = 0;
+    for (const file of files) {
+      const hits = suspectStrings(file);
+      if (!hits.length) continue;
+      total += hits.length;
+      console.log(`${file}:`);
+      for (const { key, value, reason } of hits) {
+        console.log(`  [${reason}] ${key}: ${JSON.stringify(value)}`);
+      }
+    }
+    console.log(`\n${total} suspect string(s) across ${files.length} locale(s).`);
+    process.exit(total > 0 ? 1 : 0);
+  }
+
+  const factory = await loadDetector();
   let failures = 0;
   for (const file of files) {
     const { ok, lang, prob, reliable, accept } = verifyLocale(factory, file);
     if (!ok) failures++;
     console.log(`${ok ? 'ok ' : 'XX '}${file}  ${lang} (p=${prob.toFixed(2)}, reliable=${reliable}, expect ${accept.join('/')})`);
-    if (perString) perStringReport(factory, file);
   }
-  if (!perString) {
-    console.log(`\n${files.length - failures}/${files.length} locales pass aggregate language check.`);
-  }
+  console.log(`\n${files.length - failures}/${files.length} locales pass aggregate language check.`);
   process.exit(failures > 0 ? 1 : 0);
 })();
