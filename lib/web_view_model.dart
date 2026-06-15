@@ -793,6 +793,10 @@ class WebViewModel {
           userAgent: userAgent.isNotEmpty ? userAgent : null,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
+          // Root site webview sits at the MaterialApp root route: on iOS/macOS
+          // there is no Flutter route-pop edge-swipe here, so opt into
+          // WKWebView's native back/forward swipe. Nested screens don't (NAV-008).
+          backForwardGestures: true,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
           zoomPercent: zoomPercent,
           // Umbrella `trackingProtectionEnabled`: when on, the four

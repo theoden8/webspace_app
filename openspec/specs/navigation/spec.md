@@ -26,7 +26,7 @@ WebSpace embeds webviews in a Scaffold with a drawer. Navigation gestures compet
 | iOS | `canGoBack()` returns `false` for `history.pushState()` entries (SPAs) | Back gesture can't trust it; mitigated by PopScope URL-comparison fallback (NAV-002) |
 | iOS | `onLoadStop` does not fire for BFCache page restorations during back/forward gestures | URL bar doesn't update without `onUpdateVisitedHistory` (fixed in PR #174) |
 | iOS | `target="_blank"` links may only trigger `onCreateWindow`, not `shouldOverrideUrlLoading` | Links load in current webview instead of nested browser without explicit delegation (fixed in PR #175) |
-| iOS | `allowsBackForwardNavigationGestures` is NOT set (defaults to `false`) | WKWebView has no native back swipe; only PopScope participates |
+| iOS/macOS | `allowsBackForwardNavigationGestures` is enabled for the **root site webview** only | The root webview lives at the `MaterialApp` root route, which has no Flutter route-pop edge-swipe — so without the native gesture the main view has no reliable back-swipe (PopScope only fires for pushable routes). Nested `InAppWebViewScreen`s leave it off so their route-pop-at-history-start (NAV-008) isn't hijacked. |
 | Android | `hasGesture` on `NavigationAction` is a reliable boolean | Used directly for gesture detection |
 | iOS/macOS | No `hasGesture`; must infer from `navigationType` (`LINK_ACTIVATED`, `FORM_SUBMITTED`) | Less reliable than Android's boolean flag |
 
@@ -36,7 +36,7 @@ WebSpace embeds webviews in a Scaffold with a drawer. Navigation gestures compet
 
 ### Requirement: NAV-001 - System Back Gesture
 
-The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL navigate back in webview history when possible. It SHALL NOT open the drawer and SHALL NOT exit the app; when there is no back history it is a no-op.
+The system back gesture (Android back button, iOS/macOS left-edge swipe) SHALL navigate back in webview history when possible. On the root site webview, iOS/macOS use WKWebView's native back/forward swipe (`allowsBackForwardNavigationGestures`); Android, and all nested routes, use the PopScope handler. It SHALL NOT open the drawer and SHALL NOT exit the app; when there is no back history it is a no-op.
 
 **Rationale:** Users navigating content-heavy sites (especially SPA news sites) expect the back gesture to mean "go back in the page," not "open the menu" or "leave the app." Folding drawer-opening and app-exit into the back gesture made the gesture ambiguous and, combined with the iOS `canGoBack()` heuristic (NAV-002), occasionally misfired mid-navigation. The drawer is reached via the AppBar menu button; the app is left via the OS home/recents gesture.
 
@@ -45,6 +45,13 @@ The system back gesture (Android back button, iOS edge swipe via PopScope) SHALL
 **Given** a webview is visible and has navigation history
 **When** the user triggers the system back gesture
 **Then** the webview navigates back in history
+
+#### Scenario: Root site webview uses the native swipe on Apple
+
+**Given** the root site webview is visible on iOS or macOS
+**When** the user performs a left-edge back swipe
+**Then** WKWebView navigates back in its own history, including `history.pushState` entries
+**And** at the start of history the swipe is a no-op: the app does not exit and the drawer does not open
 
 #### Scenario: Webview has no back history
 
