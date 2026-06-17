@@ -1,6 +1,6 @@
 // Verifies each ARB locale file is actually written in the language its
 // filename claims (LOC: language-identity guard). Complements
-// test/l10n_coverage_test.dart (key/placeholder parity) and catches the
+// test/js/l10n_coverage.test.js (key/placeholder parity) and catches the
 // failure mode of the "hand app_en.arb to a general model" translation
 // workflow: a locale coming back still in English, truncated, or with two
 // languages swapped.
