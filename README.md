@@ -107,6 +107,34 @@ Toggle the engine in the app, no rebuild required after the .so is bundled. Flip
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE) - Copyright (c) 2023 Kirill Rodriguez.
+WebSpace's own source code is licensed under the [MIT License](LICENSE) - Copyright (c) 2023 Kirill Rodriguez.
 
 **Assets**: Icons and images in the `assets/` directory are licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) - Copyright (c) Polina Levchenko. See [assets/LICENSE](assets/LICENSE) for details.
+
+### Third-party components
+
+The MIT license covers WebSpace's original code. Third-party material falls into two distinct categories, neither of which conflicts with MIT:
+
+**1. Linked/compiled dependencies** (part of the shipped binary) are all under permissive, MIT-compatible licenses:
+
+| Component | License | Linkage |
+|-----------|---------|---------|
+| flutter_inappwebview ([fork](https://github.com/theoden8/flutter_inappwebview)) | Apache-2.0 | Dart/native plugin |
+| WPE WebKit (Linux only) | LGPL-2.1 | Dynamically linked system library (LGPL permits this from non-LGPL code) |
+| [adblock-rust](https://github.com/brave/adblock-rust) + `rust/webspace_adblock` wrapper | MPL-2.0 | Optional native `.so` (file-level copyleft; source is in-repo and public) |
+| uBlock Origin web-accessible resources (`$redirect` bodies) | MPL-2.0 | Embedded into the MPL-2.0 `.so` at build time |
+| `lib/third_party/favicon`, cdnjs helpers | MIT | Vendored source |
+| Other pub.dev packages (flutter_map, flutter_zxing/zxing-cpp, encrypt, …) | BSD-3 / MIT / Apache-2.0 | Standard pub dependencies |
+
+MPL-2.0 and Apache-2.0 are file-/component-level copyleft and combine cleanly into an MIT-licensed larger work; the covered files keep their own license and their source stays available (it is all in this repo or upstream). LGPL applies only to the Linux WebKit system library, which is dynamically linked.
+
+**2. Filter-list and blocklist data** is **not** compiled or bundled into the app. The (L)GPL / CC BY-SA lists below are downloaded at runtime from upstream by the user, cached on-device, and never committed to this repo or shipped in the APK/IPA:
+
+| Data source | License | How it is used |
+|-------------|---------|----------------|
+| [ClearURLs Rules](https://github.com/ClearURLs/Rules) | LGPL-3.0 | Tracking-param rules fetched at runtime |
+| [Hagezi DNS blocklists](https://github.com/hagezi/dns-blocklists) | GPL-3.0 | Domain lists fetched at runtime |
+| [EasyList / EasyPrivacy / Fanboy](https://easylist.to/) | GPL-3.0 or CC BY-SA 3.0 (used under CC BY-SA 3.0) | Filter lists fetched at runtime |
+| [OpenStreetMap](https://www.openstreetmap.org/copyright) tiles/data | ODbL / CC BY-SA 2.0 | Map tiles fetched at runtime |
+
+A program reading GPL-licensed *data* at runtime does not become a derivative work of that data, just as a browser loading a GPL filter list, or `grep` processing a GPL text file, is not itself GPL. These lists are listed here and in the in-app license page (Settings → Licenses, labelled "rules data" / "domain data" / "filter data") purely for attribution. Per-source license texts are bundled under [assets/licenses/](assets/licenses/).
