@@ -538,6 +538,22 @@ Future<void> _migrateFileImportsToStorage() async {
   }
 }
 
+/// Debug-only per-step timing for the cold-start critical path. Logs under
+/// the 'Startup' tag; compiled out of release builds via kDebugMode. Steps in
+/// the concurrent init group overlap and contend on the main isolate, so their
+/// reported ms can sum to more than the group wall-clock — read them as
+/// "which step is heaviest", not as additive. The serial-tail steps are
+/// additive.
+Future<void> _runTimed(String label, AsyncStep step) async {
+  if (!kDebugMode) return step();
+  final sw = Stopwatch()..start();
+  try {
+    await step();
+  } finally {
+    LogService.instance.log('Startup', '  $label: ${sw.elapsedMilliseconds}ms');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -598,17 +614,18 @@ void main() async {
   final swServices = kDebugMode ? (Stopwatch()..start()) : null;
   await StartupInitEngine.runIndependentInits(
     <AsyncStep>[
-      ImageCacheService.clearCacheOnUpgrade,
-      htmlInit,
-      FaviconUrlCache.initialize,
-      ClearUrlService.instance.initialize,
-      DnsBlockService.instance.initialize,
-      () async {
-        await TimezoneLocationService.instance.loadFromCacheIfPresent();
-      },
-      ContentBlockerService.instance.initialize,
-      LocalCdnService.instance.initialize,
-      if (Platform.isAndroid) blockServiceWorkerNetwork,
+      () => _runTimed('imageCache', ImageCacheService.clearCacheOnUpgrade),
+      () => _runTimed('html', htmlInit),
+      () => _runTimed('favicon', FaviconUrlCache.initialize),
+      () => _runTimed('clearUrl', ClearUrlService.instance.initialize),
+      () => _runTimed('dns', DnsBlockService.instance.initialize),
+      () => _runTimed('timezone', () async {
+            await TimezoneLocationService.instance.loadFromCacheIfPresent();
+          }),
+      () => _runTimed('adblock', ContentBlockerService.instance.initialize),
+      () => _runTimed('localCdn', LocalCdnService.instance.initialize),
+      if (Platform.isAndroid)
+        () => _runTimed('swBlock', blockServiceWorkerNetwork),
     ],
     bridgeSetup: WebInterceptNative.initialize,
   );
@@ -618,8 +635,10 @@ void main() async {
   }
 
   if (DnsBlockService.instance.hasBlocklist) {
-    await WebInterceptNative.sendDnsDomains(
-        DnsBlockService.instance.blockedDomains);
+    await _runTimed(
+        'dnsSend(${DnsBlockService.instance.blockedDomains.length})',
+        () => WebInterceptNative.sendDnsDomains(
+            DnsBlockService.instance.blockedDomains));
   }
 
   // Keep the DNS-side bloom in sync when the DNS list changes; ABP rules
@@ -634,10 +653,14 @@ void main() async {
 
   // Seed the native interceptor with CDN patterns + the current cache
   // index, and keep its copy in sync whenever the cache changes.
-  await WebInterceptNative.sendCdnPatterns(
-      LocalCdnService.instance.cdnPatternStrings);
-  await WebInterceptNative.sendCdnCacheIndex(
-      LocalCdnService.instance.cacheIndexSnapshot);
+  await _runTimed(
+      'cdnSend',
+      () async {
+        await WebInterceptNative.sendCdnPatterns(
+            LocalCdnService.instance.cdnPatternStrings);
+        await WebInterceptNative.sendCdnCacheIndex(
+            LocalCdnService.instance.cacheIndexSnapshot);
+      });
   LocalCdnService.instance.addCacheChangeListener(() {
     WebInterceptNative.sendCdnCacheIndex(
         LocalCdnService.instance.cacheIndexSnapshot);
@@ -724,14 +747,15 @@ void main() async {
   });
 
   // Initialize platform info to detect proxy support before UI loads
-  await PlatformInfo.initialize();
+  await _runTimed('platformInfo', PlatformInfo.initialize);
 
   // Prime ConnectivityService.lastKnownOnline before the first webview
   // is constructed. The offline cached-HTML render path needs a sync
   // answer to decide between live URL and `initialData` at construction
   // time — without this the first webview always sees `null` and
   // defaults to live load even when the device is offline.
-  await ConnectivityService.instance.primeLastKnownOnline();
+  await _runTimed(
+      'connectivity', ConnectivityService.instance.primeLastKnownOnline);
 
   // Populate HtmlCacheService._memoryCache before the first webview
   // is built. `WebSpacePage.build` reads cached HTML synchronously
@@ -742,14 +766,14 @@ void main() async {
   // miss) lets the build path stay synchronous, which is what
   // `InAppWebViewInitialData` requires — chromium needs the bytes
   // before navigation starts, not after an awaited disk read.
-  await HtmlCacheService.instance.preloadCache();
+  await _runTimed('preloadCache', HtmlCacheService.instance.preloadCache);
   // Same reasoning as the line above, for imported HTML.
-  await HtmlImportStorage.instance.preloadAll();
+  await _runTimed('preloadImports', HtmlImportStorage.instance.preloadAll);
 
   // Load the global outbound proxy from SharedPreferences. Synchronous
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
-  await GlobalOutboundProxy.initialize();
+  await _runTimed('proxyInit', GlobalOutboundProxy.initialize);
   // Hydrate user-approved TLS exceptions so a self-signed site the user
   // already trusted in a previous session loads without a prompt — and
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon
