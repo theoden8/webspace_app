@@ -71,9 +71,9 @@ fvm install
 fvm flutter pub get
 ```
 
-### Optional: Rust adblock engine
+### Rust adblock engine
 
-The content blocker can be backed by Brave's [adblock-rust](https://github.com/brave/adblock-rust) engine via `rust/webspace_adblock`. Off by default; opt in from App Settings → Content Blocker → "Use Rust adblock engine". Adds support for `$domain=`, regex network rules, generic class/id cosmetic lookups, and every other rule shape adblock-rust accepts.
+The content blocker is backed by Brave's [adblock-rust](https://github.com/brave/adblock-rust) engine via `rust/webspace_adblock`. It is always on: network blocking, cosmetic filtering, and `$redirect`/`$csp`/`$removeparam` evaluation all flow through the engine, which handles `$domain=`, regex network rules, generic class/id cosmetic lookups, and every other rule shape adblock-rust accepts. App Settings → Content Blocker exposes the filter lists plus a "uBO redirect stubs" toggle (serve stub resource bodies for `$redirect=` rules instead of dropping the request); there is no engine on/off switch.
 
 The Rust crate auto-builds as part of the platform build:
 - **Android** — Gradle `buildRustAdblock` task runs before `mergeJniLibFolders`. Requires `cargo` on PATH and `ANDROID_NDK_HOME` (or NDK installed under the SDK). Skip with `-PskipRustAdblock=true`.
@@ -92,9 +92,7 @@ fvm flutter build macos --release
 ./scripts/build_rust.sh linux         # or: android <abi> | android-all | ios | macos
 ```
 
-Without `cargo` on PATH the Flutter build still succeeds — the Rust step prints a "skipping" notice and `AdblockEngine.load()` returns null at runtime, leaving the legacy Dart parser engine as the fallback.
-
-Toggle the engine in the app, no rebuild required after the .so is bundled. Flipping the toggle off restores the legacy engine instantly.
+Without `cargo` on PATH the Flutter build still succeeds — the Rust step prints a "skipping" notice and `AdblockEngine.load()` returns null at runtime. There is no Dart fallback engine, so content blocking simply no-ops until the library is built and bundled (Windows ships without it).
 
 ## Platform Support
 
