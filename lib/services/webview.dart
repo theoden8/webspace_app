@@ -25,7 +25,6 @@ import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
@@ -609,13 +608,14 @@ class WebViewConfig {
   final double? spoofLongitude;
   final double spoofAccuracy;
   /// IANA timezone name reported via [Intl.DateTimeFormat] and
-  /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone.
+  /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone. Holds the
+  /// effective zone even for "From picked location" sites: the coords are
+  /// resolved to a tzid and baked in at settings-save time, so the runtime
+  /// never loads the polygon dataset.
   final String? spoofTimezone;
-  /// When true, the effective spoof timezone is derived from
-  /// (spoofLatitude, spoofLongitude) at shim build time using
-  /// [TimezoneLocationService]. Mutually exclusive with [spoofTimezone];
-  /// if the polygon dataset is absent or the lookup misses, this falls
-  /// through to no-timezone-spoof.
+  /// UI mode marker: the user picked "From picked location" rather than an
+  /// explicit zone. The resolved zone lives in [spoofTimezone] (baked at save);
+  /// this flag is informational at runtime.
   final bool spoofTimezoneFromLocation;
   /// Granularity of the fix reported to the page in [LocationMode.live].
   /// GPS (default) reveals the real device coordinates; Approximate uses
@@ -1614,19 +1614,12 @@ class WebViewFactory {
       ));
     }
 
-    // Resolve the effective spoof timezone. If the user picked
-    // "From picked location" AND the polygon dataset is loaded AND there
-    // are coordinates, look up the IANA zone here so the JS shim sees a
-    // concrete value. If the dataset is missing or the lookup misses
-    // (e.g. open ocean in the no-oceans dataset), fall through to
-    // no-timezone-spoof rather than failing the whole shim.
-    String? effectiveSpoofTimezone = config.spoofTimezone;
-    if (config.spoofTimezoneFromLocation &&
-        config.spoofLatitude != null &&
-        config.spoofLongitude != null) {
-      effectiveSpoofTimezone = TimezoneLocationService.instance
-          .lookup(config.spoofLatitude!, config.spoofLongitude!);
-    }
+    // The effective IANA timezone (including the "From picked location"
+    // resolution) is computed and persisted into `spoofTimezone` at
+    // settings-save time, where the polygon dataset is loaded. The runtime
+    // reads the stored value, so the multi-MB dataset never loads on the
+    // cold-start / webview-build path.
+    final String? effectiveSpoofTimezone = config.spoofTimezone;
 
     // Location / timezone / WebRTC shim — must run FIRST so overrides are
     // in place before any site script can capture the unpatched references.

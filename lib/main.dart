@@ -619,9 +619,6 @@ void main() async {
       () => _runTimed('favicon', FaviconUrlCache.initialize),
       () => _runTimed('clearUrl', ClearUrlService.instance.initialize),
       () => _runTimed('dns', DnsBlockService.instance.initialize),
-      () => _runTimed('timezone', () async {
-            await TimezoneLocationService.instance.loadFromCacheIfPresent();
-          }),
       () => _runTimed('adblock', ContentBlockerService.instance.initialize),
       () => _runTimed('localCdn', LocalCdnService.instance.initialize),
       if (Platform.isAndroid)
@@ -4002,6 +3999,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     _startForegroundPollTimer();
 
+    // Off the cold-start critical path: re-resolve the persisted timezone for
+    // any from-location site (migrates sites saved before the tz was baked
+    // into `spoofTimezone`, and refreshes after a dataset update). The dataset
+    // load + parse happen on a background isolate after the first frame.
+    unawaited(_refreshLocationTimezones());
+
     await NotificationService.instance.init();
     NotificationService.instance.onNotificationTapped = _onNotificationTapped;
 
@@ -4018,6 +4021,42 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (_anyNotificationSites()) {
       unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
     }
+  }
+
+  /// Re-resolve and persist `spoofTimezone` for every site that derives its
+  /// timezone from spoofed coordinates (explicit "From picked location", or
+  /// Tracking Protection forcing it when coords are set). Runs off the
+  /// cold-start critical path: the polygon dataset only loads here (and on a
+  /// background isolate), never gating the first frame. Persists the resolved
+  /// IANA zone so subsequent launches read it straight off the model. No-op
+  /// when no site uses the feature, so non-users never load the dataset.
+  Future<void> _refreshLocationTimezones() async {
+    final targets = <int>[];
+    for (var i = 0; i < _webViewModels.length; i++) {
+      final m = _webViewModels[i];
+      final hasCoords = m.spoofLatitude != null && m.spoofLongitude != null;
+      if (!hasCoords) continue;
+      if (m.spoofTimezoneFromLocation ||
+          (m.trackingProtectionEnabled && hasCoords)) {
+        targets.add(i);
+      }
+    }
+    if (targets.isEmpty) return;
+    final ready = await TimezoneLocationService.instance.loadFromCacheIfPresent();
+    if (!ready || !mounted) return;
+    var changed = false;
+    for (final i in targets) {
+      if (i >= _webViewModels.length) continue;
+      final m = _webViewModels[i];
+      if (m.spoofLatitude == null || m.spoofLongitude == null) continue;
+      final tz = TimezoneLocationService.instance
+          .lookup(m.spoofLatitude!, m.spoofLongitude!);
+      if (tz != null && tz != m.spoofTimezone) {
+        m.spoofTimezone = tz;
+        changed = true;
+      }
+    }
+    if (changed) await _saveWebViewModels();
   }
 
   /// Housekeeping sweep of storage left by sites deleted in previous sessions,

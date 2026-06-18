@@ -784,28 +784,17 @@ class WebViewModel {
           spoofWindowWidth: spoofWindowWidth,
           spoofWindowHeight: spoofWindowHeight,
           fingerprintResetNonce: fingerprintResetNonce,
-          // Geolocation mode is independent of the umbrella: legitimate
-          // uses (maps, ride-share, weather) need real GPS even when
-          // the user wants tracker-blocking + fingerprinting protection
-          // active. Static spoof coords still force the timezone to
-          // "From picked location" so Date/Intl values match the
-          // spoofed geo. When no coords are picked the umbrella does
-          // NOT touch the timezone — the stored choice (or system
-          // default) stands.
+          // The effective timezone is resolved from the spoofed coords and
+          // persisted into `spoofTimezone` at settings-save time (Tracking
+          // Protection's force-from-location is applied there too), so the
+          // runtime just passes the stored value through — the polygon
+          // dataset never loads on this path.
           locationMode: locationMode,
           spoofLatitude: spoofLatitude,
           spoofLongitude: spoofLongitude,
           spoofAccuracy: spoofAccuracy,
-          spoofTimezone: (trackingProtectionEnabled &&
-                  spoofLatitude != null &&
-                  spoofLongitude != null)
-              ? null
-              : spoofTimezone,
-          spoofTimezoneFromLocation: (trackingProtectionEnabled &&
-                  spoofLatitude != null &&
-                  spoofLongitude != null)
-              ? true
-              : spoofTimezoneFromLocation,
+          spoofTimezone: spoofTimezone,
+          spoofTimezoneFromLocation: spoofTimezoneFromLocation,
           liveLocationGranularity: liveLocationGranularity,
           webRtcPolicy: webRtcPolicy,
           // Per-site proxy. Honored at WebView construction on iOS 17+ /
