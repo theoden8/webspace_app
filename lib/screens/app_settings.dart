@@ -1476,12 +1476,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // and break (white page, infinite spinner), so default on.
           // Greyed out on platforms that don't ship the engine library.
           SwitchListTile(
-            title: Text(loc.appSettingsUboRedirectStubs),
-            subtitle: Text(
-              !ContentBlockerService.instance.rustEngineSupportedOnPlatform
-                  ? loc.appSettingsUboRedirectStubsUnavailable
-                  : loc.appSettingsUboRedirectStubsSubtitle,
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.appSettingsUboRedirectStubs)),
+                HintButton(
+                  title: loc.appSettingsUboRedirectStubs,
+                  description: loc.appSettingsUboRedirectStubsSubtitle,
+                ),
+              ],
             ),
+            subtitle:
+                !ContentBlockerService.instance.rustEngineSupportedOnPlatform
+                    ? Text(loc.appSettingsUboRedirectStubsUnavailable)
+                    : null,
             value: ContentBlockerService.instance.useUboResources,
             onChanged: ContentBlockerService.instance
                     .rustEngineSupportedOnPlatform
