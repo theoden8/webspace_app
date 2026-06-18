@@ -47,6 +47,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -1390,12 +1391,20 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // cold start, AOH-002) and on home-shortcut tap (AOH-004) — never on a
       // transient background. Leaving the app to fetch an emailed 2FA code and
       // returning must land on the in-progress page, not home (issue #333).
-      if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
-          _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
-        }
-        final activeIdx = _currentIndex!;
-        unawaited(_captureStateBytes(_webViewModels[activeIdx]));
+      // The plan therefore has no reset; it just pauses/captures the active
+      // site like any other.
+      final pausePlan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: _currentIndex,
+        siteCount: _webViewModels.length,
+        loadedIndices: _loadedIndices,
+        notificationsEnabled: (i) => _webViewModels[i].effectiveNotificationsEnabled,
+      );
+      if (pausePlan.jsPauseIndex != null) {
+        _lifecyclePauseFuture =
+            _webViewModels[pausePlan.jsPauseIndex!].pauseForAppLifecycle();
+      }
+      if (pausePlan.captureStateIndex != null) {
+        unawaited(_captureStateBytes(_webViewModels[pausePlan.captureStateIndex!]));
       }
       // iOS: open a ~30s background-task window so notification webviews
       // can flush in-flight setTimeouts before iOS suspends the process.
@@ -1466,11 +1475,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       await _lifecyclePauseFuture;
       _lifecyclePauseFuture = null;
     }
-    if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
-        await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
-      }
-      unawaited(_probeRendererAndRecover(_webViewModels[_currentIndex!]));
+    final resumeIdx = AppLifecycleEngine.resumeJsIndex(
+      currentIndex: _currentIndex,
+      siteCount: _webViewModels.length,
+      loadedIndices: _loadedIndices,
+      notificationsEnabled: (i) => _webViewModels[i].effectiveNotificationsEnabled,
+    );
+    if (resumeIdx != null) {
+      await _webViewModels[resumeIdx].resumeFromAppLifecycle();
+    }
+    final probeIdx = AppLifecycleEngine.activeLoadedIndex(
+      currentIndex: _currentIndex,
+      siteCount: _webViewModels.length,
+      loadedIndices: _loadedIndices,
+    );
+    if (probeIdx != null) {
+      unawaited(_probeRendererAndRecover(_webViewModels[probeIdx]));
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
