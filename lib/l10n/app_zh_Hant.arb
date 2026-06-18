@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "方框寬度",
   "siteSettingsWindowHeight": "方框高度",
   "siteSettingsWindowSizeHelper": "在置中的方框中顯示頁面，並將螢幕尺寸向下取整至固定格線（類似 Tor Browser），使許多裝置回報相同尺寸，從而降低基於螢幕尺寸的指紋追蹤。",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "開啟信箱模式視窗以設定自訂的視窗大小。",
   "siteSettingsLetterboxTitle": "信箱模式視窗",
   "siteSettingsLetterboxSubtitle": "在置中、依尺寸分組的方框中顯示頁面（類似 Tor Browser），以減少基於螢幕尺寸的指紋追蹤",
   "siteSettingsLetterboxAutoHint": "auto",

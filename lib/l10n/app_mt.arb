@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Wisa' tal-kaxxa",
   "siteSettingsWindowHeight": "Għoli tal-kaxxa",
   "siteSettingsWindowSizeHelper": "Turi l-paġna f'kaxxa ċentrata u tnaqqas id-daqs tal-iskrin 'l isfel għal grilja fissa (bħal Tor Browser) biex ħafna apparati jirrappurtaw l-istess daqs, li jnaqqas il-marka tas-swaba' skont id-daqs tal-iskrin.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Ixgħel it-tieqa letterbox biex tissettja daqs ta' kaxxa personalizzat.",
   "siteSettingsLetterboxTitle": "Tieqa letterbox",
   "siteSettingsLetterboxSubtitle": "Uri l-paġna f'kaxxa ċentrata b'daqsijiet miġbura (bħal Tor Browser) biex tnaqqas l-marka tas-swaba' skont id-daqs tal-iskrin",
   "siteSettingsLetterboxAutoHint": "auto",

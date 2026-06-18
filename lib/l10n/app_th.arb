@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "ความกว้างกล่อง",
   "siteSettingsWindowHeight": "ความสูงกล่อง",
   "siteSettingsWindowSizeHelper": "แสดงหน้าเว็บในกล่องที่จัดกึ่งกลาง โดยปัดขนาดหน้าจอลงให้เป็นตารางกริดคงที่ (เหมือน Tor Browser) เพื่อให้อุปกรณ์จำนวนมากรายงานขนาดเดียวกัน ซึ่งช่วยลดการสร้างลายนิ้วมือตามขนาดหน้าจอ",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "เปิดหน้าต่าง letterbox เพื่อกำหนดขนาดกล่องที่กำหนดเอง",
   "siteSettingsLetterboxTitle": "หน้าต่าง letterbox",
   "siteSettingsLetterboxSubtitle": "แสดงหน้าเว็บในกล่องที่จัดกึ่งกลางและจัดกลุ่มตามขนาด (เหมือน Tor Browser) เพื่อลดการสร้างลายนิ้วมือตามขนาดหน้าจอ",
   "siteSettingsLetterboxAutoHint": "auto",

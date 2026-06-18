@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Rutbredd",
   "siteSettingsWindowHeight": "Ruthöjd",
   "siteSettingsWindowSizeHelper": "Visar sidan i en centrerad ruta och avrundar skärmstorleken nedåt till ett fast rutnät (som Tor Browser) så att många enheter rapporterar samma storlek, vilket minskar fingeravtryck baserat på skärmstorlek.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Aktivera Letterbox-fönster för att ange en anpassad rutstorlek.",
   "siteSettingsLetterboxTitle": "Letterbox-fönster",
   "siteSettingsLetterboxSubtitle": "Visa sidan i en centrerad ruta med grupperade storlekar (som Tor Browser) för att minska fingeravtryck baserat på skärmstorlek",
   "siteSettingsLetterboxAutoHint": "auto",

@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Kutu genişliği",
   "siteSettingsWindowHeight": "Kutu yüksekliği",
   "siteSettingsWindowSizeHelper": "Sayfayı ortalanmış bir kutuda gösterir ve ekran boyutunu sabit bir ızgaraya aşağı yuvarlar (Tor Browser gibi); böylece birçok cihaz aynı boyutu bildirir ve bu da ekran boyutuna dayalı parmak izini azaltır.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Özel bir kutu boyutu ayarlamak için Letterbox penceresini açın.",
   "siteSettingsLetterboxTitle": "Letterbox penceresi",
   "siteSettingsLetterboxSubtitle": "Ekran boyutuna dayalı parmak izini azaltmak için sayfayı ortalanmış, boyuta göre gruplanmış bir kutuda göster (Tor Browser gibi)",
   "siteSettingsLetterboxAutoHint": "auto",

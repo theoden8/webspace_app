@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Gjerësia e kutisë",
   "siteSettingsWindowHeight": "Lartësia e kutisë",
   "siteSettingsWindowSizeHelper": "E shfaq faqen në një kuti të qendërzuar dhe rrumbullakos përmasën e ekranit poshtë te një rrjetë fikse (si Tor Browser), që shumë pajisje të raportojnë të njëjtën përmasë, çka zvogëlon gjurmën e gishtave sipas përmasës së ekranit.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Aktivizo dritaren letterbox për të caktuar një madhësi të personalizuar të kutisë.",
   "siteSettingsLetterboxTitle": "Dritare letterbox",
   "siteSettingsLetterboxSubtitle": "Shfaq faqen në një kuti të qendërzuar me përmasa të grupuara (si Tor Browser) për të zvogëluar gjurmën e gishtave sipas përmasës së ekranit",
   "siteSettingsLetterboxAutoHint": "auto",

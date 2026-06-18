@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "बॉक्स की चौड़ाई",
   "siteSettingsWindowHeight": "बॉक्स की ऊँचाई",
   "siteSettingsWindowSizeHelper": "पृष्ठ को एक केंद्रित बॉक्स में दिखाता है और स्क्रीन के आकार को एक निश्चित ग्रिड तक नीचे लाता है (Tor Browser की तरह) ताकि कई डिवाइस एक ही आकार बताएँ, जिससे स्क्रीन-आकार आधारित फ़िंगरप्रिंटिंग कम होती है।",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "कस्टम बॉक्स आकार सेट करने के लिए लेटरबॉक्स विंडो चालू करें।",
   "siteSettingsLetterboxTitle": "लेटरबॉक्स विंडो",
   "siteSettingsLetterboxSubtitle": "स्क्रीन-आकार आधारित फ़िंगरप्रिंटिंग कम करने के लिए पृष्ठ को एक केंद्रित, आकार-समूहित बॉक्स में दिखाएँ (Tor Browser की तरह)",
   "siteSettingsLetterboxAutoHint": "auto",

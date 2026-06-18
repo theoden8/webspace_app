@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Տուփի լայնություն",
   "siteSettingsWindowHeight": "Տուփի բարձրություն",
   "siteSettingsWindowSizeHelper": "Ցուցադրում է էջը կենտրոնացված տուփում՝ էկրանի չափը կլորացնելով դեպի ֆիքսված ցանց (ինչպես Tor Browser), որպեսզի շատ սարքեր նույն չափը հաղորդեն, ինչը նվազեցնում է էկրանի չափով մատնահետքը։",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Միացրեք Letterbox պատուհանը՝ տուփի հատուկ չափ սահմանելու համար։",
   "siteSettingsLetterboxTitle": "Letterbox պատուհան",
   "siteSettingsLetterboxSubtitle": "Ցուցադրել էջը կենտրոնացված, ըստ չափի խմբավորված տուփում (ինչպես Tor Browser), էկրանի չափով մատնահետքը նվազեցնելու համար",
   "siteSettingsLetterboxAutoHint": "auto",

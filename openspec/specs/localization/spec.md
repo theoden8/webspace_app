@@ -57,7 +57,7 @@ generated localization code SHALL NOT be committed.
 
 - **Given** a message key `k` in the template
 - **Then** a sibling `@k` block exists with a non-empty `description`
-- **And** `test/l10n_coverage_test.dart` fails if any key lacks it
+- **And** `test/js/l10n_coverage.test.js` fails if any key lacks it
 
 ### Requirement: LOC-002 - No unkeyed user-facing text
 
@@ -66,7 +66,7 @@ display sink; all on-screen text SHALL resolve through `AppLocalizations`.
 
 #### Scenario: Hardcoded literal in a migrated file fails the build
 
-- **Given** a file listed in `migrated` in `test/l10n_no_hardcoded_text_test.dart`
+- **Given** a file listed in `migrated` in `test/js/l10n_no_hardcoded_text.test.js`
 - **When** it contains a literal opening a display sink (`Text(`, `SelectableText(`, `Tooltip(`, or `tooltip:`/`hintText:`/`labelText:`/`helperText:`/`errorText:`/`counterText:`/`prefixText:`/`suffixText:`/`semanticLabel:`)
 - **Then** the guard test fails, naming the file and line
 - **And** pure-data display (e.g. `host:port`) is extracted to a local variable so no literal sits inside a display widget
@@ -86,7 +86,7 @@ matching placeholder tokens and no empty values.
 
 - **Given** a locale ARB `app_<x>.arb`
 - **When** it omits a template key, or has an empty value
-- **Then** `test/l10n_coverage_test.dart` fails
+- **Then** `test/js/l10n_coverage.test.js` fails
 
 #### Scenario: Placeholder drift fails CI
 
@@ -97,8 +97,10 @@ matching placeholder tokens and no empty values.
 #### Scenario: gen-l10n untranslated report is empty
 
 - **Given** `untranslated-messages-file: l10n_untranslated.json` in `l10n.yaml`
-- **When** the report exists after generation
-- **Then** it is `{}` (no untranslated messages) or the coverage test fails
+- **When** the report is generated during a build
+- **Then** it is `{}` (no untranslated messages), guaranteed by key parity in
+  `test/js/l10n_coverage.test.js` (a locale missing a template key fails there
+  first); the report itself is an advisory build artifact
 
 #### Scenario: English-verbatim values are flagged as never-translated
 
@@ -106,7 +108,7 @@ matching placeholder tokens and no empty values.
   English value (key parity passes, but no actual translation happened)
 - **When** the key's value equals the template value in **all** non-template
   locales and the key is not on the universal-token allowlist
-- **Then** `test/l10n_coverage_test.dart` fails, telling the maintainer to
+- **Then** `test/js/l10n_coverage.test.js` fails, telling the maintainer to
   translate the key or add it to the allowlist
 - **And** a value identical in only *some* locales (a real translation that
   coincides, e.g. `OK`, `URL`) does NOT fail, since the signal is "identical
@@ -165,7 +167,7 @@ locales.
 - Config: [l10n.yaml](../../../l10n.yaml), template [lib/l10n/app_en.arb](../../../lib/l10n/app_en.arb).
 - Wiring: `MaterialApp` in [lib/main.dart](../../../lib/main.dart).
 - Translations: hand `app_en.arb` (values + descriptions) to any general model, keep `{placeholder}` tokens, save as `app_<locale>.arb`. No script or credential.
-- Guards: [test/l10n_no_hardcoded_text_test.dart](../../../test/l10n_no_hardcoded_text_test.dart), [test/l10n_coverage_test.dart](../../../test/l10n_coverage_test.dart).
+- Guards: [test/js/l10n_no_hardcoded_text.test.js](../../../test/js/l10n_no_hardcoded_text.test.js), [test/js/l10n_coverage.test.js](../../../test/js/l10n_coverage.test.js).
 - First migrated screen: [lib/screens/trusted_certificates.dart](../../../lib/screens/trusted_certificates.dart).
 - The guard's display-sink list is the contract; custom widgets taking a raw
   `String label` are not covered. Prefer passing localized strings into such

@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Širina okvira",
   "siteSettingsWindowHeight": "Visina okvira",
   "siteSettingsWindowSizeHelper": "Prikazuje stranicu u centriranom okviru, zaokružujući veličinu ekrana naniže na fiksnu mrežu (poput Tor Browsera) tako da mnogi uređaji prijavljuju istu veličinu, što smanjuje otisak na osnovu veličine ekrana.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Uključite Letterbox prozor da postavite prilagođenu veličinu okvira.",
   "siteSettingsLetterboxTitle": "Letterbox prozor",
   "siteSettingsLetterboxSubtitle": "Prikaži stranicu u centriranom okviru grupisane veličine (poput Tor Browsera) da se smanji otisak na osnovu veličine ekrana",
   "siteSettingsLetterboxAutoHint": "auto",

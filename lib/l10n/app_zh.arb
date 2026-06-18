@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "框宽度",
   "siteSettingsWindowHeight": "框高度",
   "siteSettingsWindowSizeHelper": "在居中的框中显示页面，并将屏幕尺寸向下取整到固定网格（类似 Tor Browser），使许多设备报告相同的尺寸，从而降低基于屏幕尺寸的指纹识别。",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "开启信箱模式窗口以设置自定义的窗口大小。",
   "siteSettingsLetterboxTitle": "信箱模式窗口",
   "siteSettingsLetterboxSubtitle": "在居中的、按尺寸分组的框中显示页面（类似 Tor Browser），以减少基于屏幕尺寸的指纹识别",
   "siteSettingsLetterboxAutoHint": "auto",

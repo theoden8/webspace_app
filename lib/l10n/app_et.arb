@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Kasti laius",
   "siteSettingsWindowHeight": "Kasti kõrgus",
   "siteSettingsWindowSizeHelper": "Kuvab lehe tsentreeritud kastis, ümardades ekraani suuruse alla kindlale võrgustikule (nagu Tor Browser), nii et paljud seadmed teatavad samast suurusest, mis vähendab ekraani suurusel põhinevat sõrmejälge.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Lülitage Letterbox-aken sisse, et määrata kohandatud kasti suurus.",
   "siteSettingsLetterboxTitle": "Letterbox-aken",
   "siteSettingsLetterboxSubtitle": "Kuva leht tsentreeritud, suuruse järgi rühmitatud kastis (nagu Tor Browser), et vähendada ekraani suurusel põhinevat sõrmejälge",
   "siteSettingsLetterboxAutoHint": "auto",

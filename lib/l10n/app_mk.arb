@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Ширина на сандакот",
   "siteSettingsWindowHeight": "Висина на сандакот",
   "siteSettingsWindowSizeHelper": "Ја прикажува страницата во центриран сандак и ја заокружува големината на екранот надолу до фиксна мрежа (како Tor Browser) така што многу уреди пријавуваат иста големина, што го намалува отпечатокот според големината на екранот.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Вклучете го прозорецот letterbox за да поставите приспособена големина на полето.",
   "siteSettingsLetterboxTitle": "Letterbox прозорец",
   "siteSettingsLetterboxSubtitle": "Прикажи ја страницата во центриран сандак со групирани големини (како Tor Browser) за да се намали отпечатокот според големината на екранот",
   "siteSettingsLetterboxAutoHint": "auto",

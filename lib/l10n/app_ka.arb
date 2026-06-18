@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "ყუთის სიგანე",
   "siteSettingsWindowHeight": "ყუთის სიმაღლე",
   "siteSettingsWindowSizeHelper": "აჩვენებს გვერდს ცენტრირებულ ყუთში და ეკრანის ზომას ამრგვალებს ქვევით ფიქსირებულ ბადემდე (Tor Browser-ის მსგავსად), რათა ბევრმა მოწყობილობამ ერთი და იგივე ზომა მოახსენოს, რაც ამცირებს ეკრანის ზომით თითის ანაბეჭდს.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "ჩართეთ Letterbox ფანჯარა მორგებული ყუთის ზომის დასაყენებლად.",
   "siteSettingsLetterboxTitle": "Letterbox ფანჯარა",
   "siteSettingsLetterboxSubtitle": "აჩვენე გვერდი ცენტრირებულ, ზომებად დაჯგუფებულ ყუთში (Tor Browser-ის მსგავსად) ეკრანის ზომით თითის ანაბეჭდის შესამცირებლად",
   "siteSettingsLetterboxAutoHint": "auto",

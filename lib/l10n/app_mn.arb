@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Нүдний өргөн",
   "siteSettingsWindowHeight": "Нүдний өндөр",
   "siteSettingsWindowSizeHelper": "Хуудсыг голлуулсан нүдэнд харуулж, дэлгэцийн хэмжээг тогтмол сүлжээ рүү доош нь бүхэлчилнэ (Tor Browser шиг), ингэснээр олон төхөөрөмж ижил хэмжээг мэдээлж, дэлгэцийн хэмжээгээр хурууны хээ авахыг багасгана.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Тохируулсан хайрцгийн хэмжээг тогтоохын тулд Letterbox цонхыг асаана уу.",
   "siteSettingsLetterboxTitle": "Letterbox цонх",
   "siteSettingsLetterboxSubtitle": "Дэлгэцийн хэмжээгээр хурууны хээ авахыг багасгахын тулд хуудсыг голлуулсан, хэмжээгээр бүлэглэсэн нүдэнд харуул (Tor Browser шиг)",
   "siteSettingsLetterboxAutoHint": "auto",

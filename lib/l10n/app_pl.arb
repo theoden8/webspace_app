@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Szerokość pola",
   "siteSettingsWindowHeight": "Wysokość pola",
   "siteSettingsWindowSizeHelper": "Wyświetla stronę w wyśrodkowanym polu i zaokrągla rozmiar ekranu w dół do stałej siatki (jak Tor Browser), dzięki czemu wiele urządzeń zgłasza ten sam rozmiar, co ogranicza śledzenie na podstawie rozmiaru ekranu.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Włącz okno letterbox, aby ustawić niestandardowy rozmiar pola.",
   "siteSettingsLetterboxTitle": "Okno letterbox",
   "siteSettingsLetterboxSubtitle": "Wyświetlaj stronę w wyśrodkowanym polu o pogrupowanych rozmiarach (jak Tor Browser), aby ograniczyć śledzenie na podstawie rozmiaru ekranu",
   "siteSettingsLetterboxAutoHint": "auto",

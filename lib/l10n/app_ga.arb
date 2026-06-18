@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Leithead an bhosca",
   "siteSettingsWindowHeight": "Airde an bhosca",
   "siteSettingsWindowSizeHelper": "Taispeánann sé an leathanach i mbosca láraithe, ag slánú mhéid an scáileáin síos go greille sheasta (cosúil le Tor Browser) ionas go dtuairiscíonn go leor gléasanna an méid céanna, rud a laghdaíonn méarlorgaireacht de réir mhéid an scáileáin.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Cuir an fhuinneog letterbox ar siúl chun méid boscaí saincheaptha a shocrú.",
   "siteSettingsLetterboxTitle": "Fuinneog letterbox",
   "siteSettingsLetterboxSubtitle": "Taispeáin an leathanach i mbosca láraithe le méideanna grúpáilte (cosúil le Tor Browser) chun méarlorgaireacht de réir mhéid an scáileáin a laghdú",
   "siteSettingsLetterboxAutoHint": "auto",

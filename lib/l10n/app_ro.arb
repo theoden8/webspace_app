@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Lățimea casetei",
   "siteSettingsWindowHeight": "Înălțimea casetei",
   "siteSettingsWindowSizeHelper": "Afișează pagina într-o casetă centrată și rotunjește dimensiunea ecranului în jos la o grilă fixă (precum Tor Browser), astfel încât multe dispozitive să raporteze aceeași dimensiune, ceea ce reduce amprentarea după dimensiunea ecranului.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Activează fereastra letterbox pentru a seta o dimensiune personalizată a casetei.",
   "siteSettingsLetterboxTitle": "Fereastră letterbox",
   "siteSettingsLetterboxSubtitle": "Afișează pagina într-o casetă centrată, cu dimensiuni grupate (precum Tor Browser), pentru a reduce amprentarea după dimensiunea ecranului",
   "siteSettingsLetterboxAutoHint": "auto",

@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Lled y blwch",
   "siteSettingsWindowHeight": "Uchder y blwch",
   "siteSettingsWindowSizeHelper": "Yn dangos y dudalen mewn blwch wedi'i ganoli, gan dalgrynnu maint y sgrin i lawr i grid sefydlog (fel Tor Browser) fel bod llawer o ddyfeisiau'n adrodd yr un maint, sy'n lleihau olion bysedd yn ôl maint y sgrin.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Trowch ffenestr letterbox ymlaen i osod maint blwch personol.",
   "siteSettingsLetterboxTitle": "Ffenestr letterbox",
   "siteSettingsLetterboxSubtitle": "Dangos y dudalen mewn blwch wedi'i ganoli â meintiau wedi'u bwcedu (fel Tor Browser) i leihau olion bysedd yn ôl maint y sgrin",
   "siteSettingsLetterboxAutoHint": "auto",

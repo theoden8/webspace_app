@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Laatikon leveys",
   "siteSettingsWindowHeight": "Laatikon korkeus",
   "siteSettingsWindowSizeHelper": "Näyttää sivun keskitetyssä laatikossa ja pyöristää näytön koon alaspäin kiinteään ruudukkoon (kuten Tor Browser), jolloin monet laitteet ilmoittavat saman koon, mikä vähentää näytön kokoon perustuvaa sormenjälkeä.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Ota Letterbox-ikkuna käyttöön asettaaksesi mukautetun laatikkokoon.",
   "siteSettingsLetterboxTitle": "Letterbox-ikkuna",
   "siteSettingsLetterboxSubtitle": "Näytä sivu keskitetyssä, kokoluokitellussa laatikossa (kuten Tor Browser) vähentääksesi näytön kokoon perustuvaa sormenjälkeä",
   "siteSettingsLetterboxAutoHint": "auto",

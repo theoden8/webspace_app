@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Largura da caixa",
   "siteSettingsWindowHeight": "Altura da caixa",
   "siteSettingsWindowSizeHelper": "Mostra a páxina nunha caixa centrada e axusta o tamaño da pantalla cara abaixo a unha grade fixa (coma Tor Browser) para que moitos dispositivos informen do mesmo tamaño, o que reduce a identificación polo tamaño da pantalla.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Activa a ventá letterbox para definir un tamaño de caixa personalizado.",
   "siteSettingsLetterboxTitle": "Ventá letterbox",
   "siteSettingsLetterboxSubtitle": "Mostra a páxina nunha caixa centrada con tamaños agrupados (coma Tor Browser) para reducir a identificación polo tamaño da pantalla",
   "siteSettingsLetterboxAutoHint": "auto",

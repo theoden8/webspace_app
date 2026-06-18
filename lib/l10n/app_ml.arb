@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "ബോക്സിന്റെ വീതി",
   "siteSettingsWindowHeight": "ബോക്സിന്റെ ഉയരം",
   "siteSettingsWindowSizeHelper": "പേജ് മധ്യഭാഗത്തുള്ള ബോക്സിൽ കാണിക്കുകയും സ്ക്രീൻ വലുപ്പം ഒരു നിശ്ചിത ഗ്രിഡിലേക്ക് താഴേക്ക് വൃത്താകൃതിയിലാക്കുകയും ചെയ്യുന്നു (Tor Browser പോലെ), അങ്ങനെ പല ഉപകരണങ്ങളും ഒരേ വലുപ്പം റിപ്പോർട്ട് ചെയ്യുന്നു, ഇത് സ്ക്രീൻ-വലുപ്പത്തെ അടിസ്ഥാനമാക്കിയുള്ള ഫിംഗർപ്രിന്റിംഗ് കുറയ്ക്കുന്നു.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "ഇഷ്‌ടാനുസൃത ബോക്സ് വലുപ്പം സജ്ജമാക്കാൻ ലെറ്റർബോക്സ് വിൻഡോ ഓണാക്കുക.",
   "siteSettingsLetterboxTitle": "ലെറ്റർബോക്സ് വിൻഡോ",
   "siteSettingsLetterboxSubtitle": "സ്ക്രീൻ-വലുപ്പത്തെ അടിസ്ഥാനമാക്കിയുള്ള ഫിംഗർപ്രിന്റിംഗ് കുറയ്ക്കാൻ പേജ് മധ്യഭാഗത്തുള്ള, വലുപ്പം ഗ്രൂപ്പുചെയ്ത ബോക്സിൽ കാണിക്കുക (Tor Browser പോലെ)",
   "siteSettingsLetterboxAutoHint": "auto",

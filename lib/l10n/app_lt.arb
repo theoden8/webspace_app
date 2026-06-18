@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Langelio plotis",
   "siteSettingsWindowHeight": "Langelio aukštis",
   "siteSettingsWindowSizeHelper": "Rodo puslapį centruotame langelyje ir suapvalina ekrano dydį žemyn iki fiksuoto tinklelio (kaip Tor Browser), kad daug įrenginių praneštų tą patį dydį, o tai sumažina atpažinimą pagal ekrano dydį.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Įjunkite Letterbox langą, kad nustatytumėte pasirinktinį langelio dydį.",
   "siteSettingsLetterboxTitle": "Letterbox langas",
   "siteSettingsLetterboxSubtitle": "Rodyti puslapį centruotame, pagal dydį sugrupuotame langelyje (kaip Tor Browser), kad sumažintumėte atpažinimą pagal ekrano dydį",
   "siteSettingsLetterboxAutoHint": "auto",

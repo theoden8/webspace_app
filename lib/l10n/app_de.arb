@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Feldbreite",
   "siteSettingsWindowHeight": "Feldhöhe",
   "siteSettingsWindowSizeHelper": "Zeigt die Seite in einem zentrierten Feld an und rundet die Bildschirmgröße auf ein festes Raster ab (wie Tor Browser), sodass viele Geräte dieselbe Größe melden, was Fingerprinting anhand der Bildschirmgröße verringert.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Aktiviere das Letterbox-Fenster, um eine benutzerdefinierte Boxgröße festzulegen.",
   "siteSettingsLetterboxTitle": "Letterbox-Fenster",
   "siteSettingsLetterboxSubtitle": "Seite in einem zentrierten Feld mit gebündelten Größen anzeigen (wie Tor Browser), um Fingerprinting anhand der Bildschirmgröße zu verringern",
   "siteSettingsLetterboxAutoHint": "auto",

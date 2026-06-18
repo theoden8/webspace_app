@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Lapad ng kahon",
   "siteSettingsWindowHeight": "Taas ng kahon",
   "siteSettingsWindowSizeHelper": "Ipinapakita ang pahina sa isang nakasentrong kahon, ibinababa ang laki ng screen sa isang nakapirming grid (tulad ng Tor Browser) upang maraming device ang mag-ulat ng parehong laki, na binabawasan ang fingerprinting batay sa laki ng screen.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "I-on ang Letterbox window para magtakda ng pasadyang laki ng kahon.",
   "siteSettingsLetterboxTitle": "Letterbox window",
   "siteSettingsLetterboxSubtitle": "Ipakita ang pahina sa isang nakasentro, naka-bucket-ayon-sa-sukat na kahon (tulad ng Tor Browser) upang bawasan ang fingerprinting batay sa laki ng screen",
   "siteSettingsLetterboxAutoHint": "auto",

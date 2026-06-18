@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Πλάτος πλαισίου",
   "siteSettingsWindowHeight": "Ύψος πλαισίου",
   "siteSettingsWindowSizeHelper": "Εμφανίζει τη σελίδα σε ένα κεντραρισμένο πλαίσιο, στρογγυλοποιώντας το μέγεθος της οθόνης προς τα κάτω σε ένα σταθερό πλέγμα (όπως το Tor Browser) ώστε πολλές συσκευές να αναφέρουν το ίδιο μέγεθος, κάτι που μειώνει την αναγνώριση βάσει μεγέθους οθόνης.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Ενεργοποιήστε το παράθυρο letterbox για να ορίσετε προσαρμοσμένο μέγεθος πλαισίου.",
   "siteSettingsLetterboxTitle": "Παράθυρο letterbox",
   "siteSettingsLetterboxSubtitle": "Εμφάνιση της σελίδας σε ένα κεντραρισμένο πλαίσιο ομαδοποιημένου μεγέθους (όπως το Tor Browser) για μείωση της αναγνώρισης βάσει μεγέθους οθόνης",
   "siteSettingsLetterboxAutoHint": "auto",

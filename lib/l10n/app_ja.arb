@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "ボックスの幅",
   "siteSettingsWindowHeight": "ボックスの高さ",
   "siteSettingsWindowSizeHelper": "ページを中央寄せのボックスで表示し、画面サイズを固定グリッドへ切り下げて（Tor Browserのように）多くの端末が同じサイズを報告するようにし、画面サイズによるフィンガープリントを抑えます。",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "カスタムのボックスサイズを設定するには、レターボックスウィンドウをオンにしてください。",
   "siteSettingsLetterboxTitle": "レターボックスウィンドウ",
   "siteSettingsLetterboxSubtitle": "画面サイズによるフィンガープリントを抑えるため、ページを中央寄せのサイズ集約ボックス（Tor Browserのように）で表示します",
   "siteSettingsLetterboxAutoHint": "auto",

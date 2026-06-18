@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "خانے کی چوڑائی",
   "siteSettingsWindowHeight": "خانے کی اونچائی",
   "siteSettingsWindowSizeHelper": "صفحہ کو ایک مرکزی خانے میں دکھاتا ہے اور اسکرین کے سائز کو ایک مقررہ گرڈ تک نیچے گول کرتا ہے (Tor Browser کی طرح) تاکہ بہت سے آلات ایک ہی سائز کی اطلاع دیں، جس سے اسکرین سائز پر مبنی فنگر پرنٹنگ کم ہوتی ہے۔",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "حسب ضرورت باکس سائز مقرر کرنے کے لیے لیٹر باکس ونڈو آن کریں۔",
   "siteSettingsLetterboxTitle": "لیٹر باکس ونڈو",
   "siteSettingsLetterboxSubtitle": "اسکرین سائز پر مبنی فنگر پرنٹنگ کم کرنے کے لیے صفحہ کو ایک مرکزی، سائز کے لحاظ سے گروپ کردہ خانے میں دکھائیں (Tor Browser کی طرح)",
   "siteSettingsLetterboxAutoHint": "auto",

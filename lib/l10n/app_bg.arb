@@ -619,7 +619,7 @@
   "siteSettingsWindowWidth": "Ширина на полето",
   "siteSettingsWindowHeight": "Височина на полето",
   "siteSettingsWindowSizeHelper": "Показва страницата в центрирано поле, като закръгля размера на екрана надолу до фиксирана решетка (като Tor Browser), така че много устройства да съобщават еднакъв размер, което намалява разпознаването по размер на екрана.",
-  "siteSettingsWindowSizeRequiresProtection": "Enable Tracking Protection to spoof the window size.",
+  "siteSettingsWindowSizeRequiresProtection": "Включете прозореца с поле (letterbox), за да зададете персонализиран размер на кутията.",
   "siteSettingsLetterboxTitle": "Прозорец с поле (letterbox)",
   "siteSettingsLetterboxSubtitle": "Показва страницата в центрирано поле с групирани размери (като Tor Browser), за да намали разпознаването по размер на екрана",
   "siteSettingsLetterboxAutoHint": "auto",
