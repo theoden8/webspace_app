@@ -5010,7 +5010,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _evictCacheIfOnline(m.siteId);
       m.currentUrl = m.initUrl;
       m.disposeWebView();
-      _loadedIndices.remove(i);
+      // Keep the active site in _loadedIndices (mirrors
+      // _resetAlwaysOpenHomeForAppClose / _goHome) so the IndexedStack still
+      // has a child to rebuild at initUrl. Dropping it black-screens a warm
+      // shortcut re-tap of the already-current site: _openShortcutIndex skips
+      // _setCurrentIndex when index == _currentIndex, so nothing would re-add
+      // it or recreate the disposed webview.
+      if (i != _currentIndex) {
+        _loadedIndices.remove(i);
+      }
     }
   }
 
