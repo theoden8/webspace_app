@@ -47,6 +47,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -1385,23 +1386,25 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (state == AppLifecycleState.paused) {
       _foregroundPollTimer?.cancel();
       _foregroundPollTimer = null;
-      // AOH-006: URL-ephemeral sites (alwaysOpenHome / incognito) revert to
-      // their initUrl when the app leaves the foreground, so reopening lands
-      // on home. This is the only warm-resume reset — fromJson handles cold
-      // start. In-app site switches never trigger it; only app close does.
-      final activeWentHome = _resetAlwaysOpenHomeForAppClose();
-      if (activeWentHome && mounted) {
-        // The active webview was disposed above. Mark dirty so the rebuild
-        // recreates it at initUrl once frames resume.
-        setState(() {});
+      // URL-ephemeral sites (alwaysOpenHome / incognito) revert to their
+      // initUrl only on a genuine app restart (fromJson strips currentUrl on
+      // cold start, AOH-002) and on home-shortcut tap (AOH-004) — never on a
+      // transient background. Leaving the app to fetch an emailed 2FA code and
+      // returning must land on the in-progress page, not home (issue #333).
+      // The plan therefore has no reset; it just pauses/captures the active
+      // site like any other.
+      final pausePlan = AppLifecycleEngine.backgroundPlan(
+        currentIndex: _currentIndex,
+        siteCount: _webViewModels.length,
+        loadedIndices: _loadedIndices,
+        notificationsEnabled: (i) => _webViewModels[i].effectiveNotificationsEnabled,
+      );
+      if (pausePlan.jsPauseIndex != null) {
+        _lifecyclePauseFuture =
+            _webViewModels[pausePlan.jsPauseIndex!].pauseForAppLifecycle();
       }
-      if (!activeWentHome &&
-          _currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-        if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
-          _lifecyclePauseFuture = _webViewModels[_currentIndex!].pauseForAppLifecycle();
-        }
-        final activeIdx = _currentIndex!;
-        unawaited(_captureStateBytes(_webViewModels[activeIdx]));
+      if (pausePlan.captureStateIndex != null) {
+        unawaited(_captureStateBytes(_webViewModels[pausePlan.captureStateIndex!]));
       }
       // iOS: open a ~30s background-task window so notification webviews
       // can flush in-flight setTimeouts before iOS suspends the process.
@@ -1472,11 +1475,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       await _lifecyclePauseFuture;
       _lifecyclePauseFuture = null;
     }
-    if (_currentIndex != null && _currentIndex! < _webViewModels.length && _loadedIndices.contains(_currentIndex)) {
-      if (!_webViewModels[_currentIndex!].effectiveNotificationsEnabled) {
-        await _webViewModels[_currentIndex!].resumeFromAppLifecycle();
-      }
-      unawaited(_probeRendererAndRecover(_webViewModels[_currentIndex!]));
+    final resumeIdx = AppLifecycleEngine.resumeJsIndex(
+      currentIndex: _currentIndex,
+      siteCount: _webViewModels.length,
+      loadedIndices: _loadedIndices,
+      notificationsEnabled: (i) => _webViewModels[i].effectiveNotificationsEnabled,
+    );
+    if (resumeIdx != null) {
+      await _webViewModels[resumeIdx].resumeFromAppLifecycle();
+    }
+    final probeIdx = AppLifecycleEngine.activeLoadedIndex(
+      currentIndex: _currentIndex,
+      siteCount: _webViewModels.length,
+      loadedIndices: _loadedIndices,
+    );
+    if (probeIdx != null) {
+      unawaited(_probeRendererAndRecover(_webViewModels[probeIdx]));
     }
     // Re-apply fullscreen system UI mode after resume
     if (_isFullscreen) {
@@ -4922,37 +4936,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       m.disposeWebView();
       _loadedIndices.remove(i);
     }
-  }
-
-  /// Reset every URL-ephemeral site (`alwaysOpenHome`, or incognito which
-  /// implies it per AOH-005) back to its initUrl when the app leaves the
-  /// foreground, disposing the live webview so the next foreground rebuild
-  /// loads home. Cookies, localStorage, and other persistent state are left
-  /// intact — that is the boundary between this toggle and incognito.
-  ///
-  /// Notification sites are skipped: their page must keep running in the
-  /// background to fire notifications, and resetting the URL would tear it
-  /// down. The active site stays in `_loadedIndices` (only its webview is
-  /// dropped) so the IndexedStack still has a child to rebuild at initUrl.
-  /// Returns true if the currently-active site was reset, so the caller can
-  /// skip the now-redundant pause/capture and schedule a rebuild instead.
-  bool _resetAlwaysOpenHomeForAppClose() {
-    bool activeReset = false;
-    for (int i = 0; i < _webViewModels.length; i++) {
-      final m = _webViewModels[i];
-      if (!(m.alwaysOpenHome || m.incognito)) continue;
-      if (m.effectiveNotificationsEnabled) continue;
-      if (m.currentUrl == m.initUrl && m.webview == null) continue;
-      _evictCacheIfOnline(m.siteId);
-      m.currentUrl = m.initUrl;
-      m.disposeWebView();
-      if (i == _currentIndex) {
-        activeReset = true;
-      } else {
-        _loadedIndices.remove(i);
-      }
-    }
-    return activeReset;
   }
 
   void _goHome() {
