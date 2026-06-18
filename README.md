@@ -46,9 +46,9 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 - 🔄 Proxy support with authentication (Android, iOS 17+, macOS 14+, Linux)
 - 🧹 Tracking parameter removal via [ClearURLs](https://github.com/ClearURLs/Rules) rules (LGPL-3.0)
 - 🛡️ DNS-level domain blocking via [Hagezi](https://github.com/hagezi/dns-blocklists) blocklists (GPL-3.0, 5 severity levels)
-- 🚫 Ad & tracker filtering via [EasyList](https://easylist.to/) filter lists (GPL-3.0 / CC BY-SA 3.0), including EasyList, EasyPrivacy, Fanboy's Social Blocking List, and Fanboy's Annoyance List
+- 🚫 Ad & tracker filtering ([adblock-rust](https://github.com/brave/adblock-rust)) with [EasyList](https://easylist.to/)-style filter lists
 - 📦 LocalCDN - cache CDN resources locally to prevent tracking (Android)
-- 📌 Home screen shortcuts for quick site access (Android)
+- 📌 Home screen shortcuts for quick site access
 - 📜 Per-site user scripts (custom JavaScript injection)
 - 🎨 Light/dark mode with accent colors
 
@@ -71,30 +71,20 @@ fvm install
 fvm flutter pub get
 ```
 
-### Optional: Rust adblock engine
+### Building the adblock engine
 
-The content blocker can be backed by Brave's [adblock-rust](https://github.com/brave/adblock-rust) engine via `rust/webspace_adblock`. Off by default; opt in from App Settings → Content Blocker → "Use Rust adblock engine". Adds support for `$domain=`, regex network rules, generic class/id cosmetic lookups, and every other rule shape adblock-rust accepts.
-
-The Rust crate auto-builds as part of the platform build:
+The content blocker's [adblock-rust](https://github.com/brave/adblock-rust) crate (`rust/webspace_adblock`) auto-builds and bundles as part of each platform build, so a normal `fvm flutter build` needs nothing extra:
 - **Android** — Gradle `buildRustAdblock` task runs before `mergeJniLibFolders`. Requires `cargo` on PATH and `ANDROID_NDK_HOME` (or NDK installed under the SDK). Skip with `-PskipRustAdblock=true`.
 - **Linux** — CMake `webspace_adblock_so` target runs before linking the runner.
 - **iOS / macOS** — Xcode "Build adblock-rust" Run Script Phase added by the Pods post_install hook.
 
-```bash
-# Just build the app — the .so is built and bundled automatically.
-fvm flutter build apk --flavor fdroid --release
-fvm flutter build linux --release
-fvm flutter build ipa --release
-fvm flutter build macos --release
+To rebuild the crate alone (e.g. iterating on `rust/webspace_adblock/`) without a full Flutter build:
 
-# Or invoke the script directly when you want to rebuild without the
-# full Flutter build (e.g. iterating on rust/webspace_adblock/ alone):
+```bash
 ./scripts/build_rust.sh linux         # or: android <abi> | android-all | ios | macos
 ```
 
-Without `cargo` on PATH the Flutter build still succeeds — the Rust step prints a "skipping" notice and `AdblockEngine.load()` returns null at runtime, leaving the legacy Dart parser engine as the fallback.
-
-Toggle the engine in the app, no rebuild required after the .so is bundled. Flipping the toggle off restores the legacy engine instantly.
+Without `cargo` on PATH the Flutter build still succeeds — the Rust step prints a "skipping" notice and content blocking no-ops at runtime (there is no Dart fallback; Windows ships without the library).
 
 ## Platform Support
 
