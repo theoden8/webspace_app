@@ -274,6 +274,13 @@ class TimezoneLocationService {
 List<_ZoneEntry> _readAndParseZones(String path) =>
     _parseZones(File(path).readAsStringSync());
 
+/// Benchmark/test hook: parse a GeoJSON body synchronously on the calling
+/// isolate and return the zone count. Lets a `flutter test` profile the parse
+/// cost (the heaviest pure-Dart cold-start step) without the [compute] hop.
+/// See test/timezone_parse_benchmark_test.dart.
+@visibleForTesting
+int debugParseZoneCount(String geojson) => _parseZones(geojson).length;
+
 /// Parse a timezone-boundary GeoJSON body into zone entries. Top-level for the
 /// same isolate reason as [_readAndParseZones].
 List<_ZoneEntry> _parseZones(String body) {
