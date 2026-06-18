@@ -46,7 +46,7 @@ WebSpace is a mobile app that brings all your favorite websites and web apps tog
 - 🔄 Proxy support with authentication (Android, iOS 17+, macOS 14+, Linux)
 - 🧹 Tracking parameter removal via [ClearURLs](https://github.com/ClearURLs/Rules) rules (LGPL-3.0)
 - 🛡️ DNS-level domain blocking via [Hagezi](https://github.com/hagezi/dns-blocklists) blocklists (GPL-3.0, 5 severity levels)
-- 🚫 Ad & tracker filtering ([adblock-rust](https://github.com/brave/adblock-rust)) via [EasyList](https://easylist.to/) filter lists (GPL-3.0 / CC BY-SA 3.0), including EasyList, EasyPrivacy, Fanboy's Social Blocking List, and Fanboy's Annoyance List
+- 🚫 Ad & tracker filtering ([adblock-rust](https://github.com/brave/adblock-rust)) with [EasyList](https://easylist.to/)-style filter lists
 - 📦 LocalCDN - cache CDN resources locally to prevent tracking (Android)
 - 📌 Home screen shortcuts for quick site access (Android)
 - 📜 Per-site user scripts (custom JavaScript injection)
