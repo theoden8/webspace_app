@@ -5,11 +5,12 @@
 A per-site `alwaysOpenHome` toggle that makes the site's *navigation
 URL* ephemeral while keeping its persistent state (cookies,
 localStorage, IndexedDB, HTTP cache) intact. The site reverts to its
-`initUrl` on **app restart**, on **app close** (the app leaving the
-foreground), and on **Android home-shortcut tap**, but the user's
-logged-in session, preferences, and other cookie-backed state survive
-all three events. Switching between sites *within* the app is not a
-reset trigger.
+`initUrl` on **app restart** (cold start) and on **Android
+home-shortcut tap**, but the user's logged-in session, preferences,
+and other cookie-backed state survive both events. Switching between
+sites *within* the app is not a reset trigger, and neither is a
+transient background — leaving the app to fetch an emailed 2FA code
+and returning preserves the in-progress page (issue #333).
 
 Two motivating cases the user split out from
 [incognito-mode](../incognito-mode/spec.md) (which ALSO drops
@@ -163,22 +164,23 @@ regardless of the stored `alwaysOpenHome` value.
 
 ---
 
-### Requirement: AOH-006 - Reset On App Close, Not On Site Switch
+### Requirement: AOH-006 - Transient Background Does Not Reset
 
-The system SHALL reset `currentUrl` to `initUrl` for every flagged site
-(`alwaysOpenHome = true` or `incognito = true`) when the app transitions
-to the backgrounded (`AppLifecycleState.paused`) lifecycle state, and SHALL
-dispose each such site's live webview so the next foregrounding rebuilds it
-at `initUrl`. Cookies and all other persistent per-site state SHALL be left
-untouched (AOH-003). Sites with notifications enabled SHALL be skipped so
-their background page keeps running. Switching the active site within the
-app SHALL NOT reset any flagged site.
+The system SHALL NOT reset `currentUrl` for a flagged site
+(`alwaysOpenHome = true` or `incognito = true`) when the app is merely
+backgrounded and later foregrounded with its process intact
+(`AppLifecycleState.paused` → `resumed`). The URL reverts to `initUrl`
+only on a genuine app restart (cold start, where `fromJson` strips
+`currentUrl` per AOH-002) and on home-shortcut tap (AOH-004). Switching
+the active site within the app SHALL NOT reset any flagged site either.
+This keeps a multi-step flow that requires briefly leaving the app —
+e.g. fetching an emailed 2FA code — intact on return (issue #333).
 
-#### Scenario: Backgrounding the app sends the active flagged site home
+#### Scenario: Leaving the app for a 2FA code preserves the deep URL
 
-**Given** a site with `alwaysOpenHome = true` is active and navigated to a deep URL
-**When** the app is backgrounded (`AppLifecycleState.paused`) and later resumed
-**Then** the site's webview is rebuilt at `initUrl`
+**Given** a site with `alwaysOpenHome = true` (or `incognito = true`) is active and navigated to a deep login-step URL
+**When** the user switches to an email app to read a 2FA code and returns to the foregrounded app (process intact)
+**Then** the site is still showing the deep login-step URL (no reset)
 **And** its persisted cookies are unchanged
 
 #### Scenario: Switching sites in-app does not reset
@@ -187,11 +189,13 @@ app SHALL NOT reset any flagged site.
 **And** the user switches to site B and back to A, with the app staying foregrounded
 **Then** A is still showing the deep URL (no reset)
 
-#### Scenario: Notification-enabled flagged site is not reset on background
+#### Scenario: Cold restart still lands on home
 
-**Given** a site with `alwaysOpenHome = true` and notifications enabled
-**When** the app is backgrounded
-**Then** the site's `currentUrl` is unchanged and its webview is not disposed
+**Given** a site with `alwaysOpenHome = true` was navigated to a deep URL before the OS killed the process
+**When** the app is cold-launched again
+**Then** `fromJson` rehydrates the site with `currentUrl == initUrl` (AOH-002)
+**And** the site's webview loads at `initUrl`
+**And** its persisted cookies are restored unchanged
 
 ---
 
@@ -205,8 +209,8 @@ app SHALL NOT reset any flagged site.
   `toJson` URL-strip gate, `fromJson` URL-strip gate.
 - `lib/main.dart` — `_resetAlwaysOpenHomeOnShortcut(int)` helper
   invoked from `_restoreAppState` (cold) and `_handleShortcutIntent`
-  (warm); `_resetAlwaysOpenHomeForAppClose()` invoked from
-  `didChangeAppLifecycleState` on `paused` (AOH-006).
+  (warm). `didChangeAppLifecycleState` on `paused` does NOT reset
+  flagged sites (AOH-006); a transient background preserves the URL.
 - `lib/services/webspace_selection_engine.dart` —
   `indicesToResetOnShortcutLaunch` pure helper computes the reset set
   from the launched index + the webspaces list + a flag predicate.
