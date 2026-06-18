@@ -614,9 +614,7 @@ void main() async {
   final swServices = kDebugMode ? (Stopwatch()..start()) : null;
   await StartupInitEngine.runIndependentInits(
     <AsyncStep>[
-      () => _runTimed('imageCache', ImageCacheService.clearCacheOnUpgrade),
       () => _runTimed('html', htmlInit),
-      () => _runTimed('favicon', FaviconUrlCache.initialize),
       () => _runTimed('clearUrl', ClearUrlService.instance.initialize),
       () => _runTimed('dns', DnsBlockService.instance.initialize),
       () => _runTimed('adblock', ContentBlockerService.instance.initialize),
@@ -3998,6 +3996,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     _syncShortcutSites();
 
     _startForegroundPollTimer();
+
+    // Off the cold-start critical path. Neither gates the first frame or the
+    // launched site: the image cache's upgrade-clear only matters on a version
+    // bump, and the favicon URL cache is consulted progressively by the tab
+    // strip / add-site UI (a miss just triggers a fresh fetch).
+    unawaited(ImageCacheService.clearCacheOnUpgrade());
+    unawaited(FaviconUrlCache.initialize());
 
     // Off the cold-start critical path: re-resolve the persisted timezone for
     // any from-location site (migrates sites saved before the tz was baked

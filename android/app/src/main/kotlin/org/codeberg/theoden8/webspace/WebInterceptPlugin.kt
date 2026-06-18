@@ -69,10 +69,19 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "setDnsBlockedDomains" -> {
-                    val domains = call.argument<List<String>>("domains")
-                    if (domains != null) {
+                    // One newline-joined blob, not a List<String>: the channel
+                    // codec encodes/decodes a list element-by-element (type tag
+                    // + length + UTF-8 per entry), which costs ~1s for a full
+                    // ~650k-domain blocklist. A single string is one decode; we
+                    // split it here.
+                    val blob = call.argument<String>("domains")
+                    if (blob != null) {
                         dnsBlockedDomains.clear()
-                        dnsBlockedDomains.addAll(domains)
+                        if (blob.isNotEmpty()) {
+                            for (d in blob.splitToSequence('\n')) {
+                                if (d.isNotEmpty()) dnsBlockedDomains.add(d)
+                            }
+                        }
                         // Without this every interceptor's per-host
                         // decision cache keeps stale `ALLOWED`
                         // verdicts for hosts the rule now covers — the
@@ -82,7 +91,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                         clearAllHostDecisionCaches()
                         result.success(dnsBlockedDomains.size)
                     } else {
-                        result.error("INVALID_ARGS", "domains list required", null)
+                        result.error("INVALID_ARGS", "domains blob required", null)
                     }
                 }
                 "setAdblockEngineRules" -> {

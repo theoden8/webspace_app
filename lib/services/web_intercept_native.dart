@@ -99,8 +99,12 @@ class WebInterceptNative {
   static Future<void> sendDnsDomains(Set<String> domains) async {
     if (!isSupported) return;
     try {
+      // Send one newline-joined blob, not a List<String>: the platform-channel
+      // codec encodes a list element-by-element (type tag + length + UTF-8 per
+      // entry), which is ~1s for a full ~650k-domain blocklist. A single string
+      // is one encode/decode; the native side splits on '\n'.
       final count = await _channel.invokeMethod('setDnsBlockedDomains', {
-        'domains': domains.toList(),
+        'domains': domains.join('\n'),
       });
       LogService.instance.log(
           'DnsBlock', 'Sent $count DNS domains to native handler',
