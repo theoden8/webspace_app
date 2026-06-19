@@ -1533,7 +1533,7 @@
       }
     }
   },
-  "devToolsAbpEmptyNotConsulted": "Engine has not been consulted since DevTools opened.\n\nSub-resource checks fire from the JS-bridge `blockCheck` handler — they only run on cross-origin requests that hit the bloom prefilter.\n\nTry: reload an ad-heavy page with DevTools already open.",
+  "devToolsAbpEmptyNotConsulted": "Engine has not been consulted yet.\n\nSub-resource checks fire from the JS-bridge `blockCheck` handler; they only run on cross-origin requests that hit the bloom prefilter.\n\nTry: reload an ad-heavy page.",
   "@devToolsAbpEmptyNotConsulted": {
     "description": "Empty-state explanation shown in the ABP tab when the engine has not been consulted yet."
   },

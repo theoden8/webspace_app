@@ -234,13 +234,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         : <BlockedCookie>{};
     LogService.instance.addListener(_onLogUpdate);
     DnsBlockService.instance.addDnsLogListener(_onDnsLogUpdate);
-    // ABP timing buffer is off in normal app runs (small but non-zero
-    // Stopwatch + ring-buffer cost on every sub-resource decision).
-    // Enable while DevTools is open so the ABP tab has fresh data;
-    // disable on close so production runs aren't paying the overhead.
-    if (ContentBlockerService.instance.usingRustEngine) {
-      ContentBlockerService.instance.engineTimingEnabled = true;
-    }
     if (_hasHost) {
       widget.host!.onConsoleLogChanged = _onConsoleUpdate;
     }
@@ -250,7 +243,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   void dispose() {
     LogService.instance.removeListener(_onLogUpdate);
     DnsBlockService.instance.removeDnsLogListener(_onDnsLogUpdate);
-    ContentBlockerService.instance.engineTimingEnabled = false;
     if (_hasHost) {
       widget.host!.onConsoleLogChanged = null;
     }
