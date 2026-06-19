@@ -3738,10 +3738,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // a site is selected via _setCurrentIndex(). This enables per-site
       // cookie isolation for same-domain sites.
 
-      // Re-save to migrate cookies to siteId-keyed format
-      await _saveWebViewModels();
+      // Migration re-save (siteId-keyed cookies, schema normalization, dropped
+      // malformed sites) is deferred off the cold-start critical path — it's
+      // three secure-storage ops + a prefs write that the first frame doesn't
+      // need. The migration is already applied in memory; `_restoreAppState`
+      // persists it just after first paint (idempotent if the app dies first).
+      _needsMigrationResave = true;
     }
   }
+
+  /// Set by `_loadWebViewModels` when models were loaded and should be
+  /// re-persisted (cookie re-key / schema normalization), drained post-paint.
+  bool _needsMigrationResave = false;
 
   Future<void> _restoreAppState() async {
     // Debug-only startup phase timing (compiled out of release via kDebugMode).
@@ -4001,6 +4009,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       for (int i = 0; i < _webViewModels.length; i++) {
         if (preThemeIndices.contains(i)) continue;
         await _webViewModels[i].setTheme(webViewTheme);
+      }
+      // Persist the load-time migration first (it writes cookie/proxy secure
+      // storage), then GC orphans — sequenced so the two don't race the same
+      // secure-storage keys.
+      if (_needsMigrationResave) {
+        _needsMigrationResave = false;
+        await _saveWebViewModels();
       }
       await _runDeferredStartupGc(activeSiteIdsAtStartup, nonIncognitoSiteIds);
     }());
