@@ -473,14 +473,6 @@ class FastSubresourceInterceptor(
     private val onLog: (String, String) -> Unit = { _, _ -> }
 ) : ContentBlockerHandler() {
 
-    private companion object {
-        // Upper bound a request thread will fail-closed-wait for an in-flight
-        // DNS blocklist build. Generous: the build is ~1.2s and finishes
-        // seconds before the first sub-resource, so this is only a valve
-        // against a wedged build, never hit in normal operation.
-        const val DNS_READY_TIMEOUT_MS = 15_000L
-    }
-
     private var checkCount = 0
     private var loggedNoCache = false
     private var loggedLocalCdnDisabled = false
@@ -801,6 +793,12 @@ class FastSubresourceInterceptor(
     }
 
     companion object {
+        // Upper bound a request thread will fail-closed-wait for an in-flight
+        // DNS blocklist build. Generous: the build is ~1.2s and finishes
+        // seconds before the first sub-resource, so this is only a valve
+        // against a wedged build, never hit in normal operation.
+        const val DNS_READY_TIMEOUT_MS = 15_000L
+
         /// Shared empty-body buffer for blocked-request responses.
         /// Reused across calls so we don't allocate a fresh byte array
         /// per blocked sub-resource (Reddit page loads alone fire
