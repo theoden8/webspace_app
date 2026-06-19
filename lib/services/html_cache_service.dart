@@ -96,6 +96,28 @@ class HtmlCacheService {
   /// [saveHtml] at import time, so they work even before this runs.
   Future<void> preloadCache() => _preloadCache();
 
+  /// Decrypt a single site's cached page into [_memoryCache] so a subsequent
+  /// [getHtmlSync] hits without the bulk [preloadCache] pass. Idempotent; a
+  /// no-op when the site has no cache file. Lets the cold-start path load only
+  /// the pages for sites that actually build, instead of every cached page.
+  Future<void> preloadOne(String siteId) async {
+    if (_memoryCache.containsKey(siteId)) return;
+    final dir = _cacheDirectory;
+    if (dir == null) return;
+    try {
+      final file = File('${dir.path}/$siteId.enc');
+      if (!await file.exists()) return;
+      final decrypted = _decrypt(await file.readAsString());
+      if (decrypted == null) return;
+      final nl = decrypted.indexOf('\n');
+      if (nl == -1) return;
+      _memoryCache[siteId] = decrypted.substring(nl + 1);
+    } catch (e) {
+      LogService.instance.log('HtmlCache', 'preloadOne error for $siteId: $e',
+          level: LogLevel.error, sensitivity: LogSensitivity.sensitive);
+    }
+  }
+
   /// Initialize AES encryption with key from secure storage
   Future<void> _initEncryption() async {
     try {

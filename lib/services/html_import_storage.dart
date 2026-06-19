@@ -55,6 +55,16 @@ class HtmlImportStorage {
   /// answerable synchronously during `WebSpacePage.build`.
   Future<void> preloadAll() => _preloadAll();
 
+  /// Decrypt a single import into the in-memory store so a subsequent
+  /// [getHtmlSync] hits without the bulk [preloadAll] pass. Idempotent; a
+  /// no-op when the site has no import on disk. Lets the cold-start path load
+  /// only the imports for sites that actually build, instead of every import.
+  Future<void> preloadOne(String siteId) async {
+    if (_memoryStore.containsKey(siteId)) return;
+    final res = await loadHtml(siteId);
+    if (res != null) _memoryStore[siteId] = res.$2;
+  }
+
   Future<void> _initEncryption() async {
     try {
       String? keyBase64 = await _secureStorage.read(key: _encryptionKeyKey);

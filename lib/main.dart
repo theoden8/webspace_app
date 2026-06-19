@@ -752,18 +752,14 @@ void main() async {
   await _runTimed(
       'connectivity', ConnectivityService.instance.primeLastKnownOnline);
 
-  // Populate HtmlCacheService._memoryCache before the first webview
-  // is built. `WebSpacePage.build` reads cached HTML synchronously
-  // via `getHtmlSync(siteId)` to feed the cached-HTML render path,
-  // and the only sites that ever land in `_memoryCache` are the ones
-  // that have been previously cached on disk for this user. Eating
-  // the decryption cost up front (rather than lazy-loading on first
-  // miss) lets the build path stay synchronous, which is what
-  // `InAppWebViewInitialData` requires — chromium needs the bytes
-  // before navigation starts, not after an awaited disk read.
-  await _runTimed('preloadCache', HtmlCacheService.instance.preloadCache);
-  // Same reasoning as the line above, for imported HTML.
-  await _runTimed('preloadImports', HtmlImportStorage.instance.preloadAll);
+  // HTML caches are NOT bulk-preloaded here anymore: that decrypted every
+  // cached + imported page (e.g. a 9.7 MB notif import) before the first
+  // frame, even when the launched site needs none of them. Instead each site's
+  // page is decrypted on demand via `HtmlCacheService.preloadOne` /
+  // `HtmlImportStorage.preloadOne` right before it enters `_loadedIndices`
+  // (in `_setCurrentIndex` and the deferred notification-site load), so the
+  // build's synchronous `getHtmlSync` still hits but only for sites that
+  // actually build.
 
   // Load the global outbound proxy from SharedPreferences. Synchronous
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
@@ -3295,6 +3291,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Validate index is still in bounds after async gaps
     if (index >= _webViewModels.length) return;
 
+    // Decrypt this site's cached/imported HTML into memory before it enters
+    // _loadedIndices, so the build's synchronous getHtmlSync hits. Replaces the
+    // cold-start bulk preload of every page (idempotent no-op for sites that
+    // have no cached/imported HTML, e.g. a plain URL site).
+    await _ensureSiteHtml(index);
+    if (version != _setCurrentIndexVersion) return;
+
     _currentIndex = index;
     // Bump to end of insertion order so iteration over _loadedIndices is
     // least-recently-used first (consumed by the LRU eviction above).
@@ -3921,11 +3924,18 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _resetAlwaysOpenHomeOnShortcut(indexToRestore);
     }
 
-    // Auto-load notification sites so they start polling immediately and
-    // can fire notifications without waiting for the user to open them.
-    for (int i = 0; i < _webViewModels.length; i++) {
-      if (_webViewModels[i].effectiveNotificationsEnabled) {
-        _loadedIndices.add(i);
+    // Notification sites auto-load so they poll and fire notifications without
+    // the user opening them. In container mode this is deferred to AFTER the
+    // launched site paints (below) so a large notif import doesn't block the
+    // shortcut target. In legacy (non-container) mode they must load pre-paint
+    // so `_setCurrentIndex`'s conflict-unload can arbitrate same-base-domain
+    // collisions; preload each one's HTML so its first build's getHtmlSync hits.
+    if (!_useContainers) {
+      for (int i = 0; i < _webViewModels.length; i++) {
+        if (_webViewModels[i].effectiveNotificationsEnabled) {
+          await _ensureSiteHtml(i);
+          _loadedIndices.add(i);
+        }
       }
     }
 
@@ -3962,6 +3972,27 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     if (swRestore != null) {
       LogService.instance.log('Startup',
           'restore to first setState (total): ${swRestore.elapsedMilliseconds}ms');
+    }
+
+    // Container mode: auto-load notification sites now that the launched site
+    // has painted — off the first-frame path. Each one's cached/imported HTML
+    // is decrypted before it enters _loadedIndices so its build's getHtmlSync
+    // hits; doing it here keeps a large notif import from blocking the shortcut
+    // target's first paint. (Legacy mode already loaded them pre-paint above.)
+    if (_useContainers) {
+      unawaited(() async {
+        var added = false;
+        for (int i = 0; i < _webViewModels.length; i++) {
+          if (!mounted) return;
+          if (!_webViewModels[i].effectiveNotificationsEnabled) continue;
+          if (_loadedIndices.contains(i)) continue;
+          await _ensureSiteHtml(i);
+          await _webViewModels[i].setTheme(webViewTheme);
+          _loadedIndices.add(i);
+          added = true;
+        }
+        if (added && mounted) setState(() {});
+      }());
     }
 
     // Off the first-paint path: theme the remaining (not-yet-built) models and
@@ -4035,6 +4066,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// background isolate), never gating the first frame. Persists the resolved
   /// IANA zone so subsequent launches read it straight off the model. No-op
   /// when no site uses the feature, so non-users never load the dataset.
+  /// Decrypt the cached/imported HTML for one site into memory before its
+  /// webview builds, so the build's synchronous `getHtmlSync` hits. Mirrors the
+  /// build's `initialHtml` gating: file:// sites read the import store, others
+  /// the page cache; incognito/archive sites never read either. Cheap no-op
+  /// when the site has nothing on disk.
+  Future<void> _ensureSiteHtml(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    final m = _webViewModels[index];
+    if (m.incognito || m.isArchiveTier) return;
+    if (m.initUrl.startsWith('file://')) {
+      await HtmlImportStorage.instance.preloadOne(m.siteId);
+    } else {
+      await HtmlCacheService.instance.preloadOne(m.siteId);
+    }
+  }
+
   Future<void> _refreshLocationTimezones() async {
     final targets = <int>[];
     for (var i = 0; i < _webViewModels.length; i++) {
