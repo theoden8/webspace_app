@@ -23,8 +23,9 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    // DNS blocklist (mutated in place; FastSubresourceInterceptor holds a reference)
-    private val dnsBlockedDomains = HashSet<String>()
+    // DNS blocklist. FastSubresourceInterceptor holds a reference; the set
+    // inside is swapped atomically on replace (see DnsHostBlocklist).
+    private val dnsBlocklist = DnsHostBlocklist()
 
     // ABP rules are owned end-to-end by the native adblock-rust engine
     // (see setAdblockEngineRules). The interceptor consults it for every
@@ -76,12 +77,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     // split it here.
                     val blob = call.argument<String>("domains")
                     if (blob != null) {
-                        dnsBlockedDomains.clear()
-                        if (blob.isNotEmpty()) {
-                            for (d in blob.splitToSequence('\n')) {
-                                if (d.isNotEmpty()) dnsBlockedDomains.add(d)
-                            }
-                        }
+                        dnsBlocklist.replaceFromBlob(blob)
                         // Without this every interceptor's per-host
                         // decision cache keeps stale `ALLOWED`
                         // verdicts for hosts the rule now covers — the
@@ -89,7 +85,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                         // populate, which is exactly the situation a
                         // user adding a list expects to work without.
                         clearAllHostDecisionCaches()
-                        result.success(dnsBlockedDomains.size)
+                        result.success(dnsBlocklist.size)
                     } else {
                         result.error("INVALID_ARGS", "domains blob required", null)
                     }
@@ -334,7 +330,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                 // so users don't have a window where their blocklists
                 // silently stop protecting sub-resource fetches.
                 webView.contentBlockerHandler = FastSubresourceInterceptor(
-                    dnsBlockedDomains = dnsBlockedDomains,
+                    dnsBlocklist = dnsBlocklist,
                     cdnPatterns = cdnPatterns,
                     cdnCacheIndex = cdnCacheIndex,
                     localCdnDisabled = localCdnDisabled,
@@ -345,7 +341,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     onLog = { tag, message -> log(tag, message) }
                 )
                 log("WebIntercept",
-                    "Attached interceptor: siteId=$siteId dns=${dnsBlockedDomains.size} " +
+                    "Attached interceptor: siteId=$siteId dns=${dnsBlocklist.size} " +
                     "cdnPatterns=${cdnPatterns.size} " +
                     "cdnCache=${cdnCacheIndex.size} " +
                     "localCdnDisabled=${localCdnDisabled.get()}")
@@ -407,9 +403,8 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     /// engine rules are replaced — without this a host the page already
     /// fetched (and got `Decision.ALLOWED` cached for) stays allowed
     /// even after the rule that would block it lands. The shared
-    /// `dnsBlockedDomains` HashSet is mutated in place so the
-    /// interceptor sees the new contents on the next cache miss; this
-    /// call ensures there IS a miss.
+    /// `dnsBlocklist` swaps in the new set so the interceptor sees the
+    /// new contents on the next cache miss; this call ensures there IS a miss.
     private fun clearAllHostDecisionCaches() {
         val rootView = activity.window.decorView.rootView
         val webViews = mutableListOf<InAppWebView>()
@@ -449,14 +444,14 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
 ///   curly braces in query strings, etc.); each throw allocates a stack
 ///   trace. The substring-based [extractHost] handles every form
 ///   chromium delivers without throwing.
-/// * [isInSet] walks the suffix hierarchy without `host.split(".")` /
-///   `parts.subList(...).joinToString(".")` per level.
+/// * [DnsHostBlocklist.isBlocked] walks the suffix hierarchy without
+///   `host.split(".")` / `parts.subList(...).joinToString(".")` per level.
 /// * [hostDecision] caches the DNS host-only classification so repeat
 ///   requests to the same host skip the suffix walk. Engine decisions
 ///   are NOT cached here because the answer depends on (url, source,
 ///   type), not just the host; the engine has its own internal caching.
 class FastSubresourceInterceptor(
-    private val dnsBlockedDomains: HashSet<String>,
+    private val dnsBlocklist: DnsHostBlocklist,
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
     private val localCdnDisabled: AtomicBoolean,
@@ -517,7 +512,7 @@ class FastSubresourceInterceptor(
         var decision = hostDecision[host]
         val cached = decision != null
         if (decision == null) {
-            decision = if (isInSet(host, dnsBlockedDomains)) {
+            decision = if (dnsBlocklist.isBlocked(host)) {
                 Decision.BLOCKED_DNS
             } else {
                 Decision.ALLOWED
@@ -527,7 +522,7 @@ class FastSubresourceInterceptor(
         if (verbose) {
             onLog("WebIntercept",
                 "  host-only decision=$decision (cached=$cached, " +
-                "dnsSetSize=${dnsBlockedDomains.size})")
+                "dnsSetSize=${dnsBlocklist.size})")
         }
 
         // 1b. When the DNS host-only check let it through, consult the
@@ -678,27 +673,6 @@ class FastSubresourceInterceptor(
             }
         }
         return null
-    }
-
-    /// Allocation-free suffix-walk lookup. Same semantics as the previous
-    /// `host.split(".")` + `parts.subList(i, parts.size).joinToString(".")`
-    /// pattern, but uses `String.indexOf` against `host` to derive each
-    /// parent label without allocating a fresh `List<String>` or composing
-    /// strings via `joinToString`. The single substring per parent is
-    /// the key for `set.contains(...)` — `HashSet.contains` accepts that
-    /// substring directly without further allocation. Stops before the
-    /// final eTLD label (`com` alone is never matched).
-    private fun isInSet(host: String, set: HashSet<String>): Boolean {
-        if (set.isEmpty()) return false
-        if (set.contains(host)) return true
-        var dot = host.indexOf('.')
-        while (dot in 0 until host.length - 1) {
-            val parent = host.substring(dot + 1)
-            if (parent.indexOf('.') < 0) return false
-            if (set.contains(parent)) return true
-            dot = host.indexOf('.', dot + 1)
-        }
-        return false
     }
 
     /**
