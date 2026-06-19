@@ -3968,6 +3968,28 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       }
     }
 
+    // Parity: a launched from-location site whose timezone hasn't been baked
+    // into `spoofTimezone` yet (data saved before tz-baking existed) must still
+    // spoof tz on this launch, matching the old resolve-at-build behavior. The
+    // background `_refreshLocationTimezones` would only fix it next launch, so
+    // resolve it synchronously here — but only for the launched site, only when
+    // unbaked, so the polygon dataset stays off the path for everyone else.
+    if (indexToRestore != null) {
+      final m = _webViewModels[indexToRestore];
+      final hasCoords = m.spoofLatitude != null && m.spoofLongitude != null;
+      final fromLocation = m.spoofTimezoneFromLocation ||
+          (m.trackingProtectionEnabled && hasCoords);
+      if (fromLocation &&
+          hasCoords &&
+          (m.spoofTimezone == null || m.spoofTimezone!.isEmpty)) {
+        if (await TimezoneLocationService.instance.loadFromCacheIfPresent()) {
+          final tz = TimezoneLocationService.instance
+              .lookup(m.spoofLatitude!, m.spoofLongitude!);
+          if (tz != null) m.spoofTimezone = tz;
+        }
+      }
+    }
+
     // Set current index (async for cookie restoration)
     final swActivate = kDebugMode ? (Stopwatch()..start()) : null;
     await _setCurrentIndex(indexToRestore);
