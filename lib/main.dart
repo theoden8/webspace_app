@@ -36,6 +36,7 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
+import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
@@ -4104,18 +4105,24 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// IANA zone so subsequent launches read it straight off the model. No-op
   /// when no site uses the feature, so non-users never load the dataset.
   /// Decrypt the cached/imported HTML for one site into memory before its
-  /// webview builds, so the build's synchronous `getHtmlSync` hits. Mirrors the
-  /// build's `initialHtml` gating: file:// sites read the import store, others
-  /// the page cache; incognito/archive sites never read either. Cheap no-op
-  /// when the site has nothing on disk.
+  /// webview builds, so the build's synchronous `getHtmlSync` hits. Uses the
+  /// same [htmlSourceFor] classification as the build's `initialHtml` read, so
+  /// the preload can never target a different store than the read (a blank
+  /// site). Cheap no-op when the site has nothing on disk.
   Future<void> _ensureSiteHtml(int index) async {
     if (index < 0 || index >= _webViewModels.length) return;
     final m = _webViewModels[index];
-    if (m.incognito || m.isArchiveTier) return;
-    if (m.initUrl.startsWith('file://')) {
-      await HtmlImportStorage.instance.preloadOne(m.siteId);
-    } else {
-      await HtmlCacheService.instance.preloadOne(m.siteId);
+    switch (htmlSourceFor(
+      incognito: m.incognito,
+      isArchiveTier: m.isArchiveTier,
+      initUrl: m.initUrl,
+    )) {
+      case HtmlSource.import:
+        await HtmlImportStorage.instance.preloadOne(m.siteId);
+      case HtmlSource.cache:
+        await HtmlCacheService.instance.preloadOne(m.siteId);
+      case HtmlSource.none:
+        break;
     }
   }
 
@@ -6893,6 +6900,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           return const SizedBox.shrink();
                         }
 
+                        // Single source of truth for which HTML store backs
+                        // this site — shared with `_ensureSiteHtml`'s preload so
+                        // read and preload can't target different stores.
+                        final htmlSource = htmlSourceFor(
+                          incognito: webViewModel.incognito,
+                          isArchiveTier: webViewModel.isArchiveTier,
+                          initUrl: webViewModel.initUrl,
+                        );
+
                         return SizedBox.expand(
                           key: ValueKey(webViewModel.siteId),
                           child: Column(
@@ -6915,7 +6931,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // a re-fetchable snapshot — the canonical bytes live in
                                   // HtmlImportStorage and never change after import, so
                                   // skip the live-snapshot save path entirely.
-                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.isArchiveTier || webViewModel.initUrl.startsWith('file://'))
+                                  onHtmlLoaded: htmlSource != HtmlSource.cache
                                       ? null
                                       : (url, html) {
                                           HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
@@ -6926,10 +6942,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // navigation (8+ Saved events per page on LinkedIn) — each one
                                   // a candidate for racing chromium's frame-lifecycle teardown.
                                   // Archive-tier sites skip the cache write entirely (ARCH-006).
-                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.isArchiveTier || webViewModel.initUrl.startsWith('file://'))
+                                  shouldFetchHtml: htmlSource != HtmlSource.cache
                                       ? null
                                       : () => HtmlCacheService.instance.shouldSave(webViewModel.siteId),
-                                  initialHtml: (webViewModel.incognito || webViewModel.isArchiveTier)
+                                  initialHtml: htmlSource == HtmlSource.none
                                       ? null
                                       : () {
                                           // file:// imports come from HtmlImportStorage (the only
@@ -6952,7 +6968,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                           // toggle — they have no live to fetch, so the cached
                                           // bytes are the only thing to render.
                                           final isFileImport =
-                                              webViewModel.initUrl.startsWith('file://');
+                                              htmlSource == HtmlSource.import;
                                           if (!isFileImport &&
                                               !webViewModel.htmlCachingEnabled &&
                                               (ConnectivityService.instance.lastKnownOnline ?? true)) {
