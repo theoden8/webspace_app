@@ -4015,14 +4015,29 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // target's first paint. (Legacy mode already loaded them pre-paint above.)
     if (_useContainers) {
       unawaited(() async {
+        // Snapshot the target models up front. This runs post-paint while the
+        // UI is interactive, so the user can add/delete sites mid-loop; hold
+        // model references (stable) and re-resolve the live index by identity
+        // after each await, instead of indexing `_webViewModels` by a position
+        // captured before an await (which a delete would make stale/out-of-
+        // bounds — the 9.7MB notif decrypt awaits for ~seconds).
+        final notifModels = [
+          for (final m in _webViewModels)
+            if (m.effectiveNotificationsEnabled) m,
+        ];
         var added = false;
-        for (int i = 0; i < _webViewModels.length; i++) {
+        for (final m in notifModels) {
           if (!mounted) return;
-          if (!_webViewModels[i].effectiveNotificationsEnabled) continue;
-          if (_loadedIndices.contains(i)) continue;
-          await _ensureSiteHtml(i);
-          await _webViewModels[i].setTheme(webViewTheme);
-          _loadedIndices.add(i);
+          if (_loadedIndices.contains(_webViewModels.indexOf(m))) continue;
+          await _ensureSiteHtmlForModel(m);
+          if (!mounted) return;
+          await m.setTheme(webViewTheme);
+          if (!mounted) return;
+          // Re-resolve by identity: the list may have shifted during the
+          // awaits. indexOf == -1 means the site was deleted meanwhile.
+          final liveIndex = _webViewModels.indexOf(m);
+          if (liveIndex < 0 || _loadedIndices.contains(liveIndex)) continue;
+          _loadedIndices.add(liveIndex);
           added = true;
         }
         if (added && mounted) setState(() {});
@@ -4114,7 +4129,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   /// site). Cheap no-op when the site has nothing on disk.
   Future<void> _ensureSiteHtml(int index) async {
     if (index < 0 || index >= _webViewModels.length) return;
-    final m = _webViewModels[index];
+    await _ensureSiteHtmlForModel(_webViewModels[index]);
+  }
+
+  /// Model-keyed variant — safe to call across `await`s in deferred loops where
+  /// the index may shift (a site added/deleted while it runs), since it doesn't
+  /// re-index `_webViewModels`.
+  Future<void> _ensureSiteHtmlForModel(WebViewModel m) async {
     switch (htmlSourceFor(
       incognito: m.incognito,
       isArchiveTier: m.isArchiveTier,
@@ -4130,31 +4151,35 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
   }
 
   Future<void> _refreshLocationTimezones() async {
-    final targets = <int>[];
-    for (var i = 0; i < _webViewModels.length; i++) {
-      final m = _webViewModels[i];
+    // Snapshot (siteId, coords) BEFORE the multi-second dataset load. This runs
+    // post-paint with the UI interactive, so the model list can change during
+    // the await — capturing indices and writing back by position would bake a
+    // resolved zone onto the wrong site after a delete/reorder. Re-resolve by
+    // siteId instead.
+    final targets = <({String siteId, double lat, double lng})>[];
+    for (final m in _webViewModels) {
       if (derivesTimezoneFromLocation(
         spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
         trackingProtectionEnabled: m.trackingProtectionEnabled,
         spoofLatitude: m.spoofLatitude,
         spoofLongitude: m.spoofLongitude,
       )) {
-        targets.add(i);
+        targets.add(
+            (siteId: m.siteId, lat: m.spoofLatitude!, lng: m.spoofLongitude!));
       }
     }
     if (targets.isEmpty) return;
     final ready = await TimezoneLocationService.instance.loadFromCacheIfPresent();
     if (!ready || !mounted) return;
     var changed = false;
-    for (final i in targets) {
-      if (i >= _webViewModels.length) continue;
-      final m = _webViewModels[i];
-      if (m.spoofLatitude == null || m.spoofLongitude == null) continue;
-      final tz = TimezoneLocationService.instance
-          .lookup(m.spoofLatitude!, m.spoofLongitude!);
-      if (tz != null && tz != m.spoofTimezone) {
-        m.spoofTimezone = tz;
-        changed = true;
+    for (final t in targets) {
+      final tz = TimezoneLocationService.instance.lookup(t.lat, t.lng);
+      if (tz == null) continue;
+      for (final m in _webViewModels) {
+        if (m.siteId == t.siteId && m.spoofTimezone != tz) {
+          m.spoofTimezone = tz;
+          changed = true;
+        }
       }
     }
     if (changed) await _saveWebViewModels();
