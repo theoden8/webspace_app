@@ -15,6 +15,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
+import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
@@ -530,8 +531,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // lets the runtime read a stored value and keeps the multi-MB dataset
       // off the cold-start path. Tracking Protection forces from-location when
       // coords are set, mirroring _buildTimezoneDropdown's forceFromLocation.
-      final bool effFromLocation = _spoofTimezoneFromLocation ||
-          (_trackingProtectionEnabled && lat != null && lng != null);
+      final bool effFromLocation = derivesTimezoneFromLocation(
+        spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
+        trackingProtectionEnabled: _trackingProtectionEnabled,
+        spoofLatitude: lat,
+        spoofLongitude: lng,
+      );
       if (effFromLocation && lat != null && lng != null) {
         final resolved = TimezoneLocationService.instance.lookup(lat, lng);
         // Don't clobber a previously-resolved zone with null if the dataset

@@ -37,6 +37,7 @@ import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_source.dart';
+import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
@@ -3977,12 +3978,14 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // unbaked, so the polygon dataset stays off the path for everyone else.
     if (indexToRestore != null) {
       final m = _webViewModels[indexToRestore];
-      final hasCoords = m.spoofLatitude != null && m.spoofLongitude != null;
-      final fromLocation = m.spoofTimezoneFromLocation ||
-          (m.trackingProtectionEnabled && hasCoords);
-      if (fromLocation &&
-          hasCoords &&
-          (m.spoofTimezone == null || m.spoofTimezone!.isEmpty)) {
+      final unbaked = m.spoofTimezone == null || m.spoofTimezone!.isEmpty;
+      if (unbaked &&
+          derivesTimezoneFromLocation(
+            spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
+            trackingProtectionEnabled: m.trackingProtectionEnabled,
+            spoofLatitude: m.spoofLatitude,
+            spoofLongitude: m.spoofLongitude,
+          )) {
         if (await TimezoneLocationService.instance.loadFromCacheIfPresent()) {
           final tz = TimezoneLocationService.instance
               .lookup(m.spoofLatitude!, m.spoofLongitude!);
@@ -4130,10 +4133,12 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     final targets = <int>[];
     for (var i = 0; i < _webViewModels.length; i++) {
       final m = _webViewModels[i];
-      final hasCoords = m.spoofLatitude != null && m.spoofLongitude != null;
-      if (!hasCoords) continue;
-      if (m.spoofTimezoneFromLocation ||
-          (m.trackingProtectionEnabled && hasCoords)) {
+      if (derivesTimezoneFromLocation(
+        spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
+        trackingProtectionEnabled: m.trackingProtectionEnabled,
+        spoofLatitude: m.spoofLatitude,
+        spoofLongitude: m.spoofLongitude,
+      )) {
         targets.add(i);
       }
     }
