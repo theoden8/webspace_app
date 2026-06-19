@@ -37,6 +37,7 @@ import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_source.dart';
+import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
@@ -881,7 +882,9 @@ class _ArchiveSlice {
   final Set<String> containerIds;
 }
 
-class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver {
+class _WebSpacePageState extends State<WebSpacePage>
+    with WidgetsBindingObserver
+    implements DeferredStartupHost {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
   AppThemeSettings _themeSettings = const AppThemeSettings();
@@ -4014,34 +4017,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // hits; doing it here keeps a large notif import from blocking the shortcut
     // target's first paint. (Legacy mode already loaded them pre-paint above.)
     if (_useContainers) {
-      unawaited(() async {
-        // Snapshot the target models up front. This runs post-paint while the
-        // UI is interactive, so the user can add/delete sites mid-loop; hold
-        // model references (stable) and re-resolve the live index by identity
-        // after each await, instead of indexing `_webViewModels` by a position
-        // captured before an await (which a delete would make stale/out-of-
-        // bounds — the 9.7MB notif decrypt awaits for ~seconds).
-        final notifModels = [
-          for (final m in _webViewModels)
-            if (m.effectiveNotificationsEnabled) m,
-        ];
-        var added = false;
-        for (final m in notifModels) {
-          if (!mounted) return;
-          if (_loadedIndices.contains(_webViewModels.indexOf(m))) continue;
-          await _ensureSiteHtmlForModel(m);
-          if (!mounted) return;
-          await m.setTheme(webViewTheme);
-          if (!mounted) return;
-          // Re-resolve by identity: the list may have shifted during the
-          // awaits. indexOf == -1 means the site was deleted meanwhile.
-          final liveIndex = _webViewModels.indexOf(m);
-          if (liveIndex < 0 || _loadedIndices.contains(liveIndex)) continue;
-          _loadedIndices.add(liveIndex);
-          added = true;
-        }
-        if (added && mounted) setState(() {});
-      }());
+      unawaited(DeferredStartupEngine.autoLoadNotificationSites(this));
     }
 
     // Off the first-paint path: theme the remaining (not-yet-built) models and
@@ -4095,7 +4071,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // any from-location site (migrates sites saved before the tz was baked
     // into `spoofTimezone`, and refreshes after a dataset update). The dataset
     // load + parse happen on a background isolate after the first frame.
-    unawaited(_refreshLocationTimezones());
+    unawaited(DeferredStartupEngine.refreshLocationTimezones(this));
 
     await NotificationService.instance.init();
     NotificationService.instance.onNotificationTapped = _onNotificationTapped;
@@ -4115,13 +4091,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
-  /// Re-resolve and persist `spoofTimezone` for every site that derives its
-  /// timezone from spoofed coordinates (explicit "From picked location", or
-  /// Tracking Protection forcing it when coords are set). Runs off the
-  /// cold-start critical path: the polygon dataset only loads here (and on a
-  /// background isolate), never gating the first frame. Persists the resolved
-  /// IANA zone so subsequent launches read it straight off the model. No-op
-  /// when no site uses the feature, so non-users never load the dataset.
   /// Decrypt the cached/imported HTML for one site into memory before its
   /// webview builds, so the build's synchronous `getHtmlSync` hits. Uses the
   /// same [htmlSourceFor] classification as the build's `initialHtml` read, so
@@ -4150,40 +4119,90 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _refreshLocationTimezones() async {
-    // Snapshot (siteId, coords) BEFORE the multi-second dataset load. This runs
-    // post-paint with the UI interactive, so the model list can change during
-    // the await — capturing indices and writing back by position would bake a
-    // resolved zone onto the wrong site after a delete/reorder. Re-resolve by
-    // siteId instead.
-    final targets = <({String siteId, double lat, double lng})>[];
+  WebViewModel? _modelForSiteId(String siteId) {
     for (final m in _webViewModels) {
-      if (derivesTimezoneFromLocation(
-        spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
-        trackingProtectionEnabled: m.trackingProtectionEnabled,
-        spoofLatitude: m.spoofLatitude,
-        spoofLongitude: m.spoofLongitude,
-      )) {
-        targets.add(
-            (siteId: m.siteId, lat: m.spoofLatitude!, lng: m.spoofLongitude!));
-      }
+      if (m.siteId == siteId) return m;
     }
-    if (targets.isEmpty) return;
-    final ready = await TimezoneLocationService.instance.loadFromCacheIfPresent();
-    if (!ready || !mounted) return;
-    var changed = false;
-    for (final t in targets) {
-      final tz = TimezoneLocationService.instance.lookup(t.lat, t.lng);
-      if (tz == null) continue;
-      for (final m in _webViewModels) {
-        if (m.siteId == t.siteId && m.spoofTimezone != tz) {
-          m.spoofTimezone = tz;
-          changed = true;
-        }
-      }
-    }
-    if (changed) await _saveWebViewModels();
+    return null;
   }
+
+  // ── DeferredStartupHost ──────────────────────────────────────────────────
+  // Drives DeferredStartupEngine for the post-paint deferred init (notif
+  // auto-load, timezone re-bake). Everything is addressed by siteId and the
+  // siteId<->index translation happens fresh per call, so an add/delete while
+  // the deferred work is awaiting can never make it act on a stale position.
+
+  @override
+  List<DeferredSite> currentSites() => [
+        for (final m in _webViewModels)
+          DeferredSite(
+            siteId: m.siteId,
+            notificationsEnabled: m.effectiveNotificationsEnabled,
+            spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
+            trackingProtectionEnabled: m.trackingProtectionEnabled,
+            spoofLatitude: m.spoofLatitude,
+            spoofLongitude: m.spoofLongitude,
+          ),
+      ];
+
+  @override
+  bool get isMounted => mounted;
+
+  @override
+  bool isLive(String siteId) => _modelForSiteId(siteId) != null;
+
+  @override
+  bool isLoaded(String siteId) {
+    final i = _webViewModels.indexWhere((m) => m.siteId == siteId);
+    return i >= 0 && _loadedIndices.contains(i);
+  }
+
+  @override
+  void markLoaded(String siteId) {
+    final i = _webViewModels.indexWhere((m) => m.siteId == siteId);
+    if (i >= 0) _loadedIndices.add(i);
+  }
+
+  @override
+  Future<void> preloadHtml(String siteId) async {
+    final m = _modelForSiteId(siteId);
+    if (m != null) await _ensureSiteHtmlForModel(m);
+  }
+
+  @override
+  Future<void> applyTheme(String siteId) async {
+    final m = _modelForSiteId(siteId);
+    if (m != null) {
+      await m.setTheme(_themeModeToWebViewTheme(_themeSettings.themeMode));
+    }
+  }
+
+  @override
+  void requestRebuild() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Future<bool> loadTimezoneDataset() =>
+      TimezoneLocationService.instance.loadFromCacheIfPresent();
+
+  @override
+  String? resolveTimezone(double latitude, double longitude) =>
+      TimezoneLocationService.instance.lookup(latitude, longitude);
+
+  @override
+  bool setSpoofTimezone(String siteId, String timezone) {
+    final m = _modelForSiteId(siteId);
+    if (m != null && m.spoofTimezone != timezone) {
+      m.spoofTimezone = timezone;
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  Future<void> persist() => _saveWebViewModels();
+  // ─────────────────────────────────────────────────────────────────────────
 
   /// Housekeeping sweep of storage left by sites deleted in previous sessions,
   /// deferred off the cold-launch first-paint path. The launched site never
