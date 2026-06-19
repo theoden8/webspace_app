@@ -106,12 +106,15 @@ class WebInterceptNative {
       final sw = Stopwatch()..start();
       final blob = domains.join('\n');
       final joinMs = sw.elapsedMilliseconds;
-      final count = await _channel.invokeMethod('setDnsBlockedDomains', {
+      // The native handler kicks the set build onto a worker thread and returns
+      // immediately; we already know the count here, so don't make native
+      // recompute it.
+      await _channel.invokeMethod('setDnsBlockedDomains', {
         'domains': blob,
       });
       LogService.instance.log(
           'DnsBlock',
-          'Sent $count DNS domains to native handler '
+          'Queued ${domains.length} DNS domains for native build '
               '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)',
           level: LogLevel.info);
     } catch (e) {

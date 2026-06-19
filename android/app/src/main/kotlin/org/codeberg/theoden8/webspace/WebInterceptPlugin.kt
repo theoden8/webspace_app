@@ -78,16 +78,12 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     val blob = call.argument<String>("domains")
                     if (blob != null) {
                         // Build the ~650k-entry set off the Android main thread:
-                        // it's ~1.2s on ART and would freeze the UI. Mark the
+                        // it's ~1.8s on ART and would freeze the UI. Mark the
                         // build in-flight first (synchronously) so a racing
                         // request thread fail-closed-waits in awaitReady; the
                         // first sub-resource request is seconds out, so the
-                        // worker always wins. Return the line count now (a cheap
-                        // scan) since the set size isn't known until the build
-                        // finishes.
+                        // worker always wins.
                         dnsBlocklist.beginBuild()
-                        var approxCount = if (blob.isEmpty()) 0 else 1
-                        for (i in blob.indices) if (blob[i] == '\n') approxCount++
                         Thread {
                             val t0 = System.nanoTime()
                             dnsBlocklist.replaceFromBlob(blob)
@@ -98,7 +94,9 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                             // Touches the view tree -> must run on the main thread.
                             mainHandler.post { clearAllHostDecisionCaches() }
                         }.apply { name = "dns-blocklist-build"; isDaemon = true; start() }
-                        result.success(approxCount)
+                        // The set size isn't known until the worker finishes;
+                        // the caller already knows the count, so return nothing.
+                        result.success(null)
                     } else {
                         result.error("INVALID_ARGS", "domains blob required", null)
                     }
