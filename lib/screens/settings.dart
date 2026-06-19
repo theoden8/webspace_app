@@ -15,6 +15,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
+import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
@@ -194,6 +195,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _longitudeController.addListener(_onAnyFieldChanged);
     _accuracyController.addListener(_onAnyFieldChanged);
     NotificationService.instance.addPermissionListener(_onPermissionChanged);
+    // Load the timezone polygon dataset on demand here (it is no longer loaded
+    // at app startup) so the "From picked location" preview/resolution works.
+    if (!TimezoneLocationService.instance.isReady) {
+      TimezoneLocationService.instance.loadFromCacheIfPresent().then((_) {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
   void _onAnyFieldChanged() {
@@ -518,7 +526,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (accuracy != null && accuracy > 0) {
         widget.webViewModel.spoofAccuracy = accuracy;
       }
-      widget.webViewModel.spoofTimezone = _spoofTimezone;
+      // Persist the EFFECTIVE timezone string. The polygon dataset is loaded
+      // only here (settings), so resolving coords -> IANA zone at save time
+      // lets the runtime read a stored value and keeps the multi-MB dataset
+      // off the cold-start path. Tracking Protection forces from-location when
+      // coords are set, mirroring _buildTimezoneDropdown's forceFromLocation.
+      final bool effFromLocation = derivesTimezoneFromLocation(
+        spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
+        trackingProtectionEnabled: _trackingProtectionEnabled,
+        spoofLatitude: lat,
+        spoofLongitude: lng,
+      );
+      if (effFromLocation && lat != null && lng != null) {
+        final resolved = TimezoneLocationService.instance.lookup(lat, lng);
+        // Don't clobber a previously-resolved zone with null if the dataset
+        // isn't loaded right now.
+        widget.webViewModel.spoofTimezone =
+            resolved ?? widget.webViewModel.spoofTimezone;
+      } else {
+        widget.webViewModel.spoofTimezone = _spoofTimezone;
+      }
       widget.webViewModel.spoofTimezoneFromLocation =
           _spoofTimezoneFromLocation;
       widget.webViewModel.liveLocationGranularity = _liveLocationGranularity;

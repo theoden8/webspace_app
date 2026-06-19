@@ -26,6 +26,7 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/icon_png_export.dart';
+import 'package:webspace/services/startup_init_engine.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -35,6 +36,9 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/demo_data.dart' show seedDemoData, isDemoMode;
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
+import 'package:webspace/services/html_source.dart';
+import 'package:webspace/services/deferred_startup_engine.dart';
+import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
@@ -537,55 +541,50 @@ Future<void> _migrateFileImportsToStorage() async {
   }
 }
 
+/// Debug-only per-step timing for the cold-start critical path. Logs under
+/// the 'Startup' tag; compiled out of release builds via kDebugMode. Steps in
+/// the concurrent init group overlap and contend on the main isolate, so their
+/// reported ms can sum to more than the group wall-clock — read them as
+/// "which step is heaviest", not as additive. The serial-tail steps are
+/// additive.
+Future<void> _runTimed(String label, AsyncStep step) async {
+  if (!kDebugMode) return step();
+  final sw = Stopwatch()..start();
+  try {
+    await step();
+  } finally {
+    LogService.instance.log('Startup', '  $label: ${sw.elapsedMilliseconds}ms');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Clear image cache on app upgrade
-  await ImageCacheService.clearCacheOnUpgrade();
+  // Debug-only startup phase timing (see 'Startup' tag in the log screen /
+  // console). Compiled out of release builds via kDebugMode.
+  final swMain = kDebugMode ? (Stopwatch()..start()) : null;
 
-  // Imported HTML files are the only copy of user-supplied content,
-  // so they live in their own persistent store and survive upgrades.
-  // Cached fetched-page snapshots stay in HtmlCacheService (re-fetchable,
-  // safe to drop on upgrade).
-  await HtmlImportStorage.instance.initialize();
+  // Imported HTML files are the only copy of user-supplied content, so they
+  // live in their own persistent store and survive upgrades. The HTML cache
+  // (re-fetchable fetched-page snapshots, safe to drop on upgrade) must
+  // initialize after the import store: its pre-wipe hook copies imports left
+  // in the legacy cache (from versions before the import store existed) into
+  // HtmlImportStorage before they're nuked.
+  Future<void> htmlInit() async {
+    await HtmlImportStorage.instance.initialize();
+    await HtmlCacheService.instance.initialize(
+      beforeUpgradeWipe: _migrateFileImportsToStorage,
+    );
+  }
 
-  // Initialize HTML cache (clears on app upgrade). The pre-wipe hook
-  // copies imports left in the legacy cache (from versions before the
-  // import store existed) into HtmlImportStorage before they're nuked.
-  await HtmlCacheService.instance.initialize(
-    beforeUpgradeWipe: _migrateFileImportsToStorage,
-  );
-
-  // Initialize favicon URL cache
-  await FaviconUrlCache.initialize();
-
-  // Initialize ClearURLs service (loads cached rules from disk)
-  await ClearUrlService.instance.initialize();
-
-  // Initialize DNS block service (loads cached blocklist from disk)
-  await DnsBlockService.instance.initialize();
-
-  // Load timezone-polygon dataset if previously downloaded. Lookups are
-  // synchronous so the per-site shim builder needs the data ready before
-  // it runs. Missing/empty cache is fine — the "From picked location"
-  // dropdown option just stays disabled.
-  await TimezoneLocationService.instance.loadFromCacheIfPresent();
-
-  // Initialize native interceptor bridge for sub-resource DNS + ABP
-  // blocking and LocalCDN serving (Android). The Dart shouldInterceptRequest
-  // callback only fires for main-document navigations on modern Chromium
-  // WebView, so everything per-subresource has to go through the native
-  // path.
-  WebInterceptNative.initialize();
-  // Disable network loads from any service worker registered by a
-  // visited site. Service workers stay alive across page navigations
-  // (they're tied to the origin, not the document), and on Android
-  // System WebView there are open chromium regressions where a SW's
-  // fetch-handler tasks race against parent-page navigation and trip
-  // MiraclePtr's dangling-raw_ptr detector on the IO thread. We
-  // never use service-worker functionality ourselves (no offline
-  // pages, no push), so blocking SW network is no functional loss.
-  if (Platform.isAndroid) {
+  // Disable network loads from any service worker registered by a visited
+  // site. Service workers stay alive across page navigations (tied to the
+  // origin, not the document), and on Android System WebView there are open
+  // chromium regressions where a SW's fetch-handler tasks race against
+  // parent-page navigation and trip MiraclePtr's dangling-raw_ptr detector on
+  // the IO thread. We never use service-worker functionality ourselves (no
+  // offline pages, no push), so blocking SW network is no functional loss.
+  Future<void> blockServiceWorkerNetwork() async {
     try {
       await inapp.ServiceWorkerController.setBlockNetworkLoads(true);
       await inapp.ServiceWorkerController.instance()
@@ -598,15 +597,47 @@ void main() async {
           level: LogLevel.error);
     }
   }
-  if (DnsBlockService.instance.hasBlocklist) {
-    await WebInterceptNative.sendDnsDomains(
-        DnsBlockService.instance.blockedDomains);
+
+  // Native interceptor bridge for sub-resource DNS + ABP blocking and LocalCDN
+  // serving (Android). The Dart shouldInterceptRequest callback only fires for
+  // main-document navigations on modern Chromium WebView, so everything
+  // per-subresource goes through the native path. It's the bridgeSetup step:
+  // ContentBlockerService.initialize feeds the engine from inside, so the
+  // bridge must exist before the parallel group runs.
+  //
+  // The independent inits touch disjoint storage (each upgrade check keys off
+  // its own version pref) and feed independent subsystems, so they overlap
+  // rather than run serially. The adblock-rust engine spin-up
+  // (ContentBlockerService) and the DNS/timezone dataset loads dominate
+  // cold-launch latency; concurrency keeps them off the serial critical path
+  // while still completing before runApp, so the fail-closed blocking posture
+  // is unchanged. Timezone-polygon lookups are synchronous, so the per-site
+  // shim builder needs that data ready before it runs (missing/empty cache is
+  // fine — the "From picked location" option just stays disabled).
+  final swServices = kDebugMode ? (Stopwatch()..start()) : null;
+  await StartupInitEngine.runIndependentInits(
+    <AsyncStep>[
+      () => _runTimed('html', htmlInit),
+      () => _runTimed('clearUrl', ClearUrlService.instance.initialize),
+      () => _runTimed('dns', DnsBlockService.instance.initialize),
+      () => _runTimed('adblock', ContentBlockerService.instance.initialize),
+      () => _runTimed('localCdn', LocalCdnService.instance.initialize),
+      if (Platform.isAndroid)
+        () => _runTimed('swBlock', blockServiceWorkerNetwork),
+    ],
+    bridgeSetup: WebInterceptNative.initialize,
+  );
+  if (swServices != null) {
+    LogService.instance.log(
+        'Startup', 'parallel service init: ${swServices.elapsedMilliseconds}ms');
   }
 
-  // Initialize content blocker service (loads cached filter lists from disk
-  // and spins up the adblock-rust engine; native Android sub-resource
-  // interceptor is fed the rules text from inside the service).
-  await ContentBlockerService.instance.initialize();
+  if (DnsBlockService.instance.hasBlocklist) {
+    await _runTimed(
+        'dnsSend(${DnsBlockService.instance.blockedDomains.length})',
+        () => WebInterceptNative.sendDnsDomains(
+            DnsBlockService.instance.blockedDomains));
+  }
 
   // Keep the DNS-side bloom in sync when the DNS list changes; ABP rules
   // are owned end-to-end by the engine, so no Dart-side push is needed
@@ -618,15 +649,16 @@ void main() async {
     DnsBlockService.instance.invalidateMergedBloom();
   });
 
-  // Initialize LocalCDN service (loads cache index from disk)
-  await LocalCdnService.instance.initialize();
-
   // Seed the native interceptor with CDN patterns + the current cache
   // index, and keep its copy in sync whenever the cache changes.
-  await WebInterceptNative.sendCdnPatterns(
-      LocalCdnService.instance.cdnPatternStrings);
-  await WebInterceptNative.sendCdnCacheIndex(
-      LocalCdnService.instance.cacheIndexSnapshot);
+  await _runTimed(
+      'cdnSend',
+      () async {
+        await WebInterceptNative.sendCdnPatterns(
+            LocalCdnService.instance.cdnPatternStrings);
+        await WebInterceptNative.sendCdnCacheIndex(
+            LocalCdnService.instance.cacheIndexSnapshot);
+      });
   LocalCdnService.instance.addCacheChangeListener(() {
     WebInterceptNative.sendCdnCacheIndex(
         LocalCdnService.instance.cacheIndexSnapshot);
@@ -713,32 +745,29 @@ void main() async {
   });
 
   // Initialize platform info to detect proxy support before UI loads
-  await PlatformInfo.initialize();
+  await _runTimed('platformInfo', PlatformInfo.initialize);
 
   // Prime ConnectivityService.lastKnownOnline before the first webview
   // is constructed. The offline cached-HTML render path needs a sync
   // answer to decide between live URL and `initialData` at construction
   // time — without this the first webview always sees `null` and
   // defaults to live load even when the device is offline.
-  await ConnectivityService.instance.primeLastKnownOnline();
+  await _runTimed(
+      'connectivity', ConnectivityService.instance.primeLastKnownOnline);
 
-  // Populate HtmlCacheService._memoryCache before the first webview
-  // is built. `WebSpacePage.build` reads cached HTML synchronously
-  // via `getHtmlSync(siteId)` to feed the cached-HTML render path,
-  // and the only sites that ever land in `_memoryCache` are the ones
-  // that have been previously cached on disk for this user. Eating
-  // the decryption cost up front (rather than lazy-loading on first
-  // miss) lets the build path stay synchronous, which is what
-  // `InAppWebViewInitialData` requires — chromium needs the bytes
-  // before navigation starts, not after an awaited disk read.
-  await HtmlCacheService.instance.preloadCache();
-  // Same reasoning as the line above, for imported HTML.
-  await HtmlImportStorage.instance.preloadAll();
+  // HTML caches are NOT bulk-preloaded here anymore: that decrypted every
+  // cached + imported page (e.g. a 9.7 MB notif import) before the first
+  // frame, even when the launched site needs none of them. Instead each site's
+  // page is decrypted on demand via `HtmlCacheService.preloadOne` /
+  // `HtmlImportStorage.preloadOne` right before it enters `_loadedIndices`
+  // (in `_setCurrentIndex` and the deferred notification-site load), so the
+  // build's synchronous `getHtmlSync` still hits but only for sites that
+  // actually build.
 
   // Load the global outbound proxy from SharedPreferences. Synchronous
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
-  await GlobalOutboundProxy.initialize();
+  await _runTimed('proxyInit', GlobalOutboundProxy.initialize);
   // Hydrate user-approved TLS exceptions so a self-signed site the user
   // already trusted in a previous session loads without a prompt — and
   // so the Dart-side `HttpClient.badCertificateCallback` (favicon
@@ -764,6 +793,10 @@ void main() async {
       await TrustedHostsService.instance.clear();
       await prefs.setBool(resetKey, true);
     }
+  }
+  if (swMain != null) {
+    LogService.instance.log(
+        'Startup', 'main() pre-runApp init: ${swMain.elapsedMilliseconds}ms');
   }
   runApp(WebSpaceApp());
 }
@@ -849,7 +882,9 @@ class _ArchiveSlice {
   final Set<String> containerIds;
 }
 
-class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver {
+class _WebSpacePageState extends State<WebSpacePage>
+    with WidgetsBindingObserver
+    implements DeferredStartupHost {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
   AppThemeSettings _themeSettings = const AppThemeSettings();
@@ -3261,6 +3296,13 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     // Validate index is still in bounds after async gaps
     if (index >= _webViewModels.length) return;
 
+    // Decrypt this site's cached/imported HTML into memory before it enters
+    // _loadedIndices, so the build's synchronous getHtmlSync hits. Replaces the
+    // cold-start bulk preload of every page (idempotent no-op for sites that
+    // have no cached/imported HTML, e.g. a plain URL site).
+    await _ensureSiteHtml(index);
+    if (version != _setCurrentIndexVersion) return;
+
     _currentIndex = index;
     // Bump to end of insertion order so iteration over _loadedIndices is
     // least-recently-used first (consumed by the LRU eviction above).
@@ -3701,12 +3743,22 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       // a site is selected via _setCurrentIndex(). This enables per-site
       // cookie isolation for same-domain sites.
 
-      // Re-save to migrate cookies to siteId-keyed format
-      await _saveWebViewModels();
+      // Migration re-save (siteId-keyed cookies, schema normalization, dropped
+      // malformed sites) is deferred off the cold-start critical path — it's
+      // three secure-storage ops + a prefs write that the first frame doesn't
+      // need. The migration is already applied in memory; `_restoreAppState`
+      // persists it just after first paint (idempotent if the app dies first).
+      _needsMigrationResave = true;
     }
   }
 
+  /// Set by `_loadWebViewModels` when models were loaded and should be
+  /// re-persisted (cookie re-key / schema normalization), drained post-paint.
+  bool _needsMigrationResave = false;
+
   Future<void> _restoreAppState() async {
+    // Debug-only startup phase timing (compiled out of release via kDebugMode).
+    final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       // Load theme settings, with migration from old formats
@@ -3752,6 +3804,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     await _loadWebspaces();
     await _loadGlobalUserScripts();
     await _loadWebViewModels();
+    if (swRestore != null) {
+      LogService.instance.log('Startup',
+          'load ${_webViewModels.length} site(s) + cookies: ${swRestore.elapsedMilliseconds}ms');
+    }
     // Webspace membership is keyed by siteId; `_loadWebViewModels` had
     // to finish before we can promote any legacy `siteIndices`-shaped
     // JSON to siteIds and seed the runtime projection.
@@ -3775,11 +3831,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
           : 'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager',
     );
 
-    // Startup GC: sweep orphaned per-siteId encrypted storage and HTML cache
-    // (sites deleted in previous sessions), then nuke the native cookie jar
-    // so residual cookies from deleted/legacy sites don't leak into the next
-    // activated site. `_restoreCookiesForSite` re-nukes on every switch; this
-    // extra pass covers launch before any site is activated.
+    // Startup GC. The container sweeps run here (before any WebView binds —
+    // `deleteContainer` is only reliable in that unbound window). The
+    // secure-storage / HTML / cookie-jar sweeps are pure housekeeping for
+    // sites deleted in previous sessions, so they're deferred until after the
+    // launched site has painted (see `_runDeferredStartupGc` below): the
+    // activated site reads its cookies from its already-hydrated model (legacy
+    // mode re-nukes + restores the jar inside `_restoreCookiesForSite`;
+    // container mode reads from its own container), so none of those sweeps is
+    // on the first-paint path.
     final activeSiteIdsAtStartup = _webViewModels.map((m) => m.siteId).toSet();
     // HS-011: drop remap entries whose resolved target was since deleted —
     // they'd never resolve, and a fresh tap re-prompts (and re-remembers).
@@ -3812,12 +3872,6 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       for (final m in _webViewModels)
         if (!m.incognito) m.siteId,
     };
-    await _cookieSecureStorage.removeOrphanedCookies(nonIncognitoSiteIds);
-    await _proxyPasswordStorage.removeOrphaned(activeSiteIdsAtStartup);
-    await HtmlCacheService.instance.removeOrphanedCaches(nonIncognitoSiteIds);
-    await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIdsAtStartup);
-    await _stateStorage.removeOrphans(nonIncognitoSiteIds);
-    await _cookieManager.deleteAllCookies();
     // Sweep containers whose owning site no longer exists. Also
     // catches any leftover rev'd-name containers from the short-lived
     // `containerRev` workaround on this branch — the name won't match
@@ -3883,30 +3937,105 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _resetAlwaysOpenHomeOnShortcut(indexToRestore);
     }
 
-    // Auto-load notification sites so they start polling immediately and
-    // can fire notifications without waiting for the user to open them.
-    for (int i = 0; i < _webViewModels.length; i++) {
-      if (_webViewModels[i].effectiveNotificationsEnabled) {
-        _loadedIndices.add(i);
+    // Notification sites auto-load so they poll and fire notifications without
+    // the user opening them. In container mode this is deferred to AFTER the
+    // launched site paints (below) so a large notif import doesn't block the
+    // shortcut target. In legacy (non-container) mode they must load pre-paint
+    // so `_setCurrentIndex`'s conflict-unload can arbitrate same-base-domain
+    // collisions; preload each one's HTML so its first build's getHtmlSync hits.
+    if (!_useContainers) {
+      for (int i = 0; i < _webViewModels.length; i++) {
+        if (_webViewModels[i].effectiveNotificationsEnabled) {
+          await _ensureSiteHtml(i);
+          _loadedIndices.add(i);
+        }
       }
     }
 
-    // Apply saved theme BEFORE _setCurrentIndex so the first build sees
-    // the right currentTheme — initialHtml reads it to pick the dark
-    // prelude for cached HTML (file:// imports especially, which never
-    // reload to live and so paint with whatever prelude the first build
-    // chose). Models default to WebViewTheme.light, so without this the
-    // first frame on a dark theme flashes white before the controller
-    // is created and re-applies via setController().
+    // Apply saved theme BEFORE _setCurrentIndex so the first build sees the
+    // right currentTheme — initialHtml reads it to pick the dark prelude for
+    // cached HTML (file:// imports especially, which never reload to live and
+    // so paint with whatever prelude the first build chose). Models default to
+    // WebViewTheme.light, so without this the first frame on a dark theme
+    // flashes white before the controller is created and re-applies via
+    // setController(). Only the models built this frame (launched site + any
+    // auto-loaded notification sites) need it now; the rest are themed after
+    // paint — their controllers aren't created until activated, and
+    // setController re-applies the theme then.
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
-    for (var webViewModel in List.from(_webViewModels)) {
-      await webViewModel.setTheme(webViewTheme);
+    final preThemeIndices = <int>{
+      ..._loadedIndices,
+      ?indexToRestore,
+    };
+    for (final i in preThemeIndices) {
+      if (i >= 0 && i < _webViewModels.length) {
+        await _webViewModels[i].setTheme(webViewTheme);
+      }
+    }
+
+    // Parity: a launched from-location site whose timezone hasn't been baked
+    // into `spoofTimezone` yet (data saved before tz-baking existed) must still
+    // spoof tz on this launch, matching the old resolve-at-build behavior. The
+    // background `_refreshLocationTimezones` would only fix it next launch, so
+    // resolve it synchronously here — but only for the launched site, only when
+    // unbaked, so the polygon dataset stays off the path for everyone else.
+    if (indexToRestore != null) {
+      final m = _webViewModels[indexToRestore];
+      final unbaked = m.spoofTimezone == null || m.spoofTimezone!.isEmpty;
+      if (unbaked &&
+          derivesTimezoneFromLocation(
+            spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
+            trackingProtectionEnabled: m.trackingProtectionEnabled,
+            spoofLatitude: m.spoofLatitude,
+            spoofLongitude: m.spoofLongitude,
+          )) {
+        if (await TimezoneLocationService.instance.loadFromCacheIfPresent()) {
+          final tz = TimezoneLocationService.instance
+              .lookup(m.spoofLatitude!, m.spoofLongitude!);
+          if (tz != null) m.spoofTimezone = tz;
+        }
+      }
     }
 
     // Set current index (async for cookie restoration)
+    final swActivate = kDebugMode ? (Stopwatch()..start()) : null;
     await _setCurrentIndex(indexToRestore);
+    if (swActivate != null) {
+      LogService.instance.log('Startup',
+          'activate target site (_setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');
+    }
     if (!mounted) return;
     setState(() {}); // Trigger UI update after async operation
+    if (swRestore != null) {
+      LogService.instance.log('Startup',
+          'restore to first setState (total): ${swRestore.elapsedMilliseconds}ms');
+    }
+
+    // Container mode: auto-load notification sites now that the launched site
+    // has painted — off the first-frame path. Each one's cached/imported HTML
+    // is decrypted before it enters _loadedIndices so its build's getHtmlSync
+    // hits; doing it here keeps a large notif import from blocking the shortcut
+    // target's first paint. (Legacy mode already loaded them pre-paint above.)
+    if (_useContainers) {
+      unawaited(DeferredStartupEngine.autoLoadNotificationSites(this));
+    }
+
+    // Off the first-paint path: theme the remaining (not-yet-built) models,
+    // persist the load-time migration, and sweep orphan storage — all behind
+    // the siteId-keyed DeferredStartupEngine so a post-paint add/delete can't
+    // race it (see test/deferred_startup_engine_test.dart). The launched site
+    // waits on none of it.
+    final preThemeSiteIds = <String>{
+      for (final i in preThemeIndices)
+        if (i >= 0 && i < _webViewModels.length) _webViewModels[i].siteId,
+    };
+    final needsResave = _needsMigrationResave;
+    _needsMigrationResave = false;
+    unawaited(DeferredStartupEngine.runPostPaintMaintenance(
+      this,
+      alreadyThemedSiteIds: preThemeSiteIds,
+      needsResave: needsResave,
+    ));
 
     // HS-011: a shortcut whose siteId is gone but that carried a url needs a
     // confirm/create prompt. The UI is up now, so fire it on the next frame.
@@ -3931,6 +4060,19 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
 
     _startForegroundPollTimer();
 
+    // Off the cold-start critical path. Neither gates the first frame or the
+    // launched site: the image cache's upgrade-clear only matters on a version
+    // bump, and the favicon URL cache is consulted progressively by the tab
+    // strip / add-site UI (a miss just triggers a fresh fetch).
+    unawaited(ImageCacheService.clearCacheOnUpgrade());
+    unawaited(FaviconUrlCache.initialize());
+
+    // Off the cold-start critical path: re-resolve the persisted timezone for
+    // any from-location site (migrates sites saved before the tz was baked
+    // into `spoofTimezone`, and refreshes after a dataset update). The dataset
+    // load + parse happen on a background isolate after the first frame.
+    unawaited(DeferredStartupEngine.refreshLocationTimezones(this));
+
     await NotificationService.instance.init();
     NotificationService.instance.onNotificationTapped = _onNotificationTapped;
 
@@ -3946,6 +4088,157 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
     BackgroundTaskService.instance.initialize();
     if (_anyNotificationSites()) {
       unawaited(BackgroundTaskService.instance.scheduleNextRefresh());
+    }
+  }
+
+  /// Decrypt the cached/imported HTML for one site into memory before its
+  /// webview builds, so the build's synchronous `getHtmlSync` hits. Uses the
+  /// same [htmlSourceFor] classification as the build's `initialHtml` read, so
+  /// the preload can never target a different store than the read (a blank
+  /// site). Cheap no-op when the site has nothing on disk.
+  Future<void> _ensureSiteHtml(int index) async {
+    if (index < 0 || index >= _webViewModels.length) return;
+    await _ensureSiteHtmlForModel(_webViewModels[index]);
+  }
+
+  /// Model-keyed variant — safe to call across `await`s in deferred loops where
+  /// the index may shift (a site added/deleted while it runs), since it doesn't
+  /// re-index `_webViewModels`.
+  Future<void> _ensureSiteHtmlForModel(WebViewModel m) async {
+    switch (htmlSourceFor(
+      incognito: m.incognito,
+      isArchiveTier: m.isArchiveTier,
+      initUrl: m.initUrl,
+    )) {
+      case HtmlSource.import:
+        await HtmlImportStorage.instance.preloadOne(m.siteId);
+      case HtmlSource.cache:
+        await HtmlCacheService.instance.preloadOne(m.siteId);
+      case HtmlSource.none:
+        break;
+    }
+  }
+
+  WebViewModel? _modelForSiteId(String siteId) {
+    for (final m in _webViewModels) {
+      if (m.siteId == siteId) return m;
+    }
+    return null;
+  }
+
+  // ── DeferredStartupHost ──────────────────────────────────────────────────
+  // Drives DeferredStartupEngine for the post-paint deferred init (notif
+  // auto-load, timezone re-bake). Everything is addressed by siteId and the
+  // siteId<->index translation happens fresh per call, so an add/delete while
+  // the deferred work is awaiting can never make it act on a stale position.
+
+  @override
+  List<DeferredSite> currentSites() => [
+        for (final m in _webViewModels)
+          DeferredSite(
+            siteId: m.siteId,
+            notificationsEnabled: m.effectiveNotificationsEnabled,
+            spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
+            trackingProtectionEnabled: m.trackingProtectionEnabled,
+            spoofLatitude: m.spoofLatitude,
+            spoofLongitude: m.spoofLongitude,
+          ),
+      ];
+
+  @override
+  bool get isMounted => mounted;
+
+  @override
+  bool isLive(String siteId) => _modelForSiteId(siteId) != null;
+
+  @override
+  bool isLoaded(String siteId) {
+    final i = _webViewModels.indexWhere((m) => m.siteId == siteId);
+    return i >= 0 && _loadedIndices.contains(i);
+  }
+
+  @override
+  void markLoaded(String siteId) {
+    final i = _webViewModels.indexWhere((m) => m.siteId == siteId);
+    if (i >= 0) _loadedIndices.add(i);
+  }
+
+  @override
+  Future<void> preloadHtml(String siteId) async {
+    final m = _modelForSiteId(siteId);
+    if (m != null) await _ensureSiteHtmlForModel(m);
+  }
+
+  @override
+  Future<void> applyTheme(String siteId) async {
+    final m = _modelForSiteId(siteId);
+    if (m != null) {
+      await m.setTheme(_themeModeToWebViewTheme(_themeSettings.themeMode));
+    }
+  }
+
+  @override
+  void requestRebuild() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Future<bool> loadTimezoneDataset() =>
+      TimezoneLocationService.instance.loadFromCacheIfPresent();
+
+  @override
+  String? resolveTimezone(double latitude, double longitude) =>
+      TimezoneLocationService.instance.lookup(latitude, longitude);
+
+  @override
+  bool setSpoofTimezone(String siteId, String timezone) {
+    final m = _modelForSiteId(siteId);
+    if (m != null && m.spoofTimezone != timezone) {
+      m.spoofTimezone = timezone;
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  Future<void> persist() => _saveWebViewModels();
+
+  @override
+  Set<String> liveSiteIds() => {for (final m in _webViewModels) m.siteId};
+
+  @override
+  Set<String> liveNonIncognitoSiteIds() =>
+      {for (final m in _webViewModels) if (!m.incognito) m.siteId};
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Housekeeping sweep of storage left by sites deleted in previous sessions,
+  /// deferred off the cold-launch first-paint path. The launched site never
+  /// reads any of this — its cookies come from its hydrated model (legacy) or
+  /// its own container — so running it after paint changes nothing the user
+  /// sees, only when the disk reclaim happens. The live-set args are read fresh
+  /// by the engine at sweep time so a site added post-paint isn't reclaimed.
+  @override
+  Future<void> sweepOrphanStorage(
+    Set<String> activeSiteIds,
+    Set<String> nonIncognitoSiteIds,
+  ) async {
+    try {
+      await _cookieSecureStorage.removeOrphanedCookies(nonIncognitoSiteIds);
+      await _proxyPasswordStorage.removeOrphaned(activeSiteIds);
+      await HtmlCacheService.instance.removeOrphanedCaches(nonIncognitoSiteIds);
+      await HtmlImportStorage.instance.removeOrphanedImports(activeSiteIds);
+      await _stateStorage.removeOrphans(nonIncognitoSiteIds);
+      // Clears residual cookies of deleted/legacy sites from the global
+      // (legacy) jar. Container-mode sites read their own jar; legacy-mode
+      // re-nukes + restores on each activation, so this only matters for the
+      // never-activated home-screen launch.
+      await _cookieManager.deleteAllCookies();
+    } catch (e) {
+      LogService.instance.log(
+        'Startup',
+        'Deferred startup GC failed: $e',
+        level: LogLevel.error,
+      );
     }
   }
 
@@ -4934,7 +5227,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
       _evictCacheIfOnline(m.siteId);
       m.currentUrl = m.initUrl;
       m.disposeWebView();
-      _loadedIndices.remove(i);
+      // Keep the active site in _loadedIndices (mirrors
+      // _resetAlwaysOpenHomeForAppClose / _goHome) so the IndexedStack still
+      // has a child to rebuild at initUrl. Dropping it black-screens a warm
+      // shortcut re-tap of the already-current site: _openShortcutIndex skips
+      // _setCurrentIndex when index == _currentIndex, so nothing would re-add
+      // it or recreate the disposed webview.
+      if (i != _currentIndex) {
+        _loadedIndices.remove(i);
+      }
     }
   }
 
@@ -6657,6 +6958,15 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                           return const SizedBox.shrink();
                         }
 
+                        // Single source of truth for which HTML store backs
+                        // this site — shared with `_ensureSiteHtml`'s preload so
+                        // read and preload can't target different stores.
+                        final htmlSource = htmlSourceFor(
+                          incognito: webViewModel.incognito,
+                          isArchiveTier: webViewModel.isArchiveTier,
+                          initUrl: webViewModel.initUrl,
+                        );
+
                         return SizedBox.expand(
                           key: ValueKey(webViewModel.siteId),
                           child: Column(
@@ -6679,7 +6989,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // a re-fetchable snapshot — the canonical bytes live in
                                   // HtmlImportStorage and never change after import, so
                                   // skip the live-snapshot save path entirely.
-                                  onHtmlLoaded: (webViewModel.incognito || webViewModel.isArchiveTier || webViewModel.initUrl.startsWith('file://'))
+                                  onHtmlLoaded: htmlSource != HtmlSource.cache
                                       ? null
                                       : (url, html) {
                                           HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
@@ -6690,10 +7000,10 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                   // navigation (8+ Saved events per page on LinkedIn) — each one
                                   // a candidate for racing chromium's frame-lifecycle teardown.
                                   // Archive-tier sites skip the cache write entirely (ARCH-006).
-                                  shouldFetchHtml: (webViewModel.incognito || webViewModel.isArchiveTier || webViewModel.initUrl.startsWith('file://'))
+                                  shouldFetchHtml: htmlSource != HtmlSource.cache
                                       ? null
                                       : () => HtmlCacheService.instance.shouldSave(webViewModel.siteId),
-                                  initialHtml: (webViewModel.incognito || webViewModel.isArchiveTier)
+                                  initialHtml: htmlSource == HtmlSource.none
                                       ? null
                                       : () {
                                           // file:// imports come from HtmlImportStorage (the only
@@ -6716,7 +7026,7 @@ class _WebSpacePageState extends State<WebSpacePage> with WidgetsBindingObserver
                                           // toggle — they have no live to fetch, so the cached
                                           // bytes are the only thing to render.
                                           final isFileImport =
-                                              webViewModel.initUrl.startsWith('file://');
+                                              htmlSource == HtmlSource.import;
                                           if (!isFileImport &&
                                               !webViewModel.htmlCachingEnabled &&
                                               (ConnectivityService.instance.lastKnownOnline ?? true)) {

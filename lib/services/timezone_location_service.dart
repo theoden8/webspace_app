@@ -111,8 +111,12 @@ class TimezoneLocationService {
     try {
       final file = await _cacheFile();
       if (!await file.exists()) return false;
-      final raw = await file.readAsString();
-      _parse(raw);
+      // Parse on a background isolate. The GeoJSON is tens of MB and the
+      // polygon build is ~1s+ of CPU; on the main isolate it stalls cold start
+      // and serializes against the other startup inits. compute keeps it off
+      // the main isolate while the caller still awaits readiness, so
+      // tz-from-location spoofing stays armed before any webview builds.
+      _zones = await compute(_readAndParseZones, file.path);
       LogService.instance
           .log('TZ', 'Loaded ${_zones?.length ?? 0} zones from cache');
       _notifyListeners();
@@ -184,7 +188,7 @@ class TimezoneLocationService {
       final file = await _cacheFile();
       await file.writeAsString(body);
 
-      _parse(body);
+      _zones = await compute(_parseZones, body);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
           _lastUpdatedPrefKey, DateTime.now().toIso8601String());
@@ -213,65 +217,6 @@ class TimezoneLocationService {
           .log('TZ', 'Clear error: $e', level: LogLevel.error);
     }
     _notifyListeners();
-  }
-
-  void _parse(String body) {
-    final json = jsonDecode(body) as Map<String, dynamic>;
-    final features = (json['features'] as List?) ?? const [];
-    final zones = <_ZoneEntry>[];
-    for (final f in features) {
-      if (f is! Map) continue;
-      final props = f['properties'] as Map?;
-      final tzid = props?['tzid'] as String?;
-      if (tzid == null || tzid.isEmpty) continue;
-      final geometry = f['geometry'] as Map?;
-      if (geometry == null) continue;
-      final type = geometry['type'] as String?;
-      final coords = geometry['coordinates'] as List?;
-      if (coords == null) continue;
-
-      final polygons = <List<Float64List>>[];
-      double minLng = double.infinity,
-          minLat = double.infinity,
-          maxLng = -double.infinity,
-          maxLat = -double.infinity;
-
-      void addPolygon(List<dynamic> rings) {
-        final ringList = <Float64List>[];
-        for (final ring in rings) {
-          if (ring is! List) continue;
-          final flat = Float64List(ring.length * 2);
-          var i = 0;
-          for (final pt in ring) {
-            if (pt is! List || pt.length < 2) continue;
-            final lng = (pt[0] as num).toDouble();
-            final lat = (pt[1] as num).toDouble();
-            flat[i++] = lng;
-            flat[i++] = lat;
-            if (lng < minLng) minLng = lng;
-            if (lat < minLat) minLat = lat;
-            if (lng > maxLng) maxLng = lng;
-            if (lat > maxLat) maxLat = lat;
-          }
-          ringList.add(flat);
-        }
-        if (ringList.isNotEmpty) polygons.add(ringList);
-      }
-
-      if (type == 'Polygon') {
-        addPolygon(coords);
-      } else if (type == 'MultiPolygon') {
-        for (final poly in coords) {
-          if (poly is List) addPolygon(poly);
-        }
-      } else {
-        continue;
-      }
-
-      if (polygons.isEmpty) continue;
-      zones.add(_ZoneEntry(tzid, polygons, minLng, minLat, maxLng, maxLat));
-    }
-    _zones = zones;
   }
 
   /// Look up the IANA timezone whose polygon set contains the point.
@@ -321,4 +266,78 @@ class TimezoneLocationService {
     }
     return inside;
   }
+}
+
+/// Read [path] then parse it. Top-level so it can run on a background isolate
+/// via [compute] without capturing the service instance; the file read and
+/// the polygon build both stay off the main isolate.
+List<_ZoneEntry> _readAndParseZones(String path) =>
+    _parseZones(File(path).readAsStringSync());
+
+/// Benchmark/test hook: parse a GeoJSON body synchronously on the calling
+/// isolate and return the zone count. Lets a `flutter test` profile the parse
+/// cost (the heaviest pure-Dart cold-start step) without the [compute] hop.
+/// See test/timezone_parse_benchmark_test.dart.
+@visibleForTesting
+int debugParseZoneCount(String geojson) => _parseZones(geojson).length;
+
+/// Parse a timezone-boundary GeoJSON body into zone entries. Top-level for the
+/// same isolate reason as [_readAndParseZones].
+List<_ZoneEntry> _parseZones(String body) {
+  final json = jsonDecode(body) as Map<String, dynamic>;
+  final features = (json['features'] as List?) ?? const [];
+  final zones = <_ZoneEntry>[];
+  for (final f in features) {
+    if (f is! Map) continue;
+    final props = f['properties'] as Map?;
+    final tzid = props?['tzid'] as String?;
+    if (tzid == null || tzid.isEmpty) continue;
+    final geometry = f['geometry'] as Map?;
+    if (geometry == null) continue;
+    final type = geometry['type'] as String?;
+    final coords = geometry['coordinates'] as List?;
+    if (coords == null) continue;
+
+    final polygons = <List<Float64List>>[];
+    double minLng = double.infinity,
+        minLat = double.infinity,
+        maxLng = -double.infinity,
+        maxLat = -double.infinity;
+
+    void addPolygon(List<dynamic> rings) {
+      final ringList = <Float64List>[];
+      for (final ring in rings) {
+        if (ring is! List) continue;
+        final flat = Float64List(ring.length * 2);
+        var i = 0;
+        for (final pt in ring) {
+          if (pt is! List || pt.length < 2) continue;
+          final lng = (pt[0] as num).toDouble();
+          final lat = (pt[1] as num).toDouble();
+          flat[i++] = lng;
+          flat[i++] = lat;
+          if (lng < minLng) minLng = lng;
+          if (lat < minLat) minLat = lat;
+          if (lng > maxLng) maxLng = lng;
+          if (lat > maxLat) maxLat = lat;
+        }
+        ringList.add(flat);
+      }
+      if (ringList.isNotEmpty) polygons.add(ringList);
+    }
+
+    if (type == 'Polygon') {
+      addPolygon(coords);
+    } else if (type == 'MultiPolygon') {
+      for (final poly in coords) {
+        if (poly is List) addPolygon(poly);
+      }
+    } else {
+      continue;
+    }
+
+    if (polygons.isEmpty) continue;
+    zones.add(_ZoneEntry(tzid, polygons, minLng, minLat, maxLng, maxLat));
+  }
+  return zones;
 }

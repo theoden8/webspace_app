@@ -99,11 +99,23 @@ class WebInterceptNative {
   static Future<void> sendDnsDomains(Set<String> domains) async {
     if (!isSupported) return;
     try {
-      final count = await _channel.invokeMethod('setDnsBlockedDomains', {
-        'domains': domains.toList(),
+      // Send one newline-joined blob, not a List<String>: the platform-channel
+      // codec encodes a list element-by-element (type tag + length + UTF-8 per
+      // entry), which is ~1s for a full ~650k-domain blocklist. A single string
+      // is one encode/decode; the native side splits on '\n'.
+      final sw = Stopwatch()..start();
+      final blob = domains.join('\n');
+      final joinMs = sw.elapsedMilliseconds;
+      // The native handler kicks the set build onto a worker thread and returns
+      // immediately; we already know the count here, so don't make native
+      // recompute it.
+      await _channel.invokeMethod('setDnsBlockedDomains', {
+        'domains': blob,
       });
       LogService.instance.log(
-          'DnsBlock', 'Sent $count DNS domains to native handler',
+          'DnsBlock',
+          'Queued ${domains.length} DNS domains for native build '
+              '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)',
           level: LogLevel.info);
     } catch (e) {
       LogService.instance.log('DnsBlock',

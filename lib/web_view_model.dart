@@ -597,24 +597,39 @@ class WebViewModel {
     }
     // Apply proxy settings first (before loading any URLs)
     await _applyProxySettings();
-    
-    await controller!.setOptions(
-      javascriptEnabled: javascriptEnabled,
-      userAgent: userAgent.isNotEmpty ? userAgent : null,
-      thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
-      incognito: incognito,
-    );
-    // Apply current theme preference
-    await controller!.setThemePreference(_currentTheme);
-    // Don't call loadUrl here - it's already initialized with the URL
-    if (defaultUserAgent == null) {
-      try {
-        defaultUserAgent = await controller!.getDefaultUserAgent();
-      } catch (e) {
-        // Silently handle userAgent retrieval failure - this can happen during
-        // testing or when webview isn't fully initialized
-        defaultUserAgent = '';
+
+    // The controller can be disposed across these awaits — a memory-pressure
+    // eviction, a site delete while `onControllerCreated` is still settling, or
+    // widget teardown. `disposeWebView()` nulls the ref, but a widget-level
+    // dispose leaves a non-null ref to a now-dead native controller (asserts
+    // "used after disposed"). Capture the controller and swallow that error:
+    // there's nothing to configure on a dead one.
+    final c = controller;
+    if (c == null) return;
+    try {
+      await c.setOptions(
+        javascriptEnabled: javascriptEnabled,
+        userAgent: userAgent.isNotEmpty ? userAgent : null,
+        thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
+        incognito: incognito,
+      );
+      // Apply current theme preference
+      await c.setThemePreference(_currentTheme);
+      // Don't call loadUrl here - it's already initialized with the URL
+      if (defaultUserAgent == null) {
+        defaultUserAgent = await c.getDefaultUserAgent();
       }
+    } catch (e) {
+      // Controller disposed mid-setup, or webview not fully initialized
+      // (common in tests). Nothing left to configure.
+      defaultUserAgent ??= '';
+      LogService.instance.log(
+        'WebView',
+        'setController skipped configuring a disposed/unavailable '
+            'controller for "$name": $e',
+        level: LogLevel.warning,
+        sensitivity: LogSensitivity.sensitive,
+      );
     }
   }
 
@@ -784,28 +799,17 @@ class WebViewModel {
           spoofWindowWidth: spoofWindowWidth,
           spoofWindowHeight: spoofWindowHeight,
           fingerprintResetNonce: fingerprintResetNonce,
-          // Geolocation mode is independent of the umbrella: legitimate
-          // uses (maps, ride-share, weather) need real GPS even when
-          // the user wants tracker-blocking + fingerprinting protection
-          // active. Static spoof coords still force the timezone to
-          // "From picked location" so Date/Intl values match the
-          // spoofed geo. When no coords are picked the umbrella does
-          // NOT touch the timezone — the stored choice (or system
-          // default) stands.
+          // The effective timezone is resolved from the spoofed coords and
+          // persisted into `spoofTimezone` at settings-save time (Tracking
+          // Protection's force-from-location is applied there too), so the
+          // runtime just passes the stored value through — the polygon
+          // dataset never loads on this path.
           locationMode: locationMode,
           spoofLatitude: spoofLatitude,
           spoofLongitude: spoofLongitude,
           spoofAccuracy: spoofAccuracy,
-          spoofTimezone: (trackingProtectionEnabled &&
-                  spoofLatitude != null &&
-                  spoofLongitude != null)
-              ? null
-              : spoofTimezone,
-          spoofTimezoneFromLocation: (trackingProtectionEnabled &&
-                  spoofLatitude != null &&
-                  spoofLongitude != null)
-              ? true
-              : spoofTimezoneFromLocation,
+          spoofTimezone: spoofTimezone,
+          spoofTimezoneFromLocation: spoofTimezoneFromLocation,
           liveLocationGranularity: liveLocationGranularity,
           webRtcPolicy: webRtcPolicy,
           // Per-site proxy. Honored at WebView construction on iOS 17+ /
