@@ -5,37 +5,70 @@ package org.codeberg.theoden8.webspace
  * domain set and answers subdomain-aware membership.
  *
  * Extracted from [WebInterceptPlugin] so the parse + match logic is unit-
- * testable on the JVM (see DnsHostBlocklistTest), and so the set is swapped
- * atomically — the previous in-place `clear()` + `addAll()` mutated the live
- * set while interceptors read it from request threads, a latent race.
+ * testable on the JVM (see DnsHostBlocklistTest).
+ *
+ * The set is built on a background thread (a full ~650k-entry build is ~1.2s on
+ * ART and must not run on the Android main thread). Readers on WebView request
+ * threads fail-closed via [awaitReady]: while a build is in flight they block
+ * rather than evaluate against a stale/empty set, so a request can never slip
+ * past the DNS blocklist during the build window. The set is swapped in
+ * atomically (@Volatile) so a reader always sees a complete set.
  */
 class DnsHostBlocklist {
-    // Swapped wholesale on replace; @Volatile so a request thread always sees a
-    // complete set, never one mid-rebuild.
+    private val lock = Object()
+
     @Volatile
     private var domains: Set<String> = emptySet()
+
+    // True between [beginBuild] and the [replaceFromBlob] that completes it.
+    // Starts false: a site with no DNS blocklist never calls beginBuild, so its
+    // request threads never wait.
+    @Volatile
+    private var building = false
 
     val size: Int get() = domains.size
 
     /**
-     * Replace the blocklist from a newline-joined blob (one domain per line;
-     * blank lines ignored). Pre-sizes the HashSet to the line count so a full
-     * ~650k-entry list doesn't pay the ~20 rehashes a default-capacity set
-     * incurs while filling — that rehashing was a chunk of the cold-start
-     * `setDnsBlockedDomains` cost.
+     * Mark that a build is starting. Call on the requesting (main) thread,
+     * synchronously, before handing the blob to a worker thread — so a request
+     * thread that races in observes `building` and waits in [awaitReady].
+     */
+    fun beginBuild() {
+        synchronized(lock) { building = true }
+    }
+
+    /**
+     * Parse a newline-joined blob (one domain per line; blank lines ignored)
+     * and swap it in, clearing the in-flight flag and waking [awaitReady]
+     * waiters. Pre-sizes the HashSet to the line count so a ~650k-entry list
+     * doesn't pay the ~20 rehashes a default-capacity set incurs while filling.
      */
     fun replaceFromBlob(blob: String) {
-        if (blob.isEmpty()) {
-            domains = emptySet()
-            return
+        val built = parse(blob)
+        synchronized(lock) {
+            domains = built
+            building = false
+            lock.notifyAll()
         }
-        var lines = 1
-        for (i in blob.indices) if (blob[i] == '\n') lines++
-        val s = HashSet<String>(lines * 4 / 3 + 1)
-        for (d in blob.splitToSequence('\n')) {
-            if (d.isNotEmpty()) s.add(d)
+    }
+
+    /**
+     * Fail-closed wait: block until no build is in flight, up to [timeoutMs].
+     * Returns true once ready (the common case returns immediately — nothing is
+     * building), false on timeout. The timeout is a safety valve so a wedged
+     * build can't hang every request forever.
+     */
+    fun awaitReady(timeoutMs: Long): Boolean {
+        if (!building) return true
+        synchronized(lock) {
+            val deadline = System.currentTimeMillis() + timeoutMs
+            while (building) {
+                val remaining = deadline - System.currentTimeMillis()
+                if (remaining <= 0L) return false
+                lock.wait(remaining)
+            }
         }
-        domains = s
+        return true
     }
 
     /**
@@ -57,5 +90,16 @@ class DnsHostBlocklist {
             dot = host.indexOf('.', dot + 1)
         }
         return false
+    }
+
+    private fun parse(blob: String): Set<String> {
+        if (blob.isEmpty()) return emptySet()
+        var lines = 1
+        for (i in blob.indices) if (blob[i] == '\n') lines++
+        val s = HashSet<String>(lines * 4 / 3 + 1)
+        for (d in blob.splitToSequence('\n')) {
+            if (d.isNotEmpty()) s.add(d)
+        }
+        return s
     }
 }

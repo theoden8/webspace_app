@@ -77,23 +77,28 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     // split it here.
                     val blob = call.argument<String>("domains")
                     if (blob != null) {
-                        // Time the native build so the cold-start profile can
-                        // split `channel+native` (logged Dart-side) into channel
-                        // transfer vs this set-build.
-                        val t0 = System.nanoTime()
-                        dnsBlocklist.replaceFromBlob(blob)
-                        val buildMs = (System.nanoTime() - t0) / 1_000_000
-                        log("WebIntercept",
-                            "setDnsBlockedDomains: native build ${buildMs}ms " +
-                            "for ${dnsBlocklist.size} domains (${blob.length} chars)")
-                        // Without this every interceptor's per-host
-                        // decision cache keeps stale `ALLOWED`
-                        // verdicts for hosts the rule now covers — the
-                        // page would have to navigate fresh to re-
-                        // populate, which is exactly the situation a
-                        // user adding a list expects to work without.
-                        clearAllHostDecisionCaches()
-                        result.success(dnsBlocklist.size)
+                        // Build the ~650k-entry set off the Android main thread:
+                        // it's ~1.2s on ART and would freeze the UI. Mark the
+                        // build in-flight first (synchronously) so a racing
+                        // request thread fail-closed-waits in awaitReady; the
+                        // first sub-resource request is seconds out, so the
+                        // worker always wins. Return the line count now (a cheap
+                        // scan) since the set size isn't known until the build
+                        // finishes.
+                        dnsBlocklist.beginBuild()
+                        var approxCount = if (blob.isEmpty()) 0 else 1
+                        for (i in blob.indices) if (blob[i] == '\n') approxCount++
+                        Thread {
+                            val t0 = System.nanoTime()
+                            dnsBlocklist.replaceFromBlob(blob)
+                            val buildMs = (System.nanoTime() - t0) / 1_000_000
+                            log("WebIntercept",
+                                "setDnsBlockedDomains: native build ${buildMs}ms " +
+                                "for ${dnsBlocklist.size} domains (${blob.length} chars)")
+                            // Touches the view tree -> must run on the main thread.
+                            mainHandler.post { clearAllHostDecisionCaches() }
+                        }.apply { name = "dns-blocklist-build"; isDaemon = true; start() }
+                        result.success(approxCount)
                     } else {
                         result.error("INVALID_ARGS", "domains blob required", null)
                     }
@@ -468,6 +473,14 @@ class FastSubresourceInterceptor(
     private val onLog: (String, String) -> Unit = { _, _ -> }
 ) : ContentBlockerHandler() {
 
+    private companion object {
+        // Upper bound a request thread will fail-closed-wait for an in-flight
+        // DNS blocklist build. Generous: the build is ~1.2s and finishes
+        // seconds before the first sub-resource, so this is only a valve
+        // against a wedged build, never hit in normal operation.
+        const val DNS_READY_TIMEOUT_MS = 15_000L
+    }
+
     private var checkCount = 0
     private var loggedNoCache = false
     private var loggedLocalCdnDisabled = false
@@ -520,6 +533,16 @@ class FastSubresourceInterceptor(
         var decision = hostDecision[host]
         val cached = decision != null
         if (decision == null) {
+            // Fail-closed: if the blocklist build is still in flight, wait for
+            // it rather than evaluate against an incomplete set and let a
+            // tracker through. Runs on a WebView request thread (not the UI
+            // thread), so blocking briefly here is safe; in practice the build
+            // finished seconds ago and this returns immediately.
+            if (!dnsBlocklist.awaitReady(DNS_READY_TIMEOUT_MS)) {
+                onLog("WebIntercept",
+                    "DNS blocklist not ready after ${DNS_READY_TIMEOUT_MS}ms — " +
+                    "allowing $host (safety valve)")
+            }
             decision = if (dnsBlocklist.isBlocked(host)) {
                 Decision.BLOCKED_DNS
             } else {

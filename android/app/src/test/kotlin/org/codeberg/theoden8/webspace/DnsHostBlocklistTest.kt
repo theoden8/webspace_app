@@ -78,6 +78,44 @@ class DnsHostBlocklistTest {
     }
 
     @Test
+    fun awaitReadyReturnsImmediatelyWhenNothingBuilding() {
+        // A site with no DNS blocklist never calls beginBuild, so readers must
+        // not wait at all.
+        val b = DnsHostBlocklist()
+        val t0 = System.nanoTime()
+        assertTrue(b.awaitReady(5_000))
+        val ms = (System.nanoTime() - t0) / 1_000_000
+        assertTrue("awaitReady should be instant, took ${ms}ms", ms < 500)
+    }
+
+    @Test
+    fun awaitReadyBlocksUntilBackgroundBuildCompletes() {
+        val b = DnsHostBlocklist()
+        b.beginBuild()
+        val t = Thread {
+            Thread.sleep(150)
+            b.replaceFromBlob("ads.example.com")
+        }
+        t.start()
+        val t0 = System.nanoTime()
+        assertTrue(b.awaitReady(5_000)) // blocks ~150ms until the build lands
+        val ms = (System.nanoTime() - t0) / 1_000_000
+        t.join()
+        assertTrue("should have waited for the build, waited ${ms}ms", ms >= 100)
+        assertTrue(b.isBlocked("ads.example.com"))
+    }
+
+    @Test
+    fun awaitReadyTimesOutWhenBuildNeverCompletes() {
+        val b = DnsHostBlocklist()
+        b.beginBuild() // started, never completed
+        val t0 = System.nanoTime()
+        assertFalse(b.awaitReady(120))
+        val ms = (System.nanoTime() - t0) / 1_000_000
+        assertTrue("should wait ~timeout, waited ${ms}ms", ms >= 100)
+    }
+
+    @Test
     fun buildsAndQueriesAFullSizedBlocklist() {
         // Mirrors the real cold-start input: a newline blob of ~650k domains.
         // Proves the pre-sized build is correct and fast at scale (the JVM
