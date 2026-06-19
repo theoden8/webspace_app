@@ -51,6 +51,16 @@ abstract class DeferredStartupHost {
   /// Apply the resolved zone; returns true iff the stored value changed.
   bool setSpoofTimezone(String siteId, String timezone);
   Future<void> persist();
+
+  /// Live site sets, read fresh (not a startup snapshot) — so a site added
+  /// post-paint is treated as live, not swept as an orphan.
+  Set<String> liveSiteIds();
+  Set<String> liveNonIncognitoSiteIds();
+
+  /// Remove on-disk storage for sites NOT in the given live sets (cookies,
+  /// proxy passwords, HTML caches/imports, webview state, global cookie jar).
+  Future<void> sweepOrphanStorage(
+      Set<String> activeSiteIds, Set<String> nonIncognitoSiteIds);
 }
 
 /// Orchestration that runs *after* first paint (so the UI is interactive and
@@ -115,5 +125,30 @@ class DeferredStartupEngine {
       }
     }
     if (changed) await host.persist();
+  }
+
+  /// Post-paint maintenance off the first-frame path: theme the not-yet-built
+  /// models, persist the load-time migration, then sweep orphan storage —
+  /// sequenced (persist before sweep) so they don't race the same secure-
+  /// storage keys. Theming is siteId-keyed and skips sites themed pre-paint;
+  /// the sweep reads LIVE site sets so a site added post-paint isn't reclaimed.
+  static Future<void> runPostPaintMaintenance(
+    DeferredStartupHost host, {
+    required Set<String> alreadyThemedSiteIds,
+    required bool needsResave,
+  }) async {
+    final ids = [for (final s in host.currentSites()) s.siteId];
+    for (final siteId in ids) {
+      if (!host.isMounted) return;
+      if (alreadyThemedSiteIds.contains(siteId) || !host.isLive(siteId)) {
+        continue;
+      }
+      await host.applyTheme(siteId);
+    }
+    if (!host.isMounted) return;
+    if (needsResave) await host.persist();
+    if (!host.isMounted) return;
+    await host.sweepOrphanStorage(
+        host.liveSiteIds(), host.liveNonIncognitoSiteIds());
   }
 }

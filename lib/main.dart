@@ -4020,22 +4020,22 @@ class _WebSpacePageState extends State<WebSpacePage>
       unawaited(DeferredStartupEngine.autoLoadNotificationSites(this));
     }
 
-    // Off the first-paint path: theme the remaining (not-yet-built) models and
-    // run the deferred storage GC. The launched site waits on neither.
-    unawaited(() async {
-      for (int i = 0; i < _webViewModels.length; i++) {
-        if (preThemeIndices.contains(i)) continue;
-        await _webViewModels[i].setTheme(webViewTheme);
-      }
-      // Persist the load-time migration first (it writes cookie/proxy secure
-      // storage), then GC orphans — sequenced so the two don't race the same
-      // secure-storage keys.
-      if (_needsMigrationResave) {
-        _needsMigrationResave = false;
-        await _saveWebViewModels();
-      }
-      await _runDeferredStartupGc(activeSiteIdsAtStartup, nonIncognitoSiteIds);
-    }());
+    // Off the first-paint path: theme the remaining (not-yet-built) models,
+    // persist the load-time migration, and sweep orphan storage — all behind
+    // the siteId-keyed DeferredStartupEngine so a post-paint add/delete can't
+    // race it (see test/deferred_startup_engine_test.dart). The launched site
+    // waits on none of it.
+    final preThemeSiteIds = <String>{
+      for (final i in preThemeIndices)
+        if (i >= 0 && i < _webViewModels.length) _webViewModels[i].siteId,
+    };
+    final needsResave = _needsMigrationResave;
+    _needsMigrationResave = false;
+    unawaited(DeferredStartupEngine.runPostPaintMaintenance(
+      this,
+      alreadyThemedSiteIds: preThemeSiteIds,
+      needsResave: needsResave,
+    ));
 
     // HS-011: a shortcut whose siteId is gone but that carried a url needs a
     // confirm/create prompt. The UI is up now, so fire it on the next frame.
@@ -4202,14 +4202,23 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   @override
   Future<void> persist() => _saveWebViewModels();
+
+  @override
+  Set<String> liveSiteIds() => {for (final m in _webViewModels) m.siteId};
+
+  @override
+  Set<String> liveNonIncognitoSiteIds() =>
+      {for (final m in _webViewModels) if (!m.incognito) m.siteId};
   // ─────────────────────────────────────────────────────────────────────────
 
   /// Housekeeping sweep of storage left by sites deleted in previous sessions,
   /// deferred off the cold-launch first-paint path. The launched site never
   /// reads any of this — its cookies come from its hydrated model (legacy) or
   /// its own container — so running it after paint changes nothing the user
-  /// sees, only when the disk reclaim happens.
-  Future<void> _runDeferredStartupGc(
+  /// sees, only when the disk reclaim happens. The live-set args are read fresh
+  /// by the engine at sweep time so a site added post-paint isn't reclaimed.
+  @override
+  Future<void> sweepOrphanStorage(
     Set<String> activeSiteIds,
     Set<String> nonIncognitoSiteIds,
   ) async {

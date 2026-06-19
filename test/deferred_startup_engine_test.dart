@@ -17,6 +17,7 @@ class _FakeSite {
       {this.notif = false,
       this.fromLoc = false,
       this.tp = false,
+      this.incognito = false,
       this.lat,
       this.lng,
       this.tz});
@@ -24,6 +25,7 @@ class _FakeSite {
   bool notif;
   bool fromLoc;
   bool tp;
+  bool incognito;
   double? lat;
   double? lng;
   String? tz;
@@ -42,6 +44,9 @@ class _FakeHost implements DeferredStartupHost {
   String? Function(double, double) lookupFn = (_, __) => 'Etc/UTC';
   final List<String> markedLoaded = [];
   final List<String> tzSet = [];
+  final List<String> themed = [];
+  final List<({Set<String> active, Set<String> nonIncognito})> sweeps = [];
+  final List<String> opLog = []; // 'persist' / 'sweep' — to assert ordering
 
   // Await-point hooks: run *inside* the awaited call, i.e. "during the await".
   void Function(String siteId)? onPreloadHtml;
@@ -98,6 +103,7 @@ class _FakeHost implements DeferredStartupHost {
   Future<void> applyTheme(String siteId) async {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: applyTheme on dead site $siteId');
+    themed.add(siteId);
     onApplyTheme?.call(siteId);
   }
 
@@ -129,7 +135,24 @@ class _FakeHost implements DeferredStartupHost {
   }
 
   @override
-  Future<void> persist() async => persists++;
+  Future<void> persist() async {
+    persists++;
+    opLog.add('persist');
+  }
+
+  @override
+  Set<String> liveSiteIds() => {for (final s in sites) s.siteId};
+
+  @override
+  Set<String> liveNonIncognitoSiteIds() =>
+      {for (final s in sites) if (!s.incognito) s.siteId};
+
+  @override
+  Future<void> sweepOrphanStorage(
+      Set<String> active, Set<String> nonIncognito) async {
+    sweeps.add((active: active, nonIncognito: nonIncognito));
+    opLog.add('sweep');
+  }
 }
 
 void main() {
@@ -248,6 +271,73 @@ void main() {
       await DeferredStartupEngine.refreshLocationTimezones(host);
       expect(host.tzSet, isEmpty);
       expect(host.persists, 0);
+    });
+  });
+
+  group('runPostPaintMaintenance', () {
+    test('themes the not-pre-themed live sites, persists, then sweeps',
+        () async {
+      final host = _FakeHost(
+          [_FakeSite('a'), _FakeSite('b'), _FakeSite('c', incognito: true)]);
+      await DeferredStartupEngine.runPostPaintMaintenance(
+        host,
+        alreadyThemedSiteIds: {'a'}, // a was themed pre-paint
+        needsResave: true,
+      );
+      expect(host.themed.toSet(), {'b', 'c'}, reason: 'a already themed');
+      expect(host.persists, 1);
+      expect(host.sweeps.length, 1);
+      expect(host.sweeps.single.active, {'a', 'b', 'c'});
+      expect(host.sweeps.single.nonIncognito, {'a', 'b'});
+      // persist must run before the orphan sweep (same secure-storage keys).
+      expect(host.opLog, ['persist', 'sweep']);
+    });
+
+    test('orphan sweep reads LIVE sets — a site added post-paint is kept',
+        () async {
+      final host = _FakeHost([_FakeSite('a'), _FakeSite('b')]);
+      // Simulate the user adding a site while theming is in flight.
+      host.onApplyTheme = (siteId) {
+        if (siteId == 'a' && host.isLive('added') == false) {
+          host.sites.add(_FakeSite('added'));
+        }
+      };
+      await DeferredStartupEngine.runPostPaintMaintenance(
+        host,
+        alreadyThemedSiteIds: const {},
+        needsResave: false,
+      );
+      expect(host.sweeps.single.active, contains('added'),
+          reason: 'fresh snapshot must include the post-paint site, '
+              'so it is not swept as an orphan');
+      expect(host.persists, 0); // needsResave: false
+    });
+
+    test('site deleted during theming is skipped, not themed', () async {
+      final host = _FakeHost([_FakeSite('a'), _FakeSite('b')]);
+      host.onApplyTheme = (siteId) {
+        if (siteId == 'a') host.delete('b');
+      };
+      await DeferredStartupEngine.runPostPaintMaintenance(
+        host,
+        alreadyThemedSiteIds: const {},
+        needsResave: false,
+      );
+      expect(host.themed, ['a'], reason: 'b deleted before it was themed');
+    });
+
+    test('unmount mid-theming stops before persist/sweep', () async {
+      final host = _FakeHost([_FakeSite('a'), _FakeSite('b')]);
+      host.onApplyTheme = (siteId) {
+        if (siteId == 'a') host.mountedFlag = false;
+      };
+      await DeferredStartupEngine.runPostPaintMaintenance(
+        host,
+        alreadyThemedSiteIds: const {},
+        needsResave: true,
+      );
+      expect(host.persists, 0);
+      expect(host.sweeps, isEmpty);
     });
   });
 }
