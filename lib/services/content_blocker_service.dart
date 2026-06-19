@@ -140,7 +140,7 @@ class ContentBlockerService {
 
   static const int _engineDecisionBuffer = 200;
   final List<EngineDecisionSample> _recentEngineDecisions = [];
-  bool _engineTimingEnabled = false;
+  bool _engineTimingEnabled = true;
 
   int _engineConsultedSinceTimingOn = 0;
 
