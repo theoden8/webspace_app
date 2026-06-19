@@ -77,7 +77,15 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     // split it here.
                     val blob = call.argument<String>("domains")
                     if (blob != null) {
+                        // Time the native build so the cold-start profile can
+                        // split `channel+native` (logged Dart-side) into channel
+                        // transfer vs this set-build.
+                        val t0 = System.nanoTime()
                         dnsBlocklist.replaceFromBlob(blob)
+                        val buildMs = (System.nanoTime() - t0) / 1_000_000
+                        log("WebIntercept",
+                            "setDnsBlockedDomains: native build ${buildMs}ms " +
+                            "for ${dnsBlocklist.size} domains (${blob.length} chars)")
                         // Without this every interceptor's per-host
                         // decision cache keeps stale `ALLOWED`
                         // verdicts for hosts the rule now covers — the
