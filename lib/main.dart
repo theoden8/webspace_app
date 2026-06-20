@@ -940,6 +940,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   // forces Android hybrid-composition platform views to recomposite after
   // the activity is recreated (shortcut/resume). Always false in steady state.
   bool _repaintNudge = false;
+  // Drive _nudgeSurfaceRepaint's loop so concurrent callers coalesce instead
+  // of starting interleaving loops that toggle _repaintNudge against each other.
+  int _nudgeTicksRemaining = 0;
+  bool _nudgeLoopRunning = false;
   /// When true, a full-screen opaque mask covers every webview so the
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
   /// content (ARCH-009). Set on `inactive`/`paused` when at least one
@@ -1589,10 +1593,19 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// is not enough on its own.
   void _nudgeSurfaceRepaint() {
     if (!Platform.isAndroid) return;
-    var ticks = 0;
+    // Coalesce concurrent callers (e.g. _setCurrentIndex from a warm-shortcut
+    // _openShortcutIndex, then _onResumed's tail call) onto a single loop:
+    // two interleaving loops toggle the same bool and can cancel out mid-flip.
+    // A second call just refills the remaining ticks.
+    _nudgeTicksRemaining = 6;
+    if (_nudgeLoopRunning) return;
+    _nudgeLoopRunning = true;
     void tick() {
-      if (!mounted || ticks >= 6) return;
-      ticks++;
+      if (!mounted || _nudgeTicksRemaining <= 0) {
+        _nudgeLoopRunning = false;
+        return;
+      }
+      _nudgeTicksRemaining--;
       setState(() => _repaintNudge = !_repaintNudge);
       Future.delayed(const Duration(milliseconds: 100), tick);
     }
@@ -3355,6 +3368,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
 
     LogService.instance.log('CookieIsolation', 'After switch, loaded indices: $_loadedIndices', sensitivity: LogSensitivity.sensitive);
+    // Force the just-activated Android platform-view surface to recomposite.
+    // Bringing a webview onstage (tab tap, shortcut open, cold-start restore)
+    // can re-attach the hybrid-composition SurfaceView blank: the page is alive
+    // (JS runs, DOM serializes) but nothing paints and the native overscroll
+    // gesture is dead, so pull-to-refresh can't recover it — only this relayout
+    // can. _probeRendererAndRecover above only relayouts web content, not the
+    // surface (see its doc), so it does not cover this. No-op off Android.
+    _nudgeSurfaceRepaint();
     // _loadedIndices may have changed (LRU eviction, conflict unload,
     // first-load of target), so re-evaluate the background refresh
     // schedule. No-op on non-iOS / non-Android.
