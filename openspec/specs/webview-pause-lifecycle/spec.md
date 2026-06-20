@@ -51,7 +51,7 @@ The system SHALL pause the previously active webview on site switch using the pe
 **And** site A is the currently active site
 **When** the user switches to site B
 **Then** `pauseWebView()` is called on A
-**And** A's controller receives `pause()` (Android: `WebView.onPause()`; iOS: per-instance `pauseTimers()` alert hack)
+**And** A's controller receives `pause()` (Android: **no-op**, see PAUSE-016; iOS: per-instance `pauseTimers()` alert hack)
 **And** A's controller does NOT receive `pauseAllJsTimers()`
 **And** B's JS timers are unaffected by A's pause
 
@@ -84,7 +84,7 @@ The system SHALL pause both the active webview and process-global JS timers when
 **Given** the app is in the foreground with N loaded webviews
 **When** `AppLifecycleState.paused` (or `inactive`) fires
 **Then** `pauseForAppLifecycle()` is called on the active webview
-**And** the controller receives `pause()` followed by `pauseAllJsTimers()`
+**And** the controller receives `pause()` followed by `pauseAllJsTimers()` (on Android `pause()` is a no-op per PAUSE-016, so only the global timer freeze takes effect; the call order is preserved so the iOS path and the contract test are unchanged)
 **And** every loaded webview's JS timers are now frozen (Android: globally; iOS: pauseTimers is per-instance, so only the active webview is timer-paused — acceptable since the OS suspends the rest)
 
 #### Scenario: App returns to foreground
@@ -522,6 +522,45 @@ This is complementary to PAUSE-014: the probe recreates a *dead* renderer; the s
 
 ---
 
+### Requirement: PAUSE-016 — Android Per-Instance Pause Is a No-Op
+
+On Android the per-instance `pause()` / `resume()` (`WebView.onPause()` / `onResume()`) SHALL be no-ops. Android exposes no per-instance JavaScript pause — `onPause()` halts only animations and geolocation and explicitly does not pause JS, while the only JS-timer pause (`pauseTimers()`) is process-global. So per-instance pause contributes nothing to the lifecycle freeze, yet cycling the foreground hybrid-composition `SurfaceView` through onPause/onResume re-attaches it blank on the next paint — the white screen the user hits after a transient background or a navigation that follows a resume.
+
+The replacement contract on Android:
+
+- **App background** freezes JavaScript through the process-global `pauseAllJsTimers()` (`pauseTimers()`), which is surface-safe — it never touches the SurfaceView.
+- **Memory pressure** reclaims via the PAUSE-006 dispose cascade, which hard-protects the active site.
+- The active site is therefore **never** per-instance paused or resumed on Android; its surface is never cycled, so it cannot come back blank.
+
+The no-op MUST return silently rather than throw: callers invoke `pause()` and `pauseAllJsTimers()` inside a single `try`, so an exception from `pause()` would skip the global JS freeze. iOS is unchanged — there `pause()` maps to the per-instance `pauseTimers()` alert hack (the only JS-freeze lever on iOS) and there is no SurfaceView to blank.
+
+This narrows PAUSE-001 and PAUSE-002 on Android only: the call sites and call order are unchanged (so the interface-level contract test still observes `pause` → `pauseAllJsTimers`), but the real `_WebViewController.pause()` Android branch does nothing.
+
+#### Scenario: Transient background does not blank the active site
+
+**Given** the app is foreground on Android with active site A
+**When** the OS fires a spurious / transient `paused` → `resumed` pair (an OEM quirk or a memory-pressure tick)
+**Then** `pauseForAppLifecycle(A)` runs `pause()` (no-op) then `pauseAllJsTimers()` (global freeze), and `resumeFromAppLifecycle(A)` runs `resume()` (no-op) then `resumeAllJsTimers()`
+**And** A's `SurfaceView` is never cycled through onPause/onResume
+**And** A does not come back blank on the next navigation
+
+#### Scenario: JS still freezes on a genuine background
+
+**Given** active site A and three other loaded sites on Android
+**When** the app goes to background
+**Then** `pauseAllJsTimers()` freezes JS timers for every loaded webview process-wide
+**And** no per-instance `onPause()` is issued to any of them
+**And** on resume `resumeAllJsTimers()` unfreezes them
+
+#### Scenario: Pause never throws on Android
+
+**Given** `pauseForAppLifecycle()` calls `await c.pause()` then `await c.pauseAllJsTimers()` inside one try block
+**When** running on Android
+**Then** `c.pause()` returns immediately without throwing
+**And** `c.pauseAllJsTimers()` still runs, so the global JS freeze is applied
+
+---
+
 ### Requirement: PAUSE-004 — Null-Safe Controller Access
 
 `pauseWebView()`, `resumeWebView()`, `pauseForAppLifecycle()`, and `resumeFromAppLifecycle()` SHALL be no-ops when the underlying controller has not yet been initialized or has been disposed.
@@ -574,13 +613,24 @@ abstract class WebViewController {
   Future<void> resumeAllJsTimers();
 }
 
+// Pure platform dispatch — unit-tested without a native controller (PAUSE-016).
+enum PerInstanceLifecycleCall { none, timers }
+PerInstanceLifecycleCall perInstanceLifecycleCallFor({
+  required bool isAndroid,
+  required bool isIOS,
+}) {
+  if (isAndroid) return PerInstanceLifecycleCall.none;   // PAUSE-016
+  if (isIOS) return PerInstanceLifecycleCall.timers;
+  return PerInstanceLifecycleCall.none;                  // desktop
+}
+
 class _WebViewController implements WebViewController {
   @override
   Future<void> pause() async {
-    if (Platform.isAndroid) {
-      await _c.pause();          // WebView.onPause()
-    } else if (Platform.isIOS) {
-      await _c.pauseTimers();    // plugin's per-instance alert() hack
+    switch (perInstanceLifecycleCallFor(
+        isAndroid: Platform.isAndroid, isIOS: Platform.isIOS)) {
+      case PerInstanceLifecycleCall.none:    return;     // no native call
+      case PerInstanceLifecycleCall.timers:  await _c.pauseTimers();
     }
   }
 
@@ -611,6 +661,9 @@ class _WebViewController implements WebViewController {
 - A site-switch round trip never touches `*AllJsTimers`.
 - A lifecycle round trip toggles each global flag exactly once.
 - All four methods are no-ops when `controller == null`.
+- PAUSE-016: `perInstanceLifecycleCallFor` returns `none` for Android and
+  desktop, `timers` for iOS — verifying the Android per-instance no-op without
+  a native controller.
 
 ## Files
 

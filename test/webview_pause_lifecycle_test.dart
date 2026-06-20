@@ -122,6 +122,31 @@ void main() {
     });
   });
 
+  group('PAUSE-016 per-instance pause platform dispatch', () {
+    test('Android issues no per-instance native call', () {
+      expect(
+        perInstanceLifecycleCallFor(isAndroid: true, isIOS: false),
+        PerInstanceLifecycleCall.none,
+        reason: 'onPause() does not freeze JS and cycling the SurfaceView '
+            'blanks it — per-instance pause is a no-op on Android.',
+      );
+    });
+
+    test('iOS issues the per-instance pauseTimers alert hack', () {
+      expect(
+        perInstanceLifecycleCallFor(isAndroid: false, isIOS: true),
+        PerInstanceLifecycleCall.timers,
+      );
+    });
+
+    test('desktop platforms issue no per-instance native call', () {
+      expect(
+        perInstanceLifecycleCallFor(isAndroid: false, isIOS: false),
+        PerInstanceLifecycleCall.none,
+      );
+    });
+  });
+
   group('WebViewModel pause/resume null-safety', () {
     test('pauseWebView() with no controller is a no-op', () async {
       final m = _modelWith(null);
