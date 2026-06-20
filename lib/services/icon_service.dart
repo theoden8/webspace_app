@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -260,11 +263,93 @@ Future<bool> _verifyIconUrl(String iconUrl, UserProxySettings proxy) async {
   }
 }
 
-// Helper: Check if SVG is monochrome (returns true if it's a colored SVG).
-// Also returns false for SVGs that rely on CSS-based visibility switching
-// (e.g. theme-aware icons with `<style>` blocks toggling `display: none`),
-// since flutter_svg's limited CSS support renders all groups simultaneously
-// and those SVGs end up with overlay rectangles obscuring the actual icon.
+// CSS `display: none` theme toggles defeat flutter_svg: it ignores the rule,
+// draws both light/dark variants, and a hidden overlay rect ends up masking
+// the icon. The pixel render probe below can't catch this (the frame comes
+// back fully painted, just wrong), so detect it structurally. Input must be
+// lowercased.
+bool svgHasMaskingStyleToggle(String lowerSvg) {
+  final styleBlockPattern = RegExp(r'<style[^>]*>(.*?)</style>', dotAll: true);
+  for (var styleMatch in styleBlockPattern.allMatches(lowerSvg)) {
+    if (RegExp(r'display\s*:\s*none').hasMatch(styleMatch.group(1) ?? '')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// True if the SVG declares any non-trivial color (attribute or CSS). Input
+// must be lowercased.
+bool svgHasRealColor(String lowerSvg) {
+  final attrColorPattern =
+      RegExp(r'(?:fill|stroke)\s*=\s*["\x27]#([0-9a-f]{3,6})["\x27]');
+  for (var match in attrColorPattern.allMatches(lowerSvg)) {
+    if (_isRealColor(match.group(1)!)) return true;
+  }
+
+  final stylePattern = RegExp(r'<style[^>]*>(.*?)</style>', dotAll: true);
+  for (var styleMatch in stylePattern.allMatches(lowerSvg)) {
+    // Drop media queries so theme-switch palettes don't read as real color.
+    final withoutMedia = (styleMatch.group(1) ?? '')
+        .replaceAll(RegExp(r'@media[^{]*\{[^}]*\}', dotAll: true), '');
+    final cssColorPattern = RegExp(
+        r'(?:color|fill|stroke|stop-color|background)\s*:\s*#([0-9a-f]{3,6})');
+    for (var match in cssColorPattern.allMatches(withoutMedia)) {
+      if (_isRealColor(match.group(1)!)) return true;
+    }
+    if (withoutMedia.contains('rgb(') || withoutMedia.contains('hsl(')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Rasterize the SVG the way the app will and report whether it comes back
+// effectively empty. flutter_svg (vector_graphics) renders some valid SVGs
+// blank, e.g. nested <svg> viewports (duck.ai's favicon.svg), and such an icon
+// must lose to raster fallbacks instead of winning on color and showing
+// nothing. On probe failure we assume the icon is fine (return false) rather
+// than punish it.
+@visibleForTesting
+Future<bool> svgRendersBlank(String rawSvg) async {
+  const n = 48;
+  try {
+    final info = await vg.loadPicture(SvgStringLoader(rawSvg), null);
+    try {
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      final size = info.size;
+      if (size.width > 0 && size.height > 0) {
+        canvas.scale(n / size.width, n / size.height);
+      }
+      canvas.drawPicture(info.picture);
+      final image = await recorder.endRecording().toImage(n, n);
+      try {
+        final bytes =
+            await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        if (bytes == null) return false;
+        final data = bytes.buffer.asUint8List();
+        var opaque = 0;
+        for (var i = 3; i < data.length; i += 4) {
+          if (data[i] > 16) opaque++;
+        }
+        return opaque / (n * n) < 0.01;
+      } finally {
+        image.dispose();
+      }
+    } finally {
+      info.picture.dispose();
+    }
+  } catch (e) {
+    LogService.instance.log('Icon', 'SVG render probe failed: $e',
+        level: LogLevel.warning);
+    return false;
+  }
+}
+
+// Whether an SVG should be preferred as a high-quality icon: it must carry
+// real color AND actually render. A colored-but-blank SVG (or a theme-toggle
+// SVG flutter_svg masks) is demoted so raster fallbacks win.
 Future<bool> _isSvgColored(String svgUrl, UserProxySettings proxy) async {
   final client = _proxiedClient(proxy);
   if (client == null) return false;
@@ -274,87 +359,37 @@ Future<bool> _isSvgColored(String svgUrl, UserProxySettings proxy) async {
     );
     if (response.statusCode != 200) return false;
 
-    final svgContent = response.body.toLowerCase();
+    final rawSvg = response.body;
+    final lowerSvg = rawSvg.toLowerCase();
 
-    // Detect CSS-driven visibility toggles in <style> blocks. flutter_svg
-    // does not honor `display: none` from style sheets, so both variants
-    // render and a hidden background rect can cover the visible icon (e.g.
-    // duck.ai's favicon.svg with light/dark icon swap).
-    final styleBlockPattern = RegExp(r'<style[^>]*>(.*?)</style>', dotAll: true);
-    for (var styleMatch in styleBlockPattern.allMatches(svgContent)) {
-      final styleContent = styleMatch.group(1) ?? '';
-      if (RegExp(r'display\s*:\s*none').hasMatch(styleContent)) {
-        LogService.instance.log(
-          'Icon',
-          'SVG uses CSS visibility switching, treating as low quality: $svgUrl',
-          sensitivity: LogSensitivity.sensitive,
-        );
-        return false;
-      }
+    if (svgHasMaskingStyleToggle(lowerSvg)) {
+      LogService.instance.log(
+        'Icon',
+        'SVG uses CSS visibility switching, treating as low quality: $svgUrl',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
     }
 
-    // Check for hex colors in attributes (fill="..." stroke="...")
-    final attrColorPattern = RegExp(
-        r'(?:fill|stroke)\s*=\s*["\x27]#([0-9a-f]{3,6})["\x27]');
-    final attrMatches = attrColorPattern.allMatches(svgContent);
-
-    for (var match in attrMatches) {
-      final color = match.group(1)!.toLowerCase();
-      if (_isRealColor(color)) {
-        LogService.instance.log(
-          'Icon',
-          'Found colored SVG with attr color #$color: $svgUrl',
-          sensitivity: LogSensitivity.sensitive,
-        );
-        return true;
-      }
+    if (!svgHasRealColor(lowerSvg)) {
+      LogService.instance.log(
+        'Icon',
+        'SVG appears monochrome: $svgUrl',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
     }
 
-    // Check for colors in style blocks (including CSS properties)
-    final stylePattern = RegExp(r'<style[^>]*>(.*?)</style>', dotAll: true);
-    final styleMatches = stylePattern.allMatches(svgContent);
-
-    for (var styleMatch in styleMatches) {
-      final styleContent = styleMatch.group(1) ?? '';
-
-      // Remove media queries to avoid false positives from theme switching
-      final withoutMedia = styleContent.replaceAll(
-          RegExp(r'@media[^{]*\{[^}]*\}', dotAll: true), '');
-
-      // Look for CSS color properties: color, fill, stroke, stop-color, etc.
-      final cssColorPattern = RegExp(
-          r'(?:color|fill|stroke|stop-color|background)\s*:\s*#([0-9a-f]{3,6})');
-      final cssMatches = cssColorPattern.allMatches(withoutMedia);
-
-      for (var match in cssMatches) {
-        final color = match.group(1)!.toLowerCase();
-        if (_isRealColor(color)) {
-          LogService.instance.log(
-            'Icon',
-            'Found colored SVG with CSS color #$color: $svgUrl',
-            sensitivity: LogSensitivity.sensitive,
-          );
-          return true;
-        }
-      }
-
-      // Check for rgb/hsl
-      if (withoutMedia.contains('rgb(') || withoutMedia.contains('hsl(')) {
-        LogService.instance.log(
-          'Icon',
-          'Found colored SVG with rgb/hsl: $svgUrl',
-          sensitivity: LogSensitivity.sensitive,
-        );
-        return true;
-      }
+    if (await svgRendersBlank(rawSvg)) {
+      LogService.instance.log(
+        'Icon',
+        'SVG renders blank under flutter_svg (e.g. nested <svg>), treating as low quality: $svgUrl',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
     }
 
-    LogService.instance.log(
-      'Icon',
-      'SVG appears monochrome: $svgUrl',
-      sensitivity: LogSensitivity.sensitive,
-    );
-    return false;
+    return true;
   } catch (e) {
     LogService.instance.log('Icon', 'Failed to check SVG color: $e', level: LogLevel.error);
     return false;
