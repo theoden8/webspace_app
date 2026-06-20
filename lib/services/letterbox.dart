@@ -1,12 +1,40 @@
 import 'dart:math' as math;
 
 /// Upper bound on the letterbox margin per axis, as a fraction of the
-/// available extent. A coarse fixed grid (200x100) trims almost half of a
-/// phone-width viewport (e.g. 390 -> 200), so the margin is capped here and
-/// the grid is refined until the trimmed strip fits the budget. Tuned so a
-/// maximised desktop window still snaps to the 200x100 grid (1366 -> 1200 is
-/// 12.15%).
+/// available extent. Reached on large (desktop) viewports, where the coarse
+/// 200x100 grid's ~12% trim is accepted to keep size buckets few. A coarse
+/// fixed grid trims almost half of a phone-width viewport (e.g. 390 -> 200),
+/// so the margin is capped and the grid is refined until the trimmed strip
+/// fits the budget. Tuned so a maximised desktop window still snaps to the
+/// 200x100 grid (1366 -> 1200 is 12.15%).
 const double kLetterboxMaxMarginFraction = 1 / 8;
+
+/// Smallest margin budget, applied on narrow/short (phone) viewports so the
+/// bars stay thin instead of eating the desktop-sized 12.5%.
+const double kLetterboxMinMarginFraction = 1 / 16;
+
+/// Smallest extent that is treated as a full desktop window and gets the loose
+/// [kLetterboxMaxMarginFraction] budget (so 1366 still snaps to the 200 grid).
+const double _kLetterboxDesktopExtent = 1366.0;
+
+/// Largest extent that is treated as a phone/small viewport and gets the tight
+/// [kLetterboxMinMarginFraction] budget. Between this and
+/// [_kLetterboxDesktopExtent] the budget ramps linearly.
+const double _kLetterboxSmallExtent = 960.0;
+
+/// Margin budget for an axis of length [extent]. Flat at the tight phone budget
+/// up to [_kLetterboxSmallExtent], then ramps to the loose desktop budget by
+/// [_kLetterboxDesktopExtent]. Phones thus refine to a finer grid and keep thin
+/// bars (e.g. 390 -> 375, 873 -> 850) at the cost of a few more buckets, while a
+/// maximised desktop window still snaps to the coarse 200-wide grid (1366 ->
+/// 1200) for low fingerprint entropy.
+double _maxMarginFraction(double extent) {
+  final t = ((extent - _kLetterboxSmallExtent) /
+          (_kLetterboxDesktopExtent - _kLetterboxSmallExtent))
+      .clamp(0.0, 1.0);
+  return kLetterboxMinMarginFraction +
+      t * (kLetterboxMaxMarginFraction - kLetterboxMinMarginFraction);
+}
 
 /// Target size (logical pixels) for the letterboxed web-content box. When
 /// [width]/[height] equal the available area, no margin is drawn.
@@ -29,16 +57,19 @@ class LetterboxTarget {
 }
 
 /// Snap [available] DOWN to the coarsest grid (starting at [grid], halving)
-/// whose trimmed margin stays within [kLetterboxMaxMarginFraction]. Coarse
-/// steps bucket many real sizes onto one value (lower fingerprint entropy);
-/// refining only when the coarse step would eat too much keeps the margin a
-/// thin strip on small screens instead of half the viewport.
+/// whose trimmed margin stays within [_maxMarginFraction] for this extent.
+/// Coarse steps bucket many real sizes onto one value (lower fingerprint
+/// entropy); refining only when the coarse step would eat too much keeps the
+/// margin a thin strip on small screens instead of half the viewport. The
+/// budget shrinks with the extent, so phones refine further than desktops and
+/// end up with thinner bars.
 double _snapAxis(double available, double grid) {
   if (available <= 0 || !available.isFinite) return math.max(0.0, available);
+  final budget = _maxMarginFraction(available) * available;
   for (var step = grid; step >= 1; step /= 2) {
     if (available < step) continue;
     final snapped = (available / step).floorToDouble() * step;
-    if (available - snapped <= kLetterboxMaxMarginFraction * available) {
+    if (available - snapped <= budget) {
       return snapped;
     }
   }

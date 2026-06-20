@@ -3,12 +3,14 @@ import 'package:webspace/services/letterbox.dart';
 
 void main() {
   group('computeLetterboxTarget', () {
-    test('snaps a desktop window down to the 200x100 grid', () {
+    test('snaps a maximised desktop width down to the 200 grid', () {
       final t = computeLetterboxTarget(
           availableWidth: 1366, availableHeight: 768);
-      // 1366 -> 1200 (6*200), 768 -> 700 (7*100); both within the margin cap.
+      // 1366 -> 1200 (6*200) keeps the coarse width bucket. The 768 height is
+      // small enough to fall in the tight phone budget and refines to the 50
+      // grid: 768 -> 750.
       expect(t.width, 1200);
-      expect(t.height, 700);
+      expect(t.height, 750);
     });
 
     test('exact multiples are unchanged', () {
@@ -25,6 +27,26 @@ void main() {
           availableWidth: 390, availableHeight: 844);
       expect(t.width, greaterThanOrEqualTo(390 * (1 - kLetterboxMaxMarginFraction)));
       expect(t.width, lessThanOrEqualTo(390));
+    });
+
+    test('phone margins are tighter than the desktop budget', () {
+      // Phones get a smaller budget than the 12.5% desktop cap, so the bars
+      // are thin. 390 -> 375 (15px), 780 -> 750 (30px).
+      final w = computeLetterboxTarget(availableWidth: 390, availableHeight: 780);
+      expect(w.width, 375);
+      expect(w.height, 750);
+      for (final s in const <List<double>>[
+        [360, 780], [390, 844], [393, 873], [412, 915], [428, 926],
+      ]) {
+        final t = computeLetterboxTarget(
+            availableWidth: s[0], availableHeight: s[1]);
+        expect((s[0] - t.width) / s[0],
+            lessThanOrEqualTo(kLetterboxMinMarginFraction),
+            reason: 'w margin for $s');
+        expect((s[1] - t.height) / s[1],
+            lessThanOrEqualTo(kLetterboxMinMarginFraction),
+            reason: 'h margin for $s');
+      }
     });
 
     test('two nearby phone widths still collapse onto the same bucket', () {
@@ -91,7 +113,7 @@ void main() {
         fixedWidth: 1024,
       );
       expect(t.width, 1200);
-      expect(t.height, 700);
+      expect(t.height, 750);
     });
 
     test('infinite or non-positive constraints degrade gracefully', () {
