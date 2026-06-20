@@ -613,13 +613,24 @@ abstract class WebViewController {
   Future<void> resumeAllJsTimers();
 }
 
+// Pure platform dispatch — unit-tested without a native controller (PAUSE-016).
+enum PerInstanceLifecycleCall { none, timers }
+PerInstanceLifecycleCall perInstanceLifecycleCallFor({
+  required bool isAndroid,
+  required bool isIOS,
+}) {
+  if (isAndroid) return PerInstanceLifecycleCall.none;   // PAUSE-016
+  if (isIOS) return PerInstanceLifecycleCall.timers;
+  return PerInstanceLifecycleCall.none;                  // desktop
+}
+
 class _WebViewController implements WebViewController {
   @override
   Future<void> pause() async {
-    if (Platform.isAndroid) {
-      return;                    // no-op: see PAUSE-016
-    } else if (Platform.isIOS) {
-      await _c.pauseTimers();    // plugin's per-instance alert() hack
+    switch (perInstanceLifecycleCallFor(
+        isAndroid: Platform.isAndroid, isIOS: Platform.isIOS)) {
+      case PerInstanceLifecycleCall.none:    return;     // no native call
+      case PerInstanceLifecycleCall.timers:  await _c.pauseTimers();
     }
   }
 
@@ -650,6 +661,9 @@ class _WebViewController implements WebViewController {
 - A site-switch round trip never touches `*AllJsTimers`.
 - A lifecycle round trip toggles each global flag exactly once.
 - All four methods are no-ops when `controller == null`.
+- PAUSE-016: `perInstanceLifecycleCallFor` returns `none` for Android and
+  desktop, `timers` for iOS — verifying the Android per-instance no-op without
+  a native controller.
 
 ## Files
 

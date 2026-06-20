@@ -815,6 +815,29 @@ abstract class WebViewController {
   Future<bool> restoreState(Uint8List state);
 }
 
+/// Which native call the per-instance [WebViewController.pause] /
+/// [WebViewController.resume] makes on a given platform (PAUSE-016).
+enum PerInstanceLifecycleCall {
+  /// No native call. Android (`WebView.onPause()` doesn't freeze JS and
+  /// cycling the SurfaceView blanks it — PAUSE-016) and desktop platforms.
+  none,
+
+  /// iOS: `pauseTimers()` / `resumeTimers()` — the plugin's per-instance
+  /// `alert()`-deadlock hack, the only per-site JS-freeze lever on iOS.
+  timers,
+}
+
+/// Pure platform dispatch for per-instance pause/resume. Extracted so the
+/// PAUSE-016 Android no-op is unit-testable without a native controller.
+PerInstanceLifecycleCall perInstanceLifecycleCallFor({
+  required bool isAndroid,
+  required bool isIOS,
+}) {
+  if (isAndroid) return PerInstanceLifecycleCall.none;
+  if (isIOS) return PerInstanceLifecycleCall.timers;
+  return PerInstanceLifecycleCall.none;
+}
+
 /// InAppWebView controller wrapper
 class _WebViewController implements WebViewController {
   final inapp.InAppWebViewController _c;
@@ -985,33 +1008,33 @@ class _WebViewController implements WebViewController {
 
   @override
   Future<void> pause() async {
-    if (Platform.isAndroid) {
-      // No-op on Android. `WebView.onPause()` does not pause JavaScript (only
-      // the process-global `pauseTimers()` does), so per-instance pause buys
-      // nothing for the JS-freeze goal — yet cycling the foreground hybrid-
-      // composition SurfaceView through onPause/onResume leaves it blank on
-      // the next paint (the white-screen bug). App-lifecycle backgrounding
-      // freezes JS via the global `pauseAllJsTimers()`; memory pressure
-      // disposes background sites. The active site is therefore never
-      // per-instance paused/resumed on Android.
-      //
-      // Must NOT throw: callers run `pause()` then `pauseAllJsTimers()` inside
-      // one try block, so an exception here would skip the global JS freeze.
-      return;
-    } else if (Platform.isIOS) {
-      // iOS has no per-instance native pause; pauseTimers() is the plugin's
-      // per-instance alert()-deadlock hack and is safe to call on one site.
-      await _c.pauseTimers();
+    // PAUSE-016: Android is a no-op. `WebView.onPause()` doesn't pause JS (only
+    // the process-global `pauseTimers()` does), so per-instance pause buys
+    // nothing for the JS-freeze goal — yet cycling the foreground hybrid-
+    // composition SurfaceView through onPause/onResume leaves it blank on the
+    // next paint (the white-screen bug). App-lifecycle backgrounding freezes JS
+    // via the global `pauseAllJsTimers()`; memory pressure disposes.
+    //
+    // Must NOT throw: callers run `pause()` then `pauseAllJsTimers()` inside one
+    // try block, so an exception here would skip the global JS freeze.
+    switch (perInstanceLifecycleCallFor(
+        isAndroid: Platform.isAndroid, isIOS: Platform.isIOS)) {
+      case PerInstanceLifecycleCall.none:
+        return;
+      case PerInstanceLifecycleCall.timers:
+        await _c.pauseTimers();
     }
   }
 
   @override
   Future<void> resume() async {
-    if (Platform.isAndroid) {
-      // Mirror of [pause]: per-instance resume is unused on Android.
-      return;
-    } else if (Platform.isIOS) {
-      await _c.resumeTimers();
+    // Mirror of [pause] (PAUSE-016): no-op on Android.
+    switch (perInstanceLifecycleCallFor(
+        isAndroid: Platform.isAndroid, isIOS: Platform.isIOS)) {
+      case PerInstanceLifecycleCall.none:
+        return;
+      case PerInstanceLifecycleCall.timers:
+        await _c.resumeTimers();
     }
   }
 
