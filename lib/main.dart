@@ -3911,6 +3911,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       _fullscreenOnShortcut = prefs.getBool('fullscreenOnShortcut') ?? true;
       _tabMaxWidth = prefs.getInt('tabMaxWidth') ?? 140;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
+      WebViewFactory.backForwardCacheEnabled =
+          prefs.getBool(kBackForwardCacheEnabledKey) ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
       _linkHandlingClaimDomains =
           prefs.getBool(kLinkHandlingClaimDomainsKey) ?? false;
@@ -5087,6 +5089,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           backup.globalPrefs['tabMaxWidth'] as int? ?? _tabMaxWidth;
       _showStatsBanner =
           backup.globalPrefs['showStatsBanner'] as bool? ?? _showStatsBanner;
+      WebViewFactory.backForwardCacheEnabled =
+          backup.globalPrefs[kBackForwardCacheEnabledKey] as bool? ??
+              WebViewFactory.backForwardCacheEnabled;
 
       // Restore selection state
       if (backup.selectedWebspaceId != null &&

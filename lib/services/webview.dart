@@ -1289,6 +1289,17 @@ persist, and the cache is cleared on app upgrade).</p>
 
 /// Factory for creating webviews
 class WebViewFactory {
+  /// Global back/forward-cache preference, mirrored from the
+  /// `backForwardCacheEnabled` app pref (kExportedAppPrefs) at startup and
+  /// after settings import. Applied verbatim to every WebView's native
+  /// WebSettings; no-ops on platforms/providers without the feature.
+  static bool backForwardCacheEnabled = true;
+
+  /// androidx.webkit `WebSettingsCompat.ATTRIBUTION_BEHAVIOR_DISABLED`. Passed
+  /// to the fork's `attributionRegistrationBehavior` to stop the WebView from
+  /// registering Attribution Reporting sources/triggers.
+  static const int attributionBehaviorDisabled = 0;
+
   /// System font scale → webview text zoom percent. Tracks the OS-level
   /// "font size" accessibility setting so web content matches the size
   /// users see in their system browser.
@@ -2319,6 +2330,18 @@ class WebViewFactory {
       // wire-level UA-CH headers contradict the spoofed UA. Silently
       // ignored on iOS/macOS/Linux (no equivalent native API).
       ..userAgentMetadata = buildUserAgentMetadata(config.userAgent)
+      // Folded under the Tracking Protection umbrella (Android only; the
+      // fork ignores both on iOS/macOS/Linux). When ETP is on: an empty
+      // allow-list suppresses the `X-Requested-With: <package>` header for
+      // every origin, and Attribution Reporting registration is disabled.
+      // When ETP is off, leave the native defaults untouched (null).
+      ..requestedWithHeaderOriginAllowList =
+          config.trackingProtectionEnabled ? const <String>{} : null
+      ..attributionRegistrationBehavior = config.trackingProtectionEnabled
+          ? WebViewFactory.attributionBehaviorDisabled
+          : null
+      // Global perf pref; same value on every WebView, nested included.
+      ..backForwardCacheEnabled = WebViewFactory.backForwardCacheEnabled
       ..thirdPartyCookiesEnabled = config.thirdPartyCookiesEnabled
       ..incognito = config.incognito
       ..textZoom = textZoom
