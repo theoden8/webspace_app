@@ -367,6 +367,25 @@ either target.
   plugin platform-interface stubs (`file_picker`) and method-channel
   mocks (`flutter_inappwebview_proxycontroller`) are platform-agnostic
 
+#### Scenario: Ad-hoc signing needs a minimal entitlements override
+
+- **Given** the CI runner has no Apple signing identity, so the debug
+  app is ad-hoc signed
+- **And** the committed `macos/Runner/DebugProfile.entitlements`
+  declares provisioning-dependent entitlements (`app-sandbox`, the
+  team-prefixed `application-groups`, and `keychain-access-groups`)
+  that an ad-hoc signature cannot satisfy
+- **When** the `Run macOS integration tests` step overwrites that file
+  with a minimal `com.apple.security.cs.allow-jit`-only set before the
+  `flutter test` loop
+- **Then** `taskgated` accepts the ad-hoc signature and the app reaches
+  Dart, instead of being SIGKILL'd at launch as "Code Signature
+  Invalid" (which `flutter test` surfaces only as the opaque "log
+  reader stopped unexpectedly")
+- **And** the override never reaches a release build — the runner
+  checks out fresh and release builds keep the committed entitlements
+  plus a real signing identity
+
 ---
 
 ## Known Limitations

@@ -809,67 +809,52 @@ jobs:
           fi
           echo "OK: macOS webspace_adblock.framework exports $SYMS ws_* symbols"
 
-      # TEMPORARY diagnostic (remove once macOS launch is fixed).
-      # `flutter test -d macos` only reports "log reader stopped
-      # unexpectedly" and hides why the debug app won't start. The app
-      # exits ~60ms after the build finishes, i.e. at exec time, before
-      # any Dart runs — too early for a runtime sandbox denial, so the
-      # cause is dyld / codesign / window-server / a native plugin
-      # initializer. Build the debug app and probe it directly to print
-      # the real reason, plus a `--verbose` test run for the tool-side
-      # launch command. continue-on-error so it never gates the job.
-      - name: Diagnose macOS app launch
-        continue-on-error: true
-        run: |
-          set -x
-          security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
-          fvm flutter build macos --debug
-          APP=build/macos/Build/Products/Debug/Webspace.app
-          BIN="$APP/Contents/MacOS/Webspace"
-          ls -la "$APP/Contents/MacOS" || true
-          echo "=== codesign ==="
-          codesign -dvvv "$APP" 2>&1 | head -40 || true
-          codesign --verify --deep --verbose=4 "$APP" 2>&1 | head -40 || true
-          echo "=== embedded frameworks ==="
-          ls -la "$APP/Contents/Frameworks" || true
-          echo "=== otool deps of main binary ==="
-          otool -L "$BIN" 2>&1 | head -60 || true
-          echo "=== direct launch (8s window) ==="
-          "$BIN" > /tmp/app-launch.log 2>&1 &
-          APP_PID=$!
-          sleep 8
-          echo "--- app stdout/stderr ---"
-          cat /tmp/app-launch.log || true
-          if ps -p "$APP_PID" > /dev/null; then echo "app STILL RUNNING"; else echo "app EXITED early"; fi
-          kill "$APP_PID" 2>/dev/null || true
-          echo "=== recent crash reports ==="
-          ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
-          for f in "$HOME/Library/Logs/DiagnosticReports/"Webspace*; do
-            [ -f "$f" ] && { echo "--- $f ---"; tail -n 100 "$f"; }
-          done
-          echo "=== flutter test --verbose (smoke only) ==="
-          fvm flutter test integration_test/settings_smoke_test.dart -d macos --verbose 2>&1 | tail -n 150 || true
-
       # Integration tests on macOS desktop — the same cross-platform
       # integration_test/*.dart harness the Linux job runs, driven against
       # the native macOS (WKWebView + AppKit) runtime via `-d macos`. None
       # of the Linux scaffolding applies here: the GitHub macOS runner has
       # a real window server (no Xvfb/weston), path_provider resolves the
-      # sandbox container natively (no xdg-user-dirs), and
-      # flutter_secure_storage talks to the login keychain instead of
-      # pass-secret-service. The keychain is unlocked in the runner's GUI
-      # session; unlock it defensively anyway so a locked keychain can't
-      # raise an interactive prompt that would hang the run (the empty
-      # password is the GitHub runner's login keychain default).
+      # container natively (no xdg-user-dirs), and flutter_secure_storage
+      # talks to the login keychain instead of pass-secret-service. The
+      # keychain is unlocked in the runner's GUI session; unlock it
+      # defensively anyway so a locked keychain can't raise an interactive
+      # prompt that would hang the run (empty password is the runner's
+      # login keychain default).
+      #
+      # CI has no Apple signing identity, so the debug app is ad-hoc
+      # signed. The committed DebugProfile.entitlements declares
+      # provisioning-dependent entitlements — app-sandbox plus the
+      # team-prefixed application-groups and keychain-access-groups — that
+      # an ad-hoc signature can't satisfy, so taskgated SIGKILLs the app at
+      # launch as "Code Signature Invalid" (the symptom is `flutter test`'s
+      # opaque "log reader stopped unexpectedly", with the real reason only
+      # in the crash report). The integration tests don't exercise the
+      # share-extension app group or the sandbox, so overwrite the file
+      # with a minimal JIT-only entitlements set that ad-hoc signing
+      # validates. The runner checks out fresh; this edit never reaches a
+      # release build (those keep the committed entitlements + a real
+      # identity).
       #
       # Same one-test-per-file invocation as Linux (INTEG-007/008): every
       # integration_test/*_test.dart except the fastlane-only screenshot
       # generator. A non-zero exit from any file is remembered and
-      # re-raised after the loop so one failure doesn't mask the rest.
+      # re-raised after the loop so one failure doesn't mask the rest. On
+      # failure, dump the macOS crash report so a launch-time SIGKILL
+      # (e.g. a re-introduced provisioning entitlement) explains itself.
       - name: Run macOS integration tests
         run: |
           set -x
           security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
+          cat > macos/Runner/DebugProfile.entitlements <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+          	<key>com.apple.security.cs.allow-jit</key>
+          	<true/>
+          </dict>
+          </plist>
+          EOF
           status=0
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
@@ -877,6 +862,14 @@ jobs:
             fvm flutter test "$t" -d macos || status=$?
             echo "::endgroup::"
           done
+          if [ $status -ne 0 ]; then
+            echo "=== recent macOS crash reports ==="
+            ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
+            for f in "$HOME/Library/Logs/DiagnosticReports/"Webspace* \
+                     "$HOME/Library/Logs/DiagnosticReports/"Runner*; do
+              [ -f "$f" ] && { echo "--- $f ---"; sed -n '1,45p' "$f"; }
+            done
+          fi
           exit $status
 
       - name: Create macOS ZIP archive
