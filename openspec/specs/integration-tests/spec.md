@@ -13,17 +13,27 @@ ScaffoldMessenger / Navigator interaction across async gaps.
 The harness conventions (`isDemoMode`, `SharedPreferences.setMockInitialValues`,
 plugin platform-interface stubs, Pop-then-callback re-navigation,
 widget-tree dumps on failure) are framework-level and apply to any
-`-d` target. Two `-d` targets are wired into CI: Linux (`-d linux`,
-in the sid container under Xvfb/weston with `pass-secret-service`) and
-macOS (`-d macos`, on the `macos-latest` runner against the native
-window server + login keychain). Each target reuses the same harness
-behind a thin platform-setup section; a future Android runner would
-slot in the same way. The headless secret-service / display
-scaffolding is Linux-specific because macOS supplies both natively.
+`-d` target. The two CI targets wired in are both **desktop**: Linux
+(`-d linux`, in the sid container under Xvfb/weston with
+`pass-secret-service`) and macOS (`-d macos`, on the `macos-latest`
+runner against the native window server + login keychain). Each runs a
+headed desktop app the runner can launch directly; the headless
+secret-service / display scaffolding is Linux-specific because macOS
+supplies both natively.
 
-The fastlane-driven Android/iOS screenshot pipeline lives under
-[`screenshots`](../screenshots/spec.md) — different harness, different
-goal (screenshot generation vs. assertion-driven UI testing).
+The **mobile** targets — Android (`-d emulator-*`) and the iOS
+Simulator (`-d <udid>`) — are a separate harness: each needs a booted
+emulator/simulator before `flutter test` can attach, not just a window
+server. They are not wired into the integration_test tier yet. The
+device-boot plumbing already exists in this workflow for the
+fastlane-driven Android/iOS screenshot pipeline (see
+[`screenshots`](../screenshots/spec.md) — `build-android`'s
+`reactivecircus/android-emulator-runner` and `build-apple`'s
+`simctl boot`), so a future mobile integration_test tier would extend
+that boot setup rather than the desktop `-d` path. Screenshots are a
+different harness with a different goal (screenshot generation vs.
+assertion-driven UI testing), but they share the same emulator/
+simulator prerequisite.
 
 ## Status
 
@@ -36,7 +46,9 @@ goal (screenshot generation vs. assertion-driven UI testing).
   - `build-linux` job → `Run Linux integration tests` step (`-d linux`).
   - `build-apple` job → `Run macOS integration tests` step (`-d macos`).
 
-  Android runner support is a future scope.
+  Both are desktop. The mobile targets (Android emulator + iOS
+  Simulator) are a separate, device-booted harness and are a future
+  scope.
 
 ---
 
@@ -401,5 +413,6 @@ either target.
 - [`integration_test/settings_backup_roundtrip_test.dart`](../../../integration_test/settings_backup_roundtrip_test.dart)
   — PWD-005 user-facing surface
 - [`integration_test/screenshot_test.dart`](../../../integration_test/screenshot_test.dart)
-  — separate pipeline (Android/iOS, not Linux); see
+  — separate pipeline (mobile Android/iOS, not the desktop `-d`
+  targets); skipped by both the Linux and macOS loops. See
   [`screenshots`](../screenshots/spec.md)
