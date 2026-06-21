@@ -809,6 +809,47 @@ jobs:
           fi
           echo "OK: macOS webspace_adblock.framework exports $SYMS ws_* symbols"
 
+      # TEMPORARY diagnostic (remove once macOS launch is fixed).
+      # `flutter test -d macos` only reports "log reader stopped
+      # unexpectedly" and hides why the debug app won't start. The app
+      # exits ~60ms after the build finishes, i.e. at exec time, before
+      # any Dart runs — too early for a runtime sandbox denial, so the
+      # cause is dyld / codesign / window-server / a native plugin
+      # initializer. Build the debug app and probe it directly to print
+      # the real reason, plus a `--verbose` test run for the tool-side
+      # launch command. continue-on-error so it never gates the job.
+      - name: Diagnose macOS app launch
+        continue-on-error: true
+        run: |
+          set -x
+          security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
+          fvm flutter build macos --debug
+          APP=build/macos/Build/Products/Debug/Webspace.app
+          BIN="$APP/Contents/MacOS/Webspace"
+          ls -la "$APP/Contents/MacOS" || true
+          echo "=== codesign ==="
+          codesign -dvvv "$APP" 2>&1 | head -40 || true
+          codesign --verify --deep --verbose=4 "$APP" 2>&1 | head -40 || true
+          echo "=== embedded frameworks ==="
+          ls -la "$APP/Contents/Frameworks" || true
+          echo "=== otool deps of main binary ==="
+          otool -L "$BIN" 2>&1 | head -60 || true
+          echo "=== direct launch (8s window) ==="
+          "$BIN" > /tmp/app-launch.log 2>&1 &
+          APP_PID=$!
+          sleep 8
+          echo "--- app stdout/stderr ---"
+          cat /tmp/app-launch.log || true
+          if ps -p "$APP_PID" > /dev/null; then echo "app STILL RUNNING"; else echo "app EXITED early"; fi
+          kill "$APP_PID" 2>/dev/null || true
+          echo "=== recent crash reports ==="
+          ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
+          for f in "$HOME/Library/Logs/DiagnosticReports/"Webspace*; do
+            [ -f "$f" ] && { echo "--- $f ---"; tail -n 100 "$f"; }
+          done
+          echo "=== flutter test --verbose (smoke only) ==="
+          fvm flutter test integration_test/settings_smoke_test.dart -d macos --verbose 2>&1 | tail -n 150 || true
+
       # Integration tests on macOS desktop — the same cross-platform
       # integration_test/*.dart harness the Linux job runs, driven against
       # the native macOS (WKWebView + AppKit) runtime via `-d macos`. None
