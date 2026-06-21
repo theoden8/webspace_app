@@ -1,11 +1,13 @@
-// Linux integration smoke test — proves the integration_test
-// pipeline works on Linux desktop (WPE WebKit + GTK), and exercises
-// the App Settings screen path that touches the recent proxy / backup
-// fix area (PR #266 + the proxy_password_secure_storage migration).
+// Desktop integration smoke test — proves the integration_test
+// pipeline works on both desktop CI targets (Linux WPE WebKit + GTK
+// under Xvfb, macOS WKWebView + AppKit), and exercises the App
+// Settings screen path that touches the recent proxy / backup fix
+// area (PR #266 + the proxy_password_secure_storage migration).
 //
 // Scope is intentionally narrow: boot the app, reach App Settings,
 // assert the Export/Import buttons render. That's enough to prove:
-//   * Linux Flutter desktop builds and launches under Xvfb in CI
+//   * Flutter desktop builds and launches in CI (Xvfb on Linux,
+//     the runner's window server on macOS)
 //   * SharedPreferences default-init works (no crash on cold start)
 //   * The webspaces-list / drawer / settings navigation chain
 //     renders without hitting an exception
@@ -39,7 +41,7 @@ void main() {
     isDemoMode = true;
   });
 
-  testWidgets('App boots on Linux and reaches App Settings', (tester) async {
+  testWidgets('App boots on desktop and reaches App Settings', (tester) async {
     app.main();
     // pumpAndSettle drives the splash → first frame → first idle
     // sequence. 30s is generous for the slow CI runner; locally this

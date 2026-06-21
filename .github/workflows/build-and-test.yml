@@ -809,6 +809,35 @@ jobs:
           fi
           echo "OK: macOS webspace_adblock.framework exports $SYMS ws_* symbols"
 
+      # Integration tests on macOS desktop — the same cross-platform
+      # integration_test/*.dart harness the Linux job runs, driven against
+      # the native macOS (WKWebView + AppKit) runtime via `-d macos`. None
+      # of the Linux scaffolding applies here: the GitHub macOS runner has
+      # a real window server (no Xvfb/weston), path_provider resolves the
+      # sandbox container natively (no xdg-user-dirs), and
+      # flutter_secure_storage talks to the login keychain instead of
+      # pass-secret-service. The keychain is unlocked in the runner's GUI
+      # session; unlock it defensively anyway so a locked keychain can't
+      # raise an interactive prompt that would hang the run (the empty
+      # password is the GitHub runner's login keychain default).
+      #
+      # Same one-test-per-file invocation as Linux (INTEG-007/008): every
+      # integration_test/*_test.dart except the fastlane-only screenshot
+      # generator. A non-zero exit from any file is remembered and
+      # re-raised after the loop so one failure doesn't mask the rest.
+      - name: Run macOS integration tests
+        run: |
+          set -x
+          security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
+          status=0
+          for t in integration_test/*_test.dart; do
+            [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+            echo "::group::$t"
+            fvm flutter test "$t" -d macos || status=$?
+            echo "::endgroup::"
+          done
+          exit $status
+
       - name: Create macOS ZIP archive
         run: |
           cd build/macos/Build/Products/Release

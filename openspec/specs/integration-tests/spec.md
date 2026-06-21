@@ -13,10 +13,13 @@ ScaffoldMessenger / Navigator interaction across async gaps.
 The harness conventions (`isDemoMode`, `SharedPreferences.setMockInitialValues`,
 plugin platform-interface stubs, Pop-then-callback re-navigation,
 widget-tree dumps on failure) are framework-level and apply to any
-`-d` target. The headless CI infrastructure (sid container,
-`pass-secret-service`, Xvfb, dbus-run-session) is currently Linux-only;
-a future macOS or Android runner would slot under the same harness
-with a different platform setup section.
+`-d` target. Two `-d` targets are wired into CI: Linux (`-d linux`,
+in the sid container under Xvfb/weston with `pass-secret-service`) and
+macOS (`-d macos`, on the `macos-latest` runner against the native
+window server + login keychain). Each target reuses the same harness
+behind a thin platform-setup section; a future Android runner would
+slot in the same way. The headless secret-service / display
+scaffolding is Linux-specific because macOS supplies both natively.
 
 The fastlane-driven Android/iOS screenshot pipeline lives under
 [`screenshots`](../screenshots/spec.md) — different harness, different
@@ -28,16 +31,24 @@ goal (screenshot generation vs. assertion-driven UI testing).
 - **Harness**: Cross-platform (`integration_test/*.dart` runs on any
   `-d` target Flutter supports)
 - **CI Integration**: GitHub Actions
-  ([`build-and-test.yml`](../../../.github/workflows/build-and-test.yml)
-  → `build-linux` job → `Run Linux integration tests` step). Linux is
-  currently the only `-d` target wired into CI; macOS and Android
-  runner support is a future scope.
+  ([`build-and-test.yml`](../../../.github/workflows/build-and-test.yml)).
+  Two desktop targets are wired in:
+  - `build-linux` job → `Run Linux integration tests` step (`-d linux`).
+  - `build-apple` job → `Run macOS integration tests` step (`-d macos`).
+
+  Android runner support is a future scope.
 
 ---
 
 ## Pipeline Architecture
 
-The pipeline has three layers:
+Two CI pipelines run the same test files. The macOS pipeline
+(`build-apple` job) is a single `Run macOS integration tests` step:
+`security unlock-keychain` then the per-file `flutter test ... -d macos`
+loop — no container, no display server, no secret-service backend,
+because `macos-latest` provides all three natively. The Linux pipeline
+(`build-linux` job) carries the bulk of the scaffolding and has three
+layers:
 
 1. **Container + apt deps** (`debian:sid-slim`) — sid is the only
    Debian release with `libwpewebkit-2.0-dev` ≥ 2.50, which the
@@ -304,6 +315,48 @@ already picks up every `integration_test/*_test.dart`.
 
 ---
 
+### Requirement: INTEG-009 — macOS runner reuses the harness natively
+
+The same `integration_test/*_test.dart` files SHALL run on the
+`macos-latest` runner via `-d macos` in the `build-apple` job, reusing
+the cross-platform harness with no macOS-specific test code. macOS
+supplies natively what the Linux job builds by hand, so the platform
+setup is thin: no Xvfb/weston (the runner has a window server), no
+`xdg-user-dirs` (path_provider resolves the sandbox container), and no
+`pass-secret-service` (`flutter_secure_storage` reaches the login
+keychain). The step SHALL iterate one `flutter test` invocation per
+file (excluding `screenshot_test.dart`) exactly as the Linux step
+does, so adding a scenario per INTEG-008 needs no workflow edit on
+either target.
+
+#### Scenario: macOS step runs every non-screenshot scenario
+
+- **Given** the `build-apple` job has built the macOS app
+- **When** the `Run macOS integration tests` step runs
+- **Then** it invokes `fvm flutter test <file> -d macos` once per
+  `integration_test/*_test.dart`, skipping `screenshot_test.dart`
+- **And** a non-zero exit from any file is remembered and re-raised
+  after the loop so one failure does not mask the others
+
+#### Scenario: Login keychain is unlocked before secure-storage tests
+
+- **Given** the macOS runner's login keychain backs
+  `flutter_secure_storage`
+- **When** the step runs `security unlock-keychain` before the tests
+- **Then** `flutter_secure_storage` round-trips (proxy passwords,
+  HtmlImport/HtmlCache/WebViewState keys) without raising an
+  interactive keychain prompt that headless CI cannot dismiss
+
+#### Scenario: No macOS-specific harness code
+
+- **Given** a test follows the INTEG-008 conventions
+- **When** it runs under `-d macos`
+- **Then** it passes without any `Platform.isMacOS` branch, because the
+  plugin platform-interface stubs (`file_picker`) and method-channel
+  mocks (`flutter_inappwebview_proxycontroller`) are platform-agnostic
+
+---
+
 ## Known Limitations
 
 - **Build time per test**: each `flutter test integration_test/<file>.dart`
@@ -339,7 +392,8 @@ already picks up every `integration_test/*_test.dart`.
 ### Modified
 - [`.github/workflows/build-and-test.yml`](../../../.github/workflows/build-and-test.yml)
   — `build-linux` job's `Install container base + Flutter Linux + WPE WebKit deps`,
-  `Install pass-secret-service`, and `Run Linux integration tests` steps.
+  `Install pass-secret-service`, and `Run Linux integration tests` steps;
+  `build-apple` job's `Run macOS integration tests` step (`-d macos`).
 
 ### Existing
 - [`integration_test/settings_smoke_test.dart`](../../../integration_test/settings_smoke_test.dart)
