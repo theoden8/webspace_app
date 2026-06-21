@@ -187,6 +187,10 @@ class ShortcutService {
       return result == true;
     } on PlatformException {
       return false;
+    } on MissingPluginException {
+      // macOS builds without the shortcuts channel handler (no App Intents
+      // native side) report no implementation rather than a PlatformException.
+      return false;
     }
   }
 }

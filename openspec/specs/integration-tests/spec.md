@@ -367,21 +367,26 @@ either target.
   plugin platform-interface stubs (`file_picker`) and method-channel
   mocks (`flutter_inappwebview_proxycontroller`) are platform-agnostic
 
-#### Scenario: Ad-hoc signing needs a minimal entitlements override
+#### Scenario: Ad-hoc signing needs an entitlements override and --ci
 
 - **Given** the CI runner has no Apple signing identity, so the debug
   app is ad-hoc signed
 - **And** the committed `macos/Runner/DebugProfile.entitlements`
-  declares provisioning-dependent entitlements (`app-sandbox`, the
-  team-prefixed `application-groups`, and `keychain-access-groups`)
-  that an ad-hoc signature cannot satisfy
+  declares provisioning-dependent entitlements (the team-prefixed
+  `application-groups` and `keychain-access-groups`) that an ad-hoc
+  signature cannot satisfy
 - **When** the `Run macOS integration tests` step overwrites that file
-  with a minimal `com.apple.security.cs.allow-jit`-only set before the
-  `flutter test` loop
-- **Then** `taskgated` accepts the ad-hoc signature and the app reaches
-  Dart, instead of being SIGKILL'd at launch as "Code Signature
-  Invalid" (which `flutter test` surfaces only as the opaque "log
-  reader stopped unexpectedly")
+  with the stock Flutter debug set (`app-sandbox`, `cs.allow-jit`,
+  `files.user-selected.read-write`, `network.server`, `network.client`)
+  minus those two keys, and runs `flutter test -d macos --ci`
+- **Then** `taskgated` accepts the ad-hoc signature (instead of
+  SIGKILL'ing the app as "Code Signature Invalid"), and `--ci`
+  (`usingCISystem`) re-signs with the sandbox disabled so the tool
+  discovers the app's Dart VM Service instead of timing out 12 minutes
+  on "log reader stopped unexpectedly"
+- **And** secure storage logs a benign `errSecMissingEntitlement`
+  (-34018) and falls back, since the integration tests do not assert
+  keychain persistence
 - **And** the override never reaches a release build — the runner
   checks out fresh and release builds keep the committed entitlements
   plus a real signing identity

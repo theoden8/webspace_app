@@ -798,26 +798,31 @@ jobs:
       # prompt that would hang the run (empty password is the runner's
       # login keychain default).
       #
-      # TEMPORARY macOS VM-service diagnostic (one fast cycle, smoke only).
-      # The ad-hoc-signed app now launches, but `flutter test -d macos`
-      # never discovers the Dart VM Service ("log reader stopped
-      # unexpectedly") and each file times out at 12 min. privacy-v4 (the
-      # container-GC crash fix) did not change this, so the cause is not
-      # the startup crash. Get ground truth instead of guessing: launch the
-      # built debug binary directly and capture its stdout to see whether
-      # the engine even emits the VM-service URI (engine/entitlements
-      # problem) or emits it but the tool can't connect (tooling/runner
-      # problem), then try one smoke test with --ci. continue-on-error so
-      # the diagnostic never gates the job while we iterate.
+      # Two macOS-CI-only adjustments make the harness work; neither reaches
+      # a release build (fresh checkout, release keeps the committed
+      # entitlements + a real identity):
       #
-      # Entitlements: the previous JIT-only override was non-standard; use
-      # the stock Flutter debug set (app-sandbox + network.server + jit +
-      # files.user-selected) minus only the two provisioning-dependent keys
-      # (application-groups, keychain-access-groups) ad-hoc signing can't
-      # satisfy. That is the config `flutter test -d macos` is tested
-      # against. Never reaches a release build (fresh checkout).
-      - name: Diagnose macOS VM service discovery
-        continue-on-error: true
+      # 1. Entitlements. CI has no Apple signing identity, so the debug app
+      #    is ad-hoc signed, which can't satisfy the committed file's
+      #    provisioning-dependent keys (team-prefixed application-groups,
+      #    keychain-access-groups) — taskgated SIGKILLs it at launch as
+      #    "Code Signature Invalid". Overwrite with the stock Flutter debug
+      #    set (app-sandbox + network.server + jit + files.user-selected)
+      #    minus only those two keys. (Secure storage then logs a benign
+      #    errSecMissingEntitlement -34018 and falls back; integration tests
+      #    don't assert keychain persistence.)
+      # 2. --ci. Even ad-hoc-valid, a sandboxed debug app never surfaces its
+      #    Dart VM Service to `flutter test` on the runner ("log reader
+      #    stopped unexpectedly", 12-min timeout). `--ci` (usingCISystem)
+      #    re-signs with sandbox disabled, after which the tool connects and
+      #    the tests actually run.
+      #
+      # Same one-test-per-file invocation as Linux (INTEG-007/008), every
+      # integration_test/*_test.dart except the fastlane-only screenshot
+      # generator; a non-zero exit from any file is remembered and re-raised
+      # so one failure doesn't mask the rest. On failure, dump the macOS
+      # crash report so a launch-time SIGKILL explains itself.
+      - name: Run macOS integration tests
         run: |
           set -x
           security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
@@ -839,31 +844,22 @@ jobs:
           </dict>
           </plist>
           EOF
-          echo "=== build debug app ==="
-          fvm flutter build macos --debug
-          APP=$(ls -d build/macos/Build/Products/Debug/*.app | head -1)
-          BIN="$APP/Contents/MacOS/$(basename "$APP" .app)"
-          echo "APP=$APP BIN=$BIN"
-          echo "=== effective entitlements / signature ==="
-          codesign -d --entitlements :- "$APP" 2>/dev/null | head -60 || true
-          codesign -dv "$APP" 2>&1 | head -20 || true
-          echo "=== direct launch: watch stdout up to 45s for the VM service URI ==="
-          "$BIN" >/tmp/applog.txt 2>&1 &
-          PID=$!
-          found=no
-          for i in $(seq 1 45); do
-            if grep -qiE "Dart VM Service|Observatory|VM Service is listening|listening on" /tmp/applog.txt; then found=yes; break; fi
-            if ! ps -p "$PID" >/dev/null 2>&1; then echo "APP EXITED after ${i}s"; break; fi
-            sleep 1
+          status=0
+          for t in integration_test/*_test.dart; do
+            [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+            echo "::group::$t"
+            fvm flutter test "$t" -d macos --ci || status=$?
+            echo "::endgroup::"
           done
-          echo "VM_SERVICE_PRINTED=$found"
-          echo "--- captured app output (first 120 lines) ---"
-          sed -n '1,120p' /tmp/applog.txt || true
-          kill "$PID" 2>/dev/null || true
-          echo "=== smoke test via flutter test --ci ==="
-          fvm flutter test integration_test/settings_smoke_test.dart -d macos --ci 2>&1 | tail -n 60 || true
-          echo "=== recent crash reports (if any) ==="
-          ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
+          if [ $status -ne 0 ]; then
+            echo "=== recent macOS crash reports ==="
+            ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
+            for f in "$HOME/Library/Logs/DiagnosticReports/"Webspace* \
+                     "$HOME/Library/Logs/DiagnosticReports/"Runner*; do
+              [ -f "$f" ] && { echo "--- $f ---"; sed -n '1,45p' "$f"; }
+            done
+          fi
+          exit $status
 
       - name: Create macOS ZIP archive
         run: |
