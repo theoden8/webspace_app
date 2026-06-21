@@ -462,6 +462,19 @@ WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
 // Cache for page titles
 final Map<String, String?> _pageTitleCache = {};
 
+/// Test seam: when set, the page state uses this store instead of
+/// constructing a [SecureWebViewStateStorage]. Lets integration tests
+/// inject an in-memory store that survives a simulated restart (re-run of
+/// [main]) without a platform keychain backend.
+@visibleForTesting
+WebViewStateStorage? debugWebViewStateStorageOverride;
+
+/// Test seam: live reference to the current run's loaded site models, so
+/// integration tests can reach a webview controller (URL, back/forward,
+/// restore state) the widget tree doesn't otherwise expose.
+@visibleForTesting
+List<WebViewModel>? debugWebViewModels;
+
 // Get page title by parsing HTML (fallback for platforms without native title support)
 Future<String?> getPageTitle(String url) async {
   // Check cache first
@@ -993,7 +1006,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   // keyed by siteId; re-activation reads it and pre-populates the
   // model's `_pendingRestoreState` so onControllerCreated can apply
   // it to the freshly-built controller.
-  final WebViewStateStorage _stateStorage = SecureWebViewStateStorage();
+  final WebViewStateStorage _stateStorage =
+      debugWebViewStateStorageOverride ?? SecureWebViewStateStorage();
 
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
@@ -1054,6 +1068,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   @override
   void initState() {
     super.initState();
+    debugWebViewModels = _webViewModels;
     WidgetsBinding.instance.addObserver(this);
     _restoreAppState();
     _refreshPinnedSiteIds();
