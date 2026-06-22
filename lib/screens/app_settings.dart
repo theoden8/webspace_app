@@ -831,33 +831,34 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              loc.appSettingsFullscreenTabStrip,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+            child: Row(
+              children: [
+                Expanded(child: Text(loc.appSettingsFullscreenTabStrip)),
+                SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment<int>(
+                      value: 0,
+                      icon: const Icon(Icons.visibility_off),
+                      tooltip: loc.appSettingsFullscreenTabStripHidden,
+                    ),
+                    ButtonSegment<int>(
+                      value: 1,
+                      icon: const Icon(Icons.visibility),
+                      tooltip: loc.appSettingsFullscreenTabStripAlways,
+                    ),
+                    ButtonSegment<int>(
+                      value: 2,
+                      icon: const Icon(Icons.smart_button),
+                      tooltip: loc.appSettingsFullscreenTabStripButton,
+                    ),
+                  ],
+                  selected: {_fullscreenTabStripMode},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) =>
+                      _setFullscreenTabStripMode(selection.first),
+                ),
+              ],
             ),
-          ),
-          RadioListTile<int>(
-            value: 0,
-            groupValue: _fullscreenTabStripMode,
-            dense: true,
-            title: Text(loc.appSettingsFullscreenTabStripHidden),
-            onChanged: (_) => _setFullscreenTabStripMode(0),
-          ),
-          RadioListTile<int>(
-            value: 1,
-            groupValue: _fullscreenTabStripMode,
-            dense: true,
-            title: Text(loc.appSettingsFullscreenTabStripAlways),
-            onChanged: (_) => _setFullscreenTabStripMode(1),
-          ),
-          RadioListTile<int>(
-            value: 2,
-            groupValue: _fullscreenTabStripMode,
-            dense: true,
-            title: Text(loc.appSettingsFullscreenTabStripButton),
-            onChanged: (_) => _setFullscreenTabStripMode(2),
           ),
           if (_tabBarButtonInFullscreen)
             Padding(
