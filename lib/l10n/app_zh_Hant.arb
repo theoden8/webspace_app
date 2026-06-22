@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "全螢幕時，分頁列",
   "appSettingsFullscreenTabStripHidden": "隱藏",
   "appSettingsFullscreenTabStripAlways": "永遠顯示",
-  "appSettingsFullscreenTabStripButton": "用按鈕顯示"
+  "appSettingsFullscreenTabStripButton": "用按鈕顯示",
+  "devToolsSimulateRefresh": "模擬背景重新整理",
+  "devToolsSimulateRefreshDone": "已重新載入通知網站（查看記錄）",
+  "devToolsTestNotification": "傳送測試通知",
+  "devToolsTestNotificationSent": "已傳送測試通知（查看記錄）",
+  "devToolsTestNotificationTitle": "WebSpace 測試通知",
+  "devToolsTestNotificationBody": "如果您能看到這則訊息，表示作業系統的通知傳遞功能正常。"
 }

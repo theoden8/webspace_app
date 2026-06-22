@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "فل اسکرین میں، ٹیب بار",
   "appSettingsFullscreenTabStripHidden": "پوشیدہ",
   "appSettingsFullscreenTabStripAlways": "ہمیشہ نظر آنے والا",
-  "appSettingsFullscreenTabStripButton": "بٹن سے دکھائیں"
+  "appSettingsFullscreenTabStripButton": "بٹن سے دکھائیں",
+  "devToolsSimulateRefresh": "پس منظر ریفریش کی نقل کریں",
+  "devToolsSimulateRefreshDone": "اطلاعاتی سائٹس دوبارہ لوڈ ہو گئیں (لاگز دیکھیں)",
+  "devToolsTestNotification": "ٹیسٹ اطلاع بھیجیں",
+  "devToolsTestNotificationSent": "ٹیسٹ اطلاع بھیج دی گئی (لاگز دیکھیں)",
+  "devToolsTestNotificationTitle": "WebSpace ٹیسٹ اطلاع",
+  "devToolsTestNotificationBody": "اگر آپ یہ دیکھ سکتے ہیں، تو آپریٹنگ سسٹم کی اطلاع کی ترسیل کام کر رہی ہے۔"
 }

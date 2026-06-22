@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Yn y sgrin lawn, bar tabiau",
   "appSettingsFullscreenTabStripHidden": "Cuddiedig",
   "appSettingsFullscreenTabStripAlways": "Gweladwy bob amser",
-  "appSettingsFullscreenTabStripButton": "Datgelu â botwm"
+  "appSettingsFullscreenTabStripButton": "Datgelu â botwm",
+  "devToolsSimulateRefresh": "Efelychu adnewyddu cefndir",
+  "devToolsSimulateRefreshDone": "Ail-lwythwyd safleoedd hysbysu (gweler y cofnodion)",
+  "devToolsTestNotification": "Anfon hysbysiad prawf",
+  "devToolsTestNotificationSent": "Anfonwyd hysbysiad prawf (gweler y cofnodion)",
+  "devToolsTestNotificationTitle": "Hysbysiad prawf WebSpace",
+  "devToolsTestNotificationBody": "Os gallwch weld hyn, mae danfon hysbysiadau'r system weithredu yn gweithio."
 }

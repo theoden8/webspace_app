@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "في وضع ملء الشاشة، شريط التبويبات",
   "appSettingsFullscreenTabStripHidden": "مخفي",
   "appSettingsFullscreenTabStripAlways": "ظاهر دائمًا",
-  "appSettingsFullscreenTabStripButton": "إظهار بزر"
+  "appSettingsFullscreenTabStripButton": "إظهار بزر",
+  "devToolsSimulateRefresh": "محاكاة تحديث الخلفية",
+  "devToolsSimulateRefreshDone": "تمت إعادة تحميل مواقع الإشعارات (راجع السجلات)",
+  "devToolsTestNotification": "إرسال إشعار اختباري",
+  "devToolsTestNotificationSent": "تم إرسال الإشعار الاختباري (راجع السجلات)",
+  "devToolsTestNotificationTitle": "إشعار اختباري من WebSpace",
+  "devToolsTestNotificationBody": "إذا كنت ترى هذا، فإن تسليم إشعارات نظام التشغيل يعمل."
 }

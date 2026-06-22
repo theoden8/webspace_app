@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "На пуном екрану, трака картица",
   "appSettingsFullscreenTabStripHidden": "Скривено",
   "appSettingsFullscreenTabStripAlways": "Увек видљиво",
-  "appSettingsFullscreenTabStripButton": "Прикажи дугметом"
+  "appSettingsFullscreenTabStripButton": "Прикажи дугметом",
+  "devToolsSimulateRefresh": "Симулирај освежавање у позадини",
+  "devToolsSimulateRefreshDone": "Сајтови за обавештења поново учитани (погледајте записе)",
+  "devToolsTestNotification": "Пошаљи пробно обавештење",
+  "devToolsTestNotificationSent": "Пробно обавештење послато (погледајте записе)",
+  "devToolsTestNotificationTitle": "WebSpace пробно обавештење",
+  "devToolsTestNotificationBody": "Ако ово видите, испорука обавештења оперативног система ради."
 }

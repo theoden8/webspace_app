@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "ফুলস্ক্রিনে, ট্যাব বার",
   "appSettingsFullscreenTabStripHidden": "লুকানো",
   "appSettingsFullscreenTabStripAlways": "সর্বদা দৃশ্যমান",
-  "appSettingsFullscreenTabStripButton": "বোতাম দিয়ে দেখান"
+  "appSettingsFullscreenTabStripButton": "বোতাম দিয়ে দেখান",
+  "devToolsSimulateRefresh": "ব্যাকগ্রাউন্ড রিফ্রেশ সিমুলেট করুন",
+  "devToolsSimulateRefreshDone": "বিজ্ঞপ্তি সাইটগুলি পুনরায় লোড করা হয়েছে (লগ দেখুন)",
+  "devToolsTestNotification": "পরীক্ষামূলক বিজ্ঞপ্তি পাঠান",
+  "devToolsTestNotificationSent": "পরীক্ষামূলক বিজ্ঞপ্তি পাঠানো হয়েছে (লগ দেখুন)",
+  "devToolsTestNotificationTitle": "WebSpace পরীক্ষামূলক বিজ্ঞপ্তি",
+  "devToolsTestNotificationBody": "আপনি যদি এটি দেখতে পান, তাহলে অপারেটিং সিস্টেমের বিজ্ঞপ্তি প্রদান কাজ করছে।"
 }

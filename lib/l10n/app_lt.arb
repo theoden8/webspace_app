@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Viso ekrano režime, kortelių juosta",
   "appSettingsFullscreenTabStripHidden": "Paslėpta",
   "appSettingsFullscreenTabStripAlways": "Visada matoma",
-  "appSettingsFullscreenTabStripButton": "Rodyti mygtuku"
+  "appSettingsFullscreenTabStripButton": "Rodyti mygtuku",
+  "devToolsSimulateRefresh": "Imituoti foninį atnaujinimą",
+  "devToolsSimulateRefreshDone": "Pranešimų svetainės įkeltos iš naujo (žr. žurnalus)",
+  "devToolsTestNotification": "Siųsti bandomąjį pranešimą",
+  "devToolsTestNotificationSent": "Bandomasis pranešimas išsiųstas (žr. žurnalus)",
+  "devToolsTestNotificationTitle": "WebSpace bandomasis pranešimas",
+  "devToolsTestNotificationBody": "Jei tai matote, operacinės sistemos pranešimų pristatymas veikia."
 }

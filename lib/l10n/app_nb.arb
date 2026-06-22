@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "I fullskjerm, fanelinje",
   "appSettingsFullscreenTabStripHidden": "Skjult",
   "appSettingsFullscreenTabStripAlways": "Alltid synlig",
-  "appSettingsFullscreenTabStripButton": "Vis med knapp"
+  "appSettingsFullscreenTabStripButton": "Vis med knapp",
+  "devToolsSimulateRefresh": "Simuler bakgrunnsoppdatering",
+  "devToolsSimulateRefreshDone": "Varselnettsteder lastet inn på nytt (se loggene)",
+  "devToolsTestNotification": "Send testvarsel",
+  "devToolsTestNotificationSent": "Testvarsel sendt (se loggene)",
+  "devToolsTestNotificationTitle": "WebSpace-testvarsel",
+  "devToolsTestNotificationBody": "Hvis du kan se dette, fungerer operativsystemets varsellevering."
 }

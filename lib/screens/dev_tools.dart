@@ -15,6 +15,7 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -163,6 +164,14 @@ class DevToolsScreen extends StatefulWidget {
   final VoidAsyncCallback? onSave;
   final List<UserScriptConfig> globalUserScripts;
 
+  /// When non-null, the App Logs tab shows a diagnostics row that triggers
+  /// the same notification-site reload the OS background task would run.
+  /// Lets the wake-up chain (reload -> page JS -> webNotification handler ->
+  /// NotificationService.show) be exercised in the foreground without
+  /// waiting on iOS BGAppRefreshTask / Android WorkManager. Wired only from
+  /// the top-level (per-site) launch; null for nested webviews.
+  final VoidAsyncCallback? onSimulateBackgroundRefresh;
+
   const DevToolsScreen({
     super.key,
     this.host,
@@ -170,6 +179,7 @@ class DevToolsScreen extends StatefulWidget {
     this.containerCookieManager,
     this.onSave,
     this.globalUserScripts = const [],
+    this.onSimulateBackgroundRefresh,
   });
 
   @override
@@ -1629,6 +1639,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         _buildLogActions(filtered),
         _buildLogFilters(),
         _buildSensitiveToggle(),
+        if (widget.onSimulateBackgroundRefresh != null)
+          _buildNotificationDiagnostics(),
         Expanded(
           child: filtered.isEmpty
               ? Center(child: Text(_searchQuery.isEmpty ? loc.devToolsLogsEmpty : loc.devToolsNoMatches))
@@ -1642,6 +1654,57 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 ),
         ),
       ],
+    );
+  }
+
+  Future<void> _simulateBackgroundRefresh() async {
+    final loc = AppLocalizations.of(context);
+    final cb = widget.onSimulateBackgroundRefresh;
+    if (cb == null) return;
+    await cb();
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(loc.devToolsSimulateRefreshDone)),
+    );
+  }
+
+  Future<void> _sendTestNotification() async {
+    final loc = AppLocalizations.of(context);
+    final siteId = widget.host?.siteId;
+    if (siteId == null) return;
+    await NotificationService.instance.show(
+      siteId: siteId,
+      title: loc.devToolsTestNotificationTitle,
+      body: loc.devToolsTestNotificationBody,
+    );
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(loc.devToolsTestNotificationSent)),
+    );
+  }
+
+  Widget _buildNotificationDiagnostics() {
+    final loc = AppLocalizations.of(context);
+    final hasSite = widget.host?.siteId != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Wrap(
+        spacing: 4,
+        children: [
+          TextButton.icon(
+            onPressed: _simulateBackgroundRefresh,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: Text(loc.devToolsSimulateRefresh),
+          ),
+          TextButton.icon(
+            onPressed: hasSite ? _sendTestNotification : null,
+            icon: const Icon(Icons.notifications_active, size: 18),
+            label: Text(loc.devToolsTestNotification),
+          ),
+        ],
+      ),
     );
   }
 

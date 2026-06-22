@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "全画面でのタブバー",
   "appSettingsFullscreenTabStripHidden": "非表示",
   "appSettingsFullscreenTabStripAlways": "常に表示",
-  "appSettingsFullscreenTabStripButton": "ボタンで表示"
+  "appSettingsFullscreenTabStripButton": "ボタンで表示",
+  "devToolsSimulateRefresh": "バックグラウンド更新をシミュレート",
+  "devToolsSimulateRefreshDone": "通知サイトを再読み込みしました（ログを参照）",
+  "devToolsTestNotification": "テスト通知を送信",
+  "devToolsTestNotificationSent": "テスト通知を送信しました（ログを参照）",
+  "devToolsTestNotificationTitle": "WebSpace テスト通知",
+  "devToolsTestNotificationBody": "これが表示されている場合、OSの通知配信は正常に機能しています。"
 }

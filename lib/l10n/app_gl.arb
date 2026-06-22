@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de lapelas",
   "appSettingsFullscreenTabStripHidden": "Agochada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",
-  "appSettingsFullscreenTabStripButton": "Mostrar cun botón"
+  "appSettingsFullscreenTabStripButton": "Mostrar cun botón",
+  "devToolsSimulateRefresh": "Simular actualización en segundo plano",
+  "devToolsSimulateRefreshDone": "Sitios de notificación recargados (consulta os rexistros)",
+  "devToolsTestNotification": "Enviar notificación de proba",
+  "devToolsTestNotificationSent": "Notificación de proba enviada (consulta os rexistros)",
+  "devToolsTestNotificationTitle": "Notificación de proba de WebSpace",
+  "devToolsTestNotificationBody": "Se podes ver isto, a entrega de notificacións do sistema operativo funciona."
 }

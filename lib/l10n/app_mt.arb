@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Fl-iskrin sħiħ, bar tat-tabs",
   "appSettingsFullscreenTabStripHidden": "Moħbi",
   "appSettingsFullscreenTabStripAlways": "Dejjem viżibbli",
-  "appSettingsFullscreenTabStripButton": "Uri b'buttuna"
+  "appSettingsFullscreenTabStripButton": "Uri b'buttuna",
+  "devToolsSimulateRefresh": "Simula t-tiġdid fl-isfond",
+  "devToolsSimulateRefreshDone": "Is-siti tan-notifiki reġgħu ġew mgħobbija (ara r-reġistri)",
+  "devToolsTestNotification": "Ibgħat notifika ta' prova",
+  "devToolsTestNotificationSent": "In-notifika ta' prova ntbagħtet (ara r-reġistri)",
+  "devToolsTestNotificationTitle": "Notifika ta' prova WebSpace",
+  "devToolsTestNotificationBody": "Jekk tista' tara dan, il-konsenja tan-notifiki tas-sistema operattiva taħdem."
 }

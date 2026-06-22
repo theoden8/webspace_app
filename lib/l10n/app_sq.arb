@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Në ekran të plotë, shiriti i skedave",
   "appSettingsFullscreenTabStripHidden": "I fshehur",
   "appSettingsFullscreenTabStripAlways": "Gjithmonë i dukshëm",
-  "appSettingsFullscreenTabStripButton": "Shfaq me buton"
+  "appSettingsFullscreenTabStripButton": "Shfaq me buton",
+  "devToolsSimulateRefresh": "Simulo rifreskimin në sfond",
+  "devToolsSimulateRefreshDone": "Sajtet e njoftimeve u ringarkuan (shih regjistrat)",
+  "devToolsTestNotification": "Dërgo njoftim provë",
+  "devToolsTestNotificationSent": "Njoftimi provë u dërgua (shih regjistrat)",
+  "devToolsTestNotificationTitle": "Njoftim provë i WebSpace",
+  "devToolsTestNotificationBody": "Nëse mund ta shihni këtë, dorëzimi i njoftimeve të sistemit operativ funksionon."
 }

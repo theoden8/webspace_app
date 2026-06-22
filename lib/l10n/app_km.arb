@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "ក្នុងអេក្រង់ពេញ របារផ្ទាំង",
   "appSettingsFullscreenTabStripHidden": "លាក់",
   "appSettingsFullscreenTabStripAlways": "បង្ហាញជានិច្ច",
-  "appSettingsFullscreenTabStripButton": "បង្ហាញដោយប៊ូតុង"
+  "appSettingsFullscreenTabStripButton": "បង្ហាញដោយប៊ូតុង",
+  "devToolsSimulateRefresh": "ក្លែងធ្វើការផ្ទុកឡើងវិញនៅផ្ទៃខាងក្រោយ",
+  "devToolsSimulateRefreshDone": "បានផ្ទុកគេហទំព័រជូនដំណឹងឡើងវិញ (មើលកំណត់ហេតុ)",
+  "devToolsTestNotification": "ផ្ញើការជូនដំណឹងសាកល្បង",
+  "devToolsTestNotificationSent": "បានផ្ញើការជូនដំណឹងសាកល្បង (មើលកំណត់ហេតុ)",
+  "devToolsTestNotificationTitle": "ការជូនដំណឹងសាកល្បង WebSpace",
+  "devToolsTestNotificationBody": "ប្រសិនបើអ្នកអាចមើលឃើញវា ការផ្ញើការជូនដំណឹងរបស់ប្រព័ន្ធប្រតិបត្តិការដំណើរការ។"
 }

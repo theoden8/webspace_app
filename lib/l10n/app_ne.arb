@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "पूर्ण स्क्रिनमा, ट्याब बार",
   "appSettingsFullscreenTabStripHidden": "लुकाइएको",
   "appSettingsFullscreenTabStripAlways": "सधैं देखिने",
-  "appSettingsFullscreenTabStripButton": "बटनले देखाउनुहोस्"
+  "appSettingsFullscreenTabStripButton": "बटनले देखाउनुहोस्",
+  "devToolsSimulateRefresh": "पृष्ठभूमि रिफ्रेस सिमुलेट गर्नुहोस्",
+  "devToolsSimulateRefreshDone": "सूचना साइटहरू पुनः लोड भए (लगहरू हेर्नुहोस्)",
+  "devToolsTestNotification": "परीक्षण सूचना पठाउनुहोस्",
+  "devToolsTestNotificationSent": "परीक्षण सूचना पठाइयो (लगहरू हेर्नुहोस्)",
+  "devToolsTestNotificationTitle": "WebSpace परीक्षण सूचना",
+  "devToolsTestNotificationBody": "यदि तपाईं यो देख्न सक्नुहुन्छ भने, अपरेटिङ सिस्टमको सूचना वितरण काम गरिरहेको छ।"
 }

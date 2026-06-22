@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Täisekraanil, vahekaartide riba",
   "appSettingsFullscreenTabStripHidden": "Peidetud",
   "appSettingsFullscreenTabStripAlways": "Alati nähtav",
-  "appSettingsFullscreenTabStripButton": "Kuva nupuga"
+  "appSettingsFullscreenTabStripButton": "Kuva nupuga",
+  "devToolsSimulateRefresh": "Simuleeri taustal värskendamist",
+  "devToolsSimulateRefreshDone": "Teavitussaidid laaditi uuesti (vaata logisid)",
+  "devToolsTestNotification": "Saada testteavitus",
+  "devToolsTestNotificationSent": "Testteavitus saadetud (vaata logisid)",
+  "devToolsTestNotificationTitle": "WebSpace'i testteavitus",
+  "devToolsTestNotificationBody": "Kui näete seda, siis operatsioonisüsteemi teavituste edastamine töötab."
 }

@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "במסך מלא, סרגל כרטיסיות",
   "appSettingsFullscreenTabStripHidden": "מוסתר",
   "appSettingsFullscreenTabStripAlways": "תמיד גלוי",
-  "appSettingsFullscreenTabStripButton": "הצג בעזרת כפתור"
+  "appSettingsFullscreenTabStripButton": "הצג בעזרת כפתור",
+  "devToolsSimulateRefresh": "הדמיית רענון ברקע",
+  "devToolsSimulateRefreshDone": "אתרי ההתראות נטענו מחדש (ראה יומנים)",
+  "devToolsTestNotification": "שלח התראת בדיקה",
+  "devToolsTestNotificationSent": "התראת הבדיקה נשלחה (ראה יומנים)",
+  "devToolsTestNotificationTitle": "התראת בדיקה של WebSpace",
+  "devToolsTestNotificationBody": "אם אתה רואה זאת, מסירת ההתראות של מערכת ההפעלה פועלת."
 }

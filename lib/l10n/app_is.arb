@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Í fullum skjá, flipastika",
   "appSettingsFullscreenTabStripHidden": "Falin",
   "appSettingsFullscreenTabStripAlways": "Alltaf sýnileg",
-  "appSettingsFullscreenTabStripButton": "Birta með hnappi"
+  "appSettingsFullscreenTabStripButton": "Birta með hnappi",
+  "devToolsSimulateRefresh": "Líkja eftir bakgrunnsendurnýjun",
+  "devToolsSimulateRefreshDone": "Tilkynningasíður endurhlaðnar (sjá annála)",
+  "devToolsTestNotification": "Senda prufutilkynningu",
+  "devToolsTestNotificationSent": "Prufutilkynning send (sjá annála)",
+  "devToolsTestNotificationTitle": "WebSpace prufutilkynning",
+  "devToolsTestNotificationBody": "Ef þú sérð þetta virkar afhending tilkynninga stýrikerfisins."
 }

@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Tam ekranda, sekme çubuğu",
   "appSettingsFullscreenTabStripHidden": "Gizli",
   "appSettingsFullscreenTabStripAlways": "Her zaman görünür",
-  "appSettingsFullscreenTabStripButton": "Düğmeyle göster"
+  "appSettingsFullscreenTabStripButton": "Düğmeyle göster",
+  "devToolsSimulateRefresh": "Arka plan yenilemesini simüle et",
+  "devToolsSimulateRefreshDone": "Bildirim siteleri yeniden yüklendi (günlüklere bakın)",
+  "devToolsTestNotification": "Test bildirimi gönder",
+  "devToolsTestNotificationSent": "Test bildirimi gönderildi (günlüklere bakın)",
+  "devToolsTestNotificationTitle": "WebSpace test bildirimi",
+  "devToolsTestNotificationBody": "Bunu görebiliyorsanız, işletim sisteminin bildirim teslimatı çalışıyor."
 }

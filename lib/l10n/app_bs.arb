@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "U punom ekranu, traka kartica",
   "appSettingsFullscreenTabStripHidden": "Skriveno",
   "appSettingsFullscreenTabStripAlways": "Uvijek vidljivo",
-  "appSettingsFullscreenTabStripButton": "Prikaži dugmetom"
+  "appSettingsFullscreenTabStripButton": "Prikaži dugmetom",
+  "devToolsSimulateRefresh": "Simuliraj osvježavanje u pozadini",
+  "devToolsSimulateRefreshDone": "Stranice s obavijestima su ponovo učitane (pogledajte zapise)",
+  "devToolsTestNotification": "Pošalji probnu obavijest",
+  "devToolsTestNotificationSent": "Probna obavijest je poslana (pogledajte zapise)",
+  "devToolsTestNotificationTitle": "WebSpace probna obavijest",
+  "devToolsTestNotificationBody": "Ako vidite ovo, isporuka obavijesti operativnog sistema radi."
 }

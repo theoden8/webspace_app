@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Na celé obrazovce, panel karet",
   "appSettingsFullscreenTabStripHidden": "Skrytý",
   "appSettingsFullscreenTabStripAlways": "Vždy viditelný",
-  "appSettingsFullscreenTabStripButton": "Zobrazit tlačítkem"
+  "appSettingsFullscreenTabStripButton": "Zobrazit tlačítkem",
+  "devToolsSimulateRefresh": "Simulovat obnovení na pozadí",
+  "devToolsSimulateRefreshDone": "Weby s oznámeními byly znovu načteny (viz protokoly)",
+  "devToolsTestNotification": "Odeslat testovací oznámení",
+  "devToolsTestNotificationSent": "Testovací oznámení odesláno (viz protokoly)",
+  "devToolsTestNotificationTitle": "Testovací oznámení WebSpace",
+  "devToolsTestNotificationBody": "Pokud toto vidíte, doručování oznámení operačního systému funguje."
 }

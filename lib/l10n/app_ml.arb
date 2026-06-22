@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "പൂർണ്ണ സ്ക്രീനിൽ, ടാബ് ബാർ",
   "appSettingsFullscreenTabStripHidden": "മറച്ചിരിക്കുന്നു",
   "appSettingsFullscreenTabStripAlways": "എപ്പോഴും ദൃശ്യം",
-  "appSettingsFullscreenTabStripButton": "ബട്ടൺ ഉപയോഗിച്ച് കാണിക്കുക"
+  "appSettingsFullscreenTabStripButton": "ബട്ടൺ ഉപയോഗിച്ച് കാണിക്കുക",
+  "devToolsSimulateRefresh": "പശ്ചാത്തല പുതുക്കൽ അനുകരിക്കുക",
+  "devToolsSimulateRefreshDone": "അറിയിപ്പ് സൈറ്റുകൾ വീണ്ടും ലോഡ് ചെയ്തു (ലോഗുകൾ കാണുക)",
+  "devToolsTestNotification": "ടെസ്റ്റ് അറിയിപ്പ് അയയ്ക്കുക",
+  "devToolsTestNotificationSent": "ടെസ്റ്റ് അറിയിപ്പ് അയച്ചു (ലോഗുകൾ കാണുക)",
+  "devToolsTestNotificationTitle": "WebSpace ടെസ്റ്റ് അറിയിപ്പ്",
+  "devToolsTestNotificationBody": "ഇത് നിങ്ങൾക്ക് കാണാൻ കഴിയുമെങ്കിൽ, ഓപ്പറേറ്റിംഗ് സിസ്റ്റത്തിന്റെ അറിയിപ്പ് വിതരണം പ്രവർത്തിക്കുന്നു."
 }

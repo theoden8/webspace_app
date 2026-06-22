@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "На цел екран, лента со јазичиња",
   "appSettingsFullscreenTabStripHidden": "Скриено",
   "appSettingsFullscreenTabStripAlways": "Секогаш видливо",
-  "appSettingsFullscreenTabStripButton": "Прикажи со копче"
+  "appSettingsFullscreenTabStripButton": "Прикажи со копче",
+  "devToolsSimulateRefresh": "Симулирај освежување во заднина",
+  "devToolsSimulateRefreshDone": "Сајтовите за известувања се повторно вчитани (видете ги дневниците)",
+  "devToolsTestNotification": "Испрати тестно известување",
+  "devToolsTestNotificationSent": "Тестното известување е испратено (видете ги дневниците)",
+  "devToolsTestNotificationTitle": "WebSpace тестно известување",
+  "devToolsTestNotificationBody": "Ако го гледате ова, испораката на известувања на оперативниот систем работи."
 }

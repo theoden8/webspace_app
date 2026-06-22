@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "სრულ ეკრანზე, ჩანართების ზოლი",
   "appSettingsFullscreenTabStripHidden": "დამალული",
   "appSettingsFullscreenTabStripAlways": "ყოველთვის ხილული",
-  "appSettingsFullscreenTabStripButton": "ღილაკით გამოჩენა"
+  "appSettingsFullscreenTabStripButton": "ღილაკით გამოჩენა",
+  "devToolsSimulateRefresh": "ფონური განახლების სიმულაცია",
+  "devToolsSimulateRefreshDone": "შეტყობინების საიტები ხელახლა ჩაიტვირთა (იხილეთ ჟურნალები)",
+  "devToolsTestNotification": "სატესტო შეტყობინების გაგზავნა",
+  "devToolsTestNotificationSent": "სატესტო შეტყობინება გაიგზავნა (იხილეთ ჟურნალები)",
+  "devToolsTestNotificationTitle": "WebSpace-ის სატესტო შეტყობინება",
+  "devToolsTestNotificationBody": "თუ ამას ხედავთ, ოპერაციული სისტემის შეტყობინებების მიწოდება მუშაობს."
 }

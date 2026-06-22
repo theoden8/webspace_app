@@ -56,6 +56,12 @@
   </div>
 
   <div class="section">
+    <h3>Service Worker (page-context)</h3>
+    <button onclick="testServiceWorkerNotification()">Send via registration.showNotification()</button>
+    <p class="info">Tests NOTIF-002 page-context Service Worker coverage. Notifications raised from inside the worker's own push handler (true server push) are unsupported by design.</p>
+  </div>
+
+  <div class="section">
     <h3>Edge Cases</h3>
     <button onclick="testRapidNotifications()">Send 5 Rapid Notifications</button>
     <button onclick="testEmptyNotification()">Send Empty Notification (no body)</button>
@@ -121,6 +127,24 @@
         log('Periodic #' + periodicCount + ' sent', 'pass');
       } catch (e) {
         log('Periodic #' + periodicCount + ' failed: ' + e.message, 'fail');
+      }
+    }
+
+    function testServiceWorkerNotification() {
+      if (typeof ServiceWorkerRegistration === 'undefined' ||
+          !ServiceWorkerRegistration.prototype.showNotification) {
+        log('ServiceWorkerRegistration.showNotification not available', 'fail');
+        return;
+      }
+      try {
+        var reg = Object.create(ServiceWorkerRegistration.prototype);
+        var ret = reg.showNotification('SW Notification', {
+          body: 'Posted via registration.showNotification()',
+          tag: 'sw-test'
+        });
+        log('showNotification() called (returns ' + (ret && ret.then ? 'Promise' : typeof ret) + ')', 'pass');
+      } catch (e) {
+        log('showNotification() failed: ' + e.message, 'fail');
       }
     }
 

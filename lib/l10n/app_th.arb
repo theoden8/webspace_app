@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "ในโหมดเต็มจอ แถบแท็บ",
   "appSettingsFullscreenTabStripHidden": "ซ่อน",
   "appSettingsFullscreenTabStripAlways": "แสดงตลอดเวลา",
-  "appSettingsFullscreenTabStripButton": "แสดงด้วยปุ่ม"
+  "appSettingsFullscreenTabStripButton": "แสดงด้วยปุ่ม",
+  "devToolsSimulateRefresh": "จำลองการรีเฟรชเบื้องหลัง",
+  "devToolsSimulateRefreshDone": "โหลดไซต์การแจ้งเตือนใหม่แล้ว (ดูบันทึก)",
+  "devToolsTestNotification": "ส่งการแจ้งเตือนทดสอบ",
+  "devToolsTestNotificationSent": "ส่งการแจ้งเตือนทดสอบแล้ว (ดูบันทึก)",
+  "devToolsTestNotificationTitle": "การแจ้งเตือนทดสอบ WebSpace",
+  "devToolsTestNotificationBody": "หากคุณเห็นข้อความนี้ แสดงว่าการส่งการแจ้งเตือนของระบบปฏิบัติการทำงานได้"
 }

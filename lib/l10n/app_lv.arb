@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Pilnekrānā, ciļņu josla",
   "appSettingsFullscreenTabStripHidden": "Slēpta",
   "appSettingsFullscreenTabStripAlways": "Vienmēr redzama",
-  "appSettingsFullscreenTabStripButton": "Rādīt ar pogu"
+  "appSettingsFullscreenTabStripButton": "Rādīt ar pogu",
+  "devToolsSimulateRefresh": "Simulēt fona atsvaidzināšanu",
+  "devToolsSimulateRefreshDone": "Paziņojumu vietnes pārlādētas (skatiet žurnālus)",
+  "devToolsTestNotification": "Sūtīt testa paziņojumu",
+  "devToolsTestNotificationSent": "Testa paziņojums nosūtīts (skatiet žurnālus)",
+  "devToolsTestNotificationTitle": "WebSpace testa paziņojums",
+  "devToolsTestNotificationBody": "Ja redzat šo, operētājsistēmas paziņojumu piegāde darbojas."
 }

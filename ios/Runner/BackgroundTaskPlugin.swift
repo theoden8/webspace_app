@@ -67,11 +67,13 @@ class BackgroundTaskPlugin: NSObject {
   /// Called by AppDelegate when iOS hands us a refresh task. Forwards to
   /// Dart and re-schedules the next refresh.
   func handleRefreshTask(_ task: BGAppRefreshTask) {
+    NSLog("BackgroundTaskPlugin: BGAppRefreshTask received — forwarding to Dart")
     pendingRefreshTask?.setTaskCompleted(success: false)
     pendingRefreshTask = task
 
     task.expirationHandler = { [weak self] in
       guard let self = self, let pending = self.pendingRefreshTask else { return }
+      NSLog("BackgroundTaskPlugin: refresh task expired before Dart completed")
       self.pendingRefreshTask = nil
       pending.setTaskCompleted(success: false)
     }
@@ -95,6 +97,7 @@ class BackgroundTaskPlugin: NSObject {
       timeIntervalSinceNow: BackgroundTaskPlugin.refreshMinDelaySeconds)
     do {
       try BGTaskScheduler.shared.submit(request)
+      NSLog("BackgroundTaskPlugin: scheduled next refresh in >= \(Int(BackgroundTaskPlugin.refreshMinDelaySeconds))s")
     } catch {
       NSLog("BackgroundTaskPlugin: failed to schedule refresh: \(error)")
     }
@@ -112,6 +115,7 @@ class BackgroundTaskPlugin: NSObject {
       scheduleNextRefresh()
       result(nil)
     case "cancelScheduledRefreshes":
+      NSLog("BackgroundTaskPlugin: cancelling scheduled refreshes")
       BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: BackgroundTaskPlugin.refreshIdentifier)
       result(nil)
     case "bgRefreshDidComplete":
@@ -121,6 +125,7 @@ class BackgroundTaskPlugin: NSObject {
       } else {
         success = true
       }
+      NSLog("BackgroundTaskPlugin: Dart reported refresh complete (success: \(success))")
       pendingRefreshTask?.setTaskCompleted(success: success)
       pendingRefreshTask = nil
       result(nil)

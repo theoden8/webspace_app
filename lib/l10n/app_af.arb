@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "In volskerm, oortjiebalk",
   "appSettingsFullscreenTabStripHidden": "Versteek",
   "appSettingsFullscreenTabStripAlways": "Altyd sigbaar",
-  "appSettingsFullscreenTabStripButton": "Wys met knoppie"
+  "appSettingsFullscreenTabStripButton": "Wys met knoppie",
+  "devToolsSimulateRefresh": "Simuleer agtergrondverfrissing",
+  "devToolsSimulateRefreshDone": "Kennisgewingswebwerwe herlaai (sien logboeke)",
+  "devToolsTestNotification": "Stuur toetskennisgewing",
+  "devToolsTestNotificationSent": "Toetskennisgewing gestuur (sien logboeke)",
+  "devToolsTestNotificationTitle": "WebSpace-toetskennisgewing",
+  "devToolsTestNotificationBody": "As jy dit kan sien, werk die bedryfstelsel se kennisgewingaflewering."
 }

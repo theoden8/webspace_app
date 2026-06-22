@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "全屏时，标签栏",
   "appSettingsFullscreenTabStripHidden": "隐藏",
   "appSettingsFullscreenTabStripAlways": "始终显示",
-  "appSettingsFullscreenTabStripButton": "用按钮显示"
+  "appSettingsFullscreenTabStripButton": "用按钮显示",
+  "devToolsSimulateRefresh": "模拟后台刷新",
+  "devToolsSimulateRefreshDone": "已重新加载通知站点（查看日志）",
+  "devToolsTestNotification": "发送测试通知",
+  "devToolsTestNotificationSent": "已发送测试通知（查看日志）",
+  "devToolsTestNotificationTitle": "WebSpace 测试通知",
+  "devToolsTestNotificationBody": "如果您能看到这条消息，说明操作系统的通知投递功能正常。"
 }

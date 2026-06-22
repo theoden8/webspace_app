@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "ਪੂਰੀ ਸਕ੍ਰੀਨ ਵਿੱਚ, ਟੈਬ ਬਾਰ",
   "appSettingsFullscreenTabStripHidden": "ਲੁਕਿਆ",
   "appSettingsFullscreenTabStripAlways": "ਹਮੇਸ਼ਾ ਦਿਖਾਈ ਦਿੰਦਾ",
-  "appSettingsFullscreenTabStripButton": "ਬਟਨ ਨਾਲ ਦਿਖਾਓ"
+  "appSettingsFullscreenTabStripButton": "ਬਟਨ ਨਾਲ ਦਿਖਾਓ",
+  "devToolsSimulateRefresh": "ਬੈਕਗ੍ਰਾਊਂਡ ਰਿਫਰੈਸ਼ ਦੀ ਨਕਲ ਕਰੋ",
+  "devToolsSimulateRefreshDone": "ਸੂਚਨਾ ਸਾਈਟਾਂ ਮੁੜ ਲੋਡ ਹੋਈਆਂ (ਲੌਗ ਵੇਖੋ)",
+  "devToolsTestNotification": "ਟੈਸਟ ਸੂਚਨਾ ਭੇਜੋ",
+  "devToolsTestNotificationSent": "ਟੈਸਟ ਸੂਚਨਾ ਭੇਜੀ ਗਈ (ਲੌਗ ਵੇਖੋ)",
+  "devToolsTestNotificationTitle": "WebSpace ਟੈਸਟ ਸੂਚਨਾ",
+  "devToolsTestNotificationBody": "ਜੇ ਤੁਸੀਂ ਇਹ ਵੇਖ ਸਕਦੇ ਹੋ, ਤਾਂ ਓਪਰੇਟਿੰਗ ਸਿਸਟਮ ਦੀ ਸੂਚਨਾ ਡਿਲਿਵਰੀ ਕੰਮ ਕਰ ਰਹੀ ਹੈ।"
 }

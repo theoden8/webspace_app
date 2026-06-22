@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Бүтэн дэлгэцэд, таб самбар",
   "appSettingsFullscreenTabStripHidden": "Нуусан",
   "appSettingsFullscreenTabStripAlways": "Үргэлж харагдана",
-  "appSettingsFullscreenTabStripButton": "Товчоор харуулах"
+  "appSettingsFullscreenTabStripButton": "Товчоор харуулах",
+  "devToolsSimulateRefresh": "Дэвсгэр шинэчлэлтийг загварчлах",
+  "devToolsSimulateRefreshDone": "Мэдэгдлийн сайтуудыг дахин ачааллаа (бүртгэлийг харна уу)",
+  "devToolsTestNotification": "Туршилтын мэдэгдэл илгээх",
+  "devToolsTestNotificationSent": "Туршилтын мэдэгдэл илгээгдсэн (бүртгэлийг харна уу)",
+  "devToolsTestNotificationTitle": "WebSpace туршилтын мэдэгдэл",
+  "devToolsTestNotificationBody": "Хэрэв та үүнийг харж байгаа бол үйлдлийн системийн мэдэгдэл хүргэлт ажиллаж байна."
 }

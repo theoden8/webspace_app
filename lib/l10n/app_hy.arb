@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Ամբողջ էկրանին, ներդիրների գոտի",
   "appSettingsFullscreenTabStripHidden": "Թաքնված",
   "appSettingsFullscreenTabStripAlways": "Միշտ տեսանելի",
-  "appSettingsFullscreenTabStripButton": "Ցուցադրել կոճակով"
+  "appSettingsFullscreenTabStripButton": "Ցուցադրել կոճակով",
+  "devToolsSimulateRefresh": "Նմանակել ֆոնային թարմացումը",
+  "devToolsSimulateRefreshDone": "Ծանուցումների կայքերը վերաբեռնվել են (տես մատյանները)",
+  "devToolsTestNotification": "Ուղարկել փորձնական ծանուցում",
+  "devToolsTestNotificationSent": "Փորձնական ծանուցումն ուղարկվել է (տես մատյանները)",
+  "devToolsTestNotificationTitle": "WebSpace փորձնական ծանուցում",
+  "devToolsTestNotificationBody": "Եթե տեսնում եք սա, օպերացիոն համակարգի ծանուցումների առաքումն աշխատում է:"
 }

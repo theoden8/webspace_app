@@ -652,5 +652,11 @@
   "appSettingsFullscreenTabStrip": "Koko näytössä, välilehtipalkki",
   "appSettingsFullscreenTabStripHidden": "Piilotettu",
   "appSettingsFullscreenTabStripAlways": "Aina näkyvissä",
-  "appSettingsFullscreenTabStripButton": "Näytä painikkeella"
+  "appSettingsFullscreenTabStripButton": "Näytä painikkeella",
+  "devToolsSimulateRefresh": "Simuloi taustapäivitystä",
+  "devToolsSimulateRefreshDone": "Ilmoitussivustot ladattu uudelleen (katso lokit)",
+  "devToolsTestNotification": "Lähetä testi-ilmoitus",
+  "devToolsTestNotificationSent": "Testi-ilmoitus lähetetty (katso lokit)",
+  "devToolsTestNotificationTitle": "WebSpace-testi-ilmoitus",
+  "devToolsTestNotificationBody": "Jos näet tämän, käyttöjärjestelmän ilmoitusten toimitus toimii."
 }
