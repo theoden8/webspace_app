@@ -390,19 +390,22 @@ either target.
   every op with `errSecMissingEntitlement` (-34018) and the legacy
   keychain can't be selected instead (`MacOsOptions.usesDataProtection`
   `Keychain` is a no-op — the Dart map key mismatches the native
-  `useDataProtectionKeyChain` the darwin plugin reads);
-  `settings_backup_roundtrip_test`, which asserts keychain persistence,
-  calls `installInMemoryKeychainIfUnavailable()`
+  `useDataProtectionKeyChain` the darwin plugin reads); the tests that
+  need a working keychain (`settings_backup_roundtrip_test`,
+  `proxy_auth_test`) call `installInMemoryKeychainIfUnavailable()`
   (`integration_test/secure_storage_fake.dart`) — it probes the real
   plugin and installs an in-memory channel fake only when it throws, so
-  macOS runs it with the fake while Linux keeps its real
+  macOS runs them with the fake while Linux keeps its real
   pass-secret-service round-trip — and every other test tolerates the
   logged, non-fatal -34018
-- **And** `proxy_auth_test` is skipped on macOS (not for the keychain —
-  it asserts the Android-only `inapp.ProxyController.setProxyOverride`
-  path, but macOS applies the per-site proxy via the container network
-  session `InAppWebViewSettings.proxySettings`, so that channel never
-  fires; it keeps Linux + Android coverage)
+- **And** `proxy_auth_test` runs on macOS too: rather than assert the
+  Android/Linux-only `inapp.ProxyController.setProxyOverride` channel
+  (which macOS never calls — it applies the per-site proxy natively via
+  the container `WKWebsiteDataStore` network session), it reads the
+  credential-embedded proxy off the mounted WebView's
+  `initialSettings.proxySettings` (set identically on every platform at
+  construction) and only additionally checks the ProxyController channel
+  off iOS/macOS
 - **And** the override never reaches a release build — the runner
   checks out fresh and release builds keep the committed entitlements
   plus a real signing identity
