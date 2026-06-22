@@ -35,6 +35,10 @@ void main() {
   const secure = FlutterSecureStorage(
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    // The macOS CI host is ad-hoc signed without the keychain-access-groups
+    // entitlement the data-protection keychain needs, so use the file-based
+    // login keychain (errSecMissingEntitlement -34018 otherwise). Test-only.
+    mOptions: MacOsOptions(usesDataProtectionKeychain: false),
   );
   final List<MethodCall> capturedCalls = <MethodCall>[];
 
