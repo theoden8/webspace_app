@@ -43,6 +43,8 @@ import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
+import 'secure_storage_fake.dart';
+
 /// Test stub for FilePicker that captures the bytes the app would have
 /// shown to the user and returns canned paths in place of the real
 /// XDP file-chooser dialog (which can't render under Xvfb in CI).
@@ -110,6 +112,7 @@ void main() {
     exportPath = '${tmpDir.path}/export.json';
 
     isDemoMode = true;
+    await installInMemoryKeychainIfUnavailable();
 
     // Pre-seed: a global outbound proxy entry with username (no
     // password — passwords have never lived in SharedPreferences).

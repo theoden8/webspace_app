@@ -13,9 +13,11 @@
 // `ProxyController.setProxyOverride`, which routes through that channel.
 
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -25,6 +27,8 @@ import 'package:webspace/demo_data.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+
+import 'secure_storage_fake.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +44,10 @@ void main() {
 
   setUpAll(() async {
     isDemoMode = true;
+    // macOS CI is ad-hoc signed and can't use the keychain (-34018); fall
+    // back to an in-memory store so the password seed/hydration round-trips.
+    // No-op where the real keychain works (Linux pass-secret-service).
+    await installInMemoryKeychainIfUnavailable();
 
     final site = WebViewModel(
       siteId: 'proxy-1',
@@ -118,29 +126,66 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
     }
 
-    final overrides =
-        capturedCalls.where((c) => c.method == 'setProxyOverride').toList();
-    if (overrides.isEmpty) {
-      // ignore: avoid_print
-      print('captured channel calls: '
-          '${capturedCalls.map((c) => c.method).toList()}');
-    }
-    expect(overrides, isNotEmpty,
-        reason: 'setProxyOverride should fire after site activation');
+    // PWD-005: the per-site proxy carries the embedded credentials (the
+    // password loaded from secure storage). The delivery mechanism is
+    // mutually exclusive per platform, so assert the one that actually
+    // fires (webview.dart:2195 only sets initialSettings.proxySettings on
+    // iOS/macOS; Android/Linux leave it null and route through
+    // ProxyController instead).
+    if (Platform.isIOS || Platform.isMacOS) {
+      // iOS/macOS: proxy baked into the WebView's
+      // initialSettings.proxySettings at construction; the fork applies it
+      // to the per-container WKWebsiteDataStore network session. Read it off
+      // the mounted widget — no live network stack needed.
+      final webviewFinder = find.byType(inapp.InAppWebView);
+      expect(webviewFinder, findsWidgets,
+          reason: 'activating the site should mount its WebView');
+      final rules = tester
+          .widget<inapp.InAppWebView>(webviewFinder.first)
+          .platform
+          .params
+          .initialSettings
+          ?.proxySettings
+          ?.proxyRules;
+      expect(rules, isNotNull,
+          reason: 'iOS/macOS WebView should be built with a proxy');
+      expect(rules, isNotEmpty);
+      final url = rules!.first.url;
+      expect(url, isNotNull);
+      expect(url, startsWith('http://'),
+          reason: 'HTTP proxy type should produce http:// scheme');
+      expect(url, contains('198.51.100.1:8080'),
+          reason: 'proxy URL should carry the configured host:port');
+      expect(url, contains('puser'),
+          reason: 'proxy URL should embed the per-site username');
+      expect(url, contains('sekret-pass'),
+          reason: 'proxy URL should embed the password from secure storage');
+    } else {
+      // Android/Linux: proxy delivered via inapp.ProxyController.setProxyOverride.
+      final overrides =
+          capturedCalls.where((c) => c.method == 'setProxyOverride').toList();
+      if (overrides.isEmpty) {
+        // ignore: avoid_print
+        print('captured channel calls: '
+            '${capturedCalls.map((c) => c.method).toList()}');
+      }
+      expect(overrides, isNotEmpty,
+          reason: 'setProxyOverride should fire after site activation');
 
-    final args = overrides.last.arguments as Map?;
-    final settings = (args?['settings'] as Map?)?.cast<String, dynamic>();
-    final rules = (settings?['proxyRules'] as List?);
-    expect(rules, isNotNull);
-    final url = (rules!.first as Map)['url'] as String?;
-    expect(url, isNotNull, reason: 'proxy rule should carry a url');
-    expect(url, startsWith('http://'),
-        reason: 'HTTP proxy type should produce http:// scheme');
-    expect(url, contains('198.51.100.1:8080'),
-        reason: 'proxy URL should carry the configured host:port');
-    expect(url, contains('puser'),
-        reason: 'proxy URL should embed the per-site username');
-    expect(url, contains('sekret-pass'),
-        reason: 'proxy URL should embed the password loaded from secure storage');
+      final args = overrides.last.arguments as Map?;
+      final settings = (args?['settings'] as Map?)?.cast<String, dynamic>();
+      final rules = (settings?['proxyRules'] as List?);
+      expect(rules, isNotNull);
+      final url = (rules!.first as Map)['url'] as String?;
+      expect(url, isNotNull, reason: 'proxy rule should carry a url');
+      expect(url, startsWith('http://'),
+          reason: 'HTTP proxy type should produce http:// scheme');
+      expect(url, contains('198.51.100.1:8080'),
+          reason: 'proxy URL should carry the configured host:port');
+      expect(url, contains('puser'),
+          reason: 'proxy URL should embed the per-site username');
+      expect(url, contains('sekret-pass'),
+          reason: 'proxy URL should embed the password from secure storage');
+    }
   });
 }

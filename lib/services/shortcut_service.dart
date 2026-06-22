@@ -74,6 +74,8 @@ class ShortcutService {
       return result == true;
     } on PlatformException {
       return false;
+    } on MissingPluginException {
+      return false;
     }
   }
 
@@ -121,6 +123,10 @@ class ShortcutService {
       }
       return null;
     } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      // No shortcuts channel on this build (e.g. macOS integration-test
+      // host where the plugin isn't registered) means no pending launch.
       return null;
     }
   }
@@ -174,6 +180,8 @@ class ShortcutService {
       });
     } on PlatformException {
       // best-effort; the picker just shows stale data until next call.
+    } on MissingPluginException {
+      // Shortcuts channel absent on this build; nothing to sync.
     }
   }
 
@@ -186,6 +194,10 @@ class ShortcutService {
       final result = await _channel.invokeMethod('isAppIntentsSupported');
       return result == true;
     } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      // macOS builds without the shortcuts channel handler (no App Intents
+      // native side) report no implementation rather than a PlatformException.
       return false;
     }
   }

@@ -230,6 +230,10 @@ jobs:
           else
             fvm flutter build apk --release --flavor fdroid --split-per-abi
           fi
+          # adblock-rust is a graceful-fallback engine; assert its .so
+          # actually shipped in the APK (Android links it over JNI, so this
+          # is the .so-presence analog of the iOS/macOS/Linux ws_* check).
+          bash scripts/verify_adblock_shipped.sh android
 
       - name: Verify APK is free of Google Mobile Services
         # Per openspec/specs/per-site-profiles/spec.md PROF-007, no shipped
@@ -511,7 +515,9 @@ jobs:
       # invokes CMake which auto-builds the crate as a dependency of
       # the runner binary — no explicit step needed.
       - name: Build Linux
-        run: fvm flutter build linux --release
+        run: |
+          fvm flutter build linux --release
+          bash scripts/verify_adblock_shipped.sh linux
 
       # Integration tests run after the production build so a clean
       # build is verified independently first. The integration_test
@@ -765,49 +771,105 @@ jobs:
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons
 
+      # adblock-rust ships as an optional, graceful-fallback engine, so the
+      # build never fails on its own when the native lib is missing. Each
+      # build step therefore asserts the engine actually shipped inside the
+      # produced bundle before moving on (scripts/verify_adblock_shipped.sh:
+      # nm's the framework for >=15 ws_* Dart-FFI exports).
       - name: Build IPA
-        run: fvm flutter build ipa --release --no-codesign
-
-      # With the podspec refactor the rust .a is wrapped in a CocoaPods
-      # framework instead of force-loaded into Runner; its symbols live
-      # in WebspaceAdblock.framework, not the Runner Mach-O. Verify by
-      # nm'ing the framework binary that ships inside the .app bundle.
-      - name: Verify adblock-rust framework shipped in iOS .app
         run: |
-          APP=build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
-          FW="$APP/Frameworks/webspace_adblock.framework/webspace_adblock"
-          if [ ! -f "$FW" ]; then
-            echo "::error::webspace_adblock framework binary not found at $FW"
-            find "$APP/Frameworks" -maxdepth 3 -name 'webspace*'
-            exit 1
-          fi
-          SYMS=$(nm -gU "$FW" 2>/dev/null | grep -c ' T _ws_' || true)
-          if [ "$SYMS" -lt 15 ]; then
-            echo "::error::expected >=15 ws_* exports in $FW, found $SYMS"
-            nm -gU "$FW" 2>/dev/null | grep '_ws_' || true
-            exit 1
-          fi
-          echo "OK: iOS webspace_adblock.framework exports $SYMS ws_* symbols"
+          fvm flutter build ipa --release --no-codesign
+          bash scripts/verify_adblock_shipped.sh ios
 
       - name: Build macOS
-        run: fvm flutter build macos --release
-
-      - name: Verify adblock-rust framework shipped in macOS .app
         run: |
-          APP=build/macos/Build/Products/Release/webspace.app
-          FW="$APP/Contents/Frameworks/webspace_adblock.framework/webspace_adblock"
-          if [ ! -f "$FW" ]; then
-            echo "::error::webspace_adblock framework binary not found at $FW"
-            find "$APP/Contents/Frameworks" -maxdepth 3 -name 'webspace*'
-            exit 1
+          fvm flutter build macos --release
+          bash scripts/verify_adblock_shipped.sh macos
+
+      # Integration tests on macOS desktop — the same cross-platform
+      # integration_test/*.dart harness the Linux job runs, driven against
+      # the native macOS (WKWebView + AppKit) runtime via `-d macos`. None
+      # of the Linux scaffolding applies here: the GitHub macOS runner has
+      # a real window server (no Xvfb/weston), path_provider resolves the
+      # container natively (no xdg-user-dirs), and flutter_secure_storage
+      # talks to the login keychain instead of pass-secret-service. The
+      # keychain is unlocked in the runner's GUI session; unlock it
+      # defensively anyway so a locked keychain can't raise an interactive
+      # prompt that would hang the run (empty password is the runner's
+      # login keychain default).
+      #
+      # Two macOS-CI-only adjustments make the harness work; neither reaches
+      # a release build (fresh checkout, release keeps the committed
+      # entitlements + a real identity):
+      #
+      # 1. Entitlements. CI has no Apple signing identity, so the debug app
+      #    is ad-hoc signed, which can't satisfy the committed file's
+      #    *team-prefixed* keys ($(AppIdentifierPrefix)…) — taskgated
+      #    SIGKILLs it at launch as "Code Signature Invalid" because the
+      #    ad-hoc signature can't back that team. Overwrite with the stock
+      #    Flutter debug set, dropping application-groups and
+      #    keychain-access-groups entirely (even a bare, de-prefixed
+      #    keychain-access-groups re-triggers the launch SIGKILL under
+      #    ad-hoc). Consequence: flutter_secure_storage's data-protection
+      #    keychain has no valid access group and fails every read/write
+      #    with errSecMissingEntitlement (-34018); the legacy keychain
+      #    can't be selected instead (MacOsOptions.usesDataProtectionKeychain
+      #    is a no-op — the Dart key doesn't match the native
+      #    `useDataProtectionKeyChain` the darwin plugin reads). Tests that
+      #    need a working keychain (settings_backup_roundtrip, proxy_auth)
+      #    install an in-memory fake when the real keychain is unavailable
+      #    (integration_test/secure_storage_fake.dart, capability-probed so
+      #    Linux keeps its pass-secret-service path); every other test
+      #    tolerates the -34018 (logged, non-fatal).
+      # 2. --ci. Even ad-hoc-valid, a sandboxed debug app never surfaces its
+      #    Dart VM Service to `flutter test` on the runner ("log reader
+      #    stopped unexpectedly", 12-min timeout). `--ci` (usingCISystem)
+      #    re-signs with sandbox disabled, after which the tool connects and
+      #    the tests actually run.
+      #
+      # Same one-test-per-file invocation as Linux (INTEG-007/008), every
+      # integration_test/*_test.dart except the fastlane-only screenshot
+      # generator; a non-zero exit from any file is remembered and re-raised
+      # so one failure doesn't mask the rest. On failure, dump the macOS
+      # crash report so a launch-time SIGKILL explains itself.
+      - name: Run macOS integration tests
+        run: |
+          set -x
+          security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
+          cat > macos/Runner/DebugProfile.entitlements <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+          	<key>com.apple.security.app-sandbox</key>
+          	<true/>
+          	<key>com.apple.security.cs.allow-jit</key>
+          	<true/>
+          	<key>com.apple.security.files.user-selected.read-write</key>
+          	<true/>
+          	<key>com.apple.security.network.server</key>
+          	<true/>
+          	<key>com.apple.security.network.client</key>
+          	<true/>
+          </dict>
+          </plist>
+          EOF
+          status=0
+          for t in integration_test/*_test.dart; do
+            [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+            echo "::group::$t"
+            fvm flutter test "$t" -d macos --ci || status=$?
+            echo "::endgroup::"
+          done
+          if [ $status -ne 0 ]; then
+            echo "=== recent macOS crash reports ==="
+            ls -t "$HOME/Library/Logs/DiagnosticReports/" 2>/dev/null | head || true
+            for f in "$HOME/Library/Logs/DiagnosticReports/"Webspace* \
+                     "$HOME/Library/Logs/DiagnosticReports/"Runner*; do
+              [ -f "$f" ] && { echo "--- $f ---"; sed -n '1,45p' "$f"; }
+            done
           fi
-          SYMS=$(nm -gU "$FW" 2>/dev/null | grep -c ' T _ws_' || true)
-          if [ "$SYMS" -lt 15 ]; then
-            echo "::error::expected >=15 ws_* exports in $FW, found $SYMS"
-            nm -gU "$FW" 2>/dev/null | grep '_ws_' || true
-            exit 1
-          fi
-          echo "OK: macOS webspace_adblock.framework exports $SYMS ws_* symbols"
+          exit $status
 
       - name: Create macOS ZIP archive
         run: |
