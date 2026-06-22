@@ -169,8 +169,6 @@
   "appSettingsInterface": "Interface",
   "appSettingsSiteTabStrip": "Tab Strip ng Site",
   "appSettingsSiteTabStripSubtitle": "Magpakita ng tab bar na may lahat ng site sa itaas",
-  "appSettingsKeepTabStripFullscreen": "Panatilihin ang Tab Strip sa Full Screen",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Panatilihing nakikita ang tab bar sa full screen habang nananatiling nakatago ang top bar",
   "appSettingsStatsBar": "Stats Bar",
   "appSettingsStatsBarSubtitle": "Magpakita ng live na stats ng kahilingan sa itaas ng bawat site",
   "appSettingsLinkHandling": "Paghawak ng link",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Nagda-download ng Hagezi blocklist para i-block ang mga kilalang domain ng advertising, pagsubaybay, at malware. Pumili ng antas ng severity mula Light hanggang Ultimate. Ang mas mataas na antas ay nag-ba-block ng mas maraming domain ngunit maaaring masira ang ilang site. Kapag na-download na, i-enable o i-disable per-site sa mga setting ng bawat site.",
   "appSettingsLocalCdnHint": "Nagda-download ng mga karaniwang JavaScript library, font, at CSS framework para ihain nang lokal sa halip na kunin ang mga ito mula sa mga third-party CDN server (tulad ng Google, Cloudflare, jsDelivr). Pinipigilan nito ang mga CDN provider na subaybayan ang iyong pag-browse sa iba't ibang website.",
   "appSettingsContentBlockerHint": "Nag-ba-block ng mga ad, tracker, at hindi gustong elemento ng pahina gamit ang mga listahan ng filter tulad ng EasyList. Sinusuportahan ang pag-block sa antas ng domain, mga CSS cosmetic filter para itago ang mga elemento ng pahina, at mga panuntunan ng pagtatago batay sa teksto. I-enable o i-disable ang mga indibidwal na listahan ng filter sa ibaba, at i-toggle ang content blocking per-site sa mga setting ng bawat site.",
-  "appSettingsTabBarButton": "Button ng Tab Bar",
-  "appSettingsTabBarButtonSubtitle": "Magpakita ng maliit na button sa full screen na nagbubukas ng tab bar",
   "appSettingsTabBarButtonCorner": "Posisyon ng button",
   "appSettingsTabMaxWidth": "Limitasyon sa Lapad ng Tab",
-  "appSettingsTabMaxWidthSubtitle": "Limitahan kung gaano kalapad ang bawat tab para manatiling compact ang mahahabang pangalan"
+  "appSettingsTabMaxWidthSubtitle": "Limitahan kung gaano kalapad ang bawat tab para manatiling compact ang mahahabang pangalan",
+  "appSettingsFullscreenTabStrip": "Sa full screen, tab bar",
+  "appSettingsFullscreenTabStripHidden": "Nakatago",
+  "appSettingsFullscreenTabStripAlways": "Palaging nakikita",
+  "appSettingsFullscreenTabStripButton": "Ipakita gamit ang button"
 }

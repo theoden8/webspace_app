@@ -169,8 +169,6 @@
   "appSettingsInterface": "Käyttöliittymä",
   "appSettingsSiteTabStrip": "Sivustojen välilehtipalkki",
   "appSettingsSiteTabStripSubtitle": "Näytä yläosassa välilehtipalkki, jossa on kaikki sivustot",
-  "appSettingsKeepTabStripFullscreen": "Pidä välilehtipalkki koko näytön tilassa",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Pidä välilehtipalkki näkyvissä koko näytön tilassa, kun yläpalkki pysyy piilossa",
   "appSettingsStatsBar": "Tilastopalkki",
   "appSettingsStatsBarSubtitle": "Näytä reaaliaikaiset pyyntötilastot jokaisen sivuston yläosassa",
   "appSettingsLinkHandling": "Linkkien käsittely",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Lataa Hagezi-estolistan estämään tunnetut mainonta-, seuranta- ja haittaohjelmaverkkotunnukset. Valitse vakavuustaso Kevyestä Äärimmäiseen. Korkeammat tasot estävät enemmän verkkotunnuksia, mutta saattavat rikkoa joitakin sivustoja. Kun ladattu, ota käyttöön tai poista käytöstä sivustokohtaisesti kunkin sivuston asetuksissa.",
   "appSettingsLocalCdnHint": "Lataa yleisiä JavaScript-kirjastoja, fontteja ja CSS-kehyksiä tarjottavaksi paikallisesti kolmannen osapuolen CDN-palvelimilta (kuten Google, Cloudflare, jsDelivr) hakemisen sijaan. Tämä estää CDN-palveluntarjoajia seuraamasta selailutoimintaasi eri sivustojen välillä.",
   "appSettingsContentBlockerHint": "Estää mainokset, seuraajat ja ei-toivotut sivuelementit suodatuslistojen, kuten EasyList, avulla. Tukee verkkotunnusten estoa, CSS-kosmeettisia suodattimia sivuelementtien piilottamiseen ja tekstipohjaisia piilotussääntöjä. Ota käyttöön tai poista käytöstä yksittäisiä suodatuslistoja alla, ja hallitse sisältöestoa sivustokohtaisesti kunkin sivuston asetuksissa.",
-  "appSettingsTabBarButton": "Välilehtipalkin painike",
-  "appSettingsTabBarButtonSubtitle": "Näytä koko näytössä pieni painike, joka avaa välilehtipalkin",
   "appSettingsTabBarButtonCorner": "Painikkeen sijainti",
   "appSettingsTabMaxWidth": "Välilehden leveysraja",
-  "appSettingsTabMaxWidthSubtitle": "Rajoita, kuinka leveäksi kukin välilehti voi kasvaa, jotta pitkät nimet pysyvät tiiviinä"
+  "appSettingsTabMaxWidthSubtitle": "Rajoita, kuinka leveäksi kukin välilehti voi kasvaa, jotta pitkät nimet pysyvät tiiviinä",
+  "appSettingsFullscreenTabStrip": "Koko näytössä, välilehtipalkki",
+  "appSettingsFullscreenTabStripHidden": "Piilotettu",
+  "appSettingsFullscreenTabStripAlways": "Aina näkyvissä",
+  "appSettingsFullscreenTabStripButton": "Näytä painikkeella"
 }

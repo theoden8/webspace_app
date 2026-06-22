@@ -169,8 +169,6 @@
   "appSettingsInterface": "Interface",
   "appSettingsSiteTabStrip": "Site-tabbalk",
   "appSettingsSiteTabStripSubtitle": "Toon een tabbalk met alle sites bovenaan",
-  "appSettingsKeepTabStripFullscreen": "Tabbalk in volledig scherm behouden",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Houd de tabbalk zichtbaar in volledig scherm terwijl de bovenbalk verborgen blijft",
   "appSettingsStatsBar": "Statistiekenbalk",
   "appSettingsStatsBarSubtitle": "Toon live verzoekstatistieken bovenaan elke site",
   "appSettingsLinkHandling": "Linkafhandeling",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Downloadt de Hagezi-blokkeerlijst om bekende reclame-, tracking- en malwaredomeinen te blokkeren. Kies een ernstniveau van Licht tot Ultiem. Hogere niveaus blokkeren meer domeinen maar kunnen sommige sites verstoren. Eenmaal gedownload, schakel je het per site in of uit in de instellingen van elke site.",
   "appSettingsLocalCdnHint": "Downloadt veelgebruikte JavaScript-bibliotheken, lettertypen en CSS-frameworks om ze lokaal te serveren in plaats van ze op te halen van CDN-servers van derden (zoals Google, Cloudflare, jsDelivr). Dit voorkomt dat CDN-aanbieders je browseactiviteit over verschillende websites heen volgen.",
   "appSettingsContentBlockerHint": "Blokkeert advertenties, trackers en ongewenste pagina-elementen met behulp van filterlijsten zoals EasyList. Ondersteunt blokkering op domeinniveau, CSS-cosmetische filters om pagina-elementen te verbergen en op tekst gebaseerde verbergregels. Schakel individuele filterlijsten hieronder in of uit en zet contentblokkering per site aan in de instellingen van elke site.",
-  "appSettingsTabBarButton": "Tabbalkknop",
-  "appSettingsTabBarButtonSubtitle": "Toon een kleine knop in volledig scherm die de tabbalk opent",
   "appSettingsTabBarButtonCorner": "Knoppositie",
   "appSettingsTabMaxWidth": "Tabbreedtelimiet",
-  "appSettingsTabMaxWidthSubtitle": "Beperk hoe breed elke tab kan worden zodat lange namen compact blijven"
+  "appSettingsTabMaxWidthSubtitle": "Beperk hoe breed elke tab kan worden zodat lange namen compact blijven",
+  "appSettingsFullscreenTabStrip": "In volledig scherm, tabbalk",
+  "appSettingsFullscreenTabStripHidden": "Verborgen",
+  "appSettingsFullscreenTabStripAlways": "Altijd zichtbaar",
+  "appSettingsFullscreenTabStripButton": "Tonen met knop"
 }

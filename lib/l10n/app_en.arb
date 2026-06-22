@@ -839,21 +839,21 @@
   "@appSettingsSiteTabStripSubtitle": {
     "description": "Subtitle for the site tab strip toggle"
   },
-  "appSettingsKeepTabStripFullscreen": "Keep Tab Strip in Full Screen",
-  "@appSettingsKeepTabStripFullscreen": {
-    "description": "Toggle title for keeping the tab strip visible in full screen"
+  "appSettingsFullscreenTabStrip": "In full screen, tab strip",
+  "@appSettingsFullscreenTabStrip": {
+    "description": "Group label for the choice of how the tab strip behaves in full screen (followed by the Hidden / Always visible / Reveal with button options)"
   },
-  "appSettingsKeepTabStripFullscreenSubtitle": "Keep the tab bar visible in full screen while the top bar stays hidden",
-  "@appSettingsKeepTabStripFullscreenSubtitle": {
-    "description": "Subtitle for the keep-tab-strip-in-fullscreen toggle"
+  "appSettingsFullscreenTabStripHidden": "Hidden",
+  "@appSettingsFullscreenTabStripHidden": {
+    "description": "Option: hide the tab strip in full screen"
   },
-  "appSettingsTabBarButton": "Tab Bar Button",
-  "@appSettingsTabBarButton": {
-    "description": "Toggle title for showing a small floating button in full screen that opens the tab bar on demand"
+  "appSettingsFullscreenTabStripAlways": "Always visible",
+  "@appSettingsFullscreenTabStripAlways": {
+    "description": "Option: keep the tab strip always visible in full screen"
   },
-  "appSettingsTabBarButtonSubtitle": "Show a small button in full screen that opens the tab bar",
-  "@appSettingsTabBarButtonSubtitle": {
-    "description": "Subtitle for the tab-bar-button toggle"
+  "appSettingsFullscreenTabStripButton": "Reveal with button",
+  "@appSettingsFullscreenTabStripButton": {
+    "description": "Option: hide the tab strip in full screen but show a small floating button that reveals it on demand"
   },
   "appSettingsTabBarButtonCorner": "Button position",
   "@appSettingsTabBarButtonCorner": {

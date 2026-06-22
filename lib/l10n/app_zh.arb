@@ -169,8 +169,6 @@
   "appSettingsInterface": "介面",
   "appSettingsSiteTabStrip": "網站分頁列",
   "appSettingsSiteTabStripSubtitle": "在頂部顯示包含所有網站的分頁列",
-  "appSettingsKeepTabStripFullscreen": "全螢幕時保留分頁列",
-  "appSettingsKeepTabStripFullscreenSubtitle": "在全螢幕時保持分頁列可見，同時隱藏頂部列",
   "appSettingsStatsBar": "統計列",
   "appSettingsStatsBarSubtitle": "在每個網站頂部顯示即時請求統計",
   "appSettingsLinkHandling": "連結處理",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "下载 Hagezi 封锁清单，以封锁已知的广告、追踪及恶意软件域名。可选择从轻度到终极的严重程度级别。级别越高封锁的域名越多，但可能导致部分网站无法正常访问。下载后，可在每个网站的设置中逐站启用或停用。",
   "appSettingsLocalCdnHint": "下载常见的 JavaScript 库、字体和 CSS 框架，以便在本地提供服务，而不是从第三方 CDN 服务器（如 Google、Cloudflare、jsDelivr）获取。这可防止 CDN 提供商跨不同网站追踪您的浏览行为。",
   "appSettingsContentBlockerHint": "使用 EasyList 等过滤清单封锁广告、追踪器和不需要的页面元素。支持域名级别封锁、CSS 外观过滤以隐藏页面元素，以及基于文本的隐藏规则。可在下方启用或停用各个过滤清单，并在每个网站的设置中逐站切换内容封锁。",
-  "appSettingsTabBarButton": "标签栏按钮",
-  "appSettingsTabBarButtonSubtitle": "在全屏模式下显示一个可打开标签栏的小按钮",
   "appSettingsTabBarButtonCorner": "按钮位置",
   "appSettingsTabMaxWidth": "标签宽度上限",
-  "appSettingsTabMaxWidthSubtitle": "限制每个标签的最大宽度，使较长的名称保持紧凑"
+  "appSettingsTabMaxWidthSubtitle": "限制每个标签的最大宽度，使较长的名称保持紧凑",
+  "appSettingsFullscreenTabStrip": "全屏时，标签栏",
+  "appSettingsFullscreenTabStripHidden": "隐藏",
+  "appSettingsFullscreenTabStripAlways": "始终显示",
+  "appSettingsFullscreenTabStripButton": "用按钮显示"
 }

@@ -169,8 +169,6 @@
   "appSettingsInterface": "อินเทอร์เฟซ",
   "appSettingsSiteTabStrip": "แถบแท็บเว็บไซต์",
   "appSettingsSiteTabStripSubtitle": "แสดงแถบแท็บที่มีเว็บไซต์ทั้งหมดด้านบน",
-  "appSettingsKeepTabStripFullscreen": "คงแถบแท็บในโหมดเต็มหน้าจอ",
-  "appSettingsKeepTabStripFullscreenSubtitle": "คงแถบแท็บให้มองเห็นในโหมดเต็มหน้าจอขณะที่แถบบนยังคงซ่อนอยู่",
   "appSettingsStatsBar": "แถบสถิติ",
   "appSettingsStatsBarSubtitle": "แสดงสถิติคำขอแบบเรียลไทม์ที่ด้านบนของแต่ละเว็บไซต์",
   "appSettingsLinkHandling": "การจัดการลิงก์",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "ดาวน์โหลดบัญชีบล็อก Hagezi เพื่อบล็อกโดเมนโฆษณา ติดตาม และมัลแวร์ที่รู้จัก เลือกระดับความรุนแรงตั้งแต่ Light ถึง Ultimate ระดับที่สูงกว่าจะบล็อกโดเมนได้มากขึ้นแต่อาจทำให้บางเว็บไซต์ทำงานผิดปกติ เมื่อดาวน์โหลดแล้ว สามารถเปิดหรือปิดใช้งานต่อเว็บไซต์ในการตั้งค่าของแต่ละเว็บไซต์",
   "appSettingsLocalCdnHint": "ดาวน์โหลดไลบรารี JavaScript ทั่วไป, ฟอนต์ และเฟรมเวิร์ก CSS เพื่อให้บริการในเครื่องแทนการดึงจากเซิร์ฟเวอร์ CDN ของบุคคลที่สาม (เช่น Google, Cloudflare, jsDelivr) ช่วยป้องกันไม่ให้ผู้ให้บริการ CDN ติดตามกิจกรรมการเรียกดูของคุณข้ามเว็บไซต์ต่าง ๆ",
   "appSettingsContentBlockerHint": "บล็อกโฆษณา ตัวติดตาม และองค์ประกอบหน้าเว็บที่ไม่ต้องการโดยใช้รายการตัวกรองเช่น EasyList รองรับการบล็อกระดับโดเมน, ตัวกรองภาพ CSS เพื่อซ่อนองค์ประกอบในหน้า และกฎซ่อนตามข้อความ เปิดหรือปิดใช้งานรายการตัวกรองแต่ละรายการด้านล่าง และเปิด/ปิดการบล็อกเนื้อหาต่อเว็บไซต์ในการตั้งค่าของแต่ละเว็บไซต์",
-  "appSettingsTabBarButton": "ปุ่มแถบแท็บ",
-  "appSettingsTabBarButtonSubtitle": "แสดงปุ่มเล็ก ๆ ในโหมดเต็มจอที่เปิดแถบแท็บ",
   "appSettingsTabBarButtonCorner": "ตำแหน่งปุ่ม",
   "appSettingsTabMaxWidth": "ขีดจำกัดความกว้างของแท็บ",
-  "appSettingsTabMaxWidthSubtitle": "จำกัดความกว้างของแต่ละแท็บเพื่อให้ชื่อยาว ๆ ยังคงกระชับ"
+  "appSettingsTabMaxWidthSubtitle": "จำกัดความกว้างของแต่ละแท็บเพื่อให้ชื่อยาว ๆ ยังคงกระชับ",
+  "appSettingsFullscreenTabStrip": "ในโหมดเต็มจอ แถบแท็บ",
+  "appSettingsFullscreenTabStripHidden": "ซ่อน",
+  "appSettingsFullscreenTabStripAlways": "แสดงตลอดเวลา",
+  "appSettingsFullscreenTabStripButton": "แสดงด้วยปุ่ม"
 }

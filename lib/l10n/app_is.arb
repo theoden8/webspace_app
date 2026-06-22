@@ -169,8 +169,6 @@
   "appSettingsInterface": "Viðmót",
   "appSettingsSiteTabStrip": "Svæðisflipalína",
   "appSettingsSiteTabStripSubtitle": "Sýna flipaslá með öllum svæðum efst",
-  "appSettingsKeepTabStripFullscreen": "Halda flipalínu í heilskjá",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Halda flipaslánni sýnilegri í heilskjá á meðan efsta slá er falin",
   "appSettingsStatsBar": "Tölfræðislá",
   "appSettingsStatsBarSubtitle": "Sýna lifandi beiðnitölfræði efst á hverju svæði",
   "appSettingsLinkHandling": "Tenglameðhöndlun",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Sækir Hagezi bannlistann til að útiloka þekkt auglýsinga-, rakningar- og spilliforritalén. Veldu alvarleikastig á bilinu Létt til Fullkomið. Hærri stig útiloka fleiri lén en geta brotið sum svæði. Þegar sótt er, kveiktu eða slökktu á hverju svæði í svæðisstillingum þess.",
   "appSettingsLocalCdnHint": "Sækir algeng JavaScript-söfn, letur og CSS-grindir til að bjóða þau upp staðbundið í stað þess að sækja þau frá CDN-þjónum þriðja aðila (eins og Google, Cloudflare, jsDelivr). Þetta kemur í veg fyrir að CDN-veitendur raki vafralotuna þína milli ólíkra svæða.",
   "appSettingsContentBlockerHint": "Útilokar auglýsingar, rakara og óæskilegar síðueiningar með síulistum eins og EasyList. Styður blokkun á lénssstigi, CSS-snyrtisíur til að fela síðueiningar og textatengdar feluvarsreglur. Kveiktu eða slökktu á einstökum síulistum hér að neðan og víxlaðu efnisblökkun á hverju svæði í svæðisstillingum þess.",
-  "appSettingsTabBarButton": "Flipastiku-hnappur",
-  "appSettingsTabBarButtonSubtitle": "Sýna lítinn hnapp í fullum skjá sem opnar flipastikuna",
   "appSettingsTabBarButtonCorner": "Staðsetning hnapps",
   "appSettingsTabMaxWidth": "Breiddartakmark flipa",
-  "appSettingsTabMaxWidthSubtitle": "Takmarkaðu hversu breiður hver flipi getur orðið svo löng nöfn haldist samanþjöppuð"
+  "appSettingsTabMaxWidthSubtitle": "Takmarkaðu hversu breiður hver flipi getur orðið svo löng nöfn haldist samanþjöppuð",
+  "appSettingsFullscreenTabStrip": "Í fullum skjá, flipastika",
+  "appSettingsFullscreenTabStripHidden": "Falin",
+  "appSettingsFullscreenTabStripAlways": "Alltaf sýnileg",
+  "appSettingsFullscreenTabStripButton": "Birta með hnappi"
 }

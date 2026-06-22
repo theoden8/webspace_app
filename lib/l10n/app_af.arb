@@ -169,8 +169,6 @@
   "appSettingsInterface": "Koppelvlak",
   "appSettingsSiteTabStrip": "Webwerf-oortjiestrook",
   "appSettingsSiteTabStripSubtitle": "Wys 'n oortjiebalk met alle webwerwe bo-aan",
-  "appSettingsKeepTabStripFullscreen": "Hou oortjiestrook in volskerm",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Hou die oortjiebalk sigbaar in volskerm terwyl die boonste balk versteek bly",
   "appSettingsStatsBar": "Statistiekbalk",
   "appSettingsStatsBarSubtitle": "Wys lewendige versoekstatistieke bo-aan elke webwerf",
   "appSettingsLinkHandling": "Skakelhantering",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Laai die Hagezi-blokkeerlys af om bekende advertensie-, volg- en wanware-domeine te blokkeer. Kies 'n ernstig heidsvlak van Lig tot Uiterste. Hoër vlakke blokkeer meer domeine maar kan sommige webwerwe breek. Eers afgelaai, aktiveer of deaktiveer per-webwerf in elke webwerf se instellings.",
   "appSettingsLocalCdnHint": "Laai algemene JavaScript-biblioteke, lettertipes en CSS-raamwerke af om dit plaaslik te bedien in plaas van om dit van derdeparty-CDN-bedieners (soos Google, Cloudflare, jsDelivr) te haal. Dit verhoed dat CDN-verskaffers jou blaai-aktiwiteit oor verskillende webwerwe heen naspoor.",
   "appSettingsContentBlockerHint": "Blokkeer advertensies, volgers en ongewenste bladsyelemente met filterlyste soos EasyList. Ondersteun domeinvlak-blokkering, CSS-kosmetiese filters om bladsyelemente te versteek, en teksgebaseerde versteekreëls. Aktiveer of deaktiveer individuele filterlyste hieronder, en skakel inhoud-blokkering per-webwerf in elke webwerf se instellings aan of af.",
-  "appSettingsTabBarButton": "Oortjiebalkknoppie",
-  "appSettingsTabBarButtonSubtitle": "Wys 'n klein knoppie in volskerm wat die oortjiebalk oopmaak",
   "appSettingsTabBarButtonCorner": "Knoppieposisie",
   "appSettingsTabMaxWidth": "Oortjiebreedte-limiet",
-  "appSettingsTabMaxWidthSubtitle": "Beperk hoe wyd elke oortjie kan word sodat lang name kompak bly"
+  "appSettingsTabMaxWidthSubtitle": "Beperk hoe wyd elke oortjie kan word sodat lang name kompak bly",
+  "appSettingsFullscreenTabStrip": "In volskerm, oortjiebalk",
+  "appSettingsFullscreenTabStripHidden": "Versteek",
+  "appSettingsFullscreenTabStripAlways": "Altyd sigbaar",
+  "appSettingsFullscreenTabStripButton": "Wys met knoppie"
 }

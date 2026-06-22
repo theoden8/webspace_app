@@ -169,8 +169,6 @@
   "appSettingsInterface": "Ndërfaqja",
   "appSettingsSiteTabStrip": "Shiriti i skedave të faqeve",
   "appSettingsSiteTabStripSubtitle": "Shfaq një shirit skedash me të gjitha faqet në krye",
-  "appSettingsKeepTabStripFullscreen": "Mbaj shiritin e skedave në ekran të plotë",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Mbaj shiritin e skedave të dukshëm në ekran të plotë ndërsa shiriti i sipërm qëndron i fshehur",
   "appSettingsStatsBar": "Shiriti i statistikave",
   "appSettingsStatsBarSubtitle": "Shfaq statistika kërkesash në kohë reale në krye të çdo faqeje",
   "appSettingsLanguageTitle": "Gjuha e aplikacionit",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Shkarkon listën e bllokimit Hagezi për të bllokuar domene të njohura reklamash, gjurmimi dhe malware-i. Zgjidh një nivel ashpërsie nga Light deri Ultimate. Nivelet më të larta bllokojnë më shumë domene por mund të prishin disa faqe. Pasi të shkarkohet, aktivizoje ose çaktivizoje për çdo faqe te cilësimet e asaj faqeje.",
   "appSettingsLocalCdnHint": "Shkarkon biblioteka të zakonshme JavaScript, fonte dhe korniza CSS për t'i shërbyer lokalisht në vend që t'i marrë nga serverët CDN të palëve të treta (si Google, Cloudflare, jsDelivr). Kjo parandalon ofruesit e CDN-ve nga gjurmimi i shfletimit tënd nëpër faqe të ndryshme.",
   "appSettingsContentBlockerHint": "Bllokon reklamat, gjurmuesit dhe elementet e padëshiruara të faqes duke përdorur lista filtrash si EasyList. Mbështet bllokimin në nivel domeni, filtrat kozmetikë CSS për fshehjen e elementeve të faqes dhe rregullat e fshehjes me bazë teksti. Aktivizo ose çaktivizo listat individuale të filtrave më poshtë, dhe ndrysho bllokimin e përmbajtjes për çdo faqe te cilësimet e asaj faqeje.",
-  "appSettingsTabBarButton": "Butoni i shiritit të skedave",
-  "appSettingsTabBarButtonSubtitle": "Shfaq një buton të vogël në ekran të plotë që hap shiritin e skedave",
   "appSettingsTabBarButtonCorner": "Pozicioni i butonit",
   "appSettingsTabMaxWidth": "Kufiri i gjerësisë së skedës",
-  "appSettingsTabMaxWidthSubtitle": "Kufizo sa e gjerë mund të bëhet çdo skedë që emrat e gjatë të mbeten kompaktë"
+  "appSettingsTabMaxWidthSubtitle": "Kufizo sa e gjerë mund të bëhet çdo skedë që emrat e gjatë të mbeten kompaktë",
+  "appSettingsFullscreenTabStrip": "Në ekran të plotë, shiriti i skedave",
+  "appSettingsFullscreenTabStripHidden": "I fshehur",
+  "appSettingsFullscreenTabStripAlways": "Gjithmonë i dukshëm",
+  "appSettingsFullscreenTabStripButton": "Shfaq me buton"
 }

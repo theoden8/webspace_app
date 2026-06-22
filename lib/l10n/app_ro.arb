@@ -169,8 +169,6 @@
   "appSettingsInterface": "Interfață",
   "appSettingsSiteTabStrip": "Bară de file pentru site-uri",
   "appSettingsSiteTabStripSubtitle": "Afișează o bară de file cu toate site-urile în partea de sus",
-  "appSettingsKeepTabStripFullscreen": "Păstrează bara de file pe ecran complet",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Păstrează bara de file vizibilă pe ecran complet în timp ce bara de sus rămâne ascunsă",
   "appSettingsStatsBar": "Bară de statistici",
   "appSettingsStatsBarSubtitle": "Afișează statistici de cereri în timp real în partea de sus a fiecărui site",
   "appSettingsLinkHandling": "Gestionarea linkurilor",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Descarcă lista de blocare Hagezi pentru a bloca domeniile cunoscute de publicitate, urmărire și malware. Alege un nivel de severitate de la Ușor la Ultim. Nivelurile mai ridicate blochează mai multe domenii, dar pot afecta unele site-uri. Odată descărcată, activează sau dezactivează per site în setările fiecărui site.",
   "appSettingsLocalCdnHint": "Descarcă biblioteci JavaScript, fonturi și cadre CSS comune pentru a le servi local în loc să le preia de la servere CDN terțe (precum Google, Cloudflare, jsDelivr). Aceasta împiedică furnizorii CDN să-ți urmărească activitatea de navigare pe diferite site-uri.",
   "appSettingsContentBlockerHint": "Blochează reclame, urmăritori și elemente de pagină nedorite folosind liste de filtre precum EasyList. Acceptă blocarea la nivel de domeniu, filtre cosmetice CSS pentru a ascunde elemente de pagină și reguli de ascundere bazate pe text. Activează sau dezactivează liste individuale de filtre mai jos și comută blocarea conținutului per site în setările fiecărui site.",
-  "appSettingsTabBarButton": "Buton pentru bara de file",
-  "appSettingsTabBarButtonSubtitle": "Afișează un buton mic pe ecran complet care deschide bara de file",
   "appSettingsTabBarButtonCorner": "Poziția butonului",
   "appSettingsTabMaxWidth": "Limită lățime filă",
-  "appSettingsTabMaxWidthSubtitle": "Limitează cât de lată poate deveni fiecare filă, astfel încât numele lungi să rămână compacte"
+  "appSettingsTabMaxWidthSubtitle": "Limitează cât de lată poate deveni fiecare filă, astfel încât numele lungi să rămână compacte",
+  "appSettingsFullscreenTabStrip": "Pe ecran complet, bara de file",
+  "appSettingsFullscreenTabStripHidden": "Ascunsă",
+  "appSettingsFullscreenTabStripAlways": "Întotdeauna vizibilă",
+  "appSettingsFullscreenTabStripButton": "Afișează cu un buton"
 }

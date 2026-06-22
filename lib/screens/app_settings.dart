@@ -727,6 +727,29 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     widget.onLocaleOverrideChanged(selected);
   }
 
+  /// Full-screen tab-strip behavior as a single mutually-exclusive choice,
+  /// derived from the two persisted bools: 0 = hidden, 1 = always visible,
+  /// 2 = revealed by the tab-bar button.
+  int get _fullscreenTabStripMode {
+    if (_tabStripInFullscreen) return 1;
+    if (_tabBarButtonInFullscreen) return 2;
+    return 0;
+  }
+
+  void _setFullscreenTabStripMode(int mode) {
+    setState(() {
+      _tabStripInFullscreen = mode == 1;
+      _tabBarButtonInFullscreen = mode == 2;
+    });
+    widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
+    widget.onTabBarButtonInFullscreenChanged(_tabBarButtonInFullscreen);
+  }
+
+  /// Whether the tab strip can appear at all (out of fullscreen or via either
+  /// fullscreen mode), so the width limit is meaningful.
+  bool get _tabStripCanShow =>
+      _showTabStrip || _tabStripInFullscreen || _tabBarButtonInFullscreen;
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -806,62 +829,66 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               widget.onShowTabStripChanged(value);
             },
           ),
-          SwitchListTile(
-            title: Text(loc.appSettingsKeepTabStripFullscreen),
-            subtitle: Text(loc.appSettingsKeepTabStripFullscreenSubtitle),
-            value: _tabStripInFullscreen,
-            onChanged: _showTabStrip
-                ? (value) {
-                    setState(() {
-                      _tabStripInFullscreen = value;
-                    });
-                    widget.onTabStripInFullscreenChanged(value);
-                  }
-                : null,
-          ),
-          SwitchListTile(
-            title: Text(loc.appSettingsTabBarButton),
-            subtitle: Text(loc.appSettingsTabBarButtonSubtitle),
-            value: _tabBarButtonInFullscreen,
-            onChanged: (value) {
-              setState(() {
-                _tabBarButtonInFullscreen = value;
-              });
-              widget.onTabBarButtonInFullscreenChanged(value);
-            },
-          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: [
-                Expanded(child: Text(loc.appSettingsTabBarButtonCorner)),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment<bool>(
-                      value: false,
-                      icon: Icon(Icons.align_horizontal_left),
-                    ),
-                    ButtonSegment<bool>(
-                      value: true,
-                      icon: Icon(Icons.align_horizontal_right),
-                    ),
-                  ],
-                  selected: {_tabBarButtonOnRight},
-                  showSelectedIcon: false,
-                  onSelectionChanged:
-                      _tabBarButtonInFullscreen
-                          ? (selection) {
-                              final value = selection.first;
-                              setState(() {
-                                _tabBarButtonOnRight = value;
-                              });
-                              widget.onTabBarButtonOnRightChanged(value);
-                            }
-                          : null,
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(
+              loc.appSettingsFullscreenTabStrip,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ),
+          RadioListTile<int>(
+            value: 0,
+            groupValue: _fullscreenTabStripMode,
+            dense: true,
+            title: Text(loc.appSettingsFullscreenTabStripHidden),
+            onChanged: (_) => _setFullscreenTabStripMode(0),
+          ),
+          RadioListTile<int>(
+            value: 1,
+            groupValue: _fullscreenTabStripMode,
+            dense: true,
+            title: Text(loc.appSettingsFullscreenTabStripAlways),
+            onChanged: (_) => _setFullscreenTabStripMode(1),
+          ),
+          RadioListTile<int>(
+            value: 2,
+            groupValue: _fullscreenTabStripMode,
+            dense: true,
+            title: Text(loc.appSettingsFullscreenTabStripButton),
+            onChanged: (_) => _setFullscreenTabStripMode(2),
+          ),
+          if (_tabBarButtonInFullscreen)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(child: Text(loc.appSettingsTabBarButtonCorner)),
+                  SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment<bool>(
+                        value: false,
+                        icon: Icon(Icons.align_horizontal_left),
+                      ),
+                      ButtonSegment<bool>(
+                        value: true,
+                        icon: Icon(Icons.align_horizontal_right),
+                      ),
+                    ],
+                    selected: {_tabBarButtonOnRight},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (selection) {
+                      final value = selection.first;
+                      setState(() {
+                        _tabBarButtonOnRight = value;
+                      });
+                      widget.onTabBarButtonOnRightChanged(value);
+                    },
+                  ),
+                ],
+              ),
+            ),
           Builder(
             builder: (context) {
               final tabWidthLabel = '${_tabMaxWidth.round()} px';
@@ -886,14 +913,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                       max: 320,
                       divisions: 24,
                       label: tabWidthLabel,
-                      onChanged: (_showTabStrip || _tabBarButtonInFullscreen)
+                      onChanged: _tabStripCanShow
                           ? (value) {
                               setState(() {
                                 _tabMaxWidth = value;
                               });
                             }
                           : null,
-                      onChangeEnd: (_showTabStrip || _tabBarButtonInFullscreen)
+                      onChangeEnd: _tabStripCanShow
                           ? (value) {
                               widget.onTabMaxWidthChanged(value.round());
                             }

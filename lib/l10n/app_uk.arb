@@ -169,8 +169,6 @@
   "appSettingsInterface": "Інтерфейс",
   "appSettingsSiteTabStrip": "Смуга вкладок сайтів",
   "appSettingsSiteTabStripSubtitle": "Показувати вгорі панель вкладок з усіма сайтами",
-  "appSettingsKeepTabStripFullscreen": "Залишати смугу вкладок у повноекранному режимі",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Залишати панель вкладок видимою в повноекранному режимі, поки верхня панель прихована",
   "appSettingsStatsBar": "Панель статистики",
   "appSettingsStatsBarSubtitle": "Показувати живу статистику запитів угорі кожного сайту",
   "appSettingsLinkHandling": "Обробка посилань",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Завантажує чорний список Hagezi для блокування відомих рекламних доменів, доменів стеження та шкідливих доменів. Виберіть рівень суворості від Light до Ultimate. Вищі рівні блокують більше доменів, але можуть порушувати роботу деяких сайтів. Після завантаження увімкніть або вимкніть для кожного сайту в його налаштуваннях.",
   "appSettingsLocalCdnHint": "Завантажує поширені бібліотеки JavaScript, шрифти та CSS-фреймворки для локального обслуговування замість отримання їх із сторонніх CDN-серверів (наприклад, Google, Cloudflare, jsDelivr). Це не дозволяє постачальникам CDN відстежувати вашу активність перегляду на різних сайтах.",
   "appSettingsContentBlockerHint": "Блокує рекламу, трекери та небажані елементи сторінок за допомогою списків фільтрів, наприклад EasyList. Підтримує блокування на рівні доменів, косметичні CSS-фільтри для приховування елементів сторінки та правила приховування на основі тексту. Увімкніть або вимкніть окремі списки фільтрів нижче, а також перемикайте блокування вмісту для кожного сайту в його налаштуваннях.",
-  "appSettingsTabBarButton": "Кнопка панелі вкладок",
-  "appSettingsTabBarButtonSubtitle": "Показувати на весь екран маленьку кнопку, яка відкриває панель вкладок",
   "appSettingsTabBarButtonCorner": "Положення кнопки",
   "appSettingsTabMaxWidth": "Обмеження ширини вкладки",
-  "appSettingsTabMaxWidthSubtitle": "Обмежте, наскільки широкою може стати кожна вкладка, щоб довгі назви залишалися компактними"
+  "appSettingsTabMaxWidthSubtitle": "Обмежте, наскільки широкою може стати кожна вкладка, щоб довгі назви залишалися компактними",
+  "appSettingsFullscreenTabStrip": "На весь екран, панель вкладок",
+  "appSettingsFullscreenTabStripHidden": "Прихована",
+  "appSettingsFullscreenTabStripAlways": "Завжди видима",
+  "appSettingsFullscreenTabStripButton": "Показувати кнопкою"
 }

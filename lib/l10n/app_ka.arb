@@ -169,8 +169,6 @@
   "appSettingsInterface": "ინტერფეისი",
   "appSettingsSiteTabStrip": "საიტების ჩანართების ზოლი",
   "appSettingsSiteTabStripSubtitle": "ზემოთ აჩვენე ჩანართების ზოლი ყველა საიტით",
-  "appSettingsKeepTabStripFullscreen": "ჩანართების ზოლის შენარჩუნება სრულ ეკრანზე",
-  "appSettingsKeepTabStripFullscreenSubtitle": "შეინარჩუნე ჩანართების ზოლი ხილული სრულ ეკრანზე, ხოლო ზედა ზოლი დამალული დარჩეს",
   "appSettingsStatsBar": "სტატისტიკის ზოლი",
   "appSettingsStatsBarSubtitle": "აჩვენე მოთხოვნების ცოცხალი სტატისტიკა თითოეული საიტის ზემოთ",
   "appSettingsLinkHandling": "ბმულების დამუშავება",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "ჩამოტვირთავს Hagezi-ის ბლოკ-სიას ცნობილი სარეკლამო, თვალთვალისა და მავნე დომენების დასაბლოკად. აირჩიეთ სიმძიმის დონე Light-დან Ultimate-მდე. უფრო მაღალი დონე უფრო მეტ დომენს ბლოკავს, მაგრამ შეიძლება ზოგიერთ საიტზე ხელი შეუშალოს. ჩამოტვირთვის შემდეგ ჩართეთ ან გამორთეთ თითოეული საიტის პარამეტრებში.",
   "appSettingsLocalCdnHint": "ჩამოტვირთავს გავრცელებულ JavaScript ბიბლიოთეკებს, შრიფტებსა და CSS ფრეიმვორქებს, რათა ლოკალურად მიაწოდოს ისინი მაგიეზე, ვიდრე მესამე მხარის CDN სერვერებიდან (მაგ. Google, Cloudflare, jsDelivr) მიიღებდეს. ეს ხელს უშლის CDN პროვაიდერებს, თვალი მიადევნონ თქვენს ბრაუზინგს სხვადასხვა ვებსაიტებზე.",
   "appSettingsContentBlockerHint": "ბლოკავს რეკლამებს, თვალთვალსა და არასასურველ გვერდის ელემენტებს EasyList-ის მსგავსი ფილტრის სიების გამოყენებით. მხარს უჭერს დომენის დონის ბლოკირებას, CSS კოსმეტიკურ ფილტრებს გვერდის ელემენტების დასამალად და ტექსტზე დაფუძნებულ დამალვის წესებს. ქვემოთ ჩართეთ ან გამორთეთ ცალკეული ფილტრის სიები და კონტენტის ბლოკირება გადართეთ თითო საიტისთვის თითოეული საიტის პარამეტრებში.",
-  "appSettingsTabBarButton": "ჩანართების ზოლის ღილაკი",
-  "appSettingsTabBarButtonSubtitle": "სრულ ეკრანზე აჩვენე პატარა ღილაკი, რომელიც ხსნის ჩანართების ზოლს",
   "appSettingsTabBarButtonCorner": "ღილაკის პოზიცია",
   "appSettingsTabMaxWidth": "ჩანართის სიგანის ლიმიტი",
-  "appSettingsTabMaxWidthSubtitle": "შეზღუდე, რამდენად განიერი შეიძლება იყოს თითოეული ჩანართი, რომ გრძელი სახელები კომპაქტური დარჩეს"
+  "appSettingsTabMaxWidthSubtitle": "შეზღუდე, რამდენად განიერი შეიძლება იყოს თითოეული ჩანართი, რომ გრძელი სახელები კომპაქტური დარჩეს",
+  "appSettingsFullscreenTabStrip": "სრულ ეკრანზე, ჩანართების ზოლი",
+  "appSettingsFullscreenTabStripHidden": "დამალული",
+  "appSettingsFullscreenTabStripAlways": "ყოველთვის ხილული",
+  "appSettingsFullscreenTabStripButton": "ღილაკით გამოჩენა"
 }

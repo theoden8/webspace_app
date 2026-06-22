@@ -169,8 +169,6 @@
   "appSettingsInterface": "Vmesnik",
   "appSettingsSiteTabStrip": "Trak zavihkov strani",
   "appSettingsSiteTabStripSubtitle": "Pokaži vrstico zavihkov z vsemi stranmi na vrhu",
-  "appSettingsKeepTabStripFullscreen": "Ohrani trak zavihkov v celozaslonskem načinu",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Ohrani vrstico zavihkov vidno v celozaslonskem načinu, medtem ko zgornja vrstica ostane skrita",
   "appSettingsStatsBar": "Vrstica statistike",
   "appSettingsStatsBarSubtitle": "Pokaži statistiko zahtev v živo na vrhu vsake strani",
   "appSettingsLinkHandling": "Obravnava povezav",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Prenese seznam blokiranih Hagezi za blokiranje znanih oglaševalskih, sledilnih in zlonamernih domen. Izberite stopnjo resnosti od Lahke do Ultimativne. Višje stopnje blokirajo več domen, vendar lahko pokvarijo nekatera spletna mesta. Ko je preneseno, omogočite ali onemogočite za posamezno stran v nastavitvah vsake strani.",
   "appSettingsLocalCdnHint": "Prenese pogoste knjižnice JavaScript, pisave in ogrodja CSS za lokalno dostavljanje namesto pridobivanja s strežnikov CDN tretjih oseb (kot so Google, Cloudflare, jsDelivr). S tem preprečite, da bi ponudniki CDN sledili vašemu brskanju po različnih spletnih mestih.",
   "appSettingsContentBlockerHint": "Blokira oglase, sledilce in neželene elemente strani s pomočjo seznamov filtrov, kot je EasyList. Podpira blokiranje na ravni domen, kozmetične filtre CSS za skrivanje elementov strani in pravila za skrivanje na podlagi besedila. Spodaj omogočite ali onemogočite posamezne sezname filtrov in vklopite blokiranje vsebine za posamezno stran v nastavitvah vsake strani.",
-  "appSettingsTabBarButton": "Gumb vrstice zavihkov",
-  "appSettingsTabBarButtonSubtitle": "Pokaži majhen gumb v celozaslonskem načinu, ki odpre vrstico zavihkov",
   "appSettingsTabBarButtonCorner": "Položaj gumba",
   "appSettingsTabMaxWidth": "Omejitev širine zavihka",
-  "appSettingsTabMaxWidthSubtitle": "Omejite, kako širok je lahko vsak zavihek, da dolga imena ostanejo zgoščena"
+  "appSettingsTabMaxWidthSubtitle": "Omejite, kako širok je lahko vsak zavihek, da dolga imena ostanejo zgoščena",
+  "appSettingsFullscreenTabStrip": "V celozaslonskem načinu, vrstica zavihkov",
+  "appSettingsFullscreenTabStripHidden": "Skrito",
+  "appSettingsFullscreenTabStripAlways": "Vedno vidno",
+  "appSettingsFullscreenTabStripButton": "Pokaži z gumbom"
 }

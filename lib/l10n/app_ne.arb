@@ -169,8 +169,6 @@
   "appSettingsInterface": "इन्टरफेस",
   "appSettingsSiteTabStrip": "साइट ट्याब स्ट्रिप",
   "appSettingsSiteTabStripSubtitle": "माथि सबै साइटहरूसहितको ट्याब बार देखाउनुहोस्",
-  "appSettingsKeepTabStripFullscreen": "पूर्ण स्क्रिनमा ट्याब स्ट्रिप राख्नुहोस्",
-  "appSettingsKeepTabStripFullscreenSubtitle": "माथिल्लो बार लुकेको रहँदा पनि पूर्ण स्क्रिनमा ट्याब बार देखिने राख्नुहोस्",
   "appSettingsStatsBar": "तथ्याङ्क बार",
   "appSettingsStatsBarSubtitle": "प्रत्येक साइटको माथि लाइभ अनुरोध तथ्याङ्क देखाउनुहोस्",
   "appSettingsLinkHandling": "लिंक ह्यान्डलिङ",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "ज्ञात विज्ञापन, ट्र्याकिङ, र मालवेयर डोमेनहरू अवरोध गर्न Hagezi अवरोधसूची डाउनलोड गर्छ। Light देखि Ultimate सम्म गम्भीरता स्तर छान्नुहोस्। उच्च स्तरले बढी डोमेनहरू अवरोध गर्छ तर केही साइटहरू भाँच्न सक्छ। डाउनलोड गरिसकेपछि, प्रत्येक साइटको सेटिङमा प्रति-साइट सक्षम वा असक्षम गर्नुहोस्।",
   "appSettingsLocalCdnHint": "सामान्य JavaScript लाइब्रेरी, फन्ट, र CSS फ्रेमवर्कहरू तेस्रो-पक्ष CDN सर्भरहरू (जस्तै Google, Cloudflare, jsDelivr) बाट ल्याउनुको सट्टा स्थानीय रूपमा सेवा गर्न डाउनलोड गर्छ। यसले CDN प्रदायकहरूलाई विभिन्न वेबसाइटहरूमा तपाईंको ब्राउजिङ ट्र्याक गर्नबाट रोक्छ।",
   "appSettingsContentBlockerHint": "EasyList जस्ता फिल्टर सूचीहरू प्रयोग गरेर विज्ञापन, ट्र्याकर, र अनावश्यक पृष्ठ तत्त्वहरू अवरोध गर्छ। डोमेन-स्तरको अवरोध, पृष्ठ तत्त्वहरू लुकाउन CSS कस्मेटिक फिल्टर, र पाठ-आधारित लुकाउने नियमहरू समर्थन गर्छ। तल व्यक्तिगत फिल्टर सूचीहरू सक्षम वा असक्षम गर्नुहोस्, र प्रत्येक साइटको सेटिङमा प्रति-साइट सामग्री अवरोध टगल गर्नुहोस्।",
-  "appSettingsTabBarButton": "ट्याब बार बटन",
-  "appSettingsTabBarButtonSubtitle": "पूर्ण स्क्रिनमा ट्याब बार खोल्ने सानो बटन देखाउनुहोस्",
   "appSettingsTabBarButtonCorner": "बटनको स्थिति",
   "appSettingsTabMaxWidth": "ट्याब चौडाइ सीमा",
-  "appSettingsTabMaxWidthSubtitle": "लामो नामहरू सङ्कुचित रहून् भनेर प्रत्येक ट्याब कति चौडा हुन सक्छ भनेर सीमित गर्नुहोस्"
+  "appSettingsTabMaxWidthSubtitle": "लामो नामहरू सङ्कुचित रहून् भनेर प्रत्येक ट्याब कति चौडा हुन सक्छ भनेर सीमित गर्नुहोस्",
+  "appSettingsFullscreenTabStrip": "पूर्ण स्क्रिनमा, ट्याब बार",
+  "appSettingsFullscreenTabStripHidden": "लुकाइएको",
+  "appSettingsFullscreenTabStripAlways": "सधैं देखिने",
+  "appSettingsFullscreenTabStripButton": "बटनले देखाउनुहोस्"
 }

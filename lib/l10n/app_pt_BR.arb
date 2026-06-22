@@ -169,8 +169,6 @@
   "appSettingsInterface": "Interface",
   "appSettingsSiteTabStrip": "Barra de abas de sites",
   "appSettingsSiteTabStripSubtitle": "Mostrar uma barra de abas com todos os sites no topo",
-  "appSettingsKeepTabStripFullscreen": "Manter barra de abas em tela cheia",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Manter a barra de abas visível em tela cheia enquanto a barra superior fica oculta",
   "appSettingsStatsBar": "Barra de estatísticas",
   "appSettingsStatsBarSubtitle": "Mostrar estatísticas de requisições ao vivo no topo de cada site",
   "appSettingsLinkHandling": "Tratamento de links",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Baixa a lista de bloqueio Hagezi para bloquear domínios conhecidos de publicidade, rastreamento e malware. Escolha um nível de severidade de Light a Ultimate. Níveis mais altos bloqueiam mais domínios, mas podem quebrar alguns sites. Após o download, ative ou desative por site nas configurações de cada site.",
   "appSettingsLocalCdnHint": "Baixa bibliotecas JavaScript comuns, fontes e frameworks CSS para servi-los localmente em vez de buscá-los em servidores CDN de terceiros (como Google, Cloudflare, jsDelivr). Isso impede que provedores de CDN rastreiem sua navegação entre diferentes sites.",
   "appSettingsContentBlockerHint": "Bloqueia anúncios, rastreadores e elementos indesejados da página usando listas de filtros como EasyList. Suporta bloqueio no nível de domínio, filtros cosméticos CSS para ocultar elementos da página e regras de ocultação baseadas em texto. Ative ou desative listas de filtros individuais abaixo, e alterne o bloqueio de conteúdo por site nas configurações de cada site.",
-  "appSettingsTabBarButton": "Botão da barra de abas",
-  "appSettingsTabBarButtonSubtitle": "Mostrar um pequeno botão em tela cheia que abre a barra de abas",
   "appSettingsTabBarButtonCorner": "Posição do botão",
   "appSettingsTabMaxWidth": "Limite de largura da aba",
-  "appSettingsTabMaxWidthSubtitle": "Limite a largura de cada aba para que os nomes longos fiquem compactos"
+  "appSettingsTabMaxWidthSubtitle": "Limite a largura de cada aba para que os nomes longos fiquem compactos",
+  "appSettingsFullscreenTabStrip": "Em tela cheia, barra de abas",
+  "appSettingsFullscreenTabStripHidden": "Oculta",
+  "appSettingsFullscreenTabStripAlways": "Sempre visível",
+  "appSettingsFullscreenTabStripButton": "Mostrar com um botão"
 }

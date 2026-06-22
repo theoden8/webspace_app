@@ -169,8 +169,6 @@
   "appSettingsInterface": "Antarmuka",
   "appSettingsSiteTabStrip": "Bilah Tab Situs",
   "appSettingsSiteTabStripSubtitle": "Tampilkan bilah tab dengan semua situs di bagian atas",
-  "appSettingsKeepTabStripFullscreen": "Pertahankan Bilah Tab dalam Layar Penuh",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Pertahankan bilah tab terlihat dalam layar penuh sementara bilah atas tetap tersembunyi",
   "appSettingsStatsBar": "Bilah Statistik",
   "appSettingsStatsBarSubtitle": "Tampilkan statistik permintaan langsung di bagian atas setiap situs",
   "appSettingsLinkHandling": "Penanganan tautan",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Mengunduh daftar blokir Hagezi untuk memblokir domain iklan, pelacakan, dan malware yang dikenal. Pilih tingkat keparahan dari Ringan hingga Tertinggi. Tingkat yang lebih tinggi memblokir lebih banyak domain tetapi mungkin merusak beberapa situs. Setelah diunduh, aktifkan atau nonaktifkan per situs di pengaturan masing-masing situs.",
   "appSettingsLocalCdnHint": "Mengunduh pustaka JavaScript, font, dan kerangka CSS umum untuk disajikan secara lokal alih-alih mengambilnya dari server CDN pihak ketiga (seperti Google, Cloudflare, jsDelivr). Ini mencegah penyedia CDN melacak aktivitas penjelajahan Anda di berbagai situs web.",
   "appSettingsContentBlockerHint": "Memblokir iklan, pelacak, dan elemen halaman yang tidak diinginkan menggunakan daftar filter seperti EasyList. Mendukung pemblokiran tingkat domain, filter kosmetik CSS untuk menyembunyikan elemen halaman, dan aturan penyembunyian berbasis teks. Aktifkan atau nonaktifkan daftar filter individual di bawah ini, dan aktifkan pemblokiran konten per situs di pengaturan masing-masing situs.",
-  "appSettingsTabBarButton": "Tombol Bilah Tab",
-  "appSettingsTabBarButtonSubtitle": "Tampilkan tombol kecil di layar penuh yang membuka bilah tab",
   "appSettingsTabBarButtonCorner": "Posisi tombol",
   "appSettingsTabMaxWidth": "Batas Lebar Tab",
-  "appSettingsTabMaxWidthSubtitle": "Batasi seberapa lebar setiap tab agar nama yang panjang tetap ringkas"
+  "appSettingsTabMaxWidthSubtitle": "Batasi seberapa lebar setiap tab agar nama yang panjang tetap ringkas",
+  "appSettingsFullscreenTabStrip": "Di layar penuh, bilah tab",
+  "appSettingsFullscreenTabStripHidden": "Tersembunyi",
+  "appSettingsFullscreenTabStripAlways": "Selalu terlihat",
+  "appSettingsFullscreenTabStripButton": "Tampilkan dengan tombol"
 }

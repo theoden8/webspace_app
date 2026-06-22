@@ -169,8 +169,6 @@
   "appSettingsInterface": "Интерфейс",
   "appSettingsSiteTabStrip": "Сайтын таб мөр",
   "appSettingsSiteTabStripSubtitle": "Бүх сайтыг агуулсан таб мөрийг дээд талд харуулах",
-  "appSettingsKeepTabStripFullscreen": "Бүтэн дэлгэцэнд таб мөрийг хадгалах",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Дээд мөр нуугдсан байх үед бүтэн дэлгэцэнд таб мөрийг харагдуулна",
   "appSettingsStatsBar": "Статистикийн мөр",
   "appSettingsStatsBarSubtitle": "Сайт бүрийн дээд талд хүсэлтийн шууд статистик харуулах",
   "appSettingsLinkHandling": "Холбоос боловсруулалт",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Зар сурталчилгаа, хяналт, хортой домэйнуудыг хориглохын тулд Hagezi хориглох жагсаалтыг татдаг. Хөнгөн хүртэл Дээд зэрэглэл хүртэлх ноцтой байдлын түвшинг сонго. Өндөр түвшин нь илүү олон домэйнийг хориглох боловч зарим сайт ажиллахаа болиж болзошгүй. Татсаны дараа сайт тус бүрийн тохиргоонд идэвхжүүлэх эсвэл идэвхгүй болгоно.",
   "appSettingsLocalCdnHint": "Нийтлэг JavaScript сан, фонт, CSS framework-уудыг гуравдагч талын CDN серверүүдээс (Google, Cloudflare, jsDelivr гэх мэт) татахын оронд дотоод хадгалалтаас үйлчлэхийн тулд татдаг. Энэ нь CDN үйлчилгээ үзүүлэгчид таны хайлтыг өөр өөр вэбсайт хооронд хянахаас сэргийлдэг.",
   "appSettingsContentBlockerHint": "EasyList зэрэг шүүлтүүрийн жагсаалт ашиглан зар, хянагч, хүсээгүй хуудасны элементүүдийг хориглоно. Домэйн-түвшний хориглолт, хуудасны элементүүдийг нуух CSS гоо сайхны шүүлтүүр, текст дээр суурилсан нуух дүрмийг дэмждэг. Доор байгаа шүүлтүүрийн жагсаалт тус бүрийг идэвхжүүлж эсвэл унтраах боломжтой бөгөөд сайт тус бүрийн тохиргоонд контент хориглолтыг сайт тус бүрт тохируулна.",
-  "appSettingsTabBarButton": "Таб самбарын товч",
-  "appSettingsTabBarButtonSubtitle": "Бүтэн дэлгэцэд таб самбарыг нээдэг жижиг товч харуулах",
   "appSettingsTabBarButtonCorner": "Товчны байрлал",
   "appSettingsTabMaxWidth": "Табын өргөний хязгаар",
-  "appSettingsTabMaxWidthSubtitle": "Урт нэрс нягт байхын тулд таб бүр хэр өргөн болохыг хязгаарлана"
+  "appSettingsTabMaxWidthSubtitle": "Урт нэрс нягт байхын тулд таб бүр хэр өргөн болохыг хязгаарлана",
+  "appSettingsFullscreenTabStrip": "Бүтэн дэлгэцэд, таб самбар",
+  "appSettingsFullscreenTabStripHidden": "Нуусан",
+  "appSettingsFullscreenTabStripAlways": "Үргэлж харагдана",
+  "appSettingsFullscreenTabStripButton": "Товчоор харуулах"
 }

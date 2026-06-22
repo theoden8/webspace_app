@@ -169,8 +169,6 @@
   "appSettingsInterface": "ઇન્ટરફેસ",
   "appSettingsSiteTabStrip": "સાઇટ ટૅબ સ્ટ્રિપ",
   "appSettingsSiteTabStripSubtitle": "ઉપર બધી સાઇટ્સ સાથે ટૅબ બાર બતાવો",
-  "appSettingsKeepTabStripFullscreen": "પૂર્ણ સ્ક્રીનમાં ટૅબ સ્ટ્રિપ રાખો",
-  "appSettingsKeepTabStripFullscreenSubtitle": "ઉપરનો બાર છુપાયેલો રહે ત્યારે પૂર્ણ સ્ક્રીનમાં ટૅબ બાર દૃશ્યમાન રાખો",
   "appSettingsStatsBar": "આંકડા બાર",
   "appSettingsStatsBarSubtitle": "દરેક સાઇટની ઉપર લાઇવ વિનંતી આંકડા બતાવો",
   "appSettingsLinkHandling": "લિંક હેન્ડલિંગ",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "known advertising, tracking અને malware domains block કરવા Hagezi blocklist ડાઉનલોડ કરે છે. Light થી Ultimate severity level પસંદ કરો. ઊંચા levels વધુ domains block કરે પણ કેટલીક sites તૂટી શકે. ડાઉનલોડ પછી, દરેક site ના settings માં per-site enable/disable કરો.",
   "appSettingsLocalCdnHint": "સામાન્ય JavaScript libraries, fonts અને CSS frameworks ડાઉનલોડ કરે છે, જેથી third-party CDN servers (Google, Cloudflare, jsDelivr જેવા) પાસેથી fetch કરવાને બદલે locally serve થઈ શકે. આ CDN providers ને વિવિધ websites પર તમારી browsing track કરતા અટકાવે છે.",
   "appSettingsContentBlockerHint": "EasyList જેવી filter lists વાપરીને ads, trackers અને અનિચ્છનીય page elements block કરે છે. Domain-level blocking, page elements છુપાવવા CSS cosmetic filters અને text-based hiding rules ને સમર્થન આપે છે. નીચે individual filter lists enable/disable કરો, અને દરેક site ના settings માં per-site content blocking toggle કરો.",
-  "appSettingsTabBarButton": "ટૅબ બાર બટન",
-  "appSettingsTabBarButtonSubtitle": "પૂર્ણ સ્ક્રીનમાં એક નાનું બટન બતાવો જે ટૅબ બાર ખોલે છે",
   "appSettingsTabBarButtonCorner": "બટનની સ્થિતિ",
   "appSettingsTabMaxWidth": "ટૅબ પહોળાઈ મર્યાદા",
-  "appSettingsTabMaxWidthSubtitle": "દરેક ટૅબ કેટલી પહોળી થઈ શકે તે મર્યાદિત કરો જેથી લાંબા નામ સંકુચિત રહે"
+  "appSettingsTabMaxWidthSubtitle": "દરેક ટૅબ કેટલી પહોળી થઈ શકે તે મર્યાદિત કરો જેથી લાંબા નામ સંકુચિત રહે",
+  "appSettingsFullscreenTabStrip": "પૂર્ણ સ્ક્રીનમાં, ટૅબ બાર",
+  "appSettingsFullscreenTabStripHidden": "છુપાયેલ",
+  "appSettingsFullscreenTabStripAlways": "હંમેશા દૃશ્યમાન",
+  "appSettingsFullscreenTabStripButton": "બટન વડે બતાવો"
 }

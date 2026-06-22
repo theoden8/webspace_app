@@ -5710,16 +5710,15 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Whether the bottom tab strip should currently occupy the
   /// bottomNavigationBar slot. Out of fullscreen it follows the "Site Tab
-  /// Strip" pref. In fullscreen it shows when kept there by the global pref,
-  /// or temporarily revealed by the tab-bar button (which works on its own,
-  /// independent of the always-on strip).
+  /// Strip" pref. In fullscreen the behavior is an independent choice: always
+  /// visible, revealed on demand by the tab-bar button, or hidden.
   bool get _tabStripShown {
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
       return false;
     }
     if (_getFilteredSiteIndices().isEmpty) return false;
     if (_isFullscreen) {
-      if (_showTabStrip && _tabStripInFullscreen) return true;
+      if (_tabStripInFullscreen) return true;
       return _tabBarButtonInFullscreen && _tabBarOverlayVisible;
     }
     return _showTabStrip;
@@ -7233,7 +7232,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 // lives inside the bar instead.
                 if (_isFullscreen &&
                     _tabBarButtonInFullscreen &&
-                    !(_showTabStrip && _tabStripInFullscreen) &&
+                    !_tabStripInFullscreen &&
                     !_tabBarOverlayVisible)
                   Positioned(
                     bottom: 16,

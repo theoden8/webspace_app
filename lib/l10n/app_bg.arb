@@ -169,8 +169,6 @@
   "appSettingsInterface": "Интерфейс",
   "appSettingsSiteTabStrip": "Лента с раздели на сайтовете",
   "appSettingsSiteTabStripSubtitle": "Показвай лента с всички сайтове в горната част",
-  "appSettingsKeepTabStripFullscreen": "Запази лентата с раздели на цял екран",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Запази лентата с раздели видима на цял екран, докато горната лента остава скрита",
   "appSettingsStatsBar": "Лента със статистика",
   "appSettingsStatsBarSubtitle": "Показвай статистика на заявките в реално време в горната част на всеки сайт",
   "appSettingsLinkHandling": "Обработка на връзки",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Изтегля списъка за блокиране Hagezi, за да блокира известни рекламни, проследяващи и злонамерени домейни. Изберете ниво на строгост — от Light до Ultimate. По-високите нива блокират повече домейни, но може да нарушат работата на някои сайтове. След изтеглянето включете или изключете за всеки сайт поотделно в неговите настройки.",
   "appSettingsLocalCdnHint": "Изтегля често използвани JavaScript библиотеки, шрифтове и CSS рамки, за да ги предоставя локално вместо да ги извлича от CDN сървъри на трети страни (като Google, Cloudflare, jsDelivr). Това пречи на CDN доставчиците да проследяват сърфирането ви в различни уебсайтове.",
   "appSettingsContentBlockerHint": "Блокира реклами, проследяващи и нежелани елементи на страниците чрез списъци с филтри като EasyList. Поддържа блокиране на ниво домейн, CSS козметични филтри за скриване на елементи от страницата и правила за скриване по текст. Включете или изключете отделни списъци с филтри по-долу и управлявайте блокирането на съдържание за всеки сайт поотделно в неговите настройки.",
-  "appSettingsTabBarButton": "Бутон за лентата с раздели",
-  "appSettingsTabBarButtonSubtitle": "Показване на малък бутон на цял екран, който отваря лентата с раздели",
   "appSettingsTabBarButtonCorner": "Позиция на бутона",
   "appSettingsTabMaxWidth": "Ограничение на ширината на раздела",
-  "appSettingsTabMaxWidthSubtitle": "Ограничете колко широк може да стане всеки раздел, за да останат дългите имена компактни"
+  "appSettingsTabMaxWidthSubtitle": "Ограничете колко широк може да стане всеки раздел, за да останат дългите имена компактни",
+  "appSettingsFullscreenTabStrip": "На цял екран, лента с раздели",
+  "appSettingsFullscreenTabStripHidden": "Скрита",
+  "appSettingsFullscreenTabStripAlways": "Винаги видима",
+  "appSettingsFullscreenTabStripButton": "Показване с бутон"
 }

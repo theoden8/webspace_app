@@ -169,8 +169,6 @@
   "appSettingsInterface": "Интерфејс",
   "appSettingsSiteTabStrip": "Трака картица сајтова",
   "appSettingsSiteTabStripSubtitle": "Прикажи траку картица са свим сајтовима на врху",
-  "appSettingsKeepTabStripFullscreen": "Задржи траку картица у пуном екрану",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Задржи траку картица видљивом у пуном екрану док горња трака остаје сакривена",
   "appSettingsStatsBar": "Трака статистике",
   "appSettingsStatsBarSubtitle": "Прикажи статистику захтева уживо на врху сваког сајта",
   "appSettingsLinkHandling": "Руковање везама",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Преузима Hagezi листу блокирања ради блокирања познатих домена огласа, праћења и злонамерног софтвера. Изаберите ниво строгости од Light до Ultimate. Виши нивои блокирају више домена али могу нарушити рад неких сајтова. Када је преузето, омогућите или онемогућите по сајту у подешавањима сваког сајта.",
   "appSettingsLocalCdnHint": "Преузима уобичајене JavaScript библиотеке, фонтове и CSS оквире ради локалног сервирања уместо преузимања са CDN сервера трећих страна (попут Google, Cloudflare, jsDelivr). Ово спречава CDN провајдере да прате ваше прегледање на различитим сајтовима.",
   "appSettingsContentBlockerHint": "Блокира огласе, трагаче и нежељене елементе страница коришћењем листа филтера попут EasyList. Подржава блокирање на нивоу домена, CSS козметичке филтере за скривање елемената страна и правила скривања заснована на тексту. Омогућите или онемогућите поједине листе филтера испод, и укључите блокирање садржаја по сајту у подешавањима сваког сајта.",
-  "appSettingsTabBarButton": "Дугме траке картица",
-  "appSettingsTabBarButtonSubtitle": "Прикажи мало дугме у пуном екрану које отвара траку картица",
   "appSettingsTabBarButtonCorner": "Положај дугмета",
   "appSettingsTabMaxWidth": "Ограничење ширине картице",
-  "appSettingsTabMaxWidthSubtitle": "Ограничите колико свака картица може бити широка да би дугачка имена остала компактна"
+  "appSettingsTabMaxWidthSubtitle": "Ограничите колико свака картица може бити широка да би дугачка имена остала компактна",
+  "appSettingsFullscreenTabStrip": "На пуном екрану, трака картица",
+  "appSettingsFullscreenTabStripHidden": "Скривено",
+  "appSettingsFullscreenTabStripAlways": "Увек видљиво",
+  "appSettingsFullscreenTabStripButton": "Прикажи дугметом"
 }

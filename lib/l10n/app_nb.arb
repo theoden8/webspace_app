@@ -169,8 +169,6 @@
   "appSettingsInterface": "Grensesnitt",
   "appSettingsSiteTabStrip": "Nettsteds-fanelinje",
   "appSettingsSiteTabStripSubtitle": "Vis en fanelinje med alle nettsteder øverst",
-  "appSettingsKeepTabStripFullscreen": "Behold fanelinje i fullskjerm",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Hold fanelinjen synlig i fullskjerm mens topplinjen forblir skjult",
   "appSettingsStatsBar": "Statistikklinje",
   "appSettingsStatsBarSubtitle": "Vis sanntidsstatistikk for forespørsler øverst på hvert nettsted",
   "appSettingsLinkHandling": "Håndtering av lenker",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "Laster ned Hagezi-blokkeringslisten for å blokkere kjente reklame-, sporings- og skadevaredomener. Velg et alvorlighetsnivå fra Lett til Ultimat. Høyere nivåer blokkerer flere domener, men kan ødelegge noen nettsteder. Når den er lastet ned, kan du aktivere eller deaktivere den per nettsted i hvert nettsteds innstillinger.",
   "appSettingsLocalCdnHint": "Laster ned vanlige JavaScript-biblioteker, fonter og CSS-rammeverk for å serve dem lokalt i stedet for å hente dem fra tredjeparts CDN-servere (som Google, Cloudflare, jsDelivr). Dette forhindrer CDN-leverandører fra å spore nettlesingen din på tvers av ulike nettsteder.",
   "appSettingsContentBlockerHint": "Blokkerer reklame, sporere og uønskede sideelementer ved hjelp av filterlister som EasyList. Støtter blokkering på domenivå, kosmetiske CSS-filtre for å skjule sideelementer, og tekstbaserte skjuleregler. Aktiver eller deaktiver individuelle filterlister nedenfor, og slå innholdsblokkering av eller på per nettsted i hvert nettsteds innstillinger.",
-  "appSettingsTabBarButton": "Fanelinjeknapp",
-  "appSettingsTabBarButtonSubtitle": "Vis en liten knapp i fullskjerm som åpner fanelinjen",
   "appSettingsTabBarButtonCorner": "Knappplassering",
   "appSettingsTabMaxWidth": "Grense for fanebredde",
-  "appSettingsTabMaxWidthSubtitle": "Begrens hvor bred hver fane kan bli, slik at lange navn forblir kompakte"
+  "appSettingsTabMaxWidthSubtitle": "Begrens hvor bred hver fane kan bli, slik at lange navn forblir kompakte",
+  "appSettingsFullscreenTabStrip": "I fullskjerm, fanelinje",
+  "appSettingsFullscreenTabStripHidden": "Skjult",
+  "appSettingsFullscreenTabStripAlways": "Alltid synlig",
+  "appSettingsFullscreenTabStripButton": "Vis med knapp"
 }

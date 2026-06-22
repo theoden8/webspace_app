@@ -169,8 +169,6 @@
   "appSettingsInterface": "رابط کاربری",
   "appSettingsSiteTabStrip": "نوار زبانهٔ سایت‌ها",
   "appSettingsSiteTabStripSubtitle": "نمایش یک نوار زبانه با همهٔ سایت‌ها در بالا",
-  "appSettingsKeepTabStripFullscreen": "نگه‌داشتن نوار زبانه در حالت تمام‌صفحه",
-  "appSettingsKeepTabStripFullscreenSubtitle": "نوار زبانه را در تمام‌صفحه نمایان نگه می‌دارد در حالی که نوار بالا پنهان می‌ماند",
   "appSettingsStatsBar": "نوار آمار",
   "appSettingsStatsBarSubtitle": "نمایش آمار زندهٔ درخواست‌ها در بالای هر سایت",
   "appSettingsLinkHandling": "مدیریت پیوندها",
@@ -631,9 +629,11 @@
   "appSettingsDnsBlocklistHint": "فهرست مسدودی Hagezi را برای مسدود کردن دامنه‌های شناخته‌شدهٔ تبلیغاتی، ردیابی و بدافزار دانلود می‌کند. یک سطح شدت از Light تا Ultimate انتخاب کنید. سطوح بالاتر دامنه‌های بیشتری را مسدود می‌کنند اما ممکن است برخی سایت‌ها را خراب کنند. پس از دانلود، در تنظیمات هر سایت به‌ازای هر سایت فعال یا غیرفعال کنید.",
   "appSettingsLocalCdnHint": "کتابخانه‌های رایج JavaScript، فونت‌ها و چارچوب‌های CSS را دانلود می‌کند تا به‌جای دریافت از سرورهای CDN شخص ثالث (مانند Google، Cloudflare، jsDelivr) به‌صورت محلی ارائه شوند. این از ردیابی فعالیت مرور شما در وب‌سایت‌های مختلف توسط ارائه‌دهندگان CDN جلوگیری می‌کند.",
   "appSettingsContentBlockerHint": "تبلیغات، ردیاب‌ها و عناصر ناخواستهٔ صفحه را با استفاده از فهرست‌های فیلتر مانند EasyList مسدود می‌کند. از مسدودسازی در سطح دامنه، فیلترهای ظاهری CSS برای پنهان کردن عناصر صفحه و قواعد پنهان‌سازی مبتنی بر متن پشتیبانی می‌کند. فهرست‌های فیلتر را در زیر فعال یا غیرفعال کنید و مسدودسازی محتوا را در تنظیمات هر سایت به‌ازای هر سایت تغییر دهید.",
-  "appSettingsTabBarButton": "دکمه نوار زبانه‌ها",
-  "appSettingsTabBarButtonSubtitle": "نمایش یک دکمه کوچک در تمام‌صفحه که نوار زبانه‌ها را باز می‌کند",
   "appSettingsTabBarButtonCorner": "موقعیت دکمه",
   "appSettingsTabMaxWidth": "محدودیت عرض زبانه",
-  "appSettingsTabMaxWidthSubtitle": "محدود کنید هر زبانه چقدر می‌تواند پهن شود تا نام‌های طولانی فشرده بمانند"
+  "appSettingsTabMaxWidthSubtitle": "محدود کنید هر زبانه چقدر می‌تواند پهن شود تا نام‌های طولانی فشرده بمانند",
+  "appSettingsFullscreenTabStrip": "در تمام‌صفحه، نوار زبانه‌ها",
+  "appSettingsFullscreenTabStripHidden": "پنهان",
+  "appSettingsFullscreenTabStripAlways": "همیشه نمایان",
+  "appSettingsFullscreenTabStripButton": "نمایش با دکمه"
 }
