@@ -384,9 +384,17 @@ either target.
   (`usingCISystem`) re-signs with the sandbox disabled so the tool
   discovers the app's Dart VM Service instead of timing out 12 minutes
   on "log reader stopped unexpectedly"
-- **And** secure storage logs a benign `errSecMissingEntitlement`
-  (-34018) and falls back, since the integration tests do not assert
-  keychain persistence
+- **And** because no `keychain-access-groups` entitlement survives
+  (even a bare, de-prefixed one re-triggers the launch SIGKILL under
+  ad-hoc), `flutter_secure_storage`'s data-protection keychain fails
+  every op with `errSecMissingEntitlement` (-34018) and the legacy
+  keychain can't be selected instead (`MacOsOptions.usesDataProtection`
+  `Keychain` is a no-op — the Dart map key mismatches the native
+  `useDataProtectionKeyChain` the darwin plugin reads); the two tests
+  that *assert* keychain persistence (`proxy_auth_test`,
+  `settings_backup_roundtrip_test`) are therefore skipped on macOS (they
+  keep their Linux coverage via pass-secret-service), while every other
+  test tolerates the logged, non-fatal -34018
 - **And** the override never reaches a release build — the runner
   checks out fresh and release builds keep the committed entitlements
   plus a real signing identity

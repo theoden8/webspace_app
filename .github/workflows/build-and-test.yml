@@ -807,13 +807,17 @@ jobs:
       #    *team-prefixed* keys ($(AppIdentifierPrefix)…) — taskgated
       #    SIGKILLs it at launch as "Code Signature Invalid" because the
       #    ad-hoc signature can't back that team. Overwrite with the stock
-      #    Flutter debug set, drop application-groups, and de-prefix
-      #    keychain-access-groups to the bare bundle id (a self-claim ad-hoc
-      #    accepts). Without a valid keychain access group, flutter_secure_
-      #    storage's data-protection keychain fails every read/write with
-      #    errSecMissingEntitlement (-34018) — and usesDataProtectionKeychain
-      #    can't turn that off (upstream Dart key `usesDataProtectionKeychain`
-      #    vs native `useDataProtectionKeyChain` mismatch, so it's ignored).
+      #    Flutter debug set, dropping application-groups and
+      #    keychain-access-groups entirely (even a bare, de-prefixed
+      #    keychain-access-groups re-triggers the launch SIGKILL under
+      #    ad-hoc). Consequence: flutter_secure_storage's data-protection
+      #    keychain has no valid access group and fails every read/write
+      #    with errSecMissingEntitlement (-34018); the legacy keychain
+      #    can't be selected instead (MacOsOptions.usesDataProtectionKeychain
+      #    is a no-op — the Dart key doesn't match the native
+      #    `useDataProtectionKeyChain` the darwin plugin reads). So the two
+      #    tests that *assert* keychain persistence are skipped on macOS
+      #    below; every other test tolerates the -34018 (logged, non-fatal).
       # 2. --ci. Even ad-hoc-valid, a sandboxed debug app never surfaces its
       #    Dart VM Service to `flutter test` on the runner ("log reader
       #    stopped unexpectedly", 12-min timeout). `--ci` (usingCISystem)
@@ -844,16 +848,28 @@ jobs:
           	<true/>
           	<key>com.apple.security.network.client</key>
           	<true/>
-          	<key>keychain-access-groups</key>
-          	<array>
-          		<string>org.codeberg.theoden8.webspace</string>
-          	</array>
           </dict>
           </plist>
           EOF
           status=0
           for t in integration_test/*_test.dart; do
-            [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+            case "$(basename "$t")" in
+              # Fastlane-only screenshot generator (handled separately).
+              screenshot_test.dart) continue ;;
+              # These assert flutter_secure_storage round-trips. The ad-hoc
+              # CI host can't use the keychain: the data-protection keychain
+              # needs a keychain-access-groups entitlement ad-hoc signing
+              # can't carry (a team-prefixed one SIGKILLs at launch, a bare
+              # one too), and the legacy keychain can't be selected
+              # (MacOsOptions.usesDataProtectionKeychain is a no-op — the
+              # Dart key doesn't match the native `useDataProtectionKeyChain`
+              # the darwin plugin reads). Both run on Linux via
+              # pass-secret-service; the macOS keychain gap is a CI-signing
+              # artifact, not an app bug.
+              proxy_auth_test.dart|settings_backup_roundtrip_test.dart)
+                echo "skip $t on macOS (ad-hoc keychain has no entitlement)"
+                continue ;;
+            esac
             echo "::group::$t"
             fvm flutter test "$t" -d macos --ci || status=$?
             echo "::endgroup::"
