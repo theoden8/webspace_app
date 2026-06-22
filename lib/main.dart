@@ -4595,6 +4595,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       _isFullscreen = true;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // Removing the app bar / changing the bottom bar resizes the webview; on
+    // Android the hybrid-composition SurfaceView can come back with a 1px dark
+    // seam at the bottom edge until it recomposites. github #421-followup
+    _nudgeSurfaceRepaint();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(AppLocalizations.of(context).homeExitFullscreenHint),
@@ -4611,6 +4615,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       _tabBarOverlayVisible = false;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _nudgeSurfaceRepaint();
   }
 
   void _toggleFullscreen() {
@@ -5768,9 +5773,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                 icon: const Icon(Icons.close),
                 iconSize: 20,
                 visualDensity: VisualDensity.compact,
-                onPressed: () => setState(() {
-                  _tabBarOverlayVisible = false;
-                }),
+                onPressed: () {
+                  setState(() {
+                    _tabBarOverlayVisible = false;
+                  });
+                  _nudgeSurfaceRepaint();
+                },
               ),
             Expanded(
               child: ListView.builder(
@@ -7254,9 +7262,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                       elevation: 3,
                       child: InkWell(
                         customBorder: const CircleBorder(),
-                        onTap: () => setState(() {
-                          _tabBarOverlayVisible = true;
-                        }),
+                        onTap: () {
+                          setState(() {
+                            _tabBarOverlayVisible = true;
+                          });
+                          _nudgeSurfaceRepaint();
+                        },
                         child: Padding(
                           padding: const EdgeInsets.all(10),
                           child: Icon(
