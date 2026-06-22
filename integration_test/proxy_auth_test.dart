@@ -26,8 +26,6 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
-import 'secure_storage_fake.dart';
-
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -42,7 +40,6 @@ void main() {
 
   setUpAll(() async {
     isDemoMode = true;
-    await installInMemoryKeychainIfUnavailable();
 
     final site = WebViewModel(
       siteId: 'proxy-1',

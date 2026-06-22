@@ -815,9 +815,10 @@ jobs:
       #    with errSecMissingEntitlement (-34018); the legacy keychain
       #    can't be selected instead (MacOsOptions.usesDataProtectionKeychain
       #    is a no-op — the Dart key doesn't match the native
-      #    `useDataProtectionKeyChain` the darwin plugin reads). Tests that
-      #    need a working keychain install an in-memory fake when the real
-      #    one is unavailable (integration_test/secure_storage_fake.dart,
+      #    `useDataProtectionKeyChain` the darwin plugin reads). The one
+      #    test that *asserts* keychain persistence (settings_backup_
+      #    roundtrip) installs an in-memory fake when the real keychain is
+      #    unavailable (integration_test/secure_storage_fake.dart,
       #    capability-probed so Linux keeps its pass-secret-service path);
       #    every other test tolerates the -34018 (logged, non-fatal).
       # 2. --ci. Even ad-hoc-valid, a sandboxed debug app never surfaces its
@@ -855,7 +856,18 @@ jobs:
           EOF
           status=0
           for t in integration_test/*_test.dart; do
-            [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
+            case "$(basename "$t")" in
+              # Fastlane-only screenshot generator (handled separately).
+              screenshot_test.dart) continue ;;
+              # Asserts the Android-only inapp.ProxyController.setProxyOverride
+              # path. macOS applies the per-site proxy via the container
+              # network session (InAppWebViewSettings.proxySettings set at
+              # WebView construction), so that channel never fires here —
+              # the test can't pass as written. Covered on Linux + Android.
+              proxy_auth_test.dart)
+                echo "skip $t on macOS (Android-only ProxyController path)"
+                continue ;;
+            esac
             echo "::group::$t"
             fvm flutter test "$t" -d macos --ci || status=$?
             echo "::endgroup::"
