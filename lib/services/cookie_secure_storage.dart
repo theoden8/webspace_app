@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:webspace/services/secure_storage_options.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/webview.dart';
@@ -43,11 +42,9 @@ class CookieSecureStorage {
   bool _secureStorageAvailable = true;
 
   CookieSecureStorage({FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ?? FlutterSecureStorage(
-          aOptions: const AndroidOptions(encryptedSharedPreferences: true),
-          iOptions: const IOSOptions(
-              accessibility: KeychainAccessibility.first_unlock),
-          mOptions: demoAwareMacOsOptions(),
+      : _secureStorage = secureStorage ?? const FlutterSecureStorage(
+          aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
         );
 
   /// Loads cookies for all sites from both storages:

@@ -6,7 +6,6 @@ import 'package:webspace/services/log_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:webspace/services/secure_storage_options.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 
 /// Service to cache HTML content per site for offline viewing and faster loads.
@@ -35,8 +34,7 @@ class HtmlCacheService {
   /// In-memory cache for sync access during build
   final Map<String, String> _memoryCache = {};
 
-  FlutterSecureStorage _secureStorage =
-      FlutterSecureStorage(mOptions: demoAwareMacOsOptions());
+  FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   /// Initialize the cache service. Call on app startup.
   ///

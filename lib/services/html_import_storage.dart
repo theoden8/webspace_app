@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:webspace/services/secure_storage_options.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 
 /// Persistent AES-encrypted storage for user-imported HTML files.
@@ -26,8 +25,7 @@ class HtmlImportStorage {
   HtmlImportStorage({
     FlutterSecureStorage? secureStorage,
     Directory? overrideAppDir,
-  })  : _secureStorage = secureStorage ??
-            FlutterSecureStorage(mOptions: demoAwareMacOsOptions()),
+  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
         _overrideAppDir = overrideAppDir;
 
   final FlutterSecureStorage _secureStorage;

@@ -4,7 +4,6 @@ import 'dart:typed_data';
 
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:webspace/services/secure_storage_options.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,8 +58,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     FlutterSecureStorage? secureStorage,
     Directory? overrideAppDir,
     String Function()? versionProvider,
-  })  : _secureStorage = secureStorage ??
-            FlutterSecureStorage(mOptions: demoAwareMacOsOptions()),
+  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
         _overrideAppDir = overrideAppDir,
         _versionProvider = versionProvider;
 

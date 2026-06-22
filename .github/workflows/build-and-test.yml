@@ -804,13 +804,16 @@ jobs:
       #
       # 1. Entitlements. CI has no Apple signing identity, so the debug app
       #    is ad-hoc signed, which can't satisfy the committed file's
-      #    provisioning-dependent keys (team-prefixed application-groups,
-      #    keychain-access-groups) — taskgated SIGKILLs it at launch as
-      #    "Code Signature Invalid". Overwrite with the stock Flutter debug
-      #    set (app-sandbox + network.server + jit + files.user-selected)
-      #    minus only those two keys. (Secure storage then logs a benign
-      #    errSecMissingEntitlement -34018 and falls back; integration tests
-      #    don't assert keychain persistence.)
+      #    *team-prefixed* keys ($(AppIdentifierPrefix)…) — taskgated
+      #    SIGKILLs it at launch as "Code Signature Invalid" because the
+      #    ad-hoc signature can't back that team. Overwrite with the stock
+      #    Flutter debug set, drop application-groups, and de-prefix
+      #    keychain-access-groups to the bare bundle id (a self-claim ad-hoc
+      #    accepts). Without a valid keychain access group, flutter_secure_
+      #    storage's data-protection keychain fails every read/write with
+      #    errSecMissingEntitlement (-34018) — and usesDataProtectionKeychain
+      #    can't turn that off (upstream Dart key `usesDataProtectionKeychain`
+      #    vs native `useDataProtectionKeyChain` mismatch, so it's ignored).
       # 2. --ci. Even ad-hoc-valid, a sandboxed debug app never surfaces its
       #    Dart VM Service to `flutter test` on the runner ("log reader
       #    stopped unexpectedly", 12-min timeout). `--ci` (usingCISystem)
@@ -841,6 +844,10 @@ jobs:
           	<true/>
           	<key>com.apple.security.network.client</key>
           	<true/>
+          	<key>keychain-access-groups</key>
+          	<array>
+          		<string>org.codeberg.theoden8.webspace</string>
+          	</array>
           </dict>
           </plist>
           EOF
