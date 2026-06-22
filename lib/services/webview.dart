@@ -490,6 +490,16 @@ class WebViewConfig {
   final String? userAgent;
   final bool thirdPartyCookiesEnabled;
   final bool incognito;
+  /// iOS/macOS only: enable WKWebView's native back/forward swipe gesture
+  /// (`allowsBackForwardNavigationGestures`). Set only for the root site
+  /// webview, which lives at the `MaterialApp` root route where no Flutter
+  /// route-pop edge-swipe exists — so without this Apple has no reliable
+  /// back-swipe in the main view (the `PopScope` handler only fires for
+  /// pushable routes). Nested `InAppWebViewScreen`s leave this false: they
+  /// are pushed routes whose own PopScope navigates webview-back and pops
+  /// the route at history start (NAV-008), which the native gesture would
+  /// otherwise hijack. No effect on Android.
+  final bool backForwardGestures;
   /// Language code for Accept-Language header (e.g., 'en', 'es', 'fr').
   /// If null, uses system default.
   final String? language;
@@ -655,6 +665,7 @@ class WebViewConfig {
     this.userAgent,
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
+    this.backForwardGestures = false,
     this.language,
     this.zoomPercent = 100,
     this.clearUrlEnabled = true,
@@ -2243,6 +2254,9 @@ class WebViewFactory {
       ..cacheMode = usesCachedHtml ? inapp.CacheMode.LOAD_CACHE_ELSE_NETWORK : null
       // iOS: play videos inline instead of auto-fullscreen
       ..allowsInlineMediaPlayback = true
+      // iOS/macOS: native Safari-style horizontal swipe for back/forward.
+      // Only the root site webview opts in (see WebViewConfig.backForwardGestures).
+      ..allowsBackForwardNavigationGestures = config.backForwardGestures
       // Required for onDownloadStartRequest to fire when the webview
       // navigates to a downloadable response (Content-Disposition:
       // attachment, or an unrecognized MIME type). Without this, the

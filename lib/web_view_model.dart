@@ -466,6 +466,16 @@ class WebViewModel {
   bool get effectiveHtmlCachingEnabled =>
       isArchiveTier ? false : htmlCachingEnabled;
 
+  /// Whether this site may persist/restore webview navigation state
+  /// (`controller.saveState()` bytes) to the device-key on-disk store.
+  /// Single source of truth for the capture, debounce, and cold-start
+  /// restore gates. False for:
+  /// - **archive-tier** (ARCH-006): the bytes would land in a per-`siteId`
+  ///   file whose existence correlates to a specific archive site on disk;
+  ///   archive state lives only in the slot-pool ciphertext, never a file.
+  /// - **incognito**: navigation state is meant to be ephemeral.
+  bool get persistsNavState => !isArchiveTier && !incognito;
+
   /// Effective protected-content (Widevine/EME) decision. Archive-tier
   /// sites never grant DRM regardless of stored value: a grant provisions
   /// a per-container Widevine device identifier on disk and the prompt is
@@ -783,6 +793,10 @@ class WebViewModel {
           userAgent: userAgent.isNotEmpty ? userAgent : null,
           thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
           incognito: incognito,
+          // Root site webview sits at the MaterialApp root route: on iOS/macOS
+          // there is no Flutter route-pop edge-swipe here, so opt into
+          // WKWebView's native back/forward swipe. Nested screens don't (NAV-008).
+          backForwardGestures: true,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
           zoomPercent: zoomPercent,
           // Umbrella `trackingProtectionEnabled`: when on, the four

@@ -462,6 +462,19 @@ WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
 // Cache for page titles
 final Map<String, String?> _pageTitleCache = {};
 
+/// Test seam: when set, the page state uses this store instead of
+/// constructing a [SecureWebViewStateStorage]. Lets integration tests
+/// inject an in-memory store that survives a simulated restart (re-run of
+/// [main]) without a platform keychain backend.
+@visibleForTesting
+WebViewStateStorage? debugWebViewStateStorageOverride;
+
+/// Test seam: live reference to the current run's loaded site models, so
+/// integration tests can reach a webview controller (URL, back/forward,
+/// restore state) the widget tree doesn't otherwise expose.
+@visibleForTesting
+List<WebViewModel>? debugWebViewModels;
+
 // Get page title by parsing HTML (fallback for platforms without native title support)
 Future<String?> getPageTitle(String url) async {
   // Check cache first
@@ -993,7 +1006,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   // keyed by siteId; re-activation reads it and pre-populates the
   // model's `_pendingRestoreState` so onControllerCreated can apply
   // it to the freshly-built controller.
-  final WebViewStateStorage _stateStorage = SecureWebViewStateStorage();
+  final WebViewStateStorage _stateStorage =
+      debugWebViewStateStorageOverride ?? SecureWebViewStateStorage();
 
   // Track which webview indices have been loaded (for lazy loading)
   // Only webviews in this set will be created - others remain as placeholders
@@ -1054,6 +1068,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   @override
   void initState() {
     super.initState();
+    debugWebViewModels = _webViewModels;
     WidgetsBinding.instance.addObserver(this);
     _restoreAppState();
     _refreshPinnedSiteIds();
@@ -3144,18 +3159,20 @@ class _WebSpacePageState extends State<WebSpacePage>
     _activationInFlightIndex = index;
     try {
 
-    // If the target was disposed under memory pressure (lifecycleState
-    // == savedForRestore), fetch its captured navigation state and
-    // hand it to the model so the soon-to-be-built controller's
-    // onControllerCreated handler can apply restoreState. Resets the
-    // tier to live regardless — the about-to-be-resumed webview
-    // is back at the lowest tier.
-    // ARCH-006: archive-tier sites never persist webview state to
-    // disk (`_captureStateBytes` early-returns for them), so there's
-    // nothing on disk to restore. Skip the load to avoid a per-site
-    // disk hit that would correlate to the archive siteId.
-    if (target.lifecycleState == SiteLifecycleState.savedForRestore &&
-        !target.isArchiveTier) {
+    // Whenever the target is about to be built fresh (not already in
+    // `_loadedIndices`), fetch any saved navigation state and hand it to
+    // the model so the soon-to-be-built controller's onControllerCreated
+    // handler can apply restoreState. This covers both in-session
+    // re-activation of a `savedForRestore` site AND a cold start, where
+    // every site loads from JSON at the default `resident` tier yet the
+    // bytes persisted on the previous run (on navigation / backgrounding)
+    // still sit on disk — that's the cross-restart back/forward restore.
+    //
+    // Skipped when the webview is already loaded (rebuild won't recreate
+    // the controller, so a queued restore would be stale) and for sites
+    // that never persist nav state — incognito (ephemeral) and
+    // archive-tier (ARCH-006: state lives only in the slot ciphertext).
+    if (!_loadedIndices.contains(index) && target.persistsNavState) {
       final bytes = await _stateStorage.loadState(target.siteId);
       if (version != _setCurrentIndexVersion) return;
       if (bytes != null) {
@@ -3167,11 +3184,11 @@ class _WebSpacePageState extends State<WebSpacePage>
           sensitivity: LogSensitivity.sensitive,
         );
       }
-      target.lifecycleState = SiteLifecycleState.resident;
-    } else if (target.lifecycleState != SiteLifecycleState.resident) {
-      // cacheCleared promoted back to live on activation — the user
-      // is interacting with it again, so any subsequent memory
-      // pressure starts the cascade fresh from the live tier.
+    }
+    // The about-to-be-resumed webview is back at the lowest tier; reset
+    // regardless of how it got here (savedForRestore dispose, cacheCleared
+    // promotion, or a fresh cold-start load).
+    if (target.lifecycleState != SiteLifecycleState.resident) {
       target.lifecycleState = SiteLifecycleState.resident;
     }
 
@@ -3440,12 +3457,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// app-background) should leave the state at [SiteLifecycleState.resident]
   /// since the webview is still in memory.
   Future<bool> _captureStateBytes(WebViewModel model) async {
-    if (model.incognito) return false;
-    // ARCH-006: per-site webview state is keyed by siteId on disk
-    // (encrypted, but the file's existence + path leaks archive site
-    // identity to forensic inspection, and the bytes encode the
-    // back/forward URL stack). Archive-tier sites never capture.
-    if (model.isArchiveTier) return false;
+    // Archive-tier (ARCH-006) and incognito sites never persist nav state.
+    if (!model.persistsNavState) return false;
     final bytes = await model.captureNavigationState();
     if (bytes == null) return false;
     await _stateStorage.saveState(model.siteId, bytes);
@@ -6987,7 +7000,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                           isArchiveTier: webViewModel.isArchiveTier,
                           initUrl: webViewModel.initUrl,
                         );
-
                         return SizedBox.expand(
                           key: ValueKey(webViewModel.siteId),
                           child: Column(
