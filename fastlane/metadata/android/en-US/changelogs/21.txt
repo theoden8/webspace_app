@@ -4,3 +4,4 @@
 • Faster launch from home shortcuts
 • Android rendering on site switch
 • Always-open-home no longer resets
+• Ad-blocking statistics
