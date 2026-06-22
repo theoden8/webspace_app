@@ -390,11 +390,14 @@ either target.
   every op with `errSecMissingEntitlement` (-34018) and the legacy
   keychain can't be selected instead (`MacOsOptions.usesDataProtection`
   `Keychain` is a no-op — the Dart map key mismatches the native
-  `useDataProtectionKeyChain` the darwin plugin reads); the two tests
-  that *assert* keychain persistence (`proxy_auth_test`,
-  `settings_backup_roundtrip_test`) are therefore skipped on macOS (they
-  keep their Linux coverage via pass-secret-service), while every other
-  test tolerates the logged, non-fatal -34018
+  `useDataProtectionKeyChain` the darwin plugin reads); tests that need
+  a working keychain (`proxy_auth_test`, `settings_backup_roundtrip_test`)
+  therefore call `installInMemoryKeychainIfUnavailable()`
+  (`integration_test/secure_storage_fake.dart`), which probes the real
+  plugin and installs an in-memory channel fake only when it throws — so
+  macOS runs them with the fake while Linux keeps its real
+  pass-secret-service round-trip — and every other test tolerates the
+  logged, non-fatal -34018
 - **And** the override never reaches a release build — the runner
   checks out fresh and release builds keep the committed entitlements
   plus a real signing identity
