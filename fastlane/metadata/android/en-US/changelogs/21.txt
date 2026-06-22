@@ -1,6 +1,5 @@
 🐛 Bug Fixes:
-• Swipe back/forward navigation
-• Tab history restored after restart
+• Swipe back/forward navigation and history restore
 • Faster launch from home shortcuts
 • Android rendering on site switch
 • Always-open-home no longer resets
