@@ -398,14 +398,15 @@ either target.
   macOS runs them with the fake while Linux keeps its real
   pass-secret-service round-trip — and every other test tolerates the
   logged, non-fatal -34018
-- **And** `proxy_auth_test` runs on macOS too: rather than assert the
-  Android/Linux-only `inapp.ProxyController.setProxyOverride` channel
-  (which macOS never calls — it applies the per-site proxy natively via
-  the container `WKWebsiteDataStore` network session), it reads the
-  credential-embedded proxy off the mounted WebView's
-  `initialSettings.proxySettings` (set identically on every platform at
-  construction) and only additionally checks the ProxyController channel
-  off iOS/macOS
+- **And** `proxy_auth_test` runs on macOS too: the per-site proxy
+  delivery is mutually exclusive per platform (webview.dart only sets
+  `initialSettings.proxySettings` on iOS/macOS, where the fork applies it
+  to the container `WKWebsiteDataStore` network session; Android/Linux
+  leave it null and route through `inapp.ProxyController.setProxyOverride`),
+  so the test branches: on iOS/macOS it reads the credential-embedded
+  proxy off the mounted WebView's `initialSettings.proxySettings`; on
+  Android/Linux it asserts the captured `setProxyOverride` channel call —
+  both checking the same host:port + username + secure-storage password
 - **And** the override never reaches a release build — the runner
   checks out fresh and release builds keep the committed entitlements
   plus a real signing identity

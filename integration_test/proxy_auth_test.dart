@@ -126,40 +126,42 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
     }
 
-    // Cross-platform proof (PWD-005): the activated site's WebView is built
-    // with the effective proxy, credentials embedded in the rule URL. On
-    // iOS/macOS this `initialSettings.proxySettings` IS the delivery (the
-    // fork applies it to the per-container WKWebsiteDataStore network
-    // session); on Android/Linux it rides alongside the ProxyController
-    // path. Reading it off the widget works everywhere and needs no live
-    // network stack.
-    final webviewFinder = find.byType(inapp.InAppWebView);
-    expect(webviewFinder, findsWidgets,
-        reason: 'activating the site should mount its WebView');
-    final builtRules = tester
-        .widget<inapp.InAppWebView>(webviewFinder.first)
-        .platform
-        .params
-        .initialSettings
-        ?.proxySettings
-        ?.proxyRules;
-    expect(builtRules, isNotNull,
-        reason: 'per-site WebView should be built with a proxy');
-    expect(builtRules, isNotEmpty);
-    final builtUrl = builtRules!.first.url;
-    expect(builtUrl, isNotNull);
-    expect(builtUrl, startsWith('http://'),
-        reason: 'HTTP proxy type should produce http:// scheme');
-    expect(builtUrl, contains('198.51.100.1:8080'),
-        reason: 'proxy URL should carry the configured host:port');
-    expect(builtUrl, contains('puser'),
-        reason: 'proxy URL should embed the per-site username');
-    expect(builtUrl, contains('sekret-pass'),
-        reason: 'proxy URL should embed the password loaded from secure storage');
-
-    // Android/Linux additionally route through inapp.ProxyController; iOS and
-    // macOS apply the proxy natively at construction and never call it.
-    if (!Platform.isIOS && !Platform.isMacOS) {
+    // PWD-005: the per-site proxy carries the embedded credentials (the
+    // password loaded from secure storage). The delivery mechanism is
+    // mutually exclusive per platform, so assert the one that actually
+    // fires (webview.dart:2195 only sets initialSettings.proxySettings on
+    // iOS/macOS; Android/Linux leave it null and route through
+    // ProxyController instead).
+    if (Platform.isIOS || Platform.isMacOS) {
+      // iOS/macOS: proxy baked into the WebView's
+      // initialSettings.proxySettings at construction; the fork applies it
+      // to the per-container WKWebsiteDataStore network session. Read it off
+      // the mounted widget — no live network stack needed.
+      final webviewFinder = find.byType(inapp.InAppWebView);
+      expect(webviewFinder, findsWidgets,
+          reason: 'activating the site should mount its WebView');
+      final rules = tester
+          .widget<inapp.InAppWebView>(webviewFinder.first)
+          .platform
+          .params
+          .initialSettings
+          ?.proxySettings
+          ?.proxyRules;
+      expect(rules, isNotNull,
+          reason: 'iOS/macOS WebView should be built with a proxy');
+      expect(rules, isNotEmpty);
+      final url = rules!.first.url;
+      expect(url, isNotNull);
+      expect(url, startsWith('http://'),
+          reason: 'HTTP proxy type should produce http:// scheme');
+      expect(url, contains('198.51.100.1:8080'),
+          reason: 'proxy URL should carry the configured host:port');
+      expect(url, contains('puser'),
+          reason: 'proxy URL should embed the per-site username');
+      expect(url, contains('sekret-pass'),
+          reason: 'proxy URL should embed the password from secure storage');
+    } else {
+      // Android/Linux: proxy delivered via inapp.ProxyController.setProxyOverride.
       final overrides =
           capturedCalls.where((c) => c.method == 'setProxyOverride').toList();
       if (overrides.isEmpty) {
@@ -175,9 +177,15 @@ void main() {
       final rules = (settings?['proxyRules'] as List?);
       expect(rules, isNotNull);
       final url = (rules!.first as Map)['url'] as String?;
-      expect(url, contains('198.51.100.1:8080'));
+      expect(url, isNotNull, reason: 'proxy rule should carry a url');
+      expect(url, startsWith('http://'),
+          reason: 'HTTP proxy type should produce http:// scheme');
+      expect(url, contains('198.51.100.1:8080'),
+          reason: 'proxy URL should carry the configured host:port');
+      expect(url, contains('puser'),
+          reason: 'proxy URL should embed the per-site username');
       expect(url, contains('sekret-pass'),
-          reason: 'ProxyController URL should embed the password too');
+          reason: 'proxy URL should embed the password from secure storage');
     }
   });
 }
