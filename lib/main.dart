@@ -1624,6 +1624,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     void tick() {
       if (!mounted || _nudgeTicksRemaining <= 0) {
         _nudgeLoopRunning = false;
+        // Always settle at a zero inset. The plain toggle leaves the 1px inset
+        // applied when the tick budget is refilled mid-loop (the coalesced
+        // shortcut + resume case) lands on an odd total, which would otherwise
+        // leave a thin dark sliver between the webview and the tab strip.
+        if (mounted && _repaintNudge) {
+          setState(() => _repaintNudge = false);
+        }
         return;
       }
       _nudgeTicksRemaining--;
