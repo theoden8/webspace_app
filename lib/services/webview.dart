@@ -1320,23 +1320,17 @@ class WebViewFactory {
   else{document.addEventListener('DOMContentLoaded',apply);}
 })();''';
 
-  /// Per-site browser-style page zoom. CSS `zoom` scales the whole page
-  /// (text and images) and is honoured by Chromium and modern WebKit
-  /// (Safari 17+/WPE 2.40+), so a single CSS path covers every platform —
-  /// no native textZoom split. Injected at DOCUMENT_START via a re-applied
-  /// style element so it survives same-document navigations and reaches
-  /// iframes.
-  ///
-  /// `zoom` alone scales the root box but leaves the layout viewport at
-  /// device-width, so a <100% zoom renders the page small with empty
-  /// gutters instead of reflowing to fill the screen like a desktop
-  /// browser does. Widening the root by the inverse zoom factor expands
-  /// the layout viewport first; `zoom` then scales it back to fill the
-  /// viewport, so content reflows and no gutter is left.
-  static String _pageZoomCss(int zoomPercent) {
-    final widthPercent = _trimZoomNum(100 * 100 / zoomPercent);
-    return 'html{zoom:$zoomPercent% !important;width:$widthPercent% !important;}';
-  }
+  /// Per-site browser-style page zoom — desktop fallback path. CSS `zoom`
+  /// scales the whole page (text and images) and is honoured by Chromium
+  /// and modern WebKit (Safari 17+/WPE 2.40+), reflowing the layout to fill
+  /// the window. Used on desktop engines (which ignore the viewport meta)
+  /// and on mobile under desktop-mode (which owns the viewport). Mobile
+  /// non-desktop sites take the [_pageZoomViewportScript] path instead, so
+  /// the *layout* viewport reflows rather than the page shrinking into a
+  /// gutter. Injected at DOCUMENT_START via a re-applied style element so it
+  /// survives same-document navigations and reaches iframes.
+  static String _pageZoomCss(int zoomPercent) =>
+      'html{zoom:$zoomPercent% !important;}';
 
   static String _trimZoomNum(double v) {
     var s = v.toStringAsFixed(4);
@@ -1373,6 +1367,57 @@ class WebViewFactory {
   window.addEventListener('DOMContentLoaded',relayout);
   window.addEventListener('load',relayout);
 })();''';
+
+  /// Per-site page zoom — mobile path. Drives the *layout* viewport through
+  /// the viewport meta instead of CSS `zoom`. With `initial-scale=z` and no
+  /// `width` directive, Blink/WebKit derive the layout width as
+  /// `deviceWidth / z`, so the page reflows to fill the screen at scale `z`
+  /// (like a desktop browser's zoom) rather than being scaled down into a
+  /// gutter (z<1) or overflowing horizontally. Omitting `width` is load-
+  /// bearing: an explicit width pins the layout viewport and defeats the
+  /// reflow, so any width the page ships is stripped. Rewrites every
+  /// existing viewport meta and watches for late-inserted ones (SPAs,
+  /// frameworks) the same way [buildDesktopModeShim] does. Android also
+  /// needs `useWideViewPort=true` for the meta to be honoured (set in the
+  /// native settings); iOS WKWebView honours it natively.
+  static String _pageZoomViewportScript(int zoomPercent) {
+    final scale = _trimZoomNum(zoomPercent / 100);
+    return '''
+(function(){
+  var CONTENT='initial-scale=$scale';
+  function applyTo(m){ try{ m.setAttribute('content',CONTENT); }catch(e){} }
+  function ensure(){
+    try{
+      var metas=document.querySelectorAll('meta[name="viewport" i]');
+      if(metas.length===0){
+        var m=document.createElement('meta');
+        m.setAttribute('name','viewport');
+        m.setAttribute('content',CONTENT);
+        (document.head||document.documentElement).appendChild(m);
+      } else {
+        for(var i=0;i<metas.length;i++){ applyTo(metas[i]); }
+      }
+    }catch(e){}
+  }
+  ensure();
+  try{
+    var mo=new MutationObserver(function(muts){
+      for(var i=0;i<muts.length;i++){
+        var added=muts[i].addedNodes; if(!added) continue;
+        for(var j=0;j<added.length;j++){
+          var n=added[j];
+          if(n&&n.nodeType===1&&n.tagName==='META'){
+            var nm=n.getAttribute&&n.getAttribute('name');
+            if(nm&&nm.toLowerCase()==='viewport'){ applyTo(n); }
+          }
+        }
+      }
+    });
+    if(document.documentElement){ mo.observe(document.documentElement,{childList:true,subtree:true}); }
+    else { document.addEventListener('DOMContentLoaded',function(){ ensure(); mo.observe(document.documentElement,{childList:true,subtree:true}); }); }
+  }catch(e){}
+})();''';
+  }
 
   /// Determine if a navigation was triggered by a user gesture.
   /// Android: uses hasGesture property.
@@ -1665,12 +1710,21 @@ class WebViewFactory {
       ));
     }
 
-    // Per-site browser-style page zoom (all platforms). Skipped at 100%
-    // so the default site carries no zoom shim.
+    // Per-site browser-style page zoom. Skipped at 100% so the default site
+    // carries no zoom shim. On Android/iOS (outside desktop-mode, which owns
+    // the viewport meta) drive the layout viewport via `initial-scale` so
+    // the page reflows to fill the screen instead of shrinking into a gutter
+    // or overflowing horizontally; desktop engines ignore the viewport meta
+    // and keep the CSS `zoom` path. See [_pageZoomViewportScript].
+    final useViewportZoom = config.zoomPercent != 100 &&
+        (Platform.isAndroid || Platform.isIOS) &&
+        !desktopMode;
     if (config.zoomPercent != 100) {
       userScripts.add(inapp.UserScript(
         groupName: 'page_zoom',
-        source: '${_pageZoomScript(config.zoomPercent)}\n;null;',
+        source: useViewportZoom
+            ? '${_pageZoomViewportScript(config.zoomPercent)}\n;null;'
+            : '${_pageZoomScript(config.zoomPercent)}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: false,
       ));
@@ -2394,6 +2448,16 @@ class WebViewFactory {
           : inapp.UserPreferredContentMode.RECOMMENDED
       // Enable DevTools inspection in debug mode (chrome://inspect on Android)
       ..isInspectable = kDebugMode;
+
+    // Android honours the viewport meta (and thus the `initial-scale` page
+    // zoom) only when useWideViewPort is on; leave the default untouched
+    // otherwise. loadWithOverviewMode must stay off so the WebView respects
+    // our `initial-scale` rather than fitting the page to width. Desktop-mode
+    // already flips these via preferredContentMode = DESKTOP.
+    if (Platform.isAndroid && useViewportZoom) {
+      settings.useWideViewPort = true;
+      settings.loadWithOverviewMode = false;
+    }
 
     final inapp.InAppWebView webViewWidget = inapp.InAppWebView(
       key: config.key,
