@@ -1,0 +1,8 @@
+🔧 Improvements:
+• Faster launch from home shortcuts
+
+🐛 Bug Fixes:
+• Swipe back/forward navigation and history restore
+• Android rendering on site switch
+• Always-open-home no longer resets
+• Ad-blocking statistics
