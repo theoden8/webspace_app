@@ -169,8 +169,6 @@
   "appSettingsInterface": "Interfaċċa",
   "appSettingsSiteTabStrip": "Strixxa tat-Tabs tas-Siti",
   "appSettingsSiteTabStripSubtitle": "Uri barra tat-tabs bis-siti kollha fil-quċċata",
-  "appSettingsKeepTabStripFullscreen": "Żomm l-Istrixxa tat-Tabs fl-Iskrin Sħiħ",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Żomm il-barra tat-tabs viżibbli fl-iskrin sħiħ filwaqt li l-barra ta' fuq tibqa' moħbija",
   "appSettingsStatsBar": "Barra tal-Istatistika",
   "appSettingsStatsBarSubtitle": "Uri statistika tat-talbiet ħajja fil-quċċata ta' kull sit",
   "appSettingsLinkHandling": "Trattament tal-links",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Jitniżżel lista ta' parametri tat-traċċar magħrufa użati mis-siti (bħal utm_source, fbclid, eċċ.). Meta attivat għal kull sit, dawn il-parametri jitneħħew awtomatikament mill-URLs biex jipproteġu l-privatezza tiegħek.",
   "appSettingsDnsBlocklistHint": "Jitniżżel il-lista mblukkata Hagezi biex jimblokka dominji magħrufa ta' reklamar, traċċar u malware. Agħżel livell ta' severità minn Ħafif sa Ultinu. Livelli ogħla jimblukkaw aktar dominji iżda jistgħu jkissru xi siti. Ladarba jkun imniżżel, attiva jew diżattiva għal kull sit fis-settings ta' kull sit.",
   "appSettingsLocalCdnHint": "Jitniżżel libreriji JavaScript komuni, fonts u frameworks CSS biex jitqaddmu lokalment minflok ma jiġbuhom minn servers CDN ta' partijiet terzi (bħal Google, Cloudflare, jsDelivr). Dan jwaqqaf lill-fornituri CDN milli jittraċċaw in-navigazzjoni tiegħek bejn siti differenti.",
-  "appSettingsContentBlockerHint": "Jimblokka reklami, traċċaturi u elementi mhux mixtieqa tal-paġna billi juża listi tal-filtri bħal EasyList. Jappoġġja l-imblukkar fil-livell tad-dominju, filtri kożmetiċi CSS biex jaħbi elementi tal-paġna, u regoli ta' ħabi bbażati fuq it-test. Attiva jew diżattiva listi tal-filtri individwali hawn isfel, u biddel l-imblukk tal-kontenut għal kull sit fis-settings ta' kull sit."
+  "appSettingsContentBlockerHint": "Jimblokka reklami, traċċaturi u elementi mhux mixtieqa tal-paġna billi juża listi tal-filtri bħal EasyList. Jappoġġja l-imblukkar fil-livell tad-dominju, filtri kożmetiċi CSS biex jaħbi elementi tal-paġna, u regoli ta' ħabi bbażati fuq it-test. Attiva jew diżattiva listi tal-filtri individwali hawn isfel, u biddel l-imblukk tal-kontenut għal kull sit fis-settings ta' kull sit.",
+  "appSettingsTabBarButtonCorner": "Pożizzjoni tal-buttuna",
+  "appSettingsTabMaxWidth": "Limitu tal-Wisa' tat-Tab",
+  "appSettingsTabMaxWidthSubtitle": "Illimita kemm jista' jikber wiesa' kull tab biex ismijiet twal jibqgħu kompatti",
+  "appSettingsFullscreenTabStrip": "Fl-iskrin sħiħ, bar tat-tabs",
+  "appSettingsFullscreenTabStripHidden": "Moħbi",
+  "appSettingsFullscreenTabStripAlways": "Dejjem viżibbli",
+  "appSettingsFullscreenTabStripButton": "Uri b'buttuna"
 }

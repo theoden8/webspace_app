@@ -169,8 +169,6 @@
   "appSettingsInterface": "Rozhraní",
   "appSettingsSiteTabStrip": "Pruh karet stránek",
   "appSettingsSiteTabStripSubtitle": "Zobrazit nahoře lištu karet se všemi stránkami",
-  "appSettingsKeepTabStripFullscreen": "Zachovat pruh karet v celé obrazovce",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Ponechat lištu karet viditelnou v celé obrazovce, zatímco horní lišta zůstane skrytá",
   "appSettingsStatsBar": "Lišta statistik",
   "appSettingsStatsBarSubtitle": "Zobrazit živé statistiky požadavků nahoře na každé stránce",
   "appSettingsLinkHandling": "Zpracování odkazů",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Stáhne seznam známých sledovacích parametrů používaných webovými stránkami (jako utm_source, fbclid atd.). Pokud je pro danou stránku povoleno, tyto parametry jsou ze URL automaticky odstraněny, aby chránily vaše soukromí.",
   "appSettingsDnsBlocklistHint": "Stáhne seznam blokovaných Hagezi pro blokování známých reklamních, sledovacích a malwarových domén. Vyberte úroveň závažnosti od Lehké po Ultimátní. Vyšší úrovně blokují více domén, ale mohou narušit fungování některých stránek. Po stažení lze zapnout nebo vypnout pro každou stránku v jejím nastavení.",
   "appSettingsLocalCdnHint": "Stáhne běžné JavaScriptové knihovny, písma a CSS frameworky, aby je poskytoval lokálně místo jejich stahování ze serverů CDN třetích stran (jako Google, Cloudflare, jsDelivr). Tím brání poskytovatelům CDN sledovat vaše prohlížení napříč různými webovými stránkami.",
-  "appSettingsContentBlockerHint": "Blokuje reklamy, sledovače a nežádoucí prvky stránek pomocí seznamů filtrů jako EasyList. Podporuje blokování na úrovni domén, kosmetické filtry CSS pro skrývání prvků stránky a pravidla skrývání podle textu. Zapněte nebo vypněte jednotlivé seznamy filtrů níže a přepínejte blokování obsahu pro každou stránku v jejím nastavení."
+  "appSettingsContentBlockerHint": "Blokuje reklamy, sledovače a nežádoucí prvky stránek pomocí seznamů filtrů jako EasyList. Podporuje blokování na úrovni domén, kosmetické filtry CSS pro skrývání prvků stránky a pravidla skrývání podle textu. Zapněte nebo vypněte jednotlivé seznamy filtrů níže a přepínejte blokování obsahu pro každou stránku v jejím nastavení.",
+  "appSettingsTabBarButtonCorner": "Poloha tlačítka",
+  "appSettingsTabMaxWidth": "Omezení šířky karty",
+  "appSettingsTabMaxWidthSubtitle": "Omezte, jak široká může být každá karta, aby dlouhé názvy zůstaly kompaktní",
+  "appSettingsFullscreenTabStrip": "Na celé obrazovce, panel karet",
+  "appSettingsFullscreenTabStripHidden": "Skrytý",
+  "appSettingsFullscreenTabStripAlways": "Vždy viditelný",
+  "appSettingsFullscreenTabStripButton": "Zobrazit tlačítkem"
 }

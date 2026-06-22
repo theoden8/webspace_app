@@ -169,8 +169,6 @@
   "appSettingsInterface": "Comhéadan",
   "appSettingsSiteTabStrip": "Stiall Cluaisíní Suímh",
   "appSettingsSiteTabStripSubtitle": "Taispeáin barra cluaisíní le gach suíomh ag an mbarr",
-  "appSettingsKeepTabStripFullscreen": "Coinnigh an Stiall Chluaisíní sa Lánscáileán",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Coinnigh an barra cluaisíní le feiceáil sa lánscáileán cé go bhfanann an barra uachtair folaithe",
   "appSettingsStatsBar": "Barra Staitisticí",
   "appSettingsStatsBarSubtitle": "Taispeáin staitisticí beo iarratas ag barr gach suímh",
   "appSettingsLinkHandling": "Láimhseáil naisc",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Íoslódálann sé liosta de pharaiméadair rianaithe aitheanta a úsáideann suíomhanna gréasáin (cosúil le utm_source, fbclid, srl.). Nuair atá sé cumasaithe de réir suímh, baineann sé na paraiméadair sin go huathoibríoch as URLanna chun do phríobháideacht a chosaint.",
   "appSettingsDnsBlocklistHint": "Íoslódálann sé liosta bactha Hagezi chun fearainn aitheanta fógraíochta, rianaithe agus malware a bhlocáil. Roghnaigh leibhéal déine ó Éadrom go hIomlán. Blocálann leibhéil níos airde níos mó fearann ach d'fhéadfadh siad roinnt suíomhanna a bhriseadh. Nuair a íoslódáltar é, cumasaigh nó díchumasaigh de réir suímh i socruithe gach suímh.",
   "appSettingsLocalCdnHint": "Íoslódálann sé leabharlanna JavaScript coitianta, clófhoirne, agus creataí CSS chun freastal orthu go háitiúil in ionad iad a fháil ó fhreastalaithe CDN tríú páirtí (cosúil le Google, Cloudflare, jsDelivr). Coscann sé seo soláthraithe CDN ó do ghníomhaíocht bhrabhsála a rianú thar shuíomhanna éagsúla.",
-  "appSettingsContentBlockerHint": "Blocálann sé fógraí, rianaitheoirí, agus eilimintí leathanaigh nach dteastaíonn le liostaí scagaire cosúil le EasyList. Tacaíonn sé le blocáil ar leibhéal fearainn, scagairí cosmaideacha CSS chun eilimintí leathanaigh a fholú, agus rialacha folaithe téacsbhunaithe. Cumasaigh nó díchumasaigh liostaí scagaire aonair thíos, agus scoránaigh blocáil ábhair de réir suímh i socruithe gach suímh."
+  "appSettingsContentBlockerHint": "Blocálann sé fógraí, rianaitheoirí, agus eilimintí leathanaigh nach dteastaíonn le liostaí scagaire cosúil le EasyList. Tacaíonn sé le blocáil ar leibhéal fearainn, scagairí cosmaideacha CSS chun eilimintí leathanaigh a fholú, agus rialacha folaithe téacsbhunaithe. Cumasaigh nó díchumasaigh liostaí scagaire aonair thíos, agus scoránaigh blocáil ábhair de réir suímh i socruithe gach suímh.",
+  "appSettingsTabBarButtonCorner": "Suíomh an chnaipe",
+  "appSettingsTabMaxWidth": "Teorainn Leithead Cluaisín",
+  "appSettingsTabMaxWidthSubtitle": "Cuir teorainn le leithead gach cluaisín ionas go bhfanfaidh ainmneacha fada dlúth",
+  "appSettingsFullscreenTabStrip": "Sa scáileán iomlán, barra cluaisíní",
+  "appSettingsFullscreenTabStripHidden": "Folaithe",
+  "appSettingsFullscreenTabStripAlways": "Le feiceáil i gcónaí",
+  "appSettingsFullscreenTabStripButton": "Taispeáin le cnaipe"
 }

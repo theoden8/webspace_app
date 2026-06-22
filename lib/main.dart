@@ -967,6 +967,12 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _showUrlBar = false;
   bool _showTabStrip = false;
   bool _tabStripInFullscreen = false;
+  bool _tabBarButtonInFullscreen = false;
+  bool _tabBarButtonOnRight = true;
+  int _tabMaxWidth = 140;
+  // Runtime-only: whether the fullscreen tab-bar button has revealed the
+  // tab strip. Reset on exiting fullscreen; never persisted.
+  bool _tabBarOverlayVisible = false;
   bool _linkHandlingEnabled = true;
   bool _showStatsBanner = true;
   // UI language override as a locale tag ('' = follow system).
@@ -1618,6 +1624,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     void tick() {
       if (!mounted || _nudgeTicksRemaining <= 0) {
         _nudgeLoopRunning = false;
+        // Always settle at a zero inset. The plain toggle leaves the 1px inset
+        // applied when the tick budget is refilled mid-loop (the coalesced
+        // shortcut + resume case) lands on an odd total, which would otherwise
+        // leave a thin dark sliver between the webview and the tab strip.
+        if (mounted && _repaintNudge) {
+          setState(() => _repaintNudge = false);
+        }
         return;
       }
       _nudgeTicksRemaining--;
@@ -2900,6 +2913,24 @@ class _WebSpacePageState extends State<WebSpacePage>
     await prefs.setBool('tabStripInFullscreen', _tabStripInFullscreen);
   }
 
+  Future<void> _saveTabBarButtonInFullscreen() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('tabBarButtonInFullscreen', _tabBarButtonInFullscreen);
+  }
+
+  Future<void> _saveTabBarButtonOnRight() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('tabBarButtonOnRight', _tabBarButtonOnRight);
+  }
+
+  Future<void> _saveTabMaxWidth() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('tabMaxWidth', _tabMaxWidth);
+  }
+
   Future<void> _saveShowStatsBanner() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -3828,6 +3859,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       _showUrlBar = prefs.getBool('showUrlBar') ?? false;
       _showTabStrip = prefs.getBool('showTabStrip') ?? false;
       _tabStripInFullscreen = prefs.getBool('tabStripInFullscreen') ?? false;
+      _tabBarButtonInFullscreen = prefs.getBool('tabBarButtonInFullscreen') ?? false;
+      _tabBarButtonOnRight = prefs.getBool('tabBarButtonOnRight') ?? true;
+      _tabMaxWidth = prefs.getInt('tabMaxWidth') ?? 140;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
       _localeOverride = prefs.getString(kAppLocaleOverrideKey) ?? '';
@@ -4561,6 +4595,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       _isFullscreen = true;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    // Removing the app bar / changing the bottom bar resizes the webview; on
+    // Android the hybrid-composition SurfaceView can come back with a 1px dark
+    // seam at the bottom edge until it recomposites. github #421-followup
+    _nudgeSurfaceRepaint();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(AppLocalizations.of(context).homeExitFullscreenHint),
@@ -4574,8 +4612,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!_isFullscreen) return;
     setState(() {
       _isFullscreen = false;
+      _tabBarOverlayVisible = false;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _nudgeSurfaceRepaint();
   }
 
   void _toggleFullscreen() {
@@ -4974,6 +5014,12 @@ class _WebSpacePageState extends State<WebSpacePage>
           backup.globalPrefs['showTabStrip'] as bool? ?? _showTabStrip;
       _tabStripInFullscreen =
           backup.globalPrefs['tabStripInFullscreen'] as bool? ?? _tabStripInFullscreen;
+      _tabBarButtonInFullscreen =
+          backup.globalPrefs['tabBarButtonInFullscreen'] as bool? ?? _tabBarButtonInFullscreen;
+      _tabBarButtonOnRight =
+          backup.globalPrefs['tabBarButtonOnRight'] as bool? ?? _tabBarButtonOnRight;
+      _tabMaxWidth =
+          backup.globalPrefs['tabMaxWidth'] as int? ?? _tabMaxWidth;
       _showStatsBanner =
           backup.globalPrefs['showStatsBanner'] as bool? ?? _showStatsBanner;
 
@@ -5421,6 +5467,28 @@ class _WebSpacePageState extends State<WebSpacePage>
                       });
                       _saveTabStripInFullscreen();
                     },
+                    tabBarButtonInFullscreen: _tabBarButtonInFullscreen,
+                    onTabBarButtonInFullscreenChanged: (value) {
+                      setState(() {
+                        _tabBarButtonInFullscreen = value;
+                        if (!value) _tabBarOverlayVisible = false;
+                      });
+                      _saveTabBarButtonInFullscreen();
+                    },
+                    tabBarButtonOnRight: _tabBarButtonOnRight,
+                    onTabBarButtonOnRightChanged: (value) {
+                      setState(() {
+                        _tabBarButtonOnRight = value;
+                      });
+                      _saveTabBarButtonOnRight();
+                    },
+                    tabMaxWidth: _tabMaxWidth,
+                    onTabMaxWidthChanged: (value) {
+                      setState(() {
+                        _tabMaxWidth = value;
+                      });
+                      _saveTabMaxWidth();
+                    },
                     showStatsBanner: _showStatsBanner,
                     onShowStatsBannerChanged: (value) {
                       setState(() {
@@ -5652,27 +5720,35 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
+  /// Whether the bottom tab strip should currently occupy the
+  /// bottomNavigationBar slot. Out of fullscreen it follows the "Site Tab
+  /// Strip" pref. In fullscreen the behavior is an independent choice: always
+  /// visible, revealed on demand by the tab-bar button, or hidden.
+  bool get _tabStripShown {
+    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
+      return false;
+    }
+    if (_getFilteredSiteIndices().isEmpty) return false;
+    if (_isFullscreen) {
+      if (_tabStripInFullscreen) return true;
+      return _tabBarButtonInFullscreen && _tabBarOverlayVisible;
+    }
+    return _showTabStrip;
+  }
+
   /// Build the tab strip shown in bottomNavigationBar.
   /// This stays at the screen bottom and doesn't need to be above the keyboard.
   Widget? _buildTabStrip() {
-    if (_isFullscreen && !_tabStripInFullscreen) return null;
-    if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
+    if (!_tabStripShown) return null;
+
+    // Hide when keyboard is open - it's not needed during text input
+    if (MediaQuery.of(context).viewInsets.bottom > 0) {
       return null;
     }
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final filteredIndices = _getFilteredSiteIndices();
-
-    final hasTabStrip = _showTabStrip && filteredIndices.isNotEmpty;
-    if (!hasTabStrip) {
-      return null;
-    }
-
-    // Hide when keyboard is open - it's not needed during text input
-    if (MediaQuery.of(context).viewInsets.bottom > 0) {
-      return null;
-    }
 
     return SafeArea(
       top: false,
@@ -5689,6 +5765,21 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
         child: Row(
           children: [
+            // When the strip was revealed by the fullscreen tab-bar button,
+            // its dismiss control lives inside the bar (not as a separate
+            // floating cross above it).
+            if (_tabBarOverlayVisible)
+              IconButton(
+                icon: const Icon(Icons.close),
+                iconSize: 20,
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  setState(() {
+                    _tabBarOverlayVisible = false;
+                  });
+                  _nudgeSurfaceRepaint();
+                },
+              ),
             Expanded(
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
@@ -5703,11 +5794,13 @@ class _WebSpacePageState extends State<WebSpacePage>
                     onTap: () async {
                       await _setCurrentIndex(siteIndex);
                       if (!mounted) return;
-                      setState(() {});
+                      setState(() {
+                        _tabBarOverlayVisible = false;
+                      });
                       _saveCurrentIndex();
                     },
                     child: Container(
-                      constraints: BoxConstraints(maxWidth: 140),
+                      constraints: BoxConstraints(maxWidth: _tabMaxWidth.toDouble()),
                       margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
                       padding: EdgeInsets.symmetric(horizontal: 8),
                       decoration: BoxDecoration(
@@ -5918,6 +6011,16 @@ class _WebSpacePageState extends State<WebSpacePage>
           ),
           PopupMenuDivider(),
           PopupMenuItem<String>(
+            value: "backToWebspaces",
+            child: Row(
+              children: [
+                Icon(Icons.arrow_back),
+                SizedBox(width: 8),
+                Text(loc.homeBackToWebspaces),
+              ],
+            ),
+          ),
+          PopupMenuItem<String>(
             value: "search",
             child: Row(
               children: [
@@ -5984,6 +6087,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       },
       onSelected: (String value) async {
         switch(value) {
+          case 'backToWebspaces':
+            await _setCurrentIndex(null);
+            if (!mounted) return;
+            setState(() {});
+            await _saveSelectedWebspaceId();
+            await _saveCurrentIndex();
+          break;
           case 'search':
             _toggleFind();
           break;
@@ -6930,15 +7040,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     final inputBar = _buildInputBar();
     // Tab strip in bottomNavigationBar handles bottom safe area when visible.
     // Input bar has its own SafeArea. Only apply body safe area when neither
-    // is present (e.g. webspace list screen).
-    final filteredIndices = _getFilteredSiteIndices();
-    // The tab strip is also rendered (in bottomNavigationBar) when kept in
-    // fullscreen, in which case it owns the bottom safe-area inset.
-    final hasTabStrip = (!_isFullscreen || _tabStripInFullscreen)
-        && _currentIndex != null
-        && _currentIndex! < _webViewModels.length
-        && _showTabStrip
-        && filteredIndices.isNotEmpty;
+    // is present (e.g. webspace list screen). The tab strip is also rendered
+    // (in bottomNavigationBar) when kept in fullscreen or temporarily revealed
+    // by the tab-bar button, in which case it owns the bottom safe-area inset.
+    final hasTabStrip = _tabStripShown;
     return SafeArea(
       // Out of fullscreen the AppBar absorbs the top inset, so top stays false.
       // In fullscreen there is no AppBar, and immersiveSticky does not reliably
@@ -7135,6 +7240,45 @@ class _WebSpacePageState extends State<WebSpacePage>
                       ),
                     );
                   }),
+                // Fullscreen tab-bar button: a small floating control that
+                // reveals the tab strip on demand while the rest of the chrome
+                // stays hidden. Works on its own (no always-on strip needed).
+                // Hidden once the strip is showing — its dismiss control then
+                // lives inside the bar instead.
+                if (_isFullscreen &&
+                    _tabBarButtonInFullscreen &&
+                    !_tabStripInFullscreen &&
+                    !_tabBarOverlayVisible)
+                  Positioned(
+                    bottom: 16,
+                    left: _tabBarButtonOnRight ? null : 16,
+                    right: _tabBarButtonOnRight ? 16 : null,
+                    child: Material(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.85),
+                      shape: const CircleBorder(),
+                      elevation: 3,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () {
+                          setState(() {
+                            _tabBarOverlayVisible = true;
+                          });
+                          _nudgeSurfaceRepaint();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.tab,
+                            size: 22,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

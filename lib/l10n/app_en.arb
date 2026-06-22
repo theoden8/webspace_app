@@ -839,13 +839,33 @@
   "@appSettingsSiteTabStripSubtitle": {
     "description": "Subtitle for the site tab strip toggle"
   },
-  "appSettingsKeepTabStripFullscreen": "Keep Tab Strip in Full Screen",
-  "@appSettingsKeepTabStripFullscreen": {
-    "description": "Toggle title for keeping the tab strip visible in full screen"
+  "appSettingsFullscreenTabStrip": "In full screen, tab strip",
+  "@appSettingsFullscreenTabStrip": {
+    "description": "Group label for the choice of how the tab strip behaves in full screen (followed by the Hidden / Always visible / Reveal with button options)"
   },
-  "appSettingsKeepTabStripFullscreenSubtitle": "Keep the tab bar visible in full screen while the top bar stays hidden",
-  "@appSettingsKeepTabStripFullscreenSubtitle": {
-    "description": "Subtitle for the keep-tab-strip-in-fullscreen toggle"
+  "appSettingsFullscreenTabStripHidden": "Hidden",
+  "@appSettingsFullscreenTabStripHidden": {
+    "description": "Option: hide the tab strip in full screen"
+  },
+  "appSettingsFullscreenTabStripAlways": "Always visible",
+  "@appSettingsFullscreenTabStripAlways": {
+    "description": "Option: keep the tab strip always visible in full screen"
+  },
+  "appSettingsFullscreenTabStripButton": "Reveal with button",
+  "@appSettingsFullscreenTabStripButton": {
+    "description": "Option: hide the tab strip in full screen but show a small floating button that reveals it on demand"
+  },
+  "appSettingsTabBarButtonCorner": "Button position",
+  "@appSettingsTabBarButtonCorner": {
+    "description": "Label for the control choosing whether the full-screen tab-bar button sits in the bottom-left or bottom-right corner"
+  },
+  "appSettingsTabMaxWidth": "Tab Width Limit",
+  "@appSettingsTabMaxWidth": {
+    "description": "Title for the slider that caps the maximum width of each tab in the tab bar"
+  },
+  "appSettingsTabMaxWidthSubtitle": "Limit how wide each tab can grow so long names stay compact",
+  "@appSettingsTabMaxWidthSubtitle": {
+    "description": "Subtitle explaining the tab width limit slider"
   },
   "appSettingsStatsBar": "Stats Bar",
   "@appSettingsStatsBar": {

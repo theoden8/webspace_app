@@ -169,8 +169,6 @@
   "appSettingsInterface": "Interfazea",
   "appSettingsSiteTabStrip": "Guneen fitxa-barra",
   "appSettingsSiteTabStripSubtitle": "Erakutsi gune guztiak dituen fitxa-barra goian",
-  "appSettingsKeepTabStripFullscreen": "Mantendu fitxa-barra pantaila osoan",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Mantendu fitxa-barra ikusgai pantaila osoan goiko barra ezkutuan dagoen bitartean",
   "appSettingsStatsBar": "Estatistika-barra",
   "appSettingsStatsBarSubtitle": "Erakutsi zuzeneko eskaera-estatistikak gune bakoitzaren goian",
   "appSettingsLinkHandling": "Estekak kudeatzea",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Guneek erabiltzen dituzten jarraipen-parametro ezagunen zerrenda bat deskargatzen du (utm_source, fbclid, etab.). Gune bakoitzean gaituta dagoenean, parametro horiek URLetan automatikoki kentzen dira zure pribatutasuna babesteko.",
   "appSettingsDnsBlocklistHint": "Hagezi bloke-zerrenda deskargatzen du iragarki, jarraipen eta malware domeinu ezagunak blokeatzeko. Aukeratu larritasun-maila Arina eta Ultimoaren artean. Maila altuagoek domeinu gehiago blokeatzen dituzte, baina baliteke gune batzuk hautsi. Behin deskargatuta, gune bakoitzean gaitu edo desgaitu gune bakoitzaren ezarpenetan.",
   "appSettingsLocalCdnHint": "JavaScript liburutegi arruntak, letra-tipoak eta CSS frameworkak lokalean zerbitzatzeko deskargatzen ditu, hirugarrenen CDN zerbitzarietatik (Google, Cloudflare, jsDelivr bezalakoak) eskuratu beharrean. Honek CDN hornitzaileek zure nabigazio-jarduera gune ezberdinen artean jarraitzea eragozten du.",
-  "appSettingsContentBlockerHint": "Iragarkiak, jarraitzaileak eta nahi gabeko orri-elementuak blokeatzen ditu EasyList bezalako iragazki-zerrendak erabiliz. Domeinu-mailako blokeoa, CSS iragazki kosmetikoak orri-elementuak ezkutatzeko eta testuan oinarritutako ezkutatze-arauak onartzen ditu. Gaitu edo desgaitu banakako iragazki-zerrendak behean, eta gaitu edo desgaitu eduki-blokeoa gune bakoitzean bere ezarpenetan."
+  "appSettingsContentBlockerHint": "Iragarkiak, jarraitzaileak eta nahi gabeko orri-elementuak blokeatzen ditu EasyList bezalako iragazki-zerrendak erabiliz. Domeinu-mailako blokeoa, CSS iragazki kosmetikoak orri-elementuak ezkutatzeko eta testuan oinarritutako ezkutatze-arauak onartzen ditu. Gaitu edo desgaitu banakako iragazki-zerrendak behean, eta gaitu edo desgaitu eduki-blokeoa gune bakoitzean bere ezarpenetan.",
+  "appSettingsTabBarButtonCorner": "Botoiaren kokapena",
+  "appSettingsTabMaxWidth": "Fitxaren zabalera-muga",
+  "appSettingsTabMaxWidthSubtitle": "Mugatu fitxa bakoitza zenbat zabaldu daitekeen, izen luzeak trinko mantentzeko",
+  "appSettingsFullscreenTabStrip": "Pantaila osoan, fitxa-barra",
+  "appSettingsFullscreenTabStripHidden": "Ezkutatuta",
+  "appSettingsFullscreenTabStripAlways": "Beti ikusgai",
+  "appSettingsFullscreenTabStripButton": "Erakutsi botoiarekin"
 }

@@ -169,8 +169,6 @@
   "appSettingsInterface": "Interface",
   "appSettingsSiteTabStrip": "Barra de separadores de sites",
   "appSettingsSiteTabStripSubtitle": "Mostrar uma barra de separadores com todos os sites no topo",
-  "appSettingsKeepTabStripFullscreen": "Manter barra de separadores em ecrã inteiro",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Manter a barra de separadores visível em ecrã inteiro enquanto a barra superior permanece oculta",
   "appSettingsStatsBar": "Barra de estatísticas",
   "appSettingsStatsBarSubtitle": "Mostrar estatísticas de pedidos em tempo real no topo de cada site",
   "appSettingsLinkHandling": "Gestão de ligações",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Transfere uma lista de parâmetros de rastreio conhecidos usados por sites (como utm_source, fbclid, etc.). Quando ativado por site, estes parâmetros são automaticamente removidos dos URLs para proteger a sua privacidade.",
   "appSettingsDnsBlocklistHint": "Transfere a lista de bloqueio Hagezi para bloquear domínios conhecidos de publicidade, rastreio e malware. Escolha um nível de severidade de Leve a Máximo. Níveis mais altos bloqueiam mais domínios, mas podem causar problemas em alguns sites. Depois de transferida, ative ou desative por site nas definições de cada site.",
   "appSettingsLocalCdnHint": "Transfere bibliotecas JavaScript, tipos de letra e frameworks CSS comuns para os servir localmente em vez de os obter de servidores CDN de terceiros (como Google, Cloudflare, jsDelivr). Isto impede que os fornecedores de CDN rastreiem a sua navegação entre diferentes sites.",
-  "appSettingsContentBlockerHint": "Bloqueia anúncios, rastreadores e elementos indesejados de páginas usando listas de filtros como EasyList. Suporta bloqueio ao nível do domínio, filtros cosméticos CSS para ocultar elementos de página e regras de ocultação baseadas em texto. Ative ou desative listas de filtros individuais abaixo, e ative ou desative o bloqueador de conteúdos por site nas definições de cada site."
+  "appSettingsContentBlockerHint": "Bloqueia anúncios, rastreadores e elementos indesejados de páginas usando listas de filtros como EasyList. Suporta bloqueio ao nível do domínio, filtros cosméticos CSS para ocultar elementos de página e regras de ocultação baseadas em texto. Ative ou desative listas de filtros individuais abaixo, e ative ou desative o bloqueador de conteúdos por site nas definições de cada site.",
+  "appSettingsTabBarButtonCorner": "Posição do botão",
+  "appSettingsTabMaxWidth": "Limite de largura do separador",
+  "appSettingsTabMaxWidthSubtitle": "Limite a largura de cada separador para que os nomes longos se mantenham compactos",
+  "appSettingsFullscreenTabStrip": "Em ecrã inteiro, barra de separadores",
+  "appSettingsFullscreenTabStripHidden": "Oculta",
+  "appSettingsFullscreenTabStripAlways": "Sempre visível",
+  "appSettingsFullscreenTabStripButton": "Mostrar com um botão"
 }

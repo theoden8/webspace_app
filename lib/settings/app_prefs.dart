@@ -26,6 +26,15 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // Keep the site tab strip visible in fullscreen (top bar still hidden).
   // Only meaningful when showTabStrip is on.
   'tabStripInFullscreen': false,
+  // Show a small floating button in fullscreen that opens the tab strip on
+  // demand. Only meaningful when showTabStrip is on and tabStripInFullscreen
+  // is off (otherwise the strip is always visible).
+  'tabBarButtonInFullscreen': false,
+  // Which bottom corner the fullscreen tab-bar button sits in (true = right).
+  'tabBarButtonOnRight': true,
+  // Max width (logical px) of each tab in the bottom tab strip. Long site
+  // names ellipsize at this width instead of stretching the tab.
+  'tabMaxWidth': 140,
   'showStatsBanner': true,
   // Tile URL used by the optional location picker map. Only queried after
   // the user explicitly taps "Load map" on the picker — no requests happen

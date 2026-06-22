@@ -169,8 +169,6 @@
   "appSettingsInterface": "ចំណុចប្រទាក់",
   "appSettingsSiteTabStrip": "របារ Tab គេហទំព័រ",
   "appSettingsSiteTabStripSubtitle": "បង្ហាញរបារ tab ជាមួយគេហទំព័រទាំងអស់នៅខាងលើ",
-  "appSettingsKeepTabStripFullscreen": "រក្សា Tab Strip ក្នុងអេក្រង់ពេញ",
-  "appSettingsKeepTabStripFullscreenSubtitle": "រក្សារបារ tab នៅបង្ហាញក្នុងអេក្រង់ពេញ ខណៈ top bar ត្រូវបានលាក់",
   "appSettingsStatsBar": "របារស្ថិតិ",
   "appSettingsStatsBarSubtitle": "បង្ហាញស្ថិតិ request បន្ទាន់នៅខាងលើគេហទំព័រនីមួយៗ",
   "appSettingsLanguageTitle": "ភាសាកម្មវិធី",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "ទាញយកបញ្ជី tracking parameters ដែលគេស្គាល់ ដែលប្រើដោយគេហទំព័រ (ដូចជា utm_source, fbclid ជាដើម) ។ ពេលបើក per-site parameter ទាំងនោះត្រូវបាន strip ស្វ័យប្រវត្តិចេញពី URL ដើម្បីការពារភាពឯកជនរបស់អ្នក ។",
   "appSettingsDnsBlocklistHint": "ទាញយក Hagezi blocklist ដើម្បីទប់ស្កាត់ domains ដែលគេស្គាល់ for ការផ្សាយពាណិជ្ជកម្ម ការតាមដាន និង malware ។ ជ្រើស severity level ចាប់ពី Light រហូតដល់ Ultimate ។ Level ខ្ពស់ជាងទប់ស្កាត់ domains ច្រើនជាង ប៉ុន្តែអាចបំបែក sites មួយចំនួន ។ បន្ទាប់ពីទាញយក បើក ឬបិទ per-site ក្នុងការកំណត់ site នីមួយៗ ។",
   "appSettingsLocalCdnHint": "ទាញយក JavaScript libraries ទូទៅ fonts និង CSS frameworks ដើម្បីបម្រើតាម local ជំនួសការទាញយកពី CDN servers ភាគីទីបី (ដូចជា Google, Cloudflare, jsDelivr) ។ ការនេះការពារ CDN providers ពីការតាមដានការរុករករបស់អ្នករវាងគេហទំព័រផ្សេងៗ ។",
-  "appSettingsContentBlockerHint": "ទប់ស្កាត់ ads, trackers, និងធាតុទំព័រមិនចង់បាន ដោយប្រើ filter lists ដូចជា EasyList ។ គាំទ្រ domain-level blocking, CSS cosmetic filters ដើម្បីលាក់ elements ទំព័រ និង text-based hiding rules ។ បើក ឬបិទ filter lists នីមួយៗខាងក្រោម ហើយ toggle content blocking per-site ក្នុងការកំណត់ site នីមួយៗ ។"
+  "appSettingsContentBlockerHint": "ទប់ស្កាត់ ads, trackers, និងធាតុទំព័រមិនចង់បាន ដោយប្រើ filter lists ដូចជា EasyList ។ គាំទ្រ domain-level blocking, CSS cosmetic filters ដើម្បីលាក់ elements ទំព័រ និង text-based hiding rules ។ បើក ឬបិទ filter lists នីមួយៗខាងក្រោម ហើយ toggle content blocking per-site ក្នុងការកំណត់ site នីមួយៗ ។",
+  "appSettingsTabBarButtonCorner": "ទីតាំងប៊ូតុង",
+  "appSettingsTabMaxWidth": "ដែនកំណត់ទទឹងផ្ទាំង",
+  "appSettingsTabMaxWidthSubtitle": "កំណត់ទទឹងអតិបរមានៃផ្ទាំងនីមួយៗ ដើម្បីឱ្យឈ្មោះវែងនៅតែបង្រួម",
+  "appSettingsFullscreenTabStrip": "ក្នុងអេក្រង់ពេញ របារផ្ទាំង",
+  "appSettingsFullscreenTabStripHidden": "លាក់",
+  "appSettingsFullscreenTabStripAlways": "បង្ហាញជានិច្ច",
+  "appSettingsFullscreenTabStripButton": "បង្ហាញដោយប៊ូតុង"
 }

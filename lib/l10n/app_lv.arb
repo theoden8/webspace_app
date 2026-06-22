@@ -169,8 +169,6 @@
   "appSettingsInterface": "Saskarne",
   "appSettingsSiteTabStrip": "Vietņu ciļņu josla",
   "appSettingsSiteTabStripSubtitle": "Rādīt ciļņu joslu ar visām vietnēm augšā",
-  "appSettingsKeepTabStripFullscreen": "Paturēt ciļņu joslu pilnekrānā",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Paturēt ciļņu joslu redzamu pilnekrānā, kamēr augšējā josla paliek paslēpta",
   "appSettingsStatsBar": "Statistikas josla",
   "appSettingsStatsBarSubtitle": "Rādīt tiešsaistes pieprasījumu statistiku katras vietnes augšā",
   "appSettingsLinkHandling": "Saišu apstrāde",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Lejupielādē sarakstu ar zināmiem izsekošanas parametriem, ko izmanto vietnes (piemēram, utm_source, fbclid u.c.). Kad katrai vietnei ir iespējots, šie parametri tiek automātiski noņemti no URL, lai aizsargātu jūsu konfidencialitāti.",
   "appSettingsDnsBlocklistHint": "Lejupielādē Hagezi bloķēšanas sarakstu, lai bloķētu zināmus reklāmas, izsekošanas un ļaunprogrammatūras domēnus. Izvēlieties smaguma līmeni no Viegla līdz Pilnīgai. Augstāki līmeņi bloķē vairāk domēnu, bet var radīt darbības traucējumus dažās vietnēs. Pēc lejupielādes iespējojiet vai atspējojiet katrai vietnei atsevišķi tās iestatījumos.",
   "appSettingsLocalCdnHint": "Lejupielādē izplatītas JavaScript bibliotēkas, fontus un CSS ietvarus, lai tos pasniestu lokāli, nevis ielādētu no trešo pušu CDN serveriem (piemēram, Google, Cloudflare, jsDelivr). Tas novērš CDN nodrošinātāju izsekošanu jūsu pārlūkošanai dažādās vietnēs.",
-  "appSettingsContentBlockerHint": "Bloķē reklāmas, izsekotājus un nevēlamus lapas elementus, izmantojot filtru sarakstus, piemēram, EasyList. Atbalsta domēna līmeņa bloķēšanu, CSS kosmētiskos filtrus lapas elementu slēpšanai un uz tekstu balstītus slēpšanas noteikumus. Iespējojiet vai atspējojiet atsevišķus filtru sarakstus zemāk, un ieslēdziet vai izslēdziet satura bloķēšanu katrai vietnei tās iestatījumos."
+  "appSettingsContentBlockerHint": "Bloķē reklāmas, izsekotājus un nevēlamus lapas elementus, izmantojot filtru sarakstus, piemēram, EasyList. Atbalsta domēna līmeņa bloķēšanu, CSS kosmētiskos filtrus lapas elementu slēpšanai un uz tekstu balstītus slēpšanas noteikumus. Iespējojiet vai atspējojiet atsevišķus filtru sarakstus zemāk, un ieslēdziet vai izslēdziet satura bloķēšanu katrai vietnei tās iestatījumos.",
+  "appSettingsTabBarButtonCorner": "Pogas novietojums",
+  "appSettingsTabMaxWidth": "Cilnes platuma ierobežojums",
+  "appSettingsTabMaxWidthSubtitle": "Ierobežojiet, cik plata var kļūt katra cilne, lai gari nosaukumi paliktu kompakti",
+  "appSettingsFullscreenTabStrip": "Pilnekrānā, ciļņu josla",
+  "appSettingsFullscreenTabStripHidden": "Slēpta",
+  "appSettingsFullscreenTabStripAlways": "Vienmēr redzama",
+  "appSettingsFullscreenTabStripButton": "Rādīt ar pogu"
 }

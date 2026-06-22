@@ -169,8 +169,6 @@
   "appSettingsInterface": "Oberfläche",
   "appSettingsSiteTabStrip": "Seiten-Tableiste",
   "appSettingsSiteTabStripSubtitle": "Eine Tableiste mit allen Seiten oben anzeigen",
-  "appSettingsKeepTabStripFullscreen": "Tableiste im Vollbild beibehalten",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Die Tableiste im Vollbild sichtbar lassen, während die obere Leiste ausgeblendet bleibt",
   "appSettingsStatsBar": "Statistikleiste",
   "appSettingsStatsBarSubtitle": "Live-Anfragenstatistik oben auf jeder Seite anzeigen",
   "appSettingsLinkHandling": "Linkbehandlung",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Lädt eine Liste bekannter Tracking-Parameter herunter, die von Webseiten verwendet werden (wie utm_source, fbclid usw.). Wenn pro Seite aktiviert, werden diese Parameter automatisch aus URLs entfernt, um Ihre Privatsphäre zu schützen.",
   "appSettingsDnsBlocklistHint": "Lädt die Hagezi-Sperrliste herunter, um bekannte Werbe-, Tracking- und Malware-Domains zu blockieren. Wählen Sie einen Schweregrad von Light bis Ultimate. Höhere Stufen blockieren mehr Domains, können jedoch einige Seiten beeinträchtigen. Nach dem Herunterladen pro Seite in den jeweiligen Seiteneinstellungen aktivierbar oder deaktivierbar.",
   "appSettingsLocalCdnHint": "Lädt gängige JavaScript-Bibliotheken, Schriftarten und CSS-Frameworks herunter, um sie lokal bereitzustellen, anstatt sie von Drittanbieter-CDN-Servern (wie Google, Cloudflare, jsDelivr) abzurufen. Dies verhindert, dass CDN-Anbieter Ihr Browsing-Verhalten seitenübergreifend verfolgen.",
-  "appSettingsContentBlockerHint": "Blockiert Werbung, Tracker und unerwünschte Seitenelemente mithilfe von Filterlisten wie EasyList. Unterstützt Domain-Sperren, CSS-Kosmetikfilter zum Ausblenden von Seitenelementen und textbasierte Ausblendungsregeln. Aktivieren oder deaktivieren Sie einzelne Filterlisten unten, und schalten Sie den Inhaltsblocker pro Seite in den jeweiligen Seiteneinstellungen um."
+  "appSettingsContentBlockerHint": "Blockiert Werbung, Tracker und unerwünschte Seitenelemente mithilfe von Filterlisten wie EasyList. Unterstützt Domain-Sperren, CSS-Kosmetikfilter zum Ausblenden von Seitenelementen und textbasierte Ausblendungsregeln. Aktivieren oder deaktivieren Sie einzelne Filterlisten unten, und schalten Sie den Inhaltsblocker pro Seite in den jeweiligen Seiteneinstellungen um.",
+  "appSettingsTabBarButtonCorner": "Schaltflächenposition",
+  "appSettingsTabMaxWidth": "Tab-Breiten-Limit",
+  "appSettingsTabMaxWidthSubtitle": "Begrenzen, wie breit jeder Tab werden kann, damit lange Namen kompakt bleiben",
+  "appSettingsFullscreenTabStrip": "Im Vollbild, Tableiste",
+  "appSettingsFullscreenTabStripHidden": "Ausgeblendet",
+  "appSettingsFullscreenTabStripAlways": "Immer sichtbar",
+  "appSettingsFullscreenTabStripButton": "Mit Schaltfläche einblenden"
 }

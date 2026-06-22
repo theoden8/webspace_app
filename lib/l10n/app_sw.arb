@@ -169,8 +169,6 @@
   "appSettingsInterface": "Kiolesura",
   "appSettingsSiteTabStrip": "Ukanda wa Vichupo vya Tovuti",
   "appSettingsSiteTabStripSubtitle": "Onyesha upau wa vichupo wenye tovuti zote juu",
-  "appSettingsKeepTabStripFullscreen": "Weka Ukanda wa Vichupo katika Skrini Kamili",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Weka upau wa vichupo uonekane katika skrini kamili huku upau wa juu ukibaki umefichwa",
   "appSettingsStatsBar": "Upau wa Takwimu",
   "appSettingsStatsBarSubtitle": "Onyesha takwimu za maombi za moja kwa moja juu ya kila tovuti",
   "appSettingsLinkHandling": "Ushughulikiaji wa viungo",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Inapakua orodha ya vigezo vya ufuatiliaji vinavyojulikana vinavyotumiwa na tovuti (kama vile utm_source, fbclid, n.k.). Ikiwashwa kwa kila tovuti, vigezo hivi hutolewa kiotomatiki kutoka URL ili kulinda faragha yako.",
   "appSettingsDnsBlocklistHint": "Inapakua orodha ya vizuizi ya Hagezi ili kuzuia vikoa vinavyojulikana vya matangazo, ufuatiliaji, na programu hasidi. Chagua kiwango cha ukali kutoka Nyepesi hadi Kamili. Viwango vya juu huzuia vikoa vingi zaidi lakini vinaweza kuvunja baadhi ya tovuti. Baada ya kupakuliwa, washa au zima kwa kila tovuti katika mipangilio ya tovuti husika.",
   "appSettingsLocalCdnHint": "Inapakua maktaba za kawaida za JavaScript, fonti, na mifumo ya CSS ili kuzitoa kutoka mahali hapo badala ya kuzileta kutoka seva za CDN za watu wengine (kama Google, Cloudflare, jsDelivr). Hii huzuia watoaji wa CDN kufuatilia uvinjari wako katika tovuti tofauti.",
-  "appSettingsContentBlockerHint": "Huzuia matangazo, wafuatiliaji, na vipengele visivyotakikana vya ukurasa kwa kutumia orodha za vichujio kama EasyList. Husaidia uzuiaji wa kiwango cha kikoa, vichujio vya urembo vya CSS vya kuficha vipengele vya ukurasa, na kanuni za kuficha zinazotegemea maandishi. Washa au zima orodha za vichujio hapa chini, na geuza uzuiaji wa maudhui kwa kila tovuti katika mipangilio ya tovuti husika."
+  "appSettingsContentBlockerHint": "Huzuia matangazo, wafuatiliaji, na vipengele visivyotakikana vya ukurasa kwa kutumia orodha za vichujio kama EasyList. Husaidia uzuiaji wa kiwango cha kikoa, vichujio vya urembo vya CSS vya kuficha vipengele vya ukurasa, na kanuni za kuficha zinazotegemea maandishi. Washa au zima orodha za vichujio hapa chini, na geuza uzuiaji wa maudhui kwa kila tovuti katika mipangilio ya tovuti husika.",
+  "appSettingsTabBarButtonCorner": "Nafasi ya kitufe",
+  "appSettingsTabMaxWidth": "Kikomo cha Upana wa Kichupo",
+  "appSettingsTabMaxWidthSubtitle": "Punguza jinsi kila kichupo kinavyoweza kupanuka ili majina marefu yabaki yamebana",
+  "appSettingsFullscreenTabStrip": "Katika skrini nzima, upau wa vichupo",
+  "appSettingsFullscreenTabStripHidden": "Imefichwa",
+  "appSettingsFullscreenTabStripAlways": "Inaonekana kila wakati",
+  "appSettingsFullscreenTabStripButton": "Onyesha kwa kitufe"
 }

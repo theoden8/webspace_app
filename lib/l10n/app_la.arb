@@ -169,8 +169,6 @@
   "appSettingsInterface": "Interfacies",
   "appSettingsSiteTabStrip": "Tigillum laminarum loci",
   "appSettingsSiteTabStripSubtitle": "Tigillum laminarum cum omnibus locis in summo ostendere",
-  "appSettingsKeepTabStripFullscreen": "Tigillum laminarum in plena schermate servare",
-  "appSettingsKeepTabStripFullscreenSubtitle": "Tigillum laminarum visibile in plena schermate servare dum tigillum summum celatum manet",
   "appSettingsStatsBar": "Tigillum numerorum",
   "appSettingsStatsBarSubtitle": "Numeros petitionum vivos in summo cuiusque loci ostendere",
   "appSettingsLanguageTitle": "Lingua applicationis",
@@ -630,5 +628,12 @@
   "appSettingsClearUrlsHint": "Indicem parametrorum investigationis notorum a paginis retis adhibitorum exonerat (ut utm_source, fbclid, etc.). Cum per locum accensum, hi parametri ex URL automatice auferuntur ad secretum tuum tuendum.",
   "appSettingsDnsBlocklistHint": "Indicem Hagezi exonerat ad nota dominia reclamationum, investigationis, et malware impedienda. Gradum gravitatis a Levi ad Summum elige. Gradus superiores plura dominia impediunt sed nonnullos locos frangere possunt. Semel exoneratus, per locum accende vel exstingue in institutionibus cuiusque loci.",
   "appSettingsLocalCdnHint": "Communes bibliothecas JavaScript, litteras, et compagines CSS exonerat ut eas localiter praeberet potius quam ex servatoribus CDN tertiae partis (ut Google, Cloudflare, jsDelivr) peteret. Hoc impedit praebitores CDN ne tuam navigationem trans paginas diversas investigent.",
-  "appSettingsContentBlockerHint": "Reclamationes, investigatores, et elementa paginarum non desiderata impedit indicibus cribri utens ut EasyList. Sustinet impeditionem gradus dominii, cribra cosmetica CSS ad elementa paginarum celanda, et regulas celandi textu fundatas. Indices cribri singulos infra accende vel exstingue, et impeditionem contenti per locum in institutionibus cuiusque loci commuta."
+  "appSettingsContentBlockerHint": "Reclamationes, investigatores, et elementa paginarum non desiderata impedit indicibus cribri utens ut EasyList. Sustinet impeditionem gradus dominii, cribra cosmetica CSS ad elementa paginarum celanda, et regulas celandi textu fundatas. Indices cribri singulos infra accende vel exstingue, et impeditionem contenti per locum in institutionibus cuiusque loci commuta.",
+  "appSettingsTabBarButtonCorner": "Positio bullae",
+  "appSettingsTabMaxWidth": "Limes latitudinis tabulae",
+  "appSettingsTabMaxWidthSubtitle": "Limita quantum quaeque tabula latescere possit ut nomina longa compacta maneant",
+  "appSettingsFullscreenTabStrip": "In pleno schemate, series tabularum",
+  "appSettingsFullscreenTabStripHidden": "Occultata",
+  "appSettingsFullscreenTabStripAlways": "Semper visibilis",
+  "appSettingsFullscreenTabStripButton": "Bulla ostendere"
 }
