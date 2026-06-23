@@ -1693,9 +1693,15 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (!mounted) return;
     }
     // A shortcut tap is the user's app-launcher entry point; enter fullscreen
-    // unless they've turned the global option off. Runs after _setCurrentIndex
-    // (which may have exited fullscreen for a non-fullscreen per-site target).
-    if (_fullscreenOnShortcut) _enterFullscreen();
+    // per the FS-008 policy. Runs after _setCurrentIndex (which already exited
+    // fullscreen for a non-fullscreen per-site target), so there's no else.
+    if (StartupRestoreEngine.shouldEnterFullscreen(
+      viaShortcut: true,
+      fullscreenOnShortcut: _fullscreenOnShortcut,
+      perSiteFullscreenMode: _webViewModels[index].fullscreenMode,
+    )) {
+      _enterFullscreen();
+    }
     setState(() {});
     await _saveWebViewModels();
   }
@@ -4089,10 +4095,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     if (!mounted) return;
     // indexToRestore is non-null only for a shortcut cold launch (see the
-    // "only restore index if launched via shortcut" comment above), so enter
-    // fullscreen here when the global option is on, regardless of the target's
-    // per-site fullscreenMode.
-    if (indexToRestore != null && _fullscreenOnShortcut) {
+    // "only restore index if launched via shortcut" comment above), so apply
+    // the FS-008 shortcut-launch fullscreen policy here.
+    if (indexToRestore != null &&
+        StartupRestoreEngine.shouldEnterFullscreen(
+          viaShortcut: true,
+          fullscreenOnShortcut: _fullscreenOnShortcut,
+          perSiteFullscreenMode: _webViewModels[indexToRestore].fullscreenMode,
+        )) {
       _enterFullscreen();
     }
     setState(() {}); // Trigger UI update after async operation

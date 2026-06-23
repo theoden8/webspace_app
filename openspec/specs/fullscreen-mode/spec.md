@@ -228,7 +228,7 @@ The system SHALL keep the site's content reachable in full screen even when the 
 **_WebSpacePageState** (`lib/main.dart`):
 - `bool _isFullscreen = false` - Current fullscreen state (not persisted; runtime only)
 - `bool _tabStripInFullscreen = false` - Global pref mirror of the `tabStripInFullscreen` SharedPreferences key (registered in `kExportedAppPrefs`, round-trips through settings backup)
-- `bool _fullscreenOnShortcut = true` - Global pref mirror of the `fullscreenOnShortcut` SharedPreferences key (registered in `kExportedAppPrefs`, on by default). When set, `_openShortcutIndex` (warm launch) and the cold-launch restore path (`indexToRestore != null`) call `_enterFullscreen()` after `_setCurrentIndex`, independent of the target's per-site `fullscreenMode`.
+- `bool _fullscreenOnShortcut = true` - Global pref mirror of the `fullscreenOnShortcut` SharedPreferences key (registered in `kExportedAppPrefs`, on by default). Both shortcut launch paths — `_openShortcutIndex` (warm) and the cold-launch restore path (`indexToRestore != null`) — route the decision through the pure `StartupRestoreEngine.shouldEnterFullscreen(viaShortcut, fullscreenOnShortcut, perSiteFullscreenMode)` policy and call `_enterFullscreen()` when it returns true. The policy returns `perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut)`, so a normal in-app switch (`viaShortcut: false`) is never pulled into fullscreen by the global option. Covered by `test/startup_restore_engine_test.dart`.
 
 ### UI Changes
 
