@@ -10,6 +10,15 @@ on:
   # Allow manual trigger for testing
   workflow_dispatch:
 
+# Supersede in-progress runs for the same ref: a new push cancels the
+# previous run instead of letting both consume runners. A hung job (e.g. a
+# WebView integration test deadlocking on a headless runner) otherwise
+# burns a runner for the full 6h job limit while newer commits queue behind
+# it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Single source of truth for the cargo-ndk version. The F-Droid recipe
 # seds this line; every job reads it via the env context. Bump here only.
 env:
