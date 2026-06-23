@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "බොත්තමේ පිහිටීම",
   "appSettingsTabMaxWidth": "ටැබ් පළල සීමාව",
   "appSettingsTabMaxWidthSubtitle": "දිගු නම් සංයුක්තව තබා ගැනීමට එක් එක් ටැබය කොතරම් පළල් විය හැකිද යන්න සීමා කරන්න",
+  "appSettingsFullscreenOnShortcut": "කෙටිමඟකින් විවෘත කළ විට පූර්ණ තිරය",
+  "appSettingsFullscreenOnShortcutSubtitle": "මුල් තිර කෙටිමඟකින් දියත් කළ විට පූර්ණ තිරයේ විවෘත කරන්න",
   "appSettingsFullscreenTabStrip": "සම්පූර්ණ තිරයේ, ටැබ් තීරුව",
   "appSettingsFullscreenTabStripHidden": "සැඟවී ඇත",
   "appSettingsFullscreenTabStripAlways": "සැමවිටම දෘශ්‍යමාන",

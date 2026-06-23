@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "بٹن کی پوزیشن",
   "appSettingsTabMaxWidth": "ٹیب چوڑائی کی حد",
   "appSettingsTabMaxWidthSubtitle": "محدود کریں کہ ہر ٹیب کتنا چوڑا ہو سکتا ہے تاکہ لمبے نام مختصر رہیں",
+  "appSettingsFullscreenOnShortcut": "شارٹ کٹ سے کھولنے پر فل اسکرین",
+  "appSettingsFullscreenOnShortcutSubtitle": "ہوم اسکرین شارٹ کٹ سے کھلنے پر فل اسکرین میں کھولیں",
   "appSettingsFullscreenTabStrip": "فل اسکرین میں، ٹیب بار",
   "appSettingsFullscreenTabStripHidden": "پوشیدہ",
   "appSettingsFullscreenTabStripAlways": "ہمیشہ نظر آنے والا",

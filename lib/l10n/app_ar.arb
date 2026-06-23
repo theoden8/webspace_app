@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "موضع الزر",
   "appSettingsTabMaxWidth": "حد عرض التبويب",
   "appSettingsTabMaxWidthSubtitle": "حدّد مدى اتساع كل تبويب لإبقاء الأسماء الطويلة مضغوطة",
+  "appSettingsFullscreenOnShortcut": "ملء الشاشة عند التشغيل من اختصار",
+  "appSettingsFullscreenOnShortcutSubtitle": "افتح بملء الشاشة عند التشغيل من اختصار على الشاشة الرئيسية",
   "appSettingsFullscreenTabStrip": "في وضع ملء الشاشة، شريط التبويبات",
   "appSettingsFullscreenTabStripHidden": "مخفي",
   "appSettingsFullscreenTabStripAlways": "ظاهر دائمًا",

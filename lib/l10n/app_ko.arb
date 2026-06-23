@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "버튼 위치",
   "appSettingsTabMaxWidth": "탭 너비 제한",
   "appSettingsTabMaxWidthSubtitle": "긴 이름이 간결하게 유지되도록 각 탭이 넓어질 수 있는 정도를 제한합니다",
+  "appSettingsFullscreenOnShortcut": "바로가기로 실행 시 전체 화면",
+  "appSettingsFullscreenOnShortcutSubtitle": "홈 화면 바로가기로 실행할 때 전체 화면으로 열기",
   "appSettingsFullscreenTabStrip": "전체 화면에서 탭 바",
   "appSettingsFullscreenTabStripHidden": "숨김",
   "appSettingsFullscreenTabStripAlways": "항상 표시",

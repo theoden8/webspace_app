@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "ಬಟನ್ ಸ್ಥಾನ",
   "appSettingsTabMaxWidth": "ಟ್ಯಾಬ್ ಅಗಲ ಮಿತಿ",
   "appSettingsTabMaxWidthSubtitle": "ಉದ್ದದ ಹೆಸರುಗಳು ಸಾಂದ್ರವಾಗಿರಲು ಪ್ರತಿ ಟ್ಯಾಬ್ ಎಷ್ಟು ಅಗಲವಾಗಬಹುದು ಎಂಬುದನ್ನು ಮಿತಿಗೊಳಿಸಿ",
+  "appSettingsFullscreenOnShortcut": "ಶಾರ್ಟ್‌ಕಟ್‌ನಿಂದ ತೆರೆದಾಗ ಪೂರ್ಣ ಪರದೆ",
+  "appSettingsFullscreenOnShortcutSubtitle": "ಮುಖಪುಟ ಪರದೆಯ ಶಾರ್ಟ್‌ಕಟ್‌ನಿಂದ ಪ್ರಾರಂಭಿಸಿದಾಗ ಪೂರ್ಣ ಪರದೆಯಲ್ಲಿ ತೆರೆಯಿರಿ",
   "appSettingsFullscreenTabStrip": "ಪೂರ್ಣ ಪರದೆಯಲ್ಲಿ, ಟ್ಯಾಬ್ ಬಾರ್",
   "appSettingsFullscreenTabStripHidden": "ಮರೆಮಾಡಲಾಗಿದೆ",
   "appSettingsFullscreenTabStripAlways": "ಯಾವಾಗಲೂ ಗೋಚರ",

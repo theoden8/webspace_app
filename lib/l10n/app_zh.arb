@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "按钮位置",
   "appSettingsTabMaxWidth": "标签宽度上限",
   "appSettingsTabMaxWidthSubtitle": "限制每个标签的最大宽度，使较长的名称保持紧凑",
+  "appSettingsFullscreenOnShortcut": "通过快捷方式启动时全屏",
+  "appSettingsFullscreenOnShortcutSubtitle": "从主屏幕快捷方式启动时以全屏打开",
   "appSettingsFullscreenTabStrip": "全屏时，标签栏",
   "appSettingsFullscreenTabStripHidden": "隐藏",
   "appSettingsFullscreenTabStripAlways": "始终显示",

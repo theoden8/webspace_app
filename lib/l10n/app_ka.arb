@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "ღილაკის პოზიცია",
   "appSettingsTabMaxWidth": "ჩანართის სიგანის ლიმიტი",
   "appSettingsTabMaxWidthSubtitle": "შეზღუდე, რამდენად განიერი შეიძლება იყოს თითოეული ჩანართი, რომ გრძელი სახელები კომპაქტური დარჩეს",
+  "appSettingsFullscreenOnShortcut": "სრული ეკრანი მალსახმობიდან გაშვებისას",
+  "appSettingsFullscreenOnShortcutSubtitle": "გახსენით სრულ ეკრანზე, როცა მთავარი ეკრანის მალსახმობიდან ეშვება",
   "appSettingsFullscreenTabStrip": "სრულ ეკრანზე, ჩანართების ზოლი",
   "appSettingsFullscreenTabStripHidden": "დამალული",
   "appSettingsFullscreenTabStripAlways": "ყოველთვის ხილული",

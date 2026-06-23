@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Knoppieposisie",
   "appSettingsTabMaxWidth": "Oortjiebreedte-limiet",
   "appSettingsTabMaxWidthSubtitle": "Beperk hoe wyd elke oortjie kan word sodat lang name kompak bly",
+  "appSettingsFullscreenOnShortcut": "Volskerm by kortpad-loods",
+  "appSettingsFullscreenOnShortcutSubtitle": "Open in volskerm wanneer dit vanaf 'n tuisskerm-kortpad geloods word",
   "appSettingsFullscreenTabStrip": "In volskerm, oortjiebalk",
   "appSettingsFullscreenTabStripHidden": "Versteek",
   "appSettingsFullscreenTabStripAlways": "Altyd sigbaar",

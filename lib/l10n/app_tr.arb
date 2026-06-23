@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Düğme konumu",
   "appSettingsTabMaxWidth": "Sekme Genişliği Sınırı",
   "appSettingsTabMaxWidthSubtitle": "Uzun adların derli toplu kalması için her sekmenin ne kadar genişleyebileceğini sınırlayın",
+  "appSettingsFullscreenOnShortcut": "Kısayoldan açılışta tam ekran",
+  "appSettingsFullscreenOnShortcutSubtitle": "Ana ekran kısayolundan başlatıldığında tam ekranda aç",
   "appSettingsFullscreenTabStrip": "Tam ekranda, sekme çubuğu",
   "appSettingsFullscreenTabStripHidden": "Gizli",
   "appSettingsFullscreenTabStripAlways": "Her zaman görünür",

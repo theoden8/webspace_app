@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Položaj gumba",
   "appSettingsTabMaxWidth": "Omejitev širine zavihka",
   "appSettingsTabMaxWidthSubtitle": "Omejite, kako širok je lahko vsak zavihek, da dolga imena ostanejo zgoščena",
+  "appSettingsFullscreenOnShortcut": "Celozaslonski način pri zagonu iz bližnjice",
+  "appSettingsFullscreenOnShortcutSubtitle": "Odpri v celozaslonskem načinu, ko se zažene iz bližnjice na začetnem zaslonu",
   "appSettingsFullscreenTabStrip": "V celozaslonskem načinu, vrstica zavihkov",
   "appSettingsFullscreenTabStripHidden": "Skrito",
   "appSettingsFullscreenTabStripAlways": "Vedno vidno",

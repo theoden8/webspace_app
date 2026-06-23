@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "બટનની સ્થિતિ",
   "appSettingsTabMaxWidth": "ટૅબ પહોળાઈ મર્યાદા",
   "appSettingsTabMaxWidthSubtitle": "દરેક ટૅબ કેટલી પહોળી થઈ શકે તે મર્યાદિત કરો જેથી લાંબા નામ સંકુચિત રહે",
+  "appSettingsFullscreenOnShortcut": "શૉર્ટકટથી શરૂ થાય ત્યારે પૂર્ણ સ્ક્રીન",
+  "appSettingsFullscreenOnShortcutSubtitle": "હોમ-સ્ક્રીન શૉર્ટકટથી શરૂ થાય ત્યારે પૂર્ણ સ્ક્રીનમાં ખોલો",
   "appSettingsFullscreenTabStrip": "પૂર્ણ સ્ક્રીનમાં, ટૅબ બાર",
   "appSettingsFullscreenTabStripHidden": "છુપાયેલ",
   "appSettingsFullscreenTabStripAlways": "હંમેશા દૃશ્યમાન",

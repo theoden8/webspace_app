@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Suíomh an chnaipe",
   "appSettingsTabMaxWidth": "Teorainn Leithead Cluaisín",
   "appSettingsTabMaxWidthSubtitle": "Cuir teorainn le leithead gach cluaisín ionas go bhfanfaidh ainmneacha fada dlúth",
+  "appSettingsFullscreenOnShortcut": "Lánscáileán nuair a sheoltar ó aicearra",
+  "appSettingsFullscreenOnShortcutSubtitle": "Oscail i lánscáileán nuair a sheoltar ó aicearra ar an scáileán baile",
   "appSettingsFullscreenTabStrip": "Sa scáileán iomlán, barra cluaisíní",
   "appSettingsFullscreenTabStripHidden": "Folaithe",
   "appSettingsFullscreenTabStripAlways": "Le feiceáil i gcónaí",

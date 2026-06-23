@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Poziția butonului",
   "appSettingsTabMaxWidth": "Limită lățime filă",
   "appSettingsTabMaxWidthSubtitle": "Limitează cât de lată poate deveni fiecare filă, astfel încât numele lungi să rămână compacte",
+  "appSettingsFullscreenOnShortcut": "Ecran complet la lansarea din comandă rapidă",
+  "appSettingsFullscreenOnShortcutSubtitle": "Deschide pe ecran complet când este lansat dintr-o comandă rapidă de pe ecranul de pornire",
   "appSettingsFullscreenTabStrip": "Pe ecran complet, bara de file",
   "appSettingsFullscreenTabStripHidden": "Ascunsă",
   "appSettingsFullscreenTabStripAlways": "Întotdeauna vizibilă",

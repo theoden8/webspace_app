@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Position du bouton",
   "appSettingsTabMaxWidth": "Limite de largeur des onglets",
   "appSettingsTabMaxWidthSubtitle": "Limiter la largeur de chaque onglet pour que les noms longs restent compacts",
+  "appSettingsFullscreenOnShortcut": "Plein écran au lancement depuis un raccourci",
+  "appSettingsFullscreenOnShortcutSubtitle": "Ouvrir en plein écran au lancement depuis un raccourci de l'écran d'accueil",
   "appSettingsFullscreenTabStrip": "En plein écran, barre d'onglets",
   "appSettingsFullscreenTabStripHidden": "Masquée",
   "appSettingsFullscreenTabStripAlways": "Toujours visible",

@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Położenie przycisku",
   "appSettingsTabMaxWidth": "Limit szerokości karty",
   "appSettingsTabMaxWidthSubtitle": "Ogranicz szerokość każdej karty, aby długie nazwy pozostały zwarte",
+  "appSettingsFullscreenOnShortcut": "Pełny ekran przy uruchomieniu ze skrótu",
+  "appSettingsFullscreenOnShortcutSubtitle": "Otwieraj na pełnym ekranie po uruchomieniu ze skrótu na ekranie głównym",
   "appSettingsFullscreenTabStrip": "Na pełnym ekranie, pasek kart",
   "appSettingsFullscreenTabStripHidden": "Ukryty",
   "appSettingsFullscreenTabStripAlways": "Zawsze widoczny",

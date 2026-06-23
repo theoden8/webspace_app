@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "מיקום הכפתור",
   "appSettingsTabMaxWidth": "מגבלת רוחב כרטיסייה",
   "appSettingsTabMaxWidthSubtitle": "הגבל את רוחב כל כרטיסייה כדי ששמות ארוכים יישארו קומפקטיים",
+  "appSettingsFullscreenOnShortcut": "מסך מלא בהפעלה מקיצור דרך",
+  "appSettingsFullscreenOnShortcutSubtitle": "פתח במסך מלא בעת הפעלה מקיצור דרך במסך הבית",
   "appSettingsFullscreenTabStrip": "במסך מלא, סרגל כרטיסיות",
   "appSettingsFullscreenTabStripHidden": "מוסתר",
   "appSettingsFullscreenTabStripAlways": "תמיד גלוי",

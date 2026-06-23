@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "موقعیت دکمه",
   "appSettingsTabMaxWidth": "محدودیت عرض زبانه",
   "appSettingsTabMaxWidthSubtitle": "محدود کنید هر زبانه چقدر می‌تواند پهن شود تا نام‌های طولانی فشرده بمانند",
+  "appSettingsFullscreenOnShortcut": "تمام‌صفحه هنگام اجرا از میان‌بر",
+  "appSettingsFullscreenOnShortcutSubtitle": "هنگام اجرا از میان‌بر صفحه اصلی، در حالت تمام‌صفحه باز شود",
   "appSettingsFullscreenTabStrip": "در تمام‌صفحه، نوار زبانه‌ها",
   "appSettingsFullscreenTabStripHidden": "پنهان",
   "appSettingsFullscreenTabStripAlways": "همیشه نمایان",

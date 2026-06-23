@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Knapplacering",
   "appSettingsTabMaxWidth": "Grænse for fanebredde",
   "appSettingsTabMaxWidthSubtitle": "Begræns hvor bred hver fane kan blive, så lange navne forbliver kompakte",
+  "appSettingsFullscreenOnShortcut": "Fuld skærm ved start fra genvej",
+  "appSettingsFullscreenOnShortcutSubtitle": "Åbn i fuld skærm, når der startes fra en genvej på startskærmen",
   "appSettingsFullscreenTabStrip": "I fuld skærm, fanebjælke",
   "appSettingsFullscreenTabStripHidden": "Skjult",
   "appSettingsFullscreenTabStripAlways": "Altid synlig",

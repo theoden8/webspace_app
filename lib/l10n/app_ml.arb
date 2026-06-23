@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "ബട്ടണിന്റെ സ്ഥാനം",
   "appSettingsTabMaxWidth": "ടാബ് വീതി പരിധി",
   "appSettingsTabMaxWidthSubtitle": "നീണ്ട പേരുകൾ ഒതുക്കമായി നിലനിൽക്കാൻ ഓരോ ടാബും എത്രമാത്രം വീതിയാകാം എന്നത് പരിമിതപ്പെടുത്തുക",
+  "appSettingsFullscreenOnShortcut": "കുറുക്കുവഴിയിൽ നിന്ന് തുറക്കുമ്പോൾ പൂർണ്ണ സ്ക്രീൻ",
+  "appSettingsFullscreenOnShortcutSubtitle": "ഹോം-സ്ക്രീൻ കുറുക്കുവഴിയിൽ നിന്ന് സമാരംഭിക്കുമ്പോൾ പൂർണ്ണ സ്ക്രീനിൽ തുറക്കുക",
   "appSettingsFullscreenTabStrip": "പൂർണ്ണ സ്ക്രീനിൽ, ടാബ് ബാർ",
   "appSettingsFullscreenTabStripHidden": "മറച്ചിരിക്കുന്നു",
   "appSettingsFullscreenTabStripAlways": "എപ്പോഴും ദൃശ്യം",

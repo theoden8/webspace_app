@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Posición do botón",
   "appSettingsTabMaxWidth": "Límite de ancho da lapela",
   "appSettingsTabMaxWidthSubtitle": "Limita canto pode medrar cada lapela para que os nomes longos se manteñan compactos",
+  "appSettingsFullscreenOnShortcut": "Pantalla completa ao iniciar desde un atallo",
+  "appSettingsFullscreenOnShortcutSubtitle": "Abrir en pantalla completa cando se inicia desde un atallo da pantalla de inicio",
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de lapelas",
   "appSettingsFullscreenTabStripHidden": "Agochada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",

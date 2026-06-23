@@ -165,6 +165,38 @@ The system SHALL support a global option to keep the site tab strip visible in f
 
 ---
 
+### Requirement: FS-008 - Full Screen on Shortcut Launch
+
+The system SHALL support a global option, enabled by default, to enter full screen automatically when a site is opened from a home-screen shortcut (Android pinned shortcut / iOS App Intents). The option is independent of the per-site `fullscreenMode` setting and applies to both cold and warm shortcut launches.
+
+#### Scenario: Cold launch from shortcut
+
+**Given** "Full screen on shortcut launch" is enabled
+**And** the app is not running
+**When** the user taps a pinned home-screen shortcut for a site
+**Then** the app launches that site directly in full screen mode
+
+#### Scenario: Warm launch from shortcut
+
+**Given** "Full screen on shortcut launch" is enabled
+**And** the app is already running in the background
+**When** the user taps a pinned home-screen shortcut for a site
+**Then** the app switches to that site and enters full screen mode
+
+#### Scenario: Option disabled
+
+**Given** "Full screen on shortcut launch" is disabled
+**When** the user opens a site from a home-screen shortcut
+**Then** full screen is governed only by the site's per-site `fullscreenMode` (not entered just because it was opened via a shortcut)
+
+#### Scenario: Normal site switch is unaffected
+
+**Given** "Full screen on shortcut launch" is enabled
+**When** the user switches sites from inside the app (tab strip, drawer) rather than via a shortcut
+**Then** full screen is governed only by the target site's `fullscreenMode`
+
+---
+
 ### Requirement: FS-006 - Content Reachable Under Persistent System Bars
 
 The system SHALL keep the site's content reachable in full screen even when the platform fails to hide the system bars (e.g. Android 15 edge-to-edge, where `immersiveSticky` does not always hide the status/navigation bars).
@@ -196,6 +228,7 @@ The system SHALL keep the site's content reachable in full screen even when the 
 **_WebSpacePageState** (`lib/main.dart`):
 - `bool _isFullscreen = false` - Current fullscreen state (not persisted; runtime only)
 - `bool _tabStripInFullscreen = false` - Global pref mirror of the `tabStripInFullscreen` SharedPreferences key (registered in `kExportedAppPrefs`, round-trips through settings backup)
+- `bool _fullscreenOnShortcut = true` - Global pref mirror of the `fullscreenOnShortcut` SharedPreferences key (registered in `kExportedAppPrefs`, on by default). When set, `_openShortcutIndex` (warm launch) and the cold-launch restore path (`indexToRestore != null`) call `_enterFullscreen()` after `_setCurrentIndex`, independent of the target's per-site `fullscreenMode`.
 
 ### UI Changes
 

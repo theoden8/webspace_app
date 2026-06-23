@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Pozicioni i butonit",
   "appSettingsTabMaxWidth": "Kufiri i gjerësisë së skedës",
   "appSettingsTabMaxWidthSubtitle": "Kufizo sa e gjerë mund të bëhet çdo skedë që emrat e gjatë të mbeten kompaktë",
+  "appSettingsFullscreenOnShortcut": "Ekran i plotë kur nisitet nga shkurtorja",
+  "appSettingsFullscreenOnShortcutSubtitle": "Hape në ekran të plotë kur nisitet nga një shkurtore e ekranit bazë",
   "appSettingsFullscreenTabStrip": "Në ekran të plotë, shiriti i skedave",
   "appSettingsFullscreenTabStripHidden": "I fshehur",
   "appSettingsFullscreenTabStripAlways": "Gjithmonë i dukshëm",

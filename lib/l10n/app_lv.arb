@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Pogas novietojums",
   "appSettingsTabMaxWidth": "Cilnes platuma ierobežojums",
   "appSettingsTabMaxWidthSubtitle": "Ierobežojiet, cik plata var kļūt katra cilne, lai gari nosaukumi paliktu kompakti",
+  "appSettingsFullscreenOnShortcut": "Pilnekrāns, palaižot no saīsnes",
+  "appSettingsFullscreenOnShortcutSubtitle": "Atvērt pilnekrānā, kad palaiž no sākuma ekrāna saīsnes",
   "appSettingsFullscreenTabStrip": "Pilnekrānā, ciļņu josla",
   "appSettingsFullscreenTabStripHidden": "Slēpta",
   "appSettingsFullscreenTabStripAlways": "Vienmēr redzama",

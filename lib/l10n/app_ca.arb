@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Posició del botó",
   "appSettingsTabMaxWidth": "Límit d'amplada de pestanya",
   "appSettingsTabMaxWidthSubtitle": "Limita l'amplada de cada pestanya perquè els noms llargs es mantinguin compactes",
+  "appSettingsFullscreenOnShortcut": "Pantalla completa en obrir des d'una drecera",
+  "appSettingsFullscreenOnShortcutSubtitle": "Obre en pantalla completa quan s'inicia des d'una drecera de la pantalla d'inici",
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de pestanyes",
   "appSettingsFullscreenTabStripHidden": "Amagada",
   "appSettingsFullscreenTabStripAlways": "Sempre visible",

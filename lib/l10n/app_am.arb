@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "የቁልፍ አቀማመጥ",
   "appSettingsTabMaxWidth": "የትር ስፋት ገደብ",
   "appSettingsTabMaxWidthSubtitle": "ረጅም ስሞች ጥቅጥቅ ብለው እንዲቆዩ እያንዳንዱ ትር ምን ያህል ሊሰፋ እንደሚችል ይገድቡ",
+  "appSettingsFullscreenOnShortcut": "በአቋራጭ ሲጀመር ሙሉ ማያ",
+  "appSettingsFullscreenOnShortcutSubtitle": "ከመነሻ ማያ አቋራጭ ሲጀመር በሙሉ ማያ ይክፈቱ",
   "appSettingsFullscreenTabStrip": "በሙሉ ማያ ገጽ፣ የትር አሞሌ",
   "appSettingsFullscreenTabStripHidden": "ተደብቋል",
   "appSettingsFullscreenTabStripAlways": "ሁልጊዜ የሚታይ",

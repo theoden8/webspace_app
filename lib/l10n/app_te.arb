@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "బటన్ స్థానం",
   "appSettingsTabMaxWidth": "ట్యాబ్ వెడల్పు పరిమితి",
   "appSettingsTabMaxWidthSubtitle": "పొడవైన పేర్లు కుదించబడి ఉండేలా ప్రతి ట్యాబ్ ఎంత వెడల్పు కావచ్చో పరిమితం చేయండి",
+  "appSettingsFullscreenOnShortcut": "షార్ట్‌కట్ నుండి తెరిచినప్పుడు పూర్తి స్క్రీన్",
+  "appSettingsFullscreenOnShortcutSubtitle": "హోమ్-స్క్రీన్ షార్ట్‌కట్ నుండి ప్రారంభించినప్పుడు పూర్తి స్క్రీన్‌లో తెరవండి",
   "appSettingsFullscreenTabStrip": "పూర్తి స్క్రీన్‌లో, ట్యాబ్ బార్",
   "appSettingsFullscreenTabStripHidden": "దాచబడింది",
   "appSettingsFullscreenTabStripAlways": "ఎల్లప్పుడూ కనిపిస్తుంది",

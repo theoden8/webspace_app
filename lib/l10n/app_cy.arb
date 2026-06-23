@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Safle'r botwm",
   "appSettingsTabMaxWidth": "Terfyn Lled Tab",
   "appSettingsTabMaxWidthSubtitle": "Cyfyngu pa mor llydan y gall pob tab dyfu fel bod enwau hir yn aros yn gryno",
+  "appSettingsFullscreenOnShortcut": "Sgrin lawn wrth lansio o lwybr byr",
+  "appSettingsFullscreenOnShortcutSubtitle": "Agor yn sgrin lawn pan gaiff ei lansio o lwybr byr ar y sgrin gartref",
   "appSettingsFullscreenTabStrip": "Yn y sgrin lawn, bar tabiau",
   "appSettingsFullscreenTabStripHidden": "Cuddiedig",
   "appSettingsFullscreenTabStripAlways": "Gweladwy bob amser",

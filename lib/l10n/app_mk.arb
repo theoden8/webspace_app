@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Позиција на копчето",
   "appSettingsTabMaxWidth": "Ограничување на ширината на јазичето",
   "appSettingsTabMaxWidthSubtitle": "Ограничете колку широко може да стане секое јазиче за да останат долгите имиња компактни",
+  "appSettingsFullscreenOnShortcut": "Цел екран при отворање од кратенка",
+  "appSettingsFullscreenOnShortcutSubtitle": "Отвори на цел екран кога се стартува од кратенка на почетниот екран",
   "appSettingsFullscreenTabStrip": "На цел екран, лента со јазичиња",
   "appSettingsFullscreenTabStripHidden": "Скриено",
   "appSettingsFullscreenTabStripAlways": "Секогаш видливо",

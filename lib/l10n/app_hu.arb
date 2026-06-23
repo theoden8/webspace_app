@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Gomb helyzete",
   "appSettingsTabMaxWidth": "Lapszélesség korlát",
   "appSettingsTabMaxWidthSubtitle": "Korlátozza, milyen széles lehet az egyes lapok, hogy a hosszú nevek tömörek maradjanak",
+  "appSettingsFullscreenOnShortcut": "Teljes képernyő parancsikonból indításkor",
+  "appSettingsFullscreenOnShortcutSubtitle": "Megnyitás teljes képernyőn, ha a kezdőképernyő parancsikonjából indul",
   "appSettingsFullscreenTabStrip": "Teljes képernyőn, lapsáv",
   "appSettingsFullscreenTabStripHidden": "Rejtett",
   "appSettingsFullscreenTabStripAlways": "Mindig látható",

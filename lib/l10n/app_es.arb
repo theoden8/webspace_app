@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Posición del botón",
   "appSettingsTabMaxWidth": "Límite de ancho de pestaña",
   "appSettingsTabMaxWidthSubtitle": "Limita cuánto puede crecer cada pestaña para que los nombres largos se mantengan compactos",
+  "appSettingsFullscreenOnShortcut": "Pantalla completa al abrir desde un acceso directo",
+  "appSettingsFullscreenOnShortcutSubtitle": "Abrir en pantalla completa cuando se inicia desde un acceso directo de la pantalla de inicio",
   "appSettingsFullscreenTabStrip": "En pantalla completa, barra de pestañas",
   "appSettingsFullscreenTabStripHidden": "Oculta",
   "appSettingsFullscreenTabStripAlways": "Siempre visible",

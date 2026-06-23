@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Nupu asukoht",
   "appSettingsTabMaxWidth": "Vahekaardi laiuse piirang",
   "appSettingsTabMaxWidthSubtitle": "Piira, kui laiaks iga vahekaart võib kasvada, et pikad nimed jääksid kompaktseks",
+  "appSettingsFullscreenOnShortcut": "Täisekraan otsetee kaudu avamisel",
+  "appSettingsFullscreenOnShortcutSubtitle": "Ava täisekraanil, kui käivitatakse avakuva otseteest",
   "appSettingsFullscreenTabStrip": "Täisekraanil, vahekaartide riba",
   "appSettingsFullscreenTabStripHidden": "Peidetud",
   "appSettingsFullscreenTabStripAlways": "Alati nähtav",

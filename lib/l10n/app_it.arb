@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Posizione del pulsante",
   "appSettingsTabMaxWidth": "Limite larghezza scheda",
   "appSettingsTabMaxWidthSubtitle": "Limita quanto può diventare larga ogni scheda in modo che i nomi lunghi restino compatti",
+  "appSettingsFullscreenOnShortcut": "Schermo intero all'avvio da scorciatoia",
+  "appSettingsFullscreenOnShortcutSubtitle": "Apri a schermo intero quando avviato da una scorciatoia della schermata Home",
   "appSettingsFullscreenTabStrip": "A schermo intero, barra delle schede",
   "appSettingsFullscreenTabStripHidden": "Nascosta",
   "appSettingsFullscreenTabStripAlways": "Sempre visibile",

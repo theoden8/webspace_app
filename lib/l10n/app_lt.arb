@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Mygtuko padėtis",
   "appSettingsTabMaxWidth": "Kortelės pločio riba",
   "appSettingsTabMaxWidthSubtitle": "Apribokite, kokio pločio gali būti kiekviena kortelė, kad ilgi pavadinimai liktų kompaktiški",
+  "appSettingsFullscreenOnShortcut": "Visas ekranas paleidžiant iš nuorodos",
+  "appSettingsFullscreenOnShortcutSubtitle": "Atidaryti per visą ekraną, kai paleidžiama iš pradžios ekrano nuorodos",
   "appSettingsFullscreenTabStrip": "Viso ekrano režime, kortelių juosta",
   "appSettingsFullscreenTabStripHidden": "Paslėpta",
   "appSettingsFullscreenTabStripAlways": "Visada matoma",
