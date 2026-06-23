@@ -97,8 +97,13 @@ void main() {
     await server.close(force: true);
   });
 
+  // Skipped on Linux: mounting a WPE WebView on the headless weston +
+  // software-EGL harness blocks the platform thread natively, below Dart's
+  // timeout layer, so the in-test pumpUntil/pumpAndSettle skips never fire
+  // and the job hangs indefinitely (issue: #424 harness). WPE can't
+  // serialize nav state anyway, so there is no Linux coverage to lose.
   testWidgets('back/forward history and current page survive a restart',
-      (tester) async {
+      skip: Platform.isLinux, (tester) async {
     WebViewModel? site() {
       for (final m in app.debugWebViewModels ?? const <WebViewModel>[]) {
         if (m.siteId == _siteId) return m;
