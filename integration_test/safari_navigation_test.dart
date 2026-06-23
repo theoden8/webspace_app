@@ -97,17 +97,19 @@ void main() {
     await server.close(force: true);
   });
 
-  // Skipped on Linux. This test must mount a live, rendering WebView (it
-  // loads a real loopback page and drives a JS navigation to build history).
-  // On the headless weston + software-EGL harness that mount/render blocks
-  // the platform thread natively, beneath Dart's timeout layer: tester.pump
-  // itself never returns, so neither the call .timeout()s below nor the
-  // pumpUntil deadline can fire and the job hangs for hours (proven empirically
-  // on issue #424's harness). proxy_auth_test escapes this only because it
-  // points at a dead address and never renders. WPE can't serialize nav state
-  // anyway, so there is no Linux coverage to lose. macOS/mobile still run it.
+  // Skipped on desktop CI (Linux + macOS). This test must mount a live,
+  // rendering WebView (it loads a real loopback page and drives a JS
+  // navigation to build history) and uses pumpAndSettle on it across an
+  // app restart. On the headless desktop CI runners that mount/render
+  // blocks the platform thread beneath Dart's timeout layer: tester.pump
+  // never returns, so neither the call .timeout()s below nor the pumpUntil
+  // deadline can fire and the job hangs to the 6h limit. Proven empirically
+  // on issue #424's harness: the Linux job hung 6h and the macOS job hung
+  // 2h40m+ on the same commit. The integration loop only runs on -d linux
+  // and -d macos in CI, so both must be skipped. The Safari-style restore
+  // path is meaningful on real iOS/Android, where this still runs.
   testWidgets('back/forward history and current page survive a restart',
-      skip: Platform.isLinux, (tester) async {
+      skip: Platform.isLinux || Platform.isMacOS, (tester) async {
     WebViewModel? site() {
       for (final m in app.debugWebViewModels ?? const <WebViewModel>[]) {
         if (m.siteId == _siteId) return m;
