@@ -97,13 +97,8 @@ void main() {
     await server.close(force: true);
   });
 
-  // Skipped on Linux: mounting a WPE WebView on the headless weston +
-  // software-EGL harness blocks the platform thread natively, below Dart's
-  // timeout layer, so the in-test pumpUntil/pumpAndSettle skips never fire
-  // and the job hangs indefinitely (issue: #424 harness). WPE can't
-  // serialize nav state anyway, so there is no Linux coverage to lose.
   testWidgets('back/forward history and current page survive a restart',
-      skip: Platform.isLinux, (tester) async {
+      (tester) async {
     WebViewModel? site() {
       for (final m in app.debugWebViewModels ?? const <WebViewModel>[]) {
         if (m.siteId == _siteId) return m;
@@ -113,17 +108,29 @@ void main() {
 
     WebViewController? controller() => site()?.controller;
 
+    // Live-webview platform-channel calls have no inherent timeout. On a
+    // headless harness whose WPE/EGL surface never drives a real load (e.g.
+    // Linux CI), getUrl()/canGoBack() can park forever, stranding the
+    // pumpUntil deadline loop mid-iteration so it never re-checks its clock.
+    // Cap each call so a stuck reply surfaces as "not ready" and the loop
+    // falls through to its StateError -> graceful skip instead of hanging.
+    const callTimeout = Duration(seconds: 3);
+
     Future<Uri?> currentUrl() async {
+      final c = controller();
+      if (c == null) return null;
       try {
-        return await controller()?.getUrl();
+        return await c.getUrl().timeout(callTimeout);
       } catch (_) {
         return null;
       }
     }
 
     Future<bool> canGoBack() async {
+      final c = controller();
+      if (c == null) return false;
       try {
-        return await controller()?.canGoBack() ?? false;
+        return await c.canGoBack().timeout(callTimeout);
       } catch (_) {
         return false;
       }
