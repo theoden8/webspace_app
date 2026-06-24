@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Posisi tombol",
   "appSettingsTabMaxWidth": "Batas Lebar Tab",
   "appSettingsTabMaxWidthSubtitle": "Batasi seberapa lebar setiap tab agar nama yang panjang tetap ringkas",
+  "appSettingsFullscreenOnShortcut": "Layar penuh saat dibuka dari pintasan",
+  "appSettingsFullscreenOnShortcutSubtitle": "Buka dalam layar penuh saat diluncurkan dari pintasan layar beranda",
   "appSettingsFullscreenTabStrip": "Di layar penuh, bilah tab",
   "appSettingsFullscreenTabStripHidden": "Tersembunyi",
   "appSettingsFullscreenTabStripAlways": "Selalu terlihat",

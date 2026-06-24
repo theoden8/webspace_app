@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Painikkeen sijainti",
   "appSettingsTabMaxWidth": "Välilehden leveysraja",
   "appSettingsTabMaxWidthSubtitle": "Rajoita, kuinka leveäksi kukin välilehti voi kasvaa, jotta pitkät nimet pysyvät tiiviinä",
+  "appSettingsFullscreenOnShortcut": "Koko näyttö pikakuvakkeesta käynnistettäessä",
+  "appSettingsFullscreenOnShortcutSubtitle": "Avaa koko näytöllä, kun käynnistetään aloitusnäytön pikakuvakkeesta",
   "appSettingsFullscreenTabStrip": "Koko näytössä, välilehtipalkki",
   "appSettingsFullscreenTabStripHidden": "Piilotettu",
   "appSettingsFullscreenTabStripAlways": "Aina näkyvissä",

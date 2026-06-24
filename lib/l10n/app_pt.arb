@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Posição do botão",
   "appSettingsTabMaxWidth": "Limite de largura do separador",
   "appSettingsTabMaxWidthSubtitle": "Limite a largura de cada separador para que os nomes longos se mantenham compactos",
+  "appSettingsFullscreenOnShortcut": "Ecrã inteiro ao abrir a partir de um atalho",
+  "appSettingsFullscreenOnShortcutSubtitle": "Abrir em ecrã inteiro quando iniciado a partir de um atalho do ecrã inicial",
   "appSettingsFullscreenTabStrip": "Em ecrã inteiro, barra de separadores",
   "appSettingsFullscreenTabStripHidden": "Oculta",
   "appSettingsFullscreenTabStripAlways": "Sempre visível",

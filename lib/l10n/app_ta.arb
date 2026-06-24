@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "பொத்தானின் இடம்",
   "appSettingsTabMaxWidth": "தாவல் அகல வரம்பு",
   "appSettingsTabMaxWidthSubtitle": "நீண்ட பெயர்கள் சுருக்கமாக இருக்க ஒவ்வொரு தாவலும் எவ்வளவு அகலமாக இருக்கலாம் என்பதை வரம்பிடவும்",
+  "appSettingsFullscreenOnShortcut": "குறுக்குவழியில் இருந்து திறக்கும்போது முழுத்திரை",
+  "appSettingsFullscreenOnShortcutSubtitle": "முகப்புத் திரை குறுக்குவழியில் இருந்து தொடங்கும்போது முழுத்திரையில் திறக்கவும்",
   "appSettingsFullscreenTabStrip": "முழுத்திரையில், தாவல் பட்டி",
   "appSettingsFullscreenTabStripHidden": "மறைக்கப்பட்டது",
   "appSettingsFullscreenTabStripAlways": "எப்போதும் தெரியும்",

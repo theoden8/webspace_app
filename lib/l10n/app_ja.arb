@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "ボタンの位置",
   "appSettingsTabMaxWidth": "タブ幅の上限",
   "appSettingsTabMaxWidthSubtitle": "長い名前がコンパクトに収まるよう、各タブの幅を制限します",
+  "appSettingsFullscreenOnShortcut": "ショートカットからの起動時に全画面",
+  "appSettingsFullscreenOnShortcutSubtitle": "ホーム画面のショートカットから起動したときに全画面で開く",
   "appSettingsFullscreenTabStrip": "全画面でのタブバー",
   "appSettingsFullscreenTabStripHidden": "非表示",
   "appSettingsFullscreenTabStripAlways": "常に表示",

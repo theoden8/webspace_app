@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Poloha tlačítka",
   "appSettingsTabMaxWidth": "Omezení šířky karty",
   "appSettingsTabMaxWidthSubtitle": "Omezte, jak široká může být každá karta, aby dlouhé názvy zůstaly kompaktní",
+  "appSettingsFullscreenOnShortcut": "Celá obrazovka při spuštění ze zástupce",
+  "appSettingsFullscreenOnShortcutSubtitle": "Otevřít na celou obrazovku při spuštění ze zástupce na ploše",
   "appSettingsFullscreenTabStrip": "Na celé obrazovce, panel karet",
   "appSettingsFullscreenTabStripHidden": "Skrytý",
   "appSettingsFullscreenTabStripAlways": "Vždy viditelný",

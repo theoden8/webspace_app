@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "বোতামের অবস্থান",
   "appSettingsTabMaxWidth": "ট্যাবের প্রস্থ সীমা",
   "appSettingsTabMaxWidthSubtitle": "দীর্ঘ নাম যাতে সংক্ষিপ্ত থাকে সেজন্য প্রতিটি ট্যাব কতটা চওড়া হতে পারে তা সীমিত করুন",
+  "appSettingsFullscreenOnShortcut": "শর্টকাট থেকে চালু হলে পূর্ণ স্ক্রিন",
+  "appSettingsFullscreenOnShortcutSubtitle": "হোম-স্ক্রিন শর্টকাট থেকে চালু হলে পূর্ণ স্ক্রিনে খুলুন",
   "appSettingsFullscreenTabStrip": "ফুলস্ক্রিনে, ট্যাব বার",
   "appSettingsFullscreenTabStripHidden": "লুকানো",
   "appSettingsFullscreenTabStripAlways": "সর্বদা দৃশ্যমান",

@@ -368,4 +368,63 @@ void main() {
       );
     });
   });
+
+  group('StartupRestoreEngine.shouldEnterFullscreen (FS-008)', () {
+    test('shortcut launch with global option on enters fullscreen', () {
+      expect(
+        StartupRestoreEngine.shouldEnterFullscreen(
+          viaShortcut: true,
+          fullscreenOnShortcut: true,
+          perSiteFullscreenMode: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('shortcut launch with global option off does not force fullscreen', () {
+      expect(
+        StartupRestoreEngine.shouldEnterFullscreen(
+          viaShortcut: true,
+          fullscreenOnShortcut: false,
+          perSiteFullscreenMode: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('per-site fullscreen still applies when global option is off', () {
+      expect(
+        StartupRestoreEngine.shouldEnterFullscreen(
+          viaShortcut: true,
+          fullscreenOnShortcut: false,
+          perSiteFullscreenMode: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('normal in-app switch is unaffected by the global option', () {
+      // viaShortcut=false models a tab-strip / drawer switch: the global
+      // shortcut option must not pull a non-fullscreen site into fullscreen.
+      expect(
+        StartupRestoreEngine.shouldEnterFullscreen(
+          viaShortcut: false,
+          fullscreenOnShortcut: true,
+          perSiteFullscreenMode: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('normal in-app switch still honors the per-site flag', () {
+      expect(
+        StartupRestoreEngine.shouldEnterFullscreen(
+          viaShortcut: false,
+          fullscreenOnShortcut: false,
+          perSiteFullscreenMode: true,
+        ),
+        isTrue,
+      );
+    });
+  });
 }

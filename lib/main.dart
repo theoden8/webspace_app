@@ -969,6 +969,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _tabStripInFullscreen = false;
   bool _tabBarButtonInFullscreen = false;
   bool _tabBarButtonOnRight = true;
+  // Enter fullscreen when a site is opened via a home-screen shortcut. Global
+  // pref mirror of the `fullscreenOnShortcut` SharedPreferences key. On by
+  // default. Independent of per-site `WebViewModel.fullscreenMode`.
+  bool _fullscreenOnShortcut = true;
   int _tabMaxWidth = 140;
   // Runtime-only: whether the fullscreen tab-bar button has revealed the
   // tab strip. Reset on exiting fullscreen; never persisted.
@@ -1687,6 +1691,16 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (index != _currentIndex) {
       await _setCurrentIndex(index);
       if (!mounted) return;
+    }
+    // A shortcut tap is the user's app-launcher entry point; enter fullscreen
+    // per the FS-008 policy. Runs after _setCurrentIndex (which already exited
+    // fullscreen for a non-fullscreen per-site target), so there's no else.
+    if (StartupRestoreEngine.shouldEnterFullscreen(
+      viaShortcut: true,
+      fullscreenOnShortcut: _fullscreenOnShortcut,
+      perSiteFullscreenMode: _webViewModels[index].fullscreenMode,
+    )) {
+      _enterFullscreen();
     }
     setState(() {});
     await _saveWebViewModels();
@@ -2913,6 +2927,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     await prefs.setBool('tabStripInFullscreen', _tabStripInFullscreen);
   }
 
+  Future<void> _saveFullscreenOnShortcut() async {
+    if (isDemoMode) return;
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('fullscreenOnShortcut', _fullscreenOnShortcut);
+  }
+
   Future<void> _saveTabBarButtonInFullscreen() async {
     if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -3861,6 +3881,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       _tabStripInFullscreen = prefs.getBool('tabStripInFullscreen') ?? false;
       _tabBarButtonInFullscreen = prefs.getBool('tabBarButtonInFullscreen') ?? false;
       _tabBarButtonOnRight = prefs.getBool('tabBarButtonOnRight') ?? true;
+      _fullscreenOnShortcut = prefs.getBool('fullscreenOnShortcut') ?? true;
       _tabMaxWidth = prefs.getInt('tabMaxWidth') ?? 140;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
@@ -4073,6 +4094,17 @@ class _WebSpacePageState extends State<WebSpacePage>
           'activate target site (_setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');
     }
     if (!mounted) return;
+    // indexToRestore is non-null only for a shortcut cold launch (see the
+    // "only restore index if launched via shortcut" comment above), so apply
+    // the FS-008 shortcut-launch fullscreen policy here.
+    if (indexToRestore != null &&
+        StartupRestoreEngine.shouldEnterFullscreen(
+          viaShortcut: true,
+          fullscreenOnShortcut: _fullscreenOnShortcut,
+          perSiteFullscreenMode: _webViewModels[indexToRestore].fullscreenMode,
+        )) {
+      _enterFullscreen();
+    }
     setState(() {}); // Trigger UI update after async operation
     if (swRestore != null) {
       LogService.instance.log('Startup',
@@ -5018,6 +5050,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           backup.globalPrefs['tabBarButtonInFullscreen'] as bool? ?? _tabBarButtonInFullscreen;
       _tabBarButtonOnRight =
           backup.globalPrefs['tabBarButtonOnRight'] as bool? ?? _tabBarButtonOnRight;
+      _fullscreenOnShortcut =
+          backup.globalPrefs['fullscreenOnShortcut'] as bool? ?? _fullscreenOnShortcut;
       _tabMaxWidth =
           backup.globalPrefs['tabMaxWidth'] as int? ?? _tabMaxWidth;
       _showStatsBanner =
@@ -5466,6 +5500,13 @@ class _WebSpacePageState extends State<WebSpacePage>
                         _tabStripInFullscreen = value;
                       });
                       _saveTabStripInFullscreen();
+                    },
+                    fullscreenOnShortcut: _fullscreenOnShortcut,
+                    onFullscreenOnShortcutChanged: (value) {
+                      setState(() {
+                        _fullscreenOnShortcut = value;
+                      });
+                      _saveFullscreenOnShortcut();
                     },
                     tabBarButtonInFullscreen: _tabBarButtonInFullscreen,
                     onTabBarButtonInFullscreenChanged: (value) {

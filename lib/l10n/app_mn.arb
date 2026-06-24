@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Товчны байрлал",
   "appSettingsTabMaxWidth": "Табын өргөний хязгаар",
   "appSettingsTabMaxWidthSubtitle": "Урт нэрс нягт байхын тулд таб бүр хэр өргөн болохыг хязгаарлана",
+  "appSettingsFullscreenOnShortcut": "Товчлолоор нээхэд бүтэн дэлгэц",
+  "appSettingsFullscreenOnShortcutSubtitle": "Үндсэн дэлгэцийн товчлолоор эхлүүлэхэд бүтэн дэлгэцээр нээх",
   "appSettingsFullscreenTabStrip": "Бүтэн дэлгэцэд, таб самбар",
   "appSettingsFullscreenTabStripHidden": "Нуусан",
   "appSettingsFullscreenTabStripAlways": "Үргэлж харагдана",

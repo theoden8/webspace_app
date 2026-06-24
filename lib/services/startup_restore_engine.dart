@@ -130,6 +130,23 @@ class StartupRestoreEngine {
 
     return LaunchOfferCreate(url: url, shortcutSiteId: shortcutSiteId);
   }
+
+  /// FS-008: whether activating a site should land in fullscreen.
+  ///
+  /// Combines the global "full screen on shortcut launch" option
+  /// ([fullscreenOnShortcut]) with the site's own per-site
+  /// [WebViewModel.fullscreenMode]. A shortcut launch ([viaShortcut] true)
+  /// forces fullscreen when the global option is on; every launch still
+  /// honors the per-site flag. A normal in-app switch ([viaShortcut] false)
+  /// depends on the per-site flag alone, so the global option never changes
+  /// the behavior of tab-strip / drawer navigation.
+  static bool shouldEnterFullscreen({
+    required bool viaShortcut,
+    required bool fullscreenOnShortcut,
+    required bool perSiteFullscreenMode,
+  }) {
+    return perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut);
+  }
 }
 
 /// Android-only `siteId -> url` ledger backing HS-011 routing. A pinned

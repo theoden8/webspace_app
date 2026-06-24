@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Knappens placering",
   "appSettingsTabMaxWidth": "Gräns för flikbredd",
   "appSettingsTabMaxWidthSubtitle": "Begränsa hur bred varje flik kan bli så att långa namn förblir kompakta",
+  "appSettingsFullscreenOnShortcut": "Helskärm vid start från genväg",
+  "appSettingsFullscreenOnShortcutSubtitle": "Öppna i helskärm när appen startas från en genväg på startskärmen",
   "appSettingsFullscreenTabStrip": "I helskärm, flikfält",
   "appSettingsFullscreenTabStripHidden": "Dold",
   "appSettingsFullscreenTabStripAlways": "Alltid synlig",

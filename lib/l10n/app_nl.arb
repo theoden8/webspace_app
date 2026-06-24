@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Knoppositie",
   "appSettingsTabMaxWidth": "Tabbreedtelimiet",
   "appSettingsTabMaxWidthSubtitle": "Beperk hoe breed elke tab kan worden zodat lange namen compact blijven",
+  "appSettingsFullscreenOnShortcut": "Volledig scherm bij starten via snelkoppeling",
+  "appSettingsFullscreenOnShortcutSubtitle": "Open in volledig scherm bij starten vanaf een snelkoppeling op het startscherm",
   "appSettingsFullscreenTabStrip": "In volledig scherm, tabbalk",
   "appSettingsFullscreenTabStripHidden": "Verborgen",
   "appSettingsFullscreenTabStripAlways": "Altijd zichtbaar",

@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Positio bullae",
   "appSettingsTabMaxWidth": "Limes latitudinis tabulae",
   "appSettingsTabMaxWidthSubtitle": "Limita quantum quaeque tabula latescere possit ut nomina longa compacta maneant",
+  "appSettingsFullscreenOnShortcut": "Plena pictura cum e compendio aperitur",
+  "appSettingsFullscreenOnShortcutSubtitle": "In plena pictura aperi cum e compendio paginae principalis initur",
   "appSettingsFullscreenTabStrip": "In pleno schemate, series tabularum",
   "appSettingsFullscreenTabStripHidden": "Occultata",
   "appSettingsFullscreenTabStripAlways": "Semper visibilis",

@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Позиция на бутона",
   "appSettingsTabMaxWidth": "Ограничение на ширината на раздела",
   "appSettingsTabMaxWidthSubtitle": "Ограничете колко широк може да стане всеки раздел, за да останат дългите имена компактни",
+  "appSettingsFullscreenOnShortcut": "Цял екран при стартиране от пряк път",
+  "appSettingsFullscreenOnShortcutSubtitle": "Отваряне на цял екран при стартиране от пряк път на началния екран",
   "appSettingsFullscreenTabStrip": "На цял екран, лента с раздели",
   "appSettingsFullscreenTabStripHidden": "Скрита",
   "appSettingsFullscreenTabStripAlways": "Винаги видима",

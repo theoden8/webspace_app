@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Botoiaren kokapena",
   "appSettingsTabMaxWidth": "Fitxaren zabalera-muga",
   "appSettingsTabMaxWidthSubtitle": "Mugatu fitxa bakoitza zenbat zabaldu daitekeen, izen luzeak trinko mantentzeko",
+  "appSettingsFullscreenOnShortcut": "Pantaila osoa lasterbidetik abiaraztean",
+  "appSettingsFullscreenOnShortcutSubtitle": "Ireki pantaila osoan hasierako pantailako lasterbide batetik abiarazten denean",
   "appSettingsFullscreenTabStrip": "Pantaila osoan, fitxa-barra",
   "appSettingsFullscreenTabStripHidden": "Ezkutatuta",
   "appSettingsFullscreenTabStripAlways": "Beti ikusgai",

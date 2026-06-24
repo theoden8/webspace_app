@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Posisyon ng button",
   "appSettingsTabMaxWidth": "Limitasyon sa Lapad ng Tab",
   "appSettingsTabMaxWidthSubtitle": "Limitahan kung gaano kalapad ang bawat tab para manatiling compact ang mahahabang pangalan",
+  "appSettingsFullscreenOnShortcut": "Full screen kapag binuksan mula sa shortcut",
+  "appSettingsFullscreenOnShortcutSubtitle": "Buksan sa full screen kapag inilunsad mula sa shortcut sa home screen",
   "appSettingsFullscreenTabStrip": "Sa full screen, tab bar",
   "appSettingsFullscreenTabStripHidden": "Nakatago",
   "appSettingsFullscreenTabStripAlways": "Palaging nakikita",

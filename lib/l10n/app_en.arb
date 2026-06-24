@@ -839,6 +839,14 @@
   "@appSettingsSiteTabStripSubtitle": {
     "description": "Subtitle for the site tab strip toggle"
   },
+  "appSettingsFullscreenOnShortcut": "Full screen on shortcut launch",
+  "@appSettingsFullscreenOnShortcut": {
+    "description": "Toggle title for automatically entering full screen when a site is opened from a home-screen shortcut"
+  },
+  "appSettingsFullscreenOnShortcutSubtitle": "Open in full screen when launched from a home-screen shortcut",
+  "@appSettingsFullscreenOnShortcutSubtitle": {
+    "description": "Subtitle for the toggle that enters full screen when a site is opened from a pinned home-screen shortcut"
+  },
   "appSettingsFullscreenTabStrip": "In full screen, tab strip",
   "@appSettingsFullscreenTabStrip": {
     "description": "Group label for the choice of how the tab strip behaves in full screen (followed by the Hidden / Always visible / Reveal with button options)"

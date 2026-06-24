@@ -55,6 +55,8 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onShowTabStripChanged;
   final bool tabStripInFullscreen;
   final ValueChanged<bool> onTabStripInFullscreenChanged;
+  final bool fullscreenOnShortcut;
+  final ValueChanged<bool> onFullscreenOnShortcutChanged;
   final bool tabBarButtonInFullscreen;
   final ValueChanged<bool> onTabBarButtonInFullscreenChanged;
   final bool tabBarButtonOnRight;
@@ -98,6 +100,8 @@ class AppSettingsScreen extends StatefulWidget {
     required this.onShowTabStripChanged,
     required this.tabStripInFullscreen,
     required this.onTabStripInFullscreenChanged,
+    required this.fullscreenOnShortcut,
+    required this.onFullscreenOnShortcutChanged,
     required this.tabBarButtonInFullscreen,
     required this.onTabBarButtonInFullscreenChanged,
     required this.tabBarButtonOnRight,
@@ -125,6 +129,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late AppThemeSettings _settings;
   late bool _showTabStrip;
   late bool _tabStripInFullscreen;
+  late bool _fullscreenOnShortcut;
   late bool _tabBarButtonInFullscreen;
   late bool _tabBarButtonOnRight;
   late double _tabMaxWidth;
@@ -182,6 +187,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _settings = widget.currentSettings;
     _showTabStrip = widget.showTabStrip;
     _tabStripInFullscreen = widget.tabStripInFullscreen;
+    _fullscreenOnShortcut = widget.fullscreenOnShortcut;
     _tabBarButtonInFullscreen = widget.tabBarButtonInFullscreen;
     _tabBarButtonOnRight = widget.tabBarButtonOnRight;
     _tabMaxWidth = widget.tabMaxWidth.toDouble();
@@ -827,6 +833,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 _showTabStrip = value;
               });
               widget.onShowTabStripChanged(value);
+            },
+          ),
+          SwitchListTile(
+            title: Text(loc.appSettingsFullscreenOnShortcut),
+            subtitle: Text(loc.appSettingsFullscreenOnShortcutSubtitle),
+            value: _fullscreenOnShortcut,
+            onChanged: (value) {
+              setState(() {
+                _fullscreenOnShortcut = value;
+              });
+              widget.onFullscreenOnShortcutChanged(value);
             },
           ),
           Padding(

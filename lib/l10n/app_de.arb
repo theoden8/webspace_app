@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Schaltflächenposition",
   "appSettingsTabMaxWidth": "Tab-Breiten-Limit",
   "appSettingsTabMaxWidthSubtitle": "Begrenzen, wie breit jeder Tab werden kann, damit lange Namen kompakt bleiben",
+  "appSettingsFullscreenOnShortcut": "Vollbild beim Start über Verknüpfung",
+  "appSettingsFullscreenOnShortcutSubtitle": "Im Vollbild öffnen, wenn über eine Startbildschirm-Verknüpfung gestartet",
   "appSettingsFullscreenTabStrip": "Im Vollbild, Tableiste",
   "appSettingsFullscreenTabStripHidden": "Ausgeblendet",
   "appSettingsFullscreenTabStripAlways": "Immer sichtbar",

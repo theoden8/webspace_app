@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "按鈕位置",
   "appSettingsTabMaxWidth": "分頁寬度上限",
   "appSettingsTabMaxWidthSubtitle": "限制每個分頁的最大寬度，讓較長的名稱保持精簡",
+  "appSettingsFullscreenOnShortcut": "透過捷徑啟動時全螢幕",
+  "appSettingsFullscreenOnShortcutSubtitle": "從主畫面捷徑啟動時以全螢幕開啟",
   "appSettingsFullscreenTabStrip": "全螢幕時，分頁列",
   "appSettingsFullscreenTabStripHidden": "隱藏",
   "appSettingsFullscreenTabStripAlways": "永遠顯示",

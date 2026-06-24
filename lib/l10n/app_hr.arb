@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Položaj gumba",
   "appSettingsTabMaxWidth": "Ograničenje širine kartice",
   "appSettingsTabMaxWidthSubtitle": "Ograničite koliko svaka kartica može biti široka kako bi dugačka imena ostala kompaktna",
+  "appSettingsFullscreenOnShortcut": "Cijeli zaslon pri pokretanju iz prečaca",
+  "appSettingsFullscreenOnShortcutSubtitle": "Otvori u punom zaslonu kada se pokrene iz prečaca na početnom zaslonu",
   "appSettingsFullscreenTabStrip": "U punom zaslonu, traka kartica",
   "appSettingsFullscreenTabStripHidden": "Skriveno",
   "appSettingsFullscreenTabStripAlways": "Uvijek vidljivo",

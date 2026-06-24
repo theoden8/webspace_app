@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "बटणाची स्थिती",
   "appSettingsTabMaxWidth": "टॅब रुंदी मर्यादा",
   "appSettingsTabMaxWidthSubtitle": "लांब नावे संक्षिप्त राहावीत म्हणून प्रत्येक टॅब किती रुंद होऊ शकतो ते मर्यादित करा",
+  "appSettingsFullscreenOnShortcut": "शॉर्टकटवरून उघडल्यावर पूर्ण स्क्रीन",
+  "appSettingsFullscreenOnShortcutSubtitle": "होम-स्क्रीन शॉर्टकटवरून सुरू केल्यावर पूर्ण स्क्रीनमध्ये उघडा",
   "appSettingsFullscreenTabStrip": "पूर्ण स्क्रीनमध्ये, टॅब बार",
   "appSettingsFullscreenTabStripHidden": "लपवलेले",
   "appSettingsFullscreenTabStripAlways": "नेहमी दृश्यमान",

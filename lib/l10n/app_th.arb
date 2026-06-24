@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "ตำแหน่งปุ่ม",
   "appSettingsTabMaxWidth": "ขีดจำกัดความกว้างของแท็บ",
   "appSettingsTabMaxWidthSubtitle": "จำกัดความกว้างของแต่ละแท็บเพื่อให้ชื่อยาว ๆ ยังคงกระชับ",
+  "appSettingsFullscreenOnShortcut": "เต็มหน้าจอเมื่อเปิดจากทางลัด",
+  "appSettingsFullscreenOnShortcutSubtitle": "เปิดแบบเต็มหน้าจอเมื่อเปิดใช้จากทางลัดบนหน้าจอหลัก",
   "appSettingsFullscreenTabStrip": "ในโหมดเต็มจอ แถบแท็บ",
   "appSettingsFullscreenTabStripHidden": "ซ่อน",
   "appSettingsFullscreenTabStripAlways": "แสดงตลอดเวลา",

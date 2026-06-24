@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Pożizzjoni tal-buttuna",
   "appSettingsTabMaxWidth": "Limitu tal-Wisa' tat-Tab",
   "appSettingsTabMaxWidthSubtitle": "Illimita kemm jista' jikber wiesa' kull tab biex ismijiet twal jibqgħu kompatti",
+  "appSettingsFullscreenOnShortcut": "Skrin sħiħ meta jitnieda minn shortcut",
+  "appSettingsFullscreenOnShortcutSubtitle": "Iftaħ fi skrin sħiħ meta jitnieda minn shortcut tal-iskrin tad-dar",
   "appSettingsFullscreenTabStrip": "Fl-iskrin sħiħ, bar tat-tabs",
   "appSettingsFullscreenTabStripHidden": "Moħbi",
   "appSettingsFullscreenTabStripAlways": "Dejjem viżibbli",

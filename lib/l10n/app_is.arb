@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Staðsetning hnapps",
   "appSettingsTabMaxWidth": "Breiddartakmark flipa",
   "appSettingsTabMaxWidthSubtitle": "Takmarkaðu hversu breiður hver flipi getur orðið svo löng nöfn haldist samanþjöppuð",
+  "appSettingsFullscreenOnShortcut": "Allur skjárinn þegar ræst er úr flýtileið",
+  "appSettingsFullscreenOnShortcutSubtitle": "Opna á öllum skjánum þegar ræst er úr flýtileið á heimaskjá",
   "appSettingsFullscreenTabStrip": "Í fullum skjá, flipastika",
   "appSettingsFullscreenTabStripHidden": "Falin",
   "appSettingsFullscreenTabStripAlways": "Alltaf sýnileg",

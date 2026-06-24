@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Θέση κουμπιού",
   "appSettingsTabMaxWidth": "Όριο πλάτους καρτέλας",
   "appSettingsTabMaxWidthSubtitle": "Περιορίστε πόσο φαρδιά μπορεί να γίνει κάθε καρτέλα ώστε τα μεγάλα ονόματα να παραμένουν συμπαγή",
+  "appSettingsFullscreenOnShortcut": "Πλήρης οθόνη κατά την εκκίνηση από συντόμευση",
+  "appSettingsFullscreenOnShortcutSubtitle": "Άνοιγμα σε πλήρη οθόνη κατά την εκκίνηση από συντόμευση αρχικής οθόνης",
   "appSettingsFullscreenTabStrip": "Σε πλήρη οθόνη, γραμμή καρτελών",
   "appSettingsFullscreenTabStripHidden": "Κρυφή",
   "appSettingsFullscreenTabStripAlways": "Πάντα ορατή",

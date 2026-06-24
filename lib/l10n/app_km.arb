@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "ទីតាំងប៊ូតុង",
   "appSettingsTabMaxWidth": "ដែនកំណត់ទទឹងផ្ទាំង",
   "appSettingsTabMaxWidthSubtitle": "កំណត់ទទឹងអតិបរមានៃផ្ទាំងនីមួយៗ ដើម្បីឱ្យឈ្មោះវែងនៅតែបង្រួម",
+  "appSettingsFullscreenOnShortcut": "ពេញអេក្រង់ពេលបើកពីផ្លូវកាត់",
+  "appSettingsFullscreenOnShortcutSubtitle": "បើកក្នុងពេញអេក្រង់ពេលបើកដំណើរការពីផ្លូវកាត់អេក្រង់ដើម",
   "appSettingsFullscreenTabStrip": "ក្នុងអេក្រង់ពេញ របារផ្ទាំង",
   "appSettingsFullscreenTabStripHidden": "លាក់",
   "appSettingsFullscreenTabStripAlways": "បង្ហាញជានិច្ច",

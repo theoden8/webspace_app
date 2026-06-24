@@ -632,6 +632,8 @@
   "appSettingsTabBarButtonCorner": "Положення кнопки",
   "appSettingsTabMaxWidth": "Обмеження ширини вкладки",
   "appSettingsTabMaxWidthSubtitle": "Обмежте, наскільки широкою може стати кожна вкладка, щоб довгі назви залишалися компактними",
+  "appSettingsFullscreenOnShortcut": "Повний екран під час запуску з ярлика",
+  "appSettingsFullscreenOnShortcutSubtitle": "Відкривати на весь екран під час запуску з ярлика головного екрана",
   "appSettingsFullscreenTabStrip": "На весь екран, панель вкладок",
   "appSettingsFullscreenTabStripHidden": "Прихована",
   "appSettingsFullscreenTabStripAlways": "Завжди видима",
