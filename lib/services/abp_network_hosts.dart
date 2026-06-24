@@ -107,10 +107,17 @@ AbpNetworkPrefilter parseAbpNetworkPrefilter(String filterText) {
     // Anchored `||host...` block rule: the host Bloom covers it.
     if (c0 == 0x7c && line.length > 2 && line.codeUnitAt(1) == 0x7c) {
       final h = _hostAnchoredHost(line);
-      if (h != null) hosts.add(h);
-      continue;
+      if (h != null) {
+        hosts.add(h);
+        continue;
+      }
+      // No clean host (wildcard or illegal char in the host portion,
+      // e.g. `||*ads*^`, `||sub.*.com^`): fall through and tokenize the
+      // pattern so the rule still triggers a round-trip instead of being
+      // silently dropped.
     }
-    // Hostless network rule (substring / path / |scheme / regex).
+    // Hostless (or unclean-host) network rule: substring / path /
+    // |scheme / regex.
     var pattern = line;
     // Regex rule `/.../` — no guaranteed literal token to extract.
     if (pattern.length > 2 &&

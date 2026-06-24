@@ -103,6 +103,17 @@ example.com/tracker.gif
       expect(r.tokens, isEmpty);
     });
 
+    test('||-anchored rules with an unclean host fall through to a token', () {
+      // Wildcard / illegal char in the host portion yields no clean host;
+      // it must still produce a trigger (token) rather than be dropped.
+      final r = parseAbpNetworkPrefilter('||sub.*.example^\n||*adservice*^');
+      expect(r.hosts, isEmpty);
+      expect(r.tokens, contains('example'));
+      expect(r.tokens, contains('adservice'));
+      // Contract: a matching URL carries the token.
+      expect(_urlTokens('https://sub.cdn.example/x'), contains('example'));
+    });
+
     test('regex rules set hasUntokenizable and yield no token', () {
       final r = parseAbpNetworkPrefilter(r'/[a-z]{8}\.com\/ad/');
       expect(r.tokens, isEmpty);
