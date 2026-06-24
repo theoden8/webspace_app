@@ -185,5 +185,19 @@ void main() {
       service.reset();
       expect(service.getEarlyCssScript('https://example.com'), isNull);
     });
+
+    test('cosmeticDiagnostics reports engine inactive when no engine loaded',
+        () {
+      final service = ContentBlockerService.instance;
+      service.reset();
+      final diag = service.cosmeticDiagnostics(
+        'https://example.com',
+        canaryClasses: {'fp_probe_class'},
+      );
+      expect(diag['engineActive'], isFalse);
+      expect(diag['pageHideCount'], 0);
+      expect(diag['pageProceduralCount'], 0);
+      expect(diag['canaryHits'], isEmpty);
+    });
   });
 }

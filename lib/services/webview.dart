@@ -2520,6 +2520,40 @@ class WebViewFactory {
               return selectors;
             },
           );
+          // ABP rule probe diagnostics. Lets the probe page tell
+          // "no cosmetic list loaded" apart from "rules present but not
+          // firing", and read the engine's ABP network verdict for a
+          // host directly — independent of the DNS-bloom prefilter that
+          // gates the iOS sub-resource interceptor, so the probe can
+          // show ABP IS deciding even when that prefilter suppresses it.
+          // Registered regardless of contentBlockEnabled so it can
+          // report the per-site toggle being off.
+          controller.addJavaScriptHandler(
+            handlerName: 'getAbpProbeStatus',
+            callback: (args) async {
+              final svc = ContentBlockerService.instance;
+              final payload = (args.isNotEmpty && args[0] is Map)
+                  ? Map<String, dynamic>.from(args[0] as Map)
+                  : const <String, dynamic>{};
+              final canaries = (payload['canaryClasses'] as List? ?? const [])
+                  .cast<String>()
+                  .toSet();
+              final hosts = (payload['netHosts'] as List? ?? const [])
+                  .cast<String>();
+              final liveUrl =
+                  (await controller.getUrl())?.toString() ?? config.initialUrl;
+              final status =
+                  svc.cosmeticDiagnostics(liveUrl, canaryClasses: canaries);
+              final netVerdicts = <String, bool>{
+                for (final h in hosts) h: svc.isHostBlocked(h),
+              };
+              return {
+                ...status,
+                'contentBlockEnabled': config.contentBlockEnabled,
+                'netVerdicts': netVerdicts,
+              };
+            },
+          );
         }
         if (config.siteId != null && config.notificationsEnabled) {
           controller.addJavaScriptHandler(

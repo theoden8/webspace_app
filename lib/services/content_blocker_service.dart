@@ -266,6 +266,41 @@ class ContentBlockerService {
     return ctx.proceduralActions;
   }
 
+  /// Snapshot of the cosmetic engine's readiness for a diagnostic
+  /// readout (the ABP rule probe). Reports whether the engine is loaded
+  /// at all, how many hide/procedural rules it resolves for [pageUrl]
+  /// (via the same hostless-scheme normalization the real injection
+  /// uses), and which of the caller-supplied [canaryClasses] the engine
+  /// would hide — a non-empty hit means the filter list that defines
+  /// those classes is actually loaded, distinguishing "no cosmetic list
+  /// loaded" from "rules loaded but not firing".
+  Map<String, dynamic> cosmeticDiagnostics(
+    String pageUrl, {
+    Set<String> canaryClasses = const <String>{},
+  }) {
+    final engine = _rustEngine;
+    if (engine == null) {
+      return {
+        'engineActive': false,
+        'pageHideCount': 0,
+        'pageProceduralCount': 0,
+        'canaryHits': const <String>[],
+      };
+    }
+    final ctx = _engineCosmeticFor(pageUrl);
+    final hits = canaryClasses.isEmpty
+        ? const <String>[]
+        : engine
+            .hiddenClassIdSelectors(canaryClasses, const <String>{})
+            .toList();
+    return {
+      'engineActive': true,
+      'pageHideCount': ctx?.hides.length ?? 0,
+      'pageProceduralCount': ctx?.proceduralActions.length ?? 0,
+      'canaryHits': hits,
+    };
+  }
+
   /// `$csp=` lookup. Returns joined Content-Security-Policy directives
   /// for matching rules at this URL.
   String? cspFor(
