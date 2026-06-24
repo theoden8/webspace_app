@@ -213,6 +213,14 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          # Pin to the version declared in android/gradle/wrapper/
+          # gradle-wrapper.properties. The wrapper script is gitignored, so
+          # the JVM-test and APK steps invoke the `gradle` on PATH; without
+          # this pin the runner's preinstalled Gradle (bumped to 9.6.0) drops
+          # an internal API that AGP 8.x relies on and the
+          # `com.android.application` plugin fails to apply.
+          gradle-version: "8.13"
 
       - name: Run JVM unit tests (Kotlin plugins)
         # Catches Kotlin compile errors and pure-logic bugs in the
