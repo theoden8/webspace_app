@@ -10,6 +10,15 @@ on:
   # Allow manual trigger for testing
   workflow_dispatch:
 
+# Supersede in-progress runs for the same ref: a new push cancels the
+# previous run instead of letting both consume runners. A hung job (e.g. a
+# WebView integration test deadlocking on a headless runner) otherwise
+# burns a runner for the full 6h job limit while newer commits queue behind
+# it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Single source of truth for the cargo-ndk version. The F-Droid recipe
 # seds this line; every job reads it via the env context. Bump here only.
 env:
@@ -539,6 +548,7 @@ jobs:
       # this same harness extended; the smoke test pins the pipeline
       # so they can land as follow-up tests without re-litigating CI.
       - name: Run Linux integration tests
+        timeout-minutes: 45
         run: |
           set -x
           # path_provider_linux's getApplicationDocumentsDirectory()
@@ -659,7 +669,16 @@ jobs:
                 # not a Linux-runnable test.
                 [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
                 echo "::group::$t"
-                fvm flutter test "$t" -d linux || status=$?
+                # Hard per-test wall-clock cap: a WebView mount can deadlock
+                # the platform thread below Dart timeout layer, which would
+                # otherwise hang the job to the 6h runner limit. SIGTERM at
+                # 12m, SIGKILL 30s later. timeout exit 124 == hit the cap.
+                rc=0
+                timeout -k 30s 12m fvm flutter test "$t" -d linux || rc=$?
+                if [ $rc -ne 0 ]; then
+                  status=$rc
+                  [ $rc -eq 124 ] && echo "::error::$t killed after 12m wall-clock cap (possible native deadlock)"
+                fi
                 echo "::endgroup::"
               done
               kill "$PSS_PID" 2>/dev/null
@@ -833,6 +852,7 @@ jobs:
       # so one failure doesn't mask the rest. On failure, dump the macOS
       # crash report so a launch-time SIGKILL explains itself.
       - name: Run macOS integration tests
+        timeout-minutes: 45
         run: |
           set -x
           security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || true
@@ -854,11 +874,26 @@ jobs:
           </dict>
           </plist>
           EOF
+          # Hard per-test wall-clock cap (see Build Linux): bound any single
+          # test so a native WebView deadlock can't hang the job to the 6h
+          # runner limit. macOS ships BSD utils; GNU timeout arrives as
+          # gtimeout via coreutils (preinstalled on GitHub runners; brew as
+          # fallback). If no timeout binary is found, the step-level
+          # timeout-minutes still bounds the whole step.
+          TIMEOUT="$(command -v timeout || command -v gtimeout || true)"
+          if [ -z "$TIMEOUT" ]; then
+            brew install coreutils >/dev/null 2>&1 || true
+            TIMEOUT="$(command -v gtimeout || true)"
+          fi
           status=0
           for t in integration_test/*_test.dart; do
             [ "$(basename "$t")" = "screenshot_test.dart" ] && continue
             echo "::group::$t"
-            fvm flutter test "$t" -d macos --ci || status=$?
+            if [ -n "$TIMEOUT" ]; then
+              "$TIMEOUT" -k 30s 12m fvm flutter test "$t" -d macos --ci || status=$?
+            else
+              fvm flutter test "$t" -d macos --ci || status=$?
+            fi
             echo "::endgroup::"
           done
           if [ $status -ne 0 ]; then
