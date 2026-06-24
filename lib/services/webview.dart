@@ -1295,18 +1295,6 @@ class WebViewFactory {
   /// WebSettings; no-ops on platforms/providers without the feature.
   static bool backForwardCacheEnabled = true;
 
-  /// androidx.webkit `WebSettingsCompat.ATTRIBUTION_BEHAVIOR_DISABLED`. Passed
-  /// to the fork's `attributionRegistrationBehavior` to stop the WebView from
-  /// registering Attribution Reporting sources/triggers.
-  static const int attributionBehaviorDisabled = 0;
-
-  /// androidx.webkit
-  /// `WebSettingsCompat.WEBVIEW_MEDIA_INTEGRITY_API_ENABLED_WITHOUT_APP_IDENTITY`.
-  /// Passed to the fork's `webViewMediaIntegrityApiStatus`: the integrity token
-  /// keeps working for site anti-fraud but no longer carries this app's
-  /// package/signing identity, closing the cross-site app-identity leak.
-  static const int mediaIntegrityEnabledWithoutAppIdentity = 1;
-
   /// System font scale → webview text zoom percent. Tracks the OS-level
   /// "font size" accessibility setting so web content matches the size
   /// users see in their system browser.
@@ -2349,10 +2337,10 @@ class WebViewFactory {
       ..requestedWithHeaderOriginAllowList =
           config.trackingProtectionEnabled ? const <String>{} : null
       ..attributionRegistrationBehavior = config.trackingProtectionEnabled
-          ? WebViewFactory.attributionBehaviorDisabled
+          ? inapp.AttributionBehavior.DISABLED
           : null
       ..webViewMediaIntegrityApiStatus = config.trackingProtectionEnabled
-          ? WebViewFactory.mediaIntegrityEnabledWithoutAppIdentity
+          ? inapp.WebViewMediaIntegrityApiStatus.ENABLED_WITHOUT_APP_IDENTITY
           : null
       // Global perf pref; same value on every WebView, nested included.
       ..backForwardCacheEnabled = WebViewFactory.backForwardCacheEnabled
