@@ -100,21 +100,21 @@ void main() {
     await server.close(force: true);
   });
 
-  // Skipped on Linux only. Linux WPE on the headless software-EGL harness
-  // wedges the Flutter UI thread the moment a live page renders, so even a
-  // single tester.pump() never returns; and WPE can't serialize nav state
-  // anyway (saveState returns empty), so there is no Linux coverage to lose.
-  //
-  // macOS (WKWebView) is enabled. The live page is driven through
+  // Enabled on all platforms. The live page is driven through
   // tester.runAsync() + real wall-clock waits instead of tester.pump():
-  // WebKit performs its load / JS / history work in its own process and
-  // does not need Flutter frames, so runAsync lets it progress without the
-  // pump that blocks on a live, compositing platform view. Frames are
-  // pumped only to mount/teardown widgets, never to wait on the webview.
-  // Every stage logs, so a CI hang (capped at 12m by the runner wrapper)
-  // pinpoints the blocking step in the job log.
+  // both WebKit (macOS) and WPE (Linux) perform their load / JS / history
+  // work in a separate WebProcess and don't need Flutter frames, so
+  // runAsync lets them progress without the pump that blocks on a live,
+  // compositing platform view. Frames are pumped only to mount/teardown
+  // widgets, never to wait on the webview.
+  //
+  // Two graceful-skip paths keep this honest where an engine can't do the
+  // work: if no nav history builds, or if saveState() returns no bytes
+  // (e.g. WPE may not serialize nav state), the test logs SKIP and returns
+  // rather than asserting. Every stage logs, so a CI hang (capped at 12m by
+  // the runner wrapper) pinpoints the blocking step in the job log.
   testWidgets('back/forward history and current page survive a restart',
-      skip: Platform.isLinux, (tester) async {
+      (tester) async {
     void log(String m) {
       // ignore: avoid_print
       print('[safari_nav] $m');
