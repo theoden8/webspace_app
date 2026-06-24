@@ -500,6 +500,17 @@ class WebViewConfig {
   /// the route at history start (NAV-008), which the native gesture would
   /// otherwise hijack. No effect on Android.
   final bool backForwardGestures;
+  /// Android only: build the webview with no initial load (neither
+  /// `initialUrlRequest` nor cached-HTML `initialData`) so the
+  /// controller-created handler can apply `restoreState` to a pristine
+  /// back/forward list. Android's `WebView.restoreState` is dropped when the
+  /// WebView has already navigated — its docs warn that calling it after the
+  /// view "had a chance to build state (load pages, create a back/forward
+  /// list, etc.) there may be undesirable side-effects". The handler reloads
+  /// the restored top entry afterward, since Android does not restore display
+  /// data. iOS/macOS replace state in place via `WKWebView.interactionState`,
+  /// so they keep the initial load and leave this false.
+  final bool deferInitialLoad;
   /// Language code for Accept-Language header (e.g., 'en', 'es', 'fr').
   /// If null, uses system default.
   final String? language;
@@ -666,6 +677,7 @@ class WebViewConfig {
     this.thirdPartyCookiesEnabled = false,
     this.incognito = false,
     this.backForwardGestures = false,
+    this.deferInitialLoad = false,
     this.language,
     this.zoomPercent = 100,
     this.clearUrlEnabled = true,
@@ -848,6 +860,26 @@ PerInstanceLifecycleCall perInstanceLifecycleCallFor({
   if (isIOS) return PerInstanceLifecycleCall.timers;
   return PerInstanceLifecycleCall.none;
 }
+
+/// Whether the root site webview must defer its initial load so the
+/// controller-created handler can apply `restoreState` to a pristine
+/// back/forward list. True only on Android: `WebView.restoreState` no-ops
+/// when the WebView has already navigated (an `initialUrlRequest` would build
+/// a 1-entry history first), so the back/forward stack restore is silently
+/// dropped. iOS/macOS `WKWebView.interactionState` replaces the stack in
+/// place even after a load started, so they keep the initial load.
+///
+/// Excludes file:// imports: their URL is a synthetic handle with no
+/// fetchable form, so the post-restore reload would surface
+/// ERR_FILE_NOT_FOUND — and back/forward history is meaningless for a static
+/// local page anyway, so they keep rendering their cached `initialData`.
+/// Only meaningful when nav-state bytes are actually pending for this build.
+bool deferInitialLoadForRestore({
+  required bool hasPendingRestoreState,
+  required bool isAndroid,
+  required bool isFileImport,
+}) =>
+    hasPendingRestoreState && isAndroid && !isFileImport;
 
 /// InAppWebView controller wrapper
 class _WebViewController implements WebViewController {
@@ -1495,8 +1527,14 @@ class WebViewFactory {
     // to load the synthetic file:// URL — there's no actual file on
     // disk, so the load would surface as ERR_INVALID_URL or
     // ERR_FILE_NOT_FOUND in the user's face.
-    final renderInitialData = config.initialHtml != null || isFileImport;
-    final usesCachedHtml = config.initialHtml != null;
+    // Android restore: suppress every initial-load form (URL + cached HTML)
+    // so `restoreState` can apply to a pristine history. With this set, the
+    // cached-HTML reload-to-live machinery below also stays off — the
+    // onControllerCreated restore handler owns the first navigation instead.
+    final suppressInitialLoad = config.deferInitialLoad;
+    final renderInitialData =
+        (config.initialHtml != null || isFileImport) && !suppressInitialLoad;
+    final usesCachedHtml = config.initialHtml != null && !suppressInitialLoad;
     // One-shot: when the cached HTML's first onLoadStop fires, do
     // exactly one controller.reload() to get a live page. Subsequent
     // onLoadStop events (post-reload, or for SPA navigations) leave
@@ -2394,7 +2432,7 @@ class WebViewFactory {
 
     final inapp.InAppWebView webViewWidget = inapp.InAppWebView(
       key: config.key,
-      initialUrlRequest: renderInitialData ? null : inapp.URLRequest(
+      initialUrlRequest: (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
         url: inapp.WebUri(config.initialUrl),
         headers: headers.isNotEmpty ? headers : null,
       ),

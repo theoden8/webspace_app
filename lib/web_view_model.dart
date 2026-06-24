@@ -815,6 +815,16 @@ class WebViewModel {
         return uri != null &&
             LinkRoutingService.urlMatchesAnyClaim(uri, effectiveDomainClaims);
       }
+      // Android restore ordering: when nav-state bytes are queued for this
+      // build, the webview must apply restoreState to a pristine back/forward
+      // list. Suppress the initial load on Android and materialize the
+      // restored entry from onControllerCreated; iOS/macOS keep the
+      // initialUrlRequest load and replace state in place via interactionState.
+      final bool deferRestoreLoad = deferInitialLoadForRestore(
+        hasPendingRestoreState: _pendingRestoreState != null,
+        isAndroid: Platform.isAndroid,
+        isFileImport: currentUrl.startsWith('file://'),
+      );
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -829,6 +839,7 @@ class WebViewModel {
           // there is no Flutter route-pop edge-swipe here, so opt into
           // WKWebView's native back/forward swipe. Nested screens don't (NAV-008).
           backForwardGestures: true,
+          deferInitialLoad: deferRestoreLoad,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
           zoomPercent: zoomPercent,
           // Umbrella `trackingProtectionEnabled`: when on, the four
@@ -1191,6 +1202,15 @@ class WebViewModel {
           final pending = _pendingRestoreState;
           if (pending != null) {
             _pendingRestoreState = null;
+            // On Android the webview was built with no initial load
+            // (deferRestoreLoad), so restoreState applies to a pristine
+            // back/forward list. Android does not restore display data, so
+            // the current entry must then be materialized with an explicit
+            // reload. iOS/macOS already kicked off the initialUrlRequest load
+            // and replace state in place via interactionState, so they skip
+            // this — the page is already on screen.
+            final materialize = deferRestoreLoad;
+            final restoreUrl = currentUrl;
             unawaited(() async {
               try {
                 final ok = await ctrl.restoreState(pending);
@@ -1199,10 +1219,26 @@ class WebViewModel {
                   'restoreState for "$name" (siteId: $siteId): $ok',
                   sensitivity: LogSensitivity.sensitive,
                 );
+                if (materialize) {
+                  // ok: reload the restored top entry (keeps the back stack).
+                  // !ok: nothing was restored, so just load the saved URL or
+                  // the suppressed-initial-load webview would stay blank.
+                  if (ok) {
+                    await ctrl.reload();
+                  } else {
+                    await ctrl.loadUrl(restoreUrl);
+                  }
+                }
               } catch (_) {
-                // Restore is best-effort; on failure the page is
-                // already loading from `currentUrl` — user just loses
-                // the back/forward stack and form data.
+                // Restore is best-effort. On Apple the page is already
+                // loading from `currentUrl`; on Android the initial load was
+                // suppressed, so fall back to loading it explicitly or the
+                // view would stay blank.
+                if (materialize) {
+                  try {
+                    await ctrl.loadUrl(restoreUrl);
+                  } catch (_) {}
+                }
               }
             }());
           }
