@@ -26,8 +26,11 @@
 //
 // Activating a site mounts a real WebView, so the wayland +
 // WEBKIT_DISABLE_SANDBOX harness is required (see
-// openspec/specs/integration-tests/spec.md). `pumpAndSettle` deadlocks on
-// a live WebView; the live-webview waits poll in fixed slices instead.
+// openspec/specs/integration-tests/spec.md). A live, compositing WebView
+// wedges the Flutter UI thread so any `tester.pump()` (including
+// `pumpAndSettle`) never returns on a headless runner; waits on the
+// webview therefore run inside `tester.runAsync()` on real wall-clock and
+// never pump frames.
 
 import 'dart:convert';
 import 'dart:io';
@@ -97,19 +100,26 @@ void main() {
     await server.close(force: true);
   });
 
-  // Skipped on desktop CI (Linux + macOS). This test must mount a live,
-  // rendering WebView (it loads a real loopback page and drives a JS
-  // navigation to build history) and uses pumpAndSettle on it across an
-  // app restart. On the headless desktop CI runners that mount/render
-  // blocks the platform thread beneath Dart's timeout layer: tester.pump
-  // never returns, so neither the call .timeout()s below nor the pumpUntil
-  // deadline can fire and the job hangs to the 6h limit. Proven empirically
-  // on issue #424's harness: the Linux job hung 6h and the macOS job hung
-  // 2h40m+ on the same commit. The integration loop only runs on -d linux
-  // and -d macos in CI, so both must be skipped. The Safari-style restore
-  // path is meaningful on real iOS/Android, where this still runs.
+  // Skipped on Linux only. Linux WPE on the headless software-EGL harness
+  // wedges the Flutter UI thread the moment a live page renders, so even a
+  // single tester.pump() never returns; and WPE can't serialize nav state
+  // anyway (saveState returns empty), so there is no Linux coverage to lose.
+  //
+  // macOS (WKWebView) is enabled. The live page is driven through
+  // tester.runAsync() + real wall-clock waits instead of tester.pump():
+  // WebKit performs its load / JS / history work in its own process and
+  // does not need Flutter frames, so runAsync lets it progress without the
+  // pump that blocks on a live, compositing platform view. Frames are
+  // pumped only to mount/teardown widgets, never to wait on the webview.
+  // Every stage logs, so a CI hang (capped at 12m by the runner wrapper)
+  // pinpoints the blocking step in the job log.
   testWidgets('back/forward history and current page survive a restart',
-      skip: Platform.isLinux || Platform.isMacOS, (tester) async {
+      skip: Platform.isLinux, (tester) async {
+    void log(String m) {
+      // ignore: avoid_print
+      print('[safari_nav] $m');
+    }
+
     WebViewModel? site() {
       for (final m in app.debugWebViewModels ?? const <WebViewModel>[]) {
         if (m.siteId == _siteId) return m;
@@ -119,13 +129,45 @@ void main() {
 
     WebViewController? controller() => site()?.controller;
 
-    // Live-webview platform-channel calls have no inherent timeout. On a
-    // headless harness whose WPE/EGL surface never drives a real load (e.g.
-    // Linux CI), getUrl()/canGoBack() can park forever, stranding the
-    // pumpUntil deadline loop mid-iteration so it never re-checks its clock.
-    // Cap each call so a stuck reply surfaces as "not ready" and the loop
-    // falls through to its StateError -> graceful skip instead of hanging.
-    const callTimeout = Duration(seconds: 3);
+    const callTimeout = Duration(seconds: 5);
+
+    // Pump frames only to advance the widget tree (mount, drawer animation).
+    // Bounded — never waits on the live webview.
+    Future<void> pumpFor(Duration total) async {
+      final deadline = DateTime.now().add(total);
+      while (DateTime.now().isBefore(deadline)) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    // Wait on the live webview WITHOUT pumping frames: real wall-clock poll
+    // inside runAsync so WebKit can load/navigate while the Dart side polls
+    // platform channels. Returns true if the predicate held before timeout.
+    Future<bool> waitReal(
+      Future<bool> Function() predicate, {
+      required String label,
+      Duration timeout = const Duration(seconds: 30),
+    }) async {
+      var ok = false;
+      await tester.runAsync(() async {
+        final deadline = DateTime.now().add(timeout);
+        var i = 0;
+        while (DateTime.now().isBefore(deadline)) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          try {
+            if (await predicate()) {
+              ok = true;
+              return;
+            }
+          } catch (e) {
+            if (i % 10 == 0) log('$label poll error: $e');
+          }
+          i++;
+        }
+      });
+      log('$label -> ${ok ? "ok" : "timeout"}');
+      return ok;
+    }
 
     Future<Uri?> currentUrl() async {
       final c = controller();
@@ -147,34 +189,22 @@ void main() {
       }
     }
 
-    Future<void> pumpUntil(
-      Future<bool> Function() predicate, {
-      required String description,
-      Duration timeout = const Duration(seconds: 45),
-      Duration step = const Duration(milliseconds: 250),
-    }) async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        await tester.pump(step);
-        if (await predicate()) return;
-      }
-      throw StateError('Timed out after ${timeout.inSeconds}s waiting for: '
-          '$description');
-    }
-
-    Future<void> openDrawer() async {
-      await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
-      await tester.pumpAndSettle(const Duration(seconds: 5));
-    }
-
     Future<void> activateSite() async {
-      // Drawer is opened while no webview is live (lazy IndexedStack), so
-      // pumpAndSettle is safe up to the tap; the live-webview wait polls.
-      await openDrawer();
+      // Drawer opens over the lazy IndexedStack placeholder (no live webview
+      // yet), so pumping to animate it is safe.
+      log('activate: open drawer');
+      await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
+      await pumpFor(const Duration(seconds: 2));
       final tile = find.text(_siteName);
       expect(tile, findsOneWidget,
           reason: '$_siteName should appear in the drawer');
+      log('activate: tap site tile (mounts webview)');
       await tester.tap(tile);
+      // A few frames to mount the InAppWebView and fire onWebViewCreated.
+      // The platform view surface is created here; sustained rendering is
+      // then left to WebKit while we wait via runAsync.
+      await pumpFor(const Duration(seconds: 2));
+      log('activate: mounted, controller=${controller() != null}');
     }
 
     Future<void> background() async {
@@ -187,62 +217,59 @@ void main() {
     }
 
     // --- Run 1: cold boot, build history, capture on background ---
+    log('run1: app.main()');
     app.main();
-    await tester.pumpAndSettle(const Duration(seconds: 30));
+    // No webview is live until the site is activated, so pumping the boot
+    // UI is safe.
+    await pumpFor(const Duration(seconds: 5));
+    log('run1: booted');
 
     await activateSite();
-    try {
-      await pumpUntil(
-        () async => (await currentUrl())?.path == '/deep' && await canGoBack(),
-        description: 'site to navigate /start -> /deep with back history',
-      );
-    } on StateError {
-      // The webview never drove the loopback load + JS auto-navigation
-      // (no real nav on this harness). Nothing to restore; skip rather
-      // than fail for an environmental reason.
-      // ignore: avoid_print
-      print('[safari_navigation_test] SKIP: webview did not build nav '
-          'history on this platform.');
+
+    final built = await waitReal(
+      () async => (await currentUrl())?.path == '/deep' && await canGoBack(),
+      label: 'run1 build-history',
+    );
+    if (!built) {
+      log('SKIP: webview did not build nav history on this platform.');
       return;
     }
 
     final captured = (await currentUrl())!.toString();
     expect(captured, contains('/deep?n='),
         reason: 'history should be built before capture');
+    log('run1: captured url=$captured');
 
+    log('run1: background()');
     await background();
-    var captureSupported = false;
-    try {
-      await pumpUntil(
-        () async => (await store.loadState(_siteId))?.isNotEmpty ?? false,
-        description: 'nav state to be captured on background',
-        timeout: const Duration(seconds: 15),
-      );
-      captureSupported = true;
-    } on StateError {
-      captureSupported = false;
-    }
-
+    final captureSupported = await waitReal(
+      () async => (await store.loadState(_siteId))?.isNotEmpty ?? false,
+      label: 'run1 capture-state',
+      timeout: const Duration(seconds: 15),
+    );
     if (!captureSupported) {
-      // ignore: avoid_print
-      print('[safari_navigation_test] SKIP restore assertions: '
-          'controller.saveState() produced no bytes on this platform.');
+      log('SKIP restore assertions: saveState() produced no bytes here.');
       return;
     }
 
     // --- Run 2: restart (fresh tree, same store), re-activate, restore ---
+    log('run2: pumpWidget(WebSpaceApp) restart');
     await tester.pumpWidget(app.WebSpaceApp());
-    await tester.pumpAndSettle(const Duration(seconds: 20));
+    await pumpFor(const Duration(seconds: 5));
+    log('run2: restarted');
 
     await activateSite();
-    await pumpUntil(
+    final restored = await waitReal(
       () async => (await currentUrl())?.toString() == captured,
-      description: 'restored top URL to match the exact nonce from run 1',
+      label: 'run2 restore',
     );
+    expect(restored, isTrue,
+        reason: 'restored top URL should match the exact nonce from run 1');
 
     expect((await currentUrl()).toString(), captured,
         reason: 'current page (with run-1 nonce) restored after restart');
     expect(await canGoBack(), isTrue,
         reason: 'back/forward history restored after restart');
+    log('run2: restore verified');
   });
 }
