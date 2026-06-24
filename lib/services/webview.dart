@@ -2541,17 +2541,21 @@ class WebViewFactory {
               final url = args[0] as String;
               final dnsSvc = DnsBlockService.instance;
               final abpSvc = ContentBlockerService.instance;
+              // Consult the ABP engine up front (not after a DNS early
+              // return) so the engine decision is recorded for the ABP
+              // dev-tools stats even when the DNS list also blocks this
+              // host. Otherwise, with a DNS blocklist on, the engine is
+              // never asked about the hosts both lists share and the ABP
+              // tab reads zero blocks. sourceUrl is the hosting page so
+              // `$domain=` modifiers apply.
+              final abpBlocked = config.contentBlockEnabled &&
+                  abpSvc.isBlocked(url, sourceUrl: lastLoadStartUrl ?? '');
               if (config.dnsBlockEnabled && dnsSvc.isBlocked(url)) {
                 dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.dns);
                 return true;
               }
-              // sourceUrl is the page hosting this sub-resource, so
-              // the engine can apply `$domain=` modifiers. See the
-              // matching comment in the blockResourceLoaded handler.
-              if (config.contentBlockEnabled &&
-                  abpSvc.isBlocked(url,
-                      sourceUrl: lastLoadStartUrl ?? '')) {
+              if (abpBlocked) {
                 dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.abp);
                 // Try the engine's $redirect= lookup. Only meaningful
