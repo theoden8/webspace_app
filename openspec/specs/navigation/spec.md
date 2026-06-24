@@ -29,6 +29,7 @@ WebSpace embeds webviews in a Scaffold with a drawer. Navigation gestures compet
 | iOS/macOS | `allowsBackForwardNavigationGestures` is enabled for the **root site webview** only | The root webview lives at the `MaterialApp` root route, which has no Flutter route-pop edge-swipe — so without the native gesture the main view has no reliable back-swipe (PopScope only fires for pushable routes). Nested `InAppWebViewScreen`s leave it off so their route-pop-at-history-start (NAV-008) isn't hijacked. |
 | Android | `hasGesture` on `NavigationAction` is a reliable boolean | Used directly for gesture detection |
 | iOS/macOS | No `hasGesture`; must infer from `navigationType` (`LINK_ACTIVATED`, `FORM_SUBMITTED`) | Less reliable than Android's boolean flag |
+| Linux (WPE) | Fork's `NavigationActionType` enum has no `formSubmitted` — `WEBKIT_NAVIGATION_TYPE_FORM_SUBMITTED` collapses into `other`. `hasGesture` is not serialized for regular navigation actions; only `navigationType` is. | `_hasUserGesture` infers from `navigationType` (treats `LINK_ACTIVATED` as gesture, `FORM_SUBMITTED` is unreachable so user-driven cross-origin form posts read as no-gesture and silently block) |
 
 ---
 
