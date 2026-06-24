@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/abp_network_hosts.dart';
 import 'package:webspace/services/adblock_engine.dart';
+import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -120,6 +121,27 @@ class ContentBlockerService {
 
   /// See [_abpNetworkHosts].
   Set<String> get abpNetworkBlockHosts => _abpNetworkHosts;
+
+  /// Literal tokens of HOSTLESS network rules (path/substring), used to
+  /// build [genericNetworkTokenBloom]. See abp_network_hosts.dart.
+  Set<String> _genericNetworkTokens = <String>{};
+
+  /// True when the loaded lists carry network rules we can't reduce to a
+  /// guaranteed token (regex, or only sub-3-char runs). The JS
+  /// interceptor must then round-trip on every host-Bloom miss.
+  bool _hasUntokenizableNetworkRules = false;
+  bool get hasUntokenizableNetworkRules => _hasUntokenizableNetworkRules;
+
+  BloomFilter? _genericTokenBloom;
+
+  /// Bloom over [_genericNetworkTokens] for the JS interceptor's
+  /// hostless-rule prefilter. Null when no hostless tokenizable rules
+  /// are loaded (the common case — the JS side then skips token checks).
+  BloomFilter? get genericNetworkTokenBloom {
+    if (_genericNetworkTokens.isEmpty) return null;
+    return _genericTokenBloom ??=
+        BloomFilter.build(_genericNetworkTokens, fpRate: 0.02);
+  }
 
   /// Native engine that owns every blocking + cosmetic decision. Built
   /// lazily on the first [_rebuildEngine] call and disposed + rebuilt
@@ -684,10 +706,15 @@ class ContentBlockerService {
       } catch (_) {}
     }
     final concatenated = buf.toString();
-    // Harvest `||host^` block hosts for the interceptor prefilter Bloom
-    // before the procedural rewrite (which only touches cosmetic lines).
-    // Listeners push this to DnsBlockService on _notifyRulesChanged.
-    _abpNetworkHosts = extractAbpNetworkBlockHosts(concatenated);
+    // Harvest interceptor prefilter inputs (`||host^` hosts + hostless
+    // rule tokens) before the procedural rewrite, which only touches
+    // cosmetic lines. Listeners push the hosts to DnsBlockService on
+    // _notifyRulesChanged; the token bloom rides the getBlockBloom map.
+    final prefilter = parseAbpNetworkPrefilter(concatenated);
+    _abpNetworkHosts = prefilter.hosts;
+    _genericNetworkTokens = prefilter.tokens;
+    _hasUntokenizableNetworkRules = prefilter.hasUntokenizable;
+    _genericTokenBloom = null;
     if (buf.isEmpty) {
       if (Platform.isAndroid) {
         await WebInterceptNative.sendAdblockEngineRules('');
@@ -899,6 +926,9 @@ class ContentBlockerService {
     _rustEngine = null;
     _engineCosmeticCache.clear();
     _abpNetworkHosts = <String>{};
+    _genericNetworkTokens = <String>{};
+    _hasUntokenizableNetworkRules = false;
+    _genericTokenBloom = null;
     _useUboResources = true;
   }
 
