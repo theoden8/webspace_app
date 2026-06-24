@@ -253,7 +253,25 @@ void main() {
     }
 
     // --- Run 2: restart (fresh tree, same store), re-activate, restore ---
-    log('run2: pumpWidget(WebSpaceApp) restart');
+    // Quiesce the live run-1 webview before the restart. Tearing down a
+    // still-rendering WPE platform view inside tester.pumpWidget wedges the
+    // UI thread (WPE surface teardown is synchronous; WKWebView on macOS
+    // tears down async, so macOS is unaffected). Park it on about:blank so
+    // pumpWidget disposes a static view. The captured nav state already
+    // lives in the injected store, so this does not affect the restore.
+    final live = controller();
+    if (live != null) {
+      await tester.runAsync(() async {
+        try {
+          await live.stopLoading().timeout(callTimeout);
+        } catch (_) {}
+        try {
+          await live.loadUrl('about:blank').timeout(callTimeout);
+        } catch (_) {}
+        await Future.delayed(const Duration(seconds: 2));
+      });
+    }
+    log('run2: quiesced run-1 webview, pumpWidget(WebSpaceApp) restart');
     await tester.pumpWidget(app.WebSpaceApp());
     await pumpFor(const Duration(seconds: 5));
     log('run2: restarted');
