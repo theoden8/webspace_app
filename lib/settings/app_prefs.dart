@@ -56,6 +56,13 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // ignores incoming share/open intents (Android ACTION_SEND, webspace://,
   // iOS/macOS Share Extension) without crashing. Default: enabled.
   'linkHandlingEnabled': true,
+  // LIR-010 / discussion #439: when the user sends a shared link to an
+  // existing site via the dispatch picker, also append exactHost +
+  // wildcardSubdomain claims so that domain routes to the site in future.
+  // Opt-in (default off): by default a shared link just opens in the chosen
+  // site without mutating its claim list — users manage claims manually in
+  // the site's link-handling settings.
+  'linkHandlingClaimDomains': false,
   // User-approved exceptions for self-signed / otherwise-untrusted TLS
   // certificates. Each entry is `host|port|sha256hex` and is consulted by
   // both the webview's `onReceivedServerTrustAuthRequest` and the
@@ -76,6 +83,7 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
 };
 
 const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';
+const String kLinkHandlingClaimDomainsKey = 'linkHandlingClaimDomains';
 const String kUseUboResourcesKey = 'useUboResources';
 const String kAppLocaleOverrideKey = 'appLocaleOverride';
 

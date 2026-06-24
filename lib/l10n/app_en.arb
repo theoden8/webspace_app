@@ -590,6 +590,14 @@
   "@linkHandlingMasterToggleSubtitle": {
     "description": "Subtitle explaining the 'Handle shared links' switch."
   },
+  "linkHandlingClaimDomainsToggleTitle": "Claim domains from shared links",
+  "@linkHandlingClaimDomainsToggleTitle": {
+    "description": "Title of the switch that controls whether sending a shared link to a site also adds that domain to the site's routing claims. Off by default; when off the link just opens."
+  },
+  "linkHandlingClaimDomainsToggleSubtitle": "When on, sending a shared link to a site also makes that site handle that domain in future. When off, the link just opens in the chosen site.",
+  "@linkHandlingClaimDomainsToggleSubtitle": {
+    "description": "Subtitle explaining the 'Claim domains from shared links' switch."
+  },
   "linkHandlingTestRoutingTitle": "Test routing",
   "@linkHandlingTestRoutingTitle": {
     "description": "Section header above the manual URL test field."
@@ -2904,6 +2912,15 @@
     "description": "List item that opens a link in an existing site",
     "placeholders": {
       "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeDispatchOpenHostInSite": "Open {host} in a site",
+  "@homeDispatchOpenHostInSite": {
+    "description": "Dispatch picker row that opens the shared link in an existing site of the user's choice without claiming the domain. {host} is a hostname like example.com.",
+    "placeholders": {
+      "host": {
         "type": "String"
       }
     }

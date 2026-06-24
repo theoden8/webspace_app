@@ -223,6 +223,50 @@ void main() {
     });
   });
 
+  group('LinkIntentDispatchEngine.sendToSite — discussion #439 opt-in', () {
+    final ddg = _Site(
+      siteId: 'ddg',
+      initUrl: 'https://duckduckgo.com/',
+      domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
+    );
+
+    test('claimDomain:true binds (adds claims) like bindToSite', () {
+      final action = LinkIntentDispatchEngine.sendToSite(
+        inbound: Uri.parse('https://f-droid.org/packages/foo'),
+        site: ddg,
+        claimDomain: true,
+      );
+      expect(action, isA<DispatchBindAndOpen>());
+      final b = action as DispatchBindAndOpen;
+      expect(b.claimAdditions, [
+        DomainClaim.exactHost('f-droid.org'),
+        DomainClaim.wildcardSubdomain('f-droid.org'),
+      ]);
+    });
+
+    test('claimDomain:false just opens — no claim mutation (cross-domain)', () {
+      final action = LinkIntentDispatchEngine.sendToSite(
+        inbound: Uri.parse('https://f-droid.org/packages/foo'),
+        site: ddg,
+        claimDomain: false,
+      );
+      expect(action, isA<DispatchOpenNested>());
+      expect(action, isNot(isA<DispatchBindAndOpen>()));
+      expect((action as DispatchOpenNested).siteId, 'ddg');
+      expect(action.url, 'https://f-droid.org/packages/foo');
+    });
+
+    test('claimDomain:false in-domain opens main webview, no reset/claim', () {
+      final action = LinkIntentDispatchEngine.sendToSite(
+        inbound: Uri.parse('https://duckduckgo.com/?q=foo'),
+        site: ddg,
+        claimDomain: false,
+      );
+      expect(action, isA<DispatchOpenInMain>());
+      expect((action as DispatchOpenInMain).disposeBeforeLoad, isFalse);
+    });
+  });
+
   group('LinkIntentDispatchEngine.createNew — LIR-010 option 3', () {
     test('strips path/query/fragment and seeds baseDomain claim', () {
       final action = LinkIntentDispatchEngine.createNew(

@@ -987,6 +987,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   // tab strip. Reset on exiting fullscreen; never persisted.
   bool _tabBarOverlayVisible = false;
   bool _linkHandlingEnabled = true;
+  bool _linkHandlingClaimDomains = false;
   bool _showStatsBanner = true;
   // UI language override as a locale tag ('' = follow system).
   String _localeOverride = '';
@@ -2118,6 +2119,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         winners: winners,
         otherSites: others,
         canCreate: action.offerCreate,
+        claimDomains: _linkHandlingClaimDomains,
       ),
     );
     if (!mounted || choice == null) return;
@@ -2129,9 +2131,10 @@ class _WebSpacePageState extends State<WebSpacePage>
           site: _SiteRouteAdapter(site),
         );
       case _DispatchChoiceBind(:final site):
-        followUp = LinkIntentDispatchEngine.bindToSite(
+        followUp = LinkIntentDispatchEngine.sendToSite(
           inbound: inbound,
           site: _SiteRouteAdapter(site),
+          claimDomain: _linkHandlingClaimDomains,
         );
       case _DispatchChoiceCreate():
         followUp =
@@ -2972,6 +2975,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     await prefs.setBool(kLinkHandlingEnabledKey, _linkHandlingEnabled);
   }
 
+  Future<void> _saveLinkHandlingClaimDomains() async {
+    if (isDemoMode) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+        kLinkHandlingClaimDomainsKey, _linkHandlingClaimDomains);
+  }
+
   void _openLinkHandlingSettings() {
     Navigator.push(
       context,
@@ -2981,6 +2991,11 @@ class _WebSpacePageState extends State<WebSpacePage>
           onEnabledChanged: (v) {
             setState(() => _linkHandlingEnabled = v);
             _saveLinkHandlingEnabled();
+          },
+          claimDomains: _linkHandlingClaimDomains,
+          onClaimDomainsChanged: (v) {
+            setState(() => _linkHandlingClaimDomains = v);
+            _saveLinkHandlingClaimDomains();
           },
           sites: List<WebViewModel>.from(_webViewModels),
           onOpenSiteEditor: (site) {
@@ -3894,6 +3909,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       _tabMaxWidth = prefs.getInt('tabMaxWidth') ?? 140;
       _showStatsBanner = prefs.getBool('showStatsBanner') ?? true;
       _linkHandlingEnabled = prefs.getBool(kLinkHandlingEnabledKey) ?? true;
+      _linkHandlingClaimDomains =
+          prefs.getBool(kLinkHandlingClaimDomainsKey) ?? false;
       _localeOverride = prefs.getString(kAppLocaleOverrideKey) ?? '';
       _loadShortcutRemap(prefs);
       widget.onThemeSettingsChanged(_themeSettings);
@@ -7639,11 +7656,18 @@ class _DispatchPickerSheet extends StatefulWidget {
   final List<WebViewModel> otherSites;
   final bool canCreate;
 
+  /// Whether picking a site should claim the URL's domain for future routing
+  /// (LIR-010 option 2) or merely open the link there (discussion #439,
+  /// default). Drives only the row labels here; the actual claim/no-claim
+  /// decision is applied by the host via `LinkIntentDispatchEngine.sendToSite`.
+  final bool claimDomains;
+
   const _DispatchPickerSheet({
     required this.url,
     required this.winners,
     required this.otherSites,
     required this.canCreate,
+    required this.claimDomains,
   });
 
   @override
@@ -7674,7 +7698,9 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  _bindMode ? loc.homeDispatchSendToWhichSite(host) : loc.homeDispatchOpenHost(host),
+                  _bindMode && widget.claimDomains
+                      ? loc.homeDispatchSendToWhichSite(host)
+                      : loc.homeDispatchOpenHost(host),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -7737,8 +7763,11 @@ class _DispatchPickerSheetState extends State<_DispatchPickerSheet> {
       rows.add(ListTile(
         leading: const SizedBox(
             width: 32, height: 32, child: Icon(Icons.link)),
-        title: Text(loc.homeDispatchSendToSite(widget.url.host)),
-        subtitle: Text(loc.homeDispatchPickExistingSite),
+        title: Text(widget.claimDomains
+            ? loc.homeDispatchSendToSite(widget.url.host)
+            : loc.homeDispatchOpenHostInSite(widget.url.host)),
+        subtitle:
+            widget.claimDomains ? Text(loc.homeDispatchPickExistingSite) : null,
         onTap: () => setState(() => _bindMode = true),
       ));
     }

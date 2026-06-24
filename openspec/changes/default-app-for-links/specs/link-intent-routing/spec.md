@@ -173,7 +173,7 @@ The macOS app SHALL ship a Share Extension target with behavior equivalent to iO
 
 ### Requirement: LIR-008 - Link Handling Settings Screen
 
-The app SHALL provide a "Link handling" screen inside Settings containing a master "Handle shared links" switch and a "Routing overview" list showing every domain pattern → owning site with conflict warnings.
+The app SHALL provide a "Link handling" screen inside Settings containing a master "Handle shared links" switch, a "Claim domains from shared links" switch (the opt-in for LIR-010 option 2 binding; default off; disabled while the master switch is off), and a "Routing overview" list showing every domain pattern → owning site with conflict warnings.
 
 #### Scenario: Master switch disabled
 
@@ -312,7 +312,7 @@ When the resolver returns no match for an incoming URL, the system SHALL offer t
 Whenever an inbound URL cannot be unambiguously dispatched by the resolver alone — that is, the resolver returns ambiguous (LIR-002 tie) or no-match (LIR-009) — the system SHALL surface a single bottom-sheet picker offering up to three options, in this order:
 
 1. **Match router default** — activate the resolver's top-scored match. This option SHALL be present whenever the resolver returned a single winning candidate (i.e. on ambiguous, listed once per tied candidate; on no-match, suppressed).
-2. **Send domain (and subdomains) to a site** — open a site picker listing every existing site. Selecting a site SHALL append `[exactHost(host), wildcardSubdomain(getBaseDomain(host))]` to that site's `domainClaims` (deduplicated against existing entries), persist the change, and then activate the site on the full incoming URL. This option SHALL be suppressed when the user has zero existing sites.
+2. **Send domain (and subdomains) to a site** — open a site picker listing every existing site. When the global `linkHandlingClaimDomains` setting is enabled (opt-in; default **off**), selecting a site SHALL append `[exactHost(host), wildcardSubdomain(getBaseDomain(host))]` to that site's `domainClaims` (deduplicated against existing entries), persist the change, and then activate the site on the full incoming URL. When `linkHandlingClaimDomains` is disabled (the default), selecting a site SHALL merely open the incoming URL in that site (in its main webview when in-domain, nested otherwise — identical to picking a router-default "Open in <site>" row) WITHOUT mutating the site's `domainClaims`; the picker labels this row "Open <host> in a site" rather than "Send <host> (and subdomains) to a site". This option SHALL be suppressed when the user has zero existing sites. The claim-vs-open branch is owned by the engine entry point `sendToSite(inbound, site, claimDomain)` so the view never decides it.
 3. **Create new site (stripped path)** — invoke the LIR-009 flow. This option SHALL be suppressed when the URL's host is empty or its scheme is not `http`/`https`.
 
 The picker SHALL be skipped (option 1 silently auto-applied) when the resolver returned exactly one match — that is the normal "router default" fast path. The picker SHALL be reachable manually from a per-site or settings affordance (e.g. long-press on the share-sheet target during testing) so the user can re-route a URL even when a single resolver match exists; the manual entry point still uses LIR-010 semantics.
@@ -334,12 +334,22 @@ When option 2 is taken and the chosen site already has a claim that would have m
 
 #### Scenario: Bind to existing site mutates its claims
 
-- **GIVEN** site A exists with no claim covering `forum.invalid`
+- **GIVEN** `linkHandlingClaimDomains` is enabled
+- **AND** site A exists with no claim covering `forum.invalid`
 - **WHEN** the user picks "Send forum.invalid to Site A" for `https://forum.invalid/thread/42`
 - **THEN** site A's `domainClaims` gains `exactHost:forum.invalid` and `wildcardSubdomain:forum.invalid`
 - **AND** the change persists across app restart
 - **AND** site A is activated and navigates to `https://forum.invalid/thread/42`
 - **AND** a future arrival of `https://sub.forum.invalid/x` resolves to site A without showing the picker
+
+#### Scenario: Default (claim setting off) opens without mutating claims
+
+- **GIVEN** `linkHandlingClaimDomains` is disabled (the default)
+- **AND** site A exists with no claim covering `forum.invalid`
+- **WHEN** the user picks "Open forum.invalid in a site" → Site A for `https://forum.invalid/thread/42`
+- **THEN** site A's `domainClaims` is unchanged
+- **AND** the incoming URL opens in site A (nested, since it is out-of-domain) carrying site A's privacy settings
+- **AND** a future arrival of `https://forum.invalid/x` does NOT resolve to site A and re-shows the picker
 
 #### Scenario: No existing sites suppresses option 2
 

@@ -11,6 +11,12 @@ import 'package:webspace/widgets/hint_button.dart';
 class LinkHandlingSettingsScreen extends StatefulWidget {
   final bool enabled;
   final ValueChanged<bool> onEnabledChanged;
+
+  /// LIR-010 / discussion #439: when true, sending a shared link to a site
+  /// also adopts the URL's host as a domain claim on that site; when false
+  /// (default) the link just opens there. Opt-in.
+  final bool claimDomains;
+  final ValueChanged<bool> onClaimDomainsChanged;
   final List<WebViewModel> sites;
   final void Function(WebViewModel site) onOpenSiteEditor;
 
@@ -24,6 +30,8 @@ class LinkHandlingSettingsScreen extends StatefulWidget {
     super.key,
     required this.enabled,
     required this.onEnabledChanged,
+    required this.claimDomains,
+    required this.onClaimDomainsChanged,
     required this.sites,
     required this.onOpenSiteEditor,
     this.onManualDispatch,
@@ -63,6 +71,12 @@ class _LinkHandlingSettingsScreenState
             subtitle: Text(loc.linkHandlingMasterToggleSubtitle),
             value: widget.enabled,
             onChanged: widget.onEnabledChanged,
+          ),
+          SwitchListTile(
+            title: Text(loc.linkHandlingClaimDomainsToggleTitle),
+            subtitle: Text(loc.linkHandlingClaimDomainsToggleSubtitle),
+            value: widget.claimDomains,
+            onChanged: widget.enabled ? widget.onClaimDomainsChanged : null,
           ),
           const Divider(height: 1),
           if (widget.onManualDispatch != null) ...[
