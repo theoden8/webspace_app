@@ -7147,6 +7147,16 @@ class _WebSpacePageState extends State<WebSpacePage>
                           return const SizedBox.shrink();
                         }
 
+                        // When a fresh native controller attaches for the
+                        // visible site (cold start, _goHome recreate,
+                        // renderer-gone rebuild), recomposite the Android
+                        // surface — a newly-mounted hybrid-composition
+                        // SurfaceView can come back blank-white. Reads
+                        // _currentIndex live at fire time; no-op off Android.
+                        webViewModel.onControllerReady = () {
+                          if (index == _currentIndex) _nudgeSurfaceRepaint();
+                        };
+
                         // Single source of truth for which HTML store backs
                         // this site — shared with `_ensureSiteHtml`'s preload so
                         // read and preload can't target different stores.
