@@ -4,7 +4,9 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:webspace/services/abp_network_hosts.dart';
 import 'package:webspace/services/adblock_engine.dart';
+import 'package:webspace/services/bloom_filter.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -109,6 +111,37 @@ class ContentBlockerService {
   ContentBlockerService._();
 
   List<FilterList> _lists = [];
+
+  /// Hosts named by anchored `||host^` network-block rules in the loaded
+  /// lists. Pushed to [DnsBlockService] so the iOS/macOS sub-resource
+  /// interceptor's prefilter Bloom trips for ABP-only hosts instead of
+  /// hard-allowing them on a bloom miss. Recomputed on every
+  /// [_rebuildEngine]; empty when no engine/lists are active.
+  Set<String> _abpNetworkHosts = <String>{};
+
+  /// See [_abpNetworkHosts].
+  Set<String> get abpNetworkBlockHosts => _abpNetworkHosts;
+
+  /// Literal tokens of HOSTLESS network rules (path/substring), used to
+  /// build [genericNetworkTokenBloom]. See abp_network_hosts.dart.
+  Set<String> _genericNetworkTokens = <String>{};
+
+  /// True when the loaded lists carry network rules we can't reduce to a
+  /// guaranteed token (regex, or only sub-3-char runs). The JS
+  /// interceptor must then round-trip on every host-Bloom miss.
+  bool _hasUntokenizableNetworkRules = false;
+  bool get hasUntokenizableNetworkRules => _hasUntokenizableNetworkRules;
+
+  BloomFilter? _genericTokenBloom;
+
+  /// Bloom over [_genericNetworkTokens] for the JS interceptor's
+  /// hostless-rule prefilter. Null when no hostless tokenizable rules
+  /// are loaded (the common case — the JS side then skips token checks).
+  BloomFilter? get genericNetworkTokenBloom {
+    if (_genericNetworkTokens.isEmpty) return null;
+    return _genericTokenBloom ??=
+        BloomFilter.build(_genericNetworkTokens, fpRate: 0.02);
+  }
 
   /// Native engine that owns every blocking + cosmetic decision. Built
   /// lazily on the first [_rebuildEngine] call and disposed + rebuilt
@@ -264,6 +297,41 @@ class ContentBlockerService {
     final ctx = _engineCosmeticFor(pageUrl);
     if (ctx == null) return const [];
     return ctx.proceduralActions;
+  }
+
+  /// Snapshot of the cosmetic engine's readiness for a diagnostic
+  /// readout (the ABP rule probe). Reports whether the engine is loaded
+  /// at all, how many hide/procedural rules it resolves for [pageUrl]
+  /// (via the same hostless-scheme normalization the real injection
+  /// uses), and which of the caller-supplied [canaryClasses] the engine
+  /// would hide — a non-empty hit means the filter list that defines
+  /// those classes is actually loaded, distinguishing "no cosmetic list
+  /// loaded" from "rules loaded but not firing".
+  Map<String, dynamic> cosmeticDiagnostics(
+    String pageUrl, {
+    Set<String> canaryClasses = const <String>{},
+  }) {
+    final engine = _rustEngine;
+    if (engine == null) {
+      return {
+        'engineActive': false,
+        'pageHideCount': 0,
+        'pageProceduralCount': 0,
+        'canaryHits': const <String>[],
+      };
+    }
+    final ctx = _engineCosmeticFor(pageUrl);
+    final hits = canaryClasses.isEmpty
+        ? const <String>[]
+        : engine
+            .hiddenClassIdSelectors(canaryClasses, const <String>{})
+            .toList();
+    return {
+      'engineActive': true,
+      'pageHideCount': ctx?.hides.length ?? 0,
+      'pageProceduralCount': ctx?.proceduralActions.length ?? 0,
+      'canaryHits': hits,
+    };
   }
 
   /// `$csp=` lookup. Returns joined Content-Security-Policy directives
@@ -637,6 +705,16 @@ class ContentBlockerService {
         }
       } catch (_) {}
     }
+    final concatenated = buf.toString();
+    // Harvest interceptor prefilter inputs (`||host^` hosts + hostless
+    // rule tokens) before the procedural rewrite, which only touches
+    // cosmetic lines. Listeners push the hosts to DnsBlockService on
+    // _notifyRulesChanged; the token bloom rides the getBlockBloom map.
+    final prefilter = parseAbpNetworkPrefilter(concatenated);
+    _abpNetworkHosts = prefilter.hosts;
+    _genericNetworkTokens = prefilter.tokens;
+    _hasUntokenizableNetworkRules = prefilter.hasUntokenizable;
+    _genericTokenBloom = null;
     if (buf.isEmpty) {
       if (Platform.isAndroid) {
         await WebInterceptNative.sendAdblockEngineRules('');
@@ -651,7 +729,7 @@ class ContentBlockerService {
     // the engine sees and what the cache key is computed over; bump
     // [_kEngineCacheVersion] when the rewrite output format changes
     // so old cached blobs get re-parsed.
-    final rulesText = rewriteGenericProceduralsForBackfill(buf.toString());
+    final rulesText = rewriteGenericProceduralsForBackfill(concatenated);
     final rulesHash =
         sha256.convert(utf8.encode('v$_kEngineCacheVersion:$rulesText')).toString();
     AdblockEngine? engine;
@@ -847,6 +925,10 @@ class ContentBlockerService {
     _rustEngine?.dispose();
     _rustEngine = null;
     _engineCosmeticCache.clear();
+    _abpNetworkHosts = <String>{};
+    _genericNetworkTokens = <String>{};
+    _hasUntokenizableNetworkRules = false;
+    _genericTokenBloom = null;
     _useUboResources = true;
   }
 

@@ -63,7 +63,9 @@
 
   <div id="diagnostics" class="section-callout" style="border-left-color:#888; background:#fafafa;">
     <div><strong>Platform:</strong> <span id="diag-platform">checking…</span> &mdash; sub-resource interceptor: <strong id="diag-interceptor">checking…</strong></div>
-    <div><strong>Merged bloom:</strong> <span id="diag-bloom">checking…</span></div>
+    <div><strong>DNS bloom:</strong> <span id="diag-bloom">checking…</span></div>
+    <div><strong>ABP cosmetic engine:</strong> <span id="diag-cosmetic">checking…</span></div>
+    <div><strong>ABP network engine:</strong> <span id="diag-abpnet">checking…</span></div>
     <div id="diag-warning" class="desc"></div>
   </div>
 
@@ -1033,6 +1035,37 @@
       }
     }
 
+    // The class token below exists ONLY in the bundled sample list
+    // (test/fixtures/easylist_sample.txt, rule `##.fp_probe_class`).
+    // Production lists never define it, so a hit on this canary proves
+    // the probe's expected sample list is the one actually loaded —
+    // which is what most of sections 1B&ndash;1E need to fire.
+    const PROBE_CANARY_CLASS = 'fp_probe_class';
+
+    // ABP-engine network verdict is consulted directly (not through the
+    // DNS-bloom-gated interceptor), so these mirror Section 6's hosts.
+    const ABP_NET_HOSTS = NETWORK_CASES.map(function(c) {
+      try { return new URL(c.url).hostname; } catch (e) { return null; }
+    }).filter(Boolean);
+
+    // Pull the ABP cosmetic/network engine status from Dart. Returns
+    // null when the bridge handler isn't registered (outside the app,
+    // or no siteId). The handler is engine-aware and reports the
+    // per-site content-block toggle, so the probe can name the actual
+    // reason a cosmetic section produced nothing.
+    async function getAbpStatus() {
+      if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) return null;
+      try {
+        const r = await window.flutter_inappwebview.callHandler('getAbpProbeStatus', {
+          canaryClasses: [PROBE_CANARY_CLASS],
+          netHosts: ABP_NET_HOSTS,
+        });
+        return r || null;
+      } catch (e) {
+        return { error: String(e) };
+      }
+    }
+
     async function refreshDiagnostics() {
       const plat = sniffPlatform();
       document.getElementById('diag-platform').textContent = plat.name;
@@ -1045,8 +1078,36 @@
       } else if (bloom.error) {
         bloomEl.innerHTML = '<em>error: ' + escapeHtml(bloom.error) + '</em>';
       } else {
-        bloomEl.textContent = bloom.bitCount + ' bits, k=' + bloom.k +
-          ', payload ' + bloom.bytes + ' bytes, persisted host cache ' + bloom.cacheSize;
+        bloomEl.innerHTML = bloom.bitCount + ' bits, k=' + bloom.k +
+          ', payload ' + bloom.bytes + ' bytes, persisted host cache ' + bloom.cacheSize +
+          ' <span class="desc">(DNS blocklist only — unrelated to the ABP cosmetic engine below)</span>';
+      }
+
+      const abp = await getAbpStatus();
+      const cosmEl = document.getElementById('diag-cosmetic');
+      const netEl = document.getElementById('diag-abpnet');
+      if (!abp) {
+        cosmEl.innerHTML = '<em>no bridge — running outside the app</em>';
+        netEl.innerHTML = '<em>no bridge — running outside the app</em>';
+      } else if (abp.error) {
+        cosmEl.innerHTML = '<em>error: ' + escapeHtml(abp.error) + '</em>';
+        netEl.textContent = '—';
+      } else {
+        const canaryHit = (abp.canaryHits || []).length > 0;
+        cosmEl.innerHTML =
+          (abp.engineActive ? 'active' : '<strong>NOT loaded</strong>') +
+          ', content-block toggle for this site: ' +
+          (abp.contentBlockEnabled ? 'ON' : '<strong>OFF</strong>') +
+          ' &mdash; ' + (abp.pageHideCount || 0) + ' hide(s), ' +
+          (abp.pageProceduralCount || 0) + ' procedural for this page; sample list (' +
+          'canary <code>##.' + PROBE_CANARY_CLASS + '</code>): ' +
+          (canaryHit ? 'loaded' : '<strong>NOT loaded</strong>');
+        const verdicts = abp.netVerdicts || {};
+        netEl.innerHTML = Object.keys(verdicts).length === 0
+          ? '<em>engine inactive — no verdict</em>'
+          : Object.keys(verdicts).map(function(h) {
+              return escapeHtml(h) + '=' + (verdicts[h] ? 'BLOCK' : 'allow');
+            }).join(' · ');
       }
 
       const warn = document.getElementById('diag-warning');
@@ -1055,10 +1116,24 @@
         messages.push('<strong>Sub-resource interception is NOT wired on this platform.</strong> Section 6 will report every domain as "loaded" regardless of any ||domain^ rule. Trust sections 1&ndash;5.');
       }
       if (bloom && !bloom.error && bloom.bitCount === 0) {
-        messages.push('<strong>Merged bloom is empty.</strong> Either no filter list is enabled, or the rule-changed listener hasn\'t rebuilt yet — try reloading.');
+        messages.push('<strong>DNS bloom is empty.</strong> The DNS blocklist is what gates the iOS/macOS sub-resource interceptor — with it empty, Section 6 cannot block on those platforms even when an ABP <code>||domain^</code> rule matches (the interceptor never round-trips on a bloom miss).');
+      }
+      // Cosmetic readiness — the actual gate for sections 1&ndash;1E.
+      // Each branch names the one reason those sections produced nothing
+      // so an empty result stops reading like a regression.
+      if (abp && !abp.error) {
+        if (!abp.engineActive) {
+          messages.push('<strong>ABP cosmetic engine is not loaded.</strong> Sections 1&ndash;1E and the ABP network rows cannot fire. Enable a content-blocker filter list in settings.');
+        } else if (!abp.contentBlockEnabled) {
+          messages.push('<strong>Content blocker is OFF for this site.</strong> No cosmetic rule fires regardless of the loaded list — turn it on for this site.');
+        } else if (!(abp.canaryHits || []).length) {
+          messages.push('ABP engine is active but the probe\'s <strong>sample list is not loaded</strong> (canary <code>##.' + PROBE_CANARY_CLASS + '</code> missed). The <code>fp_probe_*</code> and synthetic rows in 1B&ndash;1E will read "missed" by design — they only exist in <code>test/fixtures/easylist_sample.txt</code>. Load that list to exercise them; production lists (EasyList) carry their own rules, which these synthetic rows do not test.');
+        } else {
+          messages.push('Sample list loaded and content blocker on — cosmetic sections should fire.');
+        }
       }
       if (bloom && !bloom.error && bloom.bitCount > 0 && plat.expectInstalled === true) {
-        messages.push('Bloom is populated and platform supports interception — section 6 should be reliable.');
+        messages.push('DNS bloom populated and platform supports interception — Section 6 is reliable for hosts in the DNS blocklist. ABP-only hosts (matched by an <code>||domain^</code> rule but absent from the DNS list) are <em>not</em> prefiltered, so they read "loaded" here even though the ABP network engine above reports BLOCK.');
       }
       warn.innerHTML = messages.join('<br>');
     }

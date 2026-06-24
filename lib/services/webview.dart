@@ -1867,6 +1867,24 @@ class WebViewFactory {
   var bloomBitCount = 0;
   var bloomK = 0;
 
+  // Second bloom for hostless network rules (path/substring), keyed by
+  // the rules' literal tokens. The host bloom can't prefilter a rule
+  // that matches on path, so without this a `/ads/track.js`-style rule
+  // never fires on iOS/macOS (bloom miss == hard allow). hasGeneric is
+  // true when any such rule is loaded; genericFallback is true when the
+  // lists also carry rules we can't tokenize (regex, sub-3-char tokens),
+  // which force a Dart round-trip on every host-bloom miss.
+  var tokenBits = null;
+  var tokenBitCount = 0;
+  var tokenK = 0;
+  var hasGeneric = false;
+  var genericFallback = false;
+  // Set by checkSync, read synchronously by checkAsync: whether the
+  // round-trip's verdict may be cached by host. Host-level matches
+  // (host bloom / DNS) are cacheable; a token-driven path match is not,
+  // since a different path on the same host can have a different verdict.
+  var pendingCacheable = true;
+
   function fnv1a(s, seed) {
     var h = seed >>> 0;
     for (var i = 0; i < s.length; i++) {
@@ -1897,6 +1915,42 @@ class WebViewFactory {
       if (parent.indexOf('.') < 0) break;
       if (bloomContains(parent)) return true;
       dot = host.indexOf('.', dot + 1);
+    }
+    return false;
+  }
+
+  function tokenHit(tok) {
+    if (!tokenBits) return false;
+    var h1 = fnv1a(tok, 0x811C9DC5);
+    var h2 = fnv1a(tok, 0xCBF29CE4);
+    for (var i = 0; i < tokenK; i++) {
+      var pos = ((h1 + i * h2) >>> 0) % tokenBitCount;
+      if ((tokenBits[pos >> 3] & (1 << (pos & 7))) === 0) return false;
+    }
+    return true;
+  }
+
+  // Tokenize the URL on runs of [a-z0-9] (the finest split, so never
+  // coarser than the engine's own tokenizer — guarantees no false
+  // negative) and return true if any >=3-char token is in the token
+  // bloom. A hit means a hostless rule MIGHT match, so we let Dart
+  // adjudicate the full URL. Pure string scan, no allocation per token
+  // beyond the substring on an actual hit candidate.
+  function urlMaybeGeneric(url) {
+    var s = url.toLowerCase();
+    var n = s.length > 2048 ? 2048 : s.length;
+    var start = -1;
+    for (var i = 0; i <= n; i++) {
+      var c = i < n ? s.charCodeAt(i) : 0;
+      var alnum = (c >= 48 && c <= 57) || (c >= 97 && c <= 122);
+      if (alnum) {
+        if (start < 0) start = i;
+      } else {
+        if (start >= 0) {
+          if (i - start >= 3 && tokenHit(s.substring(start, i))) return true;
+          start = -1;
+        }
+      }
     }
     return false;
   }
@@ -1935,23 +1989,42 @@ class WebViewFactory {
     var cached = cacheGet(host);
     if (cached === false) return false;
     if (cached === true) return true;
-    if (!bloomReady) return undefined; // Dart roundtrip while bloom warms up
-    if (!maybeBlocked(host)) {
-      cachePut(host, false);
-      return false;
+    if (!bloomReady) { pendingCacheable = true; return undefined; } // warming up
+    if (maybeBlocked(host)) {
+      pendingCacheable = true; // host-level match — verdict is per host
+      return undefined; // bloom hit — Dart must adjudicate
     }
-    return undefined; // bloom hit — Dart must adjudicate
+    // Host bloom miss. With no hostless rules loaded this is a definite
+    // allow (and cacheable by host, the common fast path). With hostless
+    // rules present we can't cache by host — a path rule may match one
+    // URL on this host and not another — so re-evaluate per request:
+    // tokenize and only round-trip on a token hit.
+    if (hasGeneric) {
+      if (genericFallback || urlMaybeGeneric(url)) {
+        pendingCacheable = false; // path-level — must not cache by host
+        return undefined;
+      }
+      return false; // no generic token matched — allow, but don't cache
+    }
+    cachePut(host, false);
+    return false;
   }
 
   function checkAsync(url) {
+    // Capture cacheability synchronously: pendingCacheable is set by the
+    // checkSync call that immediately preceded this one, and a later
+    // request could overwrite it before this promise resolves.
+    var cacheable = pendingCacheable;
     if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) {
       return Promise.resolve(false);
     }
     return window.flutter_inappwebview.callHandler('blockCheck', url).then(function(blocked) {
-      try {
-        var host = new URL(url).hostname;
-        if (host) cachePut(host, !!blocked);
-      } catch (e) {}
+      if (cacheable) {
+        try {
+          var host = new URL(url).hostname;
+          if (host) cachePut(host, !!blocked);
+        } catch (e) {}
+      }
       return !!blocked;
     });
   }
@@ -1974,9 +2047,30 @@ class WebViewFactory {
       bloomBits = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
       bloomBitCount = map.bitCount;
       bloomK = map.k;
+      if (map.tokenBits && map.tokenBitCount) {
+        tokenBits = map.tokenBits instanceof Uint8Array
+            ? map.tokenBits : new Uint8Array(map.tokenBits);
+        tokenBitCount = map.tokenBitCount;
+        tokenK = map.tokenK;
+      } else {
+        tokenBits = null;
+      }
+      genericFallback = !!map.genericFallback;
+      hasGeneric = !!map.hasGeneric;
+      // Under hostless (path) rules a host-level "allowed" verdict can't
+      // be trusted to skip the per-request token check, so drop any
+      // allows cached during warmup. Blocks are host-level and safe.
+      if (hasGeneric) {
+        for (var ch in hostCache) {
+          if (!hostCache[ch]) delete hostCache[ch];
+        }
+      }
       var persisted = map.cache;
       if (persisted) {
         for (var h in persisted) {
+          // Same reason: don't carry over persisted allows when path
+          // rules are live — only persisted blocks.
+          if (hasGeneric && !persisted[h]) continue;
           if (!(h in hostCache)) {
             hostCache[h] = !!persisted[h];
             hostOrder.push(h);
@@ -2447,17 +2541,21 @@ class WebViewFactory {
               final url = args[0] as String;
               final dnsSvc = DnsBlockService.instance;
               final abpSvc = ContentBlockerService.instance;
+              // Consult the ABP engine up front (not after a DNS early
+              // return) so the engine decision is recorded for the ABP
+              // dev-tools stats even when the DNS list also blocks this
+              // host. Otherwise, with a DNS blocklist on, the engine is
+              // never asked about the hosts both lists share and the ABP
+              // tab reads zero blocks. sourceUrl is the hosting page so
+              // `$domain=` modifiers apply.
+              final abpBlocked = config.contentBlockEnabled &&
+                  abpSvc.isBlocked(url, sourceUrl: lastLoadStartUrl ?? '');
               if (config.dnsBlockEnabled && dnsSvc.isBlocked(url)) {
                 dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.dns);
                 return true;
               }
-              // sourceUrl is the page hosting this sub-resource, so
-              // the engine can apply `$domain=` modifiers. See the
-              // matching comment in the blockResourceLoaded handler.
-              if (config.contentBlockEnabled &&
-                  abpSvc.isBlocked(url,
-                      sourceUrl: lastLoadStartUrl ?? '')) {
+              if (abpBlocked) {
                 dnsSvc.recordRequest(config.siteId!, url, true,
                     source: BlockSource.abp);
                 // Try the engine's $redirect= lookup. Only meaningful
@@ -2476,6 +2574,22 @@ class WebViewFactory {
               final map = Map<String, dynamic>.from(
                   DnsBlockService.instance.getMergedBlockBloom().toMap());
               map['cache'] = DnsBlockService.instance.getDomainCache();
+              // Second bloom for hostless ABP network rules (path rules
+              // the host bloom can't prefilter). Only when the site has
+              // content blocking on — these are ABP-only.
+              final cb = ContentBlockerService.instance;
+              final tokenBloom =
+                  config.contentBlockEnabled ? cb.genericNetworkTokenBloom : null;
+              final fallback =
+                  config.contentBlockEnabled && cb.hasUntokenizableNetworkRules;
+              if (tokenBloom != null) {
+                final tm = tokenBloom.toMap();
+                map['tokenBits'] = tm['bits'];
+                map['tokenBitCount'] = tm['bitCount'];
+                map['tokenK'] = tm['k'];
+              }
+              map['genericFallback'] = fallback;
+              map['hasGeneric'] = tokenBloom != null || fallback;
               return map;
             });
           }
@@ -2518,6 +2632,40 @@ class WebViewFactory {
                 );
               }
               return selectors;
+            },
+          );
+          // ABP rule probe diagnostics. Lets the probe page tell
+          // "no cosmetic list loaded" apart from "rules present but not
+          // firing", and read the engine's ABP network verdict for a
+          // host directly — independent of the DNS-bloom prefilter that
+          // gates the iOS sub-resource interceptor, so the probe can
+          // show ABP IS deciding even when that prefilter suppresses it.
+          // Registered regardless of contentBlockEnabled so it can
+          // report the per-site toggle being off.
+          controller.addJavaScriptHandler(
+            handlerName: 'getAbpProbeStatus',
+            callback: (args) async {
+              final svc = ContentBlockerService.instance;
+              final payload = (args.isNotEmpty && args[0] is Map)
+                  ? Map<String, dynamic>.from(args[0] as Map)
+                  : const <String, dynamic>{};
+              final canaries = (payload['canaryClasses'] as List? ?? const [])
+                  .cast<String>()
+                  .toSet();
+              final hosts = (payload['netHosts'] as List? ?? const [])
+                  .cast<String>();
+              final liveUrl =
+                  (await controller.getUrl())?.toString() ?? config.initialUrl;
+              final status =
+                  svc.cosmeticDiagnostics(liveUrl, canaryClasses: canaries);
+              final netVerdicts = <String, bool>{
+                for (final h in hosts) h: svc.isHostBlocked(h),
+              };
+              return {
+                ...status,
+                'contentBlockEnabled': config.contentBlockEnabled,
+                'netVerdicts': netVerdicts,
+              };
             },
           );
         }

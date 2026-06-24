@@ -214,11 +214,26 @@ class DnsBlockService {
     }
   }
 
-  /// Called by ContentBlockerService when its rule set changes. Invalidates
-  /// the merged Bloom and the merged host-decision cache (which may have
-  /// stale entries: a host previously cached as blocked because of an
-  /// ABP-only rule is no longer blocked, or vice versa). The DNS-only hot
-  /// path cache is unaffected because it depends only on _blockedDomains.
+  /// Hosts named by ABP `||host^` network-block rules, pushed by
+  /// ContentBlockerService whenever its rule set changes. Unioned into
+  /// the merged Bloom so the interceptor prefilter trips for ABP-only
+  /// hosts (a bloom miss is a hard allow, so without this an ABP network
+  /// rule for a host absent from the DNS list never fires on iOS/macOS).
+  Set<String> _abpNetworkHosts = <String>{};
+
+  /// Called by ContentBlockerService when its rule set changes. Replaces
+  /// the ABP host set, invalidates the merged Bloom, and clears the
+  /// merged host-decision cache (which may have stale entries: a host
+  /// previously cached as blocked because of an ABP-only rule is no
+  /// longer blocked, or vice versa). The DNS-only hot path cache is
+  /// unaffected because it depends only on _blockedDomains.
+  void setAbpNetworkHosts(Set<String> hosts) {
+    _abpNetworkHosts = hosts;
+    invalidateMergedBloom();
+  }
+
+  /// Invalidate the merged Bloom + merged host-decision cache without
+  /// changing the ABP host set (e.g. when only the DNS half changed).
   void invalidateMergedBloom() {
     _mergedBloomFilter = null;
     // Fire-and-forget; the in-memory clear is synchronous, the prefs delete
@@ -350,12 +365,16 @@ class DnsBlockService {
   BloomFilter getMergedBlockBloom() {
     if (_mergedBloomFilter != null) return _mergedBloomFilter!;
     final sw = Stopwatch()..start();
-    _mergedBloomFilter = BloomFilter.build(_blockedDomains, fpRate: 0.05);
+    final union = _abpNetworkHosts.isEmpty
+        ? _blockedDomains
+        : <String>{..._blockedDomains, ..._abpNetworkHosts};
+    _mergedBloomFilter = BloomFilter.build(union, fpRate: 0.05);
     sw.stop();
     LogService.instance.log(
         'BlockBloom',
         'Built merged bloom: ${_mergedBloomFilter!.sizeInBytes} bytes, k=${_mergedBloomFilter!.k}, '
-        'from ${_blockedDomains.length} DNS domains in ${sw.elapsedMilliseconds}ms',
+        'from ${_blockedDomains.length} DNS + ${_abpNetworkHosts.length} ABP '
+        'host(s) (${union.length} unique) in ${sw.elapsedMilliseconds}ms',
         level: LogLevel.info);
     return _mergedBloomFilter!;
   }
