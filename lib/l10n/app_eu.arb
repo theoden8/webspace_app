@@ -1,5 +1,9 @@
 {
   "@@locale": "eu",
+  "siteSettingsExternalLinksInBrowser": "Ireki kanpoko estekak nabigatzailean",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Ireki Kanpoko Estekak Nabigatzailean",
+  "siteSettingsExternalLinksInBrowserHint": "Aktibatuta dagoenean, gune honen domeinuetatik kanpora seinalatzen duen esteka bat zure gailuaren nabigatzaile lehenetsian irekitzen da, aplikazioaren barruan beharrean. Gune honek aldarrikatzen dituen domeinuetarako estekak aplikazioan irekitzen dira oraindik. Gehitu domeinu gehigarriak beheko Domeinu-aldarrikapenak atalean aplikazioan mantentzeko.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Gune honen domeinuetatik kanpoko estekak zure nabigatzaile lehenetsian irekitzen dira",
   "appTitle": "WebSpace",
   "commonCancel": "Utzi",
   "trustedCertScreenTitle": "Ziurtagiri fidagarriak",

@@ -136,6 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _letterboxEnabled;
   late bool _localCdnEnabled;
   late bool _blockAutoRedirects;
+  late bool _externalLinksInBrowser;
   late bool _fullscreenMode;
   late bool _htmlCachingEnabled;
   late bool _notificationsEnabled;
@@ -226,6 +227,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'letterboxEnabled': _letterboxEnabled,
         'localCdnEnabled': _localCdnEnabled,
         'blockAutoRedirects': _blockAutoRedirects,
+        'externalLinksInBrowser': _externalLinksInBrowser,
         'fullscreenMode': _fullscreenMode,
         'htmlCachingEnabled': _htmlCachingEnabled,
         'notificationsEnabled': _notificationsEnabled,
@@ -308,6 +310,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _letterboxEnabled = m.letterboxEnabled;
     _localCdnEnabled = m.localCdnEnabled;
     _blockAutoRedirects = m.blockAutoRedirects;
+    _externalLinksInBrowser = m.externalLinksInBrowser;
     _fullscreenMode = m.fullscreenMode;
     _htmlCachingEnabled = m.htmlCachingEnabled;
     _notificationsEnabled = m.notificationsEnabled;
@@ -495,6 +498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.letterboxEnabled = _letterboxEnabled;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
       widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
+      widget.webViewModel.externalLinksInBrowser = _externalLinksInBrowser;
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.htmlCachingEnabled = _htmlCachingEnabled;
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
@@ -1498,6 +1502,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               setState(() {
                 _blockAutoRedirects = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.siteSettingsExternalLinksInBrowser)),
+                HintButton(
+                  title: loc.siteSettingsExternalLinksInBrowserHintTitle,
+                  description: loc.siteSettingsExternalLinksInBrowserHint,
+                ),
+              ],
+            ),
+            subtitle: Text(loc.siteSettingsExternalLinksInBrowserSubtitle),
+            value: _externalLinksInBrowser,
+            onChanged: (bool value) {
+              setState(() {
+                _externalLinksInBrowser = value;
               });
             },
           ),

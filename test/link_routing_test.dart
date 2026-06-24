@@ -462,6 +462,70 @@ void main() {
     });
   });
 
+  group('LinkRoutingService.urlMatchesAnyClaim - outbound link routing', () {
+    final claims = [
+      DomainClaim.exactHost('example.org'),
+      DomainClaim.wildcardSubdomain('example.org'),
+      DomainClaim.baseDomain('news.co.uk'),
+    ];
+
+    test('exact host matches', () {
+      expect(
+          LinkRoutingService.urlMatchesAnyClaim(
+              Uri.parse('https://example.org/path'), claims),
+          isTrue);
+    });
+
+    test('wildcard subdomain matches', () {
+      expect(
+          LinkRoutingService.urlMatchesAnyClaim(
+              Uri.parse('https://api.example.org/'), claims),
+          isTrue);
+    });
+
+    test('base-domain claim matches across subdomains', () {
+      expect(
+          LinkRoutingService.urlMatchesAnyClaim(
+              Uri.parse('https://www.news.co.uk/story'), claims),
+          isTrue);
+    });
+
+    test('unrelated host does not match', () {
+      expect(
+          LinkRoutingService.urlMatchesAnyClaim(
+              Uri.parse('https://other.com/'), claims),
+          isFalse);
+    });
+
+    test('non-http(s) and hostless URLs never match', () {
+      expect(
+          LinkRoutingService.urlMatchesAnyClaim(
+              Uri.parse('mailto:a@example.org'), claims),
+          isFalse);
+      expect(LinkRoutingService.urlMatchesAnyClaim(Uri.parse('about:blank'), claims),
+          isFalse);
+    });
+
+    test('empty claim list never matches', () {
+      expect(
+          LinkRoutingService.urlMatchesAnyClaim(
+              Uri.parse('https://example.org/'), const []),
+          isFalse);
+    });
+
+    test('port-bearing exactHost claim is port-sensitive', () {
+      final portClaims = [DomainClaim.exactHost('localhost:8080')];
+      expect(
+          LinkRoutingService.urlMatchesAnyClaim(
+              Uri.parse('http://localhost:8080/'), portClaims),
+          isTrue);
+      expect(
+          LinkRoutingService.urlMatchesAnyClaim(
+              Uri.parse('http://localhost:9090/'), portClaims),
+          isFalse);
+    });
+  });
+
   group('LinkRoutingService.validateClaims - LIR-003', () {
     test('hijack: claim base equals another site initUrl base', () {
       final github = _Site('github', 'https://github.com/alice',

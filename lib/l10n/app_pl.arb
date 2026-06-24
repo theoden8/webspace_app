@@ -1,5 +1,9 @@
 {
   "@@locale": "pl",
+  "siteSettingsExternalLinksInBrowser": "Otwieraj zewnętrzne linki w przeglądarce",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Otwieraj Zewnętrzne Linki w Przeglądarce",
+  "siteSettingsExternalLinksInBrowserHint": "Gdy ta opcja jest włączona, link prowadzący poza domeny tej witryny otwiera się w domyślnej przeglądarce urządzenia, a nie w aplikacji. Linki do domen, do których ta witryna rości sobie prawa, nadal otwierają się w aplikacji. Dodaj kolejne domeny w sekcji Roszczenia do domen poniżej, aby zachować je w aplikacji.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Linki poza domenami tej witryny otwierają się w domyślnej przeglądarce",
   "appTitle": "WebSpace",
   "commonCancel": "Anuluj",
   "trustedCertScreenTitle": "Zaufane certyfikaty",

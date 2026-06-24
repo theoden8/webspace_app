@@ -1,5 +1,9 @@
 {
   "@@locale": "zh",
+  "siteSettingsExternalLinksInBrowser": "在浏览器中打开外部链接",
+  "siteSettingsExternalLinksInBrowserHintTitle": "在浏览器中打开外部链接",
+  "siteSettingsExternalLinksInBrowserHint": "开启后，指向本站点域名之外的链接将在设备的默认浏览器中打开，而不是在应用内打开。指向本站点声明的域名的链接仍会在应用内打开。在下方的“域名声明”中添加更多域名，可让它们继续在应用内打开。",
+  "siteSettingsExternalLinksInBrowserSubtitle": "本站点域名之外的链接将在你的默认浏览器中打开",
   "appTitle": "WebSpace",
   "commonCancel": "取消",
   "trustedCertScreenTitle": "受信任的憑證",

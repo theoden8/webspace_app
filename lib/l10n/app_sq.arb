@@ -1,5 +1,9 @@
 {
   "@@locale": "sq",
+  "siteSettingsExternalLinksInBrowser": "Hap lidhjet e jashtme në shfletues",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Hap Lidhjet e Jashtme në Shfletues",
+  "siteSettingsExternalLinksInBrowserHint": "Kur është aktive, një lidhje që drejton jashtë domeneve të kësaj faqeje hapet në shfletuesin e parazgjedhur të pajisjes suaj në vend që brenda aplikacionit. Lidhjet drejt domeneve që kjo faqe pretendon vazhdojnë të hapen në aplikacion. Shtoni domene shtesë te Pretendimet e domeneve më poshtë për t'i mbajtur ato brenda aplikacionit.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Lidhjet jashtë domeneve të kësaj faqeje hapen në shfletuesin tuaj të parazgjedhur",
   "appTitle": "WebSpace",
   "commonCancel": "Anulo",
   "trustedCertScreenTitle": "Certifikata të besuara",

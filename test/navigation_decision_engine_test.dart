@@ -263,4 +263,147 @@ void main() {
       expect(r.decision, NavigationDecision.blockSilent);
     });
   });
+
+  group('externalLinksInBrowser (discussion #438)', () {
+    bool claimsOther(String url) => Uri.parse(url).host == 'other.com';
+
+    test('unclaimed cross-domain link opens externally on gesture', () {
+      final r = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+        targetUrl: 'https://unclaimed.com',
+        initUrl: 'https://example.com',
+        hasGesture: true,
+        blockAutoRedirects: true,
+        isSiteActive: true,
+        lastSameDomainGestureTime: null,
+        now: t0,
+        externalLinksInBrowser: true,
+        matchesSiteClaim: claimsOther,
+      );
+      expect(r.decision, NavigationDecision.blockOpenExternal);
+    });
+
+    test('claimed cross-domain link stays in a nested webview', () {
+      final r = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+        targetUrl: 'https://other.com/path',
+        initUrl: 'https://example.com',
+        hasGesture: true,
+        blockAutoRedirects: true,
+        isSiteActive: true,
+        lastSameDomainGestureTime: null,
+        now: t0,
+        externalLinksInBrowser: true,
+        matchesSiteClaim: claimsOther,
+      );
+      expect(r.decision, NavigationDecision.blockOpenNested);
+    });
+
+    test('setting off keeps the legacy nested routing', () {
+      final r = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+        targetUrl: 'https://unclaimed.com',
+        initUrl: 'https://example.com',
+        hasGesture: true,
+        blockAutoRedirects: true,
+        isSiteActive: true,
+        lastSameDomainGestureTime: null,
+        now: t0,
+        externalLinksInBrowser: false,
+        matchesSiteClaim: claimsOther,
+      );
+      expect(r.decision, NavigationDecision.blockOpenNested);
+    });
+
+    test('same-domain navigation is unaffected', () {
+      final r = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+        targetUrl: 'https://example.com/page2',
+        initUrl: 'https://example.com',
+        hasGesture: true,
+        blockAutoRedirects: true,
+        isSiteActive: true,
+        lastSameDomainGestureTime: null,
+        now: t0,
+        externalLinksInBrowser: true,
+        matchesSiteClaim: claimsOther,
+      );
+      expect(r.decision, NavigationDecision.allow);
+    });
+
+    test('null matchesSiteClaim treats every cross-domain link as unclaimed', () {
+      final r = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+        targetUrl: 'https://other.com',
+        initUrl: 'https://example.com',
+        hasGesture: true,
+        blockAutoRedirects: true,
+        isSiteActive: true,
+        lastSameDomainGestureTime: null,
+        now: t0,
+        externalLinksInBrowser: true,
+      );
+      expect(r.decision, NavigationDecision.blockOpenExternal);
+    });
+
+    test('silent auto-redirect block still wins over external launch', () {
+      final r = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+        targetUrl: 'https://unclaimed.com',
+        initUrl: 'https://example.com',
+        hasGesture: false,
+        blockAutoRedirects: true,
+        isSiteActive: true,
+        lastSameDomainGestureTime: null,
+        now: t0,
+        externalLinksInBrowser: true,
+        matchesSiteClaim: claimsOther,
+      );
+      expect(r.decision, NavigationDecision.blockSilent,
+          reason: 'a script redirect with no gesture must not pop the system browser');
+    });
+
+    test('background site suppresses external launch', () {
+      final r = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+        targetUrl: 'https://unclaimed.com',
+        initUrl: 'https://example.com',
+        hasGesture: true,
+        blockAutoRedirects: true,
+        isSiteActive: false,
+        lastSameDomainGestureTime: null,
+        now: t0,
+        externalLinksInBrowser: true,
+        matchesSiteClaim: claimsOther,
+      );
+      expect(r.decision, NavigationDecision.blockSuppressed);
+    });
+
+    test('onUrlChanged routes an unclaimed redirect externally with a recent gesture', () {
+      final r = NavigationDecisionEngine.decideOnUrlChanged(
+        newUrl: 'https://unclaimed.com',
+        initUrl: 'https://duckduckgo.com',
+        blockAutoRedirects: true,
+        isSiteActive: true,
+        lastSameDomainGestureTime: t0.subtract(const Duration(seconds: 2)),
+        now: t0,
+        isCaptchaChallenge: _neverCaptcha,
+        externalLinksInBrowser: true,
+        matchesSiteClaim: claimsOther,
+      );
+      expect(r.decision, NavigationDecision.blockOpenExternal);
+    });
+
+    test('handleOnUrlChanged surfaces launchExternalUrl, not launchNestedUrl', () {
+      final handled = NavigationDecisionEngine.handleOnUrlChanged(
+        newUrl: 'https://unclaimed.com',
+        initUrl: 'https://duckduckgo.com',
+        blockAutoRedirects: true,
+        isSiteActive: true,
+        lastSameDomainGestureTime: t0.subtract(const Duration(seconds: 2)),
+        now: t0,
+        isCaptchaChallenge: _neverCaptcha,
+        state: OnUrlChangedState.initial('https://duckduckgo.com'),
+        externalLinksInBrowser: true,
+        matchesSiteClaim: claimsOther,
+      );
+      expect(handled.decision, NavigationDecision.blockOpenExternal);
+      expect(handled.launchExternalUrl, 'https://unclaimed.com');
+      expect(handled.launchNestedUrl, isNull);
+      expect(handled.navigateBackTo, isNotNull);
+    });
+  });
 }

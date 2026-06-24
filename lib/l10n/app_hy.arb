@@ -1,5 +1,9 @@
 {
   "@@locale": "hy",
+  "siteSettingsExternalLinksInBrowser": "Բացել արտաքին հղումները զննարկիչում",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Արտաքին Հղումների Բացում Զննարկիչում",
+  "siteSettingsExternalLinksInBrowserHint": "Միացված լինելու դեպքում այս կայքի տիրույթներից դուրս ուղղված հղումը բացվում է ձեր սարքի լռելյայն զննարկիչում՝ հավելվածի փոխարեն։ Այս կայքի կողմից հայտարարված տիրույթների հղումները դեռևս բացվում են հավելվածում։ Ավելացրեք լրացուցիչ տիրույթներ ստորև՝ «Տիրույթների հայտեր» բաժնում, որպեսզի դրանք մնան հավելվածում։",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Այս կայքի տիրույթներից դուրս հղումները բացվում են ձեր լռելյայն զննարկիչում",
   "appTitle": "WebSpace",
   "commonCancel": "Չեղարկել",
   "trustedCertScreenTitle": "Վստահելի վկայագրեր",

@@ -1,5 +1,9 @@
 {
   "@@locale": "th",
+  "siteSettingsExternalLinksInBrowser": "เปิดลิงก์ภายนอกในเบราว์เซอร์",
+  "siteSettingsExternalLinksInBrowserHintTitle": "เปิดลิงก์ภายนอกในเบราว์เซอร์",
+  "siteSettingsExternalLinksInBrowserHint": "เมื่อเปิดใช้งาน ลิงก์ที่ชี้ไปยังภายนอกโดเมนของไซต์นี้จะเปิดในเบราว์เซอร์เริ่มต้นของอุปกรณ์ของคุณแทนที่จะเปิดภายในแอป ลิงก์ไปยังโดเมนที่ไซต์นี้อ้างสิทธิ์จะยังคงเปิดในแอป เพิ่มโดเมนเพิ่มเติมในส่วนการอ้างสิทธิ์โดเมนด้านล่างเพื่อให้เปิดในแอปต่อไป",
+  "siteSettingsExternalLinksInBrowserSubtitle": "ลิงก์ที่อยู่นอกโดเมนของไซต์นี้จะเปิดในเบราว์เซอร์เริ่มต้นของคุณ",
   "appTitle": "WebSpace",
   "commonCancel": "ยกเลิก",
   "trustedCertScreenTitle": "ใบรับรองที่เชื่อถือ",

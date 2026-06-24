@@ -1,5 +1,9 @@
 {
   "@@locale": "lt",
+  "siteSettingsExternalLinksInBrowser": "Atverti išorines nuorodas naršyklėje",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Atverti Išorines Nuorodas Naršyklėje",
+  "siteSettingsExternalLinksInBrowserHint": "Kai įjungta, nuoroda, vedanti už šios svetainės domenų ribų, atveriama numatytojoje jūsų įrenginio naršyklėje, o ne programėlėje. Nuorodos į domenus, kuriuos ši svetainė laiko savais, vis tiek atveriamos programėlėje. Norėdami papildomus domenus palikti programėlėje, pridėkite juos žemiau skiltyje „Domenų priklausomybė“.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Nuorodos už šios svetainės domenų ribų atveriamos numatytojoje jūsų naršyklėje",
   "appTitle": "WebSpace",
   "commonCancel": "Atšaukti",
   "trustedCertScreenTitle": "Patikimi sertifikatai",

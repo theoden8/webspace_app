@@ -1,5 +1,9 @@
 {
   "@@locale": "sl",
+  "siteSettingsExternalLinksInBrowser": "Odpiranje zunanjih povezav v brskalniku",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Odpiranje Zunanjih Povezav v Brskalniku",
+  "siteSettingsExternalLinksInBrowserHint": "Ko je vklopljeno, se povezava, ki kaže zunaj domen tega spletnega mesta, odpre v privzetem brskalniku vaše naprave namesto znotraj aplikacije. Povezave do domen, ki si jih to spletno mesto lasti, se še vedno odprejo v aplikaciji. Dodajte dodatne domene v razdelku Zahtevki za domene spodaj, da jih obdržite v aplikaciji.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Povezave zunaj domen tega spletnega mesta se odprejo v vašem privzetem brskalniku",
   "appTitle": "WebSpace",
   "commonCancel": "Prekliči",
   "trustedCertScreenTitle": "Zaupanja vredna potrdila",

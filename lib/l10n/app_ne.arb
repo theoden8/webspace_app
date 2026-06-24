@@ -1,5 +1,9 @@
 {
   "@@locale": "ne",
+  "siteSettingsExternalLinksInBrowser": "बाह्य लिङ्कहरू ब्राउजरमा खोल्नुहोस्",
+  "siteSettingsExternalLinksInBrowserHintTitle": "बाह्य लिङ्कहरू ब्राउजरमा खोल्नुहोस्",
+  "siteSettingsExternalLinksInBrowserHint": "यो सक्रिय हुँदा, यस साइटका डोमेनहरू बाहिर देखाउने लिङ्कले एपभित्रको साटो तपाईंको यन्त्रको पूर्वनिर्धारित ब्राउजरमा खुल्छ। यस साइटले दाबी गर्ने डोमेनहरूका लिङ्कहरू भने एपमै खुल्छन्। तिनलाई एपमै राख्न तल डोमेन दाबीहरू अन्तर्गत थप डोमेनहरू थप्नुहोस्।",
+  "siteSettingsExternalLinksInBrowserSubtitle": "यस साइटका डोमेनहरू बाहिरका लिङ्कहरू तपाईंको पूर्वनिर्धारित ब्राउजरमा खुल्छन्",
   "appTitle": "WebSpace",
   "commonCancel": "रद्द गर्नुहोस्",
   "trustedCertScreenTitle": "विश्वसनीय प्रमाणपत्रहरू",

@@ -1,5 +1,9 @@
 {
   "@@locale": "mr",
+  "siteSettingsExternalLinksInBrowser": "बाह्य दुवे ब्राउझरमध्ये उघडा",
+  "siteSettingsExternalLinksInBrowserHintTitle": "बाह्य दुवे ब्राउझरमध्ये उघडा",
+  "siteSettingsExternalLinksInBrowserHint": "चालू असताना, या साइटच्या डोमेनच्या बाहेर निर्देश करणारा दुवा अॅपमध्ये उघडण्याऐवजी तुमच्या डिव्हाइसच्या डीफॉल्ट ब्राउझरमध्ये उघडतो. ही साइट ज्या डोमेनवर हक्क सांगते त्यांचे दुवे अजूनही अॅपमध्ये उघडतात. अतिरिक्त डोमेन अॅपमध्ये ठेवण्यासाठी खालील डोमेन हक्क अंतर्गत जोडा.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "या साइटच्या डोमेनच्या बाहेरील दुवे तुमच्या डीफॉल्ट ब्राउझरमध्ये उघडतात",
   "appTitle": "WebSpace",
   "commonCancel": "रद्द करा",
   "trustedCertScreenTitle": "विश्वसनीय प्रमाणपत्रे",

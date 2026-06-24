@@ -1,5 +1,9 @@
 {
   "@@locale": "kn",
+  "siteSettingsExternalLinksInBrowser": "ಬಾಹ್ಯ ಲಿಂಕ್‌ಗಳನ್ನು ಬ್ರೌಸರ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ",
+  "siteSettingsExternalLinksInBrowserHintTitle": "ಬಾಹ್ಯ ಲಿಂಕ್‌ಗಳನ್ನು ಬ್ರೌಸರ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ",
+  "siteSettingsExternalLinksInBrowserHint": "ಆನ್ ಆಗಿದ್ದಾಗ, ಈ ಸೈಟ್‌ನ ಡೊಮೇನ್‌ಗಳ ಹೊರಗಿನ ಲಿಂಕ್ ಅಪ್ಲಿಕೇಶನ್‌ನ ಒಳಗಿನ ಬದಲು ನಿಮ್ಮ ಸಾಧನದ ಡಿಫಾಲ್ಟ್ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ತೆರೆಯುತ್ತದೆ. ಈ ಸೈಟ್ ಹಕ್ಕು ಸಾಧಿಸುವ ಡೊಮೇನ್‌ಗಳ ಲಿಂಕ್‌ಗಳು ಇನ್ನೂ ಅಪ್ಲಿಕೇಶನ್‌ನಲ್ಲಿ ತೆರೆಯುತ್ತವೆ. ಹೆಚ್ಚುವರಿ ಡೊಮೇನ್‌ಗಳನ್ನು ಅಪ್ಲಿಕೇಶನ್‌ನಲ್ಲಿ ಇರಿಸಲು ಕೆಳಗಿನ ಡೊಮೇನ್ ಹಕ್ಕುಗಳ ಅಡಿಯಲ್ಲಿ ಸೇರಿಸಿ.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "ಈ ಸೈಟ್‌ನ ಡೊಮೇನ್‌ಗಳ ಹೊರಗಿನ ಲಿಂಕ್‌ಗಳು ನಿಮ್ಮ ಡಿಫಾಲ್ಟ್ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ತೆರೆಯುತ್ತವೆ",
   "appTitle": "WebSpace",
   "commonCancel": "ರದ್ದುಮಾಡಿ",
   "trustedCertScreenTitle": "ವಿಶ್ವಾಸಾರ್ಹ ಪ್ರಮಾಣಪತ್ರಗಳು",

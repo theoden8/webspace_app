@@ -1,5 +1,9 @@
 {
   "@@locale": "nb",
+  "siteSettingsExternalLinksInBrowser": "Åpne eksterne lenker i nettleser",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Åpne Eksterne Lenker i Nettleser",
+  "siteSettingsExternalLinksInBrowserHint": "Når dette er på, åpnes en lenke som peker utenfor dette nettstedets domener i enhetens standardnettleser i stedet for inne i appen. Lenker til domener som dette nettstedet hevder å eie, åpnes fortsatt i appen. Legg til flere domener under Domenekrav nedenfor for å beholde dem i appen.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Lenker utenfor dette nettstedets domener åpnes i standardnettleseren din",
   "appTitle": "WebSpace",
   "commonCancel": "Avbryt",
   "trustedCertScreenTitle": "Klarerte sertifikater",

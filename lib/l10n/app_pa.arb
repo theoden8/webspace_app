@@ -1,5 +1,9 @@
 {
   "@@locale": "pa",
+  "siteSettingsExternalLinksInBrowser": "ਬਾਹਰੀ ਲਿੰਕ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਖੋਲ੍ਹੋ",
+  "siteSettingsExternalLinksInBrowserHintTitle": "ਬਾਹਰੀ ਲਿੰਕ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਖੋਲ੍ਹੋ",
+  "siteSettingsExternalLinksInBrowserHint": "ਜਦੋਂ ਇਹ ਚਾਲੂ ਹੁੰਦਾ ਹੈ, ਤਾਂ ਇਸ ਸਾਈਟ ਦੇ ਡੋਮੇਨਾਂ ਤੋਂ ਬਾਹਰ ਇਸ਼ਾਰਾ ਕਰਨ ਵਾਲਾ ਲਿੰਕ ਐਪ ਦੇ ਅੰਦਰ ਦੀ ਥਾਂ ਤੁਹਾਡੇ ਡਿਵਾਈਸ ਦੇ ਮੂਲ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਖੁੱਲ੍ਹਦਾ ਹੈ। ਇਹ ਸਾਈਟ ਜਿਨ੍ਹਾਂ ਡੋਮੇਨਾਂ ਦਾ ਦਾਅਵਾ ਕਰਦੀ ਹੈ, ਉਹਨਾਂ ਦੇ ਲਿੰਕ ਫਿਰ ਵੀ ਐਪ ਵਿੱਚ ਹੀ ਖੁੱਲ੍ਹਦੇ ਹਨ। ਇਹਨਾਂ ਨੂੰ ਐਪ ਵਿੱਚ ਰੱਖਣ ਲਈ ਹੇਠਾਂ ਡੋਮੇਨ ਦਾਅਵੇ ਵਿੱਚ ਵਾਧੂ ਡੋਮੇਨ ਸ਼ਾਮਲ ਕਰੋ।",
+  "siteSettingsExternalLinksInBrowserSubtitle": "ਇਸ ਸਾਈਟ ਦੇ ਡੋਮੇਨਾਂ ਤੋਂ ਬਾਹਰ ਦੇ ਲਿੰਕ ਤੁਹਾਡੇ ਮੂਲ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਖੁੱਲ੍ਹਦੇ ਹਨ",
   "appTitle": "WebSpace",
   "commonCancel": "ਰੱਦ ਕਰੋ",
   "trustedCertScreenTitle": "ਭਰੋਸੇਮੰਦ ਸਰਟੀਫਿਕੇਟ",

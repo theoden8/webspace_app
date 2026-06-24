@@ -65,6 +65,7 @@ class NavigationTestHarness {
         return true;
       case NavigationDecision.blockSilent:
       case NavigationDecision.blockSuppressed:
+      case NavigationDecision.blockOpenExternal:
         return false;
       case NavigationDecision.blockOpenNested:
         launchUrlCalls.add((url: targetUrl, homeTitle: site.name));

@@ -1,5 +1,9 @@
 {
   "@@locale": "sr",
+  "siteSettingsExternalLinksInBrowser": "Отвори спољашње везе у прегледачу",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Отварање спољашњих веза у прегледачу",
+  "siteSettingsExternalLinksInBrowserHint": "Када је укључено, веза која води изван домена овог сајта отвара се у подразумеваном прегледачу вашег уређаја уместо унутар апликације. Везе ка доменима које овај сајт полаже и даље се отварају у апликацији. Додајте додатне домене у одељку Полагање домена испод да бисте их задржали у апликацији.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Везе изван домена овог сајта отварају се у вашем подразумеваном прегледачу",
   "appTitle": "WebSpace",
   "commonCancel": "Откажи",
   "trustedCertScreenTitle": "Поуздани сертификати",

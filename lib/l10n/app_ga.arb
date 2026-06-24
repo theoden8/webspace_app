@@ -1,5 +1,9 @@
 {
   "@@locale": "ga",
+  "siteSettingsExternalLinksInBrowser": "Oscail naisc sheachtracha sa bhrabhsálaí",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Oscail Naisc Sheachtracha sa Bhrabhsálaí",
+  "siteSettingsExternalLinksInBrowserHint": "Nuair atá sé seo ar siúl, osclaítear nasc a dhíríonn lasmuigh d'fhearainn an tsuímh seo i mbrabhsálaí réamhshocraithe do ghléis seachas laistigh den fheidhmchlár. Osclaítear naisc chuig fearainn a éilíonn an suíomh seo san fheidhmchlár fós. Cuir fearainn bhreise leis faoi Éilimh fearainn thíos chun iad a choinneáil san fheidhmchlár.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Osclaítear naisc lasmuigh d'fhearainn an tsuímh seo i do bhrabhsálaí réamhshocraithe",
   "appTitle": "WebSpace",
   "commonCancel": "Cealaigh",
   "trustedCertScreenTitle": "Teastais iontaofa",

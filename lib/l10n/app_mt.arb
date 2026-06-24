@@ -1,5 +1,9 @@
 {
   "@@locale": "mt",
+  "siteSettingsExternalLinksInBrowser": "Iftaħ il-links esterni fil-brawżer",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Iftaħ il-Links Esterni fil-Brawżer",
+  "siteSettingsExternalLinksInBrowserHint": "Meta jkun mixgħul, link li jindika barra mid-dominji ta' dan is-sit jinfetaħ fil-brawżer prestabbilit tal-apparat tiegħek minflok ġewwa l-app. Il-links għad-dominji li dan is-sit jiddikjara tagħu xorta jinfetħu fl-app. Żid dominji addizzjonali taħt Dikjarazzjonijiet tad-dominju hawn taħt biex iżżommhom fl-app.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Il-links barra mid-dominji ta' dan is-sit jinfetħu fil-brawżer prestabbilit tiegħek",
   "appTitle": "WebSpace",
   "commonCancel": "Ikkanċella",
   "trustedCertScreenTitle": "Ċertifikati fdati",

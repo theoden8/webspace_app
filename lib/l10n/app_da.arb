@@ -1,5 +1,9 @@
 {
   "@@locale": "da",
+  "siteSettingsExternalLinksInBrowser": "Åbn eksterne links i browser",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Åbn Eksterne Links i Browser",
+  "siteSettingsExternalLinksInBrowserHint": "Når dette er slået til, åbnes et link, der peger uden for dette websteds domæner, i din enheds standardbrowser i stedet for inde i appen. Links til domæner, som dette websted gør krav på, åbnes stadig i appen. Tilføj ekstra domæner under Domænekrav nedenfor for at beholde dem i appen.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Links uden for dette websteds domæner åbnes i din standardbrowser",
   "appTitle": "WebSpace",
   "commonCancel": "Annuller",
   "trustedCertScreenTitle": "Betroede certifikater",

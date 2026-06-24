@@ -1,5 +1,9 @@
 {
   "@@locale": "is",
+  "siteSettingsExternalLinksInBrowser": "Opna ytri tengla í vafra",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Opna Ytri Tengla í Vafra",
+  "siteSettingsExternalLinksInBrowserHint": "Þegar kveikt er á þessu opnast tengill sem vísar út fyrir lén þessarar síðu í sjálfgefnum vafra tækisins í stað þess að opnast inni í forritinu. Tenglar á lén sem þessi síða gerir tilkall til opnast áfram í forritinu. Bættu við fleiri lénum undir \"Léntilkall\" hér að neðan til að halda þeim í forritinu.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Tenglar út fyrir lén þessarar síðu opnast í sjálfgefnum vafra þínum",
   "appTitle": "WebSpace",
   "commonCancel": "Hætta við",
   "trustedCertScreenTitle": "Treyst vottorð",

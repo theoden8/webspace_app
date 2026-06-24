@@ -1,5 +1,9 @@
 {
   "@@locale": "id",
+  "siteSettingsExternalLinksInBrowser": "Buka tautan eksternal di peramban",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Buka Tautan Eksternal di Peramban",
+  "siteSettingsExternalLinksInBrowserHint": "Saat aktif, tautan yang mengarah ke luar domain situs ini akan terbuka di peramban bawaan perangkat Anda, bukan di dalam aplikasi. Tautan ke domain yang diklaim situs ini tetap terbuka di dalam aplikasi. Tambahkan domain lain di bawah \"Klaim domain\" di bawah ini agar tetap terbuka di aplikasi.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Tautan di luar domain situs ini terbuka di peramban bawaan Anda",
   "appTitle": "WebSpace",
   "commonCancel": "Batal",
   "trustedCertScreenTitle": "Sertifikat tepercaya",

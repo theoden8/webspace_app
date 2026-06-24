@@ -1,5 +1,9 @@
 {
   "@@locale": "fa",
+  "siteSettingsExternalLinksInBrowser": "باز کردن پیوندهای خارجی در مرورگر",
+  "siteSettingsExternalLinksInBrowserHintTitle": "باز کردن پیوندهای خارجی در مرورگر",
+  "siteSettingsExternalLinksInBrowserHint": "هنگامی که فعال باشد، پیوندی که به خارج از دامنه‌های این سایت اشاره می‌کند به‌جای داخل برنامه، در مرورگر پیش‌فرض دستگاه شما باز می‌شود. پیوندها به دامنه‌هایی که این سایت ادعا می‌کند همچنان در برنامه باز می‌شوند. برای نگه داشتن آن‌ها در برنامه، دامنه‌های بیشتری را در بخش ادعاهای دامنه در پایین اضافه کنید.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "پیوندهای خارج از دامنه‌های این سایت در مرورگر پیش‌فرض شما باز می‌شوند",
   "appTitle": "WebSpace",
   "commonCancel": "لغو",
   "trustedCertScreenTitle": "گواهی‌های مورد اعتماد",

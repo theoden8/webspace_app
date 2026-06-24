@@ -113,6 +113,36 @@ void main() {
       ]);
     });
 
+    test('externalLinksInBrowser defaults off; toJson omits the default', () {
+      final m = WebViewModel(initUrl: 'https://example.org/');
+      expect(m.externalLinksInBrowser, isFalse);
+      expect(m.toJson().containsKey('externalLinksInBrowser'), isFalse,
+          reason: 'omitting the default keeps on-disk JSON byte-stable');
+      final back = WebViewModel.fromJson(m.toJson(), null);
+      expect(back.externalLinksInBrowser, isFalse);
+    });
+
+    test('externalLinksInBrowser=true round-trips through JSON', () {
+      final m = WebViewModel(
+        initUrl: 'https://example.org/',
+        externalLinksInBrowser: true,
+      );
+      final json = m.toJson();
+      expect(json['externalLinksInBrowser'], isTrue);
+      expect(WebViewModel.fromJson(json, null).externalLinksInBrowser, isTrue);
+    });
+
+    test('externalLinksInBrowser forced off for archive-tier sites (ARCH-006)', () {
+      final m = WebViewModel(
+        initUrl: 'https://example.org/',
+        externalLinksInBrowser: true,
+        isArchiveTier: true,
+      );
+      expect(m.externalLinksInBrowser, isTrue);
+      expect(m.effectiveExternalLinksInBrowser, isFalse,
+          reason: 'archive sites never hand a URL to the system browser');
+    });
+
     test('should round-trip through JSON correctly', () {
       final original = WebViewModel(
         initUrl: 'https://test.com',

@@ -1,5 +1,9 @@
 {
   "@@locale": "si",
+  "siteSettingsExternalLinksInBrowser": "බාහිර සබැඳි බ්‍රවුසරයේ විවෘත කරන්න",
+  "siteSettingsExternalLinksInBrowserHintTitle": "බාහිර සබැඳි බ්‍රවුසරයේ විවෘත කරන්න",
+  "siteSettingsExternalLinksInBrowserHint": "මෙය සක්‍රිය විට, මෙම අඩවියේ වසම්වලින් පිටතට යොමු වන සබැඳියක් යෙදුම තුළ වෙනුවට ඔබේ උපාංගයේ පෙරනිමි බ්‍රවුසරයේ විවෘත වේ. මෙම අඩවිය හිමිකම් කියන වසම්වලට වන සබැඳි තවමත් යෙදුම තුළ විවෘත වේ. ඒවා යෙදුම තුළ තබා ගැනීමට පහත වසම් හිමිකම් යටතේ අමතර වසම් එක් කරන්න.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "මෙම අඩවියේ වසම්වලින් පිටත සබැඳි ඔබේ පෙරනිමි බ්‍රවුසරයේ විවෘත වේ",
   "appTitle": "WebSpace",
   "commonCancel": "අවලංගු කරන්න",
   "trustedCertScreenTitle": "විශ්වාසනීය සහතික",

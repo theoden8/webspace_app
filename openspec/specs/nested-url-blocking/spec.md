@@ -193,6 +193,67 @@ Uses normalized domain comparison with aliases (e.g., `mail.google.com` → `goo
 
 ---
 
+### Requirement: NESTED-009 - Per-Site Open External Links in System Browser
+
+The system SHALL provide a per-site setting that opens a cross-domain link
+not covered by the site's domain claims in the device's default browser
+instead of a nested in-app webview.
+
+**Field**: `externalLinksInBrowser` (default: `false`)
+
+When enabled, a navigation that the cross-domain decision would route to a
+nested webview (NESTED-004 "Direct link click allowed") is instead handed to
+the system browser via `url_launcher`, UNLESS the target matches one of the
+site's `effectiveDomainClaims` (link-intent-routing) — a claimed domain still
+opens in a nested webview. The `blockAutoRedirects` silent block and the
+background-site suppression take precedence, so a gesture-less script redirect
+or a background site never pops the system browser. Archive-tier sites force
+the setting off (`effectiveExternalLinksInBrowser`, ARCH-006): handing a URL to
+another app crosses the archive isolation boundary.
+
+This implements discussion #438: "a setting for each site to have any link
+inside a web app that is not a domain claim for that website to open in the
+system's default browser." The complementary request — that links opened
+in-app are not added as domain claims — already holds: in-app navigation never
+mutates `domainClaims`; claims change only through the per-site editor or the
+user-initiated inbound bind picker (link-intent-routing LIR-010).
+
+#### Scenario: Unclaimed cross-domain link opens in the system browser
+
+**Given** a site `https://example.com` with `externalLinksInBrowser` on
+**And** the user taps a link to `https://unclaimed.com` (cross-domain, not a claim)
+**When** `shouldOverrideUrlLoading` runs
+**Then** the navigation is cancelled
+**And** the URL is handed to the device's default browser
+**And** no nested webview opens
+
+#### Scenario: Claimed cross-domain link stays in the app
+
+**Given** a "Google" site whose domain claims include `youtube.com`
+**And** `externalLinksInBrowser` is on
+**When** the user taps a `https://youtube.com/...` link
+**Then** the link opens in a nested webview (it matches a domain claim), not the system browser
+
+#### Scenario: Setting off preserves legacy routing
+
+**Given** a site with `externalLinksInBrowser` off (the default)
+**When** the user taps a cross-domain link
+**Then** it opens in a nested webview exactly as before
+
+#### Scenario: Gesture-less script redirect is not launched externally
+
+**Given** a site with `externalLinksInBrowser` on and `blockAutoRedirects` on
+**When** a script fires a cross-domain navigation with no user gesture
+**Then** the navigation is silently cancelled (NESTED-004) and the system browser is NOT opened
+
+#### Scenario: Nested webview honors the setting
+
+**Given** a claimed cross-domain link opened a nested webview while the setting is on
+**When** the user taps a link in that nested webview pointing to a different domain than the page shown
+**Then** that link opens in the system browser (NESTED-009 applies in nested screens too)
+
+---
+
 ## Implementation
 
 ### Decision Flow in shouldOverrideUrlLoading
@@ -210,6 +271,8 @@ URL received
   │
   ├─ Cross-domain:
   │   ├─ blockAutoRedirects + no gesture ── CANCEL (silent)
+  │   ├─ background site ───────────────── CANCEL (suppressed)
+  │   ├─ externalLinksInBrowser + not a claim ── CANCEL + system browser (NESTED-009)
   │   ├─ blockAutoRedirects OFF ────────── open nested webview
   │   └─ has gesture ──────────────────── open nested webview
   │
@@ -277,9 +340,19 @@ CLAUDE.md now forbids. Direct engine tests live in
 
 #### `lib/web_view_model.dart`
 - `blockAutoRedirects` field (default: `true`)
-- `shouldOverrideUrlLoading` callback: delegates to `NavigationDecisionEngine`, applies the returned `GestureStateUpdate` to `lastSameDomainGestureTime`, dispatches on the decision enum (log + `launchUrlFunc` for `blockOpenNested`)
+- `externalLinksInBrowser` field (default: `false`) + `effectiveExternalLinksInBrowser` getter (forced off for archive tier, NESTED-009 / ARCH-006). Serialized only when true (`toJson` omits the default)
+- `shouldOverrideUrlLoading` callback: delegates to `NavigationDecisionEngine`, applies the returned `GestureStateUpdate` to `lastSameDomainGestureTime`, dispatches on the decision enum (log + `launchUrlFunc` for `blockOpenNested`, `launchUrlInSystemBrowser` for `blockOpenExternal`)
 - `onUrlChanged` callback: same pattern; on `blockOpenNested` navigates back to `previousSameDomainUrl` before opening the nested webview
+- `matchesSiteClaim` closure passes `effectiveDomainClaims` to the engine via `LinkRoutingService.urlMatchesAnyClaim` so a claimed cross-domain link stays nested even with `externalLinksInBrowser` on
 - Serialized in `toJson()` / `fromJson()` with `?? true` for backward compat
+
+#### `lib/services/navigation_decision_engine.dart`
+- `NavigationDecision.blockOpenExternal` — cancel + hand to system browser
+- `decideShouldOverrideUrlLoading` / `decideOnUrlChanged` take optional `externalLinksInBrowser` + `matchesSiteClaim`; when the decision would be `blockOpenNested` and the setting is on and the target is unclaimed, returns `blockOpenExternal`
+- `OnUrlChangedHandled.launchExternalUrl` carries the URL for the caller to launch
+
+#### `lib/screens/inappbrowser.dart`
+- `externalLinksInBrowser` ctor field; nested `WebViewConfig.shouldOverrideUrlLoading` (gated on the setting, null when off) routes user-gesture cross-domain navigations to `launchUrlInSystemBrowser`, judged against the page currently shown
 
 #### `lib/screens/settings.dart`
 - "Block auto-redirects" toggle per site

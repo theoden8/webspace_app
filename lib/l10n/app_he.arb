@@ -1,5 +1,9 @@
 {
   "@@locale": "he",
+  "siteSettingsExternalLinksInBrowser": "פתח קישורים חיצוניים בדפדפן",
+  "siteSettingsExternalLinksInBrowserHintTitle": "פתיחת קישורים חיצוניים בדפדפן",
+  "siteSettingsExternalLinksInBrowserHint": "כשהאפשרות פעילה, קישור שמפנה אל מחוץ לדומיינים של אתר זה ייפתח בדפדפן ברירת המחדל של המכשיר במקום בתוך האפליקציה. קישורים לדומיינים שאתר זה מצהיר עליהם עדיין ייפתחו באפליקציה. הוסף דומיינים נוספים תחת \"בעלות על דומיינים\" למטה כדי לשמור אותם בתוך האפליקציה.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "קישורים מחוץ לדומיינים של אתר זה נפתחים בדפדפן ברירת המחדל שלך",
   "appTitle": "WebSpace",
   "commonCancel": "ביטול",
   "trustedCertScreenTitle": "אישורים מהימנים",

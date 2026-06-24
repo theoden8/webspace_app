@@ -1,5 +1,9 @@
 {
   "@@locale": "hr",
+  "siteSettingsExternalLinksInBrowser": "Otvori vanjske poveznice u pregledniku",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Otvaranje vanjskih poveznica u pregledniku",
+  "siteSettingsExternalLinksInBrowserHint": "Kada je uključeno, poveznica koja vodi izvan domena ove stranice otvara se u zadanom pregledniku vašeg uređaja umjesto unutar aplikacije. Poveznice na domene koje ova stranica polaže i dalje se otvaraju u aplikaciji. Dodajte dodatne domene pod \"Zahtjevi za domene\" u nastavku kako biste ih zadržali u aplikaciji.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Poveznice izvan domena ove stranice otvaraju se u vašem zadanom pregledniku",
   "appTitle": "WebSpace",
   "commonCancel": "Odustani",
   "trustedCertScreenTitle": "Pouzdani certifikati",

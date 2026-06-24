@@ -1,5 +1,9 @@
 {
   "@@locale": "hi",
+  "siteSettingsExternalLinksInBrowser": "बाहरी लिंक ब्राउज़र में खोलें",
+  "siteSettingsExternalLinksInBrowserHintTitle": "बाहरी लिंक ब्राउज़र में खोलें",
+  "siteSettingsExternalLinksInBrowserHint": "चालू होने पर, इस साइट के डोमेन के बाहर इशारा करने वाला लिंक ऐप के बजाय आपके डिवाइस के डिफ़ॉल्ट ब्राउज़र में खुलता है। इस साइट जिन डोमेन का दावा करती है उनके लिंक अब भी ऐप में ही खुलते हैं। उन्हें ऐप में रखने के लिए नीचे \"डोमेन दावे\" के अंतर्गत अतिरिक्त डोमेन जोड़ें।",
+  "siteSettingsExternalLinksInBrowserSubtitle": "इस साइट के डोमेन के बाहर के लिंक आपके डिफ़ॉल्ट ब्राउज़र में खुलते हैं",
   "appTitle": "WebSpace",
   "commonCancel": "रद्द करें",
   "trustedCertScreenTitle": "विश्वसनीय प्रमाणपत्र",

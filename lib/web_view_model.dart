@@ -12,6 +12,7 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
+import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -20,6 +21,7 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
+import 'package:webspace/widgets/external_url_prompt.dart' show launchUrlInSystemBrowser;
 
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
@@ -330,6 +332,11 @@ class WebViewModel {
   bool trackingProtectionEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   bool blockAutoRedirects; // Block script-initiated cross-domain navigations
+  /// When true, a cross-domain link that is not covered by this site's
+  /// domain claims opens in the system's default browser instead of a
+  /// nested in-app webview (discussion #438). Links to claimed domains
+  /// still open in-app. Default false: the legacy nested-webview routing.
+  bool externalLinksInBrowser;
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
   /// When true, the cached HTML snapshot is rendered as `initialData` for
   /// instant first paint on construction, then swapped to a live load
@@ -484,6 +491,14 @@ class WebViewModel {
   bool? get effectiveProtectedContentAllowed =>
       isArchiveTier ? false : protectedContentAllowed;
 
+  /// Effective "open external links in the system browser" setting.
+  /// Archive-tier sites never hand a URL to another app: launching the
+  /// system browser is OS-level UI that crosses the archive's isolation
+  /// boundary (ARCH-006), so archive sites keep links in-app regardless
+  /// of the stored value.
+  bool get effectiveExternalLinksInBrowser =>
+      isArchiveTier ? false : externalLinksInBrowser;
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
@@ -523,6 +538,7 @@ class WebViewModel {
     this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
     this.blockAutoRedirects = true,
+    this.externalLinksInBrowser = false,
     this.fullscreenMode = false,
     this.htmlCachingEnabled = false,
     this.notificationsEnabled = false,
@@ -722,7 +738,7 @@ class WebViewModel {
   }
 
   Widget getWebView(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, bool letterboxEnabled, int? spoofWindowWidth, int? spoofWindowHeight, String? fingerprintResetNonce, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, bool letterboxEnabled, int? spoofWindowWidth, int? spoofWindowHeight, String? fingerprintResetNonce, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled, bool externalLinksInBrowser}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -783,6 +799,14 @@ class WebViewModel {
       // + 2× evaluateJavascript IPCs per navigation, doubling the
       // race-window count for the chromium dangling-raw_ptr crash.
       String? lastNotifiedUrl;
+      // True when `u` is covered by one of this site's domain claims. The
+      // externalLinksInBrowser path keeps claimed cross-domain links in a
+      // nested webview and only hands unclaimed ones to the system browser.
+      bool matchesSiteClaim(String u) {
+        final uri = Uri.tryParse(u);
+        return uri != null &&
+            LinkRoutingService.urlMatchesAnyClaim(uri, effectiveDomainClaims);
+      }
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
@@ -873,6 +897,8 @@ class WebViewModel {
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
+              externalLinksInBrowser: effectiveExternalLinksInBrowser,
+              matchesSiteClaim: matchesSiteClaim,
             );
             switch (result.gestureUpdate) {
               case GestureStateUpdate.record:
@@ -912,7 +938,15 @@ class WebViewModel {
                   '  -> CANCEL (opening nested webview)',
                   sensitivity: LogSensitivity.sensitive,
                 );
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
+                return false;
+              case NavigationDecision.blockOpenExternal:
+                LogService.instance.log(
+                  'WebView',
+                  '  -> CANCEL (opening system browser)',
+                  sensitivity: LogSensitivity.sensitive,
+                );
+                launchUrlInSystemBrowser(url);
                 return false;
             }
           },
@@ -939,6 +973,8 @@ class WebViewModel {
               now: DateTime.now(),
               isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
               state: urlChangedState,
+              externalLinksInBrowser: effectiveExternalLinksInBrowser,
+              matchesSiteClaim: matchesSiteClaim,
             );
             switch (handled.gestureUpdate) {
               case GestureStateUpdate.record:
@@ -994,7 +1030,17 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, incognito: incognito, thirdPartyCookiesEnabled: thirdPartyCookiesEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, contentBlockEnabled: contentBlockEnabled, localCdnEnabled: localCdnEnabled, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userScripts: combineUserScripts(globalUserScripts), proxySettings: proxySettings, notificationsEnabled: notificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser);
+                  }
+                  return;
+                case NavigationDecision.blockOpenExternal:
+                  LogService.instance.log(
+                    'WebView',
+                    'onUrlChanged: cross-domain redirect to system browser: $url (expected domain: $initDomain)',
+                    sensitivity: LogSensitivity.sensitive,
+                  );
+                  if (handled.launchExternalUrl != null) {
+                    launchUrlInSystemBrowser(handled.launchExternalUrl!);
                   }
                   return;
                 case NavigationDecision.allow:
@@ -1159,7 +1205,7 @@ class WebViewModel {
   }
 
   WebViewController? getController(
-    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, bool letterboxEnabled, int? spoofWindowWidth, int? spoofWindowHeight, String? fingerprintResetNonce, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled}) launchUrlFunc,
+    Function(String url, {String? homeTitle, required String? siteId, required bool incognito, required bool thirdPartyCookiesEnabled, required bool clearUrlEnabled, required bool dnsBlockEnabled, required bool contentBlockEnabled, required bool localCdnEnabled, required bool trackingProtectionEnabled, bool letterboxEnabled, int? spoofWindowWidth, int? spoofWindowHeight, String? fingerprintResetNonce, required String? language, required int zoomPercent, LocationMode locationMode, double? spoofLatitude, double? spoofLongitude, double spoofAccuracy, String? spoofTimezone, bool spoofTimezoneFromLocation, LocationGranularity liveLocationGranularity, WebRtcPolicy webRtcPolicy, required List<UserScriptConfig> userScripts, UserProxySettings? proxySettings, bool notificationsEnabled, bool externalLinksInBrowser}) launchUrlFunc,
     CookieManager cookieManager,
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
@@ -1551,6 +1597,7 @@ class WebViewModel {
         'trackingProtectionEnabled': trackingProtectionEnabled,
         'localCdnEnabled': localCdnEnabled,
         'blockAutoRedirects': blockAutoRedirects,
+        if (externalLinksInBrowser) 'externalLinksInBrowser': true,
         'fullscreenMode': fullscreenMode,
         'htmlCachingEnabled': htmlCachingEnabled,
         'notificationsEnabled': notificationsEnabled,
@@ -1619,6 +1666,7 @@ class WebViewModel {
       trackingProtectionEnabled: json['trackingProtectionEnabled'] ?? true,
       localCdnEnabled: json['localCdnEnabled'] ?? true,
       blockAutoRedirects: json['blockAutoRedirects'] ?? true,
+      externalLinksInBrowser: json['externalLinksInBrowser'] as bool? ?? false,
       fullscreenMode: json['fullscreenMode'] ?? false,
       htmlCachingEnabled: json['htmlCachingEnabled'] as bool? ?? false,
       notificationsEnabled:

@@ -1,5 +1,9 @@
 {
   "@@locale": "te",
+  "siteSettingsExternalLinksInBrowser": "బాహ్య లింక్‌లను బ్రౌజర్‌లో తెరవండి",
+  "siteSettingsExternalLinksInBrowserHintTitle": "బాహ్య లింక్‌లను బ్రౌజర్‌లో తెరవండి",
+  "siteSettingsExternalLinksInBrowserHint": "ఇది ఆన్‌లో ఉన్నప్పుడు, ఈ సైట్ డొమైన్‌ల వెలుపలికి సూచించే లింక్ యాప్ లోపల కాకుండా మీ పరికరం డిఫాల్ట్ బ్రౌజర్‌లో తెరుచుకుంటుంది. ఈ సైట్ క్లెయిమ్ చేసే డొమైన్‌లకు సంబంధించిన లింక్‌లు ఇప్పటికీ యాప్‌లోనే తెరుచుకుంటాయి. వాటిని యాప్‌లో ఉంచడానికి దిగువన ఉన్న డొమైన్ క్లెయిమ్‌ల కింద అదనపు డొమైన్‌లను జోడించండి.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "ఈ సైట్ డొమైన్‌ల వెలుపలి లింక్‌లు మీ డిఫాల్ట్ బ్రౌజర్‌లో తెరుచుకుంటాయి",
   "appTitle": "WebSpace",
   "commonCancel": "రద్దు చేయి",
   "trustedCertScreenTitle": "విశ్వసనీయ ధృవపత్రాలు",

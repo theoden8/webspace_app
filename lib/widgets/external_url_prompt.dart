@@ -247,6 +247,14 @@ Future<void> confirmAndLaunchExternalUrl(
   }
 }
 
+/// Hands [url] to the system's default browser (or whichever app handles
+/// http/https). Public entry for the per-site "open external links in
+/// browser" path (NESTED-009): an unclaimed cross-domain link tapped on a
+/// site with the toggle on leaves WebSpace entirely instead of opening a
+/// nested webview.
+Future<bool> launchUrlInSystemBrowser(String url) =>
+    _launchExternally(url, label: 'external-link');
+
 /// Hands [url] to the OS via url_launcher so the system browser (or
 /// whichever app handles the scheme) takes over. Used by both
 /// "Open in browser" (with the cleaned http(s) fallback) and the

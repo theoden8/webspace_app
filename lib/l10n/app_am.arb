@@ -1,5 +1,9 @@
 {
   "@@locale": "am",
+  "siteSettingsExternalLinksInBrowser": "ውጫዊ አገናኞችን በአሳሽ ውስጥ ክፈት",
+  "siteSettingsExternalLinksInBrowserHintTitle": "ውጫዊ አገናኞችን በአሳሽ ውስጥ ክፈት",
+  "siteSettingsExternalLinksInBrowserHint": "ሲበራ፣ ከዚህ ጣቢያ ጎራዎች ውጪ የሚያመለክት አገናኝ በመተግበሪያው ውስጥ ሳይሆን በመሣሪያዎ ነባሪ አሳሽ ውስጥ ይከፈታል። ይህ ጣቢያ የሚጠይቃቸው ጎራዎች አገናኞች አሁንም በመተግበሪያው ውስጥ ይከፈታሉ። በመተግበሪያው ውስጥ ለማቆየት ከታች በጎራ ይገባኛል ስር ተጨማሪ ጎራዎችን ያክሉ።",
+  "siteSettingsExternalLinksInBrowserSubtitle": "ከዚህ ጣቢያ ጎራዎች ውጪ ያሉ አገናኞች በነባሪ አሳሽዎ ውስጥ ይከፈታሉ",
   "appTitle": "WebSpace",
   "commonCancel": "ሰርዝ",
   "trustedCertScreenTitle": "የታመኑ ሰርተፍኬቶች",

@@ -1,5 +1,9 @@
 {
   "@@locale": "et",
+  "siteSettingsExternalLinksInBrowser": "Ava välised lingid brauseris",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Ava Välised Lingid Brauseris",
+  "siteSettingsExternalLinksInBrowserHint": "Kui see on sees, avaneb link, mis viib väljapoole selle saidi domeene, rakenduse asemel sinu seadme vaikebrauseris. Lingid domeenidele, mida see sait nõuab, avanevad endiselt rakenduses. Lisa täiendavaid domeene allpool jaotises Domeeninõuded, et hoida need rakenduses.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Lingid väljaspool selle saidi domeene avanevad sinu vaikebrauseris",
   "appTitle": "WebSpace",
   "commonCancel": "Tühista",
   "trustedCertScreenTitle": "Usaldatud sertifikaadid",

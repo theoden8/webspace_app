@@ -1,5 +1,9 @@
 {
   "@@locale": "gl",
+  "siteSettingsExternalLinksInBrowser": "Abrir ligazóns externas no navegador",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Abrir Ligazóns Externas no Navegador",
+  "siteSettingsExternalLinksInBrowserHint": "Cando está activado, unha ligazón que apunta fóra dos dominios deste sitio ábrese no navegador predeterminado do teu dispositivo en lugar de dentro da aplicación. As ligazóns a dominios que este sitio reclama seguen abríndose na aplicación. Engade dominios adicionais en Reclamacións de dominios máis abaixo para mantelos na aplicación.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "As ligazóns fóra dos dominios deste sitio ábrense no teu navegador predeterminado",
   "appTitle": "WebSpace",
   "commonCancel": "Cancelar",
   "trustedCertScreenTitle": "Certificados de confianza",

@@ -1,5 +1,9 @@
 {
   "@@locale": "af",
+  "siteSettingsExternalLinksInBrowser": "Open eksterne skakels in blaaier",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Open Eksterne Skakels in Blaaier",
+  "siteSettingsExternalLinksInBrowserHint": "Wanneer dit aan is, open 'n skakel wat buite hierdie webwerf se domeine wys in jou toestel se standaardblaaier in plaas van binne die program. Skakels na domeine wat hierdie webwerf eis, open steeds in die program. Voeg ekstra domeine onder Domeineise hieronder by om hulle in die program te hou.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Skakels buite hierdie webwerf se domeine open in jou standaardblaaier",
   "appTitle": "WebSpace",
   "commonCancel": "Kanselleer",
   "trustedCertScreenTitle": "Vertroude sertifikate",

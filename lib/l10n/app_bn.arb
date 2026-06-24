@@ -1,5 +1,9 @@
 {
   "@@locale": "bn",
+  "siteSettingsExternalLinksInBrowser": "বহিরাগত লিঙ্ক ব্রাউজারে খুলুন",
+  "siteSettingsExternalLinksInBrowserHintTitle": "বহিরাগত লিঙ্ক ব্রাউজারে খুলুন",
+  "siteSettingsExternalLinksInBrowserHint": "চালু থাকলে, এই সাইটের ডোমেইনের বাইরে নির্দেশ করা কোনো লিঙ্ক অ্যাপের ভেতরে না খুলে আপনার ডিভাইসের ডিফল্ট ব্রাউজারে খুলবে। এই সাইট যে ডোমেইনগুলো দাবি করে সেগুলোর লিঙ্ক এখনও অ্যাপের ভেতরেই খুলবে। অ্যাপের ভেতরে রাখতে নিচে ডোমেইন দাবি-এর অধীনে অতিরিক্ত ডোমেইন যোগ করুন।",
+  "siteSettingsExternalLinksInBrowserSubtitle": "এই সাইটের ডোমেইনের বাইরের লিঙ্ক আপনার ডিফল্ট ব্রাউজারে খোলে",
   "appTitle": "WebSpace",
   "commonCancel": "বাতিল",
   "trustedCertScreenTitle": "বিশ্বস্ত সার্টিফিকেট",

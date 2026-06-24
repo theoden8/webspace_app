@@ -1,5 +1,9 @@
 {
   "@@locale": "sk",
+  "siteSettingsExternalLinksInBrowser": "Otvárať externé odkazy v prehliadači",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Otvárať Externé Odkazy v Prehliadači",
+  "siteSettingsExternalLinksInBrowserHint": "Keď je táto možnosť zapnutá, odkaz smerujúci mimo domén tejto lokality sa otvorí v predvolenom prehliadači vášho zariadenia namiesto v aplikácii. Odkazy na domény, ktoré si táto lokalita nárokuje, sa stále otvárajú v aplikácii. Pridajte ďalšie domény v časti Nároky na domény nižšie, aby zostali v aplikácii.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Odkazy mimo domén tejto lokality sa otvárajú vo vašom predvolenom prehliadači",
   "appTitle": "WebSpace",
   "commonCancel": "Zrušiť",
   "trustedCertScreenTitle": "Dôveryhodné certifikáty",
