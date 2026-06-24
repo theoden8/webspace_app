@@ -181,4 +181,36 @@ void main() {
       expect(service.isBlocked('https://tracker.net#frag'), isTrue);
     });
   });
+
+  group('merged prefilter bloom (DNS u ABP)', () {
+    test('merged bloom contains both DNS domains and pushed ABP hosts', () {
+      service.loadDomainsFromString('dnsonly.example');
+      service.setAbpNetworkHosts({'abponly.example'});
+      final bloom = service.getMergedBlockBloom();
+      expect(bloom.contains('dnsonly.example'), isTrue);
+      // The whole point: a host blocked ONLY by an ABP rule still trips
+      // the prefilter, so the iOS/macOS interceptor round-trips to Dart
+      // instead of hard-allowing it on a bloom miss.
+      expect(bloom.contains('abponly.example'), isTrue);
+    });
+
+    test('setAbpNetworkHosts invalidates the cached merged bloom', () {
+      service.loadDomainsFromString('dnsonly.example');
+      // Cache a bloom built BEFORE the host exists, then push the host.
+      // A positive hit afterward can only come from a rebuild — proving
+      // the cached bloom was invalidated (negative assertions on a bloom
+      // are unreliable due to inherent false positives).
+      service.setAbpNetworkHosts({'first.example'});
+      service.getMergedBlockBloom();
+      service.setAbpNetworkHosts({'second.example'});
+      expect(service.getMergedBlockBloom().contains('second.example'), isTrue);
+    });
+
+    test('empty ABP host set leaves the DNS-only bloom unchanged', () {
+      service.loadDomainsFromString('dnsonly.example');
+      service.setAbpNetworkHosts(<String>{});
+      final bloom = service.getMergedBlockBloom();
+      expect(bloom.contains('dnsonly.example'), isTrue);
+    });
+  });
 }

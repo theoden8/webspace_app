@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:webspace/services/abp_network_hosts.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/host_lookup.dart';
@@ -109,6 +110,16 @@ class ContentBlockerService {
   ContentBlockerService._();
 
   List<FilterList> _lists = [];
+
+  /// Hosts named by anchored `||host^` network-block rules in the loaded
+  /// lists. Pushed to [DnsBlockService] so the iOS/macOS sub-resource
+  /// interceptor's prefilter Bloom trips for ABP-only hosts instead of
+  /// hard-allowing them on a bloom miss. Recomputed on every
+  /// [_rebuildEngine]; empty when no engine/lists are active.
+  Set<String> _abpNetworkHosts = <String>{};
+
+  /// See [_abpNetworkHosts].
+  Set<String> get abpNetworkBlockHosts => _abpNetworkHosts;
 
   /// Native engine that owns every blocking + cosmetic decision. Built
   /// lazily on the first [_rebuildEngine] call and disposed + rebuilt
@@ -672,6 +683,11 @@ class ContentBlockerService {
         }
       } catch (_) {}
     }
+    final concatenated = buf.toString();
+    // Harvest `||host^` block hosts for the interceptor prefilter Bloom
+    // before the procedural rewrite (which only touches cosmetic lines).
+    // Listeners push this to DnsBlockService on _notifyRulesChanged.
+    _abpNetworkHosts = extractAbpNetworkBlockHosts(concatenated);
     if (buf.isEmpty) {
       if (Platform.isAndroid) {
         await WebInterceptNative.sendAdblockEngineRules('');
@@ -686,7 +702,7 @@ class ContentBlockerService {
     // the engine sees and what the cache key is computed over; bump
     // [_kEngineCacheVersion] when the rewrite output format changes
     // so old cached blobs get re-parsed.
-    final rulesText = rewriteGenericProceduralsForBackfill(buf.toString());
+    final rulesText = rewriteGenericProceduralsForBackfill(concatenated);
     final rulesHash =
         sha256.convert(utf8.encode('v$_kEngineCacheVersion:$rulesText')).toString();
     AdblockEngine? engine;
@@ -882,6 +898,7 @@ class ContentBlockerService {
     _rustEngine?.dispose();
     _rustEngine = null;
     _engineCosmeticCache.clear();
+    _abpNetworkHosts = <String>{};
     _useUboResources = true;
   }
 

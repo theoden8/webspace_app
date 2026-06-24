@@ -652,15 +652,24 @@ void main() async {
             DnsBlockService.instance.blockedDomains));
   }
 
-  // Keep the DNS-side bloom in sync when the DNS list changes; ABP rules
-  // are owned end-to-end by the engine, so no Dart-side push is needed
-  // for them anymore.
+  // Keep the DNS-side native domain push in sync when the DNS list
+  // changes. (Android's native interceptor consumes the raw domains;
+  // the iOS/macOS JS prefilter consumes the merged bloom below.)
   DnsBlockService.instance.addBlocklistChangedListener(() {
     WebInterceptNative.sendDnsDomains(DnsBlockService.instance.blockedDomains);
   });
   ContentBlockerService.instance.addRulesChangedListener(() {
-    DnsBlockService.instance.invalidateMergedBloom();
+    // Feed the ABP `||host^` block hosts into the merged prefilter Bloom
+    // so the iOS/macOS interceptor trips for ABP-only hosts instead of
+    // hard-allowing them on a bloom miss. Also invalidates the bloom.
+    DnsBlockService.instance.setAbpNetworkHosts(
+        ContentBlockerService.instance.abpNetworkBlockHosts);
   });
+  // Seed the merged bloom with the ABP hosts harvested by the initial
+  // engine build — that build ran during init, before the listener
+  // above existed, so its rules-changed notification was not delivered.
+  DnsBlockService.instance.setAbpNetworkHosts(
+      ContentBlockerService.instance.abpNetworkBlockHosts);
 
   // Seed the native interceptor with CDN patterns + the current cache
   // index, and keep its copy in sync whenever the cache changes.
