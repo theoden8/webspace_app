@@ -3,6 +3,7 @@
 **Status:** open (recurring — each fix has closed one entry path; new paths keep surfacing)
 **Platform:** Android only (hybrid-composition `SurfaceView`)
 **Spec:** [openspec/specs/webview-pause-lifecycle/spec.md](../../openspec/specs/webview-pause-lifecycle/spec.md) — requirements `PAUSE-013`…`PAUSE-018`
+**Formal model:** [formal/kernel.tla](../../formal/kernel.tla) — `RepaintLiveness` ("every blank-surface attach is eventually repainted"). The `kernel_conflict.cfg` demonstrator is a back path that bypasses the chokepoint — i.e. this exact bug — and TLC rejects it with a counterexample.
 
 ## Symptom
 

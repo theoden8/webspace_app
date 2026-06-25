@@ -103,6 +103,24 @@ silently — record it so the next person sees the whole lineage and the still-o
 GitHub issues/PRs track "what broke"; `docs/bugs/` tracks "every attempt and why each
 was incomplete"; OpenSpec tracks "the behavior we now require". Keep all three in sync.
 
+## Formal verification (`formal/`)
+
+Defense-in-depth pipeline; each layer absorbs a class of issue before the next:
+`spec → formal → engine → tests → app code → integration tests`. The **formal** layer
+([formal/](formal/), TLA+ checked by TLC) catches what tests can't: design contradictions,
+missing-transition classes, and cross-spec interference — bugs in the gaps *between* specs.
+
+- `formal/kernel.tla` is the **cross-spec kernel**: only the specs that mutate *shared*
+  runtime/persisted state get a module (owned vars, actions, invariant, rely/guarantee
+  contract). Independent (leaf) specs share no state and compose for free — keep them OUT.
+- Cite requirement IDs (`PAUSE-018`, `ARCH-001`, …) on the actions/properties that encode
+  them so spec ↔ model stays grep-able.
+- **Adding a spec that touches shared state → run the mix gate:** add its actions to `Next`
+  and its property to the `.cfg`, then `./formal/check.sh`. A counterexample means it does
+  not mix; the trace names the breaking interleaving. Fix the design, not the model.
+- Don't commit `tla2tools.jar` or `states/` (derivatives; `check.sh` fetches the jar).
+- Full method + the new-spec workflow: [formal/README.md](formal/README.md).
+
 ## OpenSpec features
 
 Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the relevant spec before modifying a feature.** Slugs:

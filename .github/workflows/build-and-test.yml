@@ -59,6 +59,17 @@ jobs:
         run: npm run test:js
       - name: Validate OpenSpec
         run: npx openspec validate --no-interactive --all
+      # Formal verification kernel (TLA+/TLC). Checks the cross-spec state
+      # machine: surface-repaint liveness + the "does a new module mix?" gate.
+      # check.sh fetches tla2tools.jar and asserts the good composition passes
+      # and the non-mix demonstrator fails. Node-light, so it lives here.
+      - name: Set up Java for TLC
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Verify formal kernel
+        run: ./formal/check.sh
       # Idempotent: if the cache restored a matching Chromium, this
       # step prints "already installed" and exits in <1s. Otherwise it
       # downloads ~280 MB into ~/.cache/puppeteer. Running it as a
