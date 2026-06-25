@@ -15,14 +15,57 @@ void main() {
         home: LinkHandlingSettingsScreen(
           enabled: true,
           onEnabledChanged: (v) => lastValue = v,
+          claimDomains: false,
+          onClaimDomainsChanged: (_) {},
           sites: const [],
           onOpenSiteEditor: (_) {},
         ),
       ));
       expect(find.text('Handle shared links'), findsOneWidget);
-      await tester.tap(find.byType(Switch));
+      await tester.tap(find.byType(Switch).first);
       await tester.pump();
       expect(lastValue, false);
+    });
+
+    testWidgets('claim-domains switch defaults off, flips and notifies',
+        (tester) async {
+      bool? lastValue;
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: LinkHandlingSettingsScreen(
+          enabled: true,
+          onEnabledChanged: (_) {},
+          claimDomains: false,
+          onClaimDomainsChanged: (v) => lastValue = v,
+          sites: const [],
+          onOpenSiteEditor: (_) {},
+        ),
+      ));
+      expect(find.text('Claim domains from shared links'), findsOneWidget);
+      await tester.tap(find.byType(Switch).at(1));
+      await tester.pump();
+      expect(lastValue, true);
+    });
+
+    testWidgets('claim-domains switch is disabled while master is off',
+        (tester) async {
+      bool changed = false;
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: LinkHandlingSettingsScreen(
+          enabled: false,
+          onEnabledChanged: (_) {},
+          claimDomains: false,
+          onClaimDomainsChanged: (_) => changed = true,
+          sites: const [],
+          onOpenSiteEditor: (_) {},
+        ),
+      ));
+      await tester.tap(find.byType(Switch).at(1));
+      await tester.pump();
+      expect(changed, isFalse);
     });
 
     testWidgets('routing overview lists each site with claims as chips',
@@ -39,6 +82,8 @@ void main() {
         home: LinkHandlingSettingsScreen(
           enabled: true,
           onEnabledChanged: (_) {},
+          claimDomains: false,
+          onClaimDomainsChanged: (_) {},
           sites: [a, b],
           onOpenSiteEditor: (_) {},
         ),
@@ -63,6 +108,8 @@ void main() {
         home: LinkHandlingSettingsScreen(
           enabled: true,
           onEnabledChanged: (_) {},
+          claimDomains: false,
+          onClaimDomainsChanged: (_) {},
           sites: [a],
           onOpenSiteEditor: (s) => tappedSite = s,
         ),
@@ -83,6 +130,8 @@ void main() {
         home: LinkHandlingSettingsScreen(
           enabled: false,
           onEnabledChanged: (_) {},
+          claimDomains: false,
+          onClaimDomainsChanged: (_) {},
           sites: [a],
           onOpenSiteEditor: (_) {},
         ),

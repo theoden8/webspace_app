@@ -223,6 +223,21 @@ class LinkIntentDispatchEngine {
     );
   }
 
+  /// User picked a site from the "send / open to a site" list (LIR-010
+  /// option 2). When [claimDomain] is true the chosen site adopts the URL's
+  /// host as a claim before opening ([bindToSite]); when false (the default
+  /// per discussion #439) the URL just opens in the chosen site and no claim
+  /// is persisted ([openInChosen]). The opt-in is surfaced as the global
+  /// `linkHandlingClaimDomains` setting.
+  static DispatchAction sendToSite({
+    required Uri inbound,
+    required DispatchableSite site,
+    required bool claimDomain,
+  }) =>
+      claimDomain
+          ? bindToSite(inbound: inbound, site: site)
+          : openInChosen(inbound: inbound, site: site);
+
   /// User picked "Create new site for [host]".
   static DispatchAction createNew({required Uri inbound}) {
     final target = _normalizeInbound(inbound) ?? inbound;
