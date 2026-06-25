@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Per-requirement test matrix for the verification kernel. Fetches tla2tools.jar
-# if absent, then runs three classes of check:
+# Verification suite. Fetches tla2tools.jar if absent, then runs:
 #
 #   GOOD      kernel.cfg                  -> all properties hold
 #   NEGATIVE  *_conflict_*.cfg            -> a mutation MUST be caught (anti-vacuity:
@@ -8,6 +7,8 @@
 #   POSITIVE  *_reach_*.cfg               -> a reachability witness MUST be violated
 #                                            (anti-inertness: proves the legal behavior
 #                                            the green checks rely on is reachable)
+#   ARCHIVE   archive*.cfg                -> ARCH-001 byte-identity (self-composition)
+#   TRACE     trace/check_trace.sh        -> code stayed inside the model (LogService)
 #
 # Exit non-zero if any expectation is unmet. CI-wireable.
 set -euo pipefail
@@ -21,38 +22,46 @@ if [ ! -f "$JAR" ]; then
     https://github.com/tlaplus/tlaplus/releases/latest/download/tla2tools.jar
 fi
 
-run() { java -cp "$JAR" tlc2.TLC -config "$1" kernel.tla 2>&1; }
+run() { java -cp "$JAR" tlc2.TLC -config "$1" "$2" 2>&1 || true; }
 
-# expect <cfg> <grep-pattern> <human-label>
+# expect <cfg> <model.tla> <grep-pattern> <human-label>
 expect() {
-  local out; out="$(run "$1" || true)"
-  if echo "$out" | grep -q "$2"; then
-    printf '  OK   %-34s %s\n' "$1" "$3"
+  local out; out="$(run "$1" "$2")"
+  if echo "$out" | grep -qE "$3"; then
+    printf '  OK   %-34s %s\n' "$1" "$4"
   else
     echo "$out" | tail -30
-    echo "FAIL: $1 did not produce expected outcome ($3)" >&2
+    echo "FAIL: $1 did not produce expected outcome ($4)" >&2
     exit 1
   fi
 }
 
 echo "── GOOD: full composition holds ──"
-expect kernel.cfg "No error has been found" "all properties hold"
+expect kernel.cfg kernel.tla "No error has been found" "all properties hold"
 
 echo "── NEGATIVE: each mutation is caught ──"
-expect kernel_conflict_repaint.cfg "Temporal properties were violated" \
+expect kernel_conflict_repaint.cfg kernel.tla "Temporal properties were violated" \
   "bypass route → RepaintLiveness violated (liveness non-mix)"
-expect kernel_conflict_evict.cfg "Inv_CurrentLoaded is violated" \
+expect kernel_conflict_evict.cfg kernel.tla "Inv_CurrentLoaded is violated" \
   "evict-current → Inv_CurrentLoaded violated (safety non-mix)"
-expect kernel_conflict_contaminate.cfg "Inv_JarMatchesVisible is violated" \
+expect kernel_conflict_contaminate.cfg kernel.tla "Inv_JarMatchesVisible is violated" \
   "contaminate → Inv_JarMatchesVisible violated (cookie-leak non-mix)"
 
 echo "── POSITIVE: each legal behavior is reachable (witness violated) ──"
-expect kernel_reach_surface_attach.cfg "Reach_SurfaceAttach is violated" \
+expect kernel_reach_surface_attach.cfg kernel.tla "Reach_SurfaceAttach is violated" \
   "a blank surface attach is reachable (RepaintLiveness not vacuous)"
-expect kernel_reach_site_switch.cfg "Reach_SiteSwitch is violated" \
+expect kernel_reach_site_switch.cfg kernel.tla "Reach_SiteSwitch is violated" \
   "activating a non-initial site is reachable"
-expect kernel_reach_evict_bg.cfg "Reach_EvictBackground is violated" \
+expect kernel_reach_evict_bg.cfg kernel.tla "Reach_EvictBackground is violated" \
   "evicting a backgrounded site is reachable"
+
+echo "── ARCHIVE: ARCH-001 byte-identity (2-safety via self-composition) ──"
+expect archive.cfg archive.tla "No error has been found" \
+  "app-tier state is byte-identical with/without archives"
+expect archive_leak.cfg archive.tla "ByteIdentity is violated" \
+  "leaking archive count into app-tier state is caught"
+expect archive_reach.cfg archive.tla "Reach_Active is violated" \
+  "byte-identity is checked against real archive+write activity (not vacuous)"
 
 echo "── TRACE CONFORMANCE: code stayed inside the model ──"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac

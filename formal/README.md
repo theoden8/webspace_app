@@ -43,9 +43,18 @@ class.
 - **`kernel_conflict_contaminate.cfg`** (`Conflict = "contaminate"`) — the legacy cookie
   engine activates a site without capture-nuke-restore, leaving another site's cookies in the
   shared jar. Expect: `Inv_JarMatchesVisible` **violated** (a cross-site-leak SAFETY non-mix).
+- **`archive.tla`** + `archive*.cfg` — ARCH-001 active-state **byte-identity**. This is a
+  2-safety *hyperproperty* (it relates two executions: 0 vs N closed archives), so it does
+  NOT join the single-execution kernel — it gets its own model via **self-composition** (run
+  both worlds in lockstep, assert app-tier state never diverges). The `Leak` demonstrator
+  folds the archive count into app-tier state and is caught.
 - **`trace/`** — the model↔code conformance bridge (below).
+- **`proofs/`** — TLAPS deductive proofs for **unbounded N** (the bounded-TLC backstop). See
+  [proofs/README.md](proofs/README.md): `Inv_CurrentLoaded` is proved for all `N >= 1`
+  (51 obligations, machine-checked by tlapm).
 - **`check.sh`** — fetches `tla2tools.jar` if absent and runs the full matrix (good + the
-  three demonstrators + reachability witnesses + trace conformance). CI-wireable.
+  three demonstrators + reachability witnesses + archive byte-identity + trace conformance).
+  CI-wireable. (TLAPS proofs run separately — `proofs/check_proofs.sh` — they need tlapm.)
 
 ## Run it
 
@@ -153,7 +162,9 @@ kernel matrix. Next step: feed real `integration_test/` traces through `parse_lo
 - The kernel is only the **coupled cluster**. Most specs are leaves and are better served by
   static cross-spec invariants (registry completeness, nested-webview field flow, keyspace
   disjointness) — relational checks with no temporal cost.
-- Bounded domains (`N = 3` sites): model-checking is exhaustive only within the bound.
+- Bounded domains (`N = 3` sites): TLC is exhaustive only within the bound. For invariants
+  that need to hold for *all* N, `proofs/` carries unbounded TLAPS proofs (e.g.
+  `Inv_CurrentLoaded`).
 - The realistic deliverable: **design-level interference becomes a CI check** instead of a
   production incident discovered after N partial fixes.
 
