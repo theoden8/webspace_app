@@ -1,0 +1,127 @@
+# BUG-001: White/black screen after returning to or navigating a webview (Android)
+
+**Status:** open (recurring — each fix has closed one entry path; new paths keep surfacing)
+**Platform:** Android only (hybrid-composition `SurfaceView`)
+**Spec:** [openspec/specs/webview-pause-lifecycle/spec.md](../../openspec/specs/webview-pause-lifecycle/spec.md) — requirements `PAUSE-013`…`PAUSE-018`
+
+## Symptom
+
+The webview area renders as a flat **blank** rectangle — **black** or **white** —
+while the page underneath is *alive*: JS runs, taps/scroll register, timers fire.
+A relayout (device rotation, lock/unlock, tab switch) instantly clears it. The
+user just sees a dead-looking screen after some navigation or app-lifecycle event.
+
+## Root mechanism (the invariant behind every instance)
+
+On Android the webview is a **hybrid-composition `SurfaceView`**. That surface can
+**re-attach (or newly attach) without receiving a paint**. The renderer is healthy,
+so nothing emits an error event; the compositor just never draws onto the new
+surface until something forces a relayout.
+
+Two colors, two sub-causes:
+
+- **Black** = an *existing* surface re-attached unpainted after the Android
+  **activity was recreated** (page area *and* the strip behind the edge-to-edge
+  status bar go black).
+- **White** = a *brand-new* `SurfaceView` was mounted (fresh controller, bfcache
+  restore) and shows its **default fill** before first paint.
+
+A dead *renderer* (the process was actually killed) is a **different** bug — covered
+by `PAUSE-013`/`PAUSE-014` (detect via JS probe → destroy-and-rebuild). A JS
+`offsetHeight` read relayouts *web content*, not the Android surface, so it can
+**never** fix the blank-surface case. The only remedy that works is to **force a
+relayout of the platform view** — see `_nudgeSurfaceRepaint` (toggle a 1px inset
+around the `IndexedStack` a few times over ~0.5s; each size flip recomposites the
+`SurfaceView`, each `setState` repaints the Flutter base surface).
+
+**Why it keeps recurring:** the fix is always "nudge the surface," but the *trigger*
+is "a code path that mounts/re-attaches a surface." Every fix has wired the nudge
+into one more such path. The bug resurfaces whenever a **new** path reaches a blank
+surface without passing through an already-nudged chokepoint. This is whack-a-mole
+until a single chokepoint covers every surface (re)attach.
+
+## Fix attempts (chronological — each closed one path, none closed the class)
+
+### Attempt 1 — Event-driven renderer-gone recovery (`PAUSE-013`)
+**Date:** 2026-05-28 · **PR:** #382-era · **Files:** lib/web_view_model.dart, lib/main.dart
+**What it did:** Listen for platform renderer-termination callbacks
+(`onRenderProcessGone` / `onWebContentProcessDidTerminate`) and destroy-and-rebuild
+the webview.
+**Why:** A killed renderer leaves a permanently dead page; rebuild is the only cure.
+**Why partial:** Only covers a *dead renderer*. The blank-but-alive *surface* emits
+no event at all on Android (and the iOS callback frequently doesn't fire for an
+offscreen webview), so this never sees the white/black-screen case.
+
+### Attempt 2 — Renderer probe on activation + first surface nudge (`PAUSE-014`, `PAUSE-015`)
+**Date:** 2026-06-04 · **PR:** #388 · **Files:** lib/main.dart, lib/web_view_model.dart
+**What it did:** (a) On resume / every site switch, read `document.body.offsetHeight`;
+a null result means a dead renderer → reuse Attempt 1's rebuild. (b) Added
+`_nudgeSurfaceRepaint` (the 1px-inset toggle) and fired it on the **resume** and
+**pinned-shortcut** paths. Also sequenced `_onResumed` so resume completes before the
+shortcut intent, and a single nudge fires against the final visible site.
+**Why:** The probe catches offscreen renderer deaths that fire no event; the nudge is
+the first thing that actually repaints the Android surface (the JS probe relayouts web
+content only — it never recovered the surface).
+**Why partial:** The nudge only ran on resume/shortcut. A plain in-app site switch, or
+any non-resume path, could still re-attach a blank surface.
+
+### Attempt 3 — Nudge on site activation + Android per-instance pause is a no-op (`PAUSE-015` extended, `PAUSE-016`)
+**Date:** 2026-06-20 · **PR:** #436 · **Files:** lib/main.dart, lib/services/webview.dart
+**What it did:** (a) Ran `_nudgeSurfaceRepaint` on the `_setCurrentIndex` activation
+path (tab tap, shortcut open, cold-start restore), made re-entrant so coalescing calls
+don't fight over the toggle flag. (b) Made Android per-instance `pause()`/`resume()`
+**no-ops**, because cycling the foreground `SurfaceView` through `onPause/onResume`
+re-attached it blank on the next paint.
+**Why:** Bringing a site onstage was itself a blank-surface trigger; and Android's
+per-instance pause never paused JS anyway (only the process-global timer pause does),
+so it was all cost and no benefit — and the cost *was* a white screen.
+**Why partial:** Covers webviews **reused** via `_setCurrentIndex`. Webviews
+**recreated from scratch** don't go through `_setCurrentIndex`, so they were still
+uncovered.
+
+### Attempt 4 — Nudge on fresh controller attach (`PAUSE-017`)
+**Date:** 2026-06-25 · **PR:** #450 · **Files:** lib/main.dart, lib/web_view_model.dart
+**What it did:** Set `WebViewModel.onControllerReady`; `onControllerCreated` fires it
+after wiring the controller, which calls `_nudgeSurfaceRepaint` when the model's index
+is the visible one. Covers `_goHome`, renderer-gone rebuild, and `savedForRestore`
+re-creation — all the from-scratch recreations that mount a brand-new `SurfaceView`.
+**Why:** A fresh `SurfaceView` shows its white default fill; controller creation is the
+one chokepoint every recreation passes through, so hooking it covers all recreation
+paths at once.
+**Why partial:** Only fires when a **new controller** is created. A navigation that
+**reuses the existing controller** but still re-attaches a surface — i.e. a
+back/forward-cache restore — fires neither this nor `_setCurrentIndex`.
+
+### Attempt 5 — Repaint after back/forward navigation (`PAUSE-018`)
+**Date:** 2026-06-25 · **PR:** #451 · **Files:** lib/main.dart
+**What it did:** Routed the back gesture and the AppBar back button through
+`_goBackAndRepaint` (`controller.goBack()` then `_nudgeSurfaceRepaint`).
+**Why:** With back/forward cache enabled by default (PR #445), a back navigation
+restores a bfcached page onto a fresh `SurfaceView` that comes back white. Back nav
+reuses the controller and stays on the same site, so it passed through neither existing
+chokepoint.
+**Why partial:** Covers back navigation on the **main page** only. Known still-open
+gaps below.
+
+## Known open gaps (candidates for the next recurrence)
+
+1. **Nested `InAppWebViewScreen`** ([lib/screens/inappbrowser.dart](../../lib/screens/inappbrowser.dart))
+   does `goBack()` on Android but has **no `_nudgeSurfaceRepaint` mechanism at all**.
+   bfcache applies to nested webviews too (PR #445), so a back nav there can blank.
+2. **Forward navigation** (`goForward`) into a bfcached entry is the symmetric case of
+   Attempt 5 and is currently unnudged.
+3. **The class isn't closed.** Every fix is per-path. The durable fix is a **single
+   chokepoint** that nudges on *every* surface (re)attach — ideally a native
+   surface-changed/-redrawn callback from the fork driving the repaint — instead of
+   enumerating Dart-side navigation paths forever.
+
+## Diagnostic checklist (when this recurs)
+
+- Confirm it's the **surface**, not a dead renderer: does the page respond to taps /
+  does a rotate or tab-switch instantly fix it? If yes → surface, use the nudge. If a
+  rotate doesn't fix it and JS is dead → renderer (`PAUSE-013/014`).
+- Identify the **new entry path**: what navigation/lifecycle event preceded the blank?
+  Does it pass through `_setCurrentIndex` (Attempt 3) or `onControllerReady`
+  (Attempt 4)? If neither, that path needs `_nudgeSurfaceRepaint`.
+- Add the path to the **spec** (`PAUSE-0xx`) and to the **next entry in this file**,
+  noting what it covered and why earlier attempts missed it.

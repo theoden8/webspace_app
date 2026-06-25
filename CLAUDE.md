@@ -79,6 +79,30 @@ Android flavors: `fdroid` (CI), `fmain` (Play), `fdebug`.
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
 
+## Recurring bugs (`docs/bugs/`)
+
+A **recurring bug** is one whose symptom was fixed before and resurfaced through a
+new code path (the fix was partial). When you hit one, do NOT just patch the new path
+silently — record it so the next person sees the whole lineage and the still-open gaps.
+
+- One file per bug, numbered: `docs/bugs/NNN-<slug>.md` (e.g. `001-white-screen.md`).
+  Number bugs sequentially; the number is the bug's stable ID (`BUG-NNN`), used in the
+  file header. Reuse the existing file when the same bug recurs — never start a new one.
+- Each file has: the **symptom**, the **root mechanism / invariant** (why all instances
+  share a cause), a numbered **chronological list of fix attempts**, and a **known open
+  gaps** section.
+- Every fix attempt entry MUST carry: a number, the **date** (`git show -s --date=short`),
+  the PR/commit, **what it did**, **why** (the reasoning), and **why it was partial**
+  (which path it covered and which it missed). Append a new entry per attempt; never
+  rewrite history.
+- This file is the bug's biography; the **spec** (`openspec/specs/.../spec.md`) still
+  carries the normative requirement + regression scenario for each fix. Cross-link them.
+- When a bug is genuinely closed for the whole class (not just one path), set the header
+  `Status:` to `closed` and say what finally subsumed the per-path fixes.
+
+GitHub issues/PRs track "what broke"; `docs/bugs/` tracks "every attempt and why each
+was incomplete"; OpenSpec tracks "the behavior we now require". Keep all three in sync.
+
 ## OpenSpec features
 
 Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the relevant spec before modifying a feature.** Slugs:
