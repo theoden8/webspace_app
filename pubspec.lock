@@ -328,7 +328,7 @@ packages:
     description:
       path: flutter_inappwebview
       ref: "v6.2.0-beta.3-privacy-v5"
-      resolved-ref: 620a635884a4247e5faca36a065e07d4cb1f6768
+      resolved-ref: fac0996928128bff343e8077ce155a17cb17760f
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "6.2.0-beta.3"
@@ -337,7 +337,7 @@ packages:
     description:
       path: flutter_inappwebview_android
       ref: "v6.2.0-beta.3-privacy-v5"
-      resolved-ref: 620a635884a4247e5faca36a065e07d4cb1f6768
+      resolved-ref: fac0996928128bff343e8077ce155a17cb17760f
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -354,7 +354,7 @@ packages:
     description:
       path: flutter_inappwebview_ios
       ref: "v6.2.0-beta.3-privacy-v5"
-      resolved-ref: 620a635884a4247e5faca36a065e07d4cb1f6768
+      resolved-ref: fac0996928128bff343e8077ce155a17cb17760f
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -363,7 +363,7 @@ packages:
     description:
       path: flutter_inappwebview_linux
       ref: "v6.2.0-beta.3-privacy-v5"
-      resolved-ref: 620a635884a4247e5faca36a065e07d4cb1f6768
+      resolved-ref: fac0996928128bff343e8077ce155a17cb17760f
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "0.1.0-beta.2"
@@ -372,7 +372,7 @@ packages:
     description:
       path: flutter_inappwebview_macos
       ref: "v6.2.0-beta.3-privacy-v5"
-      resolved-ref: 620a635884a4247e5faca36a065e07d4cb1f6768
+      resolved-ref: fac0996928128bff343e8077ce155a17cb17760f
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.2.0-beta.3"
@@ -381,7 +381,7 @@ packages:
     description:
       path: flutter_inappwebview_platform_interface
       ref: "v6.2.0-beta.3-privacy-v5"
-      resolved-ref: 620a635884a4247e5faca36a065e07d4cb1f6768
+      resolved-ref: fac0996928128bff343e8077ce155a17cb17760f
       url: "https://github.com/theoden8/flutter_inappwebview"
     source: git
     version: "1.4.0-beta.3"
