@@ -1289,6 +1289,12 @@ persist, and the cache is cleared on app upgrade).</p>
 
 /// Factory for creating webviews
 class WebViewFactory {
+  /// Global back/forward-cache preference, mirrored from the
+  /// `backForwardCacheEnabled` app pref (kExportedAppPrefs) at startup and
+  /// after settings import. Applied verbatim to every WebView's native
+  /// WebSettings; no-ops on platforms/providers without the feature.
+  static bool backForwardCacheEnabled = true;
+
   /// System font scale → webview text zoom percent. Tracks the OS-level
   /// "font size" accessibility setting so web content matches the size
   /// users see in their system browser.
@@ -2319,6 +2325,25 @@ class WebViewFactory {
       // wire-level UA-CH headers contradict the spoofed UA. Silently
       // ignored on iOS/macOS/Linux (no equivalent native API).
       ..userAgentMetadata = buildUserAgentMetadata(config.userAgent)
+      // Folded under the Tracking Protection umbrella (Android only; the
+      // fork ignores both on iOS/macOS/Linux). When ETP is on: an empty
+      // allow-list suppresses the `X-Requested-With: <package>` header for
+      // every origin, and Attribution Reporting registration is disabled.
+      // When ETP is off, leave the native defaults untouched (null). For the
+      // Media Integrity API we keep it enabled-without-app-identity rather than
+      // fully disabling it: that preserves legitimate anti-fraud attestation
+      // while stripping the app package/signing identity that any origin
+      // (including non-DRM trackers) could otherwise read.
+      ..requestedWithHeaderOriginAllowList =
+          config.trackingProtectionEnabled ? const <String>{} : null
+      ..attributionRegistrationBehavior = config.trackingProtectionEnabled
+          ? inapp.AttributionBehavior.DISABLED
+          : null
+      ..webViewMediaIntegrityApiStatus = config.trackingProtectionEnabled
+          ? inapp.WebViewMediaIntegrityApiStatus.ENABLED_WITHOUT_APP_IDENTITY
+          : null
+      // Global perf pref; same value on every WebView, nested included.
+      ..backForwardCacheEnabled = WebViewFactory.backForwardCacheEnabled
       ..thirdPartyCookiesEnabled = config.thirdPartyCookiesEnabled
       ..incognito = config.incognito
       ..textZoom = textZoom

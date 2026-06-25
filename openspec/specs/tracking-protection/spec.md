@@ -695,6 +695,29 @@ the cache is empty)
 
 ---
 
+### Requirement: ETP-019 - Android native privacy settings under umbrella
+
+The umbrella SHALL apply the fork's Android-only privacy `InAppWebViewSettings` whenever `trackingProtectionEnabled` is true, and leave each at its native default (`null`) when false. These settings are serialized but ignored by the iOS/macOS/Linux plugins.
+
+- `requestedWithHeaderOriginAllowList` SHALL be the empty set (suppresses the `X-Requested-With: <package>` header for every origin).
+- `attributionRegistrationBehavior` SHALL be `WebSettingsCompat.ATTRIBUTION_BEHAVIOR_DISABLED` (no Attribution Reporting source/trigger registration).
+- `webViewMediaIntegrityApiStatus` SHALL be `WEBVIEW_MEDIA_INTEGRITY_API_ENABLED_WITHOUT_APP_IDENTITY`, not `DISABLED`: the integrity token stays available for legitimate site anti-fraud, but no longer carries this app's package/signing identity, closing the cross-site app-identity leak. This is independent of the protected-media (Widevine/EME) permission, which governs DRM playback rather than attestation.
+
+#### Scenario: Umbrella on sets native privacy settings
+
+**Given** a webview is constructed for a site with the umbrella on
+**Then** `requestedWithHeaderOriginAllowList` is the empty set
+**And** `attributionRegistrationBehavior` is the disabled constant
+**And** `webViewMediaIntegrityApiStatus` is the enabled-without-app-identity constant
+
+#### Scenario: Umbrella off leaves native defaults
+
+**Given** a webview is constructed for a site with the umbrella off
+**Then** `requestedWithHeaderOriginAllowList`, `attributionRegistrationBehavior`,
+and `webViewMediaIntegrityApiStatus` are each `null`
+
+---
+
 ## Implementation Details
 
 ### Shim seeding

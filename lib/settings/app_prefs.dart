@@ -80,7 +80,14 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // User-chosen UI language as a locale tag (e.g. 'de', 'pt_BR', 'zh_Hant').
   // Empty string means follow the system locale. Applied to MaterialApp.locale.
   'appLocaleOverride': '',
+  // Back/forward cache (Android, androidx.webkit BACK_FORWARD_CACHE). A
+  // per-WebView WebSettings flag, but the intent is global: instant restore
+  // on back/forward navigation. Mirrored into WebViewFactory and applied to
+  // every WebView; no-ops where the feature is unsupported.
+  kBackForwardCacheEnabledKey: true,
 };
+
+const String kBackForwardCacheEnabledKey = 'backForwardCacheEnabled';
 
 const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';
 const String kLinkHandlingClaimDomainsKey = 'linkHandlingClaimDomains';
