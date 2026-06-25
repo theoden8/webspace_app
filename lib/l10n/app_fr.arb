@@ -1,5 +1,9 @@
 {
   "@@locale": "fr",
+  "siteSettingsExternalLinksInBrowser": "Ouvrir les liens externes dans le navigateur",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Ouvrir les Liens Externes dans le Navigateur",
+  "siteSettingsExternalLinksInBrowserHint": "Lorsque cette option est activée, un lien pointant en dehors des domaines de ce site s'ouvre dans le navigateur par défaut de votre appareil plutôt que dans l'application. Les liens vers les domaines revendiqués par ce site continuent de s'ouvrir dans l'application. Ajoutez d'autres domaines sous Revendications de domaines ci-dessous pour les conserver dans l'application.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Les liens en dehors des domaines de ce site s'ouvrent dans votre navigateur par défaut",
   "appTitle": "WebSpace",
   "commonCancel": "Annuler",
   "trustedCertScreenTitle": "Certificats approuvés",

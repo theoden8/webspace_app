@@ -1,5 +1,9 @@
 {
   "@@locale": "sw",
+  "siteSettingsExternalLinksInBrowser": "Fungua viungo vya nje katika kivinjari",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Fungua Viungo vya Nje katika Kivinjari",
+  "siteSettingsExternalLinksInBrowserHint": "Ikiwashwa, kiungo kinachoelekeza nje ya vikoa vya tovuti hii hufunguliwa katika kivinjari chaguomsingi cha kifaa chako badala ya ndani ya programu. Viungo vya vikoa ambavyo tovuti hii inadai bado hufunguliwa ndani ya programu. Ongeza vikoa vya ziada chini ya Madai ya vikoa hapa chini ili kuviweka ndani ya programu.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Viungo vya nje ya vikoa vya tovuti hii hufunguliwa katika kivinjari chako chaguomsingi",
   "appTitle": "WebSpace",
   "commonCancel": "Ghairi",
   "trustedCertScreenTitle": "Vyeti vinavyoaminika",

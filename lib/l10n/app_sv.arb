@@ -1,5 +1,9 @@
 {
   "@@locale": "sv",
+  "siteSettingsExternalLinksInBrowser": "Öppna externa länkar i webbläsaren",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Öppna Externa Länkar i Webbläsaren",
+  "siteSettingsExternalLinksInBrowserHint": "När detta är på öppnas en länk som pekar utanför den här webbplatsens domäner i enhetens standardwebbläsare i stället för i appen. Länkar till domäner som den här webbplatsen gör anspråk på öppnas fortfarande i appen. Lägg till extra domäner under Domänanspråk nedan för att behålla dem i appen.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Länkar utanför den här webbplatsens domäner öppnas i din standardwebbläsare",
   "appTitle": "WebSpace",
   "commonCancel": "Avbryt",
   "trustedCertScreenTitle": "Betrodda certifikat",

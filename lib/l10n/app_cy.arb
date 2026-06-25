@@ -1,5 +1,9 @@
 {
   "@@locale": "cy",
+  "siteSettingsExternalLinksInBrowser": "Agor dolenni allanol yn y porwr",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Agor Dolenni Allanol yn y Porwr",
+  "siteSettingsExternalLinksInBrowserHint": "Pan fydd ymlaen, bydd dolen sy'n pwyntio y tu allan i barthau'r wefan hon yn agor ym mhorwr rhagosodedig eich dyfais yn lle o fewn yr ap. Bydd dolenni i barthau y mae'r wefan hon yn eu hawlio yn dal i agor yn yr ap. Ychwanegwch barthau ychwanegol o dan Hawliadau parth isod i'w cadw yn yr ap.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Mae dolenni y tu allan i barthau'r wefan hon yn agor yn eich porwr rhagosodedig",
   "appTitle": "WebSpace",
   "commonCancel": "Canslo",
   "trustedCertScreenTitle": "Tystysgrifau ymddiriedig",

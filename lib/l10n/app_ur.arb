@@ -1,5 +1,9 @@
 {
   "@@locale": "ur",
+  "siteSettingsExternalLinksInBrowser": "بیرونی روابط براؤزر میں کھولیں",
+  "siteSettingsExternalLinksInBrowserHintTitle": "بیرونی روابط براؤزر میں کھولیں",
+  "siteSettingsExternalLinksInBrowserHint": "جب آن ہو، تو ایسا لنک جو اس سائٹ کے ڈومینز سے باہر اشارہ کرتا ہے، ایپ کے بجائے آپ کے آلے کے طے شدہ براؤزر میں کھلتا ہے۔ اس سائٹ کے دعویٰ کردہ ڈومینز کے روابط اب بھی ایپ میں ہی کھلتے ہیں۔ انہیں ایپ میں رکھنے کے لیے نیچے ڈومین دعوے کے تحت اضافی ڈومینز شامل کریں۔",
+  "siteSettingsExternalLinksInBrowserSubtitle": "اس سائٹ کے ڈومینز سے باہر کے روابط آپ کے طے شدہ براؤزر میں کھلتے ہیں",
   "appTitle": "WebSpace",
   "commonCancel": "منسوخ کریں",
   "trustedCertScreenTitle": "قابلِ اعتماد سرٹیفکیٹس",

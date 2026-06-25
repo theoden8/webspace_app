@@ -1,5 +1,9 @@
 {
   "@@locale": "mn",
+  "siteSettingsExternalLinksInBrowser": "Гадаад холбоосыг хөтөч дээр нээх",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Гадаад Холбоосыг Хөтөч Дээр Нээх",
+  "siteSettingsExternalLinksInBrowserHint": "Асаалттай үед энэ сайтын домэйнаас гадуур чиглэсэн холбоос аппликейшн дотор биш, харин таны төхөөрөмжийн өгөгдмөл хөтөч дээр нээгдэнэ. Энэ сайтын эзэмшдэг домэйн рүү чиглэсэн холбоосууд хэвээр аппликейшн дотор нээгдэнэ. Нэмэлт домэйнуудыг аппликейшн дотор хадгалахын тулд доорх Домэйн эзэмшил хэсэгт нэмнэ үү.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Энэ сайтын домэйнаас гадуурх холбоосууд таны өгөгдмөл хөтөч дээр нээгдэнэ",
   "appTitle": "WebSpace",
   "commonCancel": "Цуцлах",
   "trustedCertScreenTitle": "Итгэмжлэгдсэн гэрчилгээ",

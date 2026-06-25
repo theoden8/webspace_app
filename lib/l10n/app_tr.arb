@@ -1,5 +1,9 @@
 {
   "@@locale": "tr",
+  "siteSettingsExternalLinksInBrowser": "Harici bağlantıları tarayıcıda aç",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Harici Bağlantıları Tarayıcıda Aç",
+  "siteSettingsExternalLinksInBrowserHint": "Açık olduğunda, bu sitenin etki alanlarının dışını gösteren bir bağlantı, uygulama içinde değil cihazınızın varsayılan tarayıcısında açılır. Bu sitenin sahiplendiği etki alanlarına yönelik bağlantılar yine de uygulamada açılır. Bunları uygulamada tutmak için aşağıdaki Etki alanı talepleri bölümünden ek etki alanları ekleyin.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Bu sitenin etki alanlarının dışındaki bağlantılar varsayılan tarayıcınızda açılır",
   "appTitle": "WebSpace",
   "commonCancel": "İptal",
   "trustedCertScreenTitle": "Güvenilen sertifikalar",

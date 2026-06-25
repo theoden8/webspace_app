@@ -2236,6 +2236,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       userScripts: model.userScripts,
       proxySettings: model.proxySettings,
       notificationsEnabled: model.effectiveNotificationsEnabled,
+      externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
     );
   }
 
@@ -4520,6 +4521,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     required List<UserScriptConfig> userScripts,
     UserProxySettings? proxySettings,
     bool notificationsEnabled = false,
+    bool externalLinksInBrowser = false,
   }) async {
     await Navigator.push(
       context,
@@ -4562,6 +4564,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           },
           proxySettings: proxySettings,
           notificationsEnabled: notificationsEnabled,
+          externalLinksInBrowser: externalLinksInBrowser,
         ),
       ),
     );
@@ -5987,6 +5990,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   userScripts: model.combineUserScripts(_globalUserScripts),
                   proxySettings: model.proxySettings,
                   notificationsEnabled: model.notificationsEnabled,
+                  externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
                 );
                 return;
               }

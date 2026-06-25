@@ -1,5 +1,9 @@
 {
   "@@locale": "de",
+  "siteSettingsExternalLinksInBrowser": "Externe Links im Browser öffnen",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Externe Links im Browser öffnen",
+  "siteSettingsExternalLinksInBrowserHint": "Wenn aktiviert, wird ein Link, der außerhalb der Domains dieser Website verweist, im Standardbrowser deines Geräts geöffnet statt innerhalb der App. Links zu Domains, die diese Website beansprucht, werden weiterhin in der App geöffnet. Füge unter Domain-Ansprüche unten weitere Domains hinzu, um sie in der App zu behalten.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Links außerhalb der Domains dieser Website öffnen sich in deinem Standardbrowser",
   "appTitle": "WebSpace",
   "commonCancel": "Abbrechen",
   "trustedCertScreenTitle": "Vertrauenswürdige Zertifikate",

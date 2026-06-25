@@ -1,5 +1,9 @@
 {
   "@@locale": "fil",
+  "siteSettingsExternalLinksInBrowser": "Buksan ang mga panlabas na link sa browser",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Buksan ang mga Panlabas na Link sa Browser",
+  "siteSettingsExternalLinksInBrowserHint": "Kapag naka-on, ang isang link na tumuturo sa labas ng mga domain ng site na ito ay bubukas sa default na browser ng iyong device sa halip na sa loob ng app. Ang mga link sa mga domain na inaangkin ng site na ito ay bubukas pa rin sa app. Magdagdag ng karagdagang mga domain sa ilalim ng Mga pag-angkin sa domain sa ibaba upang manatili ang mga ito sa app.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Ang mga link sa labas ng mga domain ng site na ito ay bubukas sa iyong default na browser",
   "appTitle": "WebSpace",
   "commonCancel": "Kanselahin",
   "trustedCertScreenTitle": "Mga pinagkakatiwalaang sertipiko",

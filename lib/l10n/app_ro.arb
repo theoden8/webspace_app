@@ -1,5 +1,9 @@
 {
   "@@locale": "ro",
+  "siteSettingsExternalLinksInBrowser": "Deschide linkurile externe în browser",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Deschide Linkurile Externe în Browser",
+  "siteSettingsExternalLinksInBrowserHint": "Când este activat, un link care indică în afara domeniilor acestui site se deschide în browserul implicit al dispozitivului tău, nu în aplicație. Linkurile către domeniile pe care acest site le revendică se deschid în continuare în aplicație. Adaugă domenii suplimentare la Revendicări de domeniu mai jos pentru a le păstra în aplicație.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Linkurile din afara domeniilor acestui site se deschid în browserul tău implicit",
   "appTitle": "WebSpace",
   "commonCancel": "Anulează",
   "trustedCertScreenTitle": "Certificate de încredere",

@@ -1,5 +1,9 @@
 {
   "@@locale": "it",
+  "siteSettingsExternalLinksInBrowser": "Apri i link esterni nel browser",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Apri i Link Esterni nel Browser",
+  "siteSettingsExternalLinksInBrowserHint": "Quando è attivo, un link che punta fuori dai domini di questo sito si apre nel browser predefinito del dispositivo anziché all'interno dell'app. I link ai domini rivendicati da questo sito continuano ad aprirsi nell'app. Aggiungi altri domini in \"Rivendicazioni di dominio\" qui sotto per mantenerli nell'app.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "I link fuori dai domini di questo sito si aprono nel browser predefinito",
   "appTitle": "WebSpace",
   "commonCancel": "Annulla",
   "trustedCertScreenTitle": "Certificati attendibili",

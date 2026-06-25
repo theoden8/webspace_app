@@ -1,5 +1,9 @@
 {
   "@@locale": "nl",
+  "siteSettingsExternalLinksInBrowser": "Externe links in browser openen",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Externe Links in Browser Openen",
+  "siteSettingsExternalLinksInBrowserHint": "Wanneer dit aanstaat, wordt een link die buiten de domeinen van deze site wijst geopend in de standaardbrowser van je apparaat in plaats van in de app. Links naar domeinen die deze site claimt, blijven in de app openen. Voeg extra domeinen toe onder Domeinclaims hieronder om ze in de app te houden.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Links buiten de domeinen van deze site openen in je standaardbrowser",
   "appTitle": "WebSpace",
   "commonCancel": "Annuleren",
   "trustedCertScreenTitle": "Vertrouwde certificaten",

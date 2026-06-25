@@ -1,5 +1,9 @@
 {
   "@@locale": "fi",
+  "siteSettingsExternalLinksInBrowser": "Avaa ulkoiset linkit selaimessa",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Avaa Ulkoiset Linkit Selaimessa",
+  "siteSettingsExternalLinksInBrowserHint": "Kun tämä on käytössä, tämän sivuston verkkotunnusten ulkopuolelle osoittava linkki avautuu laitteesi oletusselaimessa sovelluksen sijaan. Linkit verkkotunnuksiin, joita tämä sivusto vaatii, avautuvat edelleen sovelluksessa. Lisää verkkotunnuksia alla olevasta Verkkotunnusvaatimukset-kohdasta pitääksesi ne sovelluksessa.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Tämän sivuston verkkotunnusten ulkopuoliset linkit avautuvat oletusselaimessasi",
   "appTitle": "WebSpace",
   "commonCancel": "Peruuta",
   "trustedCertScreenTitle": "Luotetut varmenteet",

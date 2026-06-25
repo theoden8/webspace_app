@@ -1,5 +1,9 @@
 {
   "@@locale": "zh_Hant",
+  "siteSettingsExternalLinksInBrowser": "在瀏覽器中開啟外部連結",
+  "siteSettingsExternalLinksInBrowserHintTitle": "在瀏覽器中開啟外部連結",
+  "siteSettingsExternalLinksInBrowserHint": "開啟後，指向本網站網域之外的連結將在裝置的預設瀏覽器中開啟，而非在應用程式內開啟。指向本網站宣告之網域的連結仍會在應用程式內開啟。在下方的「網域宣告」中新增更多網域，即可讓它們繼續在應用程式內開啟。",
+  "siteSettingsExternalLinksInBrowserSubtitle": "本網站網域之外的連結將在你的預設瀏覽器中開啟",
   "appTitle": "WebSpace",
   "commonCancel": "取消",
   "trustedCertScreenTitle": "受信任的憑證",

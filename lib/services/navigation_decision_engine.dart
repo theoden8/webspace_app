@@ -19,6 +19,13 @@ enum NavigationDecision {
   /// Cancel the navigation and hand the URL to an `InAppBrowser` nested
   /// webview.
   blockOpenNested,
+
+  /// Cancel the navigation and hand the URL to the system's default
+  /// browser (or whichever app handles http/https). Selected when the
+  /// site has `externalLinksInBrowser` on and the cross-domain target is
+  /// not covered by the site's domain claims — the user asked for links
+  /// outside this site to leave WebSpace entirely.
+  blockOpenExternal,
 }
 
 /// How the caller should update its stored `lastSameDomainGestureTime`
@@ -101,6 +108,7 @@ class OnUrlChangedState {
 /// wires this back into its native / widget world:
 ///   * if [navigateBackTo] != null → `controller.loadUrl(navigateBackTo)`
 ///   * if [launchNestedUrl] != null → push an `InAppBrowser` at that URL
+///   * if [launchExternalUrl] != null → hand that URL to the system browser
 ///   * swap [state] into the webview's closure-level state
 ///   * if [gestureUpdate] != null → apply to `lastSameDomainGestureTime`
 ///   * [decision] is exposed for logging; null means "no decision made
@@ -109,6 +117,7 @@ class OnUrlChangedHandled {
   final NavigationDecision? decision;
   final String? navigateBackTo;
   final String? launchNestedUrl;
+  final String? launchExternalUrl;
   final OnUrlChangedState state;
   final GestureStateUpdate? gestureUpdate;
 
@@ -116,6 +125,7 @@ class OnUrlChangedHandled {
     required this.decision,
     required this.navigateBackTo,
     required this.launchNestedUrl,
+    this.launchExternalUrl,
     required this.state,
     required this.gestureUpdate,
   });
@@ -165,6 +175,8 @@ class NavigationDecisionEngine {
     required bool isSiteActive,
     required DateTime? lastSameDomainGestureTime,
     required DateTime now,
+    bool externalLinksInBrowser = false,
+    bool Function(String url)? matchesSiteClaim,
   }) {
     if (targetUrl == 'about:blank' || targetUrl == 'about:srcdoc') {
       return const NavigationDecisionResult(NavigationDecision.allow);
@@ -199,6 +211,9 @@ class NavigationDecisionEngine {
     if (!isSiteActive) {
       return NavigationDecisionResult(NavigationDecision.blockSuppressed, gestureUpdate);
     }
+    if (externalLinksInBrowser && !(matchesSiteClaim?.call(targetUrl) ?? false)) {
+      return NavigationDecisionResult(NavigationDecision.blockOpenExternal, gestureUpdate);
+    }
     return NavigationDecisionResult(NavigationDecision.blockOpenNested, gestureUpdate);
   }
 
@@ -225,6 +240,8 @@ class NavigationDecisionEngine {
     required DateTime? lastSameDomainGestureTime,
     required DateTime now,
     required bool Function(String url) isCaptchaChallenge,
+    bool externalLinksInBrowser = false,
+    bool Function(String url)? matchesSiteClaim,
   }) {
     final scheme = Uri.tryParse(newUrl)?.scheme ?? '';
     if (scheme == 'data' || scheme == 'blob' || scheme == 'about') {
@@ -256,6 +273,9 @@ class NavigationDecisionEngine {
     if (!isSiteActive) {
       return NavigationDecisionResult(NavigationDecision.blockSuppressed, gestureUpdate);
     }
+    if (externalLinksInBrowser && !(matchesSiteClaim?.call(newUrl) ?? false)) {
+      return NavigationDecisionResult(NavigationDecision.blockOpenExternal, gestureUpdate);
+    }
     return NavigationDecisionResult(NavigationDecision.blockOpenNested, gestureUpdate);
   }
 
@@ -285,6 +305,8 @@ class NavigationDecisionEngine {
     required DateTime now,
     required bool Function(String url) isCaptchaChallenge,
     required OnUrlChangedState state,
+    bool externalLinksInBrowser = false,
+    bool Function(String url)? matchesSiteClaim,
   }) {
     final initDomain = getNormalizedDomain(initUrl);
     final urlDomain = getNormalizedDomain(newUrl);
@@ -298,15 +320,20 @@ class NavigationDecisionEngine {
         lastSameDomainGestureTime: lastSameDomainGestureTime,
         now: now,
         isCaptchaChallenge: isCaptchaChallenge,
+        externalLinksInBrowser: externalLinksInBrowser,
+        matchesSiteClaim: matchesSiteClaim,
       );
       if (result.decision != NavigationDecision.allow) {
         final navigateBackTo = state.previousSameDomainUrl ?? initUrl;
         final launchNestedUrl =
             result.decision == NavigationDecision.blockOpenNested ? newUrl : null;
+        final launchExternalUrl =
+            result.decision == NavigationDecision.blockOpenExternal ? newUrl : null;
         return OnUrlChangedHandled(
           decision: result.decision,
           navigateBackTo: navigateBackTo,
           launchNestedUrl: launchNestedUrl,
+          launchExternalUrl: launchExternalUrl,
           state: state.copyWith(redirectHandled: true),
           gestureUpdate: result.gestureUpdate,
         );

@@ -1,5 +1,9 @@
 {
   "@@locale": "gu",
+  "siteSettingsExternalLinksInBrowser": "બાહ્ય લિંક્સ બ્રાઉઝરમાં ખોલો",
+  "siteSettingsExternalLinksInBrowserHintTitle": "બાહ્ય લિંક્સ બ્રાઉઝરમાં ખોલો",
+  "siteSettingsExternalLinksInBrowserHint": "જ્યારે ચાલુ હોય, ત્યારે આ સાઇટના ડોમેન્સની બહાર નિર્દેશ કરતી લિંક એપ્લિકેશનની અંદરને બદલે તમારા ઉપકરણના ડિફૉલ્ટ બ્રાઉઝરમાં ખુલે છે. આ સાઇટ જે ડોમેન્સનો દાવો કરે છે તેની લિંક્સ હજુ પણ એપ્લિકેશનમાં ખુલે છે. તેમને એપ્લિકેશનમાં રાખવા માટે નીચે ડોમેન દાવાઓ હેઠળ વધારાના ડોમેન્સ ઉમેરો.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "આ સાઇટના ડોમેન્સની બહારની લિંક્સ તમારા ડિફૉલ્ટ બ્રાઉઝરમાં ખુલે છે",
   "appTitle": "WebSpace",
   "commonCancel": "રદ કરો",
   "trustedCertScreenTitle": "વિશ્વસનીય પ્રમાણપત્રો",

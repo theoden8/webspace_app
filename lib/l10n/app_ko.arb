@@ -1,5 +1,9 @@
 {
   "@@locale": "ko",
+  "siteSettingsExternalLinksInBrowser": "외부 링크를 브라우저에서 열기",
+  "siteSettingsExternalLinksInBrowserHintTitle": "외부 링크를 브라우저에서 열기",
+  "siteSettingsExternalLinksInBrowserHint": "켜면 이 사이트의 도메인을 벗어나는 링크가 앱 내부 대신 기기의 기본 브라우저에서 열립니다. 이 사이트가 소유하는 도메인의 링크는 계속 앱에서 열립니다. 추가 도메인을 앱에서 열려면 아래의 도메인 소유권에 추가하세요.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "이 사이트의 도메인을 벗어나는 링크가 기본 브라우저에서 열립니다",
   "appTitle": "WebSpace",
   "commonCancel": "취소",
   "trustedCertScreenTitle": "신뢰하는 인증서",

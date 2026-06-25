@@ -1,5 +1,9 @@
 {
   "@@locale": "la",
+  "siteSettingsExternalLinksInBrowser": "Nexus externos in navigatro aperire",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Nexus Externos in Navigatro Aperire",
+  "siteSettingsExternalLinksInBrowserHint": "Cum activum est, nexus qui extra dominia huius situs ducit in navigatro praedefinito instrumenti tui aperitur, non intra applicationem. Nexus ad dominia quae hic situs sibi vindicat adhuc in applicatione aperiuntur. Dominia addita infra sub Vindicationibus dominiorum adde ut in applicatione maneant.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Nexus extra dominia huius situs in navigatro praedefinito tuo aperiuntur",
   "appTitle": "WebSpace",
   "commonCancel": "Cancellare",
   "trustedCertScreenTitle": "Diplomata fida",

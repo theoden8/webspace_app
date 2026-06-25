@@ -1,5 +1,9 @@
 {
   "@@locale": "ar",
+  "siteSettingsExternalLinksInBrowser": "فتح الروابط الخارجية في المتصفح",
+  "siteSettingsExternalLinksInBrowserHintTitle": "فتح الروابط الخارجية في المتصفح",
+  "siteSettingsExternalLinksInBrowserHint": "عند التفعيل، يُفتح أي رابط يشير إلى خارج نطاقات هذا الموقع في المتصفح الافتراضي لجهازك بدلاً من داخل التطبيق. أما الروابط المؤدية إلى النطاقات التي يطالب بها هذا الموقع فتظل تُفتح داخل التطبيق. أضف نطاقات إضافية ضمن مطالبات النطاق أدناه للإبقاء عليها داخل التطبيق.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "تُفتح الروابط الخارجة عن نطاقات هذا الموقع في متصفحك الافتراضي",
   "appTitle": "WebSpace",
   "commonCancel": "إلغاء",
   "trustedCertScreenTitle": "الشهادات الموثوقة",

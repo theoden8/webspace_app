@@ -1,5 +1,9 @@
 {
   "@@locale": "cs",
+  "siteSettingsExternalLinksInBrowser": "Otevírat externí odkazy v prohlížeči",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Otevírat Externí Odkazy v Prohlížeči",
+  "siteSettingsExternalLinksInBrowserHint": "Když je tato možnost zapnutá, odkaz směřující mimo domény tohoto webu se otevře ve výchozím prohlížeči zařízení místo uvnitř aplikace. Odkazy na domény, které tento web nárokuje, se i nadále otevírají v aplikaci. Chcete-li je ponechat v aplikaci, přidejte další domény v sekci Nárokované domény níže.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Odkazy mimo domény tohoto webu se otevírají ve vašem výchozím prohlížeči",
   "appTitle": "WebSpace",
   "commonCancel": "Zrušit",
   "trustedCertScreenTitle": "Důvěryhodné certifikáty",

@@ -13,7 +13,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
-import 'package:webspace/web_view_model.dart' show extractDomain;
+import 'package:webspace/web_view_model.dart' show extractDomain, getNormalizedDomain;
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -67,6 +67,12 @@ class InAppWebViewScreen extends StatefulWidget {
   final UserProxySettings proxySettings;
   final bool notificationsEnabled;
 
+  /// Inherited from the site that opened this nested webview. When true, a
+  /// user-tapped cross-domain link leaves WebSpace for the system browser
+  /// instead of navigating in-place (NESTED-009). Cross-domain is judged
+  /// against the page currently shown in this nested webview.
+  final bool externalLinksInBrowser;
+
   InAppWebViewScreen({
     required this.url,
     this.homeTitle,
@@ -99,6 +105,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.onShowUrlBarChanged,
     UserProxySettings? proxySettings,
     this.notificationsEnabled = false,
+    this.externalLinksInBrowser = false,
   }) : proxySettings = proxySettings ??
             UserProxySettings(type: ProxyType.DEFAULT);
 
@@ -256,6 +263,23 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             });
           }
         },
+        // NESTED-009: when the opening site routes external links to the
+        // system browser, a user-tapped cross-domain link here leaves
+        // WebSpace instead of navigating in-place. Same-domain navigation
+        // and script-initiated (no-gesture) loads stay in this webview.
+        // Null when off, so default behaviour is byte-identical.
+        shouldOverrideUrlLoading: widget.externalLinksInBrowser
+            ? (url, hasGesture) {
+                if (!hasGesture) return true;
+                final scheme = Uri.tryParse(url)?.scheme ?? '';
+                if (scheme != 'http' && scheme != 'https') return true;
+                if (getNormalizedDomain(url) == getNormalizedDomain(_currentUrl)) {
+                  return true;
+                }
+                launchUrlInSystemBrowser(url);
+                return false;
+              }
+            : null,
         onWindowRequested: _showPopupWindow,
         onUntrustedCertificate: (host, port, cert) async {
           if (!mounted) return false;

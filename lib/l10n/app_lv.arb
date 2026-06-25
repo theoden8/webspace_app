@@ -1,5 +1,9 @@
 {
   "@@locale": "lv",
+  "siteSettingsExternalLinksInBrowser": "Atvērt ārējās saites pārlūkprogrammā",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Atvērt Ārējās Saites Pārlūkprogrammā",
+  "siteSettingsExternalLinksInBrowserHint": "Kad ieslēgts, saite, kas ved ārpus šīs vietnes domēniem, tiek atvērta jūsu ierīces noklusējuma pārlūkprogrammā, nevis lietotnē. Saites uz domēniem, ko šī vietne uzskata par savējiem, joprojām tiek atvērtas lietotnē. Lai papildu domēnus paturētu lietotnē, pievienojiet tos zemāk sadaļā “Domēnu piederība”.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Saites ārpus šīs vietnes domēniem tiek atvērtas jūsu noklusējuma pārlūkprogrammā",
   "appTitle": "WebSpace",
   "commonCancel": "Atcelt",
   "trustedCertScreenTitle": "Uzticamie sertifikāti",

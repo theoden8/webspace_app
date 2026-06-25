@@ -1,5 +1,9 @@
 {
   "@@locale": "ja",
+  "siteSettingsExternalLinksInBrowser": "外部リンクをブラウザで開く",
+  "siteSettingsExternalLinksInBrowserHintTitle": "外部リンクをブラウザで開く",
+  "siteSettingsExternalLinksInBrowserHint": "オンにすると、このサイトのドメイン外を指すリンクは、アプリ内ではなくデバイスの既定のブラウザで開きます。このサイトが申告するドメインへのリンクは引き続きアプリ内で開きます。アプリ内で開いたままにするには、下の「ドメインの申告」で追加のドメインを登録してください。",
+  "siteSettingsExternalLinksInBrowserSubtitle": "このサイトのドメイン外へのリンクは既定のブラウザで開きます",
   "appTitle": "WebSpace",
   "commonCancel": "キャンセル",
   "trustedCertScreenTitle": "信頼された証明書",

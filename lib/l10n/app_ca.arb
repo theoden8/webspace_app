@@ -1,5 +1,9 @@
 {
   "@@locale": "ca",
+  "siteSettingsExternalLinksInBrowser": "Obre els enllaços externs al navegador",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Obre els Enllaços Externs al Navegador",
+  "siteSettingsExternalLinksInBrowserHint": "Quan està activat, un enllaç que apunta fora dels dominis d'aquest lloc s'obre al navegador per defecte del dispositiu en lloc de dins de l'aplicació. Els enllaços a dominis que aquest lloc reclama continuen obrint-se a l'aplicació. Afegeix dominis addicionals a Reclamacions de domini més avall per mantenir-los a l'aplicació.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Els enllaços fora dels dominis d'aquest lloc s'obren al teu navegador per defecte",
   "appTitle": "WebSpace",
   "commonCancel": "Cancel·la",
   "trustedCertScreenTitle": "Certificats de confiança",

@@ -1836,6 +1836,22 @@
   "@siteSettingsBlockAutoRedirectsSubtitle": {
     "description": "Subtitle for the Block Auto-Redirects switch."
   },
+  "siteSettingsExternalLinksInBrowser": "Open external links in browser",
+  "@siteSettingsExternalLinksInBrowser": {
+    "description": "Switch label for a per-site setting that opens links pointing outside the site in the device's default web browser."
+  },
+  "siteSettingsExternalLinksInBrowserHintTitle": "Open External Links in Browser",
+  "@siteSettingsExternalLinksInBrowserHintTitle": {
+    "description": "Hint dialog title for the Open External Links in Browser feature."
+  },
+  "siteSettingsExternalLinksInBrowserHint": "When on, a link that points outside this site's domains opens in your device's default browser instead of inside the app. Links to domains this site claims still open in the app. Add extra domains under Domain claims below to keep them in the app.",
+  "@siteSettingsExternalLinksInBrowserHint": {
+    "description": "Hint body explaining that off-site links open externally while claimed domains stay in the app."
+  },
+  "siteSettingsExternalLinksInBrowserSubtitle": "Links outside this site's domains open in your default browser",
+  "@siteSettingsExternalLinksInBrowserSubtitle": {
+    "description": "Subtitle for the Open External Links in Browser switch."
+  },
   "siteSettingsFullscreen": "Full screen mode",
   "@siteSettingsFullscreen": {
     "description": "Switch label for full screen mode."

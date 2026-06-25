@@ -82,6 +82,25 @@ class LinkRoutingService {
     }
   }
 
+  /// Whether [url] is covered by any of [claims]. Same scoring as
+  /// [resolve], collapsed to a boolean: used by the outbound navigation
+  /// path to decide whether a cross-domain link still belongs to the
+  /// site (a claimed domain stays in-app) or should leave for the system
+  /// browser when `externalLinksInBrowser` is on. Non-http(s) or
+  /// hostless URLs never match.
+  static bool urlMatchesAnyClaim(Uri url, List<DomainClaim> claims) {
+    if (url.scheme != 'http' && url.scheme != 'https') return false;
+    if (url.host.isEmpty) return false;
+    final host = url.host.toLowerCase();
+    final base = getBaseDomain(host);
+    final hostKey = hostAuthority(url);
+    final defaultPort = !url.hasPort;
+    for (final claim in claims) {
+      if (_score(claim, hostKey, host, base, defaultPort) > 0) return true;
+    }
+    return false;
+  }
+
   static RoutingMatch resolve(Uri url, List<RoutableSite> sites) {
     if (url.scheme != 'http' && url.scheme != 'https') {
       return const RoutingNone();

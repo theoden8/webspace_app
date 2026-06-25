@@ -1,5 +1,9 @@
 {
   "@@locale": "ms",
+  "siteSettingsExternalLinksInBrowser": "Buka pautan luar dalam pelayar",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Buka Pautan Luar dalam Pelayar",
+  "siteSettingsExternalLinksInBrowserHint": "Apabila dihidupkan, pautan yang menghala ke luar domain tapak ini akan dibuka dalam pelayar lalai peranti anda dan bukannya di dalam apl. Pautan ke domain yang dituntut oleh tapak ini masih dibuka dalam apl. Tambah domain tambahan di bawah Tuntutan domain untuk mengekalkannya dalam apl.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Pautan di luar domain tapak ini dibuka dalam pelayar lalai anda",
   "appTitle": "WebSpace",
   "commonCancel": "Batal",
   "trustedCertScreenTitle": "Sijil dipercayai",

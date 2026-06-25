@@ -1,5 +1,9 @@
 {
   "@@locale": "ka",
+  "siteSettingsExternalLinksInBrowser": "გარე ბმულების ბრაუზერში გახსნა",
+  "siteSettingsExternalLinksInBrowserHintTitle": "გარე ბმულების ბრაუზერში გახსნა",
+  "siteSettingsExternalLinksInBrowserHint": "ჩართვისას ამ საიტის დომენების გარეთ მიმავალი ბმული იხსნება თქვენი მოწყობილობის ნაგულისხმევ ბრაუზერში და არა აპლიკაციის შიგნით. ბმულები იმ დომენებზე, რომლებსაც ეს საიტი აცხადებს, კვლავ აპლიკაციაში იხსნება. დაამატეთ დამატებითი დომენები ქვემოთ განყოფილებაში „დომენების მოთხოვნები“, რომ ისინი აპლიკაციაში შენარჩუნდეს.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "ამ საიტის დომენების გარეთ ბმულები იხსნება თქვენს ნაგულისხმევ ბრაუზერში",
   "appTitle": "WebSpace",
   "commonCancel": "გაუქმება",
   "trustedCertScreenTitle": "სანდო სერტიფიკატები",

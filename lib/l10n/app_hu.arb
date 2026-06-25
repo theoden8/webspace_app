@@ -1,5 +1,9 @@
 {
   "@@locale": "hu",
+  "siteSettingsExternalLinksInBrowser": "Külső hivatkozások megnyitása böngészőben",
+  "siteSettingsExternalLinksInBrowserHintTitle": "Külső Hivatkozások Megnyitása Böngészőben",
+  "siteSettingsExternalLinksInBrowserHint": "Ha be van kapcsolva, az ezen webhely domainjein kívülre mutató hivatkozás az alkalmazás helyett az eszköz alapértelmezett böngészőjében nyílik meg. A webhely által igényelt domainekre mutató hivatkozások továbbra is az alkalmazásban nyílnak meg. Adjon hozzá további domaineket lent a \"Domainigények\" alatt, hogy azok az alkalmazásban maradjanak.",
+  "siteSettingsExternalLinksInBrowserSubtitle": "Az ezen webhely domainjein kívüli hivatkozások az alapértelmezett böngészőben nyílnak meg",
   "appTitle": "WebSpace",
   "commonCancel": "Mégse",
   "trustedCertScreenTitle": "Megbízható tanúsítványok",
