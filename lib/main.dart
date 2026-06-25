@@ -5282,6 +5282,17 @@ class _WebSpacePageState extends State<WebSpacePage>
     return _webViewModels[_currentIndex!].getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts);
   }
 
+  /// Navigate the visible webview back one history entry, then recomposite the
+  /// Android surface. A back/forward-cache restore re-attaches a fresh
+  /// hybrid-composition SurfaceView that can come back blank-white, and back
+  /// navigation passes through neither `_setCurrentIndex` nor `onControllerReady`
+  /// (the existing nudge chokepoints), so it would otherwise stay uncovered.
+  /// No-op off Android.
+  Future<void> _goBackAndRepaint(WebViewController controller) async {
+    await controller.goBack();
+    _nudgeSurfaceRepaint();
+  }
+
   /// User-driven reload of the current site (Refresh button, Clear-cookies).
   /// Delegates to [WebViewModel.userDrivenReload] which drops the
   /// HtmlCacheService snapshot and the chromium HTTP cache before the
@@ -5617,7 +5628,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                             if (controller != null) {
                               final canGoBack = await controller.canGoBack();
                               if (canGoBack) {
-                                await controller.goBack();
+                                await _goBackAndRepaint(controller);
                               }
                             }
                           }();
@@ -6040,7 +6051,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                       if (controller != null) {
                         final canGoBack = await controller.canGoBack();
                         if (canGoBack) {
-                          await controller.goBack();
+                          await _goBackAndRepaint(controller);
                         }
                       }
                     }();
@@ -7443,7 +7454,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           // hasn't propagated within the timeout.
           if (Platform.isAndroid) {
             if (await controller.canGoBack()) {
-              await controller.goBack();
+              await _goBackAndRepaint(controller);
               LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');
             } else {
               LogService.instance.log('Navigation', 'Back gesture: no history, ignoring');

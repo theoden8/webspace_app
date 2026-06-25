@@ -541,6 +541,20 @@ The host SHALL set `WebViewModel.onControllerReady` for each loaded model in the
 
 ---
 
+### Requirement: PAUSE-018 — Surface Repaint After Back/Forward Navigation
+
+On Android, the system SHALL recomposite the surface after a user-driven back navigation of the visible webview. A back/forward-cache restore (the `backForwardCacheEnabled` perf pref defaults on) re-attaches a fresh hybrid-composition `SurfaceView` for the restored page, which can come back blank — rendering **white** like the PAUSE-017 fresh-controller case. Back navigation reuses the existing controller and stays on the same site, so it passes through neither `_setCurrentIndex` (PAUSE-015) nor `onControllerReady` (PAUSE-017) and was uncovered.
+
+Every back-navigation call site on the visible webview SHALL route through `_goBackAndRepaint`, which awaits `controller.goBack()` then fires `_nudgeSurfaceRepaint`. This covers the back gesture and the AppBar back button. The nudge is a no-op off Android and harmless when the page was not served from bfcache.
+
+#### Scenario: Back gesture restores a bfcached page
+
+**Given** a site is visible on Android and the user has navigated forward at least once
+**When** the user triggers the back gesture and the page is restored from back/forward cache
+**Then** `_goBackAndRepaint` runs `goBack` then `_nudgeSurfaceRepaint`, recompositing the restored surface instead of leaving it blank-white
+
+---
+
 ### Requirement: PAUSE-016 — Android Per-Instance Pause Is a No-Op
 
 On Android the per-instance `pause()` / `resume()` (`WebView.onPause()` / `onResume()`) SHALL be no-ops. Android exposes no per-instance JavaScript pause — `onPause()` halts only animations and geolocation and explicitly does not pause JS, while the only JS-timer pause (`pauseTimers()`) is process-global. So per-instance pause contributes nothing to the lifecycle freeze, yet cycling the foreground hybrid-composition `SurfaceView` through onPause/onResume re-attaches it blank on the next paint — the white screen the user hits after a transient background or a navigation that follows a resume.
