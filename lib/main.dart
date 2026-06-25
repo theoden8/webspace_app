@@ -42,6 +42,7 @@ import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/archive.dart';
@@ -964,10 +965,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   // forces Android hybrid-composition platform views to recomposite after
   // the activity is recreated (shortcut/resume). Always false in steady state.
   bool _repaintNudge = false;
-  // Drive _nudgeSurfaceRepaint's loop so concurrent callers coalesce instead
-  // of starting interleaving loops that toggle _repaintNudge against each other.
-  int _nudgeTicksRemaining = 0;
-  bool _nudgeLoopRunning = false;
+  // Coalescing tick machine for _nudgeSurfaceRepaint. Pure-Dart engine (no
+  // Timer/setState); the host drives the clock and renders _repaintNudge from
+  // its tick output. See lib/services/surface_repaint_engine.dart and
+  // formal/kernel.tla (RepaintLiveness).
+  final SurfaceRepaintEngine _surfaceRepaint = SurfaceRepaintEngine();
   /// When true, a full-screen opaque mask covers every webview so the
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
   /// content (ARCH-009). Set on `inactive`/`paused` when at least one
@@ -1631,26 +1633,19 @@ class _WebSpacePageState extends State<WebSpacePage>
   void _nudgeSurfaceRepaint() {
     if (!Platform.isAndroid) return;
     // Coalesce concurrent callers (e.g. _setCurrentIndex from a warm-shortcut
-    // _openShortcutIndex, then _onResumed's tail call) onto a single loop:
-    // two interleaving loops toggle the same bool and can cancel out mid-flip.
-    // A second call just refills the remaining ticks.
-    _nudgeTicksRemaining = 6;
-    if (_nudgeLoopRunning) return;
-    _nudgeLoopRunning = true;
+    // _openShortcutIndex, then _onResumed's tail call) onto a single loop: the
+    // engine refills the tick budget and reports whether a loop is already
+    // running, so two interleaving loops can't toggle the inset against each
+    // other. Settling at a zero inset on an odd refill is the engine's job.
+    if (!_surfaceRepaint.request()) return;
     void tick() {
-      if (!mounted || _nudgeTicksRemaining <= 0) {
-        _nudgeLoopRunning = false;
-        // Always settle at a zero inset. The plain toggle leaves the 1px inset
-        // applied when the tick budget is refilled mid-loop (the coalesced
-        // shortcut + resume case) lands on an odd total, which would otherwise
-        // leave a thin dark sliver between the webview and the tab strip.
-        if (mounted && _repaintNudge) {
-          setState(() => _repaintNudge = false);
-        }
+      if (!mounted) {
+        _surfaceRepaint.abort();
         return;
       }
-      _nudgeTicksRemaining--;
-      setState(() => _repaintNudge = !_repaintNudge);
+      final t = _surfaceRepaint.tick();
+      setState(() => _repaintNudge = t.inset);
+      if (t.done) return;
       Future.delayed(const Duration(milliseconds: 100), tick);
     }
     tick();
