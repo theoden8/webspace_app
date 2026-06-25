@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# Run the formal verification kernel. Fetches tla2tools.jar if absent.
-#   - kernel.cfg                  (good composition)        MUST pass
-#   - kernel_conflict_repaint.cfg (liveness non-mix, BUG-001) MUST violate RepaintLiveness
-#   - kernel_conflict_evict.cfg   (safety non-mix)          MUST violate Inv_CurrentLoaded
+# Per-requirement test matrix for the verification kernel. Fetches tla2tools.jar
+# if absent, then runs three classes of check:
+#
+#   GOOD      kernel.cfg                  -> all properties hold
+#   NEGATIVE  *_conflict_*.cfg            -> a mutation MUST be caught (anti-vacuity:
+#                                            proves the invariant actually constrains)
+#   POSITIVE  *_reach_*.cfg               -> a reachability witness MUST be violated
+#                                            (anti-inertness: proves the legal behavior
+#                                            the green checks rely on is reachable)
+#
 # Exit non-zero if any expectation is unmet. CI-wireable.
 set -euo pipefail
 
@@ -17,10 +23,11 @@ fi
 
 run() { java -cp "$JAR" tlc2.TLC -config "$1" kernel.tla 2>&1; }
 
-expect() { # <cfg> <grep-pattern> <human-label>
+# expect <cfg> <grep-pattern> <human-label>
+expect() {
   local out; out="$(run "$1" || true)"
   if echo "$out" | grep -q "$2"; then
-    echo "  OK: $3"
+    printf '  OK   %-34s %s\n' "$1" "$3"
   else
     echo "$out" | tail -30
     echo "FAIL: $1 did not produce expected outcome ($3)" >&2
@@ -28,15 +35,21 @@ expect() { # <cfg> <grep-pattern> <human-label>
   fi
 }
 
-echo "── good composition (kernel.cfg): expect PASS ──"
+echo "── GOOD: full composition holds ──"
 expect kernel.cfg "No error has been found" "all properties hold"
 
-echo "── liveness non-mix (kernel_conflict_repaint.cfg): expect RepaintLiveness VIOLATED ──"
+echo "── NEGATIVE: each mutation is caught ──"
 expect kernel_conflict_repaint.cfg "Temporal properties were violated" \
-  "bypass route correctly fails to mix (liveness counterexample)"
-
-echo "── safety non-mix (kernel_conflict_evict.cfg): expect Inv_CurrentLoaded VIOLATED ──"
+  "bypass route → RepaintLiveness violated (liveness non-mix)"
 expect kernel_conflict_evict.cfg "Inv_CurrentLoaded is violated" \
-  "evict-current correctly fails to mix (safety counterexample)"
+  "evict-current → Inv_CurrentLoaded violated (safety non-mix)"
+
+echo "── POSITIVE: each legal behavior is reachable (witness violated) ──"
+expect kernel_reach_surface_attach.cfg "Reach_SurfaceAttach is violated" \
+  "a blank surface attach is reachable (RepaintLiveness not vacuous)"
+expect kernel_reach_site_switch.cfg "Reach_SiteSwitch is violated" \
+  "activating a non-initial site is reachable"
+expect kernel_reach_evict_bg.cfg "Reach_EvictBackground is violated" \
+  "evicting a backgrounded site is reachable"
 
 echo "All formal checks behaved as expected."

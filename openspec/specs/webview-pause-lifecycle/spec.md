@@ -7,6 +7,8 @@
 
 Defines how the app pauses and resumes webviews to save resources. The split between **per-instance** pause (used on site switch) and **process-global** pause (used on app lifecycle) is load-bearing: one of them is global on Android and would freeze unrelated webviews if used at the wrong call site.
 
+**Formal model:** the surface-repaint requirements `PAUSE-013`…`PAUSE-018` are model-checked in [formal/kernel.tla](../../../formal/kernel.tla) as the `RepaintLiveness` property ("every blank-surface attach is eventually repainted"). See [formal/README.md](../../../formal/README.md) and [docs/bugs/001-white-screen.md](../../../docs/bugs/001-white-screen.md).
+
 ## Problem Statement
 
 `flutter_inappwebview` exposes two pause primitives that look interchangeable but are not:

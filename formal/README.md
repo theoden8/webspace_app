@@ -62,6 +62,24 @@ The demonstrators' counterexamples are the point. The repaint one is a lasso end
 showing the exact interleaving that wedges the screen. The evict one is a short trace
 reaching a state where `currentIndex \notin loaded`.
 
+## Testing the model itself (per-requirement matrix)
+
+A model can be wrong: vacuously true, over-constrained, or asserting a mis-stated invariant.
+`check.sh` is a two-sided test matrix that guards against this — the same red/green discipline
+as code tests, applied to the model:
+
+- **NEGATIVE (anti-vacuity)** — `*_conflict_*.cfg`. A deliberate mutation that breaks a
+  requirement MUST be caught. Proves the invariant actually *constrains* something rather than
+  holding for free. `bypass` → `RepaintLiveness` violated; `evict` → `Inv_CurrentLoaded` violated.
+- **POSITIVE (anti-inertness)** — `*_reach_*.cfg`. A reachability witness (`Reach_*`) used as an
+  invariant that MUST be violated, so TLC's counterexample *is* the proof that the legal behavior
+  the green checks rely on is reachable. Guards against a model that satisfies everything because
+  nothing happens (a blank attach never occurs, a site is never switched, nothing is evicted).
+
+Each requirement contributes a (positive witness, negative mutation) pair. A green safety/liveness
+check is only meaningful alongside a passing positive witness — otherwise it may be vacuous. The
+remaining gap (model faithful to the *code*, not just the *spec*) is closed by trace conformance.
+
 ## How a module is structured (rely-guarantee)
 
 ```

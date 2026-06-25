@@ -4,6 +4,8 @@
 
 Controls all in-app navigation: system back gesture, menu back/home buttons, drawer swipe gesture, and pull-to-refresh. Handles platform differences between iOS and Android, and guards async state against race conditions.
 
+**Formal model:** the back/forward navigation actions are composed into the cross-spec kernel [formal/kernel.tla](../../../formal/kernel.tla) (with `webview-pause-lifecycle` and `lazy-webview-loading`); the `Back`/`Forward` transitions must route through the repaint chokepoint or the kernel's `RepaintLiveness` fails (the `bypass` demonstrator).
+
 ## Status
 
 - **Date**: 2026-04-10

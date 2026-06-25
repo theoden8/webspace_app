@@ -176,4 +176,27 @@ Inv_CurrentLoaded == currentIndex \in loaded
 \* eventually repainted. Broken by the "bypass" demonstrator. This is the
 \* formal statement of BUG-001's fix.
 RepaintLiveness == [] (surface = "blank" => <> (surface = "painted"))
+
+(***************************************************************************)
+(* Model tests -- reachability witnesses (anti-vacuity).                   *)
+(*                                                                         *)
+(* A green safety/liveness check is only meaningful if the legal behavior  *)
+(* it constrains is actually REACHABLE -- otherwise the invariant holds    *)
+(* vacuously because nothing happens. Each witness below is used as an     *)
+(* INVARIANT in a config that EXPECTS A VIOLATION: TLC's counterexample is *)
+(* the scenario trace proving the behavior is reachable. If one of these   *)
+(* ever passes, the model has gone inert and its green checks are hollow.  *)
+(***************************************************************************)
+
+\* pause-lifecycle: a blank surface attach actually occurs (else RepaintLiveness
+\* is vacuous). Expect violated.
+Reach_SurfaceAttach == surface = "painted"
+
+\* navigation/lifecycle: a site other than the initial one can be activated.
+\* Expect violated.
+Reach_SiteSwitch == currentIndex = 1
+
+\* lazy-loading: a backgrounded (non-visible) site can be evicted while a
+\* different site is visible. Expect violated.
+Reach_EvictBackground == ~(currentIndex = 2 /\ 1 \notin loaded)
 =============================================================================
