@@ -10,11 +10,13 @@
 (* "Does a new spec mix?" is mechanical: add its actions to Next and its   *)
 (* invariant/property to the checked list, then re-run TLC. A reachable    *)
 (* violation = it does not mix, and the counterexample names the breaking  *)
-(* interleaving. The IncludeConflict knob below demonstrates exactly that. *)
+(* interleaving. The Conflict knob below demonstrates BOTH failure kinds:  *)
+(* a liveness non-mix ("bypass") and a safety non-mix ("evict").           *)
 (*                                                                         *)
 (* Modules currently composed:                                             *)
 (*   - webview-pause-lifecycle  (PAUSE-013..018; surface repaint)          *)
 (*   - navigation               (back/forward; bfcache re-attach)          *)
+(*   - lazy-webview-loading     (on-demand load + memory-pressure evict)   *)
 (*                                                                         *)
 (* Requirement IDs are cited on the actions/properties that encode them so *)
 (* spec <-> model traceability is grep-able.                               *)
@@ -22,8 +24,8 @@
 EXTENDS Naturals, FiniteSets
 
 CONSTANTS
-    N,                \* bounded number of sites (keeps the state space finite)
-    IncludeConflict   \* TRUE pulls in the demonstrator non-mixing module
+    N,         \* bounded number of sites (keeps the state space finite)
+    Conflict   \* "none" | "bypass" | "evict" -- selects a demonstrator non-mix
 
 Sites == 1..N
 
@@ -102,20 +104,46 @@ Forward ==
     /\ UNCHANGED << currentIndex, loaded, frozen >>
 
 (***************************************************************************)
-(* Conflict demonstrator (gated by IncludeConflict).                      *)
-(*                                                                         *)
-(* A back-navigation route that re-attaches the surface but is NOT wired   *)
-(* to the repaint chokepoint -- the literal BUG-001 failure (attempts 2-5  *)
-(* each left one such path). It preserves every SAFETY invariant, yet it   *)
-(* breaks the RepaintLiveness guarantee that pause-lifecycle relies on:    *)
-(* once it fires, the surface is wedged blank. This is what "does not mix" *)
-(* looks like for a liveness contract.                                     *)
+(* Module: lazy-webview-loading   (owns: loaded)                          *)
 (***************************************************************************)
+
+\* On-demand background load: add a site to the loaded set (no surface yet;
+\* the visible site's surface is the lifecycle module's concern).
+LoadSite(s) ==
+    /\ s \notin loaded
+    /\ loaded' = loaded \cup {s}
+    /\ UNCHANGED << surface, owed, currentIndex, frozen >>
+
+\* Memory-pressure eviction of a NON-visible loaded site. Guarantee: never
+\* the visible site -- that guarantee is what keeps Inv_CurrentLoaded true,
+\* and what navigation/pause-lifecycle rely on.
+Evict(s) ==
+    /\ s \in loaded
+    /\ s # currentIndex
+    /\ loaded' = loaded \ {s}
+    /\ UNCHANGED << surface, owed, currentIndex, frozen >>
+
+(***************************************************************************)
+(* Conflict demonstrators (gated by Conflict).                            *)
+(***************************************************************************)
+
+\* (bypass) A back route that re-attaches the surface but is NOT wired to the
+\* repaint chokepoint -- the literal BUG-001 failure (attempts 2-5 each left
+\* one such path). Preserves every SAFETY invariant, yet wedges the surface
+\* blank: a LIVENESS non-mix against pause-lifecycle's RepaintLiveness.
 BackBypass ==
     /\ surface' = "blank"
     /\ owed' = TRUE
     /\ frozen' = TRUE
     /\ UNCHANGED << currentIndex, loaded >>
+
+\* (evict) An eviction that drops the VISIBLE site -- lazy-loading forgetting
+\* its "never evict current" guarantee. A SAFETY non-mix: violates
+\* Inv_CurrentLoaded, the invariant navigation/lifecycle assume.
+EvictCurrent ==
+    /\ currentIndex \in loaded
+    /\ loaded' = loaded \ {currentIndex}
+    /\ UNCHANGED << surface, owed, currentIndex, frozen >>
 
 GoodNext ==
     \/ \E s \in Sites : Activate(s)
@@ -124,8 +152,12 @@ GoodNext ==
     \/ Back
     \/ Forward
     \/ Nudge
+    \/ \E s \in Sites : LoadSite(s)
+    \/ \E s \in Sites : Evict(s)
 
-Next == GoodNext \/ (IncludeConflict /\ BackBypass)
+Next == GoodNext
+        \/ (Conflict = "bypass" /\ BackBypass)
+        \/ (Conflict = "evict"  /\ EvictCurrent)
 
 \* Weak fairness on Nudge: a continuously-owed, non-frozen repaint must
 \* eventually fire. This is the formal counterpart of "_nudgeSurfaceRepaint
@@ -137,11 +169,11 @@ Spec == Init /\ [][Next]_vars /\ WF_vars(Nudge)
 (***************************************************************************)
 
 \* SAFETY (cross-module: navigation x lazy-loading): the visible site is
-\* always loaded. Holds in BOTH configs -- the conflict is a liveness, not
-\* a safety, non-mix.
+\* always loaded. Broken by the "evict" demonstrator.
 Inv_CurrentLoaded == currentIndex \in loaded
 
 \* LIVENESS (pause-lifecycle PAUSE-013..018): every blank-surface attach is
-\* eventually repainted. This is the formal statement of BUG-001's fix.
+\* eventually repainted. Broken by the "bypass" demonstrator. This is the
+\* formal statement of BUG-001's fix.
 RepaintLiveness == [] (surface = "blank" => <> (surface = "painted"))
 =============================================================================

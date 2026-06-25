@@ -31,13 +31,17 @@ class.
   state (`surface`, `owed`, `currentIndex`, `loaded`, …). Each coupled spec contributes a
   module: the state it owns, its actions, and the invariant it preserves. Requirement IDs
   (`PAUSE-018`, …) are cited on the actions/properties that encode them.
-  - Composed today: `webview-pause-lifecycle` (PAUSE-013..018) + `navigation`.
-- **`kernel.cfg`** — the good composition. Expect: all properties hold.
-- **`kernel_conflict.cfg`** — flips `IncludeConflict = TRUE`, pulling in `BackBypass`: a
-  back path that re-attaches the surface but bypasses the repaint chokepoint (the literal
-  BUG-001 failure). Expect: safety invariants still hold, `RepaintLiveness` **violated**.
-- **`check.sh`** — fetches `tla2tools.jar` if absent and runs both configs, asserting the
-  good one passes and the demonstrator fails. CI-wireable.
+  - Composed today: `webview-pause-lifecycle` (PAUSE-013..018) + `navigation` +
+    `lazy-webview-loading`. Good composition: 24 distinct states.
+- **`kernel.cfg`** — the good composition (`Conflict = "none"`). Expect: all properties hold.
+- **`kernel_conflict_repaint.cfg`** (`Conflict = "bypass"`) — a back path that re-attaches
+  the surface but bypasses the repaint chokepoint (the literal BUG-001 failure). Expect:
+  safety holds, `RepaintLiveness` **violated** (a LIVENESS non-mix, lasso counterexample).
+- **`kernel_conflict_evict.cfg`** (`Conflict = "evict"`) — lazy-loading evicts the *visible*
+  site, dropping its "never evict current" guarantee. Expect: `Inv_CurrentLoaded`
+  **violated** (a SAFETY non-mix). The two demonstrators show the gate catching both kinds.
+- **`check.sh`** — fetches `tla2tools.jar` if absent and runs all three configs, asserting
+  the good one passes and both demonstrators fail as expected. CI-wireable.
 
 ## Run it
 
@@ -48,13 +52,15 @@ class.
 Or directly:
 
 ```bash
-java -cp tla2tools.jar tlc2.TLC -config formal/kernel.cfg          formal/kernel.tla   # passes
-java -cp tla2tools.jar tlc2.TLC -config formal/kernel_conflict.cfg formal/kernel.tla   # liveness violated
+java -cp tla2tools.jar tlc2.TLC -config formal/kernel.cfg                  formal/kernel.tla  # passes
+java -cp tla2tools.jar tlc2.TLC -config formal/kernel_conflict_repaint.cfg formal/kernel.tla  # liveness violated
+java -cp tla2tools.jar tlc2.TLC -config formal/kernel_conflict_evict.cfg   formal/kernel.tla  # safety violated
 ```
 
-The demonstrator's counterexample (a lasso) is the point: it ends in
+The demonstrators' counterexamples are the point. The repaint one is a lasso ending in
 `surface = "blank"` stuttering forever after `BackBypass` sets `frozen = TRUE` — the model
-showing you exactly the interleaving that wedges the screen.
+showing the exact interleaving that wedges the screen. The evict one is a short trace
+reaching a state where `currentIndex \notin loaded`.
 
 ## How a module is structured (rely-guarantee)
 

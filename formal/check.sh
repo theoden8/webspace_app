@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Run the formal verification kernel. Fetches tla2tools.jar if absent.
-#   - kernel.cfg          (good composition)    MUST pass
-#   - kernel_conflict.cfg (non-mix demonstrator) MUST violate RepaintLiveness
-# Exit non-zero if either expectation is unmet. CI-wireable.
+#   - kernel.cfg                  (good composition)        MUST pass
+#   - kernel_conflict_repaint.cfg (liveness non-mix, BUG-001) MUST violate RepaintLiveness
+#   - kernel_conflict_evict.cfg   (safety non-mix)          MUST violate Inv_CurrentLoaded
+# Exit non-zero if any expectation is unmet. CI-wireable.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -16,24 +17,26 @@ fi
 
 run() { java -cp "$JAR" tlc2.TLC -config "$1" kernel.tla 2>&1; }
 
-echo "── good composition (kernel.cfg): expect PASS ──"
-good="$(run kernel.cfg)"
-if echo "$good" | grep -q "No error has been found"; then
-  echo "  OK: all properties hold"
-else
-  echo "$good" | tail -30
-  echo "FAIL: good composition did not pass" >&2
-  exit 1
-fi
+expect() { # <cfg> <grep-pattern> <human-label>
+  local out; out="$(run "$1" || true)"
+  if echo "$out" | grep -q "$2"; then
+    echo "  OK: $3"
+  else
+    echo "$out" | tail -30
+    echo "FAIL: $1 did not produce expected outcome ($3)" >&2
+    exit 1
+  fi
+}
 
-echo "── non-mix demonstrator (kernel_conflict.cfg): expect RepaintLiveness VIOLATED ──"
-bad="$(run kernel_conflict.cfg || true)"
-if echo "$bad" | grep -q "Temporal properties were violated"; then
-  echo "  OK: demonstrator correctly fails to mix (liveness counterexample produced)"
-else
-  echo "$bad" | tail -30
-  echo "FAIL: demonstrator did not produce the expected liveness violation" >&2
-  exit 1
-fi
+echo "── good composition (kernel.cfg): expect PASS ──"
+expect kernel.cfg "No error has been found" "all properties hold"
+
+echo "── liveness non-mix (kernel_conflict_repaint.cfg): expect RepaintLiveness VIOLATED ──"
+expect kernel_conflict_repaint.cfg "Temporal properties were violated" \
+  "bypass route correctly fails to mix (liveness counterexample)"
+
+echo "── safety non-mix (kernel_conflict_evict.cfg): expect Inv_CurrentLoaded VIOLATED ──"
+expect kernel_conflict_evict.cfg "Inv_CurrentLoaded is violated" \
+  "evict-current correctly fails to mix (safety counterexample)"
 
 echo "All formal checks behaved as expected."
