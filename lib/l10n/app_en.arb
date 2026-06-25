@@ -1123,6 +1123,58 @@
   "@appSettingsClearUrlsDownloadFailed": {
     "description": "Snackbar after ClearURLs rules download fails"
   },
+  "appSettingsFirefoxVersion": "Firefox version",
+  "@appSettingsFirefoxVersion": {
+    "description": "Title for the Firefox version entry that controls which Firefox version generated User-Agents use"
+  },
+  "appSettingsFirefoxVersionHint": "The \"randomize\" button in a site's User-Agent field produces Firefox User-Agents at the version shown here. This build ships with a Firefox version baked in. Tap update to fetch the current Firefox release version from Mozilla's published source over the network and refresh the generated User-Agents. The app never checks this automatically; it only contacts the network when you tap update.",
+  "@appSettingsFirefoxVersionHint": {
+    "description": "Hint dialog explaining the Firefox version control and that the update button is the only time the app accesses the network for this"
+  },
+  "appSettingsFirefoxVersionCurrent": "Firefox {version}",
+  "@appSettingsFirefoxVersionCurrent": {
+    "description": "Subtitle showing the current Firefox major version used for generated User-Agents",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsFirefoxVersionChecked": "Checked: {date}",
+  "@appSettingsFirefoxVersionChecked": {
+    "description": "Label showing when the Firefox version was last checked against Firefox source",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "appSettingsUpdateFirefoxVersion": "Update Firefox version",
+  "@appSettingsUpdateFirefoxVersion": {
+    "description": "Tooltip on the button that fetches the latest Firefox version over the network"
+  },
+  "appSettingsFirefoxVersionUpdated": "Updated to Firefox {version}",
+  "@appSettingsFirefoxVersionUpdated": {
+    "description": "Snackbar after the Firefox version is updated to a newer release",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsFirefoxVersionUnchanged": "Already current (Firefox {version})",
+  "@appSettingsFirefoxVersionUnchanged": {
+    "description": "Snackbar when the Firefox version is checked but already the latest",
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "appSettingsFirefoxVersionFailed": "Could not reach Firefox source",
+  "@appSettingsFirefoxVersionFailed": {
+    "description": "Snackbar when fetching the latest Firefox version over the network fails"
+  },
   "appSettingsDnsBlocklist": "DNS Blocklist",
   "@appSettingsDnsBlocklist": {
     "description": "Title for the DNS blocklist entry"

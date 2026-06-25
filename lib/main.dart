@@ -65,6 +65,7 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
@@ -633,6 +634,7 @@ void main() async {
       () => _runTimed('html', htmlInit),
       () => _runTimed('clearUrl', ClearUrlService.instance.initialize),
       () => _runTimed('dns', DnsBlockService.instance.initialize),
+      () => _runTimed('firefoxUa', FirefoxUserAgentService.instance.initialize),
       () => _runTimed('adblock', ContentBlockerService.instance.initialize),
       () => _runTimed('localCdn', LocalCdnService.instance.initialize),
       if (Platform.isAndroid)

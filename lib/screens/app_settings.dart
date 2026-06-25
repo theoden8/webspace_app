@@ -12,6 +12,7 @@ import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/widgets/root_messenger.dart';
@@ -137,6 +138,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late TextEditingController _osmTileUrlController;
   bool _isDownloadingRules = false;
   DateTime? _rulesLastUpdated;
+
+  bool _isUpdatingFirefoxVersion = false;
 
   // Timezone polygon dataset state (per-site "From picked location" timezone option)
   bool _isDownloadingTimezones = false;
@@ -621,6 +624,33 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           SnackBar(content: Text(loc.appSettingsClearUrlsDownloadFailed)),
         );
       }
+    }
+  }
+
+  Future<void> _updateFirefoxVersion() async {
+    setState(() {
+      _isUpdatingFirefoxVersion = true;
+    });
+
+    final result = await FirefoxUserAgentService.instance.refresh();
+
+    if (mounted) {
+      setState(() {
+        _isUpdatingFirefoxVersion = false;
+      });
+      final loc = AppLocalizations.of(context);
+      final version = FirefoxUserAgentService.instance.majorVersion;
+      final message = switch (result) {
+        FirefoxVersionRefreshResult.updated =>
+          loc.appSettingsFirefoxVersionUpdated(version),
+        FirefoxVersionRefreshResult.unchanged =>
+          loc.appSettingsFirefoxVersionUnchanged(version),
+        FirefoxVersionRefreshResult.failed =>
+          loc.appSettingsFirefoxVersionFailed,
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 
@@ -1349,6 +1379,47 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                         ? loc.appSettingsUpdateRules
                         : loc.appSettingsDownloadRules,
                     onPressed: _downloadRules,
+                  ),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.travel_explore),
+            title: Row(
+              children: [
+                Text(loc.appSettingsFirefoxVersion),
+                HintButton(
+                  title: loc.appSettingsFirefoxVersion,
+                  description: loc.appSettingsFirefoxVersionHint,
+                ),
+              ],
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(loc.appSettingsFirefoxVersionCurrent(
+                    FirefoxUserAgentService.instance.majorVersion)),
+                if (FirefoxUserAgentService.instance.lastChecked != null)
+                  Text(
+                    loc.appSettingsFirefoxVersionChecked(
+                      FirefoxUserAgentService.instance.lastChecked!
+                          .toLocal()
+                          .toString()
+                          .split('.')[0],
+                    ),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+              ],
+            ),
+            trailing: _isUpdatingFirefoxVersion
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.sync),
+                    tooltip: loc.appSettingsUpdateFirefoxVersion,
+                    onPressed: _updateFirefoxVersion,
                   ),
           ),
 

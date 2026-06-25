@@ -75,17 +75,69 @@ String navigatorPlatformFor(DesktopUaPlatform p) {
   }
 }
 
-/// Canonical Firefox desktop UA strings, exposed as named constants so
-/// tests have stable fixtures and so the same shape is reachable from
-/// any future caller that wants to seed the per-site UA field with a
-/// known-good desktop UA. Versioned to stay reasonably close to current
-/// Firefox; the rendered shape matches the project's existing
-/// `generateRandomUserAgent()` output.
+/// Major Firefox version baked into the build as the offline fallback.
+/// [FirefoxUserAgentService] overrides it at runtime once it scrapes the
+/// current release version from Firefox source; until then — and whenever
+/// the scrape fails or the network is unreachable — UA strings render with
+/// this version. It also acts as a floor: a scraped version older than this
+/// is ignored, so app upgrades never regress the UA.
+const int kDefaultFirefoxMajorVersion = 151;
+
+/// The OS descriptor (parenthetical token) for each Firefox desktop UA.
+const String kFirefoxLinuxPlatformToken = 'X11; Linux x86_64';
+const String kFirefoxMacosPlatformToken = 'Macintosh; Intel Mac OS X 10_15_7';
+const String kFirefoxWindowsPlatformToken = 'Windows NT 10.0; Win64; x64';
+
+/// Render a Firefox version number (e.g. `"151.0"`) from a [major] version.
+/// Firefox freezes the minor at `.0` in the UA regardless of point release.
+String firefoxVersionString(int major) => '$major.0';
+
+/// Build a Firefox **desktop** UA string for an OS [platformToken] (the
+/// parenthetical system descriptor, e.g. `"X11; Linux x86_64"`) at the given
+/// [version] (e.g. `"151.0"`). Single source of truth for the desktop UA
+/// shape, used both for the canonical constants below and by
+/// [FirefoxUserAgentService] to render UAs at the scraped current version.
+String buildFirefoxUserAgent(String platformToken, String version) =>
+    'Mozilla/5.0 ($platformToken; rv:$version) Gecko/20100101 Firefox/$version';
+
+/// OS version Firefox for Android emits in its UA. Mozilla freezes it (like
+/// the desktop macOS 10.15 freeze) to cut fingerprinting entropy, so the real
+/// device version never appears regardless of the handset's actual Android.
+const String kFirefoxAndroidOsToken = 'Android 10';
+
+/// Firefox-for-Android UA. Differs from desktop in two ways that matter to
+/// servers sniffing the string: the Gecko trail equals the version (desktop
+/// freezes it at `20100101`), and the OS token is frozen
+/// ([kFirefoxAndroidOsToken]).
+String buildFirefoxAndroidUserAgent(String version) =>
+    'Mozilla/5.0 ($kFirefoxAndroidOsToken; Mobile; rv:$version) '
+    'Gecko/$version Firefox/$version';
+
+/// Fixed tokens for the Firefox-for-iOS (FxiOS) UA. iOS mandates WebKit, so
+/// Firefox there is a Safari-shaped UA carrying an `FxiOS/<version>` marker
+/// rather than a Gecko build. WebKit/Safari/build numbers track the OS, not
+/// the Firefox version, so they stay fixed at a recent plausible value.
+const String _kFxiosOsToken = 'iPhone; CPU iPhone OS 18_5 like Mac OS X';
+const String _kFxiosWebKit = 'AppleWebKit/605.1.15 (KHTML, like Gecko)';
+const String _kFxiosMobileBuild = 'Mobile/15E148';
+const String _kFxiosSafari = 'Safari/605.1.15';
+
+/// Firefox-for-iOS (FxiOS) UA at the given [version] (e.g. `"151.0"`).
+String buildFirefoxIosUserAgent(String version) =>
+    'Mozilla/5.0 ($_kFxiosOsToken) $_kFxiosWebKit '
+    'FxiOS/$version $_kFxiosMobileBuild $_kFxiosSafari';
+
+/// Canonical Firefox desktop UA strings at [kDefaultFirefoxMajorVersion],
+/// exposed as named constants so tests have stable fixtures and so any
+/// caller wanting a known-good desktop UA without the runtime service can
+/// reach one. Built from the same shape [buildFirefoxUserAgent] renders.
+const String _kDefaultFirefoxVersion = '$kDefaultFirefoxMajorVersion.0';
 const String firefoxLinuxDesktopUserAgent =
-    'Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0';
+    'Mozilla/5.0 ($kFirefoxLinuxPlatformToken; rv:$_kDefaultFirefoxVersion) '
+    'Gecko/20100101 Firefox/$_kDefaultFirefoxVersion';
 const String firefoxMacosDesktopUserAgent =
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7; rv:151.0) '
-    'Gecko/20100101 Firefox/151.0';
+    'Mozilla/5.0 ($kFirefoxMacosPlatformToken; rv:$_kDefaultFirefoxVersion) '
+    'Gecko/20100101 Firefox/$_kDefaultFirefoxVersion';
 const String firefoxWindowsDesktopUserAgent =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) '
-    'Gecko/20100101 Firefox/151.0';
+    'Mozilla/5.0 ($kFirefoxWindowsPlatformToken; rv:$_kDefaultFirefoxVersion) '
+    'Gecko/20100101 Firefox/$_kDefaultFirefoxVersion';

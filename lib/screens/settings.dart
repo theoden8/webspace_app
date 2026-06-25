@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +10,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -57,24 +57,12 @@ const List<MapEntry<String?, String>> _languages = [
   MapEntry('hi', 'हिन्दी'),
 ];
 
-String generateRandomUserAgent() {
-  // You can modify these values to add more variety to the generated user-agent strings
-  List<String> platforms = [
-    'Windows NT 10.0; Win64; x64',
-    'Macintosh; Intel Mac OS X 10_15_7',
-    'Linux x86_64',
-    'iPhone; CPU iPhone OS 15_7_3 like Mac OS X',
-    'Android 16; Mobile', // Add an Android platform
-  ];
-
-  String geckoVersion = '151.0';
-  String geckoTrail = '20100101';
-  String appName = 'Firefox';
-  String appVersion = '151.0';
-
-  String platform = platforms[Random().nextInt(platforms.length)];
-  return 'Mozilla/5.0 ($platform; rv:$geckoVersion) Gecko/$geckoTrail $appName/$appVersion';
-}
+/// Render a Firefox UA for a randomly chosen platform at the current Firefox
+/// version. The version is scraped from Firefox source at runtime by
+/// [FirefoxUserAgentService] (falling back to the bundled default offline),
+/// so the randomize button stays current without an app release.
+String generateRandomUserAgent() =>
+    FirefoxUserAgentService.instance.randomUserAgent();
 
 class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
