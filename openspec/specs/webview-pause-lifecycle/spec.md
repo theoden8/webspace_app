@@ -520,6 +520,25 @@ This is complementary to PAUSE-014: the probe recreates a *dead* renderer; the s
 **Then** it is a no-op on non-Android platforms
 **And** `_repaintNudge` remains false so the body inset stays 0 — no visible jitter during normal use
 
+### Requirement: PAUSE-017 — Surface Repaint On Fresh Controller Attach
+
+On Android, the system SHALL recomposite the surface whenever a **fresh** native controller attaches for the visible site, not only on the resume/re-activation paths of PAUSE-015. Re-activating an already-loaded webview reuses its controller and is covered by `_setCurrentIndex`'s explicit nudge; but a webview that is **recreated from scratch** mounts a brand-new hybrid-composition `SurfaceView` that can likewise attach blank — rendering **white** (the fresh surface's default fill) rather than black. These recreation paths do not run through `_setCurrentIndex` and so were uncovered: `_goHome` (disposes and rebuilds at `initUrl`), renderer-gone recovery (`handleRendererGone` rebuilds at `currentUrl`), and `savedForRestore` re-creation.
+
+The host SHALL set `WebViewModel.onControllerReady` for each loaded model in the build, and `getWebView`'s `onControllerCreated` SHALL invoke it after the controller is wired. The callback fires `_nudgeSurfaceRepaint` only when the model's index equals the live `_currentIndex`, so a background site's (re)creation never nudges. Because it keys off controller creation — the single chokepoint every recreation passes through — it covers current and future recreation paths in one place rather than per call site.
+
+#### Scenario: Home button recreates the active webview
+
+**Given** a site is visible on Android
+**When** the user taps Home, which disposes the webview and rebuilds it at `initUrl`
+**Then** the rebuilt webview's `onControllerCreated` fires `onControllerReady`
+**And** because its index equals `_currentIndex`, `_nudgeSurfaceRepaint` runs and the fresh surface paints instead of staying blank-white
+
+#### Scenario: Background site re-creation does not nudge
+
+**Given** a notification site is rebuilt off-screen while another site is visible
+**When** its `onControllerReady` fires
+**Then** its index does not equal `_currentIndex`, so no nudge runs and the visible site does not jitter
+
 ---
 
 ### Requirement: PAUSE-016 — Android Per-Instance Pause Is a No-Op
