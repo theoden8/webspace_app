@@ -18,6 +18,8 @@
 ## Purpose
 Implements cookie isolation between sites on the same domain. This allows users to have multiple accounts (e.g., two GitHub accounts) as separate sites without session sharing.
 
+**Formal model:** the legacy shared-jar invariant ("the jar always holds the visible site's cookies, never another site's") is composed into the cross-spec kernel [formal/kernel.tla](../../../formal/kernel.tla) as `Inv_JarMatchesVisible`; activating a site without capture-nuke-restore violates it (the `contaminate` demonstrator). Observable cookie-switch transitions are also checked against real `LogService` traces in [formal/trace/](../../../formal/trace/).
+
 ## Problem Statement
 
 The `CookieManager` in `flutter_inappwebview` is a singleton that shares cookies across all webviews. When a user has multiple sites on the same domain (e.g., `github.com/personal` and `github.com/work`), they share the same session cookies, causing:

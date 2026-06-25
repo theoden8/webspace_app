@@ -10,13 +10,15 @@
 (* "Does a new spec mix?" is mechanical: add its actions to Next and its   *)
 (* invariant/property to the checked list, then re-run TLC. A reachable    *)
 (* violation = it does not mix, and the counterexample names the breaking  *)
-(* interleaving. The Conflict knob below demonstrates BOTH failure kinds:  *)
-(* a liveness non-mix ("bypass") and a safety non-mix ("evict").           *)
+(* interleaving. The Conflict knob below demonstrates three non-mix kinds: *)
+(* a liveness break ("bypass") and two safety breaks ("evict",             *)
+(* "contaminate").                                                         *)
 (*                                                                         *)
 (* Modules currently composed:                                             *)
 (*   - webview-pause-lifecycle  (PAUSE-013..018; surface repaint)          *)
 (*   - navigation               (back/forward; bfcache re-attach)          *)
 (*   - lazy-webview-loading     (on-demand load + memory-pressure evict)   *)
+(*   - per-site-cookie-isolation (legacy shared-jar; no cross-site leak)   *)
 (*                                                                         *)
 (* Requirement IDs are cited on the actions/properties that encode them so *)
 (* spec <-> model traceability is grep-able.                               *)
@@ -25,7 +27,7 @@ EXTENDS Naturals, FiniteSets
 
 CONSTANTS
     N,         \* bounded number of sites (keeps the state space finite)
-    Conflict   \* "none" | "bypass" | "evict" -- selects a demonstrator non-mix
+    Conflict   \* "none" | "bypass" | "evict" | "contaminate" -- demonstrator selector
 
 Sites == 1..N
 
@@ -34,9 +36,10 @@ VARIABLES
     owed,          \* a repaint is owed: a blank surface attached, not yet nudged
     currentIndex,  \* visible site
     loaded,        \* set of loaded site indices
-    frozen         \* repaint chokepoint wedged (set only by the conflict module)
+    frozen,        \* repaint chokepoint wedged (set only by the conflict module)
+    jarOwner       \* site whose cookies are materialized in the shared native jar
 
-vars == << surface, owed, currentIndex, loaded, frozen >>
+vars == << surface, owed, currentIndex, loaded, frozen, jarOwner >>
 
 TypeOK ==
     /\ surface \in {"painted", "blank"}
@@ -44,6 +47,7 @@ TypeOK ==
     /\ currentIndex \in Sites
     /\ loaded \subseteq Sites
     /\ frozen \in BOOLEAN
+    /\ jarOwner \in Sites
 
 Init ==
     /\ surface = "painted"
@@ -51,6 +55,7 @@ Init ==
     /\ currentIndex = 1
     /\ loaded = {1}
     /\ frozen = FALSE
+    /\ jarOwner = 1
 
 \* A fresh or re-parented hybrid-composition SurfaceView attaches without a
 \* paint: the renderer is alive but the surface is blank until something
@@ -63,22 +68,25 @@ Attach ==
 (* Module: webview-pause-lifecycle   (owns: surface, owed)                 *)
 (***************************************************************************)
 
-\* Bring a site onstage (_setCurrentIndex).
+\* Bring a site onstage (_setCurrentIndex). The legacy cookie engine runs
+\* capture-nuke-restore so the shared jar now holds the activated site's
+\* cookies: jarOwner' = s (see per-site-cookie-isolation below).
 Activate(s) ==
     /\ currentIndex' = s
     /\ loaded' = loaded \cup {s}
+    /\ jarOwner' = s
     /\ Attach
     /\ frozen' = frozen
 
 \* App returns to foreground (_onResumed).  PAUSE-015.
 Resume ==
     /\ Attach
-    /\ UNCHANGED << currentIndex, loaded, frozen >>
+    /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
 
 \* A from-scratch controller mounts a brand-new SurfaceView.  PAUSE-017.
 ControllerAttach ==
     /\ Attach
-    /\ UNCHANGED << currentIndex, loaded, frozen >>
+    /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
 
 \* The repaint chokepoint (_nudgeSurfaceRepaint). Clears the owed repaint.
 \* PAUSE-015 / PAUSE-017 / PAUSE-018.
@@ -87,32 +95,33 @@ Nudge ==
     /\ ~frozen
     /\ surface' = "painted"
     /\ owed' = FALSE
-    /\ UNCHANGED << currentIndex, loaded, frozen >>
+    /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
 
 (***************************************************************************)
 (* Module: navigation   (back/forward; reuses controller, re-attaches)    *)
 (***************************************************************************)
 
 \* Back/forward with bfcache enabled restores onto a fresh SurfaceView.
-\* PAUSE-018 routes these through the chokepoint (Nudge).
+\* PAUSE-018 routes these through the chokepoint (Nudge). Same site, so the
+\* shared jar is unchanged.
 Back ==
     /\ Attach
-    /\ UNCHANGED << currentIndex, loaded, frozen >>
+    /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
 
 Forward ==
     /\ Attach
-    /\ UNCHANGED << currentIndex, loaded, frozen >>
+    /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
 
 (***************************************************************************)
 (* Module: lazy-webview-loading   (owns: loaded)                          *)
 (***************************************************************************)
 
-\* On-demand background load: add a site to the loaded set (no surface yet;
-\* the visible site's surface is the lifecycle module's concern).
+\* On-demand background load: add a site to the loaded set (no surface, no
+\* jar change -- only the visible site's cookies are in the shared jar).
 LoadSite(s) ==
     /\ s \notin loaded
     /\ loaded' = loaded \cup {s}
-    /\ UNCHANGED << surface, owed, currentIndex, frozen >>
+    /\ UNCHANGED << surface, owed, currentIndex, frozen, jarOwner >>
 
 \* Memory-pressure eviction of a NON-visible loaded site. Guarantee: never
 \* the visible site -- that guarantee is what keeps Inv_CurrentLoaded true,
@@ -121,7 +130,17 @@ Evict(s) ==
     /\ s \in loaded
     /\ s # currentIndex
     /\ loaded' = loaded \ {s}
-    /\ UNCHANGED << surface, owed, currentIndex, frozen >>
+    /\ UNCHANGED << surface, owed, currentIndex, frozen, jarOwner >>
+
+(***************************************************************************)
+(* Module: per-site-cookie-isolation  (legacy shared-jar engine)          *)
+(*                                                                         *)
+(* The legacy (non-container) engine keeps ONE site's cookies in the       *)
+(* shared native jar at a time; activation runs capture-nuke-restore so    *)
+(* the jar tracks the visible site. The container engine gives each site   *)
+(* its own jar and trivially satisfies the same invariant. No standalone   *)
+(* action: jarOwner is driven by Activate above; the invariant is below.   *)
+(***************************************************************************)
 
 (***************************************************************************)
 (* Conflict demonstrators (gated by Conflict).                            *)
@@ -135,7 +154,7 @@ BackBypass ==
     /\ surface' = "blank"
     /\ owed' = TRUE
     /\ frozen' = TRUE
-    /\ UNCHANGED << currentIndex, loaded >>
+    /\ UNCHANGED << currentIndex, loaded, jarOwner >>
 
 \* (evict) An eviction that drops the VISIBLE site -- lazy-loading forgetting
 \* its "never evict current" guarantee. A SAFETY non-mix: violates
@@ -143,7 +162,19 @@ BackBypass ==
 EvictCurrent ==
     /\ currentIndex \in loaded
     /\ loaded' = loaded \ {currentIndex}
-    /\ UNCHANGED << surface, owed, currentIndex, frozen >>
+    /\ UNCHANGED << surface, owed, currentIndex, frozen, jarOwner >>
+
+\* (contaminate) An activation that switches the visible site but forgets the
+\* legacy capture-nuke-restore, leaving another site's cookies in the shared
+\* jar. A SAFETY non-mix: violates Inv_JarMatchesVisible (cross-site leak).
+Contaminate ==
+    /\ \E s \in Sites :
+        /\ s # currentIndex
+        /\ currentIndex' = s
+        /\ loaded' = loaded \cup {s}
+    /\ Attach
+    /\ frozen' = frozen
+    /\ jarOwner' = jarOwner
 
 GoodNext ==
     \/ \E s \in Sites : Activate(s)
@@ -156,8 +187,9 @@ GoodNext ==
     \/ \E s \in Sites : Evict(s)
 
 Next == GoodNext
-        \/ (Conflict = "bypass" /\ BackBypass)
-        \/ (Conflict = "evict"  /\ EvictCurrent)
+        \/ (Conflict = "bypass"      /\ BackBypass)
+        \/ (Conflict = "evict"       /\ EvictCurrent)
+        \/ (Conflict = "contaminate" /\ Contaminate)
 
 \* Weak fairness on Nudge: a continuously-owed, non-frozen repaint must
 \* eventually fire. This is the formal counterpart of "_nudgeSurfaceRepaint
@@ -168,9 +200,13 @@ Spec == Init /\ [][Next]_vars /\ WF_vars(Nudge)
 (* Properties                                                             *)
 (***************************************************************************)
 
-\* SAFETY (cross-module: navigation x lazy-loading): the visible site is
-\* always loaded. Broken by the "evict" demonstrator.
+\* SAFETY (navigation x lazy-loading): the visible site is always loaded.
+\* Broken by the "evict" demonstrator.
 Inv_CurrentLoaded == currentIndex \in loaded
+
+\* SAFETY (cookie-isolation x navigation): the shared jar always holds the
+\* visible site's cookies -- never another site's. Broken by "contaminate".
+Inv_JarMatchesVisible == jarOwner = currentIndex
 
 \* LIVENESS (pause-lifecycle PAUSE-013..018): every blank-surface attach is
 \* eventually repainted. Broken by the "bypass" demonstrator. This is the

@@ -32,16 +32,20 @@ class.
   module: the state it owns, its actions, and the invariant it preserves. Requirement IDs
   (`PAUSE-018`, …) are cited on the actions/properties that encode them.
   - Composed today: `webview-pause-lifecycle` (PAUSE-013..018) + `navigation` +
-    `lazy-webview-loading`. Good composition: 24 distinct states.
+    `lazy-webview-loading` + `per-site-cookie-isolation`. Good composition: 24 states.
 - **`kernel.cfg`** — the good composition (`Conflict = "none"`). Expect: all properties hold.
 - **`kernel_conflict_repaint.cfg`** (`Conflict = "bypass"`) — a back path that re-attaches
   the surface but bypasses the repaint chokepoint (the literal BUG-001 failure). Expect:
   safety holds, `RepaintLiveness` **violated** (a LIVENESS non-mix, lasso counterexample).
 - **`kernel_conflict_evict.cfg`** (`Conflict = "evict"`) — lazy-loading evicts the *visible*
   site, dropping its "never evict current" guarantee. Expect: `Inv_CurrentLoaded`
-  **violated** (a SAFETY non-mix). The two demonstrators show the gate catching both kinds.
-- **`check.sh`** — fetches `tla2tools.jar` if absent and runs all three configs, asserting
-  the good one passes and both demonstrators fail as expected. CI-wireable.
+  **violated** (a SAFETY non-mix).
+- **`kernel_conflict_contaminate.cfg`** (`Conflict = "contaminate"`) — the legacy cookie
+  engine activates a site without capture-nuke-restore, leaving another site's cookies in the
+  shared jar. Expect: `Inv_JarMatchesVisible` **violated** (a cross-site-leak SAFETY non-mix).
+- **`trace/`** — the model↔code conformance bridge (below).
+- **`check.sh`** — fetches `tla2tools.jar` if absent and runs the full matrix (good + the
+  three demonstrators + reachability witnesses + trace conformance). CI-wireable.
 
 ## Run it
 
@@ -120,16 +124,27 @@ Steps 4 and 6 are the two halves you always need together: **4 proves the design
 6 proves the code stayed inside the design.** One without the other is the gap that produced
 BUG-001's five partial fixes.
 
-## Model ↔ code conformance (the bridge)
+## Model ↔ code conformance (the bridge) — `trace/`
 
 Model-checking verifies the *design*; it says nothing about whether the Dart code takes a
 transition the model never declared (the "unmodeled path" that defeats pure model-checking).
 The codebase already emits a structured event trace via `LogService` — e.g.
-`[WebViewLifecycle/debug] onLoadStop siteId=… url=…`, `[CookieIsolation/debug] Switching to
-site 2…`, `[Container/debug] …`. That stream is a `(subsystem, state, action)` log. The
-conformance step (future work): define a trace schema, replay `integration_test/` traces,
-and flag any transition the kernel's `Next` does not permit. That is what catches a new code
-path that skipped its module.
+`[CookieIsolation/debug] Switching to site 2…`, `[CookieIsolation/debug] After switch, loaded
+indices: {1, 2}`, `[Navigation/debug] Back gesture: navigated back`. That stream is a
+`(subsystem, state, action)` log. `trace/` turns it into a conformance check:
+
+- **`trace/parse_log.py`** projects LogService lines onto the kernel's *observable* variables
+  (`cur`, `loaded`, `jar`) and emits a `Trace` module. (The hidden variables `surface`/`owed`/
+  `frozen` are not observable from logs — that is exactly why BUG-001 was invisible — so this
+  validates the observable projection: navigation + lazy-loading + cookie-isolation.)
+- **`trace/conformance.tla`** checks every recorded step is a legal observable kernel
+  transition (`TraceConforms`) and that the observable safety invariants held at every state
+  (`ObsInvariants`: `cur ∈ loaded`, `jar = cur`).
+- **`trace/check_trace.sh`** runs it on fixtures: `sample_good.tracelog` (a real navigation excerpt)
+  **must conform**; `sample_bad.tracelog` (activates a site that isn't loaded) **must be caught**.
+
+This is what flags a new code path that skipped its module. `check.sh` runs it after the
+kernel matrix. Next step: feed real `integration_test/` traces through `parse_log.py`.
 
 ## Honest limits
 
@@ -147,3 +162,5 @@ path that skipped its module.
 | Bug | Spec | Model property |
 |-----|------|----------------|
 | [BUG-001 white screen](../docs/bugs/001-white-screen.md) | `webview-pause-lifecycle` PAUSE-013..018 | `kernel.tla` `RepaintLiveness` |
+| (visible site unloaded) | `lazy-webview-loading` | `kernel.tla` `Inv_CurrentLoaded` |
+| (cross-site cookie leak) | `per-site-cookie-isolation` | `kernel.tla` `Inv_JarMatchesVisible` |

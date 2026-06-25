@@ -43,6 +43,8 @@ expect kernel_conflict_repaint.cfg "Temporal properties were violated" \
   "bypass route → RepaintLiveness violated (liveness non-mix)"
 expect kernel_conflict_evict.cfg "Inv_CurrentLoaded is violated" \
   "evict-current → Inv_CurrentLoaded violated (safety non-mix)"
+expect kernel_conflict_contaminate.cfg "Inv_JarMatchesVisible is violated" \
+  "contaminate → Inv_JarMatchesVisible violated (cookie-leak non-mix)"
 
 echo "── POSITIVE: each legal behavior is reachable (witness violated) ──"
 expect kernel_reach_surface_attach.cfg "Reach_SurfaceAttach is violated" \
@@ -51,5 +53,9 @@ expect kernel_reach_site_switch.cfg "Reach_SiteSwitch is violated" \
   "activating a non-initial site is reachable"
 expect kernel_reach_evict_bg.cfg "Reach_EvictBackground is violated" \
   "evicting a backgrounded site is reachable"
+
+echo "── TRACE CONFORMANCE: code stayed inside the model ──"
+case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
+TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'
 
 echo "All formal checks behaved as expected."
