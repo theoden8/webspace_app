@@ -14,7 +14,8 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
-import 'package:webspace/web_view_model.dart' show extractDomain, getNormalizedDomain;
+import 'package:webspace/web_view_model.dart'
+    show extractDomain, getNormalizedDomain, rendererProbeIndicatesGone;
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -164,6 +165,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   final SurfaceRepaintEngine _surfaceRepaint = SurfaceRepaintEngine();
   bool _repaintNudge = false;
 
+  /// Bumped on renderer-gone recovery (BUG-002 gap #1). Wraps the webview in a
+  /// `KeyedSubtree` whose changing key remounts a fresh `InAppWebView` — the
+  /// nested analog of the main screen's destroy-and-rebuild. Recovery reloads
+  /// at the nested entry URL (`widget.url`); in-nested navigation is lost, but
+  /// that beats a permanent black screen.
+  int _rendererGen = 0;
+
   /// DevTools host for this nested webview. Captures console output and
   /// tracks the current URL/controller so the user can open Developer
   /// Tools (Console + JS eval + HTML export + app logs) from the popup
@@ -194,6 +202,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       config: WebViewConfig(
         siteId: widget.siteId,
         initialUrl: widget.url,
+        // BUG-002 gap #1: the OS can kill this nested webview's renderer
+        // (memory reclaim while backgrounded, or a page-induced crash),
+        // leaving a dead black surface. Destroy-and-rebuild on the event,
+        // mirroring the main screen's handleRendererGone.
+        onRendererGone: (didCrash) => _handleRendererGone(didCrash),
         incognito: widget.incognito,
         thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled,
         // Mirror parent: when umbrella protection is on, force the four
@@ -372,6 +385,43 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Future<void> _goBackAndRepaint(WebViewController controller) async {
     await controller.goBack();
     _nudgeSurfaceRepaint();
+  }
+
+  /// Destroy-and-rebuild this nested webview after its renderer process is gone
+  /// (BUG-002 gap #1). Bumping `_rendererGen` remounts a fresh `InAppWebView`;
+  /// the dead controller is dropped (a fresh one arrives via onControllerCreated).
+  void _handleRendererGone(bool didCrash) {
+    if (!mounted) return;
+    LogService.instance.log(
+      'WebView',
+      'Nested renderer gone (siteId: ${widget.siteId}, didCrash: $didCrash) — recreating',
+      level: LogLevel.warning,
+    );
+    setState(() {
+      _controller = null;
+      _rendererGen++;
+    });
+  }
+
+  /// Proactive probe (PAUSE-014) for the nested screen: the renderer can be
+  /// killed while offscreen without firing the termination event, so on resume
+  /// read `offsetHeight` and recreate if the process is gone.
+  Future<void> _probeNestedRenderer() async {
+    final controller = _controller;
+    if (controller == null) return;
+    final result = await controller
+        .evaluateJavascriptReturning('document.body ? document.body.offsetHeight : -1');
+    if (!mounted) return;
+    if (rendererProbeIndicatesGone(result) && identical(_controller, controller)) {
+      _handleRendererGone(false);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _probeNestedRenderer();
+    }
   }
 
   Future<void> launchExternalUrl(String url) async {
@@ -667,7 +717,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(bottom: _repaintNudge ? 1.0 : 0.0),
-              child: _webView,
+              // KeyedSubtree key bumped by _handleRendererGone remounts a fresh
+              // InAppWebView after a renderer death (BUG-002 gap #1).
+              child: KeyedSubtree(key: ValueKey(_rendererGen), child: _webView),
             ),
           ),
           if (_showUrlBar)

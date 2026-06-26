@@ -47,6 +47,21 @@ test('the proactive probe runs on >=2 activation paths (PAUSE-014)', () => {
   assert.ok(refs >= 3, `expected probe definition + >=2 call sites, found ${refs}`);
 });
 
+test('nested InAppWebViewScreen wires renderer-gone recovery (BUG-002 gap #1)', () => {
+  const src = read('lib/screens/inappbrowser.dart');
+  assert.match(
+    src,
+    /onRendererGone:\s*\(didCrash\)\s*=>\s*_handleRendererGone\(/,
+    'nested WebViewConfig must wire onRendererGone',
+  );
+  // The handler must REMOUNT the dead webview (bump the key), not just log.
+  const def = src.slice(src.indexOf('void _handleRendererGone'));
+  assert.match(def, /_rendererGen\+\+/, 'recovery must bump the remount key');
+  // And a proactive probe on resume (the offscreen case the event misses).
+  assert.match(src, /didChangeAppLifecycleState/, 'nested screen must hook resume');
+  assert.match(src, /rendererProbeIndicatesGone/, 'nested probe must use the gone predicate');
+});
+
 test('rendererProbeIndicatesGone treats only null as gone', () => {
   const src = read('lib/web_view_model.dart');
   // A regression that flags 0 / -1 / positive height as "gone" would reload-loop

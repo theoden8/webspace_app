@@ -60,18 +60,26 @@ without going through `_setCurrentIndex`) would not be probed. On Android the pr
 doubles as the surface paint nudge (the `offsetHeight` read forces a synchronous layout) —
 overlapping with [BUG-001](001-white-screen.md)'s remedy.
 
+### Attempt 3 — Renderer-gone recovery in the nested screen (`PAUSE-013` + `PAUSE-014`)
+**Date:** 2026-06-26 · **PR:** #451 · **Files:** lib/screens/inappbrowser.dart
+**What it did:** Wired `onRendererGone` in the nested `WebViewConfig` to `_handleRendererGone`,
+which bumps a `KeyedSubtree` generation key to remount a fresh `InAppWebView` (the nested analog
+of the main screen's destroy-and-rebuild), and added a `didChangeAppLifecycleState` resume probe
+(`offsetHeight` → `rendererProbeIndicatesGone`) for the offscreen case. Gated by the structural
+test so it can't silently regress.
+**Why:** The nested screen had NEITHER recovery path (confirmed while fixing the sibling BUG-001
+gap #1) — a renderer death there was a permanent black screen. This is the recurring-bug shape:
+main path fixed, nested path forgotten, exactly mirroring BUG-001 gap #1.
+**Why partial:** Recovery remounts at the nested **entry** URL (`widget.url`), not the current
+in-nested URL — in-nested navigation is lost on recovery (acceptable vs. a permanent black
+screen, but not byte-equal to the main screen's `currentUrl` rebuild).
+
 ## Known open gaps (candidates for the next recurrence)
 
-1. **The nested `InAppWebViewScreen` has NO renderer-gone recovery at all** (confirmed
-   2026-06-26, while fixing the sibling BUG-001 gap #1). Its `WebViewConfig` never sets
-   `onRendererGone`, so the platform termination events fire into a null no-op, **and** it has
-   no `offsetHeight` probe. A renderer death in a nested webview (OS reclaim while backgrounded,
-   or a page-induced crash) is therefore a permanent black screen with no recovery. This is the
-   exact sibling of BUG-001 gap #1 (surface nudge, now fixed in the same screen): the main path
-   has both recovery mechanisms; the nested path has neither. Fixing it needs the nested
-   `_webView` made rebuildable (it is `late final`) so a fresh `InAppWebView` can be mounted at
-   `_currentUrl`, plus the `onRendererGone` wiring and ideally a probe on the nested screen's
-   resume.
+1. **Nested recovery reloads the entry URL, not the current one** (Attempt 3 limitation). A
+   proper fix would rebuild the nested webview's config at `_currentUrl` (needs the `late final
+   _webView` factored into a rebuildable builder), so in-nested navigation survives a renderer
+   death — matching the main screen's `currentUrl` behavior.
 2. **Probe coverage is tied to `_setCurrentIndex` + resume.** Even on the main path, a renderer
    death surfaced through an activation that bypasses those (a background notification site
    reloaded off the switch path) would not be probed; it relies on the event firing, which
