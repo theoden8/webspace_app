@@ -94,6 +94,14 @@ expect retention_starve.cfg retention.tla "Inv_NotifLast is violated" \
 expect retention_reach.cfg retention.tla "Reach_NormalEvicted is violated" \
   "a normal site is actually evicted (retention order not vacuous)"
 
+echo "── CONTAINERS: per-site keyspace disjointness (no shared storage) ──"
+expect containers.cfg containers.tla "No error has been found" \
+  "the site → container binding is injective (per-site isolation)"
+expect containers_alias.cfg containers.tla "Inv_Disjoint is violated" \
+  "binding two sites to one container is caught"
+expect containers_reach.cfg containers.tla "Reach_TwoCreated is violated" \
+  "two sites are actually created (disjointness not vacuous)"
+
 echo "── TRACE CONFORMANCE: code stayed inside the model ──"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
 TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'
