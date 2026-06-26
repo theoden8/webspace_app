@@ -4,6 +4,8 @@
 
 Implements lazy loading for webviews to prevent all sites from loading simultaneously when any single site is selected. This improves performance, reduces network usage, and prevents unwanted nested webview dialogs from appearing during normal app usage and screenshot tests.
 
+**Formal model:** the `LoadSite`/`Evict` actions over the shared `loaded` set are composed into the cross-spec kernel [formal/kernel.tla](../../../formal/kernel.tla); eviction must never drop the visible site or the kernel's `Inv_CurrentLoaded` safety invariant fails (the `evict` demonstrator).
+
 ## Status
 
 - **Branch**: `claude/fix-screenshot-test-webviews-RIAXN`

@@ -7,6 +7,8 @@
 
 Defines how the app pauses and resumes webviews to save resources. The split between **per-instance** pause (used on site switch) and **process-global** pause (used on app lifecycle) is load-bearing: one of them is global on Android and would freeze unrelated webviews if used at the wrong call site.
 
+**Formal model:** the surface-repaint requirements `PAUSE-013`…`PAUSE-018` are model-checked in [formal/kernel.tla](../../../formal/kernel.tla) as the `RepaintLiveness` property ("every blank-surface attach is eventually repainted"). See [formal/README.md](../../../formal/README.md) and [docs/bugs/001-white-screen.md](../../../docs/bugs/001-white-screen.md).
+
 ## Problem Statement
 
 `flutter_inappwebview` exposes two pause primitives that look interchangeable but are not:
@@ -131,6 +133,8 @@ The cascade is owned by [`SiteLifecyclePromotionEngine`](../../../lib/services/s
 - Treats `savedForRestore` as terminal — those sites are no longer in `_loadedIndices`, but their state lives in [`WebViewStateStorage`](../../../lib/services/webview_state_storage.dart) keyed by `siteId`.
 
 The OS controls the curve: if pressure persists, the callback fires again and the next victim is promoted. One-per-event matches the OS signaling cadence and avoids over-evicting on transient pressure (e.g. another app's foreground spike).
+
+**Formal model:** the picker's selection invariants are model-checked in [formal/retention.tla](../../../formal/retention.tla): `Inv_CurrentKept` (the active site is never evicted) and `Inv_NotifLast` (higher-retention sites — e.g. notification sites in `SiteRetentionPriority` — are evicted only after every lower-retention non-active site is gone). The `starve` demonstrator evicts a retained site early and TLC rejects it. The model abstracts the per-site `resident → cacheCleared → savedForRestore` promotion as a binary loaded/evicted over one monotone pressure episode.
 
 #### Scenario: First memory pressure event clears cache without losing state
 
@@ -538,6 +542,20 @@ The host SHALL set `WebViewModel.onControllerReady` for each loaded model in the
 **Given** a notification site is rebuilt off-screen while another site is visible
 **When** its `onControllerReady` fires
 **Then** its index does not equal `_currentIndex`, so no nudge runs and the visible site does not jitter
+
+---
+
+### Requirement: PAUSE-018 — Surface Repaint After Back/Forward Navigation
+
+On Android, the system SHALL recomposite the surface after a user-driven back navigation of the visible webview. A back/forward-cache restore (the `backForwardCacheEnabled` perf pref defaults on) re-attaches a fresh hybrid-composition `SurfaceView` for the restored page, which can come back blank — rendering **white** like the PAUSE-017 fresh-controller case. Back navigation reuses the existing controller and stays on the same site, so it passes through neither `_setCurrentIndex` (PAUSE-015) nor `onControllerReady` (PAUSE-017) and was uncovered.
+
+Every back-navigation call site on the visible webview SHALL route through `_goBackAndRepaint`, which awaits `controller.goBack()` then fires `_nudgeSurfaceRepaint`. This covers the back gesture and the AppBar back button. The nudge is a no-op off Android and harmless when the page was not served from bfcache.
+
+#### Scenario: Back gesture restores a bfcached page
+
+**Given** a site is visible on Android and the user has navigated forward at least once
+**When** the user triggers the back gesture and the page is restored from back/forward cache
+**Then** `_goBackAndRepaint` runs `goBack` then `_nudgeSurfaceRepaint`, recompositing the restored surface instead of leaving it blank-white
 
 ---
 

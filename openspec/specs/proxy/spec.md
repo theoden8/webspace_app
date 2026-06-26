@@ -10,6 +10,10 @@ for their web views on supported platforms. Three delivery paths coexist:
   activating a site disposes any other loaded site whose effective
   proxy differs before the global override flips, so per-site routing
   is honored at the cost of cold-starting mismatched sites on switch.
+  This mutual exclusion is model-checked in
+  [formal/proxy.tla](../../../formal/proxy.tla) as `Inv_ProxyCoherent`
+  (every loaded site shares the active proxy); the `mismatch`
+  demonstrator co-loads a mismatched site and TLC rejects it.
 - **Linux** — global override via `inapp.ProxyController`. The fork's
   `flutter_inappwebview_linux` ProxyManager fans the override out
   across the default `WebKitNetworkSession` AND every cached

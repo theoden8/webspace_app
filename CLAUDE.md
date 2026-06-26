@@ -79,6 +79,60 @@ Android flavors: `fdroid` (CI), `fmain` (Play), `fdebug`.
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
 
+## Recurring bugs (`docs/bugs/`)
+
+A **recurring bug** is one whose symptom was fixed before and resurfaced through a
+new code path (the fix was partial). When you hit one, do NOT just patch the new path
+silently — record it so the next person sees the whole lineage and the still-open gaps.
+
+- One file per bug, numbered: `docs/bugs/NNN-<slug>.md` (e.g. `001-white-screen.md`).
+  Number bugs sequentially; the number is the bug's stable ID (`BUG-NNN`), used in the
+  file header. Reuse the existing file when the same bug recurs — never start a new one.
+- Each file has: the **symptom**, the **root mechanism / invariant** (why all instances
+  share a cause), a numbered **chronological list of fix attempts**, and a **known open
+  gaps** section.
+- Every fix attempt entry MUST carry: a number, the **date** (`git show -s --date=short`),
+  the PR/commit, **what it did**, **why** (the reasoning), and **why it was partial**
+  (which path it covered and which it missed). Append a new entry per attempt; never
+  rewrite history.
+- This file is the bug's biography; the **spec** (`openspec/specs/.../spec.md`) still
+  carries the normative requirement + regression scenario for each fix. Cross-link them.
+- When a bug is genuinely closed for the whole class (not just one path), set the header
+  `Status:` to `closed` and say what finally subsumed the per-path fixes.
+
+GitHub issues/PRs track "what broke"; `docs/bugs/` tracks "every attempt and why each
+was incomplete"; OpenSpec tracks "the behavior we now require". Keep all three in sync.
+
+## Formal verification (`formal/`)
+
+Defense-in-depth pipeline; each layer absorbs a class of issue before the next:
+`spec → formal → engine → tests → app code → integration tests`. The **formal** layer
+([formal/](formal/), TLA+ checked by TLC) catches what tests can't: design contradictions,
+missing-transition classes, and cross-spec interference — bugs in the gaps *between* specs.
+
+- `formal/kernel.tla` is the **cross-spec kernel**: only the specs that mutate *shared*
+  runtime/persisted state get a module (owned vars, actions, invariant, rely/guarantee
+  contract). Independent (leaf) specs share no state and compose for free — keep them OUT.
+- Cite requirement IDs (`PAUSE-018`, `ARCH-001`, …) on the actions/properties that encode
+  them so spec ↔ model stays grep-able.
+- **Adding a spec that touches shared state → run the mix gate:** add its actions to `Next`
+  and its property to the `.cfg`, then `./formal/check.sh`. A counterexample means it does
+  not mix; the trace names the breaking interleaving. Fix the design, not the model.
+- Standalone models (no shared kernel state) live beside the kernel: `archive.tla`
+  (ARCH-001 byte-identity, a 2-safety hyperproperty via self-composition), `renderer.tla`
+  (BUG-002 dead-renderer recovery), `proxy.tla` (mismatched-proxy mutual exclusion).
+- Each model carries **negative** demonstrators (a mutation that MUST be caught) and
+  **positive** reachability witnesses (a legal behavior that MUST be reachable) — run by
+  `./formal/check.sh`. `trace/` validates real `LogService` traces against the kernel's
+  observable projection (the model↔code bridge).
+- `formal/proofs/` holds **unbounded TLAPS proofs** (machine-checked by `tlapm`): every
+  kernel safety invariant *and* the surface-repaint liveness `RepaintLiveness` for all N,
+  not just TLC's N = 3. Run via `proofs/check_proofs.sh` (CI job `verify-proofs`).
+- A bug's recurrence is also gated in **code**: structural Node tests under `test/js/`
+  (`surface_repaint_funnel`, `renderer_gone_recovery`) fail CI if a new path skips the fix.
+- Don't commit `tla2tools.jar`, `states/`, `.tlacache/`, or generated `mc_*.tla` (derivatives).
+- Full method + the new-spec workflow: [formal/README.md](formal/README.md).
+
 ## OpenSpec features
 
 Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the relevant spec before modifying a feature.** Slugs:

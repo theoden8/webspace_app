@@ -1,0 +1,10 @@
+[Startup/debug] activate target site (_setCurrentIndex): 3ms
+[CookieIsolation/debug] Switching to site 1: "LinkedIn" (siteId: hjsy379ey8-h6sx)
+[CookieIsolation/debug] After switch, loaded indices: {1}
+[CookieIsolation/debug] Switching to site 2: "GitHub" (siteId: hjt4ed4b1y-4hj3)
+[CookieIsolation/debug] Target domain: github.com
+[CookieIsolation/debug] Currently loaded indices: {1}
+[CookieIsolation/debug] After switch, loaded indices: {1, 2}
+[WebViewLifecycle/debug] onLoadStop siteId=hjt4ed4b1y-4hj3 url=https://github.com/
+[Navigation/debug] Back gesture: navigated back (canGoBack)
+[WebViewLifecycle/debug] onLoadStop siteId=hjt4ed4b1y-4hj3 url=https://github.com/

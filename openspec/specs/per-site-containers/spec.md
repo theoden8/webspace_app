@@ -75,7 +75,11 @@ native per-site data-store primitives:
   fan-out drives `ProxyManager.setProxyOverride`.
 
 Each `WebViewModel.siteId` owns its own cookie jar, `localStorage`,
-`IndexedDB`, `ServiceWorkerController`, and HTTP cache. **Profile mode
+`IndexedDB`, `ServiceWorkerController`, and HTTP cache.
+
+**Formal model:** the isolation guarantee is relational — distinct sites never resolve to the same container (`ws-<siteId>`), so one site can never read another's storage. Model-checked in [formal/containers.tla](../../../formal/containers.tla) as `Inv_Disjoint` (the site → container binding is injective); the `alias` demonstrator binds two sites to one container and TLC rejects it.
+
+**Profile mode
 supersedes (not supplements) the legacy ISO-001 mutex** from
 [per-site-cookie-isolation](../per-site-cookie-isolation/spec.md): when
 `_useContainers == true` the conflict-find / unload code path is skipped
