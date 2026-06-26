@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Lädt gängige JavaScript-Bibliotheken, Schriftarten und CSS-Frameworks herunter, um sie lokal bereitzustellen, anstatt sie von Drittanbieter-CDN-Servern (wie Google, Cloudflare, jsDelivr) abzurufen. Dies verhindert, dass CDN-Anbieter Ihr Browsing-Verhalten seitenübergreifend verfolgen.",
   "appSettingsContentBlockerHint": "Blockiert Werbung, Tracker und unerwünschte Seitenelemente mithilfe von Filterlisten wie EasyList. Unterstützt Domain-Sperren, CSS-Kosmetikfilter zum Ausblenden von Seitenelementen und textbasierte Ausblendungsregeln. Aktivieren oder deaktivieren Sie einzelne Filterlisten unten, und schalten Sie den Inhaltsblocker pro Seite in den jeweiligen Seiteneinstellungen um.",
   "appSettingsTabBarButtonCorner": "Schaltflächenposition",
+  "appSettingsTabBarButton": "Tableisten-Schaltfläche",
+  "appSettingsTabBarButtonSubtitle": "Eine schwebende Schaltfläche zum Öffnen der Tableiste und des Menüs, ohne die Leiste auf dem Bildschirm zu behalten",
   "appSettingsTabMaxWidth": "Tab-Breiten-Limit",
   "appSettingsTabMaxWidthSubtitle": "Begrenzen, wie breit jeder Tab werden kann, damit lange Namen kompakt bleiben",
   "appSettingsFullscreenOnShortcut": "Vollbild beim Start über Verknüpfung",

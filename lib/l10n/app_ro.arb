@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Descarcă biblioteci JavaScript, fonturi și cadre CSS comune pentru a le servi local în loc să le preia de la servere CDN terțe (precum Google, Cloudflare, jsDelivr). Aceasta împiedică furnizorii CDN să-ți urmărească activitatea de navigare pe diferite site-uri.",
   "appSettingsContentBlockerHint": "Blochează reclame, urmăritori și elemente de pagină nedorite folosind liste de filtre precum EasyList. Acceptă blocarea la nivel de domeniu, filtre cosmetice CSS pentru a ascunde elemente de pagină și reguli de ascundere bazate pe text. Activează sau dezactivează liste individuale de filtre mai jos și comută blocarea conținutului per site în setările fiecărui site.",
   "appSettingsTabBarButtonCorner": "Poziția butonului",
+  "appSettingsTabBarButton": "Buton pentru bara de file",
+  "appSettingsTabBarButtonSubtitle": "Un buton flotant pentru a deschide bara de file și meniul fără a păstra banda pe ecran",
   "appSettingsTabMaxWidth": "Limită lățime filă",
   "appSettingsTabMaxWidthSubtitle": "Limitează cât de lată poate deveni fiecare filă, astfel încât numele lungi să rămână compacte",
   "appSettingsFullscreenOnShortcut": "Ecran complet la lansarea din comandă rapidă",

@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Letölti a gyakori JavaScript-könyvtárakat, betűtípusokat és CSS-keretrendszereket, hogy azokat helyi kiszolgálásból lehessen elérni a harmadik feles CDN-kiszolgálók (például Google, Cloudflare, jsDelivr) helyett. Ez megakadályozza, hogy a CDN-szolgáltatók nyomon kövessék a böngészési tevékenységét a különböző webhelyek között.",
   "appSettingsContentBlockerHint": "Reklámokat, nyomkövetőket és nemkívánatos oldalelemeket blokkol szűrőlisták, például az EasyList segítségével. Támogatja a domainszintű blokkolást, CSS kozmetikai szűrőket az oldalelemek elrejtéséhez, és szövegalapú elrejtési szabályokat. Az egyedi szűrőlistákat alább engedélyezheti vagy tilthatja le, és a tartalomblokkolást webhelyenként kapcsolhatja be az egyes webhelyek beállításaiban.",
   "appSettingsTabBarButtonCorner": "Gomb helyzete",
+  "appSettingsTabBarButton": "Fülsáv gomb",
+  "appSettingsTabBarButtonSubtitle": "Lebegő gomb a fülsáv és a menü megnyitásához, hogy a sáv ne maradjon a képernyőn",
   "appSettingsTabMaxWidth": "Lapszélesség korlát",
   "appSettingsTabMaxWidthSubtitle": "Korlátozza, milyen széles lehet az egyes lapok, hogy a hosszú nevek tömörek maradjanak",
   "appSettingsFullscreenOnShortcut": "Teljes képernyő parancsikonból indításkor",

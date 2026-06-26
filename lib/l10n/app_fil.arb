@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Nagda-download ng mga karaniwang JavaScript library, font, at CSS framework para ihain nang lokal sa halip na kunin ang mga ito mula sa mga third-party CDN server (tulad ng Google, Cloudflare, jsDelivr). Pinipigilan nito ang mga CDN provider na subaybayan ang iyong pag-browse sa iba't ibang website.",
   "appSettingsContentBlockerHint": "Nag-ba-block ng mga ad, tracker, at hindi gustong elemento ng pahina gamit ang mga listahan ng filter tulad ng EasyList. Sinusuportahan ang pag-block sa antas ng domain, mga CSS cosmetic filter para itago ang mga elemento ng pahina, at mga panuntunan ng pagtatago batay sa teksto. I-enable o i-disable ang mga indibidwal na listahan ng filter sa ibaba, at i-toggle ang content blocking per-site sa mga setting ng bawat site.",
   "appSettingsTabBarButtonCorner": "Posisyon ng button",
+  "appSettingsTabBarButton": "Button ng tab bar",
+  "appSettingsTabBarButtonSubtitle": "Isang lumulutang na button para buksan ang tab bar at menu nang hindi pinapanatili ang strip sa screen",
   "appSettingsTabMaxWidth": "Limitasyon sa Lapad ng Tab",
   "appSettingsTabMaxWidthSubtitle": "Limitahan kung gaano kalapad ang bawat tab para manatiling compact ang mahahabang pangalan",
   "appSettingsFullscreenOnShortcut": "Full screen kapag binuksan mula sa shortcut",

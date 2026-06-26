@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "Lejupielādē izplatītas JavaScript bibliotēkas, fontus un CSS ietvarus, lai tos pasniestu lokāli, nevis ielādētu no trešo pušu CDN serveriem (piemēram, Google, Cloudflare, jsDelivr). Tas novērš CDN nodrošinātāju izsekošanu jūsu pārlūkošanai dažādās vietnēs.",
   "appSettingsContentBlockerHint": "Bloķē reklāmas, izsekotājus un nevēlamus lapas elementus, izmantojot filtru sarakstus, piemēram, EasyList. Atbalsta domēna līmeņa bloķēšanu, CSS kosmētiskos filtrus lapas elementu slēpšanai un uz tekstu balstītus slēpšanas noteikumus. Iespējojiet vai atspējojiet atsevišķus filtru sarakstus zemāk, un ieslēdziet vai izslēdziet satura bloķēšanu katrai vietnei tās iestatījumos.",
   "appSettingsTabBarButtonCorner": "Pogas novietojums",
+  "appSettingsTabBarButton": "Ciļņu joslas poga",
+  "appSettingsTabBarButtonSubtitle": "Peldoša poga, kas atver ciļņu joslu un izvēlni, nepaturot joslu ekrānā",
   "appSettingsTabMaxWidth": "Cilnes platuma ierobežojums",
   "appSettingsTabMaxWidthSubtitle": "Ierobežojiet, cik plata var kļūt katra cilne, lai gari nosaukumi paliktu kompakti",
   "appSettingsFullscreenOnShortcut": "Pilnekrāns, palaižot no saīsnes",

@@ -647,6 +647,8 @@
   "appSettingsLocalCdnHint": "የተለመዱ JavaScript ቤተ-መጻሕፍት፣ ፊደላት እና CSS ማዕቀፎችን ከሶስተኛ ወገን CDN አገልጋዮች (እንደ Google፣ Cloudflare፣ jsDelivr) ከማምጣት ይልቅ ከሀገር ውስጥ ለማቅረብ ያወርዳል። ይህ የ CDN አቅራቢዎች በተለያዩ ጣቢያዎች ላይ የአሰሳ ልምዶችህን እንዳይከታተሉ ይከለክላል።",
   "appSettingsContentBlockerHint": "EasyList ያሉ የማጣሪያ ዝርዝሮችን በመጠቀም ማስታወቂያዎችን፣ ተከታታዮችን እና ያልተፈለጉ የገጽ ክፍሎችን ያግዳል። የጎራ-ደረጃ እገዳ፣ ክፍሎችን ለመደበቅ የ CSS ውበት ማጣሪያዎችን እና ጽሑፍ-ላይ-የተመሰረቱ የመደበቂያ ህጎችን ይደግፋል። ከታች ያሉ የተናጠል ዝርዝሮችን አንቃ ወይም አሰናክል፣ እና ለያንዳንዱ ጣቢያ ቅንብሮች ውስጥ የይዘት ማገዱን ቀያይር።",
   "appSettingsTabBarButtonCorner": "የቁልፍ አቀማመጥ",
+  "appSettingsTabBarButton": "የትር አሞሌ ቁልፍ",
+  "appSettingsTabBarButtonSubtitle": "ሰቅውን በማያ ገጹ ላይ ሳያስቀምጡ የትር አሞሌውን እና ምናሌውን ለመክፈት የሚንሳፈፍ ቁልፍ",
   "appSettingsTabMaxWidth": "የትር ስፋት ገደብ",
   "appSettingsTabMaxWidthSubtitle": "ረጅም ስሞች ጥቅጥቅ ብለው እንዲቆዩ እያንዳንዱ ትር ምን ያህል ሊሰፋ እንደሚችል ይገድቡ",
   "appSettingsFullscreenOnShortcut": "በአቋራጭ ሲጀመር ሙሉ ማያ",

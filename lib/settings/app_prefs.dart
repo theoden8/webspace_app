@@ -26,11 +26,12 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // Keep the site tab strip visible in fullscreen (top bar still hidden).
   // Only meaningful when showTabStrip is on.
   'tabStripInFullscreen': false,
-  // Show a small floating button in fullscreen that opens the tab strip on
-  // demand. Only meaningful when showTabStrip is on and tabStripInFullscreen
-  // is off (otherwise the strip is always visible).
-  'tabBarButtonInFullscreen': false,
-  // Which bottom corner the fullscreen tab-bar button sits in (true = right).
+  // Show a small floating button that opens the tab strip (and its overflow
+  // menu) on demand, in and out of fullscreen. Lets the user reach tabs + menu
+  // without pinning the strip. Supersedes the legacy `tabBarButtonInFullscreen`
+  // key (still read once on upgrade).
+  'tabBarButton': false,
+  // Which bottom corner the tab-bar button sits in (true = right).
   'tabBarButtonOnRight': true,
   // Enter full screen automatically when a site is opened from a home-screen
   // shortcut (Android pinned shortcut / iOS App Intents). On by default: a
