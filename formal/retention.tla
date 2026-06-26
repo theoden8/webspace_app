@@ -17,14 +17,22 @@
 (***************************************************************************)
 EXTENDS Naturals
 
-CONSTANT Conflict   \* "none" | "starve"
+CONSTANTS
+    N,         \* number of sites (TLC sets 3; proofs use abstract N)
+    current,   \* the visible site index
+    isNotif,   \* per-site notification flag (a function Sites -> BOOLEAN)
+    Conflict   \* "none" | "starve"
 
-N == 3
 Sites == 1..N
-current == 1
-\* Fixed tiers: site 1 is the visible site, site 2 is a normal site, site 3 is
-\* a notification site (auto-loaded, retained longest).
-isNotif == << FALSE, FALSE, TRUE >>
+
+ASSUME RetentionTyping ==
+    /\ current \in Sites
+    /\ isNotif \in [Sites -> BOOLEAN]
+    /\ ~isNotif[current]   \* the visible site is not a notification site
+
+\* Concrete assignment for TLC (substituted via `isNotif <- IsNotifDef`): site 1
+\* is visible, site 2 normal, site 3 a notification site (retained longest).
+IsNotifDef == << FALSE, FALSE, TRUE >>
 
 VARIABLE loaded     \* set of currently-loaded sites
 vars == << loaded >>
@@ -53,7 +61,9 @@ EvictStarve(s) ==
     /\ \E m \in loaded : Normal(m)
     /\ loaded' = loaded \ {s}
 
-Next == (\E s \in Sites : Evict(s))
+GoodNext == \E s \in Sites : Evict(s)
+
+Next == GoodNext
         \/ (Conflict = "starve" /\ \E s \in Sites : EvictStarve(s))
 
 Spec == Init /\ [][Next]_vars

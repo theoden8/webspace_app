@@ -14,9 +14,10 @@
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
-CONSTANT Conflict   \* "none" | "alias"
+CONSTANTS
+    N,         \* bounded number of sites (TLC sets N = 3; proofs use abstract N)
+    Conflict   \* "none" | "alias"
 
-N == 3
 Sites == 1..N
 
 VARIABLES
@@ -47,7 +48,9 @@ CreateAliased(s) ==
         /\ created' = created \cup {s}
         /\ cont' = [cont EXCEPT ![s] = cont[t]]
 
-Next == (\E s \in Sites : Create(s))
+GoodNext == \E s \in Sites : Create(s)
+
+Next == GoodNext
         \/ (Conflict = "alias" /\ \E s \in Sites : CreateAliased(s))
 
 Spec == Init /\ [][Next]_vars

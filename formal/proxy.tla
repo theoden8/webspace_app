@@ -14,12 +14,19 @@
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
-CONSTANT Conflict   \* "none" | "mismatch"
+CONSTANTS
+    N,         \* number of sites (TLC sets 3; proofs use abstract N)
+    Proxies,   \* set of proxy configurations
+    proxyOf,   \* per-site proxy assignment (a function Sites -> Proxies)
+    Conflict   \* "none" | "mismatch"
 
-N == 3
 Sites == 1..N
-\* Fixed per-site proxy assignment: sites 1 and 3 share a proxy, site 2 differs.
-proxyOf == << "direct", "socks", "direct" >>
+
+ASSUME ProxyTyping == proxyOf \in [Sites -> Proxies]
+
+\* Concrete assignment for TLC (substituted via `proxyOf <- ProxyOfDef` in the
+\* .cfg): sites 1 and 3 share a proxy, site 2 differs.
+ProxyOfDef == << "direct", "socks", "direct" >>
 
 VARIABLES
     active,   \* the visible site (its proxy is the native active proxy)

@@ -1,8 +1,9 @@
 # TLAPS proofs (unbounded N)
 
-TLC (`../check.sh`) model-checks the kernel at a **bounded** domain (`N = 3` sites).
-These TLAPS proofs are the **unbounded backstop**: deductive, machine-checked proofs
-that a kernel invariant holds for **all N**.
+TLC (`../check.sh`) model-checks the kernel and the standalone models at a **bounded**
+domain (`N = 3` sites). These TLAPS proofs are the **unbounded backstop**: deductive,
+machine-checked proofs that the invariants hold for **all N**. Each proof EXTENDS the
+TLC model it backs (same definitions — no re-modeling).
 
 - **`current_loaded.tla`** — proves `Spec_Good => []Inv_CurrentLoaded` (the visible site
   is always loaded) for the conflict-free kernel and every `N >= 1`, by the standard
@@ -21,9 +22,22 @@ that a kernel invariant holds for **all N**.
   rule (the three WF1 obligations + `ExpandENABLED`, closed by `PTL` after unfolding
   `WF_vars(Nudge)`). **71 obligations, all proved.**
 
-Together these prove every kernel *safety* invariant **and** the surface-repaint *liveness*
-for unbounded domains — the BUG-001 property `RepaintLiveness` itself, not just at TLC's
-`N = 3`. Liveness used to be the bounded-only gap; the WF1 proof closes it.
+- **`containers_disjoint.tla`** — proves `[]Inv_Disjoint` for the per-site-containers engine
+  and all `N`: the site → container binding is injective, so no two of *any* number of sites
+  share storage (inductive via `Inv_Identity`). **23 obligations, all proved.**
+- **`proxy_coherent.tla`** — proves `[]Inv_ProxyCoherent` for all `N` and any proxy
+  assignment: every loaded site shares the active proxy (directly inductive — serialisation
+  rebuilds a homogeneous loaded set on each activation). **29 obligations, all proved.**
+- **`retention_safety.tla`** — proves `[](Inv_CurrentKept /\ Inv_NotifLast)` for all `N` and
+  any tier assignment: the visible site is never evicted, and notification sites are evicted
+  last (inductive via the eviction guard + monotonicity). **22 obligations, all proved.**
+
+Together these prove every kernel *safety* invariant, the surface-repaint *liveness*
+(`RepaintLiveness` — BUG-001 itself), and every standalone model's safety invariant
+(archive byte-identity, container disjointness, proxy coherence, retention order) for
+unbounded domains — not just at TLC's `N = 3`. The only TLC-bounded model left is
+`renderer.tla`, which has no size parameter (its state space is finite and fully
+enumerated), so an unbounded proof would be vacuous.
 
 ## Check
 
