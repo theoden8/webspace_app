@@ -71,6 +71,14 @@ expect renderer_noprobe.cfg renderer.tla "Temporal properties were violated" \
 expect renderer_reach.cfg renderer.tla "Reach_VisibleDead is violated" \
   "a visible dead renderer is reachable (Recovered not vacuous)"
 
+echo "── PROXY: mutual exclusion (Android serialises mismatched-proxy sites) ──"
+expect proxy.cfg proxy.tla "No error has been found" \
+  "every loaded site shares the active proxy"
+expect proxy_mismatch.cfg proxy.tla "Inv_ProxyCoherent is violated" \
+  "co-loading a mismatched-proxy site is caught"
+expect proxy_reach.cfg proxy.tla "Reach_TwoLoaded is violated" \
+  "two compatible sites can co-load (coherence not vacuous)"
+
 echo "── TRACE CONFORMANCE: code stayed inside the model ──"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
 TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'

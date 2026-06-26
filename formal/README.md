@@ -52,6 +52,10 @@ class.
   PAUSE-014). `Recovered` (a visible dead renderer is always eventually rebuilt); the
   `noProbe` demonstrator drops PAUSE-014 and reproduces the offscreen-kill stuck black
   screen. Standalone (renderer lifecycle, no shared kernel state).
+- **`proxy.tla`** + `proxy*.cfg` — proxy mutual exclusion (spec: `proxy`). `Inv_ProxyCoherent`
+  (every loaded site shares the active proxy, because Android serialises mismatched-proxy
+  sites onto one native proxy slot); the `mismatch` demonstrator co-loads a mismatched site
+  and is caught. Standalone (fixed scenario).
 - **`trace/`** — the model↔code conformance bridge (below).
 - **`proofs/`** — TLAPS deductive proofs for **unbounded N** (the bounded-TLC backstop). See
   [proofs/README.md](proofs/README.md): `Inv_CurrentLoaded` is proved for all `N >= 1`
