@@ -63,6 +63,14 @@ expect archive_leak.cfg archive.tla "ByteIdentity is violated" \
 expect archive_reach.cfg archive.tla "Reach_Active is violated" \
   "byte-identity is checked against real archive+write activity (not vacuous)"
 
+echo "── RENDERER: BUG-002 dead-renderer recovery (PAUSE-013 + PAUSE-014) ──"
+expect renderer.cfg renderer.tla "No error has been found" \
+  "a visible dead renderer is always eventually recovered"
+expect renderer_noprobe.cfg renderer.tla "Temporal properties were violated" \
+  "without the probe, an offscreen kill leaves a stuck black screen (caught)"
+expect renderer_reach.cfg renderer.tla "Reach_VisibleDead is violated" \
+  "a visible dead renderer is reachable (Recovered not vacuous)"
+
 echo "── TRACE CONFORMANCE: code stayed inside the model ──"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
 TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'

@@ -48,6 +48,10 @@ class.
   NOT join the single-execution kernel — it gets its own model via **self-composition** (run
   both worlds in lockstep, assert app-tier state never diverges). The `Leak` demonstrator
   folds the archive count into app-tier state and is caught.
+- **`renderer.tla`** + `renderer*.cfg` — BUG-002 dead-renderer recovery (PAUSE-013 +
+  PAUSE-014). `Recovered` (a visible dead renderer is always eventually rebuilt); the
+  `noProbe` demonstrator drops PAUSE-014 and reproduces the offscreen-kill stuck black
+  screen. Standalone (renderer lifecycle, no shared kernel state).
 - **`trace/`** — the model↔code conformance bridge (below).
 - **`proofs/`** — TLAPS deductive proofs for **unbounded N** (the bounded-TLC backstop). See
   [proofs/README.md](proofs/README.md): `Inv_CurrentLoaded` is proved for all `N >= 1`
@@ -172,6 +176,7 @@ kernel matrix. Next step: feed real `integration_test/` traces through `parse_lo
 
 | Bug | Spec | Model property |
 |-----|------|----------------|
-| [BUG-001 white screen](../docs/bugs/001-white-screen.md) | `webview-pause-lifecycle` PAUSE-013..018 | `kernel.tla` `RepaintLiveness` |
+| [BUG-001 white screen](../docs/bugs/001-white-screen.md) | `webview-pause-lifecycle` PAUSE-015..018 | `kernel.tla` `RepaintLiveness` |
+| [BUG-002 black screen](../docs/bugs/002-black-screen.md) | `webview-pause-lifecycle` PAUSE-013/014 | `renderer.tla` `Recovered` |
 | (visible site unloaded) | `lazy-webview-loading` | `kernel.tla` `Inv_CurrentLoaded` |
 | (cross-site cookie leak) | `per-site-cookie-isolation` | `kernel.tla` `Inv_JarMatchesVisible` |

@@ -3,7 +3,8 @@
 **Status:** open (the offscreen case is covered by the probe; minor path gaps remain)
 **Platform:** Android + iOS/macOS (the OS kills renderer/content processes on all three)
 **Spec:** [openspec/specs/webview-pause-lifecycle/spec.md](../../openspec/specs/webview-pause-lifecycle/spec.md) — `PAUSE-013`, `PAUSE-014`
-**Tests:** [test/webview_renderer_gone_test.dart](../../test/webview_renderer_gone_test.dart)
+**Formal model:** [formal/renderer.tla](../../formal/renderer.tla) — `Recovered` (a visible dead renderer is always eventually rebuilt); the `noProbe` demonstrator reproduces this bug's offscreen partial and TLC rejects it.
+**Tests:** [test/webview_renderer_gone_test.dart](../../test/webview_renderer_gone_test.dart) (behavioral) + [test/js/renderer_gone_recovery.test.js](../../test/js/renderer_gone_recovery.test.js) (wiring gate)
 
 ## Symptom
 
