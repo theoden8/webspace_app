@@ -1384,6 +1384,30 @@ class WebViewFactory {
   else{document.addEventListener('DOMContentLoaded',apply);}
 })();''';
 
+  /// WebKit lays a page that ships no `<meta name="viewport">` out at its
+  /// ~980px default and zooms out to fit, so such sites load small and can
+  /// stay stuck there (Android handles this via useWideViewPort, which
+  /// WebKit ignores). Fill in a device-width viewport, but only when the
+  /// page declares none — checked at DOMContentLoaded so a page's own
+  /// (responsive) viewport, parsed after this DOCUMENT_START script runs,
+  /// is never clobbered. Adding the meta makes WebKit recompute the scale,
+  /// which also un-sticks a page that already loaded zoomed out.
+  static const String _defaultViewportScript = '''
+(function(){
+  function fill(){
+    if(document.querySelector('meta[name="viewport" i]'))return;
+    var m=document.createElement('meta');
+    m.setAttribute('name','viewport');
+    m.setAttribute('content','width=device-width, initial-scale=1');
+    (document.head||document.documentElement).appendChild(m);
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',fill,{once:true});
+  }else{
+    fill();
+  }
+})();''';
+
   /// Determine if a navigation was triggered by a user gesture.
   /// Android: uses hasGesture property.
   /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
@@ -1667,6 +1691,17 @@ class WebViewFactory {
         // browserleaks.com or similar in an iframe and bypass the shim
         // (iOS WKUserScript defaults to main-frame-only).
         forMainFrameOnly: false,
+      ));
+    }
+
+    // WebKit (iOS/macOS) renders viewport-less pages zoomed out to fit a
+    // wide default; supply a device-width viewport when the page ships
+    // none. Desktop mode owns the viewport via its own shim, so skip there.
+    if ((Platform.isIOS || Platform.isMacOS) && !desktopMode) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'default_viewport',
+        source: '$_defaultViewportScript\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
       ));
     }
 
