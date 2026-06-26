@@ -15,9 +15,17 @@ that a kernel invariant holds for **all N**.
   **unbounded** `MaxSteps`/`MaxArch` (TLC checks 3/2): ARCH-001 byte-identity holds for any
   number of writes and archives. **25 obligations, all proved.**
 
-Together these prove every kernel *safety* invariant for unbounded domains. (Liveness —
-`RepaintLiveness` — is checked by TLC at `N = 3`; an unbounded liveness proof needs temporal
-WF1-style reasoning and is left as future work.)
+- **`repaint_liveness.tla`** — the safety backbone of BUG-001's liveness property, for all
+  `N`: `NoFreeze` (the repaint chokepoint is never wedged in the conflict-free system) and
+  `BlankOwed` (`surface="blank" ⟺ owed`), and the corollary `BlankEnablesNudge` (a blank
+  surface always enables the Nudge action). **54 obligations, all proved.**
+
+Together these prove every kernel *safety* invariant for unbounded domains, and reduce the
+liveness property `RepaintLiveness` (`surface="blank" ~> surface="painted"`) to a single WF1
+application on top of `BlankEnablesNudge` + `WF_vars(Nudge)`. That last temporal step needs
+`ENABLED`-expansion reasoning beyond TLAPS's propositional (PTL) backend, so it stays
+TLC-checked at `N = 3` and documented as the remainder — the safety backbone it rests on is
+proved unbounded.
 
 ## Check
 
