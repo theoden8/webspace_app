@@ -62,11 +62,21 @@ overlapping with [BUG-001](001-white-screen.md)'s remedy.
 
 ## Known open gaps (candidates for the next recurrence)
 
-1. **Probe coverage is tied to `_setCurrentIndex` + resume.** Activation paths that bypass
-   them (e.g. the nested `InAppWebViewScreen`, or a background notification site reloaded
-   off the switch path) get no proactive probe — they rely on the event firing, which is the
-   exact thing Attempt 1 showed is unreliable offscreen.
-2. **Recovery loses session state.** Destroy-and-rebuild reloads at `currentUrl`; the JS heap,
+1. **The nested `InAppWebViewScreen` has NO renderer-gone recovery at all** (confirmed
+   2026-06-26, while fixing the sibling BUG-001 gap #1). Its `WebViewConfig` never sets
+   `onRendererGone`, so the platform termination events fire into a null no-op, **and** it has
+   no `offsetHeight` probe. A renderer death in a nested webview (OS reclaim while backgrounded,
+   or a page-induced crash) is therefore a permanent black screen with no recovery. This is the
+   exact sibling of BUG-001 gap #1 (surface nudge, now fixed in the same screen): the main path
+   has both recovery mechanisms; the nested path has neither. Fixing it needs the nested
+   `_webView` made rebuildable (it is `late final`) so a fresh `InAppWebView` can be mounted at
+   `_currentUrl`, plus the `onRendererGone` wiring and ideally a probe on the nested screen's
+   resume.
+2. **Probe coverage is tied to `_setCurrentIndex` + resume.** Even on the main path, a renderer
+   death surfaced through an activation that bypasses those (a background notification site
+   reloaded off the switch path) would not be probed; it relies on the event firing, which
+   Attempt 1 showed is unreliable offscreen.
+3. **Recovery loses session state.** Destroy-and-rebuild reloads at `currentUrl`; the JS heap,
    DOM, scroll position, and back/forward stack are gone (unavoidable — the process died). The
    `savedForRestore` snapshot mitigates form/scroll loss only where one was captured first.
 
