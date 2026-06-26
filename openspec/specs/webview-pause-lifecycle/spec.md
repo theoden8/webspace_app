@@ -134,6 +134,8 @@ The cascade is owned by [`SiteLifecyclePromotionEngine`](../../../lib/services/s
 
 The OS controls the curve: if pressure persists, the callback fires again and the next victim is promoted. One-per-event matches the OS signaling cadence and avoids over-evicting on transient pressure (e.g. another app's foreground spike).
 
+**Formal model:** the picker's selection invariants are model-checked in [formal/retention.tla](../../../formal/retention.tla): `Inv_CurrentKept` (the active site is never evicted) and `Inv_NotifLast` (higher-retention sites — e.g. notification sites in `SiteRetentionPriority` — are evicted only after every lower-retention non-active site is gone). The `starve` demonstrator evicts a retained site early and TLC rejects it. The model abstracts the per-site `resident → cacheCleared → savedForRestore` promotion as a binary loaded/evicted over one monotone pressure episode.
+
 #### Scenario: First memory pressure event clears cache without losing state
 
 **Given** the app has 5 loaded sites — one active and four backgrounded `resident`

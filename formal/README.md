@@ -56,6 +56,10 @@ class.
   (every loaded site shares the active proxy, because Android serialises mismatched-proxy
   sites onto one native proxy slot); the `mismatch` demonstrator co-loads a mismatched site
   and is caught. Standalone (fixed scenario).
+- **`retention.tla`** + `retention*.cfg` — memory-pressure cascade picker (PAUSE-006).
+  `Inv_CurrentKept` (the active site is never evicted) + `Inv_NotifLast` (higher-retention /
+  notification sites are evicted last); the `starve` demonstrator evicts a retained site early
+  and is caught. Standalone (one monotone pressure episode).
 - **`trace/`** — the model↔code conformance bridge (below).
 - **`proofs/`** — TLAPS deductive proofs for **unbounded N** (the bounded-TLC backstop). See
   [proofs/README.md](proofs/README.md): `Inv_CurrentLoaded` is proved for all `N >= 1`

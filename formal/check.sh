@@ -86,6 +86,14 @@ expect proxy_mismatch.cfg proxy.tla "Inv_ProxyCoherent is violated" \
 expect proxy_reach.cfg proxy.tla "Reach_TwoLoaded is violated" \
   "two compatible sites can co-load (coherence not vacuous)"
 
+echo "── RETENTION: memory-pressure cascade + notification retention (PAUSE-006) ──"
+expect retention.cfg retention.tla "No error has been found" \
+  "current is never evicted and notification sites are evicted last"
+expect retention_starve.cfg retention.tla "Inv_NotifLast is violated" \
+  "evicting a notification site before a normal one is caught"
+expect retention_reach.cfg retention.tla "Reach_NormalEvicted is violated" \
+  "a normal site is actually evicted (retention order not vacuous)"
+
 echo "── TRACE CONFORMANCE: code stayed inside the model ──"
 case "$JAR" in /*) JAR_ABS="$JAR" ;; *) JAR_ABS="$(pwd)/$JAR" ;; esac
 TLA2TOOLS_JAR="$JAR_ABS" ./trace/check_trace.sh | sed 's/^/  /'
