@@ -116,6 +116,18 @@ gaps below.
    surface-changed/-redrawn callback from the fork driving the repaint — instead of
    enumerating Dart-side navigation paths forever.
 
+## Guardrails now in place
+
+- **Formal model** ([formal/kernel.tla](../../formal/kernel.tla)): `RepaintLiveness`
+  (every blank-surface attach is eventually repainted); the `bypass` demonstrator *is*
+  this bug and TLC rejects it. Liveness backbone proved for unbounded N in
+  [formal/proofs/repaint_liveness.tla](../../formal/proofs/repaint_liveness.tla).
+- **Structural gate** ([test/js/surface_repaint_funnel.test.js](../../test/js/surface_repaint_funnel.test.js),
+  runs under `npm run test:js` in CI): on the main page, every Android `controller.goBack()`
+  must route through `_goBackAndRepaint`. A new raw back path (the recurrence shape of
+  Attempts 2–5) fails CI. Partial: scoped to `lib/main.dart`; the nested screen (gap #1)
+  is not yet gated.
+
 ## Diagnostic checklist (when this recurs)
 
 - Confirm it's the **surface**, not a dead renderer: does the page respond to taps /
