@@ -118,7 +118,19 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
 - **Adding a spec that touches shared state → run the mix gate:** add its actions to `Next`
   and its property to the `.cfg`, then `./formal/check.sh`. A counterexample means it does
   not mix; the trace names the breaking interleaving. Fix the design, not the model.
-- Don't commit `tla2tools.jar` or `states/` (derivatives; `check.sh` fetches the jar).
+- Standalone models (no shared kernel state) live beside the kernel: `archive.tla`
+  (ARCH-001 byte-identity, a 2-safety hyperproperty via self-composition), `renderer.tla`
+  (BUG-002 dead-renderer recovery), `proxy.tla` (mismatched-proxy mutual exclusion).
+- Each model carries **negative** demonstrators (a mutation that MUST be caught) and
+  **positive** reachability witnesses (a legal behavior that MUST be reachable) — run by
+  `./formal/check.sh`. `trace/` validates real `LogService` traces against the kernel's
+  observable projection (the model↔code bridge).
+- `formal/proofs/` holds **unbounded TLAPS proofs** (machine-checked by `tlapm`): every
+  kernel safety invariant *and* the surface-repaint liveness `RepaintLiveness` for all N,
+  not just TLC's N = 3. Run via `proofs/check_proofs.sh` (CI job `verify-proofs`).
+- A bug's recurrence is also gated in **code**: structural Node tests under `test/js/`
+  (`surface_repaint_funnel`, `renderer_gone_recovery`) fail CI if a new path skips the fix.
+- Don't commit `tla2tools.jar`, `states/`, `.tlacache/`, or generated `mc_*.tla` (derivatives).
 - Full method + the new-spec workflow: [formal/README.md](formal/README.md).
 
 ## OpenSpec features
