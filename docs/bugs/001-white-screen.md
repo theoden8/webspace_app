@@ -101,16 +101,26 @@ back/forward-cache restore — fires neither this nor `_setCurrentIndex`.
 restores a bfcached page onto a fresh `SurfaceView` that comes back white. Back nav
 reuses the controller and stays on the same site, so it passed through neither existing
 chokepoint.
-**Why partial:** Covers back navigation on the **main page** only. Known still-open
-gaps below.
+**Why partial:** Covers back navigation on the **main page** only — the nested
+`InAppWebViewScreen` still had no nudge (closed by Attempt 6).
+
+### Attempt 6 — Repaint after back navigation in the nested screen (`PAUSE-018`)
+**Date:** 2026-06-26 · **PR:** #451 · **Files:** lib/screens/inappbrowser.dart
+**What it did:** Gave `InAppWebViewScreen` its own `_goBackAndRepaint` /
+`_nudgeSurfaceRepaint`, reusing the shared `SurfaceRepaintEngine`, and wrapped its
+webview in the same 1px-inset `Padding`. Routed the nested Android back gesture
+through the funnel. Extended the structural gate to cover `inappbrowser.dart`.
+**Why:** bfcache applies to nested webviews too (PR #445), so a back nav in the
+nested screen re-attaches a blank SurfaceView exactly like the main page — gap #1.
+**Why partial:** Forward navigation (gap #2) is still unnudged in both screens; the
+class is still closed only path-by-path (gap #3).
 
 ## Known open gaps (candidates for the next recurrence)
 
-1. **Nested `InAppWebViewScreen`** ([lib/screens/inappbrowser.dart](../../lib/screens/inappbrowser.dart))
-   does `goBack()` on Android but has **no `_nudgeSurfaceRepaint` mechanism at all**.
-   bfcache applies to nested webviews too (PR #445), so a back nav there can blank.
+1. ~~Nested `InAppWebViewScreen`~~ — **closed by Attempt 6** (now funneled + gated).
 2. **Forward navigation** (`goForward`) into a bfcached entry is the symmetric case of
-   Attempt 5 and is currently unnudged.
+   Attempts 5–6 and is currently unnudged. (There is no `goForward` call site today,
+   but adding one on Android would need the same funnel.)
 3. **The class isn't closed.** Every fix is per-path. The durable fix is a **single
    chokepoint** that nudges on *every* surface (re)attach — ideally a native
    surface-changed/-redrawn callback from the fork driving the repaint — instead of
