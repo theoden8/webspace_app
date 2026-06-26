@@ -22,7 +22,14 @@ if [ ! -f "$JAR" ]; then
     https://github.com/tlaplus/tlaplus/releases/latest/download/tla2tools.jar
 fi
 
-run() { java -cp "$JAR" tlc2.TLC -config "$1" "$2" 2>&1 || true; }
+# Unique -metadir per run: TLC's default scratch dir is states/<timestamp> at
+# one-second granularity, so back-to-back sub-second runs collide ("directory
+# already exists"). A monotonic counter sidesteps that.
+TLC_RUN=0
+run() {
+  TLC_RUN=$((TLC_RUN + 1))
+  java -cp "$JAR" tlc2.TLC -metadir "states/r$TLC_RUN" -config "$1" "$2" 2>&1 || true
+}
 
 # expect <cfg> <model.tla> <grep-pattern> <human-label>
 expect() {

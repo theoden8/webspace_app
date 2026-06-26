@@ -19,7 +19,7 @@ PY="${PYTHON:-python3}"
 
 # run <name> -> stdout of TLC (|| true so a violation's nonzero exit is data,
 # not a pipeline failure under set -e/pipefail).
-run() { java -cp "$JAR" tlc2.TLC -config "mc_$1.cfg" "mc_$1.tla" 2>&1 || true; }
+run() { java -cp "$JAR" tlc2.TLC -metadir "states/$1" -config "mc_$1.cfg" "mc_$1.tla" 2>&1 || true; }
 
 echo "── GOOD trace (sample_good.tracelog): expect CONFORMS ──"
 "$PY" parse_log.py sample_good.tracelog good
