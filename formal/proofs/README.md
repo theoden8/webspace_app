@@ -15,17 +15,15 @@ that a kernel invariant holds for **all N**.
   **unbounded** `MaxSteps`/`MaxArch` (TLC checks 3/2): ARCH-001 byte-identity holds for any
   number of writes and archives. **25 obligations, all proved.**
 
-- **`repaint_liveness.tla`** — the safety backbone of BUG-001's liveness property, for all
-  `N`: `NoFreeze` (the repaint chokepoint is never wedged in the conflict-free system) and
-  `BlankOwed` (`surface="blank" ⟺ owed`), and the corollary `BlankEnablesNudge` (a blank
-  surface always enables the Nudge action). **54 obligations, all proved.**
+- **`repaint_liveness.tla`** — BUG-001's liveness property in full, for all `N`. Proves the
+  safety backbone (`NoFreeze`: the chokepoint is never wedged; `BlankOwed`: `surface="blank"
+  ⟺ owed`) and then `THEOREM Liveness`: `surface="blank" ~> surface="painted"` via the WF1
+  rule (the three WF1 obligations + `ExpandENABLED`, closed by `PTL` after unfolding
+  `WF_vars(Nudge)`). **71 obligations, all proved.**
 
-Together these prove every kernel *safety* invariant for unbounded domains, and reduce the
-liveness property `RepaintLiveness` (`surface="blank" ~> surface="painted"`) to a single WF1
-application on top of `BlankEnablesNudge` + `WF_vars(Nudge)`. That last temporal step needs
-`ENABLED`-expansion reasoning beyond TLAPS's propositional (PTL) backend, so it stays
-TLC-checked at `N = 3` and documented as the remainder — the safety backbone it rests on is
-proved unbounded.
+Together these prove every kernel *safety* invariant **and** the surface-repaint *liveness*
+for unbounded domains — the BUG-001 property `RepaintLiveness` itself, not just at TLC's
+`N = 3`. Liveness used to be the bounded-only gap; the WF1 proof closes it.
 
 ## Check
 

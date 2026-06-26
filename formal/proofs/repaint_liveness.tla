@@ -11,12 +11,10 @@
 (*                                          a repaint owed, and vice versa)  *)
 (*                                                                         *)
 (* Together NoFreeze /\ BlankOwed give: whenever surface="blank", Nudge is   *)
-(* ENABLED (owed /\ ~frozen) -- this is THEOREM BlankEnablesNudge below,      *)
-(* proved for all N. The full leadsto then follows from this plus            *)
-(* WF_vars(Nudge) by the WF1 rule. That last step needs ENABLED-expansion     *)
-(* temporal reasoning (TLAPS's PTL backend is propositional only), so it is   *)
-(* left as the documented remainder; everything up to BlankEnablesNudge is    *)
-(* machine-checked here.                                                      *)
+(* ENABLED (owed /\ ~frozen). With WF_vars(Nudge) the leadsto follows by the  *)
+(* WF1 rule -- THEOREM Liveness below discharges it in full (the three WF1     *)
+(* obligations + ExpandENABLED, closed by PTL after unfolding the fairness).  *)
+(* So RepaintLiveness is machine-checked for ALL N, not just TLC's N = 3.     *)
 (***************************************************************************)
 EXTENDS kernel, TLAPS
 
@@ -84,4 +82,36 @@ THEOREM BlankEnablesNudge == GoodSpec => [](surface = "blank" => (owed /\ ~froze
     BY DEF Backbone, NoFreeze, BlankOwed
   <1> QED
     BY BackboneInvariant, <1>1, PTL
+
+(***************************************************************************)
+(* The liveness property itself, for all N: a blank surface is always      *)
+(* eventually repainted. Discharged via the WF1 rule. The three WF1         *)
+(* obligations all hold from LiveP (blank /\ owed /\ ~frozen) alone; the    *)
+(* backbone invariant is only needed to lift "blank" to LiveP at the end.   *)
+(***************************************************************************)
+
+LiveP == surface = "blank" /\ owed /\ ~frozen
+LiveQ == surface = "painted"
+GoodSpecWF == Init /\ [][GoodNext]_vars /\ WF_vars(Nudge)
+
+THEOREM Liveness == GoodSpecWF => (surface = "blank" ~> surface = "painted")
+  \* GoodSpecWF keeps the backbone invariant (drop the WF conjunct → GoodSpec).
+  <1>1. GoodSpecWF => []Backbone
+    <2>1. GoodSpecWF => GoodSpec
+      BY PTL DEF GoodSpecWF, GoodSpec
+    <2> QED
+      BY <2>1, BackboneInvariant, PTL
+  \* WF1 obligations; closed by PTL after DEF GoodSpecWF unfolds WF_vars(Nudge).
+  \* The invariant <1>1 supplies the enabling condition (blank ⇒ owed ∧ ¬frozen).
+  <1>2. (surface = "blank") /\ [GoodNext]_vars =>
+          ((surface = "blank")' \/ (surface = "painted")')
+    BY DEF GoodNext, Activate, Resume, ControllerAttach, Nudge, Back, Forward,
+           LoadSite, Evict, Attach, vars
+  <1>3. (surface = "blank") /\ <<GoodNext /\ Nudge>>_vars => (surface = "painted")'
+    BY DEF Nudge, vars
+  <1>4. ASSUME Backbone, surface = "blank"
+        PROVE  ENABLED <<Nudge>>_vars
+    BY <1>4, ExpandENABLED DEF Backbone, TypeOK, NoFreeze, BlankOwed, Nudge, vars
+  <1> QED
+    BY <1>1, <1>2, <1>3, <1>4, PTL DEF GoodSpecWF
 =============================================================================

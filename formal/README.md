@@ -170,9 +170,10 @@ kernel matrix. Next step: feed real `integration_test/` traces through `parse_lo
 - The kernel is only the **coupled cluster**. Most specs are leaves and are better served by
   static cross-spec invariants (registry completeness, nested-webview field flow, keyspace
   disjointness) — relational checks with no temporal cost.
-- Bounded domains (`N = 3` sites): TLC is exhaustive only within the bound. For invariants
-  that need to hold for *all* N, `proofs/` carries unbounded TLAPS proofs (e.g.
-  `Inv_CurrentLoaded`).
+- Bounded domains (`N = 3` sites): TLC is exhaustive only within the bound. For properties
+  that need to hold for *all* N, `proofs/` carries unbounded TLAPS proofs — every kernel
+  safety invariant *and* the surface-repaint liveness `RepaintLiveness` are machine-checked
+  for all N.
 - The realistic deliverable: **design-level interference becomes a CI check** instead of a
   production incident discovered after N partial fixes.
 
