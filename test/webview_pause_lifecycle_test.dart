@@ -147,6 +147,67 @@ void main() {
     });
   });
 
+  group('cold-start restore initial-load deferral', () {
+    test('Android with pending restore defers the initial load', () {
+      expect(
+        deferInitialLoadForRestore(
+            hasPendingRestoreState: true,
+            isAndroid: true,
+            isFileImport: false),
+        isTrue,
+        reason: 'WebView.restoreState is dropped if the WebView already '
+            'navigated, so the initial load must be suppressed.',
+      );
+    });
+
+    test('non-Android with pending restore keeps the initial load', () {
+      expect(
+        deferInitialLoadForRestore(
+            hasPendingRestoreState: true,
+            isAndroid: false,
+            isFileImport: false),
+        isFalse,
+        reason: 'iOS/macOS interactionState replaces the stack in place, so '
+            'the initialUrlRequest load stays.',
+      );
+    });
+
+    test('no deferral when nothing is pending (Android)', () {
+      expect(
+        deferInitialLoadForRestore(
+            hasPendingRestoreState: false,
+            isAndroid: true,
+            isFileImport: false),
+        isFalse,
+        reason: 'A normal build with no restore bytes loads currentUrl as '
+            'usual.',
+      );
+    });
+
+    test('no deferral when nothing is pending (non-Android)', () {
+      expect(
+        deferInitialLoadForRestore(
+            hasPendingRestoreState: false,
+            isAndroid: false,
+            isFileImport: false),
+        isFalse,
+      );
+    });
+
+    test('Android file import keeps its cached initialData (no deferral)', () {
+      expect(
+        deferInitialLoadForRestore(
+            hasPendingRestoreState: true,
+            isAndroid: true,
+            isFileImport: true),
+        isFalse,
+        reason: 'file:// has no fetchable form, so the post-restore reload '
+            'would ERR_FILE_NOT_FOUND; static local pages have no meaningful '
+            'back/forward to restore.',
+      );
+    });
+  });
+
   group('WebViewModel pause/resume null-safety', () {
     test('pauseWebView() with no controller is a no-op', () async {
       final m = _modelWith(null);

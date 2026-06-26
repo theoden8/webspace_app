@@ -174,7 +174,23 @@ The OS controls the curve: if pressure persists, the callback fires again and th
   - **Linux** (WebKitGTK / WPE) via `webkit_web_view_restore_session_state`
 **And** on iOS 15+ / macOS 12+ form-field values are restored too — Linux and Android only carry history + scroll
 
-The `initialUrlRequest` (set to `currentUrl` on the model) kicks off a navigation that lands at the most-recent saved URL; on Apple, assigning `interactionState` may trigger a brief redundant nav (acceptable for the much-better re-activation UX). Live JS heap and DOM are not preserved on any platform — re-execution starts fresh.
+The load ordering differs by platform because the restore APIs differ. On iOS/macOS the `initialUrlRequest` (set to `currentUrl` on the model) kicks off a navigation that lands at the most-recent saved URL, and assigning `interactionState` replaces the back/forward stack **in place** — a brief redundant nav, acceptable for the much-better re-activation UX. On Android `WebView.restoreState` is silently dropped if the WebView has already navigated (its docs warn of "undesirable side-effects" when called after the view has built state), so the root webview is instead built with **no** initial load — `WebViewConfig.deferInitialLoad`, gated by the pure `deferInitialLoadForRestore(hasPendingRestoreState, isAndroid)`. restoreState then applies to a pristine history and `onControllerCreated` reloads the restored top entry, since Android does not restore display data. Live JS heap and DOM are not preserved on any platform — re-execution starts fresh.
+
+#### Scenario: Android applies restoreState before any navigation
+
+**Given** site A on Android has an http(s) `currentUrl` and nav-state bytes queued via `schedulePendingRestoreState`
+**When** the webview is rebuilt
+**Then** it is constructed with no `initialUrlRequest` and no cached-HTML `initialData` (so the WebView has an empty back/forward list)
+**And** `onControllerCreated` calls `controller.restoreState(bytes)` first
+**And** on success it issues one `reload()` to materialize the restored current entry while preserving the back stack
+**And** if `restoreState` reports failure it falls back to loading `currentUrl` so the view is never left blank
+
+#### Scenario: Android file import is not deferred
+
+**Given** site A on Android is a `file://` import (synthetic, non-fetchable URL) with nav-state bytes queued
+**When** the webview is rebuilt
+**Then** the initial load is NOT suppressed — it keeps rendering its cached `initialData`
+**Because** the post-restore `reload()` would fail with ERR_FILE_NOT_FOUND and a static local page has no meaningful back/forward stack to restore
 
 #### Scenario: Active webspace tier is preserved over stale workspace
 
