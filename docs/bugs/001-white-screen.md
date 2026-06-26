@@ -142,7 +142,8 @@ class is still closed only path-by-path (gap #3).
 
 - Confirm it's the **surface**, not a dead renderer: does the page respond to taps /
   does a rotate or tab-switch instantly fix it? If yes → surface, use the nudge. If a
-  rotate doesn't fix it and JS is dead → renderer (`PAUSE-013/014`).
+  rotate doesn't fix it and JS is dead → renderer death, a different bug:
+  [BUG-002](002-black-screen.md) (`PAUSE-013/014`).
 - Identify the **new entry path**: what navigation/lifecycle event preceded the blank?
   Does it pass through `_setCurrentIndex` (Attempt 3) or `onControllerReady`
   (Attempt 4)? If neither, that path needs `_nudgeSurfaceRepaint`.
