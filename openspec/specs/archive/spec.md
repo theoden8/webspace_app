@@ -58,6 +58,8 @@ another passphrase, or skipped.
 
 Webspaces accumulate over time. Users who keep collections for occasional use — old projects, dormant accounts, research that comes and goes — end up with a cluttered switcher and an ever-growing active footprint. Archiving lets a webspace be set aside until needed and restored with a passphrase. The feature is gated such that the active app state is unaffected when no archives are restored; automated tests assert this invariant so regressions stay easy to bisect and users who never touch the feature see no change in behavior.
 
+**Formal model:** ARCH-001 active-state byte-identity is a 2-safety hyperproperty (it relates a 0-archive run to an N-closed-archive run), so it is model-checked by **self-composition** in [formal/archive.tla](../../../formal/archive.tla) as `ByteIdentity` (the app-tier state never diverges with archive presence); the `Leak` demonstrator folds the archive count into app-tier state and TLC rejects it. Proved for unbounded writes/archives in [formal/proofs/archive_identity.tla](../../../formal/proofs/archive_identity.tla).
+
 ## Problem Statement
 
 The current model assumes every webspace is live:
